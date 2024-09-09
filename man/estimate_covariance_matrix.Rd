@@ -9,7 +9,7 @@ estimate_covariance_matrix(
   returns_upd_ref,
   covariance_matrix_sample_size,
   covariance_estimation_method,
-  groups_m_d_ref,
+  groups_m_d_ref = NULL,
   verbose = TRUE
 )
 }
