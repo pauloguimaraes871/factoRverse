@@ -1,0 +1,43 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# mlfactors
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of mlfactors is to construct portfolios with ML-based and characteristics-based signals
+
+## Installation
+
+You can install the development version of mlfactors from [GitHub](https://github.com/) with:
+      
+``` r
+# install.packages("devtools")
+devtools::install_github("pauloguimaraes871/mlfactors")
+```
+
+## Usage
+
+This is a basic example which shows how to calculate element-wise medians of three matrices.
+
+```{r example}
+library(mlfactors)
+ median_matrix(
+      matrix(c(1,2,3,4), nrow=2, ncol=2),
+      matrix(c(5,6,7,8), nrow=2, ncol=2),
+      matrix(c(1,1,1,1), nrow=2, ncol=2))
+```
+

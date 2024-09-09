@@ -1,0 +1,39 @@
+Package: mlfactors
+Title: Portfolio Construction with ML-Based and Characteristics-Based Signals
+Version: 0.0.0.9000
+Authors@R: 
+	person("Paulo", "Guimarães", , "paulo.guimaraes871@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0009-0002-2719-7731"))
+Description: Functions to create features based on individual firm-level characteristics from external datasets, preprocess data for fitting ML models, and implement ML-based and/or characteristics-based strategies for backtesting under different portfolio construction methods.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Suggests: 
+    foreach,
+    future,
+    readxl,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/testthat/parallel: true
+Config/testthat/start-first: ml_walk_forward_validation
+Imports: 
+    crayon,
+    doFuture,
+    dplyr,
+    furrr,
+    ggplot2,
+    glmnet,
+    janitor,
+    keras,
+    lubridate,
+    magrittr,
+    moments,
+    ParBayesianOptimization,
+    purrr,
+    ranger,
+    rBayesianOptimization,
+    reshape2,
+    stats,
+    stringr,
+    tictoc

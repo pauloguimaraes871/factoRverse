@@ -1,0 +1,36 @@
+#' Row-wise Standard Deviation of a Matrix
+#'
+#' Calculates row-wise Standard Deviation (SD) of a matrix, considering lagged realizations.
+#'
+#' @param main_matrix A matrix of characteristics.
+#'                        
+#' @param complementary_matrix A complementary matrix containing lagged information necessary to calculate SD for first columns in main_matrix.  
+#'                                  The number of columns of this matrix specifies how many previous observations should be considered in the SD calculation.
+#'                                  It determines the width of the rolling windows used for calculating SD.
+#'                                  
+#' @return A numeric matrix of row-wise SD. Non-unique values are ignored in order to limit impact of repeated information, quite common when dealing with accounting information in monthly observations. By default, NAs are ignored.
+#' @export
+#' @examples
+#' # Create a complete matrix with lagged information
+#' main_matrix <- matrix(c(5,3,7,8), nrow = 2, ncol = 2)
+#' complementary_matrix <- matrix(c(1,2,6,4), nrow = 2, ncol = 2) 
+#'                              
+#' # Calculate SUR using a rolling window of 3(1+2 additional columns)
+#' sd_rolling(main_matrix, complementary_matrix)
+sd_rolling <- function(main_matrix, complementary_matrix){
+  if(nrow(main_matrix) != nrow(complementary_matrix)){
+    stop("Main matrix and complementary_matrix should have same number of rows.")
+  }
+  #Size Complmenetary Matrix is the difference in #col by adding older data from lagged matrix
+  sd_matrix <- matrix(NA, nrow = nrow(main_matrix), ncol = ncol(main_matrix)) #sd_matrix will have same dim as main_matrix
+  complete_matrix <- cbind(complementary_matrix, main_matrix) #Join both matrices
+  size_complementary_matrix <- ncol(complementary_matrix) #Size of complementary matrix
+  for(i in 1:(nrow(main_matrix))){
+    for(j in 1:(ncol(main_matrix))){
+
+      past_values <- unlist(complete_matrix[i,j:(j+size_complementary_matrix)]) #consider most recent month 
+      sd_matrix[i,j] <- stats::sd(base::unique(past_values), na.rm = TRUE) #Repetitions represent counting same quarter more than once for accounting data
+    }
+  }
+  return(sd_matrix)
+}
