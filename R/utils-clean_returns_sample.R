@@ -35,7 +35,7 @@ clean_returns_sample <- function(returns_sample, groups_m_d_ref = NULL, fill = T
     #message
     if(verbose){
       cat("\n")
-      cat(paste0("Using ", fill_by, " to fill NAs in returns sample"))
+      cat(paste0("Using ", group, " information to fill NAs in returns sample"))
     }
 
     #Fill NAs (by row) with groups medians or with rows-median

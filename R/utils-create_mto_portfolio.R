@@ -46,8 +46,18 @@ create_mto_portfolio <- function(universe_m_d_ref,
                                  returns_upd_ref, covariance_matrix_sample_size, covariance_estimation_method, #Covariance matrix estimation
                                  liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL, #Constraints
                                  groups_m_d_ref = NULL,
-                                 n_random_portfolios = 2000, rp_method = "sample", mto_port_objective = "IR"
+                                 n_random_portfolios = 2000, rp_method = "sample", mto_port_objective = "IR",
+                                 verbose = TRUE
 ){
+
+  #Message
+  if(verbose){
+    tictoc::tic()
+    cat("\n")
+    cat("Deriving weights through MTO...")
+    cat("\n")
+    cat(paste0("Optimization objective: ", mto_port_objective, "."))
+  }
 
   #Eligible universe
   eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
@@ -63,6 +73,12 @@ create_mto_portfolio <- function(universe_m_d_ref,
 
   ##Box Constraints
   if(!is.null(concentration_constraint_policy)){
+    ###Message
+    if(verbose){
+      cat("\n")
+      cat("Defining box constraints")
+    }
+
     ###Generate box contraints
     eligible_universe_m_d_ref <- generate_box_constraints(universe_m_d_ref = universe_m_d_ref, #Current Stock Universe
                                                           concentration_constraint_policy = concentration_constraint_policy, #Concentration Constraints Policy
@@ -84,6 +100,11 @@ create_mto_portfolio <- function(universe_m_d_ref,
 
   ##Group Constraints
   if(!is.null(concentration_constraint_policy$max_abs_active_group_weight)){
+    ###Message
+    if(verbose){
+      cat("\n")
+      cat("Defining group constraints following: ", colnames(groups_m_d_ref[,-c(1:3)]))
+    }
     ###Generate group constraints
     group_constraints_list <- generate_group_constraints(universe_m_d_ref = universe_m_d_ref, #Current Stock Universe
                                                          concentration_constraint_policy = concentration_constraint_policy, #Concentration Constraints Policy
@@ -102,49 +123,55 @@ create_mto_portfolio <- function(universe_m_d_ref,
 
   #Generate random portfolios
   ###########################
-  random_portfolios_weights <- PortfolioAnalytics::random_portfolios(portfolio = port_spec_constrained,
-                                                                     permutations = n_random_portfolios,
-                                                                     rp_method = rp_method
-  )
+    ##Message
+    if(verbose){
+     cat("\n")
+     cat(paste0("Beginning numerical optimization with ", n_random_portfolios, " portfolios and ", rp_method, " method."))
+    }
+    ##Numeric optimization
+    random_portfolios_weights <- PortfolioAnalytics::random_portfolios(portfolio = port_spec_constrained,
+                                                                       permutations = n_random_portfolios,
+                                                                       rp_method = rp_method
+    )
+    ##Random weights DF
+    random_portfolios_weights_df <- as.data.frame(t(random_portfolios_weights)) %>% tibble::rownames_to_column()
+    colnames(random_portfolios_weights_df)[1] <- "tickers"
 
-  random_portfolios_weights_df <- as.data.frame(t(random_portfolios_weights)) %>% tibble::rownames_to_column()
-  colnames(random_portfolios_weights_df)[1] <- "tickers"
-
-  random_portfolios_weights_df <- dplyr::left_join(dplyr::select(eligible_universe_m_d_ref, c(tickers, final_signal)), #Get eligible stocks
-                                                   random_portfolios_weights_df, #Get weights
-                                                   by = "tickers")
+    random_portfolios_weights_df <- dplyr::left_join(dplyr::select(eligible_universe_m_d_ref, c(tickers, final_signal)), #Get eligible stocks
+                                                     random_portfolios_weights_df, #Get weights
+                                                     by = "tickers")
 
 
   ###########################
 
   #Calculate portfolio metrics
   ####################
-  ##Calculate Portfolios Expected Returns
-  expected_returns <-
-    apply(dplyr::select(random_portfolios_weights_df, c(-tickers, -final_signal)), 2, function(col){ ##Multiply each weights col to final signal
-      sum(col * random_portfolios_weights_df$final_signal) #Calculate active returns
-    })
+    ##Calculate Portfolios Expected Returns
+    expected_returns <-
+      apply(dplyr::select(random_portfolios_weights_df, c(-tickers, -final_signal)), 2, function(col){ ##Multiply each weights col to final signal
+        sum(col * random_portfolios_weights_df$final_signal) #Calculate active returns
+      })
 
-  ##Calculate Portfolio Covariance
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_universe_m_d_ref$tickers, #Eligible universe
-                                                  returns_upd_ref = returns_upd_ref, #Return sample
-                                                  covariance_matrix_sample_size = covariance_matrix_sample_size, covariance_estimation_method = covariance_estimation_method, #Cov estimation
-                                                  groups_m_d_ref = groups_m_d_ref) #Groups
+    ##Calculate Portfolio Covariance
+    covariance_matrix <- estimate_covariance_matrix(tickers = eligible_universe_m_d_ref$tickers, #Eligible universe
+                                                    returns_upd_ref = returns_upd_ref, #Return sample
+                                                    covariance_matrix_sample_size = covariance_matrix_sample_size, covariance_estimation_method = covariance_estimation_method, #Cov estimation
+                                                    groups_m_d_ref = groups_m_d_ref) #Groups
 
-  ##t(w) * Cov * w
-  expected_risk <-
-    apply(dplyr::select(random_portfolios_weights_df, c(-tickers, -final_signal)), 2, function(col){
-      sqrt(t(col) %*% covariance_matrix %*% col) #Calculate tracking error
-    })
+    ##t(w) * Cov * w
+    expected_risk <-
+      apply(dplyr::select(random_portfolios_weights_df, c(-tickers, -final_signal)), 2, function(col){
+        sqrt(t(col) %*% covariance_matrix %*% col) #Calculate tracking error
+      })
 
-  ##Get IR
-  expected_ir <- expected_returns/expected_risk
+    ##Get IR
+    expected_ir <- expected_returns/expected_risk
 
   ####################
 
   #Get best portfolio
   ###################
-  #Which stock maximizes objective?
+  ##Which stock maximizes objective?
   best_portfolio <- names(switch(mto_port_objective,
                                  "IR" = which.max(expected_ir), #Max IR
                                  "AR" = which.max(expected_returns), #Max AR
@@ -159,6 +186,22 @@ create_mto_portfolio <- function(universe_m_d_ref,
 
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+
+  #Message
+  if(verbose){
+    cat("\n")
+    cat(crayon::green(paste("Optimal weights succesfully defined")))
+    cat("\n")
+    cat(paste("Metrics for the portfolio were:"))
+    cat("\n")
+    cat(paste("Expected Active Return:", round(expected_returns[as.numeric(gsub("V", "", best_portfolio))],3)))
+    cat("\n")
+    cat(paste("Expected Tracking Error:", round(expected_risk[as.numeric(gsub("V", "", best_portfolio))],3)))
+    cat("\n")
+    cat(paste("Expected Information Ratio:", round(expected_ir[as.numeric(gsub("V", "", best_portfolio))],3)))
+    cat("\n")
+    elapsed_time <- tictoc::toc()
+  }
 
   #Return
   return(universe_m_d_ref)

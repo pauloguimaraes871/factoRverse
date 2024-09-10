@@ -11,7 +11,15 @@
 #' @export
 #'
 #' @examples
-create_cap_scaled_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap_weighting_metric, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975){
+create_cap_scaled_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap_weighting_metric, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+                                        verbose = TRUE){
+
+  #Message
+  if(verbose){
+    tictoc::tic()
+    cat("\n")
+    cat(paste0("Deriving weights through CS. Using ", cap_weighting_metric, " as cap-weighting metric."))
+  }
 
   #Create cs_weights object
   cs_weights <- universe_m_d_ref %>% select(tickers, is_eligible, final_signal) %>%
@@ -32,6 +40,14 @@ create_cap_scaled_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap
 
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+
+  #Message
+  if(verbose){
+    cat("\n")
+    cat(crayon::green(paste("Cap-scaled weights succesfully defined")))
+    cat("\n")
+    elapsed_time <- tictoc::toc()
+  }
 
   #Return
   return(universe_m_d_ref)

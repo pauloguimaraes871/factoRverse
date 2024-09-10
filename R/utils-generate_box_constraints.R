@@ -28,7 +28,7 @@
 #'
 generate_box_constraints <- function(universe_m_d_ref, liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy){
 
-
+browser()
   #Get initial items
   ####################
     ##Eligible Stock universe
@@ -143,12 +143,12 @@ generate_box_constraints <- function(universe_m_d_ref, liquidity_constraint_poli
   ##Calculate active weights
   ###Max
   eligible_assets_box_constraints_m_d_ref_max_active_weights = (eligible_assets_box_constraints_m_d_ref[grep("_max$", names(eligible_assets_box_constraints_m_d_ref), value = TRUE)] -
-                                                           eligible_assets_box_constraints_m_d_ref$benchmark_weights) %>%
+                                                                eligible_assets_box_constraints_m_d_ref$benchmark_weights) %>%
     apply(1, function(x) max(c(x, 0), na.rm = TRUE)) #Min max_active_weights must be zero
 
   ###Min
   eligible_assets_box_constraints_m_d_ref_min_active_weights = (eligible_assets_box_constraints_m_d_ref[grep("_min$", names(eligible_assets_box_constraints_m_d_ref), value = TRUE)] -
-                                                           eligible_assets_box_constraints_m_d_ref$benchmark_weights) %>%
+                                                                eligible_assets_box_constraints_m_d_ref$benchmark_weights) %>%
     apply(1, function(x) min(c(x, 0), na.rm = TRUE)) #Max min_active_weights must be zero
 
   ###Create wiggle room if max_weight = min_weight

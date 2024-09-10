@@ -403,6 +403,66 @@ test_that("set portfolio weights works for stocks (all formats) ", {
   expect_equal(results, expected_results)
 
   #Test MTO Unconstrained
+  expected_results <- stock_universe_m_d_ref
+  daily_active_returns_upd_ref <- daily_returns_df[which(daily_returns_df$dates <= current_date),]
+  adapted_tickers <- c("Stock_A", "Stock_C", "Stock_D", "Stock_E")
+  stocks_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
+  stocks_groups_m_d_ref_adapted$tickers <- adapted_tickers
+
+  stock_universe_m_d_ref_adapted <- stock_universe_m_d_ref
+  stock_universe_m_d_ref_adapted$tickers <- adapted_tickers
+
+  covariance_matrix <- estimate_covariance_matrix(tickers = adapted_tickers, returns_upd_ref = daily_active_returns_upd_ref,
+                                                  covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
+                                                  groups_m_d_ref = stocks_groups_m_d_ref_adapted
+  )
+
+  #Portfolio
+  port_spec <- PortfolioAnalytics::portfolio.spec(assets = adapted_tickers)
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "full_investment")
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "box")
+
+  set.seed(123)
+  rp_weights <- PortfolioAnalytics::random_portfolios(portfolio = port_spec_constrained,
+                                                      permutations = 2000,
+                                                      rp_method = "sample")
+
+  #Best Portfolio for IR
+  expected_results$weights <- c(0.588,0,0.166,0.2460) #Calculated manually
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, portfolio_construction_method = "MTO",
+                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
+                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method
+  )
+  results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
+  expect_equal(results, expected_results)
+
+  #Best Portfolio for Return
+  expected_results$weights <- c(0.944,0.02,0.012,0.024) #Calculated manually
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, portfolio_construction_method = "MTO",
+                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
+                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
+                                   mto_port_objective = "AR"
+  )
+  results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
+  expect_equal(results, expected_results)
+
+  #Best Portfolio for Risk
+  expected_results$weights <- c(0.340,0.072,0.256,0.332) #Calculated manually
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, portfolio_construction_method = "MTO",
+                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
+                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
+                                   mto_port_objective = "TE"
+  )
+  results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
+  expect_equal(results, expected_results)
+
+
 
 
 })

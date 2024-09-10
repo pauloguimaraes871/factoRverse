@@ -13,7 +13,16 @@
 #' @export
 #'
 #' @examples
-create_risk_parity_portfolio <- function(universe_m_d_ref, returns_upd_ref, covariance_matrix_sample_size, covariance_estimation_method, groups_m_d_ref){
+create_risk_parity_portfolio <- function(universe_m_d_ref, returns_upd_ref, covariance_matrix_sample_size, covariance_estimation_method, groups_m_d_ref,
+                                         verbose = TRUE){
+
+  #Message
+  if(verbose){
+    tictoc::tic()
+    cat("\n")
+    cat("Deriving weights through RP...")
+  }
+
   #Assign eligible_universe_m_d_ref
   eligible_universe_m_d_ref <- universe_m_d_ref
 
@@ -34,6 +43,15 @@ create_risk_parity_portfolio <- function(universe_m_d_ref, returns_upd_ref, cova
 
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+
+  #Message
+  if(verbose){
+    cat("\n")
+    cat(crayon::green(paste("Risk Parity weights succesfully defined")))
+    cat("\n")
+    elapsed_time <- tictoc::toc()
+  }
+
 
   #Return
   return(universe_m_d_ref)

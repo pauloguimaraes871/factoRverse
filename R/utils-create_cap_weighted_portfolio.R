@@ -11,7 +11,16 @@
 #' @export
 #'
 #' @examples
-create_cap_weighted_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap_weighting_metric, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975){
+create_cap_weighted_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap_weighting_metric, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+                                          verbose = TRUE){
+
+  #Message
+  if(verbose){
+    tictoc::tic()
+    cat("\n")
+    cat(paste0("Deriving weights through CW. Using ", cap_weighting_metric, " as cap-weighting metric."))
+  }
+
 
   #Create cw_weights object
   cw_weights <- universe_m_d_ref %>% select(tickers, is_eligible) %>%
@@ -32,6 +41,15 @@ create_cap_weighted_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, c
 
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+
+
+  #Message
+  if(verbose){
+    cat("\n")
+    cat(crayon::green(paste("Cap weights succesfully defined")))
+    cat("\n")
+    elapsed_time <- tictoc::toc()
+  }
 
   #Return
   return(universe_m_d_ref)

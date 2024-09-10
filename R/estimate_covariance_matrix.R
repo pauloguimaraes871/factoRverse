@@ -28,6 +28,12 @@ estimate_covariance_matrix <- function(tickers, returns_upd_ref,
     stop("covariance_estimation_method not supported")
   }
 
+  #Message
+  if(verbose){
+    tictoc::tic()
+    cat("\n")
+    cat("Starting covariance estimation...")
+  }
   #Generate return sample
   ###############################
 
@@ -111,6 +117,8 @@ estimate_covariance_matrix <- function(tickers, returns_upd_ref,
   if(verbose){
     cat("\n")
     cat(crayon::green(paste("Covariance matrix estimated using", covariance_estimation_method, "method.")))
+    cat("\n")
+    elapsed_time <- tictoc::toc()
   }
 
   #Return

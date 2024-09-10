@@ -7,7 +7,15 @@
 #' @export
 #'
 #' @examples
-create_equal_weighted_portfolio <- function(universe_m_d_ref){
+create_equal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
+
+  #Message
+  if(verbose){
+    tictoc::tic()
+    cat("\n")
+    cat("Deriving weights through EW")
+  }
+
 
   #Calculate Equal-Weights
   ew_weights <- universe_m_d_ref %>% dplyr::select(tickers, is_eligible) %>% #Select only two colums
@@ -20,6 +28,14 @@ create_equal_weighted_portfolio <- function(universe_m_d_ref){
 
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+
+  #Message
+  if(verbose){
+    cat("\n")
+    cat(crayon::green(paste("Equal-weights succesfully defined")))
+    cat("\n")
+    elapsed_time <- tictoc::toc()
+  }
 
   #Return
   return(universe_m_d_ref)
