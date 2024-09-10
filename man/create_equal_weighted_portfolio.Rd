@@ -4,7 +4,7 @@
 \alias{create_equal_weighted_portfolio}
 \title{Create a equal_weighted portfolio for signals or stocks}
 \usage{
-create_equal_weighted_portfolio(universe_m_d_ref)
+create_equal_weighted_portfolio(universe_m_d_ref, verbose = TRUE)
 }
 \arguments{
 \item{universe_m_d_ref}{A dataframe with identifiers (tickers or signal column), is_eligible and a weighting column as defined by signal_weighting metric.

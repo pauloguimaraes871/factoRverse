@@ -9,7 +9,8 @@ create_cap_weighted_portfolio(
   liquidity_m_d_ref,
   cap_weighting_metric,
   lower_quantile_winsorization = 0.025,
-  upper_quantile_winsorization = 0.975
+  upper_quantile_winsorization = 0.975,
+  verbose = TRUE
 )
 }
 \arguments{

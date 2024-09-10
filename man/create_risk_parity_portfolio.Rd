@@ -9,7 +9,8 @@ create_risk_parity_portfolio(
   returns_upd_ref,
   covariance_matrix_sample_size,
   covariance_estimation_method,
-  groups_m_d_ref
+  groups_m_d_ref,
+  verbose = TRUE
 )
 }
 \arguments{

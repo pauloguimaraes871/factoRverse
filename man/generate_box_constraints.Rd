@@ -8,7 +8,8 @@ generate_box_constraints(
   universe_m_d_ref,
   liquidity_constraint_policy = NULL,
   turnover_constraint_policy = NULL,
-  concentration_constraint_policy
+  concentration_constraint_policy,
+  verbose = TRUE
 )
 }
 \arguments{

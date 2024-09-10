@@ -15,7 +15,8 @@ create_mto_portfolio(
   groups_m_d_ref = NULL,
   n_random_portfolios = 2000,
   rp_method = "sample",
-  mto_port_objective = "IR"
+  mto_port_objective = "IR",
+  verbose = TRUE
 )
 }
 \arguments{

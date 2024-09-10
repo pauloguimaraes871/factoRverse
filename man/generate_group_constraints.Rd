@@ -7,7 +7,8 @@
 generate_group_constraints(
   universe_m_d_ref,
   concentration_constraint_policy,
-  groups_m_d_ref
+  groups_m_d_ref,
+  verbose = TRUE
 )
 }
 \arguments{

@@ -17,7 +17,8 @@
 #' @return
 #' @export
 #'
-generate_group_constraints <- function(universe_m_d_ref, concentration_constraint_policy, groups_m_d_ref){
+generate_group_constraints <- function(universe_m_d_ref, concentration_constraint_policy, groups_m_d_ref,
+                                       verbose = TRUE){
 
   #Generate benchmark_group_weights
   ###################################
@@ -28,10 +29,15 @@ generate_group_constraints <- function(universe_m_d_ref, concentration_constrain
 
   #Check
   if(is.null(groups_m_d_ref)){
-    stop("groups_m_d_ref must be different from NULL in order to impelement group constraints")
+    stop("groups_m_d_ref must be different from NULL in order to implement group constraints")
   }
 
   for(i in 1:length(groups)){
+    ##Message
+    if(verbose){
+      cat("\n")
+      cat(paste("Creating group constraints for", groups[i], "group classification."))
+    }
     ##Get original group_vector
     current_group_m_d_ref <- groups_m_d_ref[, c("tickers", groups[i])]
 

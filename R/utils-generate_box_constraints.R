@@ -26,9 +26,9 @@
 #' @return
 #' @export
 #'
-generate_box_constraints <- function(universe_m_d_ref, liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy){
+generate_box_constraints <- function(universe_m_d_ref, liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy,
+                                     verbose = TRUE){
 
-browser()
   #Get initial items
   ####################
     ##Eligible Stock universe
@@ -72,7 +72,7 @@ browser()
 
   ##Min weights
   eligible_assets_box_constraints_m_d_ref$active_weights_constraint_min <-
-    max(eligible_assets_box_constraints_m_d_ref$benchmark_weights - concentration_constraint_policy$max_abs_active_individual_weight, 0) #Benchmark - max_abs
+    pmax(eligible_assets_box_constraints_m_d_ref$benchmark_weights - concentration_constraint_policy$max_abs_active_individual_weight, 0) #Benchmark - max_abs
 
   ###############################
 
@@ -83,12 +83,7 @@ browser()
     liquidity_caps_position <- grep("liquidity_cap_rule", names(liquidity_constraint_policy))
     for(l in liquidity_caps_position){
       ##Set which stocks are subject to the liquidity_cap
-      stocks_subject_to_liquidity_cap <- switch(liquidity_constraint_policy[[l]]$liquidity_classification,
-                                                micro_caps = c("micro_caps"),
-                                                small_caps = c("micro_caps", "small_caps"),
-                                                mid_caps = c("micro_caps", "small_caps", "mid_caps"),
-                                                large_caps = c("micro_caps", "small_caps", "mid_caps", "large_caps"),
-                                                mega_caps = c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps"))
+      stocks_subject_to_liquidity_cap <- liquidity_constraint_policy[[l]]$liquidity_classification
 
       ##Max weights
       liquidity_constraint_max <- eligible_assets_box_constraints_m_d_ref %>%
@@ -108,12 +103,7 @@ browser()
   if(!is.null(turnover_constraint_policy)){
     for(l in 1:length(turnover_constraint_policy)){
       ##Set which stocks are subject to the turnover_constraint_policy
-      stocks_subject_to_buffer_rule <- switch(turnover_constraint_policy[[l]]$liquidity_classification,
-                                              micro_caps = c("micro_caps"),
-                                              small_caps = c("micro_caps", "small_caps"),
-                                              mid_caps = c("micro_caps", "small_caps", "mid_caps"),
-                                              large_caps = c("micro_caps", "small_caps", "mid_caps", "large_caps"),
-                                              mega_caps = c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps"))
+      stocks_subject_to_buffer_rule <- turnover_constraint_policy[[l]]$liquidity_classification
 
       ##Max weights
       turnover_constraint_max <- eligible_assets_box_constraints_m_d_ref %>%
@@ -144,17 +134,27 @@ browser()
   ###Max
   eligible_assets_box_constraints_m_d_ref_max_active_weights = (eligible_assets_box_constraints_m_d_ref[grep("_max$", names(eligible_assets_box_constraints_m_d_ref), value = TRUE)] -
                                                                 eligible_assets_box_constraints_m_d_ref$benchmark_weights) %>%
-    apply(1, function(x) max(c(x, 0), na.rm = TRUE)) #Min max_active_weights must be zero
+    apply(1, function(x) max(min(x, na.rm = TRUE), 0, na.rm = TRUE)) #Min max_active_weights must be zero
 
   ###Min
   eligible_assets_box_constraints_m_d_ref_min_active_weights = (eligible_assets_box_constraints_m_d_ref[grep("_min$", names(eligible_assets_box_constraints_m_d_ref), value = TRUE)] -
                                                                 eligible_assets_box_constraints_m_d_ref$benchmark_weights) %>%
-    apply(1, function(x) min(c(x, 0), na.rm = TRUE)) #Max min_active_weights must be zero
+    apply(1, function(x) min(max(x, na.rm = TRUE), 0, na.rm = TRUE)) #Max min_active_weights must be zero
 
   ###Create wiggle room if max_weight = min_weight
+  #Check if there are equalities
   max_active_weight_equal_min_active_weight <- which(eligible_assets_box_constraints_m_d_ref_max_active_weights <= 0.002 & eligible_assets_box_constraints_m_d_ref_min_active_weights >= -0.002)
-  eligible_assets_box_constraints_m_d_ref_max_active_weights[max_active_weight_equal_min_active_weight] <- eligible_assets_box_constraints_m_d_ref_max_active_weights + 0.002
-  eligible_assets_box_constraints_m_d_ref_min_active_weights[max_active_weight_equal_min_active_weight] <- eligible_assets_box_constraints_m_d_ref_min_active_weights - 0.002
+    ###Create wiggle
+    if(length(max_active_weight_equal_min_active_weight) != 0){
+      ####Message
+      if(verbose){
+        cat("\n")
+        cat(crayon::yellow(paste("Application of box constraints introduced equalities between max and min constraints. Creating wiggle room to prevent problems during optimization.")))
+      }
+    ###Set wiggle
+    eligible_assets_box_constraints_m_d_ref_max_active_weights[max_active_weight_equal_min_active_weight] <- eligible_assets_box_constraints_m_d_ref_max_active_weights[max_active_weight_equal_min_active_weight] + 0.002
+    eligible_assets_box_constraints_m_d_ref_min_active_weights[max_active_weight_equal_min_active_weight] <- eligible_assets_box_constraints_m_d_ref_min_active_weights[max_active_weight_equal_min_active_weight] - 0.002
+    }
 
   #Set weights
   eligible_assets_box_constraints_m_d_ref$max_weight <- eligible_assets_box_constraints_m_d_ref$benchmark_weights + eligible_assets_box_constraints_m_d_ref_max_active_weights #Set max weights
