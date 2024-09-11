@@ -33,11 +33,6 @@ generate_group_constraints <- function(universe_m_d_ref, concentration_constrain
   }
 
   for(i in 1:length(groups)){
-    ##Message
-    if(verbose){
-      cat("\n")
-      cat(paste("Creating group constraints for", groups[i], "group classification."))
-    }
     ##Get original group_vector
     current_group_m_d_ref <- groups_m_d_ref[, c("tickers", groups[i])]
 

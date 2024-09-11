@@ -462,10 +462,114 @@ test_that("set portfolio weights works for stocks (all formats) ", {
   results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
   expect_equal(results, expected_results)
 
+  #Test MTO Constrained
+  expected_results <- stock_universe_m_d_ref
+  daily_active_returns_upd_ref <- daily_returns_df[which(daily_returns_df$dates <= current_date),]
+  adapted_tickers <- c("Stock_A", "Stock_C", "Stock_D", "Stock_E")
+  stocks_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
+  stocks_groups_m_d_ref_adapted$tickers <- adapted_tickers
 
+  stock_universe_m_d_ref_adapted <- stock_universe_m_d_ref
+  stock_universe_m_d_ref_adapted$tickers <- adapted_tickers
 
+  covariance_matrix <- estimate_covariance_matrix(tickers = adapted_tickers, returns_upd_ref = daily_active_returns_upd_ref,
+                                                  covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
+                                                  groups_m_d_ref = stocks_groups_m_d_ref_adapted
+  )
 
-})
+  #Portfolio
+  port_spec <- PortfolioAnalytics::portfolio.spec(assets = stock_universe_m_d_ref$tickers)
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "full_investment")
+  #Box constraints
+  eligible_universe_m_d_ref <- generate_box_constraints(universe_m_d_ref = stock_universe_m_d_ref,
+                                                        liquidity_constraint_policy = liquidity_constraint_policy,
+                                                        turnover_constraint_policy = turnover_constraint_policy,
+                                                        concentration_constraint_policy = concentration_constraint_policy)
+
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(type = "box", portfolio = port_spec_constrained,
+                                                              min = eligible_universe_m_d_ref$min_weight,
+                                                              max = eligible_universe_m_d_ref$max_weight)
+  #Group constraints
+  group_constraints_helper <- generate_group_constraints(universe_m_d_ref = stock_universe_m_d_ref, concentration_constraint_policy = concentration_constraint_policy,
+                                                         groups_m_d_ref = stocks_groups_m_d_ref)
+
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec_constrained,
+                                                              type = "group",
+                                                              groups = group_constraints_helper$eligible_assets_group_membership_list,
+                                                              group_min = group_constraints_helper$group_constraint_min,
+                                                              group_max = group_constraints_helper$group_constraint_max
+  )
+  expected_results$max_weight <- eligible_universe_m_d_ref$max_weight
+  expected_results$min_weight <- eligible_universe_m_d_ref$min_weight
+
+  #Generate random ports
+  set.seed(123)
+  rp_weights <- PortfolioAnalytics::random_portfolios(portfolio = port_spec_constrained,
+                                                      permutations = 2000,
+                                                      rp_method = "sample")
+
+  #Best Portfolio for IR
+  expected_results$weights <- c(0.445,0.159,0.131,0.265) #Calculated manually
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, portfolio_construction_method = "MTO",
+                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
+                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
+                                   liquidity_constraint_policy = liquidity_constraint_policy,
+                                   turnover_constraint_policy = turnover_constraint_policy,
+                                   concentration_constraint_policy = concentration_constraint_policy
+  )
+
+  results$tickers <- expected_results$tickers
+  expect_equal(results, expected_results)
+
+  #Check that constraints match expectations
+  #Upper box
+  expect_true(all(
+    all(rp_weights[,1] <= eligible_universe_m_d_ref$max_weight[1]),
+    all(rp_weights[,2] <= eligible_universe_m_d_ref$max_weight[2]),
+    all(rp_weights[,3] <= eligible_universe_m_d_ref$max_weight[3]),
+    all(rp_weights[,4] <= eligible_universe_m_d_ref$max_weight[4])))
+
+  #Lower box
+  expect_true(all(
+    all(rp_weights[,1] >= eligible_universe_m_d_ref$min_weight[1]),
+    all(rp_weights[,2] >= eligible_universe_m_d_ref$min_weight[2]),
+    all(rp_weights[,3] >= eligible_universe_m_d_ref$min_weight[3]),
+    all(rp_weights[,4] >= eligible_universe_m_d_ref$min_weight[4])))
+
+  #Group
+  sector_cyclical <- rp_weights[,3] + rp_weights[,4]
+  sector_financial <- rp_weights[,2]
+  sector_oil <- rp_weights[,1]
+  subsector_education <- rp_weights[,4]
+  subsector_insurance <- rp_weights[,2]
+  subsector_oil <- rp_weights[,1]
+  subsector_retail <- rp_weights[,3]
+
+  #Lower Group
+  expect_true(all(
+    all(sector_cyclical >= group_constraints_helper$group_constraint_min[1]),
+    all(sector_financial >= group_constraints_helper$group_constraint_min[2]),
+    all(sector_oil >= group_constraints_helper$group_constraint_min[3]),
+    all(subsector_education >= group_constraints_helper$group_constraint_min[4]),
+    all(subsector_insurance >= group_constraints_helper$group_constraint_min[5]),
+    all(subsector_oil >= group_constraints_helper$group_constraint_min[6]),
+    all(subsector_retail >= group_constraints_helper$group_constraint_min[7])
+  ))
+
+  #Upper group
+  expect_true(all(
+    all(sector_cyclical <= group_constraints_helper$group_constraint_max[1]),
+    all(sector_financial <= group_constraints_helper$group_constraint_max[2]),
+    all(sector_oil <= group_constraints_helper$group_constraint_max[3]),
+    all(subsector_education <= group_constraints_helper$group_constraint_max[4]),
+    all(subsector_insurance <= group_constraints_helper$group_constraint_max[5]),
+    all(subsector_oil <= group_constraints_helper$group_constraint_max[6]),
+    all(subsector_retail <= group_constraints_helper$group_constraint_max[7])
+  ))
+
+  })
 
 
 

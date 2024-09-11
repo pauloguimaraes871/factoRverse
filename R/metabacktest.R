@@ -76,7 +76,15 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
           portfolio_weights_m_df$portfolio_weights <- 0
 
         #Create object to store portfolio returns
-          portfolio_returns_df <- data.frame(dates = dates_return_calculation, raw_return = NA, net_return = NA, turnover = NA, total_cost = NA, net_active_return = NA)
+          portfolio_returns_df <- data.frame(dates = dates_return_calculation,
+                                             raw_return = NA, raw_active_return = NA, net_return = NA, net_active_return = NA,
+                                             direct_cost = NA, market_impact_cost = NA, total_cost = NA, turnover = NA,
+                                             placeholder = NA  # Temporary placeholder
+          )
+
+          # Rename the last column dynamically
+          names(portfolio_returns_df)[names(portfolio_returns_df) == "placeholder"] <- concentration_constraint_policy$benchmark
+
 
     ###Main liquidity metric
           main_liquidity_metric <- ifelse(is.null(main_liquidity_metric), "mean_volfin_3m", main_liquidity_metric)
@@ -198,14 +206,8 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
       ###portfolio_weights_m_d_ref
       portfolio_weights_m_d_ref <- portfolio_weights_m_df[d_ref, ]
       ###Set updated weights calculated with future returns from last period
-      tickers_from_last_port <- updated_portfolio_weights_m_d_ref$tickers
-      portfolio_weights_m_d_ref[which(portfolio_weights_m_d_ref$tickers %in% tickers_from_last_port), "portfolio_weights"] <- updated_portfolio_weights_m_d_ref$portfolio_weights
-
-      ###portfolio_weights_m_lstd_ref
       if(d > 1){
-        last_date <- dates_m_vector[d-1]
-        last_d_ref <- which(as.Date(signals_m_df$dates,  format = "%Y-%m-%d") == last_date) #What references correspond to this date?
-        portfolio_weights_m_lstd_ref <- portfolio_weights_m_df[last_d_ref, ]
+        portfolio_weights_m_lstd_ref <- updated_portfolio_weights #Sets updated weights from old portfolio
       } else {
         #If portfolio_weights_m_lstd_ref is pre-backtest
         portfolio_weights_m_lstd_ref <- portfolio_weights_m_d_ref
@@ -213,7 +215,8 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
         portfolio_weights_m_lstd_ref$weights <- 0
         portfolio_weights_m_lstd_ref$id <- paste0(portfolio_weights_m_lstd_ref$tickers, "-", "pre-backtest")
       }
-      colnames(portfolio_weights_m_lstd_ref)[4] <- "old_portfolio_weights" #rename
+        #Rename
+        colnames(portfolio_weights_m_lstd_ref)[4] <- "old_portfolio_weights" #rename
 
         ##Check if it's a rebalancing month
         if(is_rebalancing_month){
@@ -347,6 +350,12 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
             cap_weighting_metric = main_liquidity_metric,
             #Set concentration constraint policy for stocks
             concentration_constraint_policy = concentration_constraint_policy,
+            #Set turnover constraint policy for stocks
+            turnover_constraint_policy = turnover_constraint_policy,
+            #Set liquidity constraint policy for stocks
+            liquidity_constraint_policy = liquidity_constraint_policy,
+            #Liquidity Obj
+            liquidity_m_d_ref = liquidity_m_d_ref,
             #Winsorization
             lower_quantile_winsorization = lower_quantile_winsorization, #Quantiles for winsorization
             upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
@@ -440,35 +449,28 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
               stock_universe_m_d_ref = stock_universe_m_d_ref,
               #Returns to calculate portfolio returns
               target_m_d_ref = target_m_d_ref,
-              #Portfolio returns df
-              portfolio_returns_df = portfolio_returns_df,
-              #Portfolio weights object
-              portfolio_weights_m_d_ref = portfolio_weights_m_d_ref,
-              #Old Portfolio weights
-              portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref,
+              #Returns DF
+              portfolio_returns_df = portfolio_returns_df, selected_benchmark_returns_df = selected_benchmark_returns_df,
+              #Portfolio weights objects
+              portfolio_weights_m_d_ref = portfolio_weights_m_d_ref, portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref,
               #Transaction cost calculation
-              ##Liquidity data
-              liquidity_m_d_ref = liquidity_m_d_ref,
-              ##Daily vol data
-              volatility_m_d_ref = volatility_m_d_ref,
-              ##Transaction cost info
-              transaction_costs_list = NULL
+                ##Liquidity data
+                liquidity_m_d_ref = liquidity_m_d_ref, main_liquidity_metric = main_liquidity_metric,
+                ##Daily vol data
+                volatility_m_d_ref = volatility_m_d_ref,
+                ##Transaction cost info
+                transaction_costs_list = transaction_costs_list
             )
 
-          #Fill portfolio_weights_m_df
-            ##For rebalancing months, update portfolio weight to include new rebalanced weights and get rebalancing obj
-            if(is_rebalancing_month){
-              ###Rebalancing weights
-              portfolio_weights_m_df[d_ref, "portfolio_weights"] <- portfolio_returns_results_list$portfolio_weights_m_d_ref$portfolio_weights
-              ###Rebalancing DF
-              rebalancing_m_df_list[[rebalance_date_ref]] <- portfolio_returns_results_list$rebalancing_m_d_ref
-            }
-
-            ##Updated Port weights
-            updated_portfolio_weights_m_d_ref <- portfolio_returns_results_list$updated_portfolio_weights_m_d_ref #Updated weights
+          #Fill
+            ###Portfolio weights
+            portfolio_weights_m_df[d_ref, "portfolio_weights"] <- portfolio_returns_results_list$portfolio_weights_m_d_ref$portfolio_weights
+            ###Updated Port weights (current portfolio with weights updated to next period)
+            updated_portfolio_weights <- portfolio_returns_results_list$updated_portfolio_weights #Updated weights
             ##Portfolio Returns
             portfolio_returns_df <- portfolio_returns_results_list$portfolio_returns_df
-
+            ###Transactions
+            transactions_m_df_list[[d]] <- portfolio_returns_results_list$transactions_m_d_ref
 
     } #End of backtest
 
@@ -498,7 +500,7 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
         results_list$signal_universe_m_df_list <- signal_universe_m_df_list
 
         ##Rebalancing List
-        results_list$rebalancing_m_df_list <- rebalancing_m_df_list
+        results_list$transactions_m_df_list <- transactions_m_df_list
 
         ##Bayesian Fit list
         results_list$bayesian_fit_list <- ifelse(!is.null(signal_results_list$bayesian_fit_list), signal_results_list$bayesian_fit_list, NULL)
@@ -546,20 +548,20 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
               results_list$validation_eval_metrics_hyper_choice <- validation_eval_metrics_hyper_choice
 
               #####Fill names for ML Algo =! OLS
-              names(result_list) <- c("stock_universe_list", "signal_universe_list", "rebalancing_list", "bayesian_fit",
+              names(result_list) <- c("stock_universe_list", "signal_universe_list", "transaction_list", "bayesian_fit",
                 "portfolio_weights", "portfolio_returns","signal_blend", "oos_prediction_list",
                 "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
                 "chosen_eval_metric_validation","best_hyperparameters", "validation_eval_metrics_hyper_choice") #ML Specific
 
             } else {
               #####Fill names for ML Algo = OLS
-              names(result_list) <- c("stock_universe_list", "signal_universe_list", "rebalancing_list", "bayesian_fit",
+              names(result_list) <- c("stock_universe_list", "signal_universe_list", "transaction_list", "bayesian_fit",
                 "portfolio_weights", "portfolio_returns","signal_blend", "oos_prediction_list",
                 "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
             }
 
             #####Fill names for other Signal Blending Method != ML
-            names(result_list) <- c("stock_universe_list", "signal_universe_list", "rebalancing_list", "bayesian_fit",
+            names(result_list) <- c("stock_universe_list", "signal_universe_list", "transaction_list", "bayesian_fit",
                                     "portfolio_weights", "portfolio_returns", "signal_blend")
           }
 

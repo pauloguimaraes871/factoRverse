@@ -53,10 +53,11 @@ apply_buffer_rule <- function(signals_m_d_ref, top_assets_quantile_buffer,  port
   buffer_rule_m_d_ref <- dplyr::left_join(buffer_rule_m_d_ref, portfolio_weights_m_lstd_ref, by = "tickers") %>% #Get old weights
     dplyr::select(tickers, is_in_top_quantile_buffer, old_portfolio_weights) #Select only those info
 
+  ##Replace NAs (new stocks) for 0
+  buffer_rule_m_d_ref$old_portfolio_weights[which(is.na(buffer_rule_m_d_ref$old_portfolio_weights))] <- 0
+
   #Create column
   buffer_rule_m_d_ref$was_in_old_portfolio <- ifelse(buffer_rule_m_d_ref$old_portfolio_weights > 0, 1L, 0L)
-  ##Replace NAs (new stocks) for 0
-  buffer_rule_m_d_ref$was_in_old_portfolio[which(is.na(buffer_rule_m_d_ref$was_in_old_portfolio))] <- 0
 
   #################
 
