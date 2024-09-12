@@ -28,7 +28,7 @@ test_that("calculate port returns works for rebalancing and no rebalancing, cons
   stocks_groups_m_d_ref <- groups_m_df_list$stocks[which(groups_m_df_list$stocks$dates == current_date),]
   liquidity_m_d_ref <- liquidity_m_df[which(liquidity_m_df$dates == current_date),]
   volatility_m_d_ref <- volatility_m_df[which(volatility_m_df$dates == current_date),]
-  target_m_d_ref <- target_m_df[which(target_m_df$dates == current_date),]
+  fwd_returns_m_d_ref <- target_m_df[which(target_m_df$dates == current_date),]
   benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
   portfolio_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
   portfolio_weights_m_lstd_ref$old_portfolio_weights <- c(0.20, 0.20, 0.20, 0.20, 0.20)
@@ -71,7 +71,7 @@ test_that("calculate port returns works for rebalancing and no rebalancing, cons
   #Set transaction df
   portfolio_weights_m_d_ref <- stock_universe_m_d_ref %>% dplyr::select(id, tickers, dates, weights)
   colnames(portfolio_weights_m_d_ref)[4] <- "portfolio_weights"
-  transactions_m_d_ref <- portfolio_weights_m_d_ref %>% dplyr::left_join(dplyr::select(target_m_d_ref, tickers, fwd_return_1m), by = "tickers") %>%
+  transactions_m_d_ref <- portfolio_weights_m_d_ref %>% dplyr::left_join(dplyr::select(fwd_returns_m_d_ref, tickers, fwd_return_1m), by = "tickers") %>%
     dplyr::left_join(dplyr::select(liquidity_m_d_ref, -id, -dates), by = "tickers") %>%
     dplyr::left_join(dplyr::select(volatility_m_d_ref, -id, -dates), by = "tickers") %>%
     dplyr::full_join(dplyr::select(portfolio_weights_m_lstd_ref, tickers, old_portfolio_weights), by = "tickers")
@@ -109,7 +109,7 @@ test_that("calculate port returns works for rebalancing and no rebalancing, cons
 
   #update port
   updated_portfolio_weights <- portfolio_weights_m_d_ref
-  updated_portfolio_weights$portfolio_weights <- (portfolio_weights_m_d_ref$portfolio_weights * (1+target_m_d_ref$fwd_return_1m/100))
+  updated_portfolio_weights$portfolio_weights <- (portfolio_weights_m_d_ref$portfolio_weights * (1+fwd_returns_m_d_ref$fwd_return_1m/100))
   updated_portfolio_weights$portfolio_weights <- updated_portfolio_weights$portfolio_weights/sum(updated_portfolio_weights$portfolio_weights)
 
   #expected (validated in excel)
@@ -132,7 +132,7 @@ test_that("calculate port returns works for rebalancing and no rebalancing, cons
   results <- calculate_portfolio_returns(current_date = current_date,
                                          is_rebalancing_month = TRUE,
                                          stock_universe_m_d_ref = stock_universe_m_d_ref,
-                                         target_m_d_ref = target_m_d_ref,
+                                         fwd_returns_m_d_ref = fwd_returns_m_d_ref,
                                          portfolio_weights_m_d_ref = portfolio_weights_m_d_ref,
                                          portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref,
                                          portfolio_returns_df = portfolio_returns_df,
@@ -154,7 +154,7 @@ test_that("calculate port returns works for rebalancing and no rebalancing, cons
   #Get info
   liquidity_m_d_ref <- liquidity_m_df[which(liquidity_m_df$dates == current_date),]
   volatility_m_d_ref <- volatility_m_df[which(volatility_m_df$dates == current_date),]
-  target_m_d_ref <- target_m_df[which(target_m_df$dates == current_date),]
+  fwd_returns_m_d_ref <- target_m_df[which(target_m_df$dates == current_date),]
   benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
 
   #Get weights
@@ -163,7 +163,7 @@ test_that("calculate port returns works for rebalancing and no rebalancing, cons
   portfolio_weights_m_d_ref$portfolio_weights <-  portfolio_weights_m_d_ref$portfolio_weights/sum(portfolio_weights_m_d_ref$portfolio_weights) #rescale
 
   #Transaction costs df
-  transactions_m_d_ref <- portfolio_weights_m_d_ref %>% dplyr::left_join(dplyr::select(target_m_d_ref, tickers, fwd_return_1m), by = "tickers") %>%
+  transactions_m_d_ref <- portfolio_weights_m_d_ref %>% dplyr::left_join(dplyr::select(fwd_returns_m_d_ref, tickers, fwd_return_1m), by = "tickers") %>%
     dplyr::left_join(dplyr::select(liquidity_m_d_ref, -id, -dates), by = "tickers") %>%
     dplyr::left_join(dplyr::select(volatility_m_d_ref, -id, -dates), by = "tickers") %>%
     dplyr::full_join(dplyr::select(portfolio_weights_m_lstd_ref, tickers, old_portfolio_weights), by = "tickers")
@@ -204,7 +204,7 @@ test_that("calculate port returns works for rebalancing and no rebalancing, cons
 
   #update port
   updated_portfolio_weights <- portfolio_weights_m_d_ref
-  updated_portfolio_weights$portfolio_weights <- (portfolio_weights_m_d_ref$portfolio_weights * (1+target_m_d_ref$fwd_return_1m/100))
+  updated_portfolio_weights$portfolio_weights <- (portfolio_weights_m_d_ref$portfolio_weights * (1+fwd_returns_m_d_ref$fwd_return_1m/100))
   updated_portfolio_weights$portfolio_weights <- updated_portfolio_weights$portfolio_weights/sum(updated_portfolio_weights$portfolio_weights)
 
   #expected (validated in excel)
@@ -222,7 +222,7 @@ test_that("calculate port returns works for rebalancing and no rebalancing, cons
   results <- calculate_portfolio_returns(current_date = current_date,
                                          is_rebalancing_month = FALSE,
                                          stock_universe_m_d_ref = stock_universe_m_d_ref,
-                                         target_m_d_ref = target_m_d_ref,
+                                         fwd_returns_m_d_ref = fwd_returns_m_d_ref,
                                          portfolio_weights_m_d_ref = portfolio_weights_m_d_ref,
                                          portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref,
                                          portfolio_returns_df = portfolio_returns_df,

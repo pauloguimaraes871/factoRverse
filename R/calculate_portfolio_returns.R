@@ -5,7 +5,7 @@
 #' @param current_date A Date object representing the current date.
 #' @param is_rebalancing_month A logical indicating whether the current month is a rebalancing month.
 #' @param stock_universe_m_d_ref A data frame containing stock universe data with columns for tickers and current weights.
-#' @param target_m_d_ref A data frame containing target stock data with columns for tickers and forward returns.
+#' @param fwd_returns_m_d_ref A data frame containing target stock data with columns for tickers and forward returns.
 #' @param portfolio_weights_m_d_ref A data frame containing current portfolio weights with columns for tickers and weights.
 #' @param portfolio_weights_m_lstd_ref A data frame containing portfolio weights from the last period, including delisted stocks.
 #' @param portfolio_returns_df A data frame to which portfolio returns will be added, including raw and net returns.
@@ -31,7 +31,7 @@
 #' @export
 calculate_portfolio_returns <- function(
     current_date, is_rebalancing_month,
-    stock_universe_m_d_ref = NULL, target_m_d_ref, portfolio_weights_m_d_ref, portfolio_weights_m_lstd_ref,
+    stock_universe_m_d_ref = NULL, fwd_returns_m_d_ref, portfolio_weights_m_d_ref, portfolio_weights_m_lstd_ref,
     #Portfolio and benchmark returns
     portfolio_returns_df, selected_benchmark_returns_df,
     #Parameters and data to estimate direct and indirect transaction costs
@@ -102,7 +102,7 @@ calculate_portfolio_returns <- function(
   #Transactions data frame
   ###########################
     ##Create a rebalancing dataframe to support calculations -> Multiple joins
-    transactions_m_d_ref <- dplyr::left_join(portfolio_weights_m_d_ref, dplyr::select(target_m_d_ref, tickers, fwd_return_1m), by = "tickers") %>%  #Join weights and returns
+    transactions_m_d_ref <- dplyr::left_join(portfolio_weights_m_d_ref, dplyr::select(fwd_returns_m_d_ref, tickers, fwd_return_1m), by = "tickers") %>%  #Join weights and returns
       dplyr::left_join(dplyr::select(liquidity_m_d_ref, -id, -dates), by = "tickers") %>% #Join liquidity data
       dplyr::left_join(dplyr::select(volatility_m_d_ref, -id, -dates), by = "tickers") %>%
       dplyr::full_join(dplyr::select(portfolio_weights_m_lstd_ref, tickers, old_portfolio_weights), by = "tickers") #Full join because one wants to consider delisted stocks
@@ -207,7 +207,7 @@ calculate_portfolio_returns <- function(
   #Update portfolio_weights
   ############################
   updated_portfolio_weights <- portfolio_weights_m_d_ref
-  updated_portfolio_weights$portfolio_weights <- portfolio_weights_m_d_ref$portfolio_weights * (target_m_d_ref$fwd_return_1m/100+1) #Multiply by returns
+  updated_portfolio_weights$portfolio_weights <- portfolio_weights_m_d_ref$portfolio_weights * (fwd_returns_m_d_ref$fwd_return_1m/100+1) #Multiply by returns
   updated_portfolio_weights$portfolio_weights <- updated_portfolio_weights$portfolio_weights/sum(updated_portfolio_weights$portfolio_weights)
   ############################
 

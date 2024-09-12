@@ -448,7 +448,7 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
               #Stock universe object
               stock_universe_m_d_ref = stock_universe_m_d_ref,
               #Returns to calculate portfolio returns
-              target_m_d_ref = target_m_d_ref,
+              fwd_returns_m_d_ref = fwd_returns_m_d_ref,
               #Returns DF
               portfolio_returns_df = portfolio_returns_df, selected_benchmark_returns_df = selected_benchmark_returns_df,
               #Portfolio weights objects

@@ -1,3 +1,4 @@
+#Artificial data
 test_that("select_and_correct_signals correctly subsets signals_m_upd_ref", {
 
   load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
@@ -14,6 +15,7 @@ test_that("select_and_correct_signals correctly subsets signals_m_upd_ref", {
   expect_equal(c("id", "tickers", "dates", "Alpha", "low_Beta", "Gamma"),subsetted_signals)
 
 })
+
 
 test_that("select_and_correct_signals correctly subsets signals_m_upd_ref when chosen_signals are less than all options", {
 
@@ -34,6 +36,7 @@ test_that("select_and_correct_signals correctly subsets signals_m_upd_ref when c
   expect_equal(c("id", "tickers", "dates", "Alpha", "Gamma"),subsetted_signals)
 
 })
+
 
 test_that("select_and_correct_signals correctly inverts signs of short positions", {
 
@@ -68,8 +71,8 @@ test_that("select_and_correct_signals correctly subsets backtest_returns_upd_ref
   #Subseted backtests
   subsetted_backtests <- colnames(
     select_and_correct_signals(signal_selection_policy = signal_selection_policy,
-    signals_m_upd_ref = signals_m_upd_ref, backtest_returns_upd_ref = backtest_returns_upd_ref)$selected_signals_backtest_returns_upd_ref
-      )
+                               signals_m_upd_ref = signals_m_upd_ref, backtest_returns_upd_ref = backtest_returns_upd_ref)$selected_signals_backtest_returns_upd_ref
+  )
 
   subsetted_signals<- colnames(
     select_and_correct_signals(signal_selection_policy = signal_selection_policy,
@@ -168,6 +171,30 @@ test_that("select_and_correct_signals correctly chooses short option in backtest
 
 })
 
+##Real data
+
+test_that("select_and_correct_signals correctly subsets signals_m_upd_ref when chosen_signals are less than all options for real data", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  test_signal_selection_policy <- signal_selection_policy
+  test_signal_selection_policy$chosen_signals <- signal_selection_policy$chosen_signals[-2]
+  test_signal_selection_policy$signal_positions <- signal_selection_policy$signal_positions[-2]
+
+  current_date = "2001-07-15"
+
+  #Generate signal matrix part
+  signals_m_upd_ref <- signals_m_df[which(signals_m_df$dates <= current_date), ]
+
+  #Subseted signals
+  subsetted_signals <- colnames(select_and_correct_signals(signal_selection_policy = test_signal_selection_policy, signals_m_upd_ref = signals_m_upd_ref)$selected_signals_corrected_positions_m_upd_ref)
+
+  expect_equal(c("id", "tickers", "dates", "Alpha", "Gamma"),subsetted_signals)
+
+})
+
+
+##Error check
 test_that("select_and_correct_signals throws an error when trying to choose a signal not present in signals_m_df", {
 
   load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
@@ -198,10 +225,10 @@ test_that("select_and_correct_signals throws an error when trying to choose a si
   signals_m_upd_ref <- signals_m_df[which(signals_m_df$dates <= current_date), ]
   backtest_returns_upd_ref <- backtest_returns_df[which(backtest_returns_df$dates <= current_date), -1]
 
- expect_error(select_and_correct_signals(signal_selection_policy = signal_selection_policy,
+  expect_error(select_and_correct_signals(signal_selection_policy = signal_selection_policy,
                                           signals_m_upd_ref = signals_m_upd_ref, backtest_returns_upd_ref = backtest_returns_upd_ref),
-              "all chosen signals should have a matching position in backtest_returns_df"
-              )
+               "all chosen signals should have a matching position in backtest_returns_df"
+  )
 
 
 
@@ -246,3 +273,7 @@ test_that("select_and_correct_signals thrown an error when trying to choose a si
 
 
 })
+
+2023-09-15
+signals_m_df <-
+
