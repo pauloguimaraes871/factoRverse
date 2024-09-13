@@ -92,7 +92,7 @@ blend_signals <- function(current_date,
       try(priors_m_upd_ref_list <- lapply(priors_m_df_list, function(x){if(is.data.frame(x)) return(x[which(x$dates <= current_date), ]) else x}))
       ###Select Priors
       chosen_informative_data <- signal_selection_policy$chosen_informative_data ##Get chosen informative_prior_data
-      selected_priors_informative_data_m_upd_ref <- priors_m_upd_ref_list[[chosen_informative_data]]
+      try(selected_priors_informative_data_m_upd_ref <- priors_m_upd_ref_list[[chosen_informative_data]], silent = TRUE)
 
       ###upd_ref
       ####returns_df objects
@@ -117,6 +117,14 @@ blend_signals <- function(current_date,
 
       ##Selected signals backtest returns
       selected_signals_backtest_returns_upd_ref <- selected_signals_and_backtest_list$selected_signals_backtest_returns_upd_ref
+
+        ###Check if both are contemplated in signals_groups
+        if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_d_ref, -id, -tickers, -dates)) %in% signals_groups_m_d_ref$tickers)){
+          stop("all selected signals (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
+        }
+        if(any(!colnames(dplyr::select(selected_signals_backtest_returns_upd_ref, -dates)) %in% signals_groups_m_d_ref$tickers)){
+          stop("all selected signals (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
+        }
 
       #########################
 

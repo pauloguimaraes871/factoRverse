@@ -22,8 +22,24 @@
 #'
 #' @export
 bayesian_adjustment <- function(selected_signals_backtest_returns_upd_ref, selected_benchmark_returns_upd_ref_vector, signal_universe_m_d_ref,
-                                selected_priors_informative_data_m_upd_ref = NULL, priors_type, user_priors_list = NULL,
-                                signals_groups_m_d_ref, verbose = TRUE){
+                                selected_priors_informative_data_m_upd_ref, priors_type, user_priors_list,
+                                signals_groups_m_d_ref, verbose){
+
+  #Initial checks
+  ##prior type
+  if(is.null(priors_type) ||
+     !signal_selection_policy$priors_type %in% c("uninformative", "all", "user", "mean")){
+    stop("priors_type should be one of uninformative, all, user or mean")
+  }
+
+  ##chosen_informative_data
+  if(!signal_selection_policy$priors_type %in% c("uninformative", "user")){
+    #If priors type is not exogenous, a prior dataframe should be set
+    if(is.null(selected_priors_informative_data_m_upd_ref)){
+      stop("priors_m_df_list must be provided and also contemplate chosen_informative_data if priors_type is all or mean")
+    }
+  }
+
 
   #Set priors based on outside informative data
   #############################################

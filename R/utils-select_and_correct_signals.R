@@ -30,7 +30,7 @@
 #' @importFrom dplyr select
 #' @importFrom stats setNames
 #' @export
-select_and_correct_signals <- function(signal_selection_policy, signals_m_upd_ref, backtest_returns_upd_ref = NULL){
+select_and_correct_signals <- function(signal_selection_policy, signals_m_upd_ref, backtest_returns_upd_ref){
 
   ###Get chosen signals
   #####################
@@ -58,10 +58,10 @@ select_and_correct_signals <- function(signal_selection_policy, signals_m_upd_re
   chosen_signals_corrected_positions <- chosen_signals #Init object
   chosen_signals_corrected_positions[which(chosen_signals == chosen_short_signals)] <- paste0("low_", chosen_signals[which(chosen_signals == chosen_short_signals)]) #Inform short positions
 
-      ###Check if all signals have a position
-      if(!identical(chosen_signals, names(signal_positions))){
-        stop("all chosen signals should have a matching position in signal_positions.")
-      }
+  ###Check if all signals have a position
+  if(!identical(chosen_signals, names(signal_positions))){
+    stop("all chosen signals should have a matching position in signal_positions.")
+  }
 
   ####Correct positions
   selected_signals_corrected_positions_m_upd_ref <- selected_signals_m_upd_ref
@@ -76,10 +76,10 @@ select_and_correct_signals <- function(signal_selection_policy, signals_m_upd_re
   ###Subset backtests
   #######################
 
-       ###Check if all signals have a backtest
-      if(!is.null(backtest_returns_upd_ref) & !all(chosen_signals_corrected_positions %in% colnames(backtest_returns_upd_ref[-1]))){
-        stop("all chosen signals should have a matching position in backtest_returns_df")
-      }
+  ###Check if all signals have a backtest
+  if(!is.null(backtest_returns_upd_ref) & !all(chosen_signals_corrected_positions %in% colnames(backtest_returns_upd_ref[-1]))){
+    stop("all chosen signals should have a matching position in backtest_returns_df")
+  }
 
   #signals_backtests
   selected_signals_backtest_returns_upd_ref <- backtest_returns_upd_ref[, c("dates", chosen_signals_corrected_positions)]

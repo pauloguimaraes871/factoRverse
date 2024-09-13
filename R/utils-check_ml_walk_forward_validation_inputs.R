@@ -69,8 +69,8 @@ check_inputs_ml_wf_val <- function(
   ############################################################################################
 
   #Check for correct format in features_m_df
-      if(!(is.matrix(features_m_df) | is.data.frame(features_m_df))){
-        stop("features_m_df should be a data.frame or a matrix.")
+      if(!(is.data.frame(features_m_df))){
+        stop("features_m_df should be a data_frame.")
       }
 
       if(!all(c("id", "tickers", "dates") %in% colnames(features_m_df))){

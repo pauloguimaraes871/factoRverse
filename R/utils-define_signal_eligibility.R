@@ -35,15 +35,15 @@
 #' @export
 define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref, selected_benchmark_returns_upd_ref,
                                       signal_selection_policy,
-                                      signals_groups_m_d_ref = NULL,
-                                      selected_priors_informative_data_m_upd_ref = NULL,
-                                      upper_quantile_winsorization = 0.975, lower_quantile_winsorization = 0.025){
+                                      signals_groups_m_d_ref,
+                                      selected_priors_informative_data_m_upd_ref,
+                                      upper_quantile_winsorization, lower_quantile_winsorization){
 
 
   #Initial Preparations
   ##################
   ###Get objects from signal_selection_policy
-  data_availability_cutoff <- signal_selection_policy$data_avaialability_cutoff
+  data_availability_cutoff <- signal_selection_policy$data_availability_cutoff
   p_correction_method <- signal_selection_policy$p_correction_method
   priors_type <- signal_selection_policy$priors_type
   user_priors_list <- signal_selection_policy$user_priors_list
@@ -90,18 +90,18 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
   )
 
   #Correct based on backtest length
-    ##Check if backtests have enough length to be considered
-    cutted_out_backtests <- selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(col){
-      length(which(is.na(col))) >= data_availability_cutoff
-    })
+  ##Check if backtests have enough length to be considered
+  cutted_out_backtests <- selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(col){
+    length(which(is.na(col))) >= data_availability_cutoff
+  })
 
-    ##Send warning
-    if(any(cutted_out_backtests)){
-      warning(paste0("The following signals backtests have less periods than data_avaiability_cutoff and will not be used: ",
-                     names(cutted_out_backtests[which(cutted_out_backtests)])))
+  ##Send warning
+  if(any(cutted_out_backtests)){
+    warning(paste0("The following signals backtests have less periods than data_avaiability_cutoff and will not be used: ",
+                   names(cutted_out_backtests[which(cutted_out_backtests)])))
     ##Ignore signals that do not have enough data
-      signal_universe_m_d_ref[which(cutted_out_backtests), -c(1:3)] <- NA #NA reflects lack of knowledge about signal behavior
-    }
+    signal_universe_m_d_ref[which(cutted_out_backtests), -c(1:3)] <- NA #NA reflects lack of knowledge about signal behavior
+  }
   #################################
 
   #P-adjust!
@@ -119,7 +119,7 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
       upper_quantile_winsorization = upper_quantile_winsorization,
       lower_quantile_winsorization = lower_quantile_winsorization
     )
-  #######################
+    #######################
 
 
   } else {
@@ -140,9 +140,9 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
       signals_groups_m_d_ref = signals_groups_m_d_ref
     )
 
-      ##Get results from bayesian adjustment
-      signal_universe_m_d_ref <- bayesian_adjustment_results_list$posterior_signal_universe_m_d_ref
-      bayesian_fit_list <- bayesian_adjustment_results_list$bayesian_fit_list
+    ##Get results from bayesian adjustment
+    signal_universe_m_d_ref <- bayesian_adjustment_results_list$posterior_signal_universe_m_d_ref
+    bayesian_fit_list <- bayesian_adjustment_results_list$bayesian_fit_list
 
 
     #Elect final signal for signal_universe_m_d_ref

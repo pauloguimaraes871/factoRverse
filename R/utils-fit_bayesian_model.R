@@ -27,20 +27,20 @@ fit_bayesian_model <- function(theme, signals_groups_m_d_ref, selected_signals_b
     ##Adjust signal labels
     selected_signals_backtest_returns_upd_ref_signals_in_current_theme$signal <- rep(signals_in_current_theme, each = length(selected_benchmark_returns_upd_ref_vector))
 
-  #######################
+    #######################
 
-  #Fit brm
-  ########################
-  brm_model <- brms::brm(
-    brms::brmsformula(
-      #Mean-level formula
-      active_return ~ bench_return + (bench_return | signal),
-      #Sigma formula
-      sigma ~ 1 + (1 | signal)),
-    #Priors
-    prior = elected_priors_list[[theme]],
-    data = selected_signals_backtest_returns_upd_ref_signals_in_current_theme
-  )
-  ########################
-  return(brm_model)
+    #Fit brm
+    ########################
+    brm_model <- brms::brm(
+      brms::brmsformula(
+        #Mean-level formula
+        active_return ~ bench_return + (bench_return | signal),
+        #Sigma formula
+        sigma ~ 1 + (1 | signal)),
+      #Priors
+      prior = elected_priors_list[[theme]],
+      data = selected_signals_backtest_returns_upd_ref_signals_in_current_theme
+    )
+    ########################
+    return(brm_model)
 }

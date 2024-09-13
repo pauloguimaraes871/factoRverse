@@ -43,7 +43,7 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
 
     ###Dates Related
         #Coerce dates
-        dates_m_vector <- as.Date(dates_m_vector, format = "%Y-%m-%d")
+        dates_m_vector <- as.Date(unique(signals_m_df$dates), format = "%Y-%m-%d")
 
         #Backtest length
         backtest_length <- length(dates_m_vector) - nmonths_until_first_rebalancing_dates
@@ -87,6 +87,9 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
 
 
     ###Main liquidity metric
+          if(is.null(main_liquidity_metric)){
+            warning("main_liquidity_metric is missing and mean_volfin_3m will be used")
+          }
           main_liquidity_metric <- ifelse(is.null(main_liquidity_metric), "mean_volfin_3m", main_liquidity_metric)
 
     ###Results objects

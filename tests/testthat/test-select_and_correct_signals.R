@@ -274,6 +274,4 @@ test_that("select_and_correct_signals thrown an error when trying to choose a si
 
 })
 
-2023-09-15
-signals_m_df <-
 
