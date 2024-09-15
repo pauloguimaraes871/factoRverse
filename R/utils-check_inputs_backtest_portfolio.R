@@ -1,20 +1,24 @@
-check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m_df, benchmark_weights_m_df,
-                                      stock_groups_m_df, signal_groups_m_df, ){
+check_metabacktest_inputs <- function(signals_m_df, liquidity_m_df, volatility_m_df, benchmark_weights_m_df,
+                                      stock_groups_m_df, signal_groups_m_df){
 
   #######signals_m_df
   ###################
 
   #Check for correct format in signals_m_df
   if(!is.data.frame(signals_m_df)){
-    stop("signals_m_df should be a data_frame.")
+    stop("signals_m_df should be a data.frame.")
+  }
+
+  #Check for coercibility
+  if(!is_coercible_to_meta_dataframe(signals_m_df)){
+    stop("signals_m_df is not coercible to meta_dataframe format")
   }
 
   if(!all(c("id", "tickers", "dates") %in% colnames(signals_m_df))){
     stop("signals_m_df should have id, tickers and dates columns.")
   } else {}
 
-  if(any(sapply(signals_m_df[,-c(1:3)], function(x) any(is.na(as.numeric(as.character(x))))))
-  ){
+  if(any(sapply(signals_m_df[,-c(1:3)], function(x) any(is.na(as.numeric(as.character(x))))))){
     stop("signals_m_df should contain only numeric columns with non-NAs.")
   }
 
@@ -302,38 +306,38 @@ check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m
   ####target_m_df
   #######################
   if(signal_selection_policy$signal_blending_method == "ML"){
-  #Check for correct format in target_m_df
-  if(!(is.data.frame(target_m_df))){
-    stop("target_m_df should be a data_frame.")
-  }
+    #Check for correct format in target_m_df
+    if(!(is.data.frame(target_m_df))){
+      stop("target_m_df should be a data_frame.")
+    }
 
-  if(!all(c("id", "tickers", "dates") %in% colnames(target_m_df))){
-    stop("target_m_df should have id, tickers and dates columns.")
-  } else {}
+    if(!all(c("id", "tickers", "dates") %in% colnames(target_m_df))){
+      stop("target_m_df should have id, tickers and dates columns.")
+    } else {}
 
-  suppressWarnings(if(any(!is.na(as.numeric(target_m_df$tickers)))){
-    stop("tickers in target_m_df must be character.")
-  })
+    suppressWarnings(if(any(!is.na(as.numeric(target_m_df$tickers)))){
+      stop("tickers in target_m_df must be character.")
+    })
 
-  if(all(any(!lubridate::is.Date(target_m_df$dates)) ||
-         any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
-    stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
-  }
+    if(all(any(!lubridate::is.Date(target_m_df$dates)) ||
+           any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+      stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
+    }
 
-  dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df$dates)[(length(unique(target_m_df$dates)) - signal_selection_policy$ml_parameters$target_fwd + 1):length(unique(target_m_df$dates))]
-  if(length(dates_allowed_to_be_NA_in_target_m_df) > signal_selection_policy$ml_parameters$target_fwd){
-    stop("number of dates in target_m_df with NAs should be at most equal to target_fwd")
-  }
+    dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df$dates)[(length(unique(target_m_df$dates)) - signal_selection_policy$ml_parameters$target_fwd + 1):length(unique(target_m_df$dates))]
+    if(length(dates_allowed_to_be_NA_in_target_m_df) > signal_selection_policy$ml_parameters$target_fwd){
+      stop("number of dates in target_m_df with NAs should be at most equal to target_fwd")
+    }
 
-  if(any(is.na(target_m_df[-which(target_m_df$dates %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
-    stop("target_m_df before target_fwd periods should contain only numeric columns with non-NAs.")
-  }
+    if(any(is.na(target_m_df[-which(target_m_df$dates %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
+      stop("target_m_df before target_fwd periods should contain only numeric columns with non-NAs.")
+    }
 
-  #Check structure of dates_m_vector and target_m_df$dates
-  if(!all(as.character(dates_m_vector) %in% unique(as.character(target_m_df$dates))) ||
-     !all(unique(as.character(target_m_df$dates)) %in% as.character(dates_m_vector))){
-    stop("all dates in dates_m_vector must have a correspondence in target_m_df")
-  } else {}
+    #Check structure of dates_m_vector and target_m_df$dates
+    if(!all(as.character(dates_m_vector) %in% unique(as.character(target_m_df$dates))) ||
+       !all(unique(as.character(target_m_df$dates)) %in% as.character(dates_m_vector))){
+      stop("all dates in dates_m_vector must have a correspondence in target_m_df")
+    } else {}
 
   }
 
@@ -486,44 +490,44 @@ check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m
   ##############################
   if(!is.null(concentration_constraint_policy)){
 
-      ##Check if benchmark_weights_m_d_ref are present if constraint is set
-      if(is.null(benchmark_weights_m_d_ref)){
-        stop("Error in concentration_constraint_policy: benchmark_weights_m_d_ref can't be missing if concentration_constraint_policy is set")
-      }
+    ##Check if benchmark_weights_m_d_ref are present if constraint is set
+    if(is.null(benchmark_weights_m_d_ref)){
+      stop("Error in concentration_constraint_policy: benchmark_weights_m_d_ref can't be missing if concentration_constraint_policy is set")
+    }
 
-      ##Check if chosen benchmark is present in benchmark_weights_m_d_ref
-      if(!concentration_constraint_policy$benchmark %in% colnames(benchmark_weights_m_df)){
-        stop("Error in concentration_constraint_policy: chosen_benchmark is not present in benchmark_weights_m_df")
-      }
+    ##Check if chosen benchmark is present in benchmark_weights_m_d_ref
+    if(!concentration_constraint_policy$benchmark %in% colnames(benchmark_weights_m_df)){
+      stop("Error in concentration_constraint_policy: chosen_benchmark is not present in benchmark_weights_m_df")
+    }
 
-      ##Check if max_abs_active_individual_weight is numeric
-      if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) &
-         !is.numeric(concentration_constraint_policy$max_abs_active_individual_weight)){
-       stop("Error in concentration_constraint_policy: max_abs_active_individual_weight must be numeric")
-      }
+    ##Check if max_abs_active_individual_weight is numeric
+    if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) &
+       !is.numeric(concentration_constraint_policy$max_abs_active_individual_weight)){
+      stop("Error in concentration_constraint_policy: max_abs_active_individual_weight must be numeric")
+    }
 
-     ##Check if max_abs_active_group_weight is numeric
-     if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &
-        !is.numeric(concentration_constraint_policy$max_abs_active_group_weight)){
+    ##Check if max_abs_active_group_weight is numeric
+    if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &
+       !is.numeric(concentration_constraint_policy$max_abs_active_group_weight)){
       stop("Error in concentration_constraint_policy: max_abs_active_group_weight must be numeric")
     }
 
-     ##Check if stock_groups_m_df are present if group constraint is set
-     if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) && (is.null(stock_groups_m_df))){
-        stop("Error in concentration_constraint_policy: stock_groups_m_df can't be missing if max_abs_active_group_weight of concentration_constraint_policy is set")
-     }
+    ##Check if stock_groups_m_df are present if group constraint is set
+    if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) && (is.null(stock_groups_m_df))){
+      stop("Error in concentration_constraint_policy: stock_groups_m_df can't be missing if max_abs_active_group_weight of concentration_constraint_policy is set")
+    }
 
-     ##Check if groups in stock_groups_m_df match group constraints
-     if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &&
-        names(concentration_constraint_policy$max_abs_active_group_weight) != colnames(stock_groups_m_df[,-c(1:3)])){
-        stop("Error in concentration_constraint_policy: names of group constraints must match groups in stock_groups_m_df")
-     }
+    ##Check if groups in stock_groups_m_df match group constraints
+    if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &&
+       names(concentration_constraint_policy$max_abs_active_group_weight) != colnames(stock_groups_m_df[,-c(1:3)])){
+      stop("Error in concentration_constraint_policy: names of group constraints must match groups in stock_groups_m_df")
+    }
 
-     ##Check if names in concentration_constraint_policy match possible options
-     if(any(!names(concentration_constraint_policy) %in%
+    ##Check if names in concentration_constraint_policy match possible options
+    if(any(!names(concentration_constraint_policy) %in%
            c("benchmark", "max_abs_active_individual_weight", "max_abs_active_group_weight"))){
       stop("Error in concentration_constraint_policy: elements of concentration_constraint_policy should be one of benchmark, max_abs_active_individual_weight or max_abs_active_group_weight.")
-     }
+    }
   }
 
   ##############################
@@ -549,20 +553,20 @@ check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m
 
 
     ##Check if liquidity caps are numeric
-      if(any(unlist(sapply(liquidity_constraint_policy, function(x) {
-        if(is.list(x)) {
-          # Check if liquidity_classification is NOT in the specified categories
-          !is.numeric(x$liquidity_cap)
-        }
-      })))){
-        stop("Error in liquidity_constraint_policy: liquidity_cap is not numeric")
+    if(any(unlist(sapply(liquidity_constraint_policy, function(x) {
+      if(is.list(x)) {
+        # Check if liquidity_classification is NOT in the specified categories
+        !is.numeric(x$liquidity_cap)
       }
+    })))){
+      stop("Error in liquidity_constraint_policy: liquidity_cap is not numeric")
+    }
 
 
-  ##Check if elements of liquidity_constraint_policy are correct
+    ##Check if elements of liquidity_constraint_policy are correct
     if(!any(substr(names(liquidity_constraint_policy), 1, nchar(names(liquidity_constraint_policy)) - 1) %in%
-        c("liquidity_floor_rul", "liquidity_cap_rule_"))){
-     stop("Error in liquidity_constraint_policy: elements of liquidity_constraint_policy should be one of liquidity_floor_rule or liquidity_cap_rule")
+            c("liquidity_floor_rul", "liquidity_cap_rule_"))){
+      stop("Error in liquidity_constraint_policy: elements of liquidity_constraint_policy should be one of liquidity_floor_rule or liquidity_cap_rule")
     }
 
   }
@@ -579,7 +583,7 @@ check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m
 
     #check if metrics are present in liquidity_m_df
     if(any(sapply(liquidity_floor_cutoffs_list, function(x){
-        !all(names(x) %in% colnames(liquidity_m_df))
+      !all(names(x) %in% colnames(liquidity_m_df))
     }))){
       stop("liquidity_metrics of liquidity_floor_cutoffs_list must be present in liquidity_m_df.")
     }
@@ -590,38 +594,38 @@ check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m
 
   #Check turnover constraint policy
   ##################################
-    ##Check liquidity classification
-    if(!is.null(turnover_constraint_policy)){
-      if(any(sapply(turnover_constraint_policy, function(x){
-        !x$liquidity_classification %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
-      }))){
-        stop("liquidity_classification in buffer_zone not supported")
-      }
+  ##Check liquidity classification
+  if(!is.null(turnover_constraint_policy)){
+    if(any(sapply(turnover_constraint_policy, function(x){
+      !x$liquidity_classification %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+    }))){
+      stop("liquidity_classification in buffer_zone not supported")
     }
+  }
 
-    ##Check for presence of top_stock_quantile_buffer and liquidity_classification
-    if(!is.null(turnover_constraint_policy)){
-      if(!all(sapply(turnover_constraint_policy, function(x){
-          all(c("liquidity_classification", "top_stock_quantile_buffer") %in% names(x))
-      }))){
-        stop("liquidity_classification and top_stock_quantile_buffer elements are mandatory if turnover_constraint_policy is set")
-      }
+  ##Check for presence of top_stock_quantile_buffer and liquidity_classification
+  if(!is.null(turnover_constraint_policy)){
+    if(!all(sapply(turnover_constraint_policy, function(x){
+      all(c("liquidity_classification", "top_stock_quantile_buffer") %in% names(x))
+    }))){
+      stop("liquidity_classification and top_stock_quantile_buffer elements are mandatory if turnover_constraint_policy is set")
     }
+  }
 
-    ##Check if elements of turnover_constraint_policy are correct
-    if(!is.null(turnover_constraint_policy)){
-      if(!any(substr(names(turnover_constraint_policy), 1, nchar(names(turnover_constraint_policy)) - 1) %in%
-              c("buffer_zone_"))){
-        stop("elements of turnover_constraint_policy should be buffer_zone")
-      }
+  ##Check if elements of turnover_constraint_policy are correct
+  if(!is.null(turnover_constraint_policy)){
+    if(!any(substr(names(turnover_constraint_policy), 1, nchar(names(turnover_constraint_policy)) - 1) %in%
+            c("buffer_zone_"))){
+      stop("elements of turnover_constraint_policy should be buffer_zone")
     }
+  }
 
-    ##Check if is possible to classify liquidity in case turnover_constraint_policy is set
-    if(!is.null(turnover_constraint_policy)){
-      if(is.null(liquidity_floor_cutoffs_list) || is.null(liquidity_m_df)){
-        stop("liquidity_floor_cutoffs_list and liquidity_m_df are needed if turnover_constraint_policy is set")
-      }
+  ##Check if is possible to classify liquidity in case turnover_constraint_policy is set
+  if(!is.null(turnover_constraint_policy)){
+    if(is.null(liquidity_floor_cutoffs_list) || is.null(liquidity_m_df)){
+      stop("liquidity_floor_cutoffs_list and liquidity_m_df are needed if turnover_constraint_policy is set")
     }
+  }
 
   ##################################
 
@@ -769,6 +773,10 @@ check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m
       stop("daily_active_returns_df can't be missing if portfolio_construction_method is RP or MTO")
     }
 
+    if(if(any(!dates_backtest %in% daily_active_returns_df$dates)){
+        stop("all backtest dates should be present in daily_active_returns_df dates")
+    })
+
     ##check for dates
     if(all(any(!lubridate::is.Date(daily_active_returns_df$dates)) ||
            any(is.na(as.Date(daily_active_returns_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
@@ -784,28 +792,6 @@ check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m
   }
 
   ###################################
-
-
-
-
-
-
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -826,6 +812,27 @@ check_inputs_metabacktest <- function(signals_m_df, liquidity_m_df, volatility_m
 
 
 
+  }
 
 
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

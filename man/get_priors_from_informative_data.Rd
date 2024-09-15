@@ -6,7 +6,7 @@
 \usage{
 get_priors_from_informative_data(
   selected_priors_informative_data_m_upd_ref,
-  priors_type = "all"
+  priors_type
 )
 }
 \arguments{

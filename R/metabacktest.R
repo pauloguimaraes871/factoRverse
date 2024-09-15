@@ -31,7 +31,11 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
   #Measure time to run and run gc
   elapsed_time <- system.time({
 
-    #Visible binding for global variables
+    #Get data frame in case of meta_df object
+    if(class(signals_m_df == "meta_dataframe")){
+      signals_m_df <- signals_m_df@data
+      workflow <- signals_m_df@workflow
+    }
 
     ################
     ##Check Parameters: This function will test whether inputs match format and current functionalities

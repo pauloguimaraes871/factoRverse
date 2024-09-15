@@ -31,12 +31,12 @@
 #' @export
 calculate_portfolio_returns <- function(
     current_date, is_rebalancing_month,
-    stock_universe_m_d_ref = NULL, fwd_returns_m_d_ref, portfolio_weights_m_d_ref, portfolio_weights_m_lstd_ref,
+    stock_universe_m_d_ref, fwd_returns_m_d_ref, portfolio_weights_m_d_ref, portfolio_weights_m_lstd_ref,
     #Portfolio and benchmark returns
     portfolio_returns_df, selected_benchmark_returns_df,
     #Parameters and data to estimate direct and indirect transaction costs
-    main_liquidity_metric = "mean_volfin_3m", liquidity_m_d_ref, volatility_m_d_ref, transaction_costs_list,
-    verbose = TRUE
+    main_liquidity_metric, liquidity_m_d_ref, volatility_m_d_ref, transaction_costs_list,
+    verbose
     ){
 
   #Initial prep

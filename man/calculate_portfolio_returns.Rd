@@ -7,16 +7,17 @@
 calculate_portfolio_returns(
   current_date,
   is_rebalancing_month,
-  stock_universe_m_d_ref = NULL,
-  target_m_d_ref,
+  stock_universe_m_d_ref,
+  fwd_returns_m_d_ref,
   portfolio_weights_m_d_ref,
   portfolio_weights_m_lstd_ref,
   portfolio_returns_df,
-  benchmark_returns_df,
-  main_liquidity_metric = "mean_volfin_3m",
+  selected_benchmark_returns_df,
+  main_liquidity_metric,
   liquidity_m_d_ref,
   volatility_m_d_ref,
-  transaction_costs_list = NULL
+  transaction_costs_list,
+  verbose
 )
 }
 \arguments{
@@ -26,15 +27,13 @@ calculate_portfolio_returns(
 
 \item{stock_universe_m_d_ref}{A data frame containing stock universe data with columns for tickers and current weights.}
 
-\item{target_m_d_ref}{A data frame containing target stock data with columns for tickers and forward returns.}
+\item{fwd_returns_m_d_ref}{A data frame containing target stock data with columns for tickers and forward returns.}
 
 \item{portfolio_weights_m_d_ref}{A data frame containing current portfolio weights with columns for tickers and weights.}
 
 \item{portfolio_weights_m_lstd_ref}{A data frame containing portfolio weights from the last period, including delisted stocks.}
 
 \item{portfolio_returns_df}{A data frame to which portfolio returns will be added, including raw and net returns.}
-
-\item{benchmark_returns_df}{A data frame containing benchmark returns.}
 
 \item{main_liquidity_metric}{A string specifying the liquidity metric used to estimate transaction costs. Default is "mean_volfin_3m".}
 
@@ -49,14 +48,16 @@ calculate_portfolio_returns(
 \item \code{lambda} - The BARRA model lambda parameter.
 \item \code{direct_transaction_cost} - The direct transaction cost per trade.
 }}
+
+\item{benchmark_returns_df}{A data frame containing benchmark returns.}
 }
 \value{
 A list with updated portfolio data, including:
 \itemize{
 \item \code{portfolio_weights_m_d_ref} - Updated portfolio weights.
-\item \code{rebalancing_m_d_ref} - Data frame with rebalancing information including transaction costs.
+\item \code{transactions_m_d_ref} - Data frame with rebalancing information including transaction costs.
 \item \code{portfolio_returns_df} - Data frame with updated portfolio returns.
-\item \code{updated_portfolio_weights_m_d_ref} - Updated portfolio weights after applying returns.
+\item \code{updated_portfolio_weights} - Updated portfolio weights after applying returns.
 }
 }
 \description{

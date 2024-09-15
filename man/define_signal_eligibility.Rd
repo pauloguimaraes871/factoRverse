@@ -8,10 +8,10 @@ define_signal_eligibility(
   selected_signals_backtest_returns_upd_ref,
   selected_benchmark_returns_upd_ref,
   signal_selection_policy,
-  signals_groups_m_d_ref = NULL,
-  selected_priors_informative_data_m_upd_ref = NULL,
-  upper_quantile_winsorization = 0.975,
-  lower_quantile_winsorization = 0.025
+  signals_groups_m_d_ref,
+  selected_priors_informative_data_m_upd_ref,
+  upper_quantile_winsorization,
+  lower_quantile_winsorization
 )
 }
 \arguments{

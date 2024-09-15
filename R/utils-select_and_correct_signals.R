@@ -36,15 +36,15 @@ select_and_correct_signals <- function(signal_selection_policy, signals_m_upd_re
   #####################
   chosen_signals <- signal_selection_policy$chosen_signals
 
-      ###Check if all chosen_signals are present in signals_m_upd_ref
-      if(any(!chosen_signals %in% colnames(signals_m_upd_ref))){
-        stop("signal selection not avaiable in signals_m_df")
-      }
+  ###Check if all chosen_signals are present in signals_m_upd_ref
+  if(any(!chosen_signals %in% colnames(signals_m_upd_ref))){
+    stop("signal selection not avaiable in signals_m_df")
+  }
 
-      ###Check if there are repeated signals in chosen_signals
-      if(!identical(chosen_signals, unique(chosen_signals))){
-        stop("each signal must be chosen only once")
-      }
+  ###Check if there are repeated signals in chosen_signals
+  if(!identical(chosen_signals, unique(chosen_signals))){
+    stop("each signal must be chosen only once")
+  }
 
   ###selected_signals_m_upd_ref
   selected_signals_m_upd_ref <- signals_m_upd_ref[, c("id", "tickers", "dates", chosen_signals)] #subset cols present in signals_m_upd_ref

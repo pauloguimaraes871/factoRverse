@@ -15,14 +15,14 @@ fit_bayesian_model <- function(theme, signals_groups_m_d_ref, selected_signals_b
   ######################
   ##Get which signals belong to current theme
   signals_in_current_theme <- unique(signals_groups_m_d_ref$tickers[which(signals_groups_m_d_ref$theme == theme)])
-    ###Subset backtest returns accordingly
-    selected_signals_backtest_returns_upd_ref_signals_in_current_theme <- as.data.frame(selected_signals_backtest_returns_upd_ref[,signals_in_current_theme])
+  ###Subset backtest returns accordingly
+  selected_signals_backtest_returns_upd_ref_signals_in_current_theme <- as.data.frame(selected_signals_backtest_returns_upd_ref[,signals_in_current_theme])
   ##Adjust
-    ##Melt
-    selected_signals_backtest_returns_upd_ref_signals_in_current_theme <- reshape2::melt(selected_signals_backtest_returns_upd_ref_signals_in_current_theme)
-    ##Add bench returns
-    selected_signals_backtest_returns_upd_ref_signals_in_current_theme$bench_return <- selected_benchmark_returns_upd_ref_vector #R will recycle
-    ###Rename
+  ##Melt
+  selected_signals_backtest_returns_upd_ref_signals_in_current_theme <- reshape2::melt(selected_signals_backtest_returns_upd_ref_signals_in_current_theme)
+  ##Add bench returns
+  selected_signals_backtest_returns_upd_ref_signals_in_current_theme$bench_return <- selected_benchmark_returns_upd_ref_vector #R will recycle
+  ###Rename
     colnames(selected_signals_backtest_returns_upd_ref_signals_in_current_theme)[1:2] <- c("signal", "active_return")
     ##Adjust signal labels
     selected_signals_backtest_returns_upd_ref_signals_in_current_theme$signal <- rep(signals_in_current_theme, each = length(selected_benchmark_returns_upd_ref_vector))
