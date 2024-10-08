@@ -8,7 +8,7 @@ fit_bayesian_model(
   theme,
   signals_groups_m_d_ref,
   selected_signals_backtest_returns_upd_ref,
-  selected_benchmark_returns_upd_ref_vector,
+  selected_benchmark_returns_vector_upd_ref,
   elected_priors_list
 )
 }

@@ -10,8 +10,8 @@ define_signal_eligibility(
   signal_selection_policy,
   signals_groups_m_d_ref,
   selected_priors_informative_data_m_upd_ref,
-  upper_quantile_winsorization,
-  lower_quantile_winsorization
+  upper_quantile_winsorization = 0.975,
+  lower_quantile_winsorization = 0.025
 )
 }
 \arguments{

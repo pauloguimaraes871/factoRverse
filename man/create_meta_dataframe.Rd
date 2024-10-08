@@ -2,7 +2,7 @@
 % Please edit documentation in R/constructors.R
 \name{create_meta_dataframe}
 \alias{create_meta_dataframe}
-\title{Create a MetaDataFrame Object}
+\title{Create a meta_dataframe Object}
 \usage{
 create_meta_dataframe(data)
 }

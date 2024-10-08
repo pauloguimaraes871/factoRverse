@@ -29,7 +29,7 @@ blend_signals(
 \item{signal_selection_policy}{A named list containing objects to blend signals. Elements of the list are:
 \itemize{
 \item \code{chosen_signals} A vector that indicates which characteristics or ml_algorithms should be used as signals
-\item \code{signals_positions} A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short"
+\item \code{signal_positions} A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short"
 \item \code{benchmark}  A character describing the benchmark to be used to calculate alphas.
 \item \code{signal_blending_method} A signal blending (ensemble) method. It can be accept a portfolio_construction_method, such as "EW", "SW", "RP" or "MTO" (note that cap-weighting
 does not make sense for blending signals) or a ml_algorithm ("OLS", "GLMNET", "RF", "XGB" or "NN").

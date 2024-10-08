@@ -8,7 +8,7 @@ summarize_posterior_draws(
   signal_universe_m_d_ref,
   posteriors_draws_list,
   signals_groups_m_d_ref,
-  selected_benchmark_returns_upd_ref_vector
+  selected_benchmark_returns_vector_upd_ref
 )
 }
 \arguments{

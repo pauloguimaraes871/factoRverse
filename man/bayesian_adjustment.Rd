@@ -6,13 +6,13 @@
 \usage{
 bayesian_adjustment(
   selected_signals_backtest_returns_upd_ref,
-  selected_benchmark_returns_upd_ref_vector,
+  selected_benchmark_returns_vector_upd_ref,
   signal_universe_m_d_ref,
   selected_priors_informative_data_m_upd_ref,
   priors_type,
   user_priors_list,
   signals_groups_m_d_ref,
-  verbose
+  verbose = TRUE
 )
 }
 \arguments{

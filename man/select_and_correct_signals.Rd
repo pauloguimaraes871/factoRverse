@@ -8,13 +8,13 @@
 select_and_correct_signals(
   signal_selection_policy,
   signals_m_upd_ref,
-  backtest_returns_upd_ref
+  backtest_returns_upd_ref = NULL
 )
 
 select_and_correct_signals(
   signal_selection_policy,
   signals_m_upd_ref,
-  backtest_returns_upd_ref
+  backtest_returns_upd_ref = NULL
 )
 }
 \arguments{
