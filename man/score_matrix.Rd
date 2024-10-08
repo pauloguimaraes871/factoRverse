@@ -2,12 +2,12 @@
 % Please edit documentation in R/score_matrix.R
 \name{score_matrix}
 \alias{score_matrix}
-\title{This function generates a score matrix based on input matrices or data frames.}
+\title{Score Matrix Generation}
 \usage{
 score_matrix(initial_list)
 }
 \arguments{
-\item{initial_list}{A list of matrices or data frames with the same dimension.}
+\item{initial_list}{A list of matrices, data frames, or tibbles with the same dimensions.}
 }
 \value{
 A score matrix.

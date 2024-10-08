@@ -14,23 +14,26 @@ res_momentum(
 )
 }
 \arguments{
-\item{ret_assets_main}{Matrix of asset returns. Rows represent assets and columns represent time periods.}
+\item{ret_assets_main}{A matrix, data.frame, or tibble of asset returns.
+Rows represent assets and columns represent time periods.}
 
-\item{ret_assets_complementary}{Matrix of complementary asset returns.}
+\item{ret_assets_complementary}{A matrix, data.frame, or tibble of complementary asset returns.}
 
-\item{ret_bench_main}{Matrix of benchmark returns. Rows represent benchmarks and columns represent time periods.}
+\item{ret_bench_main}{A matrix, data.frame, or tibble of benchmark returns.
+Rows represent benchmarks and columns represent time periods.}
 
-\item{ret_bench_complementary}{Matrix of complementary benchmark returns.}
+\item{ret_bench_complementary}{A matrix, data.frame, or tibble of complementary benchmark returns.}
 
-\item{beta_bench}{Matrix of beta values corresponding to each asset.}
+\item{beta_bench}{A matrix, data.frame, or tibble of beta values corresponding to each asset.}
 
-\item{alpha_bench}{Matrix of alpha values corresponding to each asset.}
+\item{alpha_bench}{A matrix, data.frame, or tibble of alpha values corresponding to each asset.}
 }
 \value{
 A matrix containing the residual momentum values. Rows represent assets and columns represent time periods.
 }
 \description{
-Calculate residual momentum based on two sets of asset returns (main and complementary), two sets of benchmark returns (main and complementary), beta, and alpha.
+Calculate residual momentum based on two sets of asset returns (main and complementary),
+two sets of benchmark returns (main and complementary), beta, and alpha.
 }
 \examples{
 ret_assets_main <- matrix(rnorm(100), nrow = 10)
@@ -39,7 +42,7 @@ ret_bench_main <- matrix(rnorm(100), nrow = 10)
 ret_bench_complementary <- matrix(rnorm(100), nrow = 10)
 beta_bench <- matrix(runif(100), nrow = 10)
 alpha_bench <- matrix(runif(100), nrow = 10)
-res_momentum(ret_assets_main, ret_assets_complementary, ret_bench_main, 
-ret_bench_complementary, beta_bench, alpha_bench)
+res_momentum(ret_assets_main, ret_assets_complementary, ret_bench_main,
+              ret_bench_complementary, beta_bench, alpha_bench)
 
 }

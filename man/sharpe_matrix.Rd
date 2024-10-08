@@ -7,7 +7,7 @@
 sharpe_matrix(initial_list)
 }
 \arguments{
-\item{initial_list}{A list of matrices or data frames with the same dimension.}
+\item{initial_list}{A list of matrices, data frames, or tibbles with the same dimensions.}
 }
 \value{
 A matrix containing the Sharpe ratio calculated for each element of the input matrices.

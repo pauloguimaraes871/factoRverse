@@ -7,9 +7,9 @@
 sum_matrix_onena(matrix1, matrix2)
 }
 \arguments{
-\item{matrix1}{A numeric matrix.}
+\item{matrix1}{A matrix, data frame, or tibble.}
 
-\item{matrix2}{A numeric matrix with the same dimensions as matrix1.}
+\item{matrix2}{A matrix, data frame, or tibble with the same dimensions as matrix1.}
 }
 \value{
 A numeric matrix containing the element-wise sum of matrix1 and matrix2.

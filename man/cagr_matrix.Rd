@@ -2,22 +2,35 @@
 % Please edit documentation in R/cagr_matrix.R
 \name{cagr_matrix}
 \alias{cagr_matrix}
-\title{Calculate Element-Wise Compound Annual Growth Rate (CAGR) for Matrices}
+\title{Calculate Element-Wise Compound Annual Growth Rate (CAGR)}
 \usage{
 cagr_matrix(matrix_begin, matrix_final, period)
 }
 \arguments{
-\item{matrix_begin}{A numeric matrix containing the initial values.}
+\item{matrix_begin}{A numeric matrix, data.frame, or tibble containing the initial values.}
 
-\item{matrix_final}{A numeric matrix containing the final values.}
+\item{matrix_final}{A numeric matrix, data.frame, or tibble containing the final values.}
 
-\item{period}{The number of periods.}
+\item{period}{A numeric value representing the number of periods over which the CAGR is calculated.}
 }
 \value{
-A numeric matrix of CAGR values for each element.
+A numeric matrix of CAGR values for each element. The function will return \code{NA}
+for positions where the initial value is zero or the final value is \code{NA}.
 }
 \description{
-Calculate Element-Wise Compound Annual Growth Rate (CAGR) for Matrices
+This function computes the Compound Annual Growth Rate (CAGR) for corresponding
+elements in two matrices. The CAGR represents the average annual growth rate of
+an investment over a specified time period, assuming the investment grows at a
+steady rate.
+}
+\details{
+The function first converts any data frames or tibbles to matrices. It then
+checks that the input matrices have the same dimensions before proceeding with the
+CAGR calculations. The formula used for CAGR is:
+
+\deqn{CAGR = \left( \frac{final}{begin} \right)^{\frac{1}{period}} - 1}
+
+If the initial value is zero, the CAGR is set to \code{NA} to avoid division by zero errors.
 }
 \examples{
 matrix_begin <- matrix(c(100, 200, 300, 400), nrow = 2)

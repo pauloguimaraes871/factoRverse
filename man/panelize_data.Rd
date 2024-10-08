@@ -7,7 +7,7 @@
 panelize_data(features_list, row_names, column_names, features_names)
 }
 \arguments{
-\item{features_list}{A list of matrices or data frames containing the features.}
+\item{features_list}{A list of matrices, data frames or tibbles containing the features.}
 
 \item{row_names}{A vector of row names for the panel data.}
 

@@ -45,45 +45,5 @@ setClass("meta_dataframe",
          ))
 
 
-#' Define the `fwd_meta_dataframe` S4 Class
-#'
-#' This class extends the `meta_dataframe` class to include additional metadata for forward-looking data frames.
-#' It is specifically designed to handle data frames where columns follow the format XXXXX_ym, where 'ym'
-#' represents the forward month (01 to 12). This class inherits all properties of `meta_dataframe` and
-#' adds a slot for specifying forward-looking targets.
-#'
-#' @slot data A \code{data.frame} containing the actual data.
-#' @slot workflow A \code{list} for storing metadata about the data manipulation workflow.
-#' @slot signals A \code{character} vector containing the names of columns that represent signals.
-#' @slot unique_dates A \code{numeric} value representing the count of unique dates in the data.
-#' @slot unique_tickers A \code{numeric} value representing the count of unique tickers in the data.
-#' @slot n_obs A \code{numeric} value representing the total number of observations in the data.
-#' @slot fwd_target A \code{character} vector containing the names of columns that represent forward-looking targets.
-#'
-#' @details
-#' The \code{fwd_meta_dataframe} class inherits from the \code{meta_dataframe} class and adds an additional
-#' slot \code{fwd_target} for forward-looking target variables. The columns in \code{fwd_target} must follow the
-#' format XXXXX_ym, where 'ym' denotes the forward month (01 to 12).
-#'
-#' @examples
-#' # Define a sample data frame
-#' df <- data.frame(
-#'   id = c("A-2024-01-01", "B-2024-02-01"),
-#'   tickers = c("A", "B"),
-#'   dates = as.Date(c("2024-01-01", "2024-02-01")),
-#'   `value_01` = c(10, 20),
-#'   `value_02` = c(15, 25)
-#' )
-#'
-#' # Create a fwd_meta_dataframe object
-#' fwd_meta_df <- create_fwd_meta_dataframe(df)
-#'
-#' # Print the fwd_meta_dataframe object
-#' print(fwd_meta_df)
-#'
-#' @export
-setClass("fwd_meta_dataframe",
-         contains = "meta_dataframe",
-         slots = c(fwd_target = "character")
-)
+
 

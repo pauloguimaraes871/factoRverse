@@ -7,18 +7,21 @@
 fin_ratio(inc_statement_item, bs_item)
 }
 \arguments{
-\item{inc_statement_item}{A matrix representing items from the income statement.}
+\item{inc_statement_item}{A matrix, data.frame, or tibble representing items from the income statement.}
 
-\item{bs_item}{A matrix representing items from the balance sheet.}
+\item{bs_item}{A matrix, data.frame, or tibble representing items from the balance sheet.}
 }
 \value{
 A matrix containing the calculated financial ratios.
 }
 \description{
-This function calculates financial ratios and handles situations when both elements cannot be negative at the same time, such as in the calculation of Return on Equity (ROE).
+This function calculates financial ratios and handles situations when both elements cannot be negative
+at the same time, such as in the calculation of Return on Equity (ROE).
 }
 \details{
-This function calculates ratios by dividing corresponding elements of the income statement matrix by the balance sheet matrix. If both elements are negative, the ratio is considered undefined and marked as NA.
+This function calculates ratios by dividing corresponding elements of the income statement
+matrix by the balance sheet matrix. If both elements are negative, the ratio is considered undefined
+and marked as NA. If either element is NA, the result is also NA.
 }
 \examples{
 # Example matrices for income statement and balance sheet items
@@ -26,5 +29,4 @@ income_statement <- matrix(c(100, 200, -50, 300, NA, 150), nrow = 3)
 balance_sheet <- matrix(c(1000, 1500, -200, -300, 500, 700), nrow = 3)
 # Calculate financial ratios
 fin_ratio(income_statement, balance_sheet)
-
 }

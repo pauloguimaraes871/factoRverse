@@ -16,10 +16,27 @@ test_that("Panelize Data is running correctly.", {
 }
 )
 
-# Define your test
-test_that("Panelize Data is running correctly with data frames.", {
+test_that("Panelize Data is running correctly with character data.frame.", {
   expect_equal(
-    panelize_data(list(as.data.frame(matrix(c(0,1,2,3), nrow=2, ncol=2)), as.data.frame(matrix(c(4,5,6,7), nrow=2, ncol=2)),
+    panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), data.frame(c("e","c"),c("d","a")), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+                  c("Stock A", "Stock B"),
+                  as.Date(c("2001-03-15", "2001-04-15")),
+                  c("Alpha", "Beta", "Gamma")),
+    data.frame(
+      id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock B-2001-03-15", "Stock B-2001-04-15")),
+      tickers = (c("Stock A", "Stock A", "Stock B", "Stock B")),
+      dates = as.factor(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
+      Alpha = (c(0, 2, 1, 3)),
+      Beta = (c("e", "d" , "c", "a")),
+      Gamma = (c(8, 10, 9, 11)))
+  )
+}
+)
+
+# Define your test
+test_that("Panelize Data is running correctly with data frames and tibbles.", {
+  expect_equal(
+    panelize_data(list(as.data.frame(matrix(c(0,1,2,3), nrow=2, ncol=2)), tibble::as_tibble(matrix(c(4,5,6,7), nrow=2, ncol=2), .name_repair = "unique"),
                        as.data.frame(matrix(c(8,9,10,11), nrow=2, ncol=2))),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
@@ -32,7 +49,7 @@ test_that("Panelize Data is running correctly with data frames.", {
       Beta = (c(4, 6 , 5, 7)),
       Gamma = (c(8, 10, 9, 11)))
   )
-  
+
   expect_equal(
     panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), as.data.frame(matrix(c(4,5,6,7), nrow=2, ncol=2)),
                        as.data.frame(matrix(c(8,9,10,11), nrow=2, ncol=2))),
@@ -47,7 +64,7 @@ test_that("Panelize Data is running correctly with data frames.", {
       Beta = (c(4, 6 , 5, 7)),
       Gamma = (c(8, 10, 9, 11)))
   )
-  
+
 }
 )
 
@@ -106,7 +123,7 @@ test_that("Panelize Data throws an error when dimensions differ", {
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices/data.frame with same dimension"
+    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
   )
 }
 )
@@ -119,7 +136,7 @@ test_that("Panelize Data throws an error when features_list is not a list", {
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices/data.frame with same dimension"
+    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
   )
 }
 )
@@ -131,7 +148,7 @@ test_that("Panelize Data throws an error when one of list objects is not DF or M
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices/data.frame with same dimension"
+    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
   )
 }
 )
@@ -143,7 +160,7 @@ expect_error(
                 c("Stock A", "Stock B", "Ronaldo"),
                 as.Date(c("2001-03-15", "2001-04-15")),
                 c("Alpha", "Beta", "Gamma")),
-  "Input must be a list of matrices/data.frame with same dimension"
+  "Input must be a list of matrices, data frames or tibbles with the same dimensions."
 )
 })
 
@@ -154,7 +171,7 @@ test_that("Panelize Data throws an error when colnames length does not match num
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15", "Ronaldo")),
                   c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices/data.frame with same dimension"
+    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
   )
 })
 
@@ -165,7 +182,7 @@ test_that("Panelize Data throws an error when length of features_names does not 
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15", "Ronaldo")),
                   c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices/data.frame with same dimension"
+    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
   )
 })
 
@@ -175,13 +192,13 @@ test_that("panelize_data throws an error when there are different number of rows
 expect_error(
   panelize_data(list(matrix(1:4, nrow = 2), matrix(5:7, nrow = 3)),
                 c("Stock A", "Stock B"), as.Date(c("2001-03-15", "2001-04-15")), c("Alpha", "Beta")),
-  "Input must be a list of matrices/data.frame with same dimension"
+  "Input must be a list of matrices, data frames or tibbles with the same dimensions."
 )
 })
 
 # Define your test
 test_that("panelize_data works with external toy data - Excel Files", {
-  
+
   #Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
                       features_sheet_names = c("ebit_12m", "ir_3m", "sharpe", "mkt_cap", "sector_c1"),
@@ -196,15 +213,15 @@ test_that("panelize_data works with external toy data - Excel Files", {
                          row_names = results$inputs$tickers$...1,
                          column_names  = results$inputs$dates,
                          features_names = results$inputs$features_names)
-  
-                         
-    
+
+
+
 
   # Apply the function to the test data
   expect_equal(panel,
                results$outputs
   )
-  
+
 })
 
 

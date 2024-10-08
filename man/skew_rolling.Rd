@@ -7,9 +7,9 @@
 skew_rolling(main_matrix, complementary_matrix)
 }
 \arguments{
-\item{main_matrix}{A numeric matrix whose skewness needs to be calculated.}
+\item{main_matrix}{A matrix, data frame, or tibble whose skewness needs to be calculated.}
 
-\item{complementary_matrix}{A numeric matrix containing lagged observations of the main matrix. This matrix is used to extend the data available for calculating skewness at the beginning of the main matrix. The number of columns in the complementary matrix defines the width of the rolling window used for calculating skewness.}
+\item{complementary_matrix}{A matrix, data frame, or tibble containing lagged observations of the main matrix. This matrix is used to extend the data available for calculating skewness at the beginning of the main matrix. The number of columns in the complementary matrix defines the width of the rolling window used for calculating skewness.}
 }
 \value{
 A numeric matrix with the same dimensions as main_matrix where each entry is the skewness calculated from a rolling window of observations that includes both the lagged and current data. By default, NAs are ignored.
@@ -25,7 +25,7 @@ The function appends the complementary matrix (containing lagged observations) t
 main_matrix <- matrix(c(5, 3, 7, 8), nrow = 2, ncol = 2)
 complementary_matrix <- matrix(c(1, 2, 6, 4), nrow = 2, ncol = 2)
 
-# Calculate skewness using a rolling window of 3 (1 current + 2 lagged observations)
+# Calculate skewness using a rolling window
 skew_rolling(main_matrix, complementary_matrix)
 
 }

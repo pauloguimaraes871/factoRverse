@@ -25,18 +25,3 @@ setMethod("print", "meta_dataframe", function(x, ...) {
 ############################################
 
 
-# Define the print method for fwd_meta_dataframe
-############################################
-setMethod("print", "fwd_meta_dataframe", function(x, ...) {
-  # Delegate to the print method of the meta_dataframe class
-  print(as(x, "meta_dataframe"), ...)
-
-  # Print the fwd_target slot
-  cat("\nForward Targets (fwd_target):\n")
-  print(x@fwd_target)
-
-  # Return the object invisibly
-  invisible(x)
-})
-############################################
-

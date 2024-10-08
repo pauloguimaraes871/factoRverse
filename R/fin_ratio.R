@@ -50,7 +50,7 @@ fin_ratio <- function(inc_statement_item, bs_item) {
   ratio_matrix <- matrix(NA, nrow = nrow(inc_statement_item), ncol = ncol(inc_statement_item))
     for (i in 1:nrow(ratio_matrix)) {
       for (j in 1:ncol(ratio_matrix)) {
-        if(is.na(inc_statement_item[i,j]) == TRUE || is.na(bs_item[i,j] == TRUE)) { #If either is NA, ratio is NA
+        if(is.na(inc_statement_item[i,j]) || is.na(bs_item[i,j])) { #If either is NA, ratio is NA
           ratio_matrix[i,j] <- NA
         } else {
           if (inc_statement_item[i, j] < 0 & bs_item[i, j] < 0) { # If both net_inc and be are negative, ratio is undefined

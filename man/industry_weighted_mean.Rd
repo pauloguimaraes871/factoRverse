@@ -12,11 +12,11 @@ industry_weighted_mean(
 )
 }
 \arguments{
-\item{characteristic_matrix}{A matrix containing characteristics.}
+\item{characteristic_matrix}{A matrix, data.frame, or tibble containing characteristics.}
 
-\item{sector_classification}{A matrix containing sector classifications.}
+\item{sector_classification}{A matrix, data.frame, or tibble containing sector classifications.}
 
-\item{weighting_matrix}{A matrix containing weighting variables.}
+\item{weighting_matrix}{A matrix, data.frame, or tibble containing weighting variables.}
 
 \item{ew}{A binary indicator (0 or 1) indicating whether to use equal weights (ew = 1) or weighted means (ew = 0).}
 }
@@ -27,7 +27,8 @@ A matrix of industry weighted means.
 This function calculates the industry weighted mean of characteristics for each sector.
 }
 \details{
-When elements in weighting matrix are missing, they are set to zero. When there is NA in sector classification, chacteristic value is ignored.
+When elements in the weighting matrix are missing, they are set to zero.
+When there is NA in sector classification, the characteristic value is ignored.
 }
 \examples{
 # Example usage:

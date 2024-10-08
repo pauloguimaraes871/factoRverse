@@ -7,9 +7,9 @@
 sum_matrix_ignore_na_matrix2(matrix1, matrix2_ignoreifna)
 }
 \arguments{
-\item{matrix1}{A numeric matrix. Values in this matrix are not ignored during addition.}
+\item{matrix1}{A matrix, data frame, or tibble. Values in this matrix are not ignored during addition.}
 
-\item{matrix2_ignoreifna}{A numeric matrix with the same dimensions as matrix1. Values in this matrix are ignored during addition if there are NAs in corresponding element in matrix1.}
+\item{matrix2_ignoreifna}{A matrix, data frame, or tibble. with the same dimensions as matrix1. Values in this matrix are ignored during addition if there are NAs in corresponding element in matrix1.}
 }
 \value{
 A numeric matrix containing the element-wise sum of matrix1 and matrix2_ignoreifna, with values in matrix2_ignoreifna ignored if corresponding element in matrix1 is NA.

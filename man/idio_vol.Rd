@@ -7,22 +7,26 @@
 idio_vol(vol_assets, vol_bench, beta_bench)
 }
 \arguments{
-\item{vol_assets}{A numeric matrix representing the total volatilities of assets. Each row corresponds to an asset, and each column represents a time period.}
+\item{vol_assets}{A numeric matrix, data.frame, or tibble representing the total volatilities of assets.
+Each row corresponds to an asset, and each column represents a time period.}
 
-\item{vol_bench}{A numeric matrix representing the volatilities of the benchmark index. Each column corresponds to a time period.}
+\item{vol_bench}{A numeric matrix, data.frame, or tibble representing the volatilities of the benchmark index.
+Each column corresponds to a time period.}
 
-\item{beta_bench}{A numeric matrix representing the beta values of assets with respect to the benchmark index.
+\item{beta_bench}{A numeric matrix, data.frame, or tibble representing the beta values of assets with respect to the benchmark index.
 Each row corresponds to an asset, and each column represents a time period.
-By default, Infs are interpreted as mistakes in data and, thus, set results to NA.}
+By default, Inf values are interpreted as mistakes in data and thus result in NA.}
 }
 \value{
 A numeric matrix containing the idiosyncratic volatilities of assets.
 }
 \description{
-Calculates  idiosyncratic volatility of assets given their total volatility, benchmark volatility, and beta values.
+Calculates the idiosyncratic volatility of assets given their total volatility, benchmark volatility, and beta values.
 }
 \details{
-This function computes the idiosyncratic volatility for each asset based on their total volatility, benchmark volatility, and beta values. Idiosyncratic volatility represents the portion of an asset's total volatility that is not explained by the volatility of the benchmark index. It is computed as the square root of the difference between the squared total volatility of the asset and the product of the squared benchmark volatility and the squared beta value.
+This function computes the idiosyncratic volatility for each asset based on their total volatility, benchmark volatility, and beta values.
+Idiosyncratic volatility represents the portion of an asset's total volatility that is not explained by the volatility of the benchmark index.
+It is computed as the square root of the difference between the squared total volatility of the asset and the product of the squared benchmark volatility and the squared beta value.
 }
 \examples{
 # Example data
@@ -33,5 +37,4 @@ beta_bench <- matrix(c(0.8, 1.2, 0.9, 1.1), nrow = 2)
 # Calculate idiosyncratic volatility
 idio_volatility <- idio_vol(vol_assets, vol_bench, beta_bench)
 idio_volatility
-
 }

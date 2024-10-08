@@ -2,7 +2,7 @@
 #'
 #' Convert a list of matrices or data frames into panel data format.
 #'
-#' @param features_list A list of matrices or data frames containing the features.
+#' @param features_list A list of matrices, data frames or tibbles containing the features.
 #' @param row_names A vector of row names for the panel data.
 #' @param column_names A vector of column names for the panel data.
 #' @param features_names A vector of names for each feature.
@@ -23,40 +23,68 @@
 #'
 #' @export
 panelize_data <- function(features_list, row_names, column_names, features_names){
-  # Check if the input is a list of matrices
-  if (!is.list(features_list) || #Check if list
-      !all(sapply(features_list, is.data.frame) | sapply(features_list, is.matrix)) ||
-      length(unique(c(sapply(features_list, dim)[1,]))) != 1 || #Check dimensions
-      length(unique(c(sapply(features_list, dim)[2,]))) != 1 || #Check dimensions
-      length(row_names) != unique(c(sapply(features_list, dim)[1,])) || #Check dimensions
-      length(column_names) != unique(c(sapply(features_list, dim)[2,])) || #Check dimensions
-      length(features_names) != length(features_list) #Check dimensions
-     ){ 
-    stop("Input must be a list of matrices/data.frame with same dimension")
-  } else {
+
+  # Check if features_list is a list of matrices, data frames, or tibbles
+  if (!is.list(features_list) ||
+      !all(sapply(features_list, function(x) is.data.frame(x) || is.matrix(x) || tibble::is_tibble(x))) ||
+      length(unique(sapply(features_list, nrow))) != 1 ||
+      length(unique(sapply(features_list, ncol))) != 1 ||
+      length(row_names) != unique(sapply(features_list, nrow)) ||
+      length(column_names) != unique(sapply(features_list, ncol)) ||
+      length(features_names) != length(features_list)) {
+    stop("Input must be a list of matrices, data frames or tibbles with the same dimensions.")
+  }
+
+  # Convert each feature in features_list to data frame
+  features_list <- lapply(features_list, as.data.frame)
+
     #Initialize list
     panel_features <- list()
+
     #for every element in list
-    for(l in 1:length(features_list)){ 
-      features_df <- data.frame(row_names, features_list[[l]]) #Tickers + Features
+    for(l in 1:length(features_list)){
+      #Tickers + Features
+      features_df <- data.frame(row_names, features_list[[l]])
       colnames(features_df)[1] <- "tickers" #change col name
       colnames(features_df)[2:length(colnames(features_df))] <- as.character(column_names)
-      panel_matrix <- reshape2::melt(features_df, id.vars="tickers") #melt to panel format
-      colnames(panel_matrix)[2] <- "dates" #change name 
+
+      #melt to panel format
+      panel_matrix <- reshape2::melt(features_df, id.vars="tickers")
+      colnames(panel_matrix)[2] <- "dates" #change name
       id <- paste(panel_matrix$tickers, panel_matrix$dates, sep = "-") #create new id
       panel_matrix <- cbind(id, panel_matrix) #append id
-      colnames(panel_matrix)[4] <- features_names[l] #change col name to characteristic name
+
+      #change col name to characteristic name
+      colnames(panel_matrix)[4] <- features_names[l]
       panel_matrix <- panel_matrix[order(panel_matrix$id), ] #order alphabetically by id
       panel_features[[l]] <- panel_matrix #save in list
     }
-    #create new matrix object to store panel data
-    final_panel <- matrix(NA, nrow = length(row_names)*length(column_names), ncol = length(features_list))
-    final_panel <- cbind(panel_features[[1]][,1:3], final_panel)
+
+    # Create new data frame to store panel data
+    final_panel <- data.frame(id = panel_features[[1]]$id,
+                              tickers = panel_features[[1]]$tickers,
+                              dates = panel_features[[1]]$dates,
+                              stringsAsFactors = FALSE)
+
+    #Fill columns with characteristics
     for(l in 1:length(features_list)){
-      final_panel[,3+l] <- panel_features[[l]][,4] #append last column, which is the characteristic
-      colnames(final_panel)[3+l] <- features_names[l] #change name
-      rownames(final_panel) <- NULL
+      final_panel[[features_names[l]]] <- panel_features[[l]][, 4] #append last column, which is the characteristic
     }
+
+    # Calculate metadata
+    unique_dates_count <- length(unique(final_panel$dates))
+    unique_tickers_count <- length(unique(final_panel$tickers))
+    total_observations_count <- nrow(final_panel)
+
+    # Create meta_dataframe object
+    final_panel <- new("meta_dataframe",
+                   data = final_panel,
+                   workflow = list(),
+                   signals = features_names,
+                   unique_dates = unique_dates_count,
+                   unique_tickers = unique_tickers_count,
+                   n_obs = total_observations_count)
+
     return(final_panel)
-  }
+
 }

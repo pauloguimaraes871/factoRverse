@@ -22,8 +22,8 @@ Calculates row-wise Standardized Unexpected Realization (SUR) of a matrix, which
 \examples{
 # Create a complete matrix with lagged information
 main_matrix <- matrix(c(5,3,7,8), nrow = 2, ncol = 2)
-complementary_matrix <- matrix(c(1,2,6,4), nrow = 2, ncol = 2) 
-                             
+complementary_matrix <- matrix(c(1,2,6,4), nrow = 2, ncol = 2)
+
 # Calculate SUR using a rolling window of 3(1+2 additional columns)
 sur_rolling(main_matrix, complementary_matrix)
 }
