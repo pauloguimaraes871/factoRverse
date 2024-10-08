@@ -19,6 +19,17 @@ test_that("sur_rolling is running correctly with a data frame", {
 })
 
 # Define your test
+test_that("sur_rolling is running correctly with a tibble", {
+  expect_equal(
+    sur_rolling(
+      data.frame(matrix(c(5,3,7,8), nrow = 2, ncol = 2)),
+      tibble::as_tibble(matrix(c(1,2,6,4), nrow = 2, ncol = 2), .name_repair = "unique")
+      ),
+    matrix(c(0.37796447301,0,1,1.13389341903), nrow=2, ncol=2)
+  )
+})
+
+# Define your test
 test_that("sur_rolling is running correctly when complementary matrix has only one column", {
   expect_equal(
     sur_rolling(

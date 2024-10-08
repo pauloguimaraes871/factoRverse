@@ -24,6 +24,21 @@ test_that("skew_rolling is running correctly with a data frame", {
   )
 })
 
+
+# Define your test
+test_that("skew_rolling is running correctly with a tibble", {
+  expect_equal(
+    skew_rolling(
+      tibble::as_tibble(matrix(c(5,3,7,8), nrow = 2, ncol = 2), .name_repair = "unique"),
+      data.frame(matrix(c(1,2,6,4), nrow = 2, ncol = 2))),
+    matrix(c(moments::skewness(c(1,6,5)),
+             moments::skewness(c(3,2,4)),
+             moments::skewness(c(6,5,7)),
+             moments::skewness(c(8,3,4))), nrow=2, ncol=2)
+  )
+})
+
+
 # Define your test
 test_that("skew_rolling is running correctly when complementary matrix has only one column", {
   expect_equal(
@@ -77,7 +92,7 @@ test_that("skew_rolling throws an error when number of rows differ", {
   expect_error(
     skew_rolling(
       matrix(c(10,10,1,-4,10,20), nrow=2, ncol=3),
-      matrix(c(10,3,5,10), nrow=1, ncol=4)), "Main matrix and complementary_matrix should have same number of rows."
+      matrix(c(10,3,5,10), nrow=1, ncol=4)), "Main matrix and complementary_matrix should have the same number of rows."
   )
 })
 
@@ -101,7 +116,7 @@ test_that("skew_rolling is running correctly when there are Infs", {
               moments::skewness(c(3,Inf)),
               moments::skewness(c(Inf,5)),
               moments::skewness(c(8,3))), nrow = 2, ncol = 2)
-              
+
   )
 })
 
@@ -115,7 +130,7 @@ test_that("skew_rolling is running correctly when there are only infs", {
              moments::skewness(c(Inf,-Inf)),
              moments::skewness(c(Inf,Inf)),
              moments::skewness(c(Inf,-Inf))), nrow = 2, ncol = 2)
-    
+
   )
 })
 

@@ -19,6 +19,16 @@ test_that("sum_matrix_onena is running correctly with Data Frames.", {
 })
 
 # Define your test
+test_that("sum_matrix_onena is running correctly with tibble", {
+  expect_equal(
+    sum_matrix_onena(
+      tibble::as_tibble(matrix(c(1,2,3,4), nrow=2, ncol=2), .name_repair = "unique"),
+      data.frame(matrix(c(5,6,7,8), nrow=2, ncol=2))),
+    matrix(c(1+5, 2+6, 3+7, 4+8), nrow=2, ncol=2)
+  )
+})
+
+# Define your test
 test_that("sum_matrix_onena is running correctly with NA in matrix 1.", {
   expect_equal(
     sum_matrix_onena(

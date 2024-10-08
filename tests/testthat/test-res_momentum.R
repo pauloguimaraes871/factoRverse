@@ -51,15 +51,15 @@ test_that("res_momentum is running correctly with big matrices", {
     matrix(c(sum(c(5,3,1) - 0.5 - 1.0*(c(2,0,1))),
              sum(c(6,4,2) - 0 - 1.2*(c(2,0,1))),
              sum(c(-4,-2,-1) - -0.4 - -1.0*(c(2,0,1))),
-             
+
              sum(c(7,5,3) - 1 - 1.0*(c(1,2,0))),
              sum(c(8,6,4) - 1 - 1.0*(c(1,2,0))),
              sum(c(4,-4,-2) - 0 - 0.2*(c(1,2,0))),
-             
+
              sum(c(-9,7,5) - -0.3 - -0.4*(c(-4,1,2))),
              sum(c(10,8,6) - 1 - 2*(c(-4,1,2))),
              sum(c(5,4,-4) - -1.5 -0.3*(c(-4,1,2)))),
-             
+
            nrow=3, ncol=3)
   )
 })
@@ -79,13 +79,13 @@ test_that("res_momentum is running correctly with non-square matrices", {
     matrix(c(sum(c(5,3,1) - 0.5 - 1.0*(c(2,0,1))),
              sum(c(6,4,2) - 0 - 1.2*(c(2,0,1))),
              sum(c(-4,-2,-1) - -0.4 - -1.0*(c(2,0,1))),
-             
+
              sum(c(7,5,3) - 1 - 1.0*(c(1,2,0))),
              sum(c(8,6,4) - 1 - 1.0*(c(1,2,0))),
              sum(c(4,-4,-2) - 0 - 0.2*(c(1,2,0)))),
-             
 
-           
+
+
            nrow=3, ncol=2)
   )
 })
@@ -105,15 +105,15 @@ test_that("res_momentum is running correctly with NAs", {
     matrix(c(sum(c(5,3,1) - 0.5 - 1.0*(c(2,0,1))),
              sum(c(6,4,2) - 0 - 1.2*(c(2,0,1))),
              sum(c(-4,NA,-1) - -0.4 - -1.0*(c(2,0,1)), na.rm = TRUE),
-             
+
              sum(c(7,5,3) - 1 - 1.0*(c(1,2,0))),
              sum(c(NA,6,4) - 1 - 1.0*(c(1,2,0)), na.rm = TRUE),
              NA,
-             
+
              sum(c(-9,7,5) - -0.3 - -0.4*(c(-4,1,2))),
              sum(c(10,NA,6) - 1 - 2*(c(-4,1,2)), na.rm = TRUE),
              NA),
-           
+
            nrow=3, ncol=3)
   )
 })
@@ -132,15 +132,15 @@ test_that("res_momentum is running correctly with NAs (a row full of NAs)", {
     matrix(c(sum(c(5,3,1) - 0.5 - 1.0*(c(2,0,1))),
              sum(c(6,4,2) - 0 - 1.2*(c(2,0,1))),
              NA,
-             
+
              sum(c(7,5,3) - 1 - 1.0*(c(1,2,0))),
              sum(c(NA,6,4) - 1 - 1.0*(c(1,2,0)), na.rm = TRUE),
              NA,
-             
+
              sum(c(-9,7,5) - -0.3 - -0.4*(c(-4,1,2))),
              sum(c(10,NA,6) - 1 - 2*(c(-4,1,2)), na.rm = TRUE),
              NA),
-           
+
            nrow=3, ncol=3)
   )
 })
@@ -159,15 +159,15 @@ test_that("res_momentum is running correctly with NAs", {
     matrix(c(NA,
              NA,
              sum(c(-4,NA,-1) - -0.4 - -1.0*(c(2,0,1)), na.rm = TRUE),
-             
+
              sum(c(7,5,3) - 1 - 1.0*(c(1,2,0))),
              sum(c(NA,6,4) - 1 - 1.0*(c(1,2,0)), na.rm = TRUE),
              NA,
-             
+
              sum(c(-9,7,5) - -0.3 - -0.4*(c(-4,1,2))),
              sum(c(10,NA,6) - 1 - 2*(c(-4,1,2)), na.rm = TRUE),
              NA),
-           
+
            nrow=3, ncol=3)
   )
 })
@@ -188,7 +188,7 @@ test_that("res_momentum is running correctly with all NAs", {
     ),
     matrix(c(NA,NA,NA,NA,NA,NA,NA,NA,NA
              ),
-           
+
            nrow=3, ncol=3)
   )
 })
@@ -210,15 +210,15 @@ test_that("res_momentum is running correctly with Infs", {
     matrix(c(sum(c(5,3,1) - 0.5 - 1.0*(c(2,0,1))),
              sum(c(6,4,2) - 0 - 1.2*(c(2,0,1))),
              sum(c(-4,Inf,-1) - -0.4 - -1.0*(c(2,0,1))),
-             
+
              sum(c(Inf,5,3) - 1 - 1.0*(c(1,2,0))),
              sum(c(8,6,4) - 1 - 1.0*(c(1,2,0))),
              sum(c(4,-4,Inf) - 0 - 0.2*(c(1,2,0))),
-             
+
              sum(c(-9,Inf,5) - -0.3 - -0.4*(c(-4,1,2))),
              sum(c(10,8,6) - 1 - 2*(c(-4,1,2))),
              sum(c(5,4,-4) - -Inf -0.3*(c(-4,1,2)))),
-           
+
            nrow=3, ncol=3)
   )
 })
@@ -249,7 +249,7 @@ test_that("res_momentum throws an error when there are different number of rows/
       beta_bench = matrix(c(1,1.2,1,1), nrow=2, ncol=2), #Beta
       alpha_bench = matrix(c(0.5,0,1,1), nrow=2, ncol=2) #Alpha
     ), "ret_bench_main and ret_bench_complementary should have same number of rows."
- 
+
   )
 })
 
@@ -267,7 +267,7 @@ test_that("res_momentum throws an error when there are different number of rows/
   )
 })
 
-test_that("res_momentum throws an error when there are different number of rows/columns", {  
+test_that("res_momentum throws an error when there are different number of rows/columns", {
   expect_error(
     res_momentum(
       ret_assets_main = matrix(c(5,6,7,8), nrow=2, ncol=2), #Ret Assets Main
@@ -280,8 +280,8 @@ test_that("res_momentum throws an error when there are different number of rows/
 
   )
 })
-  
-test_that("res_momentum throws an error when there are different number of rows/columns", { 
+
+test_that("res_momentum throws an error when there are different number of rows/columns", {
   expect_error(
     res_momentum(
       ret_assets_main = matrix(c(5,6,7,8), nrow=2, ncol=2), #Ret Assets Main
@@ -293,8 +293,8 @@ test_that("res_momentum throws an error when there are different number of rows/
     ), "beta_bench and ret_assets_main should have same dimension"
   )
 })
-  
-test_that("res_momentum throws an error when there are different number of rows/columns", { 
+
+test_that("res_momentum throws an error when there are different number of rows/columns", {
   expect_error(
       res_momentum(
         ret_assets_main = matrix(c(5,6,7,8), nrow=2, ncol=2), #Ret Assets Main
@@ -306,7 +306,7 @@ test_that("res_momentum throws an error when there are different number of rows/
       ),"alpha_bench and ret_assets_main should have same dimension"
 
     )
-  
+
 })
 
 
@@ -323,7 +323,7 @@ test_that("res_momentum throws an error when there are NAs in bench vector", {
       alpha_bench = matrix(c(0.5,0,1,1), nrow=2, ncol=2) #Alpha
     ), "There should not be any NAs in Bench Vector"
   )
-  
+
   expect_error(
     res_momentum(
       ret_assets_main = matrix(c(5,6,7,8), nrow=2, ncol=2), #Ret Assets Main
@@ -358,5 +358,19 @@ test_that("res_momentum handles extreme values", {
 })
 
 
+test_that("res_momentum rejects unsupported input types", {
+  # Example data for testing
+  set.seed(123)
+  ret_assets_main <- matrix(rnorm(100), nrow = 10)
+  ret_assets_complementary <- matrix(rnorm(100), nrow = 10)
+  ret_bench_main <- matrix(rnorm(100), nrow = 10)
+  ret_bench_complementary <- matrix(rnorm(100), nrow = 10)
+  beta_bench <- matrix(runif(100), nrow = 10)
+  alpha_bench <- matrix(runif(100), nrow = 10)
 
+  expect_error(res_momentum(ret_assets_main, list(1, 2),
+                            ret_bench_main, ret_bench_complementary,
+                            beta_bench, alpha_bench),
+               "All inputs must be matrices, data.frames, or tibbles.")
+})
 
