@@ -37,7 +37,7 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
                                       signal_selection_policy,
                                       signals_groups_m_d_ref,
                                       selected_priors_informative_data_m_upd_ref,
-                                      upper_quantile_winsorization, lower_quantile_winsorization){
+                                      upper_quantile_winsorization = 0.975, lower_quantile_winsorization = 0.025){
 
 
   #Initial Preparations
@@ -90,18 +90,18 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
   )
 
   #Correct based on backtest length
-  ##Check if backtests have enough length to be considered
-  cutted_out_backtests <- selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(col){
-    length(which(is.na(col))) >= data_availability_cutoff
-  })
+    ##Check if backtests have enough length to be considered
+    cutted_out_backtests <- selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(col){
+      length(which(is.na(col))) >= data_availability_cutoff
+    })
 
-  ##Send warning
-  if(any(cutted_out_backtests)){
-    warning(paste0("The following signals backtests have less periods than data_avaiability_cutoff and will not be used: ",
-                   names(cutted_out_backtests[which(cutted_out_backtests)])))
-    ##Ignore signals that do not have enough data
-    signal_universe_m_d_ref[which(cutted_out_backtests), -c(1:3)] <- NA #NA reflects lack of knowledge about signal behavior
-  }
+    ##Send warning
+    if(any(cutted_out_backtests)){
+      warning(paste0("The following signals backtests have less periods than data_avaiability_cutoff and will not be used: ",
+                     names(cutted_out_backtests[which(cutted_out_backtests)])))
+      ##Ignore signals that do not have enough data
+      signal_universe_m_d_ref[which(cutted_out_backtests), -c(1:3)] <- NA #NA reflects lack of knowledge about signal behavior
+    }
   #################################
 
   #P-adjust!

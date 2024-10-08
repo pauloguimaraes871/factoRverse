@@ -177,19 +177,30 @@ test_that("select_and_correct_signals correctly subsets signals_m_upd_ref when c
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  test_signal_selection_policy <- signal_selection_policy
-  test_signal_selection_policy$chosen_signals <- signal_selection_policy$chosen_signals[-2]
-  test_signal_selection_policy$signal_positions <- signal_selection_policy$signal_positions[-2]
+  test_signal_selection_policy <- list()
+  test_signal_selection_policy$chosen_signals <- c("book_yield", "dps_yield", "roe_3m", "sharpe_6m")
+  test_signal_selection_policy$signal_positions <- c(book_yield = "long", dps_yield = "long", roe_3m = "long", sharpe_6m = "short")
 
-  current_date = "2001-07-15"
+  current_date = "2023-04-15"
 
   #Generate signal matrix part
-  signals_m_upd_ref <- signals_m_df[which(signals_m_df$dates <= current_date), ]
+  signals_m_upd_ref <- toy_preprocessed_features[which(toy_preprocessed_features$dates <= current_date), ]
 
   #Subseted signals
-  subsetted_signals <- colnames(select_and_correct_signals(signal_selection_policy = test_signal_selection_policy, signals_m_upd_ref = signals_m_upd_ref)$selected_signals_corrected_positions_m_upd_ref)
+  subsetted_signals <- colnames(select_and_correct_signals(signal_selection_policy = test_signal_selection_policy,
+                                                           signals_m_upd_ref = signals_m_upd_ref)$selected_signals_corrected_positions_m_upd_ref)
 
-  expect_equal(c("id", "tickers", "dates", "Alpha", "Gamma"),subsetted_signals)
+  #Check for correct subset
+  expect_equal(c("id", "tickers", "dates", "book_yield", "dps_yield", "roe_3m", "low_sharpe_6m"),subsetted_signals)
+  #Check for correct signal
+  expect_equal(
+    select_and_correct_signals(signal_selection_policy = test_signal_selection_policy, signals_m_upd_ref = signals_m_upd_ref)$selected_signals_corrected_positions_m_upd_ref$dps_yield,
+    signals_m_upd_ref$dps_yield)
+
+  expect_equal(
+    select_and_correct_signals(signal_selection_policy = test_signal_selection_policy, signals_m_upd_ref = signals_m_upd_ref)$selected_signals_corrected_positions_m_upd_ref$low_sharpe_6m,
+    signals_m_upd_ref$sharpe_6m*-1)
+
 
 })
 

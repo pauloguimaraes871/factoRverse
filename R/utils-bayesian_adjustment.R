@@ -21,19 +21,18 @@
 #' A data frame or matrix (`signal_universe_m_d_ref`) updated with posterior statistics based on the Bayesian model fitting.
 #'
 #' @export
-bayesian_adjustment <- function(selected_signals_backtest_returns_upd_ref, selected_benchmark_returns_upd_ref_vector, signal_universe_m_d_ref,
+bayesian_adjustment <- function(selected_signals_backtest_returns_upd_ref, selected_benchmark_returns_vector_upd_ref, signal_universe_m_d_ref,
                                 selected_priors_informative_data_m_upd_ref, priors_type, user_priors_list,
-                                signals_groups_m_d_ref, verbose){
+                                signals_groups_m_d_ref, verbose = TRUE){
 
   #Initial checks
   ##prior type
-  if(is.null(priors_type) ||
-     !signal_selection_policy$priors_type %in% c("uninformative", "all", "user", "mean")){
+  if(is.null(priors_type) || !priors_type %in% c("uninformative", "all", "user", "mean")){
     stop("priors_type should be one of uninformative, all, user or mean")
   }
 
   ##chosen_informative_data
-  if(!signal_selection_policy$priors_type %in% c("uninformative", "user")){
+  if(!priors_type %in% c("uninformative", "user")){
     #If priors type is not exogenous, a prior dataframe should be set
     if(is.null(selected_priors_informative_data_m_upd_ref)){
       stop("priors_m_df_list must be provided and also contemplate chosen_informative_data if priors_type is all or mean")
@@ -76,7 +75,7 @@ bayesian_adjustment <- function(selected_signals_backtest_returns_upd_ref, selec
                                             ...,
                                             #Data
                                             selected_signals_backtest_returns_upd_ref = selected_signals_backtest_returns_upd_ref,
-                                            selected_benchmark_returns_upd_ref_vector = selected_benchmark_returns_upd_ref_vector,
+                                            selected_benchmark_returns_vector_upd_ref = selected_benchmark_returns_vector_upd_ref,
                                             #Groups
                                             signals_groups_m_d_ref = signals_groups_m_d_ref,
                                             #Priors
@@ -100,7 +99,7 @@ bayesian_adjustment <- function(selected_signals_backtest_returns_upd_ref, selec
   #Update signal_universe_m_d_ref with posterior statistics
   posterior_signal_universe_m_d_ref <- summarize_posterior_draws(signal_universe_m_d_ref = signal_universe_m_d_ref, #Signal Universe
                                                                  posteriors_draws_list = posteriors_draws_list, #Posteriors Draws from Bayesian Model
-                                                                 selected_benchmark_returns_upd_ref_vector = selected_benchmark_returns_upd_ref_vector,
+                                                                 selected_benchmark_returns_vector_upd_ref = selected_benchmark_returns_vector_upd_ref,
                                                                  signals_groups_m_d_ref = signals_groups_m_d_ref) #Groups
   #############################################
   bayesian_adjustment_results_list <- list(

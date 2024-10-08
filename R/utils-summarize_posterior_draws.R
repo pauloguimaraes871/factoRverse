@@ -18,7 +18,7 @@
 #'   \item Computes and updates additional performance metrics like Appraisal Ratio (AP) and Treynor ratio.
 #' }
 #'
-summarize_posterior_draws <- function(signal_universe_m_d_ref, posteriors_draws_list, signals_groups_m_d_ref, selected_benchmark_returns_upd_ref_vector){
+summarize_posterior_draws <- function(signal_universe_m_d_ref, posteriors_draws_list, signals_groups_m_d_ref, selected_benchmark_returns_vector_upd_ref){
 
   #Get themes
   themes <- names(posteriors_draws_list)
@@ -84,7 +84,7 @@ summarize_posterior_draws <- function(signal_universe_m_d_ref, posteriors_draws_
     for(i in 1:ncol(both_effects_beta)){
       current_signal <- signal_universe_m_d_ref$tickers[positions_of_signals_in_current_theme][i]
       # Multiply the current beta column by each benchmark return and add alpha (result will be (Beta * Ibov) + Alpha)
-      active_returns_df <- as.data.frame(sapply(selected_benchmark_returns_upd_ref_vector, function(x) both_effects_beta[,i] * x + both_effects_intercept[,i]))
+      active_returns_df <- as.data.frame(sapply(selected_benchmark_returns_vector_upd_ref, function(x) both_effects_beta[,i] * x + both_effects_intercept[,i]))
       #Get the mean active return and te for each draw
       mean_active_returns_df <- apply(active_returns_df, 1, function(x) mean(x))
       te_df <- apply(active_returns_df, 1, function(x) sd(x))

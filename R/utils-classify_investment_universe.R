@@ -287,7 +287,7 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
   ###Classify groups
   if(!is.null(groups_m_d_ref)){
       #Merge group classification
-      universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, dplyr::select(groups_m_d_ref, -id, -dates), #Avoid dupliction
+      universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, dplyr::select(groups_m_d_ref, -id, -dates), #Avoid duplication
                                            by = "tickers")
   }
 

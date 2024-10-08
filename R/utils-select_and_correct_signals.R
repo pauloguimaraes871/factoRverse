@@ -30,7 +30,7 @@
 #' @importFrom dplyr select
 #' @importFrom stats setNames
 #' @export
-select_and_correct_signals <- function(signal_selection_policy, signals_m_upd_ref, backtest_returns_upd_ref){
+select_and_correct_signals <- function(signal_selection_policy, signals_m_upd_ref, backtest_returns_upd_ref = NULL){
 
   ###Get chosen signals
   #####################

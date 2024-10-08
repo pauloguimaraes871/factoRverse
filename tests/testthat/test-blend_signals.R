@@ -45,7 +45,8 @@ test_that("blend signal works for a single signal", {
   #Results
   results <- blend_signals(current_date = current_date,
                            signals_m_df = signals_m_df,
-                           signal_selection_policy = signal_selection_policy
+                           signal_selection_policy = signal_selection_policy,
+                           signals_groups_m_d_ref = signals_groups_m_d_ref
   )
 
   expect_equal(results, expected_results)
@@ -367,6 +368,7 @@ test_that("blend signal works for MTO", {
     current_date = current_date,
     eligible_signals = results$eligible_signals,
     signal_weights = results$signal_universe_m_d_ref$weights,
+    signals_groups_m_d_ref = signals_groups_m_d_ref,
     ml_walk_forward_validation_results = NULL,
     signals_m_df = signals_m_df,
     signal_selection_policy = signal_selection_policy
@@ -498,6 +500,7 @@ test_that("blend signal works for ML", {
     current_date = current_date,
     target_m_df = NULL,
     eligible_signals = results$eligible_signals,
+    signals_groups_m_d_ref = signals_groups_m_d_ref,
     signal_weights = NULL,
     ml_walk_forward_validation_results = results$ml_walk_forward_validation_results,
     signals_m_df = signals_m_df,

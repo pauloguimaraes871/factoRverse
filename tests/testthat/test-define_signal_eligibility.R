@@ -59,7 +59,7 @@ test_that("define_signal_elibility works for frequentist setting", {
 
 })
 
-test_that("define_signal_elibility works for frequentist setting when there is a backtest with inadequate length", {
+test_that("define_signal_elibility works for frequentist setting when there is a backtest with short length", {
 
   #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
@@ -167,7 +167,7 @@ test_that("define_signal_elibility works for bayesian setting", {
     bayesian_adjustment(
     signal_universe_m_d_ref = expected_result,
     selected_signals_backtest_returns_upd_ref = selected_signals_backtest_returns_upd_ref,
-    selected_benchmark_returns_upd_ref_vector = selected_benchmark_returns_upd_ref$IBOV,
+    selected_benchmark_returns_vector_upd_ref = selected_benchmark_returns_upd_ref$IBOV,
     selected_priors_informative_data_m_upd_ref = selected_priors_informative_data_m_upd_ref,
     priors_type = signal_selection_policy$priors_type,
     signals_groups_m_d_ref = signals_groups_m_d_ref
@@ -195,7 +195,6 @@ test_that("define_signal_elibility works for bayesian setting", {
   #results
   set.seed(123)
   results <- suppressWarnings(define_signal_eligibility(
-
     selected_signals_backtest_returns_upd_ref = selected_signals_backtest_returns_upd_ref,
     selected_benchmark_returns_upd_ref = selected_benchmark_returns_upd_ref,
     signal_selection_policy = signal_selection_policy,

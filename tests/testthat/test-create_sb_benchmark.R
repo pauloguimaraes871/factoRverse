@@ -28,7 +28,7 @@ test_that("create_sb_benchmark correctly builds individual-based sb benchmark", 
 
 })
 
-test_that("create_sb_benchmark correctly builds theme-based sb benchmark", {
+test_that("create_sb_benchmark correctly builds theme-based sb benchmark when all signals are significant", {
 
   #Create signal_universe_m_d_ref
   signal_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
@@ -65,7 +65,7 @@ test_that("create_sb_benchmark correctly builds theme-based sb benchmark", {
 
 })
 
-test_that("create_sb_benchmark correctly builds theme-based sb benchmark", {
+test_that("create_sb_benchmark correctly builds theme-based sb benchmark when one signal is not significant", {
 
   #Create signal_universe_m_d_ref
   signal_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),

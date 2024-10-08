@@ -3,7 +3,7 @@
 #' @param selected_signals_corrected_positions_m_upd_ref A dataframe containing tickers and signals for the current_date
 #' @param signal_selection_policy A named list containing objects to blend signals. Elements of the list are:
 #' - `chosen_signals` A vector that indicates which characteristics or ml_algorithms should be used as signals
-#' - `signals_positions` A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short"
+#' - `signal_positions` A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short"
 #' - `benchmark`  A character describing the benchmark to be used to calculate alphas.
 #' - `signal_blending_method` A signal blending (ensemble) method. It can be accept a portfolio_construction_method, such as "EW", "SW", "RP" or "MTO" (note that cap-weighting
 #' does not make sense for blending signals) or a ml_algorithm ("OLS", "GLMNET", "RF", "XGB" or "NN").
@@ -70,7 +70,7 @@ blend_signals <- function(current_date,
   #########################
 
     ##Get signal_selection_policy objects
-    signals_positions <- signal_selection_policy$signals_position
+    signal_positions <- signal_selection_policy$signal_positions
     signal_blending_method <- signal_selection_policy$signal_blending_method
     sb_benchmark_weighting <- signal_selection_policy$sb_benchmark_weighting
     max_abs_active_individual_weight <- signal_selection_policy$max_abs_active_individual_weight
@@ -99,7 +99,7 @@ blend_signals <- function(current_date,
       try(backtest_returns_upd_ref <-  backtest_returns_df[which(backtest_returns_df$dates <= current_date), ])#Only dates before current_date
       try(selected_benchmark_returns_upd_ref <- selected_benchmark_returns_df[which(selected_benchmark_returns_df$dates <= current_date), ]) #Only dates before current_date
 
-      ##Select signals and respective backtests based on user choice
+    ##Select signals and respective backtests based on user choice
       selected_signals_and_backtest_list <- select_and_correct_signals(
         #Signal Selection Policy
         signal_selection_policy = signal_selection_policy,
@@ -122,8 +122,11 @@ blend_signals <- function(current_date,
         if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_d_ref, -id, -tickers, -dates)) %in% signals_groups_m_d_ref$tickers)){
           stop("all selected signals (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
         }
-        if(any(!colnames(dplyr::select(selected_signals_backtest_returns_upd_ref, -dates)) %in% signals_groups_m_d_ref$tickers)){
-          stop("all selected signals (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
+        if(!is.null(selected_signals_backtest_returns_upd_ref)){
+          if(
+            any(!colnames(dplyr::select(selected_signals_backtest_returns_upd_ref, -dates)) %in% signals_groups_m_d_ref$tickers)){
+            stop("all selected signals in backtests (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
+         }
         }
 
       #########################
@@ -196,25 +199,25 @@ blend_signals <- function(current_date,
             #Returns sample
             returns_upd_ref = selected_signals_backtest_returns_upd_ref,
             #Covariance Estimation Method
-            covariance_estimation_method = covariance_estimation_method,covariance_matrix_sample_size = NULL, #Sample size to estimate cov matrix (NULL => full perior)
+            covariance_estimation_method = covariance_estimation_method, covariance_matrix_sample_size = NULL, #Sample size to estimate cov matrix (NULL => full period)
             #Number of random portfolios to generate for numeric optimization
             n_random_portfolios = n_random_portfolios,
-      #RandomPorts method
-      rp_method = rp_method,
-      #What to optimize? #Objective for MTO Optimization
-      mto_port_objective = mto_port_objective,
-      #Set concentration constraint policy for signals
-      concentration_constraint_policy = list(
-        benchmark = sb_benchmark_weighting, #Reference benchmark
-        max_abs_active_individual_weight = max_abs_active_individual_weight, #Max abs active individual weight
-        max_abs_active_group_weight = max_abs_active_group_weight), #Max group weight for signal
-      #Winsorization
-      lower_quantile_winsorization = lower_quantile_winsorization, #Quantiles for winsorization
-      upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
-    )
+            #RandomPorts method
+            rp_method = rp_method,
+            #What to optimize? #Objective for MTO Optimization
+            mto_port_objective = mto_port_objective,
+            #Set concentration constraint policy for signals
+            concentration_constraint_policy = list(
+              benchmark = sb_benchmark_weighting, #Reference benchmark
+              max_abs_active_individual_weight = max_abs_active_individual_weight, #Max abs active individual weight
+              max_abs_active_group_weight = max_abs_active_group_weight), #Max group weight for signal
+            #Winsorization
+            lower_quantile_winsorization = lower_quantile_winsorization, #Quantiles for winsorization
+            upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
+          )
 
-    #Get signal weights
-    signal_weights <- signal_universe_m_d_ref$weights
+      #Get signal weights
+      signal_weights <- signal_universe_m_d_ref$weights
 
   } else {}
         #In case of ML model

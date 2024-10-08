@@ -9,6 +9,8 @@ check_metabacktest_inputs <- function(signals_m_df, liquidity_m_df, volatility_m
     stop("signals_m_df should be a data.frame.")
   }
 
+  #Check if data is already normalized or standardized
+
   #Check for coercibility
   if(!is_coercible_to_meta_dataframe(signals_m_df)){
     stop("signals_m_df is not coercible to meta_dataframe format")

@@ -1,3 +1,5 @@
+#Signals
+
 test_that("set portfolio weights work for EW (signals)", {
 
   #Load
@@ -90,7 +92,6 @@ test_that("set portfolio weights work for RP (signals) ", {
   selected_benchmark_returns_upd_ref <- benchmark_returns_df[which(benchmark_returns_df$dates <= current_date), c("dates", concentration_constraint_policy$benchmark)]
   priors_m_upd_ref_list <- list(jkp_emerging = priors_m_df_list$jkp_emerging[which(priors_m_df_list$jkp_emerging$dates <= current_date), ])
   signals_groups_m_d_ref <- groups_m_df_list$signals[which(groups_m_df_list$signals$dates == current_date),]
-
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(signal_selection_policy = signal_selection_policy, signals_m_upd_ref = signals_m_upd_ref, backtest_returns_upd_ref = backtest_returns_upd_ref)
@@ -299,6 +300,7 @@ test_that("set portfolio weights work for MTO (signals) - constrained ", {
 
 })
 
+#Stocks
 test_that("set portfolio weights works for stocks (all formats) ", {
 
   #Create signals_m_d_ref_test

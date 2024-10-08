@@ -1,30 +1,12 @@
-test_that("classify_investment_universe works with no additional rules for stocks", {
+#Signals
 
-  #Create signals_m_d_ref_test
-  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
-
-  current_date <- "2001-07-15"
-  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
-  signals_m_d_ref$final_signal <- c(1.2, 0.8, 0.3, 0.2)
-
-  expected_results <- signals_m_d_ref
-  top_quantile_buffer <- quantile(signals_m_d_ref$final_signal, 0.50)
-  expected_results$top_assets <- c(1,1,0,0)
-  expected_results$is_eligible <- c(1,1,0,0)
-
-  expect_equal(
-    classify_investment_universe(signals_m_d_ref = signals_m_d_ref, top_assets_quantile = 0.50),
-    expected_results
-  )
-
-})
-
-test_that("classify_investment_universe works with no additional rules for signals (frequentist)", {
+test_that("classify_investment_universe works with no additional rules for signals (frequentist), respecting group representativeness", {
 
   #THEME SB
-  #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
 
+  #Create signal_universe_m_d_ref
+  set.seed(123)
   signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
                                 tickers = c("Alpha", "low_Beta", "Gamma"),
                                 dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
@@ -123,12 +105,73 @@ test_that("classify_investment_universe works with no additional rules for signa
 
 })
 
+test_that("classify_investment_universe works with no additional rules for signals (frequentist), respecting group representativeness when there are two competing unsignificant signals", {
+
+  #THEME SB
+  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
+
+  #Create signal_universe_m_d_ref
+  set.seed(103)
+  signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15", "Delta-2001-07-15"),
+                                         tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
+                                         dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
+                                         mean_active_return = rnorm(4, 0, 1),
+                                         tracking_error = runif(4, 0, 1),
+                                         IR = rnorm(4,0,1),
+                                         alpha = rnorm(4,0,1),
+                                         AP = rnorm(4,0,1),
+                                         beta = rnorm(4,0,1),
+                                         treynor = rnorm(4,0,1),
+                                         p_value = c(0.05,0.20,0.03, 0.10)
+  )
+
+  signals_groups_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15", "Delta-2001-07-15"),
+                                       tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
+                                       dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
+                                       theme = c("Value", "Momentum", "Value", "Momentum")
+  )
+
+
+  signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "none")
+  signals_universe_m_d_ref$final_signal <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
+
+  expected_results <- signals_universe_m_d_ref
+  expected_results$top_assets <- c(1,0,1,0)
+
+
+  #GET SB BENCHMARK
+  sb_benchmark <- create_sb_benchmark(expected_results, signals_groups_m_d_ref)
+
+  expected_results$theme_sb_bench_weights <- sb_benchmark$theme_sb
+  expected_results$theme = signals_groups_m_d_ref$theme
+
+
+  expected_results$is_eligible <- c(1,0,1,1)
+
+  expect_equal(
+    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
+                                 groups_m_d_ref = signals_groups_m_d_ref,
+                                 concentration_constraint_policy = list(
+                                   benchmark = signal_selection_policy$sb_benchmark_weighting,
+                                   max_abs_active_group_weight = signal_selection_policy$max_abs_active_group_weight
+                                 ),
+                                 asset_object = "signals"),
+
+    expected_results
+  )
+
+
+
+
+})
+
 test_that("classify_investment_universe works with no additional rules for signals (bayesian)", {
 
   #THEME SB
   #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
 
+  set.seed(123)
   signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
                                          tickers = c("Alpha", "low_Beta", "Gamma"),
                                          dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
@@ -190,6 +233,29 @@ test_that("classify_investment_universe works with no additional rules for signa
 
 
 
+
+})
+
+#Stocks
+
+test_that("classify_investment_universe works with no additional rules for stocks", {
+
+  #Create signals_m_d_ref_test
+  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
+
+  current_date <- "2001-07-15"
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
+  signals_m_d_ref$final_signal <- c(1.2, 0.8, 0.3, 0.2)
+
+  expected_results <- signals_m_d_ref
+  top_quantile_buffer <- quantile(signals_m_d_ref$final_signal, 0.50)
+  expected_results$top_assets <- c(1,1,0,0)
+  expected_results$is_eligible <- c(1,1,0,0)
+
+  expect_equal(
+    classify_investment_universe(signals_m_d_ref = signals_m_d_ref, top_assets_quantile = 0.50),
+    expected_results
+  )
 
 })
 
