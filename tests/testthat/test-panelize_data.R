@@ -4,11 +4,11 @@ test_that("Panelize Data is running correctly.", {
     panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
-                  c("Alpha", "Beta", "Gamma")),
+                  c("Alpha", "Beta", "Gamma"))@data,
     data.frame(
       id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock B-2001-03-15", "Stock B-2001-04-15")),
       tickers = (c("Stock A", "Stock A", "Stock B", "Stock B")),
-      dates = as.factor(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
+      dates = as.Date(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
       Alpha = (c(0, 2, 1, 3)),
       Beta = (c(4, 6 , 5, 7)),
       Gamma = (c(8, 10, 9, 11)))
@@ -21,11 +21,11 @@ test_that("Panelize Data is running correctly with character data.frame.", {
     panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), data.frame(c("e","c"),c("d","a")), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
-                  c("Alpha", "Beta", "Gamma")),
+                  c("Alpha", "Beta", "Gamma"))@data,
     data.frame(
       id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock B-2001-03-15", "Stock B-2001-04-15")),
       tickers = (c("Stock A", "Stock A", "Stock B", "Stock B")),
-      dates = as.factor(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
+      dates = as.Date(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
       Alpha = (c(0, 2, 1, 3)),
       Beta = (c("e", "d" , "c", "a")),
       Gamma = (c(8, 10, 9, 11)))
@@ -40,11 +40,11 @@ test_that("Panelize Data is running correctly with data frames and tibbles.", {
                        as.data.frame(matrix(c(8,9,10,11), nrow=2, ncol=2))),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
-                  c("Alpha", "Beta", "Gamma")),
+                  c("Alpha", "Beta", "Gamma"))@data,
     data.frame(
       id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock B-2001-03-15", "Stock B-2001-04-15")),
       tickers = (c("Stock A", "Stock A", "Stock B", "Stock B")),
-      dates = as.factor(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
+      dates = as.Date(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
       Alpha = (c(0, 2, 1, 3)),
       Beta = (c(4, 6 , 5, 7)),
       Gamma = (c(8, 10, 9, 11)))
@@ -55,11 +55,11 @@ test_that("Panelize Data is running correctly with data frames and tibbles.", {
                        as.data.frame(matrix(c(8,9,10,11), nrow=2, ncol=2))),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
-                  c("Alpha", "Beta", "Gamma")),
+                  c("Alpha", "Beta", "Gamma"))@data,
     data.frame(
       id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock B-2001-03-15", "Stock B-2001-04-15")),
       tickers = (c("Stock A", "Stock A", "Stock B", "Stock B")),
-      dates = as.factor(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
+      dates = as.Date(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
       Alpha = (c(0, 2, 1, 3)),
       Beta = (c(4, 6 , 5, 7)),
       Gamma = (c(8, 10, 9, 11)))
@@ -75,11 +75,11 @@ test_that("Panelize Data is running correctly - Some NAs.", {
     panelize_data(list(matrix(c(0,NA,2,3), nrow=2, ncol=2), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
-                  c("Alpha", "Beta", "Gamma")),
+                  c("Alpha", "Beta", "Gamma"))@data,
     data.frame(
       id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock B-2001-03-15", "Stock B-2001-04-15")),
       tickers = (c("Stock A", "Stock A", "Stock B", "Stock B")),
-      dates = as.factor(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
+      dates = as.Date(c("2001-03-15", "2001-04-15", "2001-03-15", "2001-04-15")),
       Alpha = (c(0, 2, NA, 3)),
       Beta = (c(4, NA , 5, 7)),
       Gamma = (c(8, 10, 9, NA)))
@@ -96,7 +96,7 @@ test_that("Panelize Data is running correctly - Many Characteristics and Stocks"
                        matrix(c(3,7,9,8,-1,0,5,-2,0), nrow=3, ncol=3)),
                   c("Stock A", "Stock B", "Stock C"),
                   as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
-                  c("Alpha", "Beta", "Gamma", "Delta")),
+                  c("Alpha", "Beta", "Gamma", "Delta"))@data,
     data.frame(
       id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock A-2001-05-15",
               "Stock B-2001-03-15", "Stock B-2001-04-15", "Stock B-2001-05-15",
@@ -104,7 +104,7 @@ test_that("Panelize Data is running correctly - Many Characteristics and Stocks"
       tickers = (c("Stock A", "Stock A", "Stock A",
                    "Stock B", "Stock B", "Stock B",
                    "Stock C", "Stock C", "Stock C")),
-      dates = as.factor(c("2001-03-15", "2001-04-15", "2001-05-15",
+      dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",
                           "2001-03-15", "2001-04-15", "2001-05-15",
                           "2001-03-15", "2001-04-15", "2001-05-15")),
       Alpha = (c(0, 3, 10, 1, 7, 4, 2, 9, 9)),
@@ -212,7 +212,7 @@ test_that("panelize_data works with external toy data - Excel Files", {
   panel <- panelize_data(features_list = results$inputs$feature_list,
                          row_names = results$inputs$tickers$...1,
                          column_names  = results$inputs$dates,
-                         features_names = results$inputs$features_names)
+                         features_names = results$inputs$features_names)@data
 
 
 

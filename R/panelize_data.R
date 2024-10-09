@@ -7,7 +7,7 @@
 #' @param column_names A vector of column names for the panel data.
 #' @param features_names A vector of names for each feature.
 #'
-#' @return A panel data matrix.
+#' @return A meta dataframe object.
 #'
 #' @details This function takes a list of matrices or data frames, each representing a set of features for a group of entities, and converts them into a panel data format. Each matrix or data frame in the list represents a time series of features for a set of entities. The resulting panel data matrix has one row for each combination of entity and time point, with columns representing different features.
 #'
@@ -63,7 +63,7 @@ panelize_data <- function(features_list, row_names, column_names, features_names
     # Create new data frame to store panel data
     final_panel <- data.frame(id = panel_features[[1]]$id,
                               tickers = panel_features[[1]]$tickers,
-                              dates = panel_features[[1]]$dates,
+                              dates = as.Date(panel_features[[1]]$dates),
                               stringsAsFactors = FALSE)
 
     #Fill columns with characteristics

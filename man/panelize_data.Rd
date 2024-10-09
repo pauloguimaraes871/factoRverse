@@ -16,7 +16,7 @@ panelize_data(features_list, row_names, column_names, features_names)
 \item{features_names}{A vector of names for each feature.}
 }
 \value{
-A panel data matrix.
+A meta dataframe object.
 }
 \description{
 Convert a list of matrices or data frames into panel data format.
