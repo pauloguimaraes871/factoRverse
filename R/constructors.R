@@ -55,9 +55,12 @@ create_meta_dataframe <- function(data) {
     stop("Dates must be in ascending chronological order")
   }
 
-  # Check for NA values in remaining columns
-  if (any(is.na(data[, setdiff(names(data), required_columns)]))) {
-    warning("Some columns contain NA values")
+  # Check for NA values in remaining columns and report them
+  remaining_columns <- setdiff(names(data), required_columns)
+  na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
+  if (any(na_remaining)) {
+    message("The following columns contain NA values: ",
+            paste(remaining_columns[na_remaining], collapse = ", "))
   }
 
   # Ensure the 'id' column matches paste0(tickers, "-", dates)
@@ -78,7 +81,9 @@ create_meta_dataframe <- function(data) {
     stop("ID column contains duplicated values")
   }
 
+  # Check for NA values in remaining columns and report them
   remaining_columns <- setdiff(names(data), required_columns)
+  na_remaining <- sapply(obj[, remaining_columns], function(col) any(is.na(col)))
   if (any(duplicated(remaining_columns))) {
     stop("Column names for variables must be unique")
   }

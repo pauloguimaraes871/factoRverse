@@ -46,4 +46,12 @@ setClass("meta_dataframe",
 
 
 
-
+# Define the is_meta_dataframe function
+#' Check if an object is a meta_dataframe
+#'
+#' @param x The object to check.
+#' @return TRUE if x is of class "meta_dataframe", FALSE otherwise.
+#' @export
+is_meta_dataframe <- function(x) {
+  inherits(x, "meta_dataframe")
+}
