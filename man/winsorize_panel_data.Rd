@@ -4,10 +4,15 @@
 \alias{winsorize_panel_data}
 \title{Winsorize Panel Data}
 \usage{
-winsorize_panel_data(features_df, dates_vector, probs, Infs_to_preserve = NULL)
+winsorize_panel_data(
+  features_m_df,
+  dates_vector,
+  probs,
+  Infs_to_preserve = NULL
+)
 }
 \arguments{
-\item{features_df}{A data frame containing panel data with columns for "id", "tickers" and "dates".}
+\item{features_m_df}{A meta_dataframe object or an object coercible to data frame containing panel data with columns for "id", "tickers" and "dates".}
 
 \item{dates_vector}{A vector of dates for which winsorization is performed.}
 
@@ -26,7 +31,7 @@ This function winsorizes a panel data matrix, replacing extreme values with spec
 }
 \examples{
 # Example usage
-features_df <- data.frame(
+features_m_df <- data.frame(
   id = c(1, 2, 3, 4),
   tickers = c("A", "B", "C", "D"),
   dates = as.Date(c("2022-01-01", "2022-01-01", "2022-01-02", "2022-01-02")),
@@ -35,6 +40,6 @@ features_df <- data.frame(
 )
 dates_vector <- as.factor(c("2022-01-01", "2022-01-02"))
 probs <- c(0.05, 0.95)
-winsorized_data <- winsorize_panel_data(features_df, dates_vector, probs)
+winsorized_data <- winsorize_panel_data(features_m_df, dates_vector, probs)
 
 }
