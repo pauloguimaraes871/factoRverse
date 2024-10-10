@@ -41,9 +41,6 @@ winsorize_panel_data <- function(features_m_df, probs, Infs_to_preserve = NULL) 
 
   #Get dates vector and check
   dates_vector <- as.Date(unique(features_m_df$dates), format = "%Y-%m-%d") #Get dates
-  if(!inherits(dates_vector,"Date")){
-    stop("dates_vector must be date.")
-  } else {}
 
   #check probs
   if(!is.numeric(probs) || length(probs) != 2){
