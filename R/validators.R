@@ -26,6 +26,10 @@ is_coercible_to_meta_dataframe <- function(obj) {
       return(FALSE)
     }
 
+    if(any(!is.character(obj$tickers))){
+      stop("Tickers must be of class character")
+    }
+
     if (any(is.na(obj[required_columns]))) {
       message("Columns 'id', 'tickers', or 'dates' contain NA values.")
       return(FALSE)
@@ -36,8 +40,8 @@ is_coercible_to_meta_dataframe <- function(obj) {
       return(FALSE)
     }
 
-    if (!all(diff(unique(obj$dates)) >= 0)) {
-      message("Dates must be in ascending chronological order.")
+    if(any(obj$id != obj$id[order(obj$id)])){
+      message("Object must be ordered alphabetically according to id.")
       return(FALSE)
     }
 
@@ -51,7 +55,7 @@ is_coercible_to_meta_dataframe <- function(obj) {
     full_dates <- seq(min(unique_dates), max(unique_dates), by = "month")
     missing_dates <- setdiff(full_dates, unique_dates)
     if (length(missing_dates) > 0) {
-      message("There are gaps in the dates sequence. Missing dates: ", paste(missing_dates, collapse = ", "))
+      message("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
       return(FALSE)
     }
 
@@ -64,7 +68,7 @@ is_coercible_to_meta_dataframe <- function(obj) {
     remaining_columns <- setdiff(names(obj), required_columns)
     na_remaining <- sapply(obj[, remaining_columns], function(col) any(is.na(col)))
     if (any(na_remaining)) {
-      warning("The following columns contain NA values: ",
+      message("The following columns contain NA values: ",
               paste(remaining_columns[na_remaining], collapse = ", "))
     }
     # All checks passed
@@ -74,6 +78,3 @@ is_coercible_to_meta_dataframe <- function(obj) {
 
 
 }
-
-
-

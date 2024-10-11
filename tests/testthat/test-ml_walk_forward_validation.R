@@ -11719,6 +11719,42 @@ test_that("ml_walk_forward_validation works with NAs in last target_fwd periods 
 
 })
 
+#Define your test
+test_that("ml_walk_forward_validation does not works with NAs in last target_fwd+ 1 periods of target_m_df",{
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15", "2023-06-15", "2023-05-15", "2023-04-15")), "fwd_return_3m"] <- NA
+  toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15", "2023-06-15", "2023-05-15", "2023-04-15")), "fwd_premium_3m"] <- NA
+  toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15")), "fwd_return_1m"] <- NA
+  toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15")), "fwd_premium_1m"] <- NA
+
+  #Apply function
+  expect_error(
+  suppressMessages(suppressWarnings({
+    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+      features_m_df = toy_preprocessed_features,
+      target_m_df = toy_preprocessed_targets,
+      training_sample_size = 7,
+      validation_sample_size = 3,
+      rebalancing_months = 6,
+      ml_algorithm = "glmnet",
+      target_fwd_name = c("fwd_premium_3m"),
+      chosen_eval_metric  = "rss",
+      hyper_grid_domain_list = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
+                                    lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.9))), #Random Search
+      tuning_method = c("random_search"),
+      n_iter = 5,
+      parallel = FALSE,
+      verbose = TRUE,
+      show_plots = FALSE
+    )})),
+  "target_m_df can't have NAs until the last target_fwd periods")
+
+
+
+
+})
 
 
 #####################################

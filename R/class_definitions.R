@@ -55,3 +55,65 @@ setClass("meta_dataframe",
 is_meta_dataframe <- function(x) {
   inherits(x, "meta_dataframe")
 }
+
+
+#' Define the `refit_ml_model` S4 Class
+#'
+#' This class represents a refitted machine learning model. It encapsulates the algorithm used, hyperparameters,
+#' feature data, target variable, and the fitted model object.
+#'
+#' @slot ml_algorithm A character string specifying the machine learning algorithm used (e.g., "ols", "glmnet", "rf", "xgb", "nn").
+#' @slot best_hyperparameters A list containing hyperparameters relevant to the specified machine learning algorithm.
+#' @slot model The fitted model object, which varies based on the algorithm used.
+#'
+#' @section Methods:
+#' \describe{
+#'   \item{\code{refit()}}{Refits the model based on the specified algorithm and hyperparameters.}
+#'   \item{\code{predict(new_features)}}{Generates predictions using the fitted model on new feature data.}
+#' }
+#'
+#' @export
+setClass(
+  "refit_ml_model",
+  slots = list(
+    model = "ANY",
+    ml_algorithm = "character",
+    best_hyperparameters = "numeric",
+    custom_objective = "ANY",
+    huber_delta = "numeric",
+    keras_architecture_parameters = "ANY"
+  )
+)
+
+
+
+#' @title S4 Class for Machine Learning Walk-Forward Validation Results
+#'
+#' @description This class encapsulates the results of a time series validation on a machine learning model,
+#' including out-of-sample predictions, errors, evaluation metrics, model details and metadata.
+#'
+#' @slot oos_prediction_list A list containing out-of-sample predictions.
+#' @slot oos_error_list A list containing out-of-sample error metrics.
+#' @slot oos_y_list A list containing the actual values for out-of-sample data.
+#' @slot oos_testing_eval_metrics A list of evaluation metrics for testing.
+#' @slot final_model An object representing the final fitted model.
+#' @slot chosen_eval_metric_validation A list of chosen evaluation metrics for validation (if applicable).
+#' @slot best_hyperparameters A data frame containing the best hyperparameter choices.
+#' @slot validation_eval_metrics_hyper_choice A list of evaluation metrics based on hyperparameter choices.
+#' @slot plots A list of plots generated during the model evaluation.
+#' @slot metadata A list containing metadata about the model and data used.
+#'
+#' @export
+setClass("ml_walk_forward_validation_results",
+         slots = list(
+           oos_prediction_list = "list",
+           oos_error_list = "list",
+           oos_y_list = "list",
+           oos_testing_eval_metrics = "list",
+           final_model = "ANY",  # Adjust type based on your model
+           chosen_eval_metric_validation = "list",
+           best_hyperparameters = "data.frame",
+           validation_eval_metrics_hyper_choice = "list",
+           plots = "list",
+           metadata = "list"
+         ))

@@ -47,12 +47,18 @@ create_meta_dataframe <- function(data) {
     stop("Columns 'id', 'tickers', or 'dates' contain NA values")
   }
 
+  #Check dates format
   if (!inherits(data$dates, "Date")) {
     stop("The 'dates' column must be of class 'Date'")
   }
 
-  if (!all(diff(data$dates) >= 0)) {
+  if (!all(diff(unique(data$dates)[order(unique(data$dates))]) >= 0)) {
     stop("Dates must be in ascending chronological order")
+  }
+
+  #Check tickers format
+  if(any(!is.character(data$tickers))){
+    stop("Tickers must be of class character")
   }
 
   # Check for NA values in remaining columns and report them
@@ -74,7 +80,7 @@ create_meta_dataframe <- function(data) {
   missing_dates <- setdiff(full_dates, unique_dates)
 
   if (length(missing_dates) > 0) {
-    warning("There are gaps in the dates sequence. Missing dates: ", paste(missing_dates, collapse = ", "))
+    warning("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
   }
 
   if (any(duplicated(data$id))) {
@@ -103,7 +109,6 @@ create_meta_dataframe <- function(data) {
       unique_tickers = unique_tickers_count,
       n_obs = total_observations_count)
 }
-
 
 
 
