@@ -7,9 +7,7 @@
 check_inputs_ml_wf_val(
   features_m_df,
   target_m_df,
-  dates_m_vector,
   training_sample_size,
-  target_fwd,
   target_fwd_name,
   validation_sample_size,
   rebalancing_months,
@@ -37,11 +35,7 @@ check_inputs_ml_wf_val(
 
 \item{target_m_df}{A data frame or matrix containing target variable data.}
 
-\item{dates_m_vector}{A vector of dates corresponding to the data.}
-
 \item{training_sample_size}{Numeric, size of the training sample.}
-
-\item{target_fwd}{Numeric, forward looking target.}
 
 \item{target_fwd_name}{Character, name of the forward looking target.}
 
@@ -93,17 +87,6 @@ This function validates and checks various inputs required for a machine learnin
 This function performs comprehensive validation checks on various inputs required for a machine learning workflow.
 It validates data formats, correctness of hyperparameters, consistency of dates, and other specific requirements for
 different machine learning algorithms.
-}
-\examples{
-\dontrun{
-check_inputs_ml_wf_val(features_m_df, target_m_df, dates_m_vector, training_sample_size, target_fwd,
-                      target_fwd_name, validation_sample_size, rebalancing_months, split_method,
-                      ml_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
-                      hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq,
-                      init_points, early_stop, units, n_layers, activation, batch_norm_option,
-                      nn_optimizer, size_of_batch, max_number_of_epochs, show_plots, verbose, parallel)
-}
-
 }
 \references{
 For more information on machine learning algorithms and their usage, refer to appropriate documentation.

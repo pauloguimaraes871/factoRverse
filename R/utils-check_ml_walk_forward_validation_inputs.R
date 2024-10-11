@@ -4,9 +4,7 @@
 #'
 #' @param features_m_df A data frame or matrix containing features data.
 #' @param target_m_df A data frame or matrix containing target variable data.
-#' @param dates_m_vector A vector of dates corresponding to the data.
 #' @param training_sample_size Numeric, size of the training sample.
-#' @param target_fwd Numeric, forward looking target.
 #' @param target_fwd_name Character, name of the forward looking target.
 #' @param validation_sample_size Numeric, size of the validation sample.
 #' @param rebalancing_months Numeric, number of months for rebalancing.
@@ -35,15 +33,6 @@
 #' It validates data formats, correctness of hyperparameters, consistency of dates, and other specific requirements for
 #' different machine learning algorithms.
 #'
-#' @examples
-#' \dontrun{
-#' check_inputs_ml_wf_val(features_m_df, target_m_df, dates_m_vector, training_sample_size, target_fwd,
-#'                       target_fwd_name, validation_sample_size, rebalancing_months, split_method,
-#'                       ml_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
-#'                       hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq,
-#'                       init_points, early_stop, units, n_layers, activation, batch_norm_option,
-#'                       nn_optimizer, size_of_batch, max_number_of_epochs, show_plots, verbose, parallel)
-#' }
 #'
 #' @export
 #'
@@ -54,7 +43,7 @@
 #'
 #'
 check_inputs_ml_wf_val <- function(
-    features_m_df, target_m_df, dates_m_vector, training_sample_size, target_fwd, target_fwd_name,
+    features_m_df, target_m_df, training_sample_size, target_fwd_name,
     validation_sample_size, rebalancing_months, split_method, ml_algorithm,
     custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
     hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points, early_stop,
@@ -69,27 +58,13 @@ check_inputs_ml_wf_val <- function(
   ############################################################################################
 
   #Check for correct format in features_m_df
-      if(!(is.data.frame(features_m_df))){
-        stop("features_m_df should be a data_frame.")
+      if(!(is_coercible_to_meta_dataframe(features_m_df))){
+        stop("features_m_df should be coercible to meta_dataframe object")
       }
 
-      if(!all(c("id", "tickers", "dates") %in% colnames(features_m_df))){
-        stop("features_m_df should have id, tickers and dates columns.")
-      } else {}
-
-      if(any(sapply(features_m_df[,-c(1:3)], function(x) any(is.na(as.numeric(as.character(x))))))
-         ){
+     if(!all(sapply(features_m_df[,-c(1:3)], function(x) is.numeric(x) && all(!is.na(x))))){
         stop("features_m_df should contain only numeric columns with non-NAs.")
       }
-
-      suppressWarnings(
-        if(any(!is.na(as.numeric(features_m_df$tickers)))){
-        stop("tickers in features_m_df must be character.")
-      })
-
-       if(is.factor(features_m_df$dates)){
-          warning("dates in target_m_df/features_m_df should preferably be of class Date.")
-        }
 
       if(all(!is.factor(features_m_df$dates),
             any(!lubridate::is.Date(features_m_df$dates)) ||
@@ -97,64 +72,20 @@ check_inputs_ml_wf_val <- function(
         stop("dates in features_m_df must be a date object with format %Y-%m-%d.")
       }
 
-
-
-
-
-  #Check for correct format in dates_m_vector
-      if(!inherits(dates_m_vector, "Date")){
-        stop("dates_m_vector must be a date object with format %Y-%m-%d")
-      }
-
-      #Check for correct format in dates_m_vector
-      if(any(!lubridate::is.Date(dates_m_vector)) ||
-         any(is.na(as.Date(dates_m_vector, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d"))))){
-        stop("dates_m_vector must be a date object with format %Y-%m-%d")
-      } else {}
-
-  #Check structure of dates_m_vector
-
-      if(length(dates_m_vector) <= target_fwd){
-        stop("dates_m_vector should have more dates than target_fwd")
-      } else {}
-
-      if(!all(dates_m_vector == dates_m_vector[order(dates_m_vector)])){
-        stop("dates_m_vector should be in ascending chronological order")
-      } else {}
-
-      if(!all(dates_m_vector == dates_m_vector[order(dates_m_vector)])){
-        stop("dates_m_vector should be in ascending chronological order")
-      } else {}
-
-  #Check structure of dates_m_vector and features_m_df$dates
-      if(!all(as.character(dates_m_vector) %in% unique(as.character(features_m_df$dates))) ||
-         !all(unique(as.character(features_m_df$dates)) %in% as.character(dates_m_vector))){
-        stop("all dates in dates_m_vector must have a correspondence in features_m_df")
-      } else {}
-
-      if(any(as.Date(dates_m_vector, format = "%Y-%m-%d") != as.Date(unique(features_m_df$dates), format = "%Y-%m-%d"))){
-        stop("dates_m_vector and features_m_df$dates should have same order")
-      }
-
-
   #Check for correct format in target_m_df
-      if(!(is.matrix(target_m_df) | is.data.frame(target_m_df))){
-        stop("target_m_df should be a data.frame or a matrix.")
+      if(!(is_coercible_to_meta_dataframe(target_m_df))){
+        stop("target_m_df should be coercible to meta_dataframe object")
       }
 
-      if(!all(c("id", "tickers", "dates") %in% colnames(target_m_df))){
-        stop("target_m_df should have id, tickers and dates columns.")
-      } else {}
-
-      suppressWarnings(
-      if(
-        any(!is.na(as.numeric(target_m_df$tickers)))){
-        stop("tickers in target_m_df must be character.")
+      if(!all(sapply(target_m_df[,-c(1:3)], function(x) any(is.numeric(x) | is.na(x))))){
+        stop("target_m_df should contain only numeric columns (NAs allowed).")
       }
-      )
 
-      if(is.factor(target_m_df$dates)){
-        warning("dates in target_m_df/features_m_df should preferably be of class Date.")
+      target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
+      assumed_target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
+
+      if(any(!grepl(target_fwd_name_right_pattern, colnames(target_m_df[,-c(1:3)])))){
+        stop("target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.")
       }
 
       if(all(!is.factor(target_m_df$dates),
@@ -163,26 +94,31 @@ check_inputs_ml_wf_val <- function(
         stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
       }
 
-      dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df$dates)[(length(unique(target_m_df$dates)) - target_fwd + 1):length(unique(target_m_df$dates))]
-      if(length(dates_allowed_to_be_NA_in_target_m_df) > target_fwd){
-        stop("number of dates in target_m_df with NAs should be at most equal to target_fwd")
+      #Get dates allowed to be NA
+      dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df$dates)[(length(unique(target_m_df$dates)) - assumed_target_fwd + 1):length(unique(target_m_df$dates))]
+      if(length(dates_allowed_to_be_NA_in_target_m_df) > assumed_target_fwd){
+        stop("number of dates in target_m_df with NAs should be at most equal to prediction horizon")
       }
 
       if(any(is.na(target_m_df[-which(target_m_df$dates %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
-         stop("target_m_df before target_fwd periods should contain only numeric columns with non-NAs.")
+         stop("number of dates in target_m_df with NAs should be at most equal to prediction horizon")
       }
 
+      #Get dates with effective NAs
+      dates_allowed_to_be_NA_but_are_not_na <- target_m_df %>%
+        dplyr::filter(dates %in% dates_allowed_to_be_NA_in_target_m_df, !is.na(!!rlang::sym(target_fwd_name))) %>%
+        dplyr::pull(dates) %>%
+        unique()
 
-  #Check structure of dates_m_vector and target_m_df$dates
-      if(!all(as.character(dates_m_vector) %in% unique(as.character(target_m_df$dates))) ||
-         !all(unique(as.character(target_m_df$dates)) %in% as.character(dates_m_vector))){
-        stop("all dates in dates_m_vector must have a correspondence in target_m_df")
-      } else {}
-
+      if(all(length(dates_allowed_to_be_NA_but_are_not_na) != 0, verbose)){
+        message("The following dates in target_m_df are allowed to be NA, but are not: ", paste(dates_allowed_to_be_NA_but_are_not_na, collapse = " "))
+      }
 
 
 
   #Check structure between target_m_df and feature_m_df
+
+
       if(nrow(target_m_df) != nrow(features_m_df)){
         stop("features_m_df and target_m_df must possess same number of rows.")
       }
@@ -199,6 +135,10 @@ check_inputs_ml_wf_val <- function(
         stop("dates in features_m_df and in target_m_df must match.")
       }
 
+      if(nrow(target_m_df) < assumed_target_fwd || nrow(features_m_df) < assumed_target_fwd){
+        stop("target_m_df and features_m_df should have more dates than the prediction horizon")
+      }
+
 
 
   #Check structure of rebalancing_months
@@ -206,17 +146,16 @@ check_inputs_ml_wf_val <- function(
       stop("rebalancing_months should be numeric.")
     }
 
-  #Check structure of target_fwd
-    if(!(is.numeric(target_fwd))){
-      stop("target_fwd should be numeric.")
-    }
-
   #Check structure of target_fwd_name
     if(!(is.character(target_fwd_name))){
       stop("target_fwd_name should be character.")
     }
 
-  #Check structure of training_sample_size and validation_sample_size
+    if(!grepl(target_fwd_name_right_pattern, target_fwd_name)){
+      stop("target_fwd_name is not in the right pattern")
+    }
+
+    #Check structure of training_sample_size and validation_sample_size
     if(!(is.numeric(training_sample_size))){
       stop("training_sample_size should be numeric.")
     }
@@ -448,7 +387,6 @@ check_inputs_ml_wf_val <- function(
   }
 
   ################
-
 
 
   #Hyper domain
