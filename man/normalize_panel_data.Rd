@@ -4,12 +4,10 @@
 \alias{normalize_panel_data}
 \title{This function normalizes a panel data matrix, scaling each feature to a range of \code{-1} to \code{1}.}
 \usage{
-normalize_panel_data(features_df, dates_vector)
+normalize_panel_data(features_m_df)
 }
 \arguments{
-\item{features_df}{A data frame containing panel data with columns for "id", "tickers" and "dates".}
-
-\item{dates_vector}{A vector of dates for which normalization is performed.}
+\item{features_m_df}{A data frame containing panel data with columns for "id", "tickers" and "dates".}
 }
 \value{
 A normalized panel data matrix.
@@ -18,18 +16,17 @@ A normalized panel data matrix.
 This function normalizes a panel data matrix, scaling each feature to a range of \code{-1} to \code{1}.
 }
 \details{
-This function normalizes each feature in the panel data matrix to a range of \code{-1} to \code{1}. For each specified date in the dates_vector, it computes the minimum and maximum values for each feature and scales the values accordingly.
+This function normalizes each feature in the panel data matrix to a range of \code{-1} to \code{1}. For each specified date, it computes the minimum and maximum values for each feature and scales the values accordingly.
 }
 \examples{
 # Example usage
-features_df <- data.frame(
+features_m_df <- data.frame(
   id = c(1, 2, 3, 4),
   tickers = c("A", "B", "C", "D"),
   dates = as.Date(c("2022-01-01", "2022-01-01", "2022-01-02", "2022-01-02")),
   feature1 = c(1, 2, 3, 4),
   feature2 = c(5, 6, 7, 8)
 )
-dates_vector <- as.Date(c("2022-01-01", "2022-01-02"))
-normalized_data <- normalize_panel_data(features_df, dates_vector)
+normalized_data <- normalize_panel_data(features_m_df)
 
 }

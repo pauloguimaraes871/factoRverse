@@ -4,12 +4,10 @@
 \alias{all_fill_panel}
 \title{Fill Panel Data}
 \usage{
-all_fill_panel(features_df, dates_vector, features_to_preserve = NA)
+all_fill_panel(features_m_df, features_to_preserve = NA)
 }
 \arguments{
-\item{features_df}{A data frame containing the panel data with columns "id", "tickers", "dates", and features to be filled.}
-
-\item{dates_vector}{A vector of dates or factors representing the time periods of the panel data.}
+\item{features_m_df}{A data frame containing the panel data with columns "id", "tickers", "dates", and features to be filled.}
 
 \item{features_to_preserve}{A vector of column names of features that should not be filled.}
 }
@@ -21,16 +19,13 @@ This function fills missing values in a panel data set by replacing them with th
 }
 \examples{
 # Create sample data frame
-features_df <- data.frame(id = c(1, 1, 2, 2),
+features_m_df <- data.frame(id = c(1, 1, 2, 2),
 tickers = c("A", "A", "B", "B"),
 dates = as.Date(c("2022-01-01", "2022-01-02", "2022-01-01", "2022-01-02")),
 feature1 = c(1, NA, 3, 4),
 feature2 = c(NA, 2, 3, NA))
 
-# Define dates vector
-dates_vector <- as.Date(c("2022-01-01", "2022-01-02"))
 
 # Fill missing values
-filled_panel <- all_fill_panel(features_df, dates_vector, 
-features_to_preserve = c("id", "tickers", "dates"))
+filled_panel <- all_fill_panel(features_m_df,  features_to_preserve = c("id", "tickers", "dates"))
 }

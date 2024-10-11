@@ -5,16 +5,16 @@
 \title{Fill Financial Cias Missing Data}
 \usage{
 financialcia_fill_panel(
-  features_matrix,
-  dates_vector,
+  features_m_df,
+  segment_column = "segment",
   segments_to_adjust,
-  features_to_preserve = NA
+  features_to_preserve = NULL
 )
 }
 \arguments{
-\item{features_matrix}{A data frame containing panel data with columns for "id", "tickers", "dates", "segment", and other features.}
+\item{features_m_df}{A meta dataframe or coercible object containing panel data with columns for "id", "tickers", "dates", "segment", and other features.}
 
-\item{dates_vector}{A vector of dates for which missing data filling is performed.}
+\item{segment_column}{A character indicating which column in features_m_df contain economic segment classification to fill based on segments_to_adjust}
 
 \item{segments_to_adjust}{A character vector specifying the segments (e.g., banks) for which missing data should be filled.}
 
@@ -32,7 +32,7 @@ Features listed in \code{features_to_preserve} will not be filled even if they h
 }
 \examples{
 # Example usage
-features_matrix <- data.frame(
+features_m_df <- data.frame(
   id = c(1, 2, 3, 4, 5),
   tickers = c("A", "B", "C", "D", "E"),
   dates = as.Date(c("2022-01-01", "2022-01-01", "2022-01-02", "2022-01-02", "2022-01-03")),
@@ -40,9 +40,7 @@ features_matrix <- data.frame(
   feature1 = c(1, 2, NA, 4, 5),
   feature2 = c(NA, 6, NA, 8, NA)
 )
-dates_vector <- as.Date(c("2022-01-01", "2022-01-02", "2022-01-03" ))
 segments_to_adjust <- c("Bank")
-filled_data <- financialcia_fill_panel(features_matrix, dates_vector, 
-segments_to_adjust, features_to_preserve = c("tickers", "dates"))
+filled_data <- financialcia_fill_panel(features_m_df, segment_column = "segment", segments_to_adjust)
 
 }

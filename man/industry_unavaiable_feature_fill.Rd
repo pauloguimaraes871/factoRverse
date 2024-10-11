@@ -5,7 +5,7 @@
 \title{Fill Industry-Unavailable Feature}
 \usage{
 industry_unavaiable_feature_fill(
-  features_df,
+  features_m_df,
   unavaiable_feature,
   similar_features,
   industry_classification_column_name,
@@ -13,13 +13,13 @@ industry_unavaiable_feature_fill(
 )
 }
 \arguments{
-\item{features_df}{A data frame containing the features matrix with columns for "id", "tickers" and "dates".}
+\item{features_m_df}{A data frame containing the features matrix with columns for "id", "tickers" and "dates".}
 
 \item{unavaiable_feature}{The name of the unavailable feature to be filled.}
 
 \item{similar_features}{A character vector containing the names of similar features used for imputation.}
 
-\item{industry_classification_column_name}{The name of the column in \code{features_df} containing industry classifications.}
+\item{industry_classification_column_name}{The name of the column in \code{features_m_df} containing industry classifications.}
 
 \item{selected_industries}{A character vector containing the names of industries to which the imputation should be restricted.}
 }
@@ -33,11 +33,11 @@ This is a rather common problem for banks, in which some accounting information 
 For instance, one might replace FCF Yield by Dividend Yield.
 }
 \examples{
-features_df <- data.frame(id = 1:5, 
-                               tickers = c("AAPL", "GOOG", "JPM", "WFC", "FB"), 
+features_m_df <- data.frame(id = 1:5,
+                               tickers = c("AAPL", "GOOG", "JPM", "WFC", "FB"),
                                dates = as.Date("2022-01-01") + 0:4,
                                industry = c("Tech", "Tech", "Banks", "Banks", "Tech"),
                                feature1 = c(NA, 2, NA, 4, 5),
                                feature2 = c(1, NA, NA, 3, NA))
-industry_unavaiable_feature_fill(features_df, "feature1", "feature2", "industry", c("Finance"))
+industry_unavaiable_feature_fill(features_m_df, "feature1", "feature2", "industry", c("Finance"))
 }

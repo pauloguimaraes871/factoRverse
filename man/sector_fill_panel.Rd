@@ -5,18 +5,15 @@
 \title{Sector Fill Panel}
 \usage{
 sector_fill_panel(
-  features_df,
-  dates_vector,
+  features_m_df,
   industry_classification_column_name,
   features_to_preserve = NA
 )
 }
 \arguments{
-\item{features_df}{A data frame containing the features with columns for "id", "tickers" and "dates".}
+\item{features_m_df}{A meta dataframe or coercible object containing features with columns for "id", "tickers" and "dates".}
 
-\item{dates_vector}{A factor or Date vector containing dates corresponding to rows in \code{features_df}.}
-
-\item{industry_classification_column_name}{The name of the column in \code{features_df} containing industry classifications.}
+\item{industry_classification_column_name}{The name of the column in \code{features_m_df} containing industry classifications.}
 
 \item{features_to_preserve}{(Optional) A character vector containing names of features to preserve without filling missing values.}
 }
@@ -27,14 +24,13 @@ A data frame with missing values filled based on sector-wise means for each date
 This function fills missing values in a features dataframe based on sector-wise means for each date.
 }
 \examples{
-features_df <- data.frame(id = 1:5,
+features_m_df <- data.frame(id = 1:5,
                            tickers = c("AAPL", "GOOG", "MSFT", "AMZN", "FB"),
-                           dates = as.Date(c("2022-01-01", "2022-01-01", 
+                           dates = as.Date(c("2022-01-01", "2022-01-01",
                            "2022-01-02", "2022-01-02", "2022-01-03")),
                            industry = c("Tech", "Tech", "Finance", "Finance", "Tech"),
                            feature1 = c(NA, 2, NA, 4, 5),
                            feature2 = c(1, NA, NA, 3, NA))
-dates_vector <- factor(as.character(features_df$dates))
-sector_fill_panel(features_df, dates_vector, "industry")
+sector_fill_panel(features_m_df, "industry")
 
 }

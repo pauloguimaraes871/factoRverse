@@ -4,17 +4,10 @@
 \alias{winsorize_panel_data}
 \title{Winsorize Panel Data}
 \usage{
-winsorize_panel_data(
-  features_m_df,
-  dates_vector,
-  probs,
-  Infs_to_preserve = NULL
-)
+winsorize_panel_data(features_m_df, probs, Infs_to_preserve = NULL)
 }
 \arguments{
-\item{features_m_df}{A meta_dataframe object or an object coercible to data frame containing panel data with columns for "id", "tickers" and "dates".}
-
-\item{dates_vector}{A vector of dates for which winsorization is performed.}
+\item{features_m_df}{A meta_dataframe object or an object coercible to meta dataframe containing panel data with columns for "id", "tickers" and "dates".}
 
 \item{probs}{A vector of probabilities specifying the quantiles for winsorization (e.g., c(0.99, 0.01)).}
 
@@ -38,8 +31,7 @@ features_m_df <- data.frame(
   feature1 = c(1, 2, 3, 4),
   feature2 = c(5, 6, 7, 8)
 )
-dates_vector <- as.factor(c("2022-01-01", "2022-01-02"))
 probs <- c(0.05, 0.95)
-winsorized_data <- winsorize_panel_data(features_m_df, dates_vector, probs)
+winsorized_data <- winsorize_panel_data(features_m_df, probs)
 
 }
