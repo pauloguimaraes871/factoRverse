@@ -49,6 +49,17 @@ calculate_eval_metrics <- function(pred, target, huber_delta, quantile_tau, chos
 
 
  #Calculate eval metrics
+  if(all(is.na(error), is.na(target))){
+    validation_sample_rss <- NA
+    validation_sample_cp <- NA
+    validation_sample_rmse <- NA
+    validation_sample_mae <- NA
+    validation_sample_mphe <- NA
+    validation_sample_mpe <- NA
+    validation_sample_mape <- NA
+    validation_sample_hr <- NA
+    validation_sample_mb <- NA
+  } else {
   validation_sample_rss <- 1 - sum(error^2)/sum(target^2) #R2
   validation_sample_cp <- mean(pred*target) #Cross-Product
   validation_sample_rmse <- sqrt(mean(error^2)) #RMSE
@@ -58,6 +69,7 @@ calculate_eval_metrics <- function(pred, target, huber_delta, quantile_tau, chos
   validation_sample_mape <- mean(abs(error/target)) #MAPE
   validation_sample_hr <- length(which(sign(pred) == sign(target)))/length(target)
   validation_sample_mb <- mean(error)
+  }
 
   #Return DF
   df_eval_metrics <- data.frame(

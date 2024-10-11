@@ -48,7 +48,7 @@ check_inputs_ml_wf_val <- function(
     custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
     hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points, early_stop,
     keras_architecture_parameters,
-    show_plots, verbose, parallel
+    show_plots, verbose = FALSE, parallel
 ){
 
   ###Initial Checks###
@@ -78,7 +78,7 @@ check_inputs_ml_wf_val <- function(
       }
 
       if(!all(sapply(target_m_df[,-c(1:3)], function(x) any(is.numeric(x) | is.na(x))))){
-        stop("target_m_df should contain only numeric columns (NAs allowed).")
+        stop("target_m_df should contain only numeric columns (NAs allowed at ending dates).")
       }
 
       target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
@@ -99,9 +99,8 @@ check_inputs_ml_wf_val <- function(
       if(length(dates_allowed_to_be_NA_in_target_m_df) > assumed_target_fwd){
         stop("number of dates in target_m_df with NAs should be at most equal to prediction horizon")
       }
-
       if(any(is.na(target_m_df[-which(target_m_df$dates %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
-         stop("number of dates in target_m_df with NAs should be at most equal to prediction horizon")
+         stop("target_m_df can't have NAs until the last target_fwd periods")
       }
 
       #Get dates with effective NAs
@@ -111,8 +110,9 @@ check_inputs_ml_wf_val <- function(
         unique()
 
       if(all(length(dates_allowed_to_be_NA_but_are_not_na) != 0, verbose)){
-        message("The following dates in target_m_df are allowed to be NA, but are not: ", paste(dates_allowed_to_be_NA_but_are_not_na, collapse = " "))
+        message("The following dates from features_m_df contemplate NA rows in target_m_df: ", paste(dates_allowed_to_be_NA_but_are_not_na, collapse = " "))
       }
+
 
 
 

@@ -30,8 +30,8 @@ test_that("set_eval_function correctly sets a glmnet model", {
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -187,8 +187,8 @@ test_that("set_eval_function correctly sets a ranger model", {
   #Check Inputs
   expect_no_error(
   suppressWarnings(
-  check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                         training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+  check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                         training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                          validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                          chosen_eval_metric = chosen_eval_metric,
                          ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -331,8 +331,8 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -500,8 +500,8 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -693,8 +693,8 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -942,8 +942,8 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1238,8 +1238,8 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1577,8 +1577,8 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1952,8 +1952,8 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,

@@ -102,11 +102,8 @@ test_that("OLS - ml_walk_forward_validation works with no rebalancing and a 1m t
           6,4,6,5,1,4,
           9,0,10,1,4,7,1,
           3,3,0,1)),
-      dates_m_vector = as.Date(c("2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                                 "2001-07-15", "2001-08-15"), format = "%Y-%m-%d"),
       training_sample_size = 4,
       rebalancing_months = 9,
-      target_fwd = 1,
       target_fwd_name = "fwd_premium_1m",
       ml_algorithm = "ols",
       show_plots = FALSE)
@@ -291,12 +288,8 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing and a 1m targ
                             2,8,5,4,1,1,4,-5,2,6,4,6,5,1,1,5,3,4,9,
                             0,10,1,4,12,1,92,7,1,3,3,0,1,3,1,9)
         ),
-      dates_m_vector = as.Date(c("2001-03-15","2001-04-15",
-                                 "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                                 "2001-09-15","2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
       training_sample_size = 4,
       rebalancing_months = 9,
-      target_fwd = 1,
       show_plots = FALSE,
       ml_algorithm = "ols",
       target_fwd_name = "fwd_premium_1m")
@@ -473,12 +466,8 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing occuring at l
                             4,1,1,2,6,4,6,5,1,1,4,9,0,10,1,4,12,7,
                             1,3,3,0,1,3)
         ),
-      dates_m_vector = as.Date(c("2001-03-15","2001-04-15",
-                                 "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                                 "2001-09-15"), format = "%Y-%m-%d"),
       training_sample_size = 4,
       rebalancing_months = 9,
-      target_fwd = 1,
       ml_algorithm = "ols",
       show_plots = FALSE,
       target_fwd_name = "fwd_premium_1m")
@@ -668,12 +657,8 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing and a 3m targ
                             2,8,5,4,1,1,4,-5,2,6,4,6,5,1,1,5,3,4,9,
                             0,10,1,4,12,1,92,7,1,3,3,0,1,3,1,9)
         ),
-      dates_m_vector = as.Date(c("2001-03-15","2001-04-15",
-                                 "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                                 "2001-09-15", "2001-10-15", "2001-11-15"), format = "%Y-%m-%d"),
       training_sample_size = 7,
       rebalancing_months = 9,
-      target_fwd = 3,
       ml_algorithm = "ols",
       show_plots = FALSE,
       target_fwd_name = "fwd_premium_3m")
@@ -963,15 +948,8 @@ test_that("OLS - ml_walk_forward_validation works with two rebalancing dates, un
                             92,7,1,3,3,0,1,9,12,1,7,1,3,3,0,1,3,1,
                             9,7,1,3,0,5,1,1,5,3,40)
         ),
-      dates_m_vector = as.Date(c("2001-03-15","2001-04-15",
-                                 "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                                 "2001-09-15", "2001-10-15", "2001-11-15", "2001-12-15",
-                                 "2002-01-15", "2002-02-15", "2002-03-15", "2002-04-15",
-                                 "2002-05-15", "2002-06-15", "2002-07-15", "2002-08-15",
-                                 "2002-09-15", "2002-10-15"), format = "%Y-%m-%d"),
       training_sample_size = 7,
       rebalancing_months = 9,
-      target_fwd = 3,
       ml_algorithm = "ols",
       show_plots = FALSE,
       quantile_tau = 0.25,
@@ -1111,10 +1089,8 @@ test_that("OLS - ml_walk_forward_validation works with toy_preprocessed_features
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector = as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       rebalancing_months = 7,
       training_sample_size = 5,
-      target_fwd = 3,
       ml_algorithm = "ols",
       target_fwd_name = "fwd_premium_3m",
       show_plots = FALSE)
@@ -1134,7 +1110,7 @@ test_that("OLS - ml_walk_forward_validation works with toy_preprocessed_features
   #Predict
   dates_first_prediction <- c("2022-11-15", "2022-12-15", "2023-01-15",
                               "2023-02-15", "2023-03-15", "2023-04-15",
-                              "2023-05-16", "2023-06-15")
+                              "2023-05-15", "2023-06-15")
   #Resulting vectors
   prediction_list_first_prediction <- list()
   y_list_first_prediction <- list()
@@ -1420,12 +1396,9 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 1m tar
                                           3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
                        fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
                                          10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame"),
-      dates_m_vector =  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15","2001-06-15",
-                                  "2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")),
       training_sample_size = 4,
       validation_sample_size = 3,
       rebalancing_months = 12,
-      target_fwd = 1,
       target_fwd_name = c("fwd_premium_1m"),
       ml_algorithm = "glmnet",
       chosen_eval_metric  = "rss",
@@ -1754,12 +1727,9 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                                           3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
                        fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
                                          10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame"),
-      dates_m_vector =  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15","2001-06-15",
-                                  "2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")),
       training_sample_size = 4,
       validation_sample_size = 3,
       rebalancing_months = 11,
-      target_fwd = 1,
       target_fwd_name = c("fwd_premium_1m"),
       chosen_eval_metric  = "hr",
       hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
@@ -2238,12 +2208,9 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                                           3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
                        fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
                                          10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame"),
-      dates_m_vector =  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15","2001-06-15",
-                                  "2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")),
       training_sample_size = 4,
       validation_sample_size = 3,
       rebalancing_months = 11,
-      target_fwd = 3,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rss",
       hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0, 0.9, length=10)), #Grid for lambda search
@@ -2791,14 +2758,9 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 3m tar
                           5, 1, 1, 5, 3, 9, -29, -18, 8, 39, 0, -8, 4, 9, 0, 10, 1,
                           4, 12, 1, 92, 0, 2, 0, 85, 93, 83, 1, 7, 1, 3, 3, 0, 1, 3,
                           1, 9, 10, 0, -19, 0, 1, 1, 109)), row.names = c(NA, -80L), class = "data.frame"),
-      dates_m_vector =  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15","2001-06-15",
-                                  "2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15",
-                                  "2001-12-15", "2002-01-15", "2002-02-15", "2002-03-15", "2002-04-15",
-                                  "2002-05-15", "2002-06-15")),
       training_sample_size = 8,
       validation_sample_size = 5,
       rebalancing_months = 11,
-      target_fwd = 3,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rmse",
       hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
@@ -3216,12 +3178,10 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
                                           3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
                        fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
                                          10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame"),
-      dates_m_vector =  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15","2001-06-15",
-                                  "2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")),
+
       training_sample_size = 4,
       validation_sample_size = 3,
       rebalancing_months = 11,
-      target_fwd = 3,
       target_fwd_name = c("fwd_premium_3m"),
       parallel = FALSE,
       chosen_eval_metric  = "rmse",
@@ -3706,12 +3666,9 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                                           3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
                        fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
                                          10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame"),
-      dates_m_vector =  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15","2001-06-15",
-                                  "2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")),
       training_sample_size = 4,
       validation_sample_size = 3,
       rebalancing_months = 11,
-      target_fwd = 3,
       ml_algorithm = "glmnet",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "cp",
@@ -4110,11 +4067,9 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "rf",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "hr",
@@ -4248,8 +4203,8 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -4257,22 +4212,22 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   prediction_list <- list()
   prediction_list[[1]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)]))$predictions)
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)]))$predictions)
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  prediction_list[[2]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]))$predictions)
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -4432,20 +4387,20 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -4519,11 +4474,9 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "xgb",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
@@ -4698,8 +4651,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -4707,22 +4660,22 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   prediction_list <- list()
   prediction_list[[1]] <- as.numeric(predict(xgb.mod.refit, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)])))
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(xgb.mod.refit, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)])))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  prediction_list[[2]] <- as.numeric(predict(xgb.mod.refit, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)])))
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -4904,20 +4857,20 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -4998,11 +4951,9 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "nn",
       early_stop = 25,
       target_fwd_name = c("fwd_premium_3m"),
@@ -5209,8 +5160,8 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -5220,22 +5171,22 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
     features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)])))
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
   prediction_list[[2]] <- as.numeric(predict(model_nn_1, x = as.matrix(
-    features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)])))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+    features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)])))
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -5462,20 +5413,20 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -5550,11 +5501,9 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "rf",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "cp",
@@ -5687,8 +5636,8 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -5696,22 +5645,22 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
   prediction_list <- list()
   prediction_list[[1]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)]))$predictions)
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)]))$predictions)
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  prediction_list[[2]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]))$predictions)
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -5878,20 +5827,20 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -5961,11 +5910,9 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "rf",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "hr",
@@ -6087,8 +6034,8 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -6096,22 +6043,22 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
   prediction_list <- list()
   prediction_list[[1]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)]))$predictions)
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)]))$predictions)
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  prediction_list[[2]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]))$predictions)
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -6262,20 +6209,20 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -6426,12 +6373,10 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                                           3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
                        fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
                                          10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame"),
-      dates_m_vector =  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15","2001-06-15",
-                                  "2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")),
+
       training_sample_size = 4,
       validation_sample_size = 3,
       rebalancing_months = 11,
-      target_fwd = 3,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "mphe",
       ml_algorithm = "glmnet",
@@ -6916,12 +6861,9 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                                           3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
                        fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
                                          10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame"),
-      dates_m_vector =  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15","2001-06-15",
-                                  "2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")),
       training_sample_size = 4,
       validation_sample_size = 3,
       rebalancing_months = 11,
-      target_fwd = 3,
       ml_algorithm = "glmnet",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rmse",
@@ -7329,11 +7271,9 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "rf",
       n_iter = 3,
       target_fwd_name = c("fwd_premium_3m"),
@@ -7502,8 +7442,8 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -7516,22 +7456,22 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 
   prediction_list[[2]] <- as.numeric(predict(rf.mod.refit,
                                              data = janitor::clean_names(
-                                               features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)]))$predictions)
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+                                               features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]))$predictions)
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   hyper_expanded_grid2 <- list(mtry = runif(n = 3, min = 0.1, max = 1), num.trees = round(rlnorm(n = 3, meanlog = 6, sdlog = 1),0),
@@ -7685,13 +7625,13 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
@@ -7701,7 +7641,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
                                          mae = c(NA,NA,NA,NA),
                                          mphe = c(NA,NA,NA,NA),
                                          mpe = c(NA,NA,NA,NA),
-                                         row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -7772,11 +7712,9 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "glmnet",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rss",
@@ -7910,8 +7848,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -7920,23 +7858,23 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   prediction_list[[1]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)]),
                                              s = best_lam1[hyper_choice1]))
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)]),
+  prediction_list[[2]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]),
                                      s = best_lam1[hyper_choice1]))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -8073,20 +8011,20 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names = c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names = c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -8153,11 +8091,9 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "xgb",
       custom_objective = "squared_error",
       target_fwd_name = c("fwd_premium_3m"),
@@ -8355,8 +8291,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -8364,22 +8300,22 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   prediction_list <- list()
   prediction_list[[1]] <- as.numeric(predict(xgb.mod.refit, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)])))
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(xgb.mod.refit, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)])))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  prediction_list[[2]] <- as.numeric(predict(xgb.mod.refit, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)])))
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   hyper_expanded_grid2 <-  list(min_child_weight = c(3),
@@ -8581,20 +8517,20 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -8681,11 +8617,9 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rmse",
       hyper_grid_domain_list = list(alpha = c(0,1),
@@ -8873,8 +8807,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -8887,23 +8821,23 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
   prediction_list[[2]] <- as.numeric(
     predict(glm.mod.refit,
-            newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)]),
+            newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]),
             s = best_lam1))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -9061,20 +8995,20 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -9148,11 +9082,9 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "mphe",
       hyper_grid_domain_list = list(mtry = c(0,1), #Bayesian Opt
@@ -9336,8 +9268,8 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   )
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -9350,22 +9282,22 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   prediction_list[[2]] <-
     as.numeric(
       predict(rf.mod.refit,
-              data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)]))$predictions)
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+              data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]))$predictions)
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -9552,13 +9484,13 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
@@ -9568,7 +9500,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
                                          mae = c(NA,NA,NA,NA),
                                          mphe = c(NA,NA,NA,NA),
                                          mpe = c(NA,NA,NA,NA),
-                                         row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -9651,11 +9583,9 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "xgb",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
@@ -9871,8 +9801,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -9880,22 +9810,22 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   prediction_list <- list()
   prediction_list[[1]] <- as.numeric(predict(xgb.mod.refit1, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)])))
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(xgb.mod.refit1, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)])))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  prediction_list[[2]] <- as.numeric(predict(xgb.mod.refit1, newdata = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)])))
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -10101,20 +10031,20 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss = c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -10213,11 +10143,9 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "nn",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
@@ -10447,8 +10375,8 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -10456,22 +10384,22 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
   prediction_list <- list()
   prediction_list[[1]] <- as.numeric(predict(nn.mod.refit1, as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)])))
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(nn.mod.refit1, as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)])))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  prediction_list[[2]] <- as.numeric(predict(nn.mod.refit1, as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)])))
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -10692,20 +10620,20 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss = c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -10798,11 +10726,9 @@ skip()
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
-      dates_m_vector =  as.Date(toy_dates[order(toy_dates)], format = "%Y-%m-%d"),
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "nn",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
@@ -11032,8 +10958,8 @@ skip()
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-16")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-16")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -11041,22 +10967,22 @@ skip()
   prediction_list <- list()
   prediction_list[[1]] <- as.numeric(predict(nn.mod.refit1, as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)])))
   names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(nn.mod.refit1, as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-16")),-c(1:3)])))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  prediction_list[[2]] <- as.numeric(predict(nn.mod.refit1, as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)])))
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Calc error
   error_list <- list()
   error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
   y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-16"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-16")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
   #Features obj
@@ -11277,20 +11203,20 @@ skip()
 
   #Create results object
   #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[1]] <- prediction_list
   #Error list
-  names(error_list) <- c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[2]] <- error_list
   #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-16", "2023-06-15", "2023-07-15")
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
   results$outputs[[3]] <- y_list
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss = c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-16", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -11373,11 +11299,7 @@ skip()
 #END ML TESTS
 
 
-
-########################
-#END GENERAL ERROR TESTS
-
-#BEGIN VALIDATION SPLIT ML ERROR TESTS
+#BEGIN OTHER TESTS
 #####################################
 test_that("ml_walk_forward_validation correctly classifies data as training, validation and testing", {
 
@@ -11389,11 +11311,9 @@ test_that("ml_walk_forward_validation correctly classifies data as training, val
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
       features_m_df = toy_features_full_dates,
       target_m_df = toy_target_full_date,
-      dates_m_vector =  as.Date(toy_dates_full_dates[order(toy_dates_full_dates)], format = "%Y-%m-%d"),
       training_sample_size = 60,
       validation_sample_size = 36,
       rebalancing_months = 6,
-      target_fwd = 3,
       ml_algorithm = "xgb",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
@@ -11418,6 +11338,390 @@ test_that("ml_walk_forward_validation correctly classifies data as training, val
 
 })
 
+#Define your test
+test_that("ml_walk_forward_validation works with NAs in last target_fwd periods of target_m_df",{
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15", "2023-06-15", "2023-05-15")), "fwd_return_3m"] <- NA
+  toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15", "2023-06-15", "2023-05-15")), "fwd_premium_3m"] <- NA
+  toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15")), "fwd_return_1m"] <- NA
+  toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15")), "fwd_premium_1m"] <- NA
+
+
+  set.seed(123)
+  #Apply function
+  suppressMessages(suppressWarnings({
+    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+      features_m_df = toy_preprocessed_features,
+      target_m_df = toy_preprocessed_targets,
+      training_sample_size = 7,
+      validation_sample_size = 3,
+      rebalancing_months = 6,
+      ml_algorithm = "glmnet",
+      target_fwd_name = c("fwd_premium_3m"),
+      chosen_eval_metric  = "rss",
+      hyper_grid_domain_list = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
+                                    lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.9))), #Random Search
+      tuning_method = c("random_search"),
+      n_iter = 5,
+      parallel = FALSE,
+      verbose = TRUE,
+      show_plots = FALSE
+    )}))
+
+
+  #Define initial objects
+  set.seed(123)
+  hyper_expanded_grid1 <- list(alpha = runif(n = 5, min = 0, max = 1), lambda.min.ratio = runif(n = 5, min = 0.1, max = 0.9))
+  hyper_expanded_grid1$alpha <- unique(hyper_expanded_grid1$alpha)
+  hyper_expanded_grid1$lambda.min.ratio <- unique(hyper_expanded_grid1$lambda.min.ratio)
+  hyper_expanded_grid1 <- expand.grid(hyper_expanded_grid1)
+
+  hyper_expanded_grid2 <- list(alpha = runif(n = 5, min = 0, max = 1), lambda.min.ratio = runif(n = 5, min = 0.1, max = 0.9))
+  hyper_expanded_grid2$alpha <- unique(hyper_expanded_grid2$alpha)
+  hyper_expanded_grid2$lambda.min.ratio <- unique(hyper_expanded_grid2$lambda.min.ratio)
+  hyper_expanded_grid2 <- expand.grid(hyper_expanded_grid2)
+
+
+  validation_eval_hyper_choice <- data.frame(rss =c(NA,NA),  #Validation loss df
+                                             cp = c(NA,NA),
+                                             rmse = c(NA,NA),
+                                             mae = c(NA,NA),
+                                             row.names = c("2023-04-15", "2023-06-15"))
+  rebalance_dates <- c("2023-04-15", "2023-06-15")
+  n_rebalance_dates <- 2
+
+  chosen_eval_metric_val <- list()
+
+  #1st rebalancing
+  #Features obj
+  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  #Targets
+  targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
+  targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
+  #Features val
+  #Start first rebalancing
+  chosen_eval_metric_val[[1]] <- data.frame(alpha = hyper_expanded_grid1$alpha,
+                                            lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio,
+                                            best_lam = rep(NA,25), chosen_eval_metric = rep(NA, 25))
+
+  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(targets_first_val$fwd_premium_3m),
+                                         ncol = nrow(hyper_expanded_grid1)))
+
+  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
+  best_lam1 <- vector(length =  nrow(hyper_expanded_grid1))
+
+  for(s in 1:length(hyper_expanded_grid1$alpha)){
+    #Train Model
+    glm.mod1 <- glmnet::glmnet(
+      x = features_first_train[,-c(1:3)],
+      y = targets_first_train$fwd_premium_3m,
+      alpha = hyper_expanded_grid1$alpha[s], #Alpha
+      lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio[s] #Lambda
+    )
+
+    #Get best lam
+    best_lam1[s] <- glm.mod1$lambda[
+      which.max(1 - (colSums((targets_first_val$fwd_premium_3m -
+                                predict(glm.mod1, newx = as.matrix(features_first_val[,-c(1:3)])))^2)/sum(targets_first_val$fwd_premium_3m^2)))
+    ]
+
+
+    #Predict to validation data
+    shrinkage.pred_df[,s] <-
+      predict(glm.mod1, newx = as.matrix(features_first_val[,-c(1:3)]), s = best_lam1[s])
+
+    #RSQUARED CHOSEN
+    chosen_eval_metric_val[[1]]$chosen_eval_metric[s] <-
+      (1 - (sum((targets_first_val$fwd_premium_3m -
+                   shrinkage.pred_df[,s])^2)/sum(targets_first_val$fwd_premium_3m^2)))
+
+
+
+  }
+  chosen_eval_metric_val[[1]]$best_lam <- best_lam1
+
+  #rsquared IS MAX: PAY ATTENTION
+  hyper_choice1 <- which.max(chosen_eval_metric_val[[1]]$chosen_eval_metric)
+
+  #Calculate val losses for best hyper choice
+  validation_eval_hyper_choice$rss[1] <- (1 - (sum((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2)/sum(targets_first_val$fwd_premium_3m^2)))
+
+  validation_eval_hyper_choice$rmse[1] <- sqrt(mean((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2))
+
+  validation_eval_hyper_choice$cp[1] <- mean(targets_first_val$fwd_premium_3m*shrinkage.pred_df[,hyper_choice1])
+
+  validation_eval_hyper_choice$mae[1] <- mean(abs(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]))
+
+  validation_eval_hyper_choice$mphe[1] <- mean((1)^2*(sqrt(1+((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/
+                                                                (1))^2)-1))
+
+  validation_eval_hyper_choice$mpe[1] <- mean(ifelse((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]) >= 0,
+                                                     0.5*(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]),
+                                                     (1-0.5)*(-1)*(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])))
+
+  validation_eval_hyper_choice$mape[1] <- mean(abs(
+    (targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/targets_first_val$fwd_premium_3m))
+
+  validation_eval_hyper_choice$hr[1] <- length(which(sign(targets_first_val$fwd_premium_3m) == sign(shrinkage.pred_df[,hyper_choice1])))/
+    length(targets_first_val$fwd_premium_3m)
+
+  validation_eval_hyper_choice$mb[1] <- mean(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])
+
+
+
+
+  #Refit
+  features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+
+
+  target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                               "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+
+
+  #Refitted model
+  glm.mod.refit <- glmnet::glmnet(x = features_first_training_and_validation[,-c(1:3)],
+                                  y = target_first_training_and_validation$fwd_premium_3m,
+                                  alpha = hyper_expanded_grid1$alpha[hyper_choice1],
+                                  lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio[hyper_choice1])
+  coef(glm.mod.refit)
+
+
+  #First test set
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
+
+
+
+  #Predict!
+  prediction_list <- list()
+  prediction_list[[1]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)]),
+                                             s = best_lam1[hyper_choice1]))
+  names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
+  prediction_list[[2]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]),
+                                             s = best_lam1[hyper_choice1]))
+  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
+
+  #Calc error
+  error_list <- list()
+  error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
+  names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
+  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
+
+  #Y
+  y_list <- list()
+  y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
+  names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
+  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
+
+  #2nd rebal!
+  #Features obj
+  features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
+                                                                                                  "2022-11-15", "2022-12-15")),]
+  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+  #Targets
+  targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
+                                                                                               "2022-11-15", "2022-12-15")),]
+  targets_second_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-03-15")),]
+
+
+
+  chosen_eval_metric_val[[2]] <- data.frame(alpha = hyper_expanded_grid2$alpha,
+                                            lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio,
+                                            best_lam = rep(NA,25), chosen_eval_metric = rep(NA, 25))
+
+  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(targets_second_val$fwd_premium_3m),
+                                         ncol = nrow(hyper_expanded_grid2)))
+
+  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
+  best_lam2 <- vector(length =  nrow(hyper_expanded_grid2))
+
+  for(s in 1:length(hyper_expanded_grid2$alpha)){
+    #Train Model
+    glm.mod1 <- glmnet::glmnet(
+      x = features_second_train[,-c(1:3)],
+      y = targets_second_train$fwd_premium_3m,
+      alpha = hyper_expanded_grid2$alpha[s], #Alpha
+      lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio[s] #Lambda
+    )
+
+    #Get best lam
+    best_lam2[s] <- glm.mod1$lambda[
+      which.max(1 - (colSums((targets_second_val$fwd_premium_3m -
+                                predict(glm.mod1, newx = as.matrix(features_second_val[,-c(1:3)])))^2)/sum(targets_second_val$fwd_premium_3m^2)))
+    ]
+
+
+    #Predict to validation data
+    shrinkage.pred_df[,s] <-
+      predict(glm.mod1, newx = as.matrix(features_second_val[,-c(1:3)]), s = best_lam2[s])
+
+    #RSQUARED CHOSEN
+    chosen_eval_metric_val[[2]]$chosen_eval_metric[s] <-
+      (1 - (sum((targets_second_val$fwd_premium_3m -
+                   shrinkage.pred_df[,s])^2)/sum(targets_second_val$fwd_premium_3m^2)))
+
+
+
+  }
+  chosen_eval_metric_val[[2]]$best_lam <- best_lam2
+
+  #r2 IS MAX: PAY ATTENTION
+  hyper_choice2 <- which.max(chosen_eval_metric_val[[2]]$chosen_eval_metric)
+
+  #Calculate val losses for best hyper choice
+  validation_eval_hyper_choice$rss[2] <- (1 - (sum((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2)/sum(targets_second_val$fwd_premium_3m^2)))
+
+  validation_eval_hyper_choice$rmse[2] <- sqrt(mean((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2))
+
+  validation_eval_hyper_choice$cp[2] <- mean(targets_second_val$fwd_premium_3m*shrinkage.pred_df[,hyper_choice2])
+
+  validation_eval_hyper_choice$mae[2] <- mean(abs(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]))
+
+  validation_eval_hyper_choice$mphe[2] <- mean((1)^2*(sqrt(1+((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/
+                                                                (1))^2)-1))
+
+  validation_eval_hyper_choice$mpe[2] <- mean(ifelse((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]) >= 0,
+                                                     0.5*(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]),
+                                                     (1-0.5)*(-1)*(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])))
+
+  validation_eval_hyper_choice$mape[2] <- mean(abs(
+    (targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/targets_second_val$fwd_premium_3m))
+
+  validation_eval_hyper_choice$hr[2] <- length(which(sign(targets_second_val$fwd_premium_3m) == sign(shrinkage.pred_df[,hyper_choice2])))/
+    length(targets_second_val$fwd_premium_3m)
+
+  validation_eval_hyper_choice$mb[2] <- mean(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])
+
+
+
+  #Refit
+  features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                                    "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                                    "2023-02-15", "2023-03-15")),]
+
+
+  target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                                "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                                "2023-02-15", "2023-03-15")),]
+
+
+  #Refitted model
+  glm.mod.refit <- glmnet::glmnet(x = features_second_training_and_validation[,-c(1:3)],
+                                  y = target_second_training_and_validation$fwd_premium_3m,
+                                  alpha = hyper_expanded_grid2$alpha[hyper_choice2],
+                                  lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio[hyper_choice2])
+  coef(glm.mod.refit)
+
+
+
+  #second test set
+  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
+
+
+
+  #Predict!
+  prediction_list[[3]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_second_test[which(features_second_test$dates %in% c("2023-06-15")),-c(1:3)]),
+                                             s = best_lam2[hyper_choice2]))
+  names(prediction_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
+  prediction_list[[4]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_second_test[which(features_second_test$dates %in% c("2023-07-15")),-c(1:3)]),
+                                             s = best_lam2[hyper_choice2]))
+  names(prediction_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
+
+  #Calc error
+  error_list[[3]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-06-15"))] - as.numeric(prediction_list[[3]])
+  names(error_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
+  error_list[[4]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-07-15"))] - as.numeric(prediction_list[[4]])
+  names(error_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
+
+  #Y
+  y_list[[3]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-06-15"))] %>% as.numeric()
+  names(y_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
+  y_list[[4]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-07-15"))] %>% as.numeric()
+  names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
+
+
+  #Create results object
+  results <- list()
+  results[[1]] <- list()
+  names(results) <- c("outputs")
+
+  #Create results object
+  #Pred list
+  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
+  results$outputs[[1]] <- prediction_list
+  #Error list
+  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
+  results$outputs[[2]] <- error_list
+  #Y-list
+  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
+  results$outputs[[3]] <- y_list
+
+  #Eval metrics
+  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
+                                         cp = c(NA,NA,NA,NA),
+                                         rmse = c(NA,NA,NA,NA),
+                                         mae = c(NA,NA,NA,NA), row.names = c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+
+  for(l in 1:length(prediction_list)){
+    oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
+    oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
+    oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
+    oos_testing_eval_metrics$mae[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])))
+    oos_testing_eval_metrics$mphe[l] <- mean(1^2*(sqrt(1+(y_list[[l]] - prediction_list[[l]])^2)-1))
+    oos_testing_eval_metrics$mpe[l] <- mean(ifelse((y_list[[l]] - prediction_list[[l]]) >= 0,
+                                                   0.5*(y_list[[l]] - prediction_list[[l]]),
+                                                   (1-0.5)*(-1)*(y_list[[l]] - prediction_list[[l]])))
+    oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
+    oos_testing_eval_metrics$hr[l] <- mean((y_list[[l]] * prediction_list[[l]])>0)
+    oos_testing_eval_metrics$mb[l] <- mean(y_list[[l]] - prediction_list[[l]])
+
+  }
+
+  results$outputs[[4]] <- oos_testing_eval_metrics
+
+  #Final Model
+  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <- rebalance_dates
+  results$outputs[[6]] <- chosen_eval_metric_val
+
+  #Best Hyoer
+  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+                                     alpha = c(hyper_expanded_grid1$alpha[hyper_choice1], hyper_expanded_grid2$alpha[hyper_choice2]),
+                                     lambda.min.ratio = c(hyper_expanded_grid1$lambda.min.ratio[hyper_choice1], hyper_expanded_grid2$lambda.min.ratio[hyper_choice2]),
+                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2]))
+
+  #Validation loss metrics for hyper choice
+  results$outputs[[8]] <- validation_eval_hyper_choice
+  #Rename
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics",
+                              "final_model", "chosen_eval_metric_validation",
+                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
+
+  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results$metadata <- NULL
+
+
+  expect_equal(
+    ml_walk_forward_validation_results,
+    results$outputs,
+    tolerance = 1e-5
+  )
+
+})
+
+
 
 #####################################
-#END VALIDATION SPLIT ML ERROR TESTS
+#END OTHER TESTS
+
+

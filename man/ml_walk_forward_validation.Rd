@@ -7,9 +7,7 @@
 ml_walk_forward_validation(
   features_m_df,
   target_m_df,
-  dates_m_vector,
   training_sample_size,
-  target_fwd,
   target_fwd_name,
   validation_sample_size = 0,
   rebalancing_months,
@@ -33,15 +31,12 @@ ml_walk_forward_validation(
 )
 }
 \arguments{
-\item{features_m_df}{A matrix or data frame containing features, with columns: id, tickers, dates.}
+\item{features_m_df}{A meta dataframe or data frame containing features, with columns: id, tickers, dates.}
 
-\item{target_m_df}{A matrix or data frame containing target variable(s), with corresponding dates.}
-
-\item{dates_m_vector}{A vector of dates corresponding to the data.}
+\item{target_m_df}{A meta dataframe or data frame containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
+XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.}
 
 \item{training_sample_size}{Number of observations to include in each training sample.}
-
-\item{target_fwd}{Number of periods ahead for the target variable.}
 
 \item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
 
@@ -49,43 +44,53 @@ ml_walk_forward_validation(
 
 \item{rebalancing_months}{Months (numeric) when model should be rebalanced.}
 
-\item{split_method}{Choice of split method (expanding or rolling)}
+\item{split_method}{Choice of split method (expanding or rolling).}
 
-\item{ml_algorithm}{Choice of ml_algorithm: glmnet, rf, xgboost and neural networks.}
+\item{ml_algorithm}{Choice of ml_algorithm: ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
 
-\item{custom_objective}{Custom objective (double differenciable loss function) to xgboost and nn algorithms
+\item{custom_objective}{Custom objective (double differentiable loss function) for xgboost and nn algorithms.
 (current options are squared_error, absolute_error and (pseudo)-huber loss)}
 
-\item{chosen_eval_metric}{Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr" and "mb".}
+\item{chosen_eval_metric}{Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr", and "mb".}
 
-\item{huber_delta}{#A single numeric value indicating the boundary that separates where loss function turns from quadratic to linear}
+\item{huber_delta}{A single numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.}
 
-\item{quantile_tau}{#A single numeric value indicating target quantile when calculating quantile loss}
+\item{quantile_tau}{A single numeric value indicating target quantile when calculating quantile loss.}
 
-\item{hyper_grid_domain_list}{List specifying hyperparameter ranges for tuning.}
+\item{hyper_grid_domain_list}{A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
+\itemize{
+\item \strong{For grid search:} Must be a list of named vectors.
+\item \strong{For random search:} Must be a list of named lists, where each named list contains:
+\itemize{
+\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
+\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
+\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+}
+\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+}}
 
 \item{tuning_method}{Method for hyperparameter tuning: "random_search", "grid_search", or "bayesian_opt".}
 
 \item{n_iter}{Number of iterations for random search.}
 
-\item{k_iter}{Integer that specifies the number of times to sample eval_function at each Epoch during bayesian optimization.
-If running in parallel, set iters.k to multiple of number of cores. Must be lower and preferrably, multiple of n_ter}
+\item{k_iter}{Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
+If running in parallel, set iters.k to a multiple of the number of cores. Must be lower and preferably a multiple of n_iter.}
 
 \item{acq}{Acquisition function for Bayesian optimization: "ucb", "ei", or "poi".}
 
 \item{init_points}{Number of initial random points for Bayesian optimization.}
 
-\item{early_stop}{Sets a halting criteria to prevent overfitting in xgb and nn}
+\item{early_stop}{Sets a halting criteria to prevent overfitting in xgb and nn.}
 
 \item{keras_architecture_parameters}{Named list, containing units (a vector containing number of neurons in each layer),
-n_layers (number of layers), activation (a character vector of activation function at each layer), nn_optimizer (Adam or RMSProp) and
+n_layers (number of layers), activation (a character vector of activation function at each layer), nn_optimizer (Adam or RMSProp), and
 batch_norm_option (a logical vector indicating whether normalization after each respective layer should be performed).}
 
 \item{show_plots}{Logical, indicating whether to plot results (default is TRUE).}
 
 \item{verbose}{Logical, indicating whether to print progress messages (default is TRUE).}
 
-\item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE)}
+\item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
 }
 \value{
 List with various outputs including model predictions, errors, and validation metrics.
@@ -103,18 +108,17 @@ for elastic net regularization, supporting both Lasso and Ridge regression.
 }
 \section{Running in Parallel}{
 
-
 By default, tuning_method \%in\% c("random_search", "grid_search") utilizes furrr::future_pmap, which means they can run according to the built-in backends
 from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
-tuning will be done sequentially by default (equivalent to future::plan(sequential)).In this case, however,
+tuning will be done sequentially by default (equivalent to future::plan(sequential)). In this case, however,
 random number generator will be set to RNGkind("L'Ecuyer-CMRG"), instead of R default (RNGkind("Mersenne-Twister")), making results
 not reproducible regarding using purrr:pmap(). In order to run using R's default random number generator, set parallel = FALSE.
-Using a different evaluation strategy (eg., future::plan(multisession)) will tune hyperparameters asynchronously (in parallel).
+Using a different evaluation strategy (e.g., future::plan(multisession)) will tune hyperparameters asynchronously (in parallel).
 
 For tuning_method = "bayesian_opt", the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the \%dopar\% operator.
 Therefore, in this case, the user can either: (i) use doFuture::registerDoFuture(), in order to use the \%dofuture\% foreach adapter
-(actually, in this case, doFuture::withDoRNG is used to turn \%dopar\% to \%dorng\% in order to use parallel-safe RNG), which allows
-usage of backends from future package or (ii) use parallel::makeCluster(), doParallel::registerDoParallel(), doParallel::clusterExport() and
+(actually, in this case, doFuture::withDoRNG is used to turn \%dopar\% into \%dorng\% in order to use parallel-safe RNG), which allows
+usage of backends from the future package or (ii) use parallel::makeCluster(), doParallel::registerDoParallel(), doParallel::clusterExport() and
 doParallel::clusterEvalQ(), as exemplified by ParBayesianOptimization. If parallel = TRUE and neither strategy is being used,
 code will result in error. Therefore, to run bayesian_opt synchronously, either use doFuture::registerDoFuture() with plan(sequential)
 or set parallel = FALSE.
@@ -122,6 +126,17 @@ or set parallel = FALSE.
 Keras has some limitations when working in parallel, especially when using bayesian optimization as tuning method.
 }
 
+\examples{
+# Example of creating hyper_grid_domain_list for random search
+hyper_grid <- list(
+  alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1), value = NULL),
+  lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9), value = NULL)
+)
+
+# Example of calling the function
+your_function(hyper_grid_domain_list = hyper_grid, ml_algorithm = "some_algorithm", tuning_method = "random_search")
+
+}
 \seealso{
-\code{\link{glmnet}}, \code{\link{time_series_split}}
+\code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 }

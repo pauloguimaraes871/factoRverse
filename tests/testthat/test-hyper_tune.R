@@ -32,8 +32,8 @@ test_that("all hyperparameters are explored in grid search", {
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -137,8 +137,8 @@ test_that("all hyperparameters are explored in random search", {
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -257,8 +257,8 @@ test_that("best_iteration is included in chosen_eval_metric_validation", {
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -346,8 +346,8 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -485,8 +485,8 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -635,8 +635,8 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -778,8 +778,8 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -920,8 +920,8 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1063,8 +1063,8 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1209,8 +1209,8 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1362,8 +1362,8 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1509,8 +1509,8 @@ skip()
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1660,8 +1660,8 @@ skip()
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1901,8 +1901,8 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -1940,18 +1940,18 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
-                                   full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
-                                   features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
-                                   eval_function = FUN, custom_objective_translated = custom_objective_translated,
-                                   chosen_eval_metric_translated = chosen_eval_metric_translated, early_stop = early_stop,
-                                   chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                                   hyper_grid_domain_list = hyper_grid_domain_list, n_iter = n_iter, acq = acq,
-                                   init_points = init_points, k_iter = k_iter,
-                                   keras_architecture_parameters = keras_architecture_parameters,
-                                   parallel = parallel,
-                                   verbose = verbose
-  )
+  hyper_tune_results <- suppressWarnings(hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+                                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+                                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
+                                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
+                                                    chosen_eval_metric_translated = chosen_eval_metric_translated, early_stop = early_stop,
+                                                    chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
+                                                    hyper_grid_domain_list = hyper_grid_domain_list, n_iter = n_iter, acq = acq,
+                                                    init_points = init_points, k_iter = k_iter,
+                                                    keras_architecture_parameters = keras_architecture_parameters,
+                                                    parallel = parallel,
+                                                    verbose = verbose
+  ))
 
   #Compare hyper tuning via bayesian opt
   test_eval_function <- function(alpha, lambda.min.ratio){
@@ -2095,8 +2095,8 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = FA
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -2291,8 +2291,8 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -2531,8 +2531,8 @@ test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber er
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -2776,8 +2776,8 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = TRUE", {
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -2982,8 +2982,8 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = TR
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -3182,8 +3182,8 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -3424,8 +3424,8 @@ skip()
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, dates_m_vector = toy_dates,
-                             training_sample_size = training_sample_size, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
                              ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,

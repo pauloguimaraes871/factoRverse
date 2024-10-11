@@ -232,8 +232,25 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
         ml_algorithm = "ols",
         target_fwd_name = "fwd_premium_3m")
     })),
-    "number of dates in target_m_df with NAs should be at most equal to prediction horizon"
+    "target_m_df can't have NAs until the last target_fwd periods"
   )
+
+  wrong_target_m_df <- target_m_df
+  wrong_target_m_df$fwd_premium_1m[2] <- NA
+
+  expect_error(
+    suppressMessages(suppressWarnings({
+      ml_walk_forward_validation(
+        features_m_df = features_m_df,
+        target_m_df = wrong_target_m_df,
+        training_sample_size = 4,
+        rebalancing_months = 9,
+        ml_algorithm = "ols",
+        target_fwd_name = "fwd_premium_1m")
+    })),
+    "target_m_df can't have NAs until the last target_fwd periods"
+  )
+
 
   #No error if adeaute number of NAs
   right_target_m_df <- target_m_df

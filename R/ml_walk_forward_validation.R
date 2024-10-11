@@ -5,35 +5,51 @@
 #' or Bayesian optimization. The function divides the data into training, validation,
 #' and testing samples, and iteratively refits the model at specified rebalancing dates.
 #'
-#' @param features_m_df A matrix or data frame containing features, with columns: id, tickers, dates.
-#' @param target_m_df A matrix or data frame containing target variable(s), with corresponding dates.
-#' @param dates_m_vector A vector of dates corresponding to the data.
+#' @param features_m_df A meta dataframe or data frame containing features, with columns: id, tickers, dates.
+#' @param target_m_df A meta dataframe or data frame containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
+#' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.
 #' @param training_sample_size Number of observations to include in each training sample.
 #' @param validation_sample_size Number of observations to include in each validation sample.
 #' @param rebalancing_months Months (numeric) when model should be rebalanced.
-#' @param target_fwd Number of periods ahead for the target variable.
 #' @param target_fwd_name Name of the target variable in `target_m_df`.
-#' @param ml_algorithm Choice of ml_algorithm: glmnet, rf, xgboost and neural networks.
-#' @param split_method Choice of split method (expanding or rolling)
-#' @param hyper_grid_domain_list List specifying hyperparameter ranges for tuning.
+#' @param ml_algorithm Choice of ml_algorithm: ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
+#' @param split_method Choice of split method (expanding or rolling).
+#' @param hyper_grid_domain_list A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
+#' \itemize{
+#'   \item \strong{For grid search:} Must be a list of named vectors.
+#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
+#'     \itemize{
+#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
+#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
+#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+#'     }
+#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+#' }
+#' @examples
+#' # Example of creating hyper_grid_domain_list for random search
+#' hyper_grid <- list(
+#'   alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1), value = NULL),
+#'   lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9), value = NULL)
+#' )
+#'
 #' @param tuning_method Method for hyperparameter tuning: "random_search", "grid_search", or "bayesian_opt".
 #' @param n_iter Number of iterations for random search.
 #' @param acq Acquisition function for Bayesian optimization: "ucb", "ei", or "poi".
 #' @param init_points Number of initial random points for Bayesian optimization.
-#' @param k_iter Integer that specifies the number of times to sample eval_function at each Epoch during bayesian optimization.
-#' If running in parallel, set iters.k to multiple of number of cores. Must be lower and preferrably, multiple of n_ter
-#' @param custom_objective Custom objective (double differenciable loss function) to xgboost and nn algorithms
+#' @param k_iter Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
+#' If running in parallel, set iters.k to a multiple of the number of cores. Must be lower and preferably a multiple of n_iter.
+#' @param custom_objective Custom objective (double differentiable loss function) for xgboost and nn algorithms.
 #' (current options are squared_error, absolute_error and (pseudo)-huber loss)
-#' @param early_stop Sets a halting criteria to prevent overfitting in xgb and nn
-#' @param chosen_eval_metric Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr" and "mb".
+#' @param early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
+#' @param chosen_eval_metric Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr", and "mb".
 #' @param show_plots Logical, indicating whether to plot results (default is TRUE).
 #' @param keras_architecture_parameters Named list, containing units (a vector containing number of neurons in each layer),
-#' n_layers (number of layers), activation (a character vector of activation function at each layer), nn_optimizer (Adam or RMSProp) and
+#' n_layers (number of layers), activation (a character vector of activation function at each layer), nn_optimizer (Adam or RMSProp), and
 #' batch_norm_option (a logical vector indicating whether normalization after each respective layer should be performed).
-#' @param huber_delta #A single numeric value indicating the boundary that separates where loss function turns from quadratic to linear
-#' @param quantile_tau #A single numeric value indicating target quantile when calculating quantile loss
+#' @param huber_delta A single numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
+#' @param quantile_tau A single numeric value indicating target quantile when calculating quantile loss.
 #' @param verbose Logical, indicating whether to print progress messages (default is TRUE).
-#' @param parallel Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE)
+#' @param parallel Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).
 #'
 #' @return List with various outputs including model predictions, errors, and validation metrics.
 #'
@@ -43,18 +59,17 @@
 #' for elastic net regularization, supporting both Lasso and Ridge regression.
 #'
 #' @section Running in Parallel:
-#'
 #' By default, tuning_method %in% c("random_search", "grid_search") utilizes furrr::future_pmap, which means they can run according to the built-in backends
 #' from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
-#' tuning will be done sequentially by default (equivalent to future::plan(sequential)).In this case, however,
+#' tuning will be done sequentially by default (equivalent to future::plan(sequential)). In this case, however,
 #' random number generator will be set to RNGkind("L'Ecuyer-CMRG"), instead of R default (RNGkind("Mersenne-Twister")), making results
 #' not reproducible regarding using purrr:pmap(). In order to run using R's default random number generator, set parallel = FALSE.
-#' Using a different evaluation strategy (eg., future::plan(multisession)) will tune hyperparameters asynchronously (in parallel).
+#' Using a different evaluation strategy (e.g., future::plan(multisession)) will tune hyperparameters asynchronously (in parallel).
 #'
 #' For tuning_method = "bayesian_opt", the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the %dopar% operator.
 #' Therefore, in this case, the user can either: (i) use doFuture::registerDoFuture(), in order to use the %dofuture% foreach adapter
-#' (actually, in this case, doFuture::withDoRNG is used to turn %dopar% to %dorng% in order to use parallel-safe RNG), which allows
-#' usage of backends from future package or (ii) use parallel::makeCluster(), doParallel::registerDoParallel(), doParallel::clusterExport() and
+#' (actually, in this case, doFuture::withDoRNG is used to turn %dopar% into %dorng% in order to use parallel-safe RNG), which allows
+#' usage of backends from the future package or (ii) use parallel::makeCluster(), doParallel::registerDoParallel(), doParallel::clusterExport() and
 #' doParallel::clusterEvalQ(), as exemplified by ParBayesianOptimization. If parallel = TRUE and neither strategy is being used,
 #' code will result in error. Therefore, to run bayesian_opt synchronously, either use doFuture::registerDoFuture() with plan(sequential)
 #' or set parallel = FALSE.
@@ -62,13 +77,12 @@
 #' Keras has some limitations when working in parallel, especially when using bayesian optimization as tuning method.
 #'
 #' @seealso
-#' \code{\link{glmnet}}, \code{\link{time_series_split}}
-#'
+#' \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 #'
 #' @export
 ml_walk_forward_validation <- function(
     #Basic Objects Inputs
-  features_m_df, target_m_df, dates_m_vector, training_sample_size, target_fwd, target_fwd_name,
+  features_m_df, target_m_df, training_sample_size, target_fwd_name,
   #Splits
   validation_sample_size = 0, rebalancing_months, split_method = "expanding",
   #Choice of ML algorithm
@@ -89,14 +103,25 @@ ml_walk_forward_validation <- function(
     #Visible binding for global variables
     squared_error <- pseudo_huber_error <- quantile_error <- NULL
 
+    #Get data from S4 object
+      ##features_m_df
+      if(is_meta_dataframe(features_m_df)){
+        features_m_df <- features_m_df@data #Get features_m_df
+      }
+      ##target_m_df
+      if(is_meta_dataframe(target_m_df)){
+        target_m_df <- target_m_df@data #Get target_m_df
+      }
+
     ################
     ##Check Parameters: This function will test whether inputs match format and current functionalities
     check_inputs_ml_wf_val(
-      features_m_df, target_m_df, dates_m_vector, training_sample_size, target_fwd, target_fwd_name,
-      validation_sample_size, rebalancing_months, split_method, ml_algorithm, custom_objective,
-      chosen_eval_metric, huber_delta, quantile_tau, hyper_grid_domain_list,
-      tuning_method, n_iter, k_iter, acq, init_points, early_stop, keras_architecture_parameters,
-      show_plots, verbose, parallel
+      features_m_df = features_m_df, target_m_df = target_m_df, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+      validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, ml_algorithm = ml_algorithm,
+      custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
+      hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+      init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, show_plots = show_plots,
+      verbose = verbose, parallel = parallel
     )
 
     ################
@@ -123,11 +148,15 @@ ml_walk_forward_validation <- function(
 
     ###Init objects###
     ##################
-    #Coerce dates
-    dates_m_vector <- as.Date(dates_m_vector, format = "%Y-%m-%d")
+    #Extract dates
+    dates_m_vector <- unique(as.Date(features_m_df$dates, format = "%Y-%m-%d")) #coerce just to be sure
+    dates_m_vector <- dates_m_vector[order(dates_m_vector)] #Re-order ascending just to be sure
     #Takes column corresponding to specific target
     target_vector <- target_m_df[, which(colnames(target_m_df) == target_fwd_name)]
+    target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
 
+    #Print for target
+     if(verbose)   cat("Predicting a", target_fwd, "months ahead target: ", target_fwd_name, "\n")
 
     #Testing Sample Size
     testing_sample_size <- length(dates_m_vector) - training_sample_size - validation_sample_size #calculate testing sample size
@@ -200,7 +229,6 @@ ml_walk_forward_validation <- function(
 
 
     ##################
-
 
     ###Start Fitting###
     ##################
@@ -417,7 +445,7 @@ ml_walk_forward_validation <- function(
         #Ml algo and model
         ml_algorithm = ml_algorithm, refit_model = refit_model,
         #Best lam in case of glmnet
-        best_lam = ifelse(ml_algorithm == "glmnet", as.numeric(optimal_hyper["best_lam"]), NULL),
+        best_lam = if(ml_algorithm == "glmnet") as.numeric(optimal_hyper["best_lam"]) else NULL,
         #New features to predict
         new_features_m_d_ref = features_m_d_ref)
 
@@ -426,7 +454,6 @@ ml_walk_forward_validation <- function(
       #Inform targets
       oos_y_list[[testing_lists_ref]] <- as.numeric(target_vector_ref)
       names(oos_y_list[[testing_lists_ref]]) <- features_m_d_ref$tickers  #Rename
-
 
       #Calculate eval metrics and error on testing sample
       testing_metrics <- calculate_eval_metrics(pred = oos_prediction_list[[testing_lists_ref]], target = oos_y_list[[testing_lists_ref]],
