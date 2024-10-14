@@ -20,7 +20,6 @@
 #' }
 #' The function excludes the first three columns of `new_features_m_d_ref` for prediction purposes.
 #'
-#' @export
 predict_ml_model <- function(ml_algorithm = NULL, refit_model = NULL, best_lam = NULL,
                              ml_walk_forward_validation_results = NULL,
                              new_features_m_d_ref){

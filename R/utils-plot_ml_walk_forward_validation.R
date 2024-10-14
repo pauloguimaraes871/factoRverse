@@ -20,7 +20,6 @@
 #'   \item \code{all_eval_metrics_over_time}: Plot of all evaluation metrics over time, including dashed lines for variable means and vertical lines for rebalancing dates.
 #' }
 #'
-#' @export
 plot_ml_walk_forward_validation <- function(oos_testing_eval_metrics, validation_eval_metrics_hyper_choice,
                                             hyper_choice_df, chosen_eval_metric, chosen_eval_metric_validation,
                                             ml_algorithm, rebalance_dates, show_plots = TRUE
