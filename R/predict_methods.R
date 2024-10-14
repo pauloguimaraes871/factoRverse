@@ -1,6 +1,30 @@
-# Define the print method for refit_ml_model
-############################################
-setMethod("predict", "refit_ml_model", function(object, new_features_m_df, ...) {
+#' Predict Method for refit_ml_model Class
+#'
+#' This method generates predictions using a refitted machine learning model
+#' based on the provided new feature data. It accommodates different machine
+#' learning algorithms and applies the appropriate prediction logic.
+#'
+#' @param object An instance of the `refit_ml_model` class containing the
+#'   refitted model and its parameters.
+#' @param new_features_m_df A data frame or an object of class `meta_dataframe`
+#'   containing new feature data for which predictions are to be made. The
+#'   data frame must be structured correctly and should not include the first
+#'   three columns, which are reserved for identifiers.
+#'
+#' @return A numeric vector of predictions for the new feature data.
+#'
+#' @details The function first validates that `new_features_m_df` is coercible
+#' to a `meta_dataframe`. It extracts the relevant data from the input and
+#' uses the appropriate prediction method based on the specified machine
+#' learning algorithm (e.g., OLS, GLMNET, RF, XGB, NN).
+#'
+#' @examples
+#' # Assuming `refit_model` is an instance of `refit_ml_model`
+#' # and `new_data` is a properly structured data frame:
+#' predictions <- predict(refit_model, new_data)
+#'
+#' @export
+setMethod("predict", "refit_ml_model", function(object, new_features_m_df) {
 
   #Validate input
   if (!is_coercible_to_meta_dataframe(new_features_m_df)) {
@@ -40,9 +64,35 @@ setMethod("predict", "refit_ml_model", function(object, new_features_m_df, ...) 
 
 
 
-# Define the print method for ml_wf_val_results
-############################################
-setMethod("predict", "ml_wf_val_results", function(object, new_features_m_df, ...) {
+#' Predict Method for ml_wf_val_results Class
+#'
+#' This method generates predictions using a machine learning model that has been
+#' validated through walk-forward validation. It uses the provided new feature
+#' data and applies the appropriate prediction logic based on the underlying
+#' model and its hyperparameters.
+#'
+#' @param object An instance of the `ml_wf_val_results` class containing the
+#'   validated model, metadata, and best hyperparameters.
+#' @param new_features_m_df A data frame or an object of class `meta_dataframe`
+#'   containing new feature data for which predictions are to be made. The
+#'   data frame must be structured correctly and should not include the first
+#'   three columns, which are reserved for identifiers.
+#'
+#' @return A numeric vector of predictions for the new feature data.
+#'
+#' @details The function validates that `new_features_m_df` is coercible to a
+#' `meta_dataframe`. It extracts the relevant data and uses the appropriate
+#' prediction method based on the specified machine learning algorithm (e.g., OLS,
+#' GLMNET, RF, XGB, NN). The method retrieves the refitted model and the best
+#' hyperparameters for making predictions.
+#'
+#' @examples
+#' # Assuming `ml_wf_model` is an instance of `ml_wf_val_results`
+#' # and `new_data` is a properly structured data frame:
+#' predictions <- predict(ml_wf_model, new_data)
+#'
+#' @export
+setMethod("predict", "ml_wf_val_results", function(object, new_features_m_df) {
 
   #Validate input
   if (!is_coercible_to_meta_dataframe(new_features_m_df)) {

@@ -21,6 +21,9 @@ metabacktest(
 )
 }
 \arguments{
+\item{signals_m_df}{A matrix or data frame containing simple features, with columns: id, tickers, dates,
+to be used for signal-portfolio construction}
+
 \item{ml_walk_forward_validation_results_list}{Optional. A list of one or more objects of class ml_walk_forward_validation_results
 whose oos_prediction_list is to be used as signals and chosen_eval_metric_validation can be used to produce ml ensembles}
 
@@ -37,9 +40,6 @@ should be used as signals. If NULL, all objects of ml_walk_forward_validation_re
 
 \item{liquidity_m_df}{A data frame (similar to \code{features_m_df}) containing columns for id, tickers, dates,
 and one or more market liquidity measures (e.g., inflation-adjusted mean financial volume).}
-
-\item{features_m_df}{A matrix or data frame containing simple features, with columns: id, tickers, dates,
-to be used for signal-portfolio construction}
 
 \item{nmonths_until_first_rebalancing_date}{The amount of dates in dates_m_vector to be skipped before backtest starts}
 

@@ -134,7 +134,7 @@ blend_signals <- function(current_date,
 
       #Define signal eligibility
       ############################
-      ###Check if eligible signals were alread defined
+      ###Check if eligible signals were already defined
       if(is.null(eligible_signals)){
         ##Check for p_correction_method and backtest_returns_d_ref
         if(!is.null(selected_signals_backtest_returns_upd_ref)){
@@ -283,8 +283,7 @@ blend_signals <- function(current_date,
           #############################
           ml_walk_forward_validation_results <- ml_walk_forward_validation(
             #Objects
-            features_m_df = features_m_df, target_m_df = target_m_df, dates_m_vector = dates_m_vector,
-            target_fwd = target_fwd, target_fwd_name = target_fwd_name,
+            features_m_df = features_m_df, target_m_df = target_m_df, target_fwd = target_fwd,
             #Training sample
             training_sample_size = training_sample_size, validation_sample_size = validation_sample_size,
             rebalancing_months = rebalancing_months, split_method = split_method,

@@ -53,7 +53,7 @@ set_final_signal <- function(selected_signals_corrected_positions_m_d_ref,
     new_features_m_d_ref <- selected_signals_corrected_positions_m_d_ref %>% dplyr::select(id, tickers, dates, all_of(eligible_signals$tickers))
 
     ###ML Predict
-    ml_predictions <- predict_ml_model(ml_walk_forward_validation_results = ml_walk_forward_validation_results, new_features_m_d_ref = new_features_m_d_ref)
+    ml_predictions <- predict(ml_walk_forward_validation_results, new_features_m_d_ref)
 
     ###Attach to selected_signals_corrected_positions_m_d_ref
     ##Calculate final signal

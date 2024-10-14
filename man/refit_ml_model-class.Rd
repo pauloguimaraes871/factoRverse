@@ -13,7 +13,7 @@ feature data, target variable, and the fitted model object.
 \describe{
 \item{\code{ml_algorithm}}{A character string specifying the machine learning algorithm used (e.g., "ols", "glmnet", "rf", "xgb", "nn").}
 
-\item{\code{best_hyperparameters}}{A list containing hyperparameters relevant to the specified machine learning algorithm.}
+\item{\code{best_hyperparameters}}{The chosen hyperparameters relevant to the specified machine learning algorithm.}
 
 \item{\code{model}}{The fitted model object, which varies based on the algorithm used.}
 }}

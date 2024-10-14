@@ -156,11 +156,11 @@ test_that("OLS - ml_walk_forward_validation works with no rebalancing and a 1m t
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
   expect_equal(
@@ -353,12 +353,12 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing and a 1m targ
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
   expect_equal(
@@ -525,11 +525,11 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing occuring at l
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
   expect_equal(
@@ -713,11 +713,11 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing and a 3m targ
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -1062,12 +1062,12 @@ test_that("OLS - ml_walk_forward_validation works with two rebalancing dates, un
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -1285,11 +1285,11 @@ test_that("OLS - ml_walk_forward_validation works with toy_preprocessed_features
 
   results$outputs[[4]] <- eval_metrics
 
-  if(all(coefficients(second_model) == coefficients(ml_walk_forward_validation_results$final_model))){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(coefficients(second_model) == coefficients(ml_walk_forward_validation_results@final_model@model))){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -1601,8 +1601,8 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 1m tar
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -1624,7 +1624,7 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 1m tar
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -2082,8 +2082,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -2105,7 +2105,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -2572,8 +2572,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -2595,7 +2595,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -3050,8 +3050,8 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 3m tar
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -3074,7 +3074,7 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 3m tar
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -3539,8 +3539,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -3562,7 +3562,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
                                "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -4021,8 +4021,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -4043,7 +4043,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -4422,8 +4422,8 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -4446,7 +4446,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
   expect_equal(
@@ -4458,6 +4458,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   future::plan("sequential")
 
 })
+
 
 #Define your test
 test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3m target, grid as tuning method, pseudo_huber (not mentioned) as chosen eval metric and custom_objective pseudo huber error -toy_preprocessed_features_and_targets",{
@@ -4892,8 +4893,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(xgb.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -4924,7 +4925,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
   expect_equal(
@@ -5448,7 +5449,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -5475,7 +5476,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -5862,8 +5863,8 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
     #Validation lossess for chosen metric
@@ -5885,7 +5886,7 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -6246,8 +6247,8 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
    #Validation lossess for chosen metric
@@ -6269,7 +6270,7 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -6730,8 +6731,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -6753,7 +6754,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -7226,8 +7227,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
 
@@ -7248,7 +7249,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
   expect_equal(
@@ -7664,9 +7665,8 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(rf.mod.refit$predictions - ml_walk_forward_validation_results$final_model$predictions) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
-  }
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+
 
   #Validation lossess for chosen metric
   names(chosen_eval_metric_val) <- rebalance_dates
@@ -7688,7 +7688,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
   expect_equal(
@@ -8044,7 +8044,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -8064,7 +8064,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
                               "final_model", "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -8552,8 +8552,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(xgb.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -8584,7 +8584,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -9028,8 +9028,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -9055,7 +9055,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -9522,8 +9522,8 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -9554,7 +9554,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -10066,8 +10066,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit2) - coef(ml_walk_forward_validation_results$final_model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  if(all(abs(coef(xgb.mod.refit2) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -10115,7 +10115,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -10655,7 +10655,7 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -10697,7 +10697,7 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -11238,7 +11238,7 @@ skip()
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -11280,7 +11280,7 @@ skip()
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 
@@ -11325,7 +11325,7 @@ test_that("ml_walk_forward_validation correctly classifies data as training, val
       show_plots = FALSE
     )}))
 
-  rebalance_dates <- as.Date(rownames(ml_walk_forward_validation_results$validation_eval_metrics_hyper_choice), format = "%Y-%m-%d")
+  rebalance_dates <- as.Date(rownames(ml_walk_forward_validation_results@validation_eval_metrics_hyper_choice), format = "%Y-%m-%d")
 
 
   #Check if rebalance dates match expected months
@@ -11687,7 +11687,7 @@ test_that("ml_walk_forward_validation works with NAs in last target_fwd periods 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results$final_model
+  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -11707,7 +11707,7 @@ test_that("ml_walk_forward_validation works with NAs in last target_fwd periods 
                               "final_model", "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results$plots <- NULL
+  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
   ml_walk_forward_validation_results$metadata <- NULL
 
 

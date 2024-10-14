@@ -1,9 +1,9 @@
 #' Backtest a porfolio based on signals derived from simple stock characteristics (simple factors) or
 #' expected returns from ml model predictions
 #'
-#' @param features_m_df A matrix or data frame containing simple features, with columns: id, tickers, dates,
+#' @param signals_m_df A matrix or data frame containing simple features, with columns: id, tickers, dates,
 #' to be used for signal-portfolio construction
-#' @param ml_walk_forward_validation_results_list Optional. A list of one or more objects of class ml_walk_forward_validation_results
+#' @param ml_walk_forward_validation_results Optional. A list of one or more objects of class ml_walk_forward_validation_results
 #' whose oos_prediction_list is to be used as signals and chosen_eval_metric_validation can be used to produce ml ensembles
 #' @param dates_m_vector A vector of dates corresponding to the data.
 #' @param nmonths_until_first_rebalancing_date The amount of dates in dates_m_vector to be skipped before backtest starts
@@ -292,13 +292,13 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
             if(signal_selection_policy$signal_blending_method == "ML"){
               ###Chosen Eval Metric Variation Accross a Given Validation
               chosen_eval_metric_validation[[which(rebalance_dates == current_date)]] <-
-                signal_results_list$ml_walk_forward_validation_results$chosen_eval_metric_validation[[1]]
+                signal_results_list$ml_walk_forward_validation_results@chosen_eval_metric_validation[[1]]
               ###Hyperparameters choice
               hyper_choice_df[paste(current_date), ] <-
-                signal_results_list$ml_walk_forward_validation_results$best_hyperparameters[names(hyper_choice_df)]
+                signal_results_list$ml_walk_forward_validation_results@best_hyperparameters[names(hyper_choice_df)]
               ###All Evaluation Metrics for that hyperparameter choice
               validation_eval_metrics_hyper_choice[paste(current_date), ] <-
-                signal_results_list$ml_walk_forward_validation_results$validation_eval_metrics_hyper_choice[, colnames(validation_eval_metrics_hyper_choice)]
+                signal_results_list$ml_walk_forward_validation_results@validation_eval_metrics_hyper_choice[, colnames(validation_eval_metrics_hyper_choice)]
             }
 
         #################################################
@@ -525,71 +525,84 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
           ###ML Model Results
           if(signal_selection_policy$signal_blending_method == "ML"){
             ####ML WF Validation Results
-            results_list$ml_walk_forward_validation_results <- list()
+            ml_walk_forward_validation_result_list <- list()
 
             ####OOS Prediction List
-            results_list$ml_walk_forward_validation_results$oos_prediction_list <- oos_prediction_list
+            ml_walk_forward_validation_result_list$oos_prediction_list <- oos_prediction_list
 
             ####OOS Error List
-            results_list$ml_walk_forward_validation_results$oos_error_list <- oos_error_list
+            ml_walk_forward_validation_result_list$oos_error_list <- oos_error_list
 
             ####OOS Y List
-            results_list$ml_walk_forward_validation_results$oos_y_list <- oos_y_list
+            ml_walk_forward_validation_result_list$oos_y_list <- oos_y_list
 
             ####OOS Testing Eval Metrics
-            results_list$ml_walk_forward_validation_results$oos_testing_eval_metrics <- oos_testing_eval_metrics
+            ml_walk_forward_validation_result_list$oos_testing_eval_metrics <- oos_testing_eval_metrics
 
             ####Final Model
-            results_list$ml_walk_forward_validation_results$final_model <- signal_results_list$ml_walk_forward_validation_results$final_model
+            ml_walk_forward_validation_result_list$final_model <- signal_results_list$ml_walk_forward_validation_results@final_model
 
             ####Different composition if ML algorithm is OLS
             if(!signal_selection_policy$ml_parameters$ml_algorithm == "ols"){
               #####Chosen Eval Metric Validation
               names(chosen_eval_metric_validation) <- dates_backtest
-              results_list$ml_walk_forward_validation_results$chosen_eval_metric_validation <- chosen_eval_metric_validation
+              ml_walk_forward_validation_result_list$chosen_eval_metric_validation <- chosen_eval_metric_validation
 
               #####Hyper Choice
-              results_list$hyper_choice_df <- hyper_choice_df
+              ml_walk_forward_validation_result_list$hyper_choice_df <- hyper_choice_df
 
               #####Validation Eval Metrics for Hyper Choice
-              results_list$validation_eval_metrics_hyper_choice <- validation_eval_metrics_hyper_choice
+              ml_walk_forward_validation_result_list$validation_eval_metrics_hyper_choice <- validation_eval_metrics_hyper_choice
 
               #####Fill names for ML Algo =! OLS
+              names(ml_walk_forward_validation_result_list) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+                                                                "chosen_eval_metric_validation", "best_hyperparameters", "validation_eval_metrics_hyper_choice")
+
+              #ML Specific
               names(result_list) <- c("stock_universe_list", "signal_universe_list", "transaction_list", "bayesian_fit",
-                "portfolio_weights", "portfolio_returns","signal_blend", "oos_prediction_list",
-                "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
-                "chosen_eval_metric_validation","best_hyperparameters", "validation_eval_metrics_hyper_choice") #ML Specific
+                                      "portfolio_weights", "portfolio_returns", "signal_blend", "ml_wf_val_results")
 
             } else {
               #####Fill names for ML Algo = OLS
-              names(result_list) <- c("stock_universe_list", "signal_universe_list", "transaction_list", "bayesian_fit",
-                "portfolio_weights", "portfolio_returns","signal_blend", "oos_prediction_list",
-                "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
+              names(ml_walk_forward_validation_result_list) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
+
             }
 
-            #####Fill names for other Signal Blending Method != ML
-            names(result_list) <- c("stock_universe_list", "signal_universe_list", "transaction_list", "bayesian_fit",
-                                    "portfolio_weights", "portfolio_returns", "signal_blend")
-          }
+            #####Get S4 Obj
+            result_list$ml_wf_val_results <-
+              new("ml_wf_val_results",
+                  oos_prediction_list = ml_walk_forward_validation_result_list$oos_prediction_list,
+                  oos_error_list = ml_walk_forward_validation_result_list$oos_error_list,
+                  oos_y_list = ml_walk_forward_validation_result_list$oos_y_list,
+                  oos_testing_eval_metrics = ml_walk_forward_validation_result_list$oos_testing_eval_metrics,
+                  final_model = ml_walk_forward_validation_result_list$final_model,
+                  chosen_eval_metric_validation = ml_walk_forward_validation_result_list$chosen_eval_metric_validation,
+                  best_hyperparameters = ml_walk_forward_validation_result_list$best_hyperparameters,
+                  validation_eval_metrics_hyper_choice = ml_walk_forward_validation_result_list$validation_eval_metrics_hyper_choice,
+                  metadata = signal_selection_policy$ml_parameters
+              )
 
-        ##Plots
+             #Name results list
+              names(results_list) <- c("stock_universe_list", "signal_universe_list", "transaction_list", "bayesian_fit",
+                "portfolio_weights", "portfolio_returns", "signal_blend", "ml_wf_val_results")
+
+          } else {
+
+            #####Fill names for other Signal Blending Method != ML
+            names(results_list) <- c("stock_universe_list", "signal_universe_list", "transaction_list", "bayesian_fit",
+                                    "portfolio_weights", "portfolio_returns", "signal_blend")
+
+            }
+
+
+        })
+
+        ##GET S4 Object
         #################
-          ###ML plots
-          ml_plots_list <- plot_ml_walk_forward_validation(
-            #Eval metrics
-            oos_testing_eval_metrics = oos_testing_eval_metrics, validation_eval_metrics_hyper_choice = validation_eval_metrics_hyper_choice,
-            #Hyper choice and chosen eval metric
-            hyper_choice_df = hyper_choice_df, chosen_eval_metric = signal_selection_policy$ml_parameters$chosen_eval_metric, chosen_eval_metric_validation = chosen_eval_metric_validation,
-            #Backtest parameters
-            ml_algorithm = signal_selection_policy$ml_parameters$ml_algorithm, rebalance_dates = rebalance_dates, show_plots = show_plots
-          )
+          ###New S4
 
           ###Portfolio Plots
           metabacktest_plots_list <- plot_metabacktest()
-
-
-
-    })
 
   #Just return
   return(results_list)

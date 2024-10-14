@@ -61,7 +61,7 @@
 #' @param verbose Logical, indicating whether to print progress messages (default is TRUE).
 #' @param parallel Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).
 #'
-#' @return List with various outputs including model predictions, errors, and validation metrics.
+#' @return An object of class ml_wf_val_results with various outputs including model predictions, errors, and validation metrics.
 #'
 #' @details
 #' The function ensures all inputs are correctly formatted and performs checks to
@@ -118,11 +118,15 @@ ml_walk_forward_validation <- function(
       if(is_meta_dataframe(features_m_df)){
         features_m_df <- features_m_df@data #Get features_m_df
         features_workflow <- features_m_df@workflow #Get workflow
+      } else {
+        features_workflow <- NULL
       }
       ##target_m_df
       if(is_meta_dataframe(target_m_df)){
         target_m_df <- target_m_df@data #Get target_m_df
         target_workflow <- target_m_df@workflow #Get workflow
+      } else {
+        target_workflow <- NULL
       }
 
     ################
@@ -443,7 +447,7 @@ ml_walk_forward_validation <- function(
                               model = refit_model,
                               model_class = class(refit_model),
                               ml_algorithm = ml_algorithm,
-                              best_hyperparameters = optimal_hyper,
+                              best_hyperparameters = if(ml_algorithm == "ols") NULL else optimal_hyper,
                               custom_objective = custom_objective_translated,
                               huber_delta = huber_delta,
                               keras_architecture_parameters = keras_architecture_parameters

@@ -1,6 +1,22 @@
-#Define the summary method for the meta_dataframe class
-
-# Define the summary method for the meta_dataframe class
+#' Summary Method for meta_dataframe Class
+#'
+#' This method provides a detailed summary of the `meta_dataframe` object,
+#' including basic statistics of the data frame, information about missing
+#' values, descriptive statistics for numeric columns, and counts for
+#' categorical columns.
+#'
+#' @param object An instance of the `meta_dataframe` class.
+#'
+#' @return The method prints a summary to the console, including:
+#'   - Number of observations and columns.
+#'   - Data types of each column.
+#'   - Missing values count per column.
+#'   - Descriptive statistics for numeric columns.
+#'   - Counts of unique values for categorical columns.
+#'   - Summary statistics for tickers and date range.
+#'   - Overall data frame summary.
+#'
+#' @export
 setMethod("summary", "meta_dataframe", function(object) {
   # Basic Data Frame Summary
   data_summary <- summary(object@data)
@@ -76,26 +92,47 @@ setMethod("summary", "meta_dataframe", function(object) {
 })
 
 
-# Define the summary method for the ml_wf_val_results class
+#' Summary Method for ml_wf_val_results Class
+#'
+#' This method provides a comprehensive summary of the `ml_wf_val_results`
+#' object, including statistics for out-of-sample predictions, errors,
+#' actual values, evaluation metrics, and hyperparameters.
+#'
+#' @param object An instance of the `ml_wf_val_results` class.
+#'
+#' @return The method prints a summary to the console, including:
+#'   - Main information about the ML algorithm, final model, and objective function.
+#'   - Summary statistics (mean, median, SD, min, max) for out-of-sample predictions, errors, actual values, and evaluation metrics.
+#'   - Chosen evaluation metric validation summaries.
+#'   - Best hyperparameters and validation evaluation metrics hyper choice.
+#'
+#'
+#' @export
 setMethod("summary", "ml_wf_val_results", function(object) {
 
   # Helper function to summarize a list of vectors or data frames
   summarize_list <- function(lst) {
-    summaries <- lapply(lst, function(x) {
+    summaries <- lapply(names(lst), function(name) {
+      x <- lst[[name]]
       if (is.vector(x) || is.data.frame(x)) {
-        return(data.frame(
+        summary_stats <- data.frame(
+          Date = name,  # Add the date as the first column
           Mean = mean(x, na.rm = TRUE),
           Median = median(x, na.rm = TRUE),
           SD = sd(x, na.rm = TRUE),
           Min = min(x, na.rm = TRUE),
           Max = max(x, na.rm = TRUE)
-        ))
+        )
+        return(summary_stats)
       } else {
         return(NULL)
       }
     })
+    # Combine all summaries into one data frame and remove NULLs
+    summaries <- do.call(rbind, summaries)
     return(summaries)
   }
+
 
   # Extracting summary statistics for each component
   prediction_summary <- summarize_list(object@oos_prediction_list)
@@ -112,24 +149,27 @@ setMethod("summary", "ml_wf_val_results", function(object) {
   )
 
   # Main information
-  cat("\n ML Algorithm:", object@metadata@ml_algorithm, "\n")
+  cat("\n ML Algorithm:", object@metadata$ml_algorithm, "\n")
   cat("Final Model Object Class:", class(object@final_model@model_class), "\n")
-  cat("Objective Function:", object@metadata@custom_objective, "\n")
-  cat("Chosen Evaluation Metric:", object@metadata@chosen_eval_metric, "\n")
-  cat("Testing Sample Dates:", object@metadata@dates_testing_sample, "\n")
-  cat("Rebalancing Dates:", object@metadata@rebalance_dates, "\n")
+  cat("Objective Function:", object@metadata$custom_objective, "\n")
+  cat("Chosen Evaluation Metric:", object@metadata$chosen_eval_metric, "\n")
+  cat("Testing Sample Dates:", format(as.Date(object@metadata$dates_testing_sample), "%d-%m-%Y"), "\n")
+  cat("Rebalancing Dates:", format(as.Date(object@metadata$rebalance_dates), "%d-%m-%Y"), "\n")
 
   # Print each summary table
   for (name in names(summary_table)) {
     cat(paste("\n", name, "Summary:\n"))
     if (!is.null(summary_table[[name]])) {
-      print(kable(summary_table[[name]], caption = paste("Summary of", name)))
+      print(knitr::kable(summary_table[[name]],
+                         caption = paste("Summary of", name),
+                         align = 'c',  # Center-align all columns
+                         format = "markdown"))  # Use markdown for formatting
     } else {
       cat("No data available.\n")
     }
   }
 
-  #Summarize chosen evaluation metric validation
+  # Summarize chosen evaluation metric validation
   cat("\nChosen Evaluation Metric Validation:\n")
   if (!is.null(object@chosen_eval_metric_validation) && length(object@chosen_eval_metric_validation) > 0) {
     validation_summaries <- lapply(object@chosen_eval_metric_validation, function(x) {
@@ -144,7 +184,10 @@ setMethod("summary", "ml_wf_val_results", function(object) {
     names(validation_summaries) <- names(object@chosen_eval_metric_validation)
     for (name in names(validation_summaries)) {
       cat(paste("\n", name, "Summary:\n"))
-      print(kable(validation_summaries[[name]], caption = paste("Summary of", name)))
+      print(knitr::kable(validation_summaries[[name]],
+                         caption = paste("Summary of", name),
+                         align = 'c',
+                         format = "markdown"))
     }
   } else {
     cat("Not specified or empty.\n")
@@ -153,7 +196,10 @@ setMethod("summary", "ml_wf_val_results", function(object) {
   # Summarize best hyperparameters
   cat("\nBest Hyperparameters:\n")
   if (!is.null(object@best_hyperparameters)) {
-    print(knitr::kable(object@best_hyperparameters, caption = "Best Hyperparameters"))
+    print(knitr::kable(object@best_hyperparameters,
+                       caption = "Best Hyperparameters",
+                       align = 'c',
+                       format = "markdown"))
   } else {
     cat("Not specified.\n")
   }
@@ -161,12 +207,13 @@ setMethod("summary", "ml_wf_val_results", function(object) {
   # Summarize validation evaluation metrics hyper choice
   cat("\nValidation Eval Metrics Hyper Choice:\n")
   if (!is.null(object@validation_eval_metrics_hyper_choice)) {
-    print(knitr::kable(object@validation_eval_metrics_hyper_choice, caption = "Validation Eval Metrics Hyper Choice"))
+    print(knitr::kable(object@validation_eval_metrics_hyper_choice,
+                       caption = "Validation Eval Metrics Hyper Choice",
+                       align = 'c',
+                       format = "markdown"))
   } else {
-    cat("Not specified.\n");
+    cat("Not specified.\n")
   }
-
-
 
   invisible(object)  # Return the object invisibly
 })

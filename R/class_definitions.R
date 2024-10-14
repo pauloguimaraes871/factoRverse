@@ -63,7 +63,7 @@ is_meta_dataframe <- function(x) {
 #' feature data, target variable, and the fitted model object.
 #'
 #' @slot ml_algorithm A character string specifying the machine learning algorithm used (e.g., "ols", "glmnet", "rf", "xgb", "nn").
-#' @slot best_hyperparameters A list containing hyperparameters relevant to the specified machine learning algorithm.
+#' @slot best_hyperparameters The chosen hyperparameters relevant to the specified machine learning algorithm.
 #' @slot model The fitted model object, which varies based on the algorithm used.
 #'
 #' @section Methods:
@@ -79,7 +79,7 @@ setClass(
     model = "ANY",
     model_class = "character",
     ml_algorithm = "character",
-    best_hyperparameters = "numeric",
+    best_hyperparameters = "ANY",
     custom_objective = "ANY",
     huber_delta = "numeric",
     keras_architecture_parameters = "ANY"
@@ -154,19 +154,17 @@ setClass(
     oos_prediction_list = "list",
     oos_error_list = "list",
     oos_y_list = "list",
-    oos_testing_eval_metrics = "list",
-    final_model = "ANY",  # Replace with specific class if known
+    oos_testing_eval_metrics = "data.frame",
+    final_model = "refit_ml_model",
     chosen_eval_metric_validation = "ANY",
-    best_hyperparameters = "ANY",  # Replace with specific class if needed
+    best_hyperparameters = "ANY",
     validation_eval_metrics_hyper_choice = "ANY",
     metadata = "list"
   )
 )
 
 
-
-
-
+#################################################################
 
 ##########################
 #########Acessors#########
@@ -174,91 +172,174 @@ setClass(
 
 
 
-# Define generic accessor methods for ml_wf_val_results
-##########################################################
+#' Accessor Methods for ml_wf_val_results
+#'
+#' These methods are used to access various components of an `ml_wf_val_results` object.
+#'
+#' @param object An object of class `ml_wf_val_results`.
+#' @return The respective slot of the `ml_wf_val_results` object.
+#' @name ml_wf_val_results_accessors
+#' @export
 setGeneric("get_oos_prediction_list", function(object) standardGeneric("get_oos_prediction_list"))
-setGeneric("get_oos_error_list", function(object) standardGeneric("get_oos_error_list"))
-setGeneric("get_oos_y_list", function(object) standardGeneric("get_oos_y_list"))
-setGeneric("get_oos_testing_eval_metrics", function(object) standardGeneric("get_oos_testing_eval_metrics"))
-setGeneric("get_final_model", function(object) standardGeneric("get_final_model"))
-setGeneric("get_chosen_eval_metric_validation", function(object) standardGeneric("get_chosen_eval_metric_validation"))
-setGeneric("get_best_hyperparameters", function(object) standardGeneric("get_best_hyperparameters"))
-setGeneric("get_validation_eval_metrics_hyper_choice", function(object) standardGeneric("get_validation_eval_metrics_hyper_choice"))
-setGeneric("get_metadata", function(object) standardGeneric("get_metadata"))
 
-# Define methods for accessing the slots
+#' @export
 setMethod("get_oos_prediction_list", "ml_wf_val_results", function(object) {
   return(object@oos_prediction_list)
 })
 
+#' @export
+setGeneric("get_oos_error_list", function(object) standardGeneric("get_oos_error_list"))
+
+#' @export
 setMethod("get_oos_error_list", "ml_wf_val_results", function(object) {
   return(object@oos_error_list)
 })
 
+#' @export
+setGeneric("get_oos_y_list", function(object) standardGeneric("get_oos_y_list"))
+
+#' @export
 setMethod("get_oos_y_list", "ml_wf_val_results", function(object) {
   return(object@oos_y_list)
 })
 
+#' @export
+setGeneric("get_oos_testing_eval_metrics", function(object) standardGeneric("get_oos_testing_eval_metrics"))
+
+#' @export
 setMethod("get_oos_testing_eval_metrics", "ml_wf_val_results", function(object) {
   return(object@oos_testing_eval_metrics)
 })
 
+#' @export
+setGeneric("get_final_model", function(object) standardGeneric("get_final_model"))
+
+#' @export
 setMethod("get_final_model", "ml_wf_val_results", function(object) {
   return(object@final_model)
 })
 
+#' @export
+setGeneric("get_chosen_eval_metric_validation", function(object) standardGeneric("get_chosen_eval_metric_validation"))
+
+#' @export
 setMethod("get_chosen_eval_metric_validation", "ml_wf_val_results", function(object) {
   return(object@chosen_eval_metric_validation)
 })
 
+#' @export
+setGeneric("get_best_hyperparameters", function(object) standardGeneric("get_best_hyperparameters"))
+
+#' @export
 setMethod("get_best_hyperparameters", "ml_wf_val_results", function(object) {
   return(object@best_hyperparameters)
 })
 
+#' @export
+setGeneric("get_validation_eval_metrics_hyper_choice", function(object) standardGeneric("get_validation_eval_metrics_hyper_choice"))
+
+#' @export
 setMethod("get_validation_eval_metrics_hyper_choice", "ml_wf_val_results", function(object) {
   return(object@validation_eval_metrics_hyper_choice)
 })
 
+#' @export
+setGeneric("get_metadata", function(object) standardGeneric("get_metadata"))
+
+#' @export
 setMethod("get_metadata", "ml_wf_val_results", function(object) {
   return(object@metadata)
 })
+
+
+#' @export
+setMethod("as.list", "ml_wf_val_results", function(x) {
+  # Get the names of all slots
+  slot_names <- slotNames(x)
+
+  # Create a list to hold the extracted slots, ignoring NULL slots
+  slot_list <- lapply(slot_names, function(slot) {
+    value <- slot(x, slot)  # Extract the slot using the slot name
+    if (!is.null(value)) {
+      return(value)  # Return the value only if it's not NULL
+    }
+    return(NULL)  # Return NULL if the slot is NULL
+  })
+
+  # Filter out NULL entries
+  non_null_indices <- which(!sapply(slot_list, is.null))
+  slot_list <- slot_list[non_null_indices]
+
+  # Set names for the list elements based on non-NULL slots
+  names(slot_list) <- slot_names[non_null_indices]
+
+  return(slot_list)
+})
+
+
+
 ##########################################################
 
 
-# Define generic accessor methods for meta_dataframe
-#########################################################
+#' Accessor Methods for meta_dataframe
+#'
+#' These methods are used to access components of a `meta_dataframe` object.
+#'
+#' @param object An object of class `meta_dataframe`.
+#' @return The respective slot of the `meta_dataframe` object.
+#' @name meta_dataframe_accessors
+#' @export
 setGeneric("get_data", function(object) standardGeneric("get_data"))
-setGeneric("get_workflow", function(object) standardGeneric("get_workflow"))
 
-# Define methods for accessing the slots
+#' @export
 setMethod("get_data", "meta_dataframe", function(object) {
   return(object@data)
 })
 
+#' @export
+setGeneric("get_workflow", function(object) standardGeneric("get_workflow"))
+
+#' @export
 setMethod("get_workflow", "meta_dataframe", function(object) {
   return(object@workflow)
 })
-#########################################################
+
+#' @export
+setMethod(
+  "as.data.frame", "meta_dataframe", function(x) {
+    as.data.frame(x@data)
+  }
+)
 
 
 
-
-# Define generic accessor methods for refit_ml_model
-#########################################################
+#' Accessor Methods for refit_ml_model
+#'
+#' These methods are used to access components of a `refit_ml_model` object.
+#'
+#' @param object An object of class `refit_ml_model`.
+#' @return The respective slot of the `refit_ml_model` object.
+#' @name refit_ml_model_accessors
+#' @export
 setGeneric("get_ml_algorithm", function(object) standardGeneric("get_ml_algorithm"))
-setGeneric("get_best_hyperparameters", function(object) standardGeneric("get_best_hyperparameters"))
-setGeneric("get_model", function(object) standardGeneric("get_model"))
 
-# Define methods for accessing the slots
+#' @export
 setMethod("get_ml_algorithm", "refit_ml_model", function(object) {
   return(object@ml_algorithm)
 })
 
+
+#' @export
 setMethod("get_best_hyperparameters", "refit_ml_model", function(object) {
   return(object@best_hyperparameters)
 })
 
+#' @export
+setGeneric("get_model", function(object) standardGeneric("get_model"))
+
+#' @export
 setMethod("get_model", "refit_ml_model", function(object) {
   return(object@model)
 })
-#########################################################
+
+

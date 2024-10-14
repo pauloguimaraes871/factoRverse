@@ -1,5 +1,16 @@
-# Define the plot method for meta_dataframe
-################################
+#' Plot Method for Meta Dataframe
+#'
+#' This method generates plots for a `meta_dataframe` object based on the specified plot type.
+#'
+#' @param x A `meta_dataframe` object containing the data to be plotted.
+#' @param type A character string specifying the type of plot to create. Options are:
+#'   \itemize{
+#'     \item \strong{"distribution"}: Plots the distribution of values for numeric columns.
+#'     \item \strong{"date_range"}: Visualizes the frequency of data points over time.
+#'     \item \strong{"unique_tickers"}: Displays the number of unique tickers over time.
+#'   }
+#' @return A ggplot object representing the requested plot.
+#' @export
 setMethod(
   "plot",
   signature(x = "meta_dataframe"),

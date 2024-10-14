@@ -1,5 +1,14 @@
-# Define the print method for meta_dataframe
-############################################
+#' Show Method for meta_dataframe Class
+#'
+#' This method displays a summary of the `meta_dataframe` object, including
+#' metadata information, number of signals, unique dates, unique tickers,
+#' total observations, and the first few rows of the data.
+#'
+#' @param object An instance of the `meta_dataframe` class.
+#'
+#' @return The method returns the object invisibly.
+#'
+#' @export
 setMethod("show", "meta_dataframe", function(object) {
   # Extract the class name
   cat("meta_dataframe object\n")
@@ -22,11 +31,20 @@ setMethod("show", "meta_dataframe", function(object) {
   # Return the object invisibly
   invisible(object)
 })
-############################################
 
 
-# Define the print method for refit_ml_model
-############################################
+
+#' Show Method for refit_ml_model Class
+#'
+#' This method provides a summary of the `refit_ml_model` object, including
+#' the machine learning algorithm used, best hyperparameters, custom objective,
+#' Huber delta, Keras architecture parameters, and the model structure.
+#'
+#' @param object An instance of the `refit_ml_model` class.
+#'
+#' @return The method returns the object invisibly.
+#'
+#' @export
 setMethod("show", "refit_ml_model", function(object) {
   cat("Refit ML Model Summary:\n")
 
@@ -71,11 +89,20 @@ setMethod("show", "refit_ml_model", function(object) {
   # Indicate that the object is displayed
   invisible(object)
 })
-############################################
 
-# Define the print method for ml_wf_val_results
-#############################################
-# Define the show method for the ml_wf_val_results class
+
+#' Show Method for ml_wf_val_results Class
+#'
+#' This method displays a detailed summary of the `ml_wf_val_results` object,
+#' including metadata on the machine learning workflow validation results,
+#' algorithm details, sample sizes, stock information, features, tuning,
+#' Keras architecture parameters, performance, and the original call.
+#'
+#' @param object An instance of the `ml_wf_val_results` class.
+#'
+#' @return The method returns the object invisibly.
+#'
+#' @export
 setMethod("show", "ml_wf_val_results", function(object) {
 
   # Extract the metadata
@@ -93,7 +120,7 @@ setMethod("show", "ml_wf_val_results", function(object) {
   cat("\nDate Information:\n")
   cat("  Dates Covered:", paste(metadata$dates_covered, collapse = ", "), "\n")
   cat("  Number of Dates:", metadata$n_dates, "\n")
-  cat("  First Rebalance Date:", metadata$first_rebalance_date, "\n")
+  cat("  First Rebalance Date:", as.Date(metadata$first_rebalance_date), "\n")
   cat("  Rebalance Dates:", paste(metadata$rebalance_dates, collapse = ", "), "\n")
   cat("  Split Method:", metadata$split_method, "\n")
 
