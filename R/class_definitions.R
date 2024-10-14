@@ -77,6 +77,7 @@ setClass(
   "refit_ml_model",
   slots = list(
     model = "ANY",
+    model_class = "character",
     ml_algorithm = "character",
     best_hyperparameters = "numeric",
     custom_objective = "ANY",
@@ -87,33 +88,77 @@ setClass(
 
 
 
-#' @title S4 Class for Machine Learning Walk-Forward Validation Results
+#' S4 Class for Time Series Walk-Forward Validation Results of Machine-Learning Models
 #'
-#' @description This class encapsulates the results of a time series validation on a machine learning model,
-#' including out-of-sample predictions, errors, evaluation metrics, model details and metadata.
+#' This S4 class encapsulates the results and parameters from performing walk-forward
+#' validation on time series data using machine learning algorithms. It includes
+#' information about the model, data, tuning process, and performance metrics.
 #'
-#' @slot oos_prediction_list A list containing out-of-sample predictions.
-#' @slot oos_error_list A list containing out-of-sample error metrics.
-#' @slot oos_y_list A list containing the actual values for out-of-sample data.
-#' @slot oos_testing_eval_metrics A list of evaluation metrics for testing.
-#' @slot final_model An object representing the final fitted model.
-#' @slot chosen_eval_metric_validation A list of chosen evaluation metrics for validation (if applicable).
-#' @slot best_hyperparameters A data frame containing the best hyperparameter choices.
-#' @slot validation_eval_metrics_hyper_choice A list of evaluation metrics based on hyperparameter choices.
-#' @slot plots A list of plots generated during the model evaluation.
-#' @slot metadata A list containing metadata about the model and data used.
+#' @slot oos_prediction_list A list containing out-of-sample predictions indexed by testing dates.
+#' @slot oos_error_list A list of out-of-sample errors indexed by testing dates.
+#' @slot oos_y_list A list containing the actual target values for the out-of-sample period, indexed by testing dates.
+#' @slot oos_testing_eval_metrics A list of evaluation metrics for the out-of-sample testing samples.
+#' @slot final_model The final refitted machine learning model with best hyperparameters found after tuning. Possibly a object of refit_ml_model S4 class.
+#' @slot chosen_eval_metric_validation A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.
+#' @slot best_hyperparameters A data frame containing the best hyperparameters selected during tuning for each rebalancing period.
+#' @slot validation_eval_metrics_hyper_choice All evaluation metrics calculated for the set of best hyperparameters.
+#' @slot metadata A list containing metadata about the walk-forward validation process. It includes:
+#' \itemize{
+#'   \item \strong{ml_algorithm}: A character string specifying the machine learning algorithm used.
+#'   \item \strong{custom_objective}: A character string indicating the custom loss function applied (e.g., "squared_error").
+#'   \item \strong{dates_covered}: A vector of dates representing the time period covered by the analysis.
+#'   \item \strong{n_dates}: An integer indicating the total number of dates in the covered period.
+#'   \item \strong{training_sample_size}: An integer representing the size of the training samples used.
+#'   \item \strong{validation_sample_size}: An integer indicating the size of the validation samples used.
+#'   \item \strong{testing_sample_size}: An integer indicating the size of the testing samples used.
+#'   \item \strong{dates_testing_sample}: A vector of dates corresponding to the testing samples.
+#'   \item \strong{first_rebalance_date}: A date indicating the first date when the model was rebalanced.
+#'   \item \strong{rebalance_dates}: A vector of dates when the model was rebalanced.
+#'   \item \strong{split_method}: A character string indicating the method used for splitting the data (e.g., "expanding" or "rolling").
+#'   \item \strong{ids}: A vector of identifiers from the features data frame.
+#'   \item \strong{nobs}: An integer representing the total number of observations in the features data frame.
+#'   \item \strong{tickers}: A vector of unique stock tickers from the features data frame.
+#'   \item \strong{n_stocks}: An integer indicating the number of unique stocks in the features data frame.
+#'   \item \strong{target_fwd_name}: A character string naming the target variable for forward prediction.
+#'   \item \strong{target_fwd}: A vector of forward target values.
+#'   \item \strong{target_workflow}: A description of the workflow used for the target variable.
+#'   \item \strong{target_object}: A character string capturing the name of the target data frame passed to the function.
+#'   \item \strong{features}: A character vector of feature names extracted from the features data frame.
+#'   \item \strong{features_workflow}: A description of the workflow used for the features.
+#'   \item \strong{features_object}: A character string capturing the name of the features data frame passed to the function.
+#'   \item \strong{tuning_method}: A character string indicating the method used for hyperparameter tuning (e.g., "grid_search").
+#'   \item \strong{n_iter}: An integer specifying the number of iterations for tuning methods that require it.
+#'   \item \strong{k_iter}: An integer indicating the number of times to sample the evaluation function during tuning.
+#'   \item \strong{acq}: A character string specifying the acquisition function used in Bayesian optimization.
+#'   \item \strong{init_points}: An integer indicating the number of initial random points for Bayesian optimization.
+#'   \item \strong{hyper_grid_domain_list}: A list containing hyperparameter definitions for tuning.
+#'   \item \strong{chosen_eval_metric}: A character string representing the evaluation metric chosen for optimization.
+#'   \item \strong{huber_delta}: A numeric value indicating the boundary for the Huber loss function.
+#'   \item \strong{quantile_tau}: A numeric value representing the target quantile for quantile loss.
+#'   \item \strong{early_stop}: A criteria indicating if early stopping was used during training.
+#'   \item \strong{keras_architecture_parameters}: A list containing parameters for the Keras model architecture.
+#'   \item \strong{completion_time}: The system time when the validation process was completed.
+#'   \item \strong{elapsed_time}: A numeric value representing the total time taken for the validation process.
+#'   \item \strong{parallel}: A logical value indicating whether the process was run in parallel (TRUE or FALSE).
+#'   \item \strong{call}: The matched call used to create the S4 object, capturing the function call context.
+#' }
 #'
-#' @export
-setClass("ml_walk_forward_validation_results",
-         slots = list(
-           oos_prediction_list = "list",
-           oos_error_list = "list",
-           oos_y_list = "list",
-           oos_testing_eval_metrics = "list",
-           final_model = "ANY",  # Adjust type based on your model
-           chosen_eval_metric_validation = "list",
-           best_hyperparameters = "data.frame",
-           validation_eval_metrics_hyper_choice = "list",
-           plots = "list",
-           metadata = "list"
-         ))
+#'
+#' @return An S4 object of class `ml_wf_val_results` containing all the specified results and metadata.
+#'
+#'
+#'@export
+setClass(
+  "ml_wf_val_results",
+  slots = list(
+    oos_prediction_list = "list",
+    oos_error_list = "list",
+    oos_y_list = "list",
+    oos_testing_eval_metrics = "list",
+    final_model = "ANY",  # Replace with specific class if known
+    chosen_eval_metric_validation = "ANY",
+    best_hyperparameters = "ANY",  # Replace with specific class if needed
+    validation_eval_metrics_hyper_choice = "ANY",
+    metadata = "list"
+  )
+)

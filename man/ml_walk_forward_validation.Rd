@@ -82,9 +82,14 @@ If running in parallel, set iters.k to a multiple of the number of cores. Must b
 
 \item{early_stop}{Sets a halting criteria to prevent overfitting in xgb and nn.}
 
-\item{keras_architecture_parameters}{Named list, containing units (a vector containing number of neurons in each layer),
-n_layers (number of layers), activation (a character vector of activation function at each layer), nn_optimizer (Adam or RMSProp), and
-batch_norm_option (a logical vector indicating whether normalization after each respective layer should be performed).}
+\item{keras_architecture_parameters}{A named list containing parameters for configuring the Keras neural network architecture. It includes:
+\itemize{
+\item \strong{units}: A numeric vector specifying the number of neurons in each layer.
+\item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
+\item \strong{activation}: A character vector listing the activation functions for each layer (e.g., "relu", "sigmoid", "tanh").
+\item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
+\item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
+}}
 
 \item{show_plots}{Logical, indicating whether to plot results (default is TRUE).}
 
@@ -133,9 +138,10 @@ hyper_grid <- list(
   lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9), value = NULL)
 )
 
-# Example of calling the function
-your_function(hyper_grid_domain_list = hyper_grid, ml_algorithm = "some_algorithm", tuning_method = "random_search")
-
+# Example of creating a 3 layers keras_architecture_parameters for neural networks.
+keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"),
+                                     nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)
+)
 }
 \seealso{
 \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}

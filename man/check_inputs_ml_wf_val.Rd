@@ -26,7 +26,7 @@ check_inputs_ml_wf_val(
   early_stop,
   keras_architecture_parameters,
   show_plots,
-  verbose,
+  verbose = FALSE,
   parallel
 )
 }

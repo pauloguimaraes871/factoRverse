@@ -43,9 +43,19 @@
 #' @param early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
 #' @param chosen_eval_metric Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr", and "mb".
 #' @param show_plots Logical, indicating whether to plot results (default is TRUE).
-#' @param keras_architecture_parameters Named list, containing units (a vector containing number of neurons in each layer),
-#' n_layers (number of layers), activation (a character vector of activation function at each layer), nn_optimizer (Adam or RMSProp), and
-#' batch_norm_option (a logical vector indicating whether normalization after each respective layer should be performed).
+#' @param keras_architecture_parameters A named list containing parameters for configuring the Keras neural network architecture. It includes:
+#' \itemize{
+#'   \item \strong{units}: A numeric vector specifying the number of neurons in each layer.
+#'   \item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
+#'   \item \strong{activation}: A character vector listing the activation functions for each layer (e.g., "relu", "sigmoid", "tanh").
+#'   \item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
+#'   \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
+#' }
+#' @examples
+#' # Example of creating a 3 layers keras_architecture_parameters for neural networks.
+#' keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"),
+#'                                      nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)
+#' )
 #' @param huber_delta A single numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
 #' @param quantile_tau A single numeric value indicating target quantile when calculating quantile loss.
 #' @param verbose Logical, indicating whether to print progress messages (default is TRUE).
@@ -107,10 +117,12 @@ ml_walk_forward_validation <- function(
       ##features_m_df
       if(is_meta_dataframe(features_m_df)){
         features_m_df <- features_m_df@data #Get features_m_df
+        features_workflow <- features_m_df@workflow #Get workflow
       }
       ##target_m_df
       if(is_meta_dataframe(target_m_df)){
         target_m_df <- target_m_df@data #Get target_m_df
+        target_workflow <- target_m_df@workflow #Get workflow
       }
 
     ################
@@ -426,6 +438,17 @@ ml_walk_forward_validation <- function(
                               )$model_nn #This is a wrapper for keras
         )
 
+        #Create S4 Object
+        refit_ml_model <- new("refit_ml_model",
+                              model = refit_model,
+                              model_class = class(refit_model),
+                              ml_algorithm = ml_algorithm,
+                              best_hyperparameters = optimal_hyper,
+                              custom_objective = custom_objective_translated,
+                              huber_delta = huber_delta,
+                              keras_architecture_parameters = keras_architecture_parameters
+        )
+
         ###################
 
       }
@@ -441,13 +464,7 @@ ml_walk_forward_validation <- function(
       testing_lists_ref <- d - training_sample_size - validation_sample_size + 1
 
       #Make predictions
-      oos_prediction_list[[testing_lists_ref]] <- predict_ml_model(
-        #Ml algo and model
-        ml_algorithm = ml_algorithm, refit_model = refit_model,
-        #Best lam in case of glmnet
-        best_lam = if(ml_algorithm == "glmnet") as.numeric(optimal_hyper["best_lam"]) else NULL,
-        #New features to predict
-        new_features_m_d_ref = features_m_d_ref)
+      oos_prediction_list[[testing_lists_ref]] <- predict(refit_ml_model, new_features_m_df = features_m_d_ref)
 
       names(oos_prediction_list[[testing_lists_ref]]) <- features_m_d_ref$tickers #Rename
 
@@ -494,7 +511,7 @@ ml_walk_forward_validation <- function(
     result_list[[4]] <- oos_testing_eval_metrics
 
     #Model
-    result_list[[5]] <- refit_model
+    result_list[[5]] <- refit_ml_model
 
     if(!ml_algorithm == "ols"){
 
@@ -516,29 +533,12 @@ ml_walk_forward_validation <- function(
       names(result_list) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
     }
 
-    #PLOTS
-    ###############
-    plots_list <- plot_ml_walk_forward_validation(
-      #Eval metrics
-      oos_testing_eval_metrics = oos_testing_eval_metrics, validation_eval_metrics_hyper_choice = validation_eval_metrics_hyper_choice,
-      #Hyper choice and chosen eval metric
-      hyper_choice_df = hyper_choice_df, chosen_eval_metric = chosen_eval_metric, chosen_eval_metric_validation = chosen_eval_metric_validation,
-      #Backtest parameters
-      ml_algorithm = ml_algorithm, rebalance_dates = rebalance_dates, show_plots = show_plots
-    )
-
-    ###############
-
-
-
 
   })
 
   #Print elapsed time
   print(elapsed_time)
 
-  #Add plots
-  result_list$plots <- plots_list
 
   #Metadata
   result_list$metadata <- list(
@@ -563,8 +563,12 @@ ml_walk_forward_validation <- function(
     #Target
     target_fwd_name = target_fwd_name,
     target_fwd = target_fwd,
+    target_workflow = target_workflow,
+    target_object = as.character(substitute(target_m_df)),
     #Features
     features = colnames(features_m_df[,-c(1:3)]),
+    features_workflow = features_workflow,
+    features_object = as.character(substitute(features_m_df)),
     #Tuning
     tuning_method = tuning_method,
     n_iter = n_iter,
@@ -586,8 +590,25 @@ ml_walk_forward_validation <- function(
     call = match.call()
   )
 
+  #Get S4 object
+  ml_results_object <-
+    new("ml_wf_val_results",
+        oos_prediction_list = result_list$oos_prediction_list,
+        oos_error_list = result_list$oos_error_list,
+        oos_y_list = result_list$oos_y_list,
+        oos_testing_eval_metrics = result_list$oos_testing_eval_metrics,
+        final_model = result_list$final_model,
+        chosen_eval_metric_validation = result_list$chosen_eval_metric_validation,
+        best_hyperparameters = result_list$best_hyperparameters,
+        validation_eval_metrics_hyper_choice = result_list$validation_eval_metrics_hyper_choice,
+        metadata = result_list$metadata
+        )
+
+  #Plot
+  if(show_plots) plot(ml_results_object)
+
   #Return List
-  return(result_list)
+  return(ml_results_object)
 
 
 }
