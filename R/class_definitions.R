@@ -45,16 +45,47 @@ setClass("meta_dataframe",
          ))
 
 
-
-# Define the is_meta_dataframe function
-#' Check if an object is a meta_dataframe
+#' Define the `hyper_grid_domain` S4 Class
 #'
-#' @param x The object to check.
-#' @return TRUE if x is of class "meta_dataframe", FALSE otherwise.
+#' This class represents parameters for defining the hyperparameter domain based on which tuning will be performed.
+#' It helps the user in correctly setting this object in the context of the `ml_walk_forward_validation` function.
+#'
+#' @slot tuning_method A character string specifying the tuning method that will be applied (e.g., "grid_search", "random_search" or "bayesian_optimization").
+#' @slot ml_algorithm A character string specifying the machine-learning algorithm that will be used.
+#' @slot hyperparameter_list A list with the hyperparameters relevant to the specified machine learning algorithm.
+#'
+#'
 #' @export
-is_meta_dataframe <- function(x) {
-  inherits(x, "meta_dataframe")
-}
+setClass(
+  "hyper_grid_domain",
+  slots = list(
+    tuning_method = "character",
+    ml_algorithm = "character",
+    hyperparameter_list = "list"
+  ),
+  validity = function(object) {
+    valid_ml_algorithms <- c("glmnet", "rf", "xgb", "nn", "ols")
+
+    if (!(object@ml_algorithm %in% valid_ml_algorithms)) {
+      return("Invalid ml_algorithm. Choose from 'glmnet', 'rf', 'xgb', 'nn', or 'ols'.")
+    }
+
+    if (object@ml_algorithm == "ols" && length(object@hyperparameter_list) > 0) {
+      return("ols algorithm does not have hyperparameters.")
+    }
+
+    valid_tuning_methods <- c("grid_search", "random_search", "bayesian_opt")
+    if (!(object@tuning_method %in% valid_tuning_methods)) {
+      return("Invalid tuning method. Choose from 'grid_search', 'random_search', or 'bayesian_opt'.")
+    }
+
+    if (nchar(object@ml_algorithm) == 0) {
+      return("ml_algorithm cannot be an empty string.")
+    }
+
+    return(TRUE)
+  }
+)
 
 
 #' Define the `refit_ml_model` S4 Class
@@ -167,10 +198,249 @@ setClass(
 #################################################################
 
 ##########################
-#########Acessors#########
+#########Methods#########
 ##########################
 
 
+
+
+##########################################################
+
+
+#' Accessor Methods for meta_dataframe
+#'
+#' These methods are used to access components of a `meta_dataframe` object.
+#'
+#' @param object An object of class `meta_dataframe`.
+#' @return The respective slot of the `meta_dataframe` object.
+#' @name meta_dataframe_accessors
+#' @export
+setGeneric("get_data", function(object) standardGeneric("get_data"))
+
+#' @export
+setMethod("get_data", "meta_dataframe", function(object) {
+  return(object@data)
+})
+
+#' @export
+setGeneric("get_workflow", function(object) standardGeneric("get_workflow"))
+
+#' @export
+setMethod("get_workflow", "meta_dataframe", function(object) {
+  return(object@workflow)
+})
+
+#' @export
+setMethod(
+  "as.data.frame", "meta_dataframe", function(x) {
+    as.data.frame(x@data)
+  }
+)
+
+
+#' Add a Hyperparameter to a `hyper_grid_domain`
+#'
+#' This method adds a new hyperparameter to an existing `hyper_grid_domain` object.
+#'
+#' @param hyper_grid_domain A `hyper_grid_domain` object to which the hyperparameter will be added.
+#' @param new_hyperparameters A named list representing the hyperparameter to be added.
+#'
+#' @return A new `hyper_grid_domain` object with the updated hyperparameters.
+#'
+#' @examples
+#' # Create an initial hyper_grid_domain object for grid-search
+#' hyper_grid <- create_hyper_grid_domain(
+#'   tuning_method = "grid_search",
+#'   ml_algorithm = "glmnet"
+#' )
+#'
+#' #Add hyperparameter for grid_search
+#' hyper_grid <- add_hyperparameter(
+#' hyper_grid_domain = hyper_grid,
+#' new_hyperparameters = list(alpha = c(0.2, 0.5)) #Hyperparameters may be added one by one or all at once (eg.: list(alpha = c(0.2, 0.5), lambda.min.ratio = c(0.5, 0.2, 0.3)))
+#' )
+#'
+#' random_search and xgb algorithm
+#' hyper_grid <- create_hyper_grid_domain(
+#'   tuning_method = "random_search",
+#'   ml_algorithm = "xgb"
+#' )
+#'
+#' hyper_grid <- add_hyperparameter(
+#' hyper_grid_domain = hyper_grid,
+#' new_hyperparameters =
+#' list(min_child_weight = list(distribution_choice = "constant", value = 3),
+#'      max_depth = list(distribution_choice = "uniform", pars = c(min = 1L, max = 2L)),
+#'      subsample = list(distribution_choice = "uniform", pars = c(min = 0.25, max = 0.50)),
+#'      colsample_bytree = list(distribution_choice = "uniform", pars = c(min = 0.25, max = 0.50)),
+#'      eta = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.2)),
+#'      alpha = list(distribution_choice = "uniform", pars = c(min = 2, max = 5)),
+#'      gamma = list(distribution_choice = "constant", value = 0),
+#'      nrounds = list(distribution_choice = "uniform", pars = c(min = 200L, max = 500L)))
+#' )
+#'
+#' bayesian_opt and rf algorithm
+#' #' hyper_grid <- create_hyper_grid_domain(
+#'   tuning_method = "bayesian_opt",
+#'   ml_algorithm = "rf"
+#' )
+#'
+#'
+#' hyper_grid <- add_hyperparameter(
+#' hyper_grid_domain = hyper_grid,
+#' new_hyperparameters =
+#' list(mtry = c(0,1),
+#'      num.trees = c(100L, 1000L),
+#'      max.depth = c(2L, 8L),
+#'      min.bucket = c(1, 5))
+#' )
+#'
+#'
+#' @export
+setGeneric("add_hyperparameter", function(hyper_grid_domain, new_hyperparameters) standardGeneric("add_hyperparameter"))
+
+#' @export
+setMethod("add_hyperparameter", "hyper_grid_domain", function(hyper_grid_domain, new_hyperparameters) {
+
+  # Ensure new_hyperparameters is a list
+  if (!is.list(new_hyperparameters)) {
+    stop("new_hyperparameters must be a list.")
+  }
+
+  # Get tuning_method and ml_algorithm
+  tuning_method <- hyper_grid_domain@tuning_method
+  ml_algorithm <- hyper_grid_domain@ml_algorithm
+
+  # Validate new_hyperparameters based on tuning_method
+  if (tuning_method == "grid_search") {
+    if (!all(sapply(new_hyperparameters, function(x) is.numeric(x) && is.vector(x)))) {
+      stop("For 'grid_search', new_hyperparameters must be a list of numeric vectors.")
+    }
+  } else if (tuning_method == "random_search") {
+    for (name in names(new_hyperparameters)) {
+      if (!is.list(new_hyperparameters[[name]]) || !all(c("distribution_choice") %in% names(new_hyperparameters[[name]]))) {
+        stop("For 'random_search', each new_hyperparameters must be a list with 'distribution_choice'.")
+      }
+
+      distribution_choice <- new_hyperparameters[[name]]$distribution_choice
+
+      if (is.null(distribution_choice) || !(distribution_choice %in% c("normal", "uniform", "lognormal", "constant"))) {
+        stop("distribution_choice must be one of 'normal', 'uniform', 'lognormal', or 'constant'.")
+      }
+
+      if (distribution_choice == "constant") {
+        if (is.null(new_hyperparameters[[name]]$value) || !is.numeric(new_hyperparameters[[name]]$value)) {
+          stop("For 'constant', the second argument must be a numeric vector named 'value'.")
+        }
+      } else {
+        if (!is.null(new_hyperparameters[[name]]$value)) {
+          stop("For distributions other than 'constant', do not specify 'value'.")
+        }
+        pars <- new_hyperparameters[[name]]$pars
+        if (is.null(pars) || !is.numeric(pars) || !is.vector(pars)) {
+          stop("For distributions, the second argument must be a numeric vector named 'pars'.")
+        }
+
+        # Additional checks based on distribution_choice
+        if (distribution_choice == "normal") {
+          if (!all(names(pars) %in% c("mean", "sd"))) {
+            stop("For 'normal', 'pars' must have names 'mean' and 'sd'.")
+          }
+        } else if (distribution_choice == "uniform") {
+          if (!all(names(pars) %in% c("min", "max"))) {
+            stop("For 'uniform', 'pars' must have names 'min' and 'max'.");
+          }
+        } else if (distribution_choice == "lognormal") {
+          if (!all(names(pars) %in% c("meanlog", "sdlog"))) {
+            stop("For 'lognormal', 'pars' must have names 'meanlog' and 'sdlog'.");
+          }
+        }
+      }
+    }
+  } else if (tuning_method == "bayesian_opt") {
+    if (any(sapply(new_hyperparameters, function(x) !is.numeric(x) || length(x) != 2))) {
+      stop("For 'bayesian_opt', each new_hyperparameters must be a numeric vector of length 2 representing the bounds.")
+    }
+  } else {
+    stop("Invalid tuning_method. Only 'grid_search', 'random_search', and 'bayesian_opt' are supported.")
+  }
+
+
+  # Check new_hyperparameters validity based on ml_algorithm
+  new_hyperparameters_names <- names(new_hyperparameters)
+
+  # GLMNET
+  if (ml_algorithm == "glmnet" && !all(new_hyperparameters_names %in% c("alpha", "lambda.min.ratio"))) {
+    stop("new_hyperparameters do not match ml_algorithm choice for 'glmnet'")
+  }
+
+  # RF
+  if (ml_algorithm == "rf" && !all(new_hyperparameters_names %in% c("mtry", "num.trees", "max.depth", "min.bucket"))) {
+    stop("new_hyperparameters do not match ml_algorithm choice for 'rf'")
+  }
+
+  # XGB
+  if (ml_algorithm == "xgb" && !all(new_hyperparameters_names %in% c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
+                                                                "eta", "alpha", "gamma", "nrounds"))) {
+    stop("new_hyperparameters do not match ml_algorithm choice for 'xgb'")
+  }
+
+  # NN
+  if (ml_algorithm == "nn" && !all(new_hyperparameters_names %in% c("regularizer_l1", "regularizer_l2", "droprate", "lr",
+                                                               "size_of_batch", "number_of_epochs"))) {
+    stop("new_hyperparameters do not match ml_algorithm choice for 'nn'")
+  }
+
+  # Get current hyperparameter_list
+  hyperparameter_list <- hyper_grid_domain@hyperparameter_list
+
+  # Overwrite existing hyperparameters if they are duplicates
+  for (name in names(new_hyperparameters)) {
+    hyperparameter_list[[name]] <- new_hyperparameters[[name]]
+  }
+
+  # Create a new hyper_grid_domain object with the updated hyperparameter_list
+  hyper_grid_domain_new <- new("hyper_grid_domain",
+                               tuning_method = hyper_grid_domain@tuning_method,
+                               ml_algorithm = hyper_grid_domain@ml_algorithm,
+                               hyperparameter_list = hyperparameter_list
+  )
+
+  return(hyper_grid_domain_new) # Return the new object
+})
+
+
+
+#' Accessor Methods for refit_ml_model
+#'
+#' These methods are used to access components of a `refit_ml_model` object.
+#'
+#' @param object An object of class `refit_ml_model`.
+#' @return The respective slot of the `refit_ml_model` object.
+#' @name refit_ml_model_accessors
+#' @export
+setGeneric("get_ml_algorithm", function(object) standardGeneric("get_ml_algorithm"))
+
+#' @export
+setMethod("get_ml_algorithm", "refit_ml_model", function(object) {
+  return(object@ml_algorithm)
+})
+
+#' @export
+setGeneric("get_best_hyperparameters", function(object) standardGeneric("get_best_hyperparameters"))
+
+#' @export
+setMethod("get_best_hyperparameters", "refit_ml_model", function(object) {
+  return(object@best_hyperparameters)
+})
+
+#' @export
+setGeneric("get_model", function(object) standardGeneric("get_model"))
+
+#' @export
+setMethod("get_model", "refit_ml_model", function(object) {
+  return(object@model)
+})
 
 #' Accessor Methods for ml_wf_val_results
 #'
@@ -228,9 +498,6 @@ setMethod("get_chosen_eval_metric_validation", "ml_wf_val_results", function(obj
 })
 
 #' @export
-setGeneric("get_best_hyperparameters", function(object) standardGeneric("get_best_hyperparameters"))
-
-#' @export
 setMethod("get_best_hyperparameters", "ml_wf_val_results", function(object) {
   return(object@best_hyperparameters)
 })
@@ -276,70 +543,5 @@ setMethod("as.list", "ml_wf_val_results", function(x) {
   return(slot_list)
 })
 
-
-
-##########################################################
-
-
-#' Accessor Methods for meta_dataframe
-#'
-#' These methods are used to access components of a `meta_dataframe` object.
-#'
-#' @param object An object of class `meta_dataframe`.
-#' @return The respective slot of the `meta_dataframe` object.
-#' @name meta_dataframe_accessors
-#' @export
-setGeneric("get_data", function(object) standardGeneric("get_data"))
-
-#' @export
-setMethod("get_data", "meta_dataframe", function(object) {
-  return(object@data)
-})
-
-#' @export
-setGeneric("get_workflow", function(object) standardGeneric("get_workflow"))
-
-#' @export
-setMethod("get_workflow", "meta_dataframe", function(object) {
-  return(object@workflow)
-})
-
-#' @export
-setMethod(
-  "as.data.frame", "meta_dataframe", function(x) {
-    as.data.frame(x@data)
-  }
-)
-
-
-
-#' Accessor Methods for refit_ml_model
-#'
-#' These methods are used to access components of a `refit_ml_model` object.
-#'
-#' @param object An object of class `refit_ml_model`.
-#' @return The respective slot of the `refit_ml_model` object.
-#' @name refit_ml_model_accessors
-#' @export
-setGeneric("get_ml_algorithm", function(object) standardGeneric("get_ml_algorithm"))
-
-#' @export
-setMethod("get_ml_algorithm", "refit_ml_model", function(object) {
-  return(object@ml_algorithm)
-})
-
-
-#' @export
-setMethod("get_best_hyperparameters", "refit_ml_model", function(object) {
-  return(object@best_hyperparameters)
-})
-
-#' @export
-setGeneric("get_model", function(object) standardGeneric("get_model"))
-
-#' @export
-setMethod("get_model", "refit_ml_model", function(object) {
-  return(object@model)
-})
 
 

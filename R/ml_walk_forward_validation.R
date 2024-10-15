@@ -14,9 +14,9 @@
 #' @param target_fwd_name Name of the target variable in `target_m_df`.
 #' @param ml_algorithm Choice of ml_algorithm: ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
 #' @param split_method Choice of split method (expanding or rolling).
-#' @param hyper_grid_domain_list A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
+#' @param hyper_grid_domain An object of class hyper_grid_domain or a named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
 #' \itemize{
-#'   \item \strong{For grid search:} Must be a list of named vectors.
+#'   \item \strong{For grid search:} Must be a list of named vectors:
 #'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
 #'     \itemize{
 #'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
@@ -26,11 +26,23 @@
 #'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
 #' }
 #' @examples
+#' # Example of creating hyper_grid_domain_list for grid search
+#' hyper_grid <- list(
+#'    alpha = c(0.2, 0.5),
+#'    lambda.min.ratio = c(0.1, 0.5, 0.9)
+#'    )
+#'
 #' # Example of creating hyper_grid_domain_list for random search
 #' hyper_grid <- list(
 #'   alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1), value = NULL),
 #'   lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9), value = NULL)
 #' )
+#'
+#' # Example of creating hyper_grid_domain_list for bayesian optimization
+#' hyper_grid <- list(
+#'    alpha = c(0.2, 0.9),
+#'    lambda.min.ratio = c(0.1, 0.9)
+#'    )
 #'
 #' @param tuning_method Method for hyperparameter tuning: "random_search", "grid_search", or "bayesian_opt".
 #' @param n_iter Number of iterations for random search.
@@ -100,7 +112,7 @@ ml_walk_forward_validation <- function(
   #Loss/Eval Functions and Related
   custom_objective = "squared_error", chosen_eval_metric = NULL, huber_delta = 1, quantile_tau = 0.5,
   #Hyperparameter tuning Inputs
-  hyper_grid_domain_list = NULL, tuning_method = NULL, n_iter = NULL, k_iter = NULL, acq = "ucb", init_points = NULL, early_stop = NULL,
+  hyper_grid_domain = NULL, tuning_method = NULL, n_iter = NULL, k_iter = NULL, acq = "ucb", init_points = NULL, early_stop = NULL,
   #Keras architecture Parameters
   keras_architecture_parameters = NULL,
   #Misc
@@ -113,7 +125,7 @@ ml_walk_forward_validation <- function(
     #Visible binding for global variables
     squared_error <- pseudo_huber_error <- quantile_error <- NULL
 
-    #Get data from S4 object
+    #Get data from S4 objects
       ##features_m_df
       if(is_meta_dataframe(features_m_df)){
         features_m_df <- features_m_df@data #Get features_m_df
@@ -128,6 +140,13 @@ ml_walk_forward_validation <- function(
       } else {
         target_workflow <- NULL
       }
+     ##hyper_grid_domain_list
+      if(is_hyper_grid_domain(hyper_grid_domain)){
+        hyper_grid_domain_list <- hyper_grid_domain@hyperparameter_list #Get hyper list
+      } else {
+        hyper_grid_domain_list <- hyper_grid_domain
+      }
+
 
     ################
     ##Check Parameters: This function will test whether inputs match format and current functionalities

@@ -78,3 +78,29 @@ is_coercible_to_meta_dataframe <- function(obj) {
 
 
 }
+
+
+
+# Define the is_meta_dataframe function
+#' Check if an object is a meta_dataframe
+#'
+#' @param x The object to check.
+#' @return TRUE if x is of class "meta_dataframe", FALSE otherwise.
+#' @export
+is_meta_dataframe <- function(x) {
+  inherits(x, "meta_dataframe")
+}
+
+
+#' Check if an object is of class hyper_grid_domain
+#'
+#' This function checks whether a given object is of class 'hyper_grid_domain'.
+#'
+#' @param x The object to check.
+#'
+#' @return Logical value: TRUE if the object is of class 'hyper_grid_domain', FALSE otherwise.
+#'
+#' @export
+is_hyper_grid_domain <- function(x) {
+  inherits(x, "hyper_grid_domain")
+}

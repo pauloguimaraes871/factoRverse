@@ -57,9 +57,9 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{quantile_tau}{A single numeric value indicating target quantile when calculating quantile loss.}
 
-\item{hyper_grid_domain_list}{A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
+\item{hyper_grid_domain_list}{An object of class hyper_grid_domain or a named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
 \itemize{
-\item \strong{For grid search:} Must be a list of named vectors.
+\item \strong{For grid search:} Must be a list of named vectors:
 \item \strong{For random search:} Must be a list of named lists, where each named list contains:
 \itemize{
 \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
@@ -98,7 +98,7 @@ If running in parallel, set iters.k to a multiple of the number of cores. Must b
 \item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
 }
 \value{
-List with various outputs including model predictions, errors, and validation metrics.
+An object of class ml_wf_val_results with various outputs including model predictions, errors, and validation metrics.
 }
 \description{
 This function performs walk-forward validation for time series data using
@@ -132,11 +132,23 @@ Keras has some limitations when working in parallel, especially when using bayes
 }
 
 \examples{
+# Example of creating hyper_grid_domain_list for grid search
+hyper_grid <- list(
+   alpha = c(0.2, 0.5),
+   lambda.min.ratio = c(0.1, 0.5, 0.9)
+   )
+
 # Example of creating hyper_grid_domain_list for random search
 hyper_grid <- list(
   alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1), value = NULL),
   lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9), value = NULL)
 )
+
+# Example of creating hyper_grid_domain_list for bayesian optimization
+hyper_grid <- list(
+   alpha = c(0.2, 0.9),
+   lambda.min.ratio = c(0.1, 0.9)
+   )
 
 # Example of creating a 3 layers keras_architecture_parameters for neural networks.
 keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"),

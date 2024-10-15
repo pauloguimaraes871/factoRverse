@@ -32,7 +32,55 @@ setMethod("show", "meta_dataframe", function(object) {
   invisible(object)
 })
 
+#' Print method for hyper_grid_domain
+#'
+#' This method prints the contents of a `hyper_grid_domain` object in a user-friendly format.
+#'
+#' @param object A `hyper_grid_domain` object to be printed.
+#'
+#' @export
+#' Print Method for hyper_grid_domain
+#'
+#' This method provides a well-structured output for hyper_grid_domain objects.
+#'
+#' @param object An object of class hyper_grid_domain.
+#'
+#' @export
+setMethod("show", "hyper_grid_domain", function(object) {
+  cat("An object of class 'hyper_grid_domain'\n")
+  cat("Chosen tuning_method:\n")
+  cat("  ", object@tuning_method, "\n\n")
 
+  cat("Chosen ml_algorithm:\n")
+  cat("  ", object@ml_algorithm, "\n\n")
+
+  cat("Hyperparameters:\n")
+
+  if (length(object@hyperparameter_list) == 0) {
+    cat("  No hyperparameters set.\n")
+  } else {
+    for (name in names(object@hyperparameter_list)) {
+      cat("  ", name, ":\n")
+      hyperparam <- object@hyperparameter_list[[name]]
+      if (is.list(hyperparam)) {
+        if ("distribution_choice" %in% names(hyperparam)) {
+          cat("    Distribution Choice:", hyperparam$distribution_choice, "\n")
+          if (hyperparam$distribution_choice == "constant") {
+            cat("    Value:", paste(hyperparam$value, collapse = ", "), "\n")
+          } else {
+            cat("    Parameters:", paste(names(hyperparam$pars), hyperparam$pars, sep = "=", collapse = ", "), "\n")
+          }
+        }
+      } else {
+        if (object@tuning_method == "bayesian_opt") {
+          cat("    Bounds:", paste(hyperparam, collapse = ", "), "\n")
+        } else {
+          cat("    Values:", paste(hyperparam, collapse = ", "), "\n")
+        }
+      }
+    }
+  }
+})
 
 #' Show Method for refit_ml_model Class
 #'

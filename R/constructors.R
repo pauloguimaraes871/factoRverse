@@ -112,3 +112,33 @@ create_meta_dataframe <- function(data) {
 
 
 
+
+#' Create a `hyper_grid_domain` Object
+#'
+#' This function creates an instance of the `hyper_grid_domain` S4 class.
+#' It allows users to specify the tuning method, machine learning algorithm, and relevant hyperparameters.
+#'
+#' @param tuning_method A character string specifying the tuning method to be applied.
+#'                     Must be one of "grid_search", "random_search", or "bayesian_optimization".
+#' @param ml_algorithm A character string specifying the machine-learning algorithm to be used.
+#'                     Must be one of "glmnet", "rf", "xgb", "nn", or "ols".
+#'
+#' @return An instance of the `hyper_grid_domain` S4 class.
+#'
+#' @examples
+#' # Creating a hyper_grid_domain object for a random forest model
+#' hyper_grid_rf <- create_hyper_grid_domain(
+#'   tuning_method = "grid_search",
+#'   ml_algorithm = "rf"
+#' )
+#'
+#'
+#' @export
+create_hyper_grid_domain <- function(tuning_method, ml_algorithm) {
+  hyperparameter_list <- list()
+
+  new("hyper_grid_domain",
+      tuning_method = tuning_method,
+      ml_algorithm = ml_algorithm,
+      hyperparameter_list = hyperparameter_list)
+}

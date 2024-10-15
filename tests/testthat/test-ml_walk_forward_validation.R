@@ -7707,6 +7707,11 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   set.seed(123)
+  hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet")
+  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain,
+                                          new_hyperparameters = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
+                                                                     lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.9))))
+
   #Apply function
   suppressMessages(suppressWarnings({
     ml_walk_forward_validation_results <- ml_walk_forward_validation(
@@ -7718,8 +7723,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
       ml_algorithm = "glmnet",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rss",
-      hyper_grid_domain_list = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
-                                    lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.9))), #Random Search
+      hyper_grid_domain = hyper_grid_domain, #Random Search
       tuning_method = c("random_search"),
       n_iter = 5,
       parallel = FALSE,
