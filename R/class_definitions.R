@@ -88,6 +88,27 @@ setClass(
 )
 
 
+#' @title Keras Architecture Parameters
+#' @description Class to encapsulate parameters for constructing a Keras neural network architecture.
+#'
+#' @slot units A numeric vector specifying the number of units (neurons) for each layer.
+#' @slot n_layers A numeric value representing the total number of layers in the model.
+#' @slot activation A character vector containing the activation functions for each layer.
+#' @slot nn_optimizer A character string indicating the optimization algorithm used (length = 1).
+#' @slot batch_norm_option A character vector specifying whether to apply batch normalization for each layer.
+#'
+#' @export
+setClass(
+  "keras_architecture_parameters",
+  slots = list(
+    units = "numeric",            # Vector of numeric units per layer
+    n_layers = "numeric",         # Total number of layers
+    activation = "character",     # Vector of activation functions
+    nn_optimizer = "character",    # Optimization algorithm
+    batch_norm_option = "logical" # Vector of batch normalization options
+  )
+)
+
 #' Define the `refit_ml_model` S4 Class
 #'
 #' This class represents a refitted machine learning model. It encapsulates the algorithm used, hyperparameters,
@@ -195,13 +216,32 @@ setClass(
 )
 
 
+#' Define the `portfolio_policies` S4 Class
+#'
+#' S4 class to represent a set of portfolio policies, including liquidity, turnover, concentration and signal selection constraints.
+#'
+#' @slot liquidity_constraint_policy A list that contains liquidity constraint policies.
+#'   It must include a character element named `liquidity_floor_rule` and one or more rules,
+#'   each represented as a list with `liquidity_classification` and `liquidity_cap`.
+#' @slot signal_selection_policy A list describing signal selection policy.
+#' @slot turnover_constraint_policy A list describing turnover constraint policy.
+#' @slot concentration_constraint_policy A list describing concentration constraint policy.
+#' @slot liquidity_floor_cutoffs A list for liquidity floor cutoffs.
+setClass("portfolio_policies",
+         slots = list(
+           liquidity_constraint_policy = "list",
+           signal_selection_policy = "list",
+           turnover_constraint_policy = "list",
+           concentration_constraint_policy = "list",
+           liquidity_floor_cutoffs = "list"
+         )
+)
+
 #################################################################
 
 ##########################
 #########Methods#########
 ##########################
-
-
 
 
 ##########################################################
@@ -236,179 +276,6 @@ setMethod(
     as.data.frame(x@data)
   }
 )
-
-
-#' Add a Hyperparameter to a `hyper_grid_domain`
-#'
-#' This method adds a new hyperparameter to an existing `hyper_grid_domain` object.
-#'
-#' @param hyper_grid_domain A `hyper_grid_domain` object to which the hyperparameter will be added.
-#' @param new_hyperparameters A named list representing the hyperparameter to be added.
-#'
-#' @return A new `hyper_grid_domain` object with the updated hyperparameters.
-#'
-#' @examples
-#' # Create an initial hyper_grid_domain object for grid-search
-#' hyper_grid <- create_hyper_grid_domain(
-#'   tuning_method = "grid_search",
-#'   ml_algorithm = "glmnet"
-#' )
-#'
-#' #Add hyperparameter for grid_search
-#' hyper_grid <- add_hyperparameter(
-#' hyper_grid_domain = hyper_grid,
-#' new_hyperparameters = list(alpha = c(0.2, 0.5)) #Hyperparameters may be added one by one or all at once (eg.: list(alpha = c(0.2, 0.5), lambda.min.ratio = c(0.5, 0.2, 0.3)))
-#' )
-#'
-#' random_search and xgb algorithm
-#' hyper_grid <- create_hyper_grid_domain(
-#'   tuning_method = "random_search",
-#'   ml_algorithm = "xgb"
-#' )
-#'
-#' hyper_grid <- add_hyperparameter(
-#' hyper_grid_domain = hyper_grid,
-#' new_hyperparameters =
-#' list(min_child_weight = list(distribution_choice = "constant", value = 3),
-#'      max_depth = list(distribution_choice = "uniform", pars = c(min = 1L, max = 2L)),
-#'      subsample = list(distribution_choice = "uniform", pars = c(min = 0.25, max = 0.50)),
-#'      colsample_bytree = list(distribution_choice = "uniform", pars = c(min = 0.25, max = 0.50)),
-#'      eta = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.2)),
-#'      alpha = list(distribution_choice = "uniform", pars = c(min = 2, max = 5)),
-#'      gamma = list(distribution_choice = "constant", value = 0),
-#'      nrounds = list(distribution_choice = "uniform", pars = c(min = 200L, max = 500L)))
-#' )
-#'
-#' bayesian_opt and rf algorithm
-#' #' hyper_grid <- create_hyper_grid_domain(
-#'   tuning_method = "bayesian_opt",
-#'   ml_algorithm = "rf"
-#' )
-#'
-#'
-#' hyper_grid <- add_hyperparameter(
-#' hyper_grid_domain = hyper_grid,
-#' new_hyperparameters =
-#' list(mtry = c(0,1),
-#'      num.trees = c(100L, 1000L),
-#'      max.depth = c(2L, 8L),
-#'      min.bucket = c(1, 5))
-#' )
-#'
-#'
-#' @export
-setGeneric("add_hyperparameter", function(hyper_grid_domain, new_hyperparameters) standardGeneric("add_hyperparameter"))
-
-#' @export
-setMethod("add_hyperparameter", "hyper_grid_domain", function(hyper_grid_domain, new_hyperparameters) {
-
-  # Ensure new_hyperparameters is a list
-  if (!is.list(new_hyperparameters)) {
-    stop("new_hyperparameters must be a list.")
-  }
-
-  # Get tuning_method and ml_algorithm
-  tuning_method <- hyper_grid_domain@tuning_method
-  ml_algorithm <- hyper_grid_domain@ml_algorithm
-
-  # Validate new_hyperparameters based on tuning_method
-  if (tuning_method == "grid_search") {
-    if (!all(sapply(new_hyperparameters, function(x) is.numeric(x) && is.vector(x)))) {
-      stop("For 'grid_search', new_hyperparameters must be a list of numeric vectors.")
-    }
-  } else if (tuning_method == "random_search") {
-    for (name in names(new_hyperparameters)) {
-      if (!is.list(new_hyperparameters[[name]]) || !all(c("distribution_choice") %in% names(new_hyperparameters[[name]]))) {
-        stop("For 'random_search', each new_hyperparameters must be a list with 'distribution_choice'.")
-      }
-
-      distribution_choice <- new_hyperparameters[[name]]$distribution_choice
-
-      if (is.null(distribution_choice) || !(distribution_choice %in% c("normal", "uniform", "lognormal", "constant"))) {
-        stop("distribution_choice must be one of 'normal', 'uniform', 'lognormal', or 'constant'.")
-      }
-
-      if (distribution_choice == "constant") {
-        if (is.null(new_hyperparameters[[name]]$value) || !is.numeric(new_hyperparameters[[name]]$value)) {
-          stop("For 'constant', the second argument must be a numeric vector named 'value'.")
-        }
-      } else {
-        if (!is.null(new_hyperparameters[[name]]$value)) {
-          stop("For distributions other than 'constant', do not specify 'value'.")
-        }
-        pars <- new_hyperparameters[[name]]$pars
-        if (is.null(pars) || !is.numeric(pars) || !is.vector(pars)) {
-          stop("For distributions, the second argument must be a numeric vector named 'pars'.")
-        }
-
-        # Additional checks based on distribution_choice
-        if (distribution_choice == "normal") {
-          if (!all(names(pars) %in% c("mean", "sd"))) {
-            stop("For 'normal', 'pars' must have names 'mean' and 'sd'.")
-          }
-        } else if (distribution_choice == "uniform") {
-          if (!all(names(pars) %in% c("min", "max"))) {
-            stop("For 'uniform', 'pars' must have names 'min' and 'max'.");
-          }
-        } else if (distribution_choice == "lognormal") {
-          if (!all(names(pars) %in% c("meanlog", "sdlog"))) {
-            stop("For 'lognormal', 'pars' must have names 'meanlog' and 'sdlog'.");
-          }
-        }
-      }
-    }
-  } else if (tuning_method == "bayesian_opt") {
-    if (any(sapply(new_hyperparameters, function(x) !is.numeric(x) || length(x) != 2))) {
-      stop("For 'bayesian_opt', each new_hyperparameters must be a numeric vector of length 2 representing the bounds.")
-    }
-  } else {
-    stop("Invalid tuning_method. Only 'grid_search', 'random_search', and 'bayesian_opt' are supported.")
-  }
-
-
-  # Check new_hyperparameters validity based on ml_algorithm
-  new_hyperparameters_names <- names(new_hyperparameters)
-
-  # GLMNET
-  if (ml_algorithm == "glmnet" && !all(new_hyperparameters_names %in% c("alpha", "lambda.min.ratio"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'glmnet'")
-  }
-
-  # RF
-  if (ml_algorithm == "rf" && !all(new_hyperparameters_names %in% c("mtry", "num.trees", "max.depth", "min.bucket"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'rf'")
-  }
-
-  # XGB
-  if (ml_algorithm == "xgb" && !all(new_hyperparameters_names %in% c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
-                                                                "eta", "alpha", "gamma", "nrounds"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'xgb'")
-  }
-
-  # NN
-  if (ml_algorithm == "nn" && !all(new_hyperparameters_names %in% c("regularizer_l1", "regularizer_l2", "droprate", "lr",
-                                                               "size_of_batch", "number_of_epochs"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'nn'")
-  }
-
-  # Get current hyperparameter_list
-  hyperparameter_list <- hyper_grid_domain@hyperparameter_list
-
-  # Overwrite existing hyperparameters if they are duplicates
-  for (name in names(new_hyperparameters)) {
-    hyperparameter_list[[name]] <- new_hyperparameters[[name]]
-  }
-
-  # Create a new hyper_grid_domain object with the updated hyperparameter_list
-  hyper_grid_domain_new <- new("hyper_grid_domain",
-                               tuning_method = hyper_grid_domain@tuning_method,
-                               ml_algorithm = hyper_grid_domain@ml_algorithm,
-                               hyperparameter_list = hyperparameter_list
-  )
-
-  return(hyper_grid_domain_new) # Return the new object
-})
-
 
 
 #' Accessor Methods for refit_ml_model
@@ -541,6 +408,18 @@ setMethod("as.list", "ml_wf_val_results", function(x) {
   names(slot_list) <- slot_names[non_null_indices]
 
   return(slot_list)
+})
+
+
+#' @export
+setMethod("as.list", "keras_architecture_parameters", function(x) {
+  list(
+    units = x@units,
+    n_layers = x@n_layers,
+    activation = x@activation,
+    nn_optimizer = x@nn_optimizer,
+    batch_norm_option = x@batch_norm_option
+  )
 })
 
 

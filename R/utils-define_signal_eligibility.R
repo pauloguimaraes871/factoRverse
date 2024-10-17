@@ -12,7 +12,7 @@
 #'   \item{\code{chosen_prior}}{Dataset used to build prior for Bayesian adjustments.}
 #'   \item{\code{priors_type}}{A flag indicating whether priors should be set ("none" if not).}
 #'   \item{\code{chosen_sb_metric}}{The signal to use for final selection after adjustments.}
-#'   \item{\code{sb_benchmark_weighting}}{The benchmark weighting for the concentration constraint policy.}
+#'   \item{\code{sb_benchmark_weighting_method}}{The benchmark weighting for the concentration constraint policy.}
 #'   \item{\code{max_abs_active_group_weight}}{The maximum absolute weight for any group in the concentration constraint policy.}
 #' }
 #' @param signals_groups_d_ref An optional data frame that maps signals to groups for Bayesian modeling and concentration constraints. It should contain a column named \code{theme} that categorizes the signals.
@@ -165,7 +165,7 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
     groups_m_d_ref = signals_groups_m_d_ref, #Groups to select
     #Build concentration constraint policy for signals
     concentration_constraint_policy =  list(
-      benchmark = signal_selection_policy$sb_benchmark_weighting, #Reference benchmark
+      benchmark = signal_selection_policy$sb_benchmark_weighting_method, #Reference benchmark
       max_abs_active_group_weight = signal_selection_policy$max_abs_active_group_weight), #Max group weight for signal
     asset_object = "signals"
   )

@@ -31,11 +31,11 @@ bayesian_adjustment <- function(selected_signals_backtest_returns_upd_ref, selec
     stop("priors_type should be one of uninformative, all, user or mean")
   }
 
-  ##chosen_informative_data
+  ##priors_informative_data
   if(!priors_type %in% c("uninformative", "user")){
     #If priors type is not exogenous, a prior dataframe should be set
     if(is.null(selected_priors_informative_data_m_upd_ref)){
-      stop("priors_m_df_list must be provided and also contemplate chosen_informative_data if priors_type is all or mean")
+      stop("priors_m_df_list must be provided and also contemplate priors_informative_data if priors_type is all or mean")
     }
   }
 

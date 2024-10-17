@@ -55,7 +55,7 @@
 #' @param early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
 #' @param chosen_eval_metric Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr", and "mb".
 #' @param show_plots Logical, indicating whether to plot results (default is TRUE).
-#' @param keras_architecture_parameters A named list containing parameters for configuring the Keras neural network architecture. It includes:
+#' @param keras_architecture_parameters An object of class keras_architecture_parameters or a  named list containing parameters for configuring the Keras neural network architecture. It includes:
 #' \itemize{
 #'   \item \strong{units}: A numeric vector specifying the number of neurons in each layer.
 #'   \item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
@@ -147,6 +147,10 @@ ml_walk_forward_validation <- function(
         hyper_grid_domain_list <- hyper_grid_domain
       }
 
+    ##keras_architecture_parameters
+    if(is_keras_architecture_parameters(keras_architecture_parameters)){
+      keras_architecture_parameters <- as.list(keras_architecture_parameters)
+    }
 
     ################
     ##Check Parameters: This function will test whether inputs match format and current functionalities

@@ -104,3 +104,17 @@ is_meta_dataframe <- function(x) {
 is_hyper_grid_domain <- function(x) {
   inherits(x, "hyper_grid_domain")
 }
+
+
+
+#' Define the is keras_architecture_parameters function
+#' @description Function to check if an object is of class `keras_architecture_parameters`.
+#'
+#' @param x An object to check.
+#'
+#' @return A logical value indicating whether the object is of class `keras_architecture_parameters`.
+#'
+#' @export
+is_keras_architecture_parameters <- function(x) {
+  is(x, "keras_architecture_parameters")
+}

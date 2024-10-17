@@ -9,7 +9,7 @@
 #' does not make sense for blending signals) or a ml_algorithm ("OLS", "GLMNET", "RF", "XGB" or "NN").
 #' - `final_sb_signal`. In case of  `signal_blending_method` being a portfolio_construction_method, this variable indicates which backtest summary should be used to blend
 #' signals. Possible options are: "mean_active_return", "IR", "alpha", "AP" or "treynor". For simplicity, AP will be considered as the t-stat in frequentist version.
-#' - `sb_benchmark_weighting`. A character describing how the signal-blend benchmark should be built, something needed when applying constraints on signal weights.
+#' - `sb_benchmark_weighting_method`. A character describing how the signal-blend benchmark should be built, something needed when applying constraints on signal weights.
 #' Possible options are "individual" or "theme", in which case the respective dataframe in `groups_m_df_list` will be used to classify signals.
 #' If individual, all signals receive the same weight. Otherwise, themes receive the same weight and signals inside the same group receive the same weight.
 #' This helps when one has very unbalanced classes.
@@ -22,7 +22,7 @@
 #'  perform inference. When selecting "bayesian"the probability of direction will be used to select signals and a bayesian posterior version of the final_sb_signal
 #'  will be used to give weights.
 #'  In this case, the user needs to provide the following additional elements:
-#'  - `chosen_informative_data`: The dataframe in priors_m_d_ref_list that will be used to build informative priors.
+#'  - `priors_informative_data`: The dataframe in priors_m_d_ref_list that will be used to build informative priors.
 #'  - `set_informative_priors_on`: One of all, intercept or none. If all, priors will be built to all parameters of the mixed effects model, including variance parameters. If intercept,
 #'  only location parameters will be assigned priors. Parameters not specified to receive informative priors will receive uninformative priors.
 #' - `max_abs_active_individual_weight` The maximum absolute individual active weights.
@@ -72,7 +72,7 @@ blend_signals <- function(current_date,
     ##Get signal_selection_policy objects
     signal_positions <- signal_selection_policy$signal_positions
     signal_blending_method <- signal_selection_policy$signal_blending_method
-    sb_benchmark_weighting <- signal_selection_policy$sb_benchmark_weighting
+    sb_benchmark_weighting_method <- signal_selection_policy$sb_benchmark_weighting_method
     max_abs_active_individual_weight <- signal_selection_policy$max_abs_active_individual_weight
     max_abs_active_group_weight <- signal_selection_policy$max_abs_active_group_weight
     ml_parameters <- signal_selection_policy$ml_parameters
@@ -91,8 +91,8 @@ blend_signals <- function(current_date,
       ####priors_m_upd_ref_list
       try(priors_m_upd_ref_list <- lapply(priors_m_df_list, function(x){if(is.data.frame(x)) return(x[which(x$dates <= current_date), ]) else x}))
       ###Select Priors
-      chosen_informative_data <- signal_selection_policy$chosen_informative_data ##Get chosen informative_prior_data
-      try(selected_priors_informative_data_m_upd_ref <- priors_m_upd_ref_list[[chosen_informative_data]], silent = TRUE)
+      priors_informative_data <- signal_selection_policy$priors_informative_data ##Get chosen informative_prior_data
+      try(selected_priors_informative_data_m_upd_ref <- priors_m_upd_ref_list[[priors_informative_data]], silent = TRUE)
 
       ###upd_ref
       ####returns_df objects
@@ -208,7 +208,7 @@ blend_signals <- function(current_date,
             mto_port_objective = mto_port_objective,
             #Set concentration constraint policy for signals
             concentration_constraint_policy = list(
-              benchmark = sb_benchmark_weighting, #Reference benchmark
+              benchmark = sb_benchmark_weighting_method, #Reference benchmark
               max_abs_active_individual_weight = max_abs_active_individual_weight, #Max abs active individual weight
               max_abs_active_group_weight = max_abs_active_group_weight), #Max group weight for signal
             #Winsorization

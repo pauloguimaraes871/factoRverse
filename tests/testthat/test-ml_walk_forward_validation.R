@@ -1402,7 +1402,7 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 1m tar
       target_fwd_name = c("fwd_premium_1m"),
       ml_algorithm = "glmnet",
       chosen_eval_metric  = "rss",
-      hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0, 0.9, length=10)), #Grid for lambda search
+      hyper_grid_domain = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0, 0.9, length=10)), #Grid for lambda search
       tuning_method = c("grid_search"),
       verbose = FALSE,
       parallel = FALSE,
@@ -1732,7 +1732,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
       rebalancing_months = 11,
       target_fwd_name = c("fwd_premium_1m"),
       chosen_eval_metric  = "hr",
-      hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
+      hyper_grid_domain = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
       tuning_method = c("grid_search"),
       verbose = FALSE,
       show_plots = FALSE,
@@ -2213,7 +2213,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
       rebalancing_months = 11,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rss",
-      hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0, 0.9, length=10)), #Grid for lambda search
+      hyper_grid_domain = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0, 0.9, length=10)), #Grid for lambda search
       tuning_method = c("grid_search"),
       parallel = FALSE,
       verbose = FALSE,
@@ -2763,7 +2763,7 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 3m tar
       rebalancing_months = 11,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rmse",
-      hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
+      hyper_grid_domain = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
       tuning_method = c("grid_search"),
       ml_algorithm = "glmnet",
       verbose = FALSE,
@@ -3185,7 +3185,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
       target_fwd_name = c("fwd_premium_3m"),
       parallel = FALSE,
       chosen_eval_metric  = "rmse",
-      hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
+      hyper_grid_domain = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
       tuning_method = c("grid_search"),
       verbose = FALSE,
       ml_algorithm = "glmnet",
@@ -3672,7 +3672,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
       ml_algorithm = "glmnet",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "cp",
-      hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
+      hyper_grid_domain = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
       tuning_method = c("grid_search"),
       verbose = FALSE,
       show_plots = FALSE
@@ -4073,7 +4073,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
       ml_algorithm = "rf",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "hr",
-      hyper_grid_domain_list = list(mtry = c(0, 0.5, 1), num.trees = c(200, 500),
+      hyper_grid_domain = list(mtry = c(0, 0.5, 1), num.trees = c(200, 500),
                                     max.depth = c(2, 4, 6), min.bucket = c(1, 5, 10)),
       tuning_method = c("grid_search"),
       verbose = FALSE,
@@ -4481,7 +4481,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
       ml_algorithm = "xgb",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
-      hyper_grid_domain_list = list(min_child_weight = c(1), max_depth = c(3, 6),
+      hyper_grid_domain = list(min_child_weight = c(1), max_depth = c(3, 6),
                                     subsample = c(0.50, 0.75), colsample_bytree = c(0.50, 1),
                                     eta = c(0.05, 0.1), alpha = c(2, 5), gamma = c(0), nrounds = c(500)),
       tuning_method = c("grid_search"),
@@ -4946,6 +4946,9 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("sequential")
 
+  keras_architecture_parameters <- create_keras_architecture("Adam")
+  keras_architecture_parameters <- add_layer(keras_architecture_parameters, units = 32, activation = "relu", batch_norm_option = TRUE)
+
   tensorflow::set_random_seed(100)
   #Apply function
   suppressMessages(suppressWarnings({
@@ -4959,8 +4962,8 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
       early_stop = 25,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rmse",
-      keras_architecture_parameters = list(units = 32, n_layers = 1,  activation = "relu", nn_optimizer = "Adam", batch_norm_option = TRUE),
-      hyper_grid_domain_list = list(regularizer_l1 = 10^-(seq(2, 5, length=2)), regularizer_l2 = 0,
+      keras_architecture_parameters = keras_architecture_parameters,
+      hyper_grid_domain = list(regularizer_l1 = 10^-(seq(2, 5, length=2)), regularizer_l2 = 0,
                                     droprate = c(0.50, 0.75), lr = 10^-seq(4,5, length = 2), size_of_batch = 512, number_of_epochs = 100),
       tuning_method = c("grid_search"),
       verbose = TRUE,
@@ -5508,7 +5511,7 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
       ml_algorithm = "rf",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "cp",
-      hyper_grid_domain_list = list(mtry = c(0, 0.5, 1), num.trees = c(200, 500),
+      hyper_grid_domain = list(mtry = c(0, 0.5, 1), num.trees = c(200, 500),
                                     max.depth = c(2, 4, 6), min.bucket = c(1, 5, 10)),
       tuning_method = c("grid_search"),
       quantile_tau = 0.25,
@@ -5917,7 +5920,7 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
       ml_algorithm = "rf",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "hr",
-      hyper_grid_domain_list = list(mtry = c(0, 0.5, 1), num.trees = c(200, 500),
+      hyper_grid_domain = list(mtry = c(0, 0.5, 1), num.trees = c(200, 500),
                                     max.depth = c(2, 4, 6), min.bucket = c(1, 5, 10)),
       tuning_method = c("grid_search"),
       verbose = FALSE,
@@ -6381,7 +6384,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "mphe",
       ml_algorithm = "glmnet",
-      hyper_grid_domain_list = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
+      hyper_grid_domain = list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)), #Grid for lambda search
       tuning_method = c("grid_search"),
       huber_delta = 1.25,
       verbose = FALSE,
@@ -6868,7 +6871,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
       ml_algorithm = "glmnet",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rmse",
-      hyper_grid_domain_list = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
+      hyper_grid_domain = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
                                     lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.99))), #Random Search
       tuning_method = c("random_search"),
       n_iter = 5,
@@ -7279,7 +7282,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
       n_iter = 3,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rmse",
-      hyper_grid_domain_list = list(mtry = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 1)),
+      hyper_grid_domain = list(mtry = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 1)),
                                     num.trees = list(distribution_choice = "lognormal", pars = c(meanlog = 6L, sdlog = 1L)),
                                     max.depth = list(distribution_choice = "uniform", pars = c(min = 2L, max = 8L)),
                                     min.bucket = list(distribution_choice = "uniform", pars = c(min = 1, max = 10))),
@@ -8626,7 +8629,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
       rebalancing_months = 6,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rmse",
-      hyper_grid_domain_list = list(alpha = c(0,1),
+      hyper_grid_domain = list(alpha = c(0,1),
                                     lambda.min.ratio = c(0, 0.9)), #Bayesian Opt
       tuning_method = c("bayesian_opt"),
       n_iter = 10,
@@ -9091,7 +9094,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
       rebalancing_months = 6,
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "mphe",
-      hyper_grid_domain_list = list(mtry = c(0,1), #Bayesian Opt
+      hyper_grid_domain = list(mtry = c(0,1), #Bayesian Opt
                                     num.trees = c(100L, 1000L), #Num trees
                                     max.depth = c(2L, 8L), # Max depth
                                     min.bucket = c(1, 5) #min bucket
@@ -9593,7 +9596,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
       ml_algorithm = "xgb",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
-      hyper_grid_domain_list = list(min_child_weight = c(1, 6), max_depth = c(2L, 8L),
+      hyper_grid_domain = list(min_child_weight = c(1, 6), max_depth = c(2L, 8L),
                                     subsample = c(0.25, 1), colsample_bytree = c(0.25, 1),
                                     eta = c(0.02, 0.2), alpha = c(1, 5), gamma = c(0, 5), nrounds = c(200, 1000)),
       tuning_method = c("bayesian_opt"),
@@ -10153,7 +10156,7 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
       ml_algorithm = "nn",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
-      hyper_grid_domain_list = list(regularizer_l1 = c(1, 6), regularizer_l2 = c(2, 8),
+      hyper_grid_domain = list(regularizer_l1 = c(1, 6), regularizer_l2 = c(2, 8),
                                     droprate = c(0.25, 0.9), lr = c(0.25, 1),
                                     size_of_batch = c(256L,512L), number_of_epochs = c(50L, 100L)),
       keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"), nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)),
@@ -10736,7 +10739,7 @@ skip()
       ml_algorithm = "nn",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
-      hyper_grid_domain_list = list(regularizer_l1 = c(1, 6), regularizer_l2 = c(2, 8),
+      hyper_grid_domain = list(regularizer_l1 = c(1, 6), regularizer_l2 = c(2, 8),
                                     droprate = c(0.25, 0.9), lr = c(0.25, 1),
                                     size_of_batch = c(256L,512L), number_of_epochs = c(50L, 100L)),
       keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"), nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)),
@@ -11321,7 +11324,7 @@ test_that("ml_walk_forward_validation correctly classifies data as training, val
       ml_algorithm = "xgb",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
-      hyper_grid_domain_list = list(min_child_weight = c(1), max_depth = c(6),
+      hyper_grid_domain = list(min_child_weight = c(1), max_depth = c(6),
                                     subsample = c(0.75), colsample_bytree = c(1),
                                     eta = c(0.1), alpha = c(2), gamma = c(0), nrounds = c(50)),
       tuning_method = c("grid_search"),
@@ -11365,7 +11368,7 @@ test_that("ml_walk_forward_validation works with NAs in last target_fwd periods 
       ml_algorithm = "glmnet",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rss",
-      hyper_grid_domain_list = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
+      hyper_grid_domain = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
                                     lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.9))), #Random Search
       tuning_method = c("random_search"),
       n_iter = 5,
@@ -11745,7 +11748,7 @@ test_that("ml_walk_forward_validation does not works with NAs in last target_fwd
       ml_algorithm = "glmnet",
       target_fwd_name = c("fwd_premium_3m"),
       chosen_eval_metric  = "rss",
-      hyper_grid_domain_list = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
+      hyper_grid_domain = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
                                     lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.9))), #Random Search
       tuning_method = c("random_search"),
       n_iter = 5,

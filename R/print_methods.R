@@ -10,11 +10,10 @@
 #'
 #' @export
 setMethod("show", "meta_dataframe", function(object) {
-  # Extract the class name
-  cat("meta_dataframe object\n")
 
   # Print a summary of the metadata
   cat("Metadata:\n")
+  cat("=================================\n")
   cat("  Number of signals:", ncol(object@data)-3, "\n")
   cat("  Unique Dates:", object@unique_dates, "\n")
   cat("  Unique Tickers:", object@unique_tickers, "\n")
@@ -23,6 +22,8 @@ setMethod("show", "meta_dataframe", function(object) {
   print(object@workflow)
   cat("  Signals:\n")
   print(object@signals)
+
+  cat("=================================\n")
 
   # Print the first few rows of the data
   cat("\nFirst few rows of the data:\n")
@@ -47,7 +48,9 @@ setMethod("show", "meta_dataframe", function(object) {
 #'
 #' @export
 setMethod("show", "hyper_grid_domain", function(object) {
-  cat("An object of class 'hyper_grid_domain'\n")
+
+  cat("Hyperparameters Grid Domain:\n")
+  cat("=================================\n")
   cat("Chosen tuning_method:\n")
   cat("  ", object@tuning_method, "\n\n")
 
@@ -80,7 +83,28 @@ setMethod("show", "hyper_grid_domain", function(object) {
       }
     }
   }
+
+  cat("=================================\n")
 })
+
+
+#' @title Print keras_architecture_parameters
+#' @description Method to print an object of class `keras_architecture_parameters`.
+#'
+#' @param object An object of class `keras_architecture_parameters`.
+#'
+#' @export
+setMethod("show", "keras_architecture_parameters", function(object) {
+  cat("Keras Architecture Parameters:\n")
+  cat("=================================\n")
+  cat("Number of Layers:", object@n_layers, "\n")
+  cat("Units per Layer:", paste(object@units, collapse = ", "), "\n")
+  cat("Activation Functions:", paste(object@activation, collapse = ", "), "\n")
+  cat("Optimizer:", object@nn_optimizer, "\n")
+  cat("Batch Normalization Options:", paste(object@batch_norm_option, collapse = ", "), "\n")
+  cat("=================================\n")
+})
+
 
 #' Show Method for refit_ml_model Class
 #'
@@ -95,6 +119,8 @@ setMethod("show", "hyper_grid_domain", function(object) {
 #' @export
 setMethod("show", "refit_ml_model", function(object) {
   cat("Refit ML Model Summary:\n")
+
+  cat("=================================\n")
 
   # Display the algorithm used
   cat("  Model Algorithm: ", object@ml_algorithm, "\n")
@@ -125,6 +151,8 @@ setMethod("show", "refit_ml_model", function(object) {
   } else {
     cat("  No Keras architecture parameters specified.\n")
   }
+
+  cat("=================================\n")
 
   # Display model structure or summary if available
   cat("  Model Structure:\n")
@@ -157,12 +185,15 @@ setMethod("show", "ml_wf_val_results", function(object) {
   metadata <- object@metadata
 
   # Create a neat display of the metadata
-  cat("=== ML Workflow Validation Results Metadata ===\n")
+  cat("ML Workflow Validation Results Metadata\n")
+  cat("=================================\n")
 
   # Display Algorithm Information
   cat("\nAlgorithm Information:\n")
   cat("  ML Algorithm:", metadata$ml_algorithm, "\n")
   cat("  Custom Objective:", metadata$custom_objective, "\n")
+
+  cat("=================================\n")
 
   # Display Date Information
   cat("\nDate Information:\n")
@@ -172,6 +203,8 @@ setMethod("show", "ml_wf_val_results", function(object) {
   cat("  Rebalance Dates:", paste(metadata$rebalance_dates, collapse = ", "), "\n")
   cat("  Split Method:", metadata$split_method, "\n")
 
+  cat("=================================\n")
+
   # Display Sample Sizes
   cat("\nSample Sizes:\n")
   cat("  Training Sample Size:", metadata$training_sample_size, "\n")
@@ -179,11 +212,15 @@ setMethod("show", "ml_wf_val_results", function(object) {
   cat("  Testing Sample Size:", metadata$testing_sample_size, "\n")
   cat("  Dates in Testing Sample:", paste(metadata$dates_testing_sample, collapse = ", "), "\n")
 
+  cat("=================================\n")
+
   # Display Stocks Information
   cat("\nStocks Information:\n")
   cat("  Number of Observations:", metadata$nobs, "\n")
   cat("  Tickers:", paste(metadata$tickers, collapse = ", "), "\n")
   cat("  Number of Stocks:", metadata$n_stocks, "\n")
+
+  cat("=================================\n")
 
   # Display Target Information
   cat("\nTarget Information:\n")
@@ -192,11 +229,15 @@ setMethod("show", "ml_wf_val_results", function(object) {
   cat("  Target Workflow:", metadata$target_workflow, "\n")
   cat("  Target Object:", metadata$target_object, "\n")
 
+  cat("=================================\n")
+
   # Display Features Information
   cat("\nFeatures Information:\n")
   cat("  Features:", paste(metadata$features, collapse = ", "), "\n")
   cat("  Features Workflow:", metadata$features_workflow, "\n")
   cat("  Features Object:", metadata$features_object, "\n")
+
+  cat("=================================\n")
 
   # Display Tuning Information
   cat("\nTuning Information:\n")
@@ -211,9 +252,13 @@ setMethod("show", "ml_wf_val_results", function(object) {
   cat("  Quantile Tau:", metadata$quantile_tau, "\n")
   cat("  Early Stop:", metadata$early_stop, "\n")
 
+  cat("=================================\n")
+
   # Display Keras Information
   cat("\nKeras Architecture Parameters:\n")
   print(metadata$keras_architecture_parameters)
+
+  cat("=================================\n")
 
   # Display Performance Information
   cat("\nPerformance Information:\n")

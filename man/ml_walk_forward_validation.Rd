@@ -17,7 +17,7 @@ ml_walk_forward_validation(
   chosen_eval_metric = NULL,
   huber_delta = 1,
   quantile_tau = 0.5,
-  hyper_grid_domain_list = NULL,
+  hyper_grid_domain = NULL,
   tuning_method = NULL,
   n_iter = NULL,
   k_iter = NULL,
@@ -57,7 +57,7 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{quantile_tau}{A single numeric value indicating target quantile when calculating quantile loss.}
 
-\item{hyper_grid_domain_list}{An object of class hyper_grid_domain or a named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
+\item{hyper_grid_domain}{An object of class hyper_grid_domain or a named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
 \itemize{
 \item \strong{For grid search:} Must be a list of named vectors:
 \item \strong{For random search:} Must be a list of named lists, where each named list contains:
@@ -82,7 +82,7 @@ If running in parallel, set iters.k to a multiple of the number of cores. Must b
 
 \item{early_stop}{Sets a halting criteria to prevent overfitting in xgb and nn.}
 
-\item{keras_architecture_parameters}{A named list containing parameters for configuring the Keras neural network architecture. It includes:
+\item{keras_architecture_parameters}{An object of class keras_architecture_parameters or a  named list containing parameters for configuring the Keras neural network architecture. It includes:
 \itemize{
 \item \strong{units}: A numeric vector specifying the number of neurons in each layer.
 \item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
