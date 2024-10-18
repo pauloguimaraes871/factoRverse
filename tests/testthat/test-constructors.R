@@ -164,6 +164,48 @@ test_that("add_liquidity_constraint works when overwritting old rule", {
 
 })
 
+
+test_that("add_liquidity_constraint_policy modifies liquidity_floor_rule while keeping liquidity_cap_rules unchanged", {
+  port <- create_portfolio_policies()
+
+  # Initial rules
+  port <- add_liquidity_constraint_policy(port, liquidity_cap_rules = c(micro_caps = 0.05, small_caps = 0.1), liquidity_floor_rule = "micro_caps")
+
+  # Modify only liquidity_floor_rule
+  port <- add_liquidity_constraint_policy(port, liquidity_floor_rule = "small_caps")
+
+  # Check that the liquidity_cap_rules remain the same
+  expect_equal(port@liquidity_constraint_policy$liquidity_cap_rule_1$liquidity_classification, "micro_caps")
+  expect_equal(port@liquidity_constraint_policy$liquidity_cap_rule_1$liquidity_cap, 0.05)
+  expect_equal(port@liquidity_constraint_policy$liquidity_cap_rule_2$liquidity_classification, "small_caps")
+  expect_equal(port@liquidity_constraint_policy$liquidity_cap_rule_2$liquidity_cap, 0.1)
+
+  # Check that the liquidity_floor_rule has been updated
+  expect_equal(port@liquidity_constraint_policy$liquidity_floor_rule, "small_caps")
+})
+
+
+test_that("add_liquidity_constraint_policy modifies liquidity_cap_rules while keeping liquidity_floor_rule unchanged", {
+  port <- create_portfolio_policies()
+
+  # Initial rules
+  port <- add_liquidity_constraint_policy(port, liquidity_cap_rules = c(micro_caps = 0.05), liquidity_floor_rule = "micro_caps")
+
+  # Modify only liquidity_cap_rules
+  port <- add_liquidity_constraint_policy(port, liquidity_cap_rules = c(small_caps = 0.1))
+
+  # Check that the liquidity_floor_rule remains the same
+  expect_equal(port@liquidity_constraint_policy$liquidity_floor_rule, "micro_caps")
+
+  # Check that the new liquidity_cap_rules are added correctly
+  expect_equal(port@liquidity_constraint_policy$liquidity_cap_rule_1$liquidity_classification, "micro_caps")
+  expect_equal(port@liquidity_constraint_policy$liquidity_cap_rule_1$liquidity_cap, 0.05)
+  expect_equal(port@liquidity_constraint_policy$liquidity_cap_rule_2$liquidity_classification, "small_caps")
+  expect_equal(port@liquidity_constraint_policy$liquidity_cap_rule_2$liquidity_cap, 0.1)
+})
+
+
+
 test_that("add_turnover_constraint works with one rule", {
 
   port <- create_portfolio_policies()
@@ -223,6 +265,98 @@ test_that("add_turnover_constraint works with adding rule, while overwritting an
 })
 
 
+test_that("add_turnover_constraint_policy can be used multiple times on the same object", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call: Add the initial turnover constraint policy
+  turnover_rules_1 <- list(
+    list(liquidity_classification = "micro_caps", turnover_cap = 0.1, top_stock_quantile_buffer = 0.05)
+  )
+  portfolio_policies_obj <- add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules_1)
+
+  # Second call: Add a new turnover constraint policy
+  turnover_rules_2 <- list(
+    list(liquidity_classification = "small_caps", turnover_cap = 0.2, top_stock_quantile_buffer = 0.1)
+  )
+  result <- add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules_2)
+
+  # Ensure the new rules are added correctly
+  expect_equal(result@turnover_constraint_policy$buffer_zone_1$liquidity_classification, "micro_caps")
+  expect_equal(result@turnover_constraint_policy$buffer_zone_1$turnover_cap, 0.1)
+  expect_equal(result@turnover_constraint_policy$buffer_zone_1$top_stock_quantile_buffer, 0.05)
+  expect_equal(result@turnover_constraint_policy$buffer_zone_2$liquidity_classification, "small_caps")
+  expect_equal(result@turnover_constraint_policy$buffer_zone_2$turnover_cap, 0.2)
+  expect_equal(result@turnover_constraint_policy$buffer_zone_2$top_stock_quantile_buffer, 0.1)
+})
+
+test_that("add_turnover_constraint_policy modifies one argument while keeping others unchanged", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call: Add the initial turnover constraint policy
+  turnover_rules <- list(
+    list(liquidity_classification = "micro_caps", turnover_cap = 0.1, top_stock_quantile_buffer = 0.05)
+  )
+  portfolio_policies_obj <- add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules)
+
+
+  turnover_rules_modified <- list(
+    list(liquidity_classification = "small_caps", turnover_cap = 0.15, top_stock_quantile_buffer = 0.10)  # Only modify turnover_cap
+  )
+  result <- add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules_modified)
+
+  # Ensure that turnover_cap is updated but top_stock_quantile_buffer remains the same
+  expect_equal(result@turnover_constraint_policy$buffer_zone_1$liquidity_classification, "micro_caps")
+  expect_equal(result@turnover_constraint_policy$buffer_zone_1$turnover_cap, 0.1)
+  expect_equal(result@turnover_constraint_policy$buffer_zone_1$top_stock_quantile_buffer, 0.05)
+
+  # Ensure that turnover_cap is updated but top_stock_quantile_buffer remains the same
+  expect_equal(result@turnover_constraint_policy$buffer_zone_2$liquidity_classification, "small_caps")
+  expect_equal(result@turnover_constraint_policy$buffer_zone_2$turnover_cap, 0.15)
+  expect_equal(result@turnover_constraint_policy$buffer_zone_2$top_stock_quantile_buffer, 0.10)
+
+})
+
+
+
+test_that("add_turnover_constraint_policy throws an error for invalid liquidity_classification", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  turnover_rules <- list(
+    list(liquidity_classification = "invalid_class", turnover_cap = 0.1, top_stock_quantile_buffer = 0.05)
+  )
+
+  expect_error(
+    add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules),
+    "Error: liquidity_classification must be one of: micro_caps, small_caps, mid_caps, large_caps, mega_caps."
+  )
+})
+
+test_that("add_turnover_constraint_policy throws an error for invalid turnover_cap and top_stock_quantile_buffer", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # Invalid turnover_cap
+  turnover_rules <- list(
+    list(liquidity_classification = "micro_caps", turnover_cap = "invalid", top_stock_quantile_buffer = 0.05)
+  )
+
+  expect_error(
+    add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules),
+    "Error: turnover_cap must be numeric"
+  )
+
+  # Invalid top_stock_quantile_buffer
+  turnover_rules <- list(
+    list(liquidity_classification = "micro_caps", turnover_cap = 0.1, top_stock_quantile_buffer = "invalid")
+  )
+
+  expect_error(
+    add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules),
+    "Error: top_stock_quantile_buffer must be numeric"
+  )
+})
+
+
+
 test_that("add_concentration_constraint works with adding rule", {
 
   port <- create_portfolio_policies()
@@ -238,6 +372,38 @@ test_that("add_concentration_constraint works with adding rule", {
   expect_equal(port@concentration_constraint_policy$benchmark, "IBOV")
 
 })
+
+test_that("add_concentration_constraint_policy works with valid inputs", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_concentration_constraint_policy(
+    portfolio_policies_obj,
+    benchmark = "IBOV",
+    max_abs_active_individual_weight = 0.05,
+    max_abs_active_group_weight = c(Sector = 0.1, Subsector = 0.5)
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@concentration_constraint_policy$benchmark, "IBOV")
+  expect_equal(result@concentration_constraint_policy$max_abs_active_individual_weight, 0.05)
+  expect_equal(result@concentration_constraint_policy$max_abs_active_group_weight, c(Sector = 0.1, Subsector = 0.5))
+})
+
+
+test_that("add_concentration_constraint_policy throws an error for invalid benchmark type", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  expect_error(
+    add_concentration_constraint_policy(
+      portfolio_policies_obj,
+      benchmark = 123,  # Invalid type
+      max_abs_active_individual_weight = 0.05,
+      max_abs_active_group_weight = c(Sector = 0.1, Subsector = 0.5)
+    ),
+    "benchmark should be a character"
+  )
+})
+
 
 
 test_that("add_concentration_constraint works when overwritting an old one", {
@@ -258,6 +424,56 @@ test_that("add_concentration_constraint works when overwritting an old one", {
 })
 
 
+test_that("add_concentration_constraint_policy preserves existing policies", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # Add a signal selection policy
+  portfolio_policies_obj@signal_selection_policy <- list(chosen_signals = c("signal_1"))
+
+  # Add concentration constraint policy
+  result <- add_concentration_constraint_policy(
+    portfolio_policies_obj,
+    benchmark = "IBOV",
+    max_abs_active_individual_weight = 0.05,
+    max_abs_active_group_weight = c(Sector = 0.1, Subsector = 0.5)
+  )
+
+  # Ensure concentration constraint policy is added correctly
+  expect_equal(result@concentration_constraint_policy$benchmark, "IBOV")
+  expect_equal(result@concentration_constraint_policy$max_abs_active_individual_weight, 0.05)
+  expect_equal(result@concentration_constraint_policy$max_abs_active_group_weight, c(Sector = 0.1, Subsector = 0.5))
+
+  # Ensure existing signal selection policy is preserved
+  expect_equal(result@signal_selection_policy$chosen_signals, c("signal_1"))
+})
+
+
+test_that("add_concentration_constraint_policy can be used multiple times on the same object", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call: Add the initial concentration constraint policy
+  portfolio_policies_obj <- add_concentration_constraint_policy(
+    portfolio_policies_obj,
+    benchmark = "IBOV",
+    max_abs_active_individual_weight = 0.05,
+    max_abs_active_group_weight = c(Sector = 0.1)
+  )
+
+  # Second call: Update the policy with new values
+  result <- add_concentration_constraint_policy(
+    portfolio_policies_obj,
+    benchmark = "SP500",  # New benchmark
+    max_abs_active_individual_weight = 0.1,  # Updated individual weight
+    max_abs_active_group_weight = c(Sector = 0.2, Subsector = 0.3)  # Updated group weights
+  )
+
+  # Ensure the new values overwrite the old ones
+  expect_equal(result@concentration_constraint_policy$benchmark, "SP500")
+  expect_equal(result@concentration_constraint_policy$max_abs_active_individual_weight, 0.1)
+  expect_equal(result@concentration_constraint_policy$max_abs_active_group_weight, c(Sector = 0.2, Subsector = 0.3))
+})
+
+
 test_that("add_signal_selection_policy works", {
 
   port <- create_portfolio_policies()
@@ -269,11 +485,556 @@ test_that("add_signal_selection_policy works", {
   port <- add_concentration_constraint_policy(port, benchmark = "IBOV", max_abs_active_individual_weight = 0.02, max_abs_active_group_weight = c(Sector = 0.10, Subsector = 0.50))
   port <- add_signal_selection_policy(port, chosen_signals = c("eps_yield", "roe_12m", "g_eps_36m", "sharpe_6m", "vol_36m"),
                                             signal_positions = c("long", "long", "long", "long", "short"),
-                                            signal_blending_method = ""
+                                            signal_blending_method = "SW",
+                                            chosen_sb_metric = "IR",
+                                            signal_significance_threshold = 0.05
                                       )
 
+  expect_equal(port@signal_selection_policy$chosen_signals,  c("eps_yield", "roe_12m", "g_eps_36m", "sharpe_6m", "vol_36m"))
+  expect_equal(port@signal_selection_policy$signal_positions,  c("long", "long", "long", "long", "short"))
+  expect_equal(port@signal_selection_policy$signal_blending_method,  "SW")
+  expect_equal(port@signal_selection_policy$chosen_sb_metric, "IR")
+  expect_equal(port@signal_selection_policy$signal_significance_threshold, 0.05)
 
 })
 
 
+
+# Test: Valid Inputs with `p_correction_method = "bayesian"` and Valid `priors_type`
+test_that("add_signal_selection_policy works with bayesian p_correction_method and valid priors_type", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long"),
+    p_correction_method = "bayesian",
+    priors_type = "uninformative"
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$p_correction_method, "bayesian")
+  expect_equal(result@signal_selection_policy$priors_type, "uninformative")
+})
+
+# Test: Invalid `priors_informative_data` with `p_correction_method = "bayesian"`
+test_that("add_signal_selection_policy throws error when priors_informative_data is missing for bayesian p_correction_method and valid priors_type", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # Expect error when priors_informative_data is NULL with bayesian p_correction_method and valid priors_type
+  expect_error(add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long"),
+    p_correction_method = "bayesian",
+    priors_type = "all"  # Valid priors_type that requires priors_informative_data
+  ), "priors_informative_data can't be NULL if p_correction_method is bayesian and priors_type is not uninformative or user")
+})
+
+# Test: Valid `priors_informative_data` with `p_correction_method = "bayesian"` and Valid `priors_type`
+test_that("add_signal_selection_policy works with bayesian p_correction_method and valid priors_informative_data", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long"),
+    p_correction_method = "bayesian",
+    priors_type = "all",
+    priors_informative_data = "jkp_emerging"
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$p_correction_method, "bayesian")
+  expect_equal(result@signal_selection_policy$priors_type, "all")
+  expect_equal(result@signal_selection_policy$priors_informative_data, "jkp_emerging")
+})
+
+# Test: Default `p_correction_method`
+test_that("add_signal_selection_policy uses default p_correction_method when not provided", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long")
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$p_correction_method, "none")
+})
+
+# Test: Partial Inputs Provided (Mix of User Inputs and Defaults)
+test_that("add_signal_selection_policy uses defaults for missing arguments", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long")
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$chosen_signals, c("signal_1"))
+  expect_equal(result@signal_selection_policy$signal_positions, c("long"))
+  expect_equal(result@signal_selection_policy$p_correction_method, "none")
+  expect_equal(result@signal_selection_policy$signal_significance_threshold, 0.05)
+  expect_equal(result@signal_selection_policy$sb_benchmark_weighting_method, "theme_sb")
+})
+
+# Test: No Arguments Provided (Should Use Defaults)
+test_that("add_signal_selection_policy uses defaults when no arguments are provided", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_signal_selection_policy(portfolio_policies_obj)
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$p_correction_method, "none")
+  expect_equal(result@signal_selection_policy$sb_benchmark_weighting_method, "theme_sb")
+  expect_equal(result@signal_selection_policy$signal_significance_threshold, 0.05)
+})
+
+# Test: Invalid `chosen_signals` (Not a Character Vector)
+test_that("add_signal_selection_policy throws error for invalid chosen_signals", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  expect_error(add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = 123
+  ), "chosen_signals should be a character vector.")
+})
+
+# Test: Invalid `signal_positions` Length Mismatch
+test_that("add_signal_selection_policy throws error for length mismatch between signal_positions and chosen_signals", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  expect_error(add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1", "signal_2"),
+    signal_positions = c("long")
+  ), "lengths of signal_positions and chosen_signals should match.")
+})
+
+# Test: Incomplete Policy in `portfolio_policies_obj`
+test_that("add_signal_selection_policy updates and preserves existing policies in portfolio_policies_obj", {
+  portfolio_policies_obj <- create_portfolio_policies()
+  portfolio_policies_obj@signal_selection_policy <- list(
+    chosen_signals = c("signal_1"),
+    p_correction_method = "holm"
+  )
+
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    signal_positions = c("long")
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$chosen_signals, c("signal_1"))
+  expect_equal(result@signal_selection_policy$p_correction_method, "holm")
+  expect_equal(result@signal_selection_policy$signal_positions, c("long"))
+  expect_equal(result@signal_selection_policy$signal_significance_threshold, 0.05)
+})
+
+# Test: Custom Default `p_correction_method` from `portfolio_policies_obj`
+test_that("add_signal_selection_policy uses existing p_correction_method from portfolio_policies_obj", {
+  portfolio_policies_obj <- create_portfolio_policies()
+  portfolio_policies_obj@signal_selection_policy <- list(
+    p_correction_method = "holm"
+  )
+
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long")
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$p_correction_method, "holm")
+})
+
+# Test: No `priors_type` Provided with `p_correction_method = "bayesian"`
+test_that("add_signal_selection_policy defaults priors_type to uninformative if not provided with bayesian p_correction_method", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long"),
+    p_correction_method = "bayesian"
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$priors_type, "uninformative")
+})
+
+test_that("add_signal_selection_policy updates chosen_signals without affecting other fields in the second call", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call
+  portfolio_policies_obj <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long"),
+    p_correction_method = "holm"
+  )
+
+  # Second call
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_2", "signal_3"),
+    signal_positions = c("long", "long")
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$chosen_signals, c("signal_2", "signal_3"))
+  expect_equal(result@signal_selection_policy$signal_positions, c("long", "long"))  # Unchanged
+  expect_equal(result@signal_selection_policy$p_correction_method, "holm")  # Unchanged
+})
+
+
+
+test_that("add_signal_selection_policy updates signal_positions without affecting other fields in the second call", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call
+  portfolio_policies_obj <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("short"),
+    p_correction_method = "holm"
+  )
+
+  # Second call
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    signal_positions = c("long")
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$signal_positions, c("long"))
+  expect_equal(result@signal_selection_policy$chosen_signals, c("signal_1"))  # Unchanged
+  expect_equal(result@signal_selection_policy$p_correction_method, "holm")  # Unchanged
+})
+
+test_that("add_signal_selection_policy updates p_correction_method without affecting other fields in the second call", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call
+  portfolio_policies_obj <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long"),
+    p_correction_method = "holm"
+  )
+
+  # Second call
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    p_correction_method = "bayesian"
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$p_correction_method, "bayesian")
+  expect_equal(result@signal_selection_policy$chosen_signals, c("signal_1"))  # Unchanged
+  expect_equal(result@signal_selection_policy$signal_positions, c("long"))  # Unchanged
+})
+
+test_that("add_signal_selection_policy updates signal_blending_method and chosen_sb_metric in the second call", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call
+  portfolio_policies_obj <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long"),
+    signal_blending_method = "EW"
+  )
+
+  # Second call
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    signal_blending_method = "SW",
+    chosen_sb_metric = "alpha"
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$signal_blending_method, "SW")
+  expect_equal(result@signal_selection_policy$chosen_sb_metric, "alpha")
+  expect_equal(result@signal_selection_policy$chosen_signals, c("signal_1"))  # Unchanged
+  expect_equal(result@signal_selection_policy$signal_positions, c("long"))  # Unchanged
+})
+
+test_that("add_signal_selection_policy updates max_abs_active_individual_weight and enforces MTO signal_blending_method in the second call", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call
+  portfolio_policies_obj <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    signal_blending_method = "SW",
+    chosen_sb_metric = "alpha"
+
+  )
+
+  # Second call
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    signal_blending_method = "MTO",
+    max_abs_active_individual_weight = 0.05
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$signal_blending_method, "MTO")
+  expect_equal(result@signal_selection_policy$max_abs_active_individual_weight, 0.05)
+})
+
+
+test_that("add_signal_selection_policy updates priors_type and priors_informative_data with bayesian p_correction_method in the second call", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call
+  portfolio_policies_obj <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    p_correction_method = "bayesian"
+  )
+
+  # Second call
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    priors_type = "all",
+    priors_informative_data = "jkp_emerging"
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$p_correction_method, "bayesian")
+  expect_equal(result@signal_selection_policy$priors_type, "all")
+  expect_equal(result@signal_selection_policy$priors_informative_data, "jkp_emerging")
+})
+
+
+test_that("add_signal_selection_policy updates data_availability_cutoff without affecting other fields in the second call", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call
+  portfolio_policies_obj <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    chosen_signals = c("signal_1"),
+    signal_positions = c("long"),
+    data_availability_cutoff = 30
+  )
+
+  # Second call
+  result <- add_signal_selection_policy(
+    portfolio_policies_obj,
+    data_availability_cutoff = 60
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(result@signal_selection_policy$data_availability_cutoff, 60)
+  expect_equal(result@signal_selection_policy$chosen_signals, c("signal_1"))  # Unchanged
+  expect_equal(result@signal_selection_policy$signal_positions, c("long"))  # Unchanged
+})
+
+
+
+test_that("add_liquidity_floor_cutoffs works with valid inputs", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(1, 5, 10, 50, 100)
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+  expect_equal(unname(result@liquidity_floor_cutoffs$micro_caps["mean_volfin_3m"]), 1)
+  expect_equal(unname(result@liquidity_floor_cutoffs$small_caps["mean_volfin_3m"]), 5)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mid_caps["mean_volfin_3m"]), 10)
+  expect_equal(unname(result@liquidity_floor_cutoffs$large_caps["mean_volfin_3m"]), 50)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mega_caps["mean_volfin_3m"]), 100)
+
+  # Ensure numeric values are stored
+  expect_type(result@liquidity_floor_cutoffs$micro_caps, "double")
+  expect_type(result@liquidity_floor_cutoffs$small_caps, "double")
+  expect_type(result@liquidity_floor_cutoffs$mid_caps, "double")
+  expect_type(result@liquidity_floor_cutoffs$large_caps, "double")
+  expect_type(result@liquidity_floor_cutoffs$mega_caps, "double")
+})
+
+
+test_that("add_liquidity_floor_cutoffs throws an error for non-numeric cutoffs", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  expect_error(add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c("a", "b", "c", "d", "e")
+  ), "cutoffs must be a numeric vector of length 5")
+})
+
+test_that("add_liquidity_floor_cutoffs throws an error for negative or zero cutoff values", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  expect_error(add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(-1, 5, 10, 50, 100)
+  ), "cutoffs must be a numeric vector of length 5, and all values must be positive")
+})
+
+test_that("add_liquidity_floor_cutoffs updates an existing liquidity metric", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call: add initial metric and cutoffs
+  portfolio_policies_obj <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(1, 5, 10, 50, 100)
+  )
+
+  # Second call: update the same metric with new cutoffs
+  result <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(2, 6, 11, 51, 101)
+  )
+
+  expect_equal(unname(result@liquidity_floor_cutoffs$micro_caps["mean_volfin_3m"]), 2)
+  expect_equal(unname(result@liquidity_floor_cutoffs$small_caps["mean_volfin_3m"]), 6)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mid_caps["mean_volfin_3m"]), 11)
+  expect_equal(unname(result@liquidity_floor_cutoffs$large_caps["mean_volfin_3m"]), 51)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mega_caps["mean_volfin_3m"]), 101)
+})
+
+
+test_that("add_liquidity_floor_cutoffs adds multiple liquidity metrics", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First call: add the first liquidity metric
+  portfolio_policies_obj <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(1, 5, 10, 50, 100)
+  )
+
+  # Second call: add a second liquidity metric
+  result <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "presence",
+    cutoffs = c(97.5, 99, 100, 100, 100)
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+
+  # Check values for both metrics
+  expect_equal(unname(result@liquidity_floor_cutoffs$micro_caps["mean_volfin_3m"]), 1)
+  expect_equal(unname(result@liquidity_floor_cutoffs$micro_caps["presence"]), 97.5)
+
+  expect_equal(unname(result@liquidity_floor_cutoffs$small_caps["mean_volfin_3m"]), 5)
+  expect_equal(unname(result@liquidity_floor_cutoffs$small_caps["presence"]), 99)
+
+  expect_equal(unname(result@liquidity_floor_cutoffs$mid_caps["mean_volfin_3m"]), 10)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mid_caps["presence"]), 100)
+
+  expect_equal(unname(result@liquidity_floor_cutoffs$large_caps["mean_volfin_3m"]), 50)
+  expect_equal(unname(result@liquidity_floor_cutoffs$large_caps["presence"]), 100)
+
+  expect_equal(unname(result@liquidity_floor_cutoffs$mega_caps["mean_volfin_3m"]), 100)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mega_caps["presence"]), 100)
+
+  # Ensure numeric values are stored for both metrics
+  expect_type(result@liquidity_floor_cutoffs$micro_caps, "double")
+  expect_type(result@liquidity_floor_cutoffs$small_caps, "double")
+})
+
+
+test_that("add_liquidity_floor_cutoffs initializes empty liquidity_floor_cutoffs", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  result <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(1, 5, 10, 50, 100)
+  )
+
+  expect_s4_class(result, "portfolio_policies")
+
+  # Ensure all market cap categories are initialized
+  expect_true(!is.null(result@liquidity_floor_cutoffs$micro_caps))
+  expect_true(!is.null(result@liquidity_floor_cutoffs$small_caps))
+  expect_true(!is.null(result@liquidity_floor_cutoffs$mid_caps))
+  expect_true(!is.null(result@liquidity_floor_cutoffs$large_caps))
+  expect_true(!is.null(result@liquidity_floor_cutoffs$mega_caps))
+})
+
+test_that("add_liquidity_floor_cutoffs adds two metrics simultaneously", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First metric
+  portfolio_policies_obj <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(1, 5, 10, 50, 100)
+  )
+
+  # Second metric
+  result <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "presence",
+    cutoffs = c(97.5, 99, 100, 100, 100)
+  )
+
+  # Check the first metric
+  expect_equal(unname(result@liquidity_floor_cutoffs$micro_caps["mean_volfin_3m"]), 1)
+  expect_equal(unname(result@liquidity_floor_cutoffs$small_caps["mean_volfin_3m"]), 5)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mid_caps["mean_volfin_3m"]), 10)
+  expect_equal(unname(result@liquidity_floor_cutoffs$large_caps["mean_volfin_3m"]), 50)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mega_caps["mean_volfin_3m"]), 100)
+
+  # Check the second metric
+  expect_equal(unname(result@liquidity_floor_cutoffs$micro_caps["presence"]), 97.5)
+  expect_equal(unname(result@liquidity_floor_cutoffs$small_caps["presence"]), 99)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mid_caps["presence"]), 100)
+  expect_equal(unname(result@liquidity_floor_cutoffs$large_caps["presence"]), 100)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mega_caps["presence"]), 100)
+})
+
+
+test_that("add_liquidity_floor_cutoffs updates one metric without affecting the other", {
+  portfolio_policies_obj <- create_portfolio_policies()
+
+  # First metric
+  portfolio_policies_obj <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(1, 5, 10, 50, 100)
+  )
+
+  # Second metric
+  portfolio_policies_obj <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "presence",
+    cutoffs = c(97.5, 99, 100, 100, 100)
+  )
+
+  # Update the first metric
+  result <- add_liquidity_floor_cutoffs(
+    portfolio_policies_obj,
+    liquidity_metric = "mean_volfin_3m",
+    cutoffs = c(2, 6, 11, 51, 101)
+  )
+
+  # Check that the first metric has been updated
+  expect_equal(unname(result@liquidity_floor_cutoffs$micro_caps["mean_volfin_3m"]), 2)
+  expect_equal(unname(result@liquidity_floor_cutoffs$small_caps["mean_volfin_3m"]), 6)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mid_caps["mean_volfin_3m"]), 11)
+  expect_equal(unname(result@liquidity_floor_cutoffs$large_caps["mean_volfin_3m"]), 51)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mega_caps["mean_volfin_3m"]), 101)
+
+  # Check that the second metric remains unchanged
+  expect_equal(unname(result@liquidity_floor_cutoffs$micro_caps["presence"]), 97.5)
+  expect_equal(unname(result@liquidity_floor_cutoffs$small_caps["presence"]), 99)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mid_caps["presence"]), 100)
+  expect_equal(unname(result@liquidity_floor_cutoffs$large_caps["presence"]), 100)
+  expect_equal(unname(result@liquidity_floor_cutoffs$mega_caps["presence"]), 100)
+})
 

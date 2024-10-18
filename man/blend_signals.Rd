@@ -35,7 +35,7 @@ blend_signals(
 does not make sense for blending signals) or a ml_algorithm ("OLS", "GLMNET", "RF", "XGB" or "NN").
 \item \code{final_sb_signal}. In case of  \code{signal_blending_method} being a portfolio_construction_method, this variable indicates which backtest summary should be used to blend
 signals. Possible options are: "mean_active_return", "IR", "alpha", "AP" or "treynor". For simplicity, AP will be considered as the t-stat in frequentist version.
-\item \code{sb_benchmark_weighting}. A character describing how the signal-blend benchmark should be built, something needed when applying constraints on signal weights.
+\item \code{sb_benchmark_weighting_method}. A character describing how the signal-blend benchmark should be built, something needed when applying constraints on signal weights.
 Possible options are "individual" or "theme", in which case the respective dataframe in \code{groups_m_df_list} will be used to classify signals.
 If individual, all signals receive the same weight. Otherwise, themes receive the same weight and signals inside the same group receive the same weight.
 This helps when one has very unbalanced classes.
@@ -48,7 +48,7 @@ One of "none", holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr" or "
 perform inference. When selecting "bayesian"the probability of direction will be used to select signals and a bayesian posterior version of the final_sb_signal
 will be used to give weights.
 In this case, the user needs to provide the following additional elements:
-\item \code{chosen_informative_data}: The dataframe in priors_m_d_ref_list that will be used to build informative priors.
+\item \code{priors_informative_data}: The dataframe in priors_m_d_ref_list that will be used to build informative priors.
 \item \code{set_informative_priors_on}: One of all, intercept or none. If all, priors will be built to all parameters of the mixed effects model, including variance parameters. If intercept,
 only location parameters will be assigned priors. Parameters not specified to receive informative priors will receive uninformative priors.
 \item \code{max_abs_active_individual_weight} The maximum absolute individual active weights.

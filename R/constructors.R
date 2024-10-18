@@ -578,19 +578,17 @@ setMethod("add_liquidity_constraint_policy", "portfolio_policies", function(port
   new_liquidity_constraint_policy <- list(liquidity_floor_rule = NULL)
 
   # Add liquidity_floor_rule
-  if(is.null(portfolio_policies_obj@liquidity_constraint_policy$liquidity_floor_rule)){ #If there is not existing rule
-    if(!is.null(liquidity_floor_rule)){
-      new_liquidity_constraint_policy$liquidity_floor_rule <- liquidity_floor_rule #Atribute liquidity_floor-rule
-    }
+  if (!is.null(liquidity_floor_rule)) {
+    new_liquidity_constraint_policy$liquidity_floor_rule <- liquidity_floor_rule
   } else {
-    new_liquidity_constraint_policy$liquidity_floor_rule <- portfolio_policies_obj@liquidity_constraint_policy$liquidity_floor_rule #If not, keep past one
+    new_liquidity_constraint_policy$liquidity_floor_rule <- portfolio_policies_obj@liquidity_constraint_policy$liquidity_floor_rule  # Keep the existing rule if it exists
   }
 
   # Add liquidity_cap_rules
-  if (!is.null(liquidity_cap_rules)) {
-    existing_rules <- portfolio_policies_obj@liquidity_constraint_policy
-    existing_liquidity_floor_cap_rules <- existing_rules[!(names(existing_rules) %in% "liquidity_floor_rule")]
+  existing_rules <- portfolio_policies_obj@liquidity_constraint_policy
+  existing_liquidity_floor_cap_rules <- existing_rules[!(names(existing_rules) %in% "liquidity_floor_rule")]
 
+  if (!is.null(liquidity_cap_rules)) {
     existing_liquidity_floor_cap_rules_vector <- vapply(existing_liquidity_floor_cap_rules, function(x) x$liquidity_cap, numeric(1))
     names(existing_liquidity_floor_cap_rules_vector) <- sapply(existing_liquidity_floor_cap_rules, function(x) x$liquidity_classification)
 
@@ -608,11 +606,17 @@ setMethod("add_liquidity_constraint_policy", "portfolio_policies", function(port
       }),
       paste0("liquidity_cap_rule_", seq_along(final_liquidity_floor_cap_rules_vector))
     )
+  } else {
+    #If there are no new rules, use old policy
+    new_liquidity_cap_rules <- existing_liquidity_floor_cap_rules
+  }
 
 
     # Add liquidity_cap_rules to the new policy
     new_liquidity_constraint_policy <- c(new_liquidity_constraint_policy, new_liquidity_cap_rules)
-  }
+
+
+
 
   # Create the S4 object
   new_portfolio_policies_obj <- new("portfolio_policies",
@@ -914,10 +918,7 @@ setMethod("add_signal_selection_policy", "portfolio_policies", function(portfoli
 
       ## signal_position
       if (!all(is.character(signal_positions))){
-        stop("signal_position should be a character vector.")
-      }
-      if(length(signal_positions) != length(chosen_signals)){
-        stop("lengths of signal_positions and chosen_signals should match.")
+        stop("signal_positions should be a character vector.")
       }
       if(length(signal_positions) != length(chosen_signals)){
         stop("lengths of signal_positions and chosen_signals should match.")
@@ -973,15 +974,6 @@ setMethod("add_signal_selection_policy", "portfolio_policies", function(portfoli
       if(!is.numeric(max_abs_active_individual_weight)){
         stop("max_abs_active_individual_weight should be numeric")
       }
-      if(is.null(signal_blending_method)){
-        if(portfolio_policies_obj@signal_selection_policy$signal_blending_method != "MTO"){
-          stop("signal_blending_method must be equal to MTO if max_abs_active_individual_weight is set")
-        }
-      } else {
-        if(signal_blending_method != "MTO"){
-          stop("signal_blending_method must be equal to MTO if max_abs_active_individual_weight is set")
-        }
-      }
     }
 
     ##max_abs_active_group_weight
@@ -989,18 +981,7 @@ setMethod("add_signal_selection_policy", "portfolio_policies", function(portfoli
       if(!is.numeric(max_abs_active_group_weight)){
         stop("max_abs_active_group_weight should be numeric")
       }
-      if(is.null(signal_blending_method)){
-        if(portfolio_policies_obj@signal_selection_policy$signal_blending_method != "MTO"){
-          stop("signal_blending_method must be equal to MTO if max_abs_active_group_weight is set")
-        }
-      } else {
-        if(signal_blending_method != "MTO"){
-          stop("signal_blending_method must be equal to MTO if max_abs_active_group_weight is set")
-        }
-      }
     }
-
-
 
 
     ## p_correction_method
@@ -1052,21 +1033,77 @@ setMethod("add_signal_selection_policy", "portfolio_policies", function(portfoli
 
   # Construct new_signal_selection_policy list
   new_signal_selection_policy <- list(
-    chosen_signals = if (!is.null(chosen_signals)) chosen_signals else if (!is.null(portfolio_policies_obj@signal_selection_policy$chosen_signals)) portfolio_policies_obj@signal_selection_policy$chosen_signals else NULL,
-    signal_positions = if (!is.null(signal_positions)) signal_positions else if (!is.null(portfolio_policies_obj@signal_selection_policy$signal_positions)) portfolio_policies_obj@signal_selection_policy$signal_positions else NULL,
-    signal_blending_method = if (!is.null(signal_blending_method)) signal_blending_method else if (!is.null(portfolio_policies_obj@signal_selection_policy$signal_blending_method)) portfolio_policies_obj@signal_selection_policy$signal_blending_method else NULL,
-    chosen_sb_metric = if (!is.null(chosen_sb_metric)) chosen_sb_metric else if (!is.null(portfolio_policies_obj@signal_selection_policy$chosen_sb_metric)) portfolio_policies_obj@signal_selection_policy$chosen_sb_metric else NULL,
-    sb_benchmark_weighting_method = if (!is.null(sb_benchmark_weighting_method)) sb_benchmark_weighting_method else if (!is.null(portfolio_policies_obj@signal_selection_policy$sb_benchmark_weighting_method)) portfolio_policies_obj@signal_selection_policy$sb_benchmark_weighting_method else NULL,
-    max_abs_active_individual_weight = if (!is.null(max_abs_active_individual_weight)) max_abs_active_individual_weight else if (!is.null(portfolio_policies_obj@signal_selection_policy$max_abs_active_individual_weight)) portfolio_policies_obj@signal_selection_policy$max_abs_active_individual_weight else NULL,
-    max_abs_active_group_weight = if (!is.null(max_abs_active_group_weight)) max_abs_active_group_weight else if (!is.null(portfolio_policies_obj@signal_selection_policy$max_abs_active_group_weight)) portfolio_policies_obj@signal_selection_policy$max_abs_active_group_weight else NULL,
-    p_correction_method = if (!is.null(p_correction_method)) p_correction_method else if (!is.null(portfolio_policies_obj@signal_selection_policy$p_correction_method)) portfolio_policies_obj@signal_selection_policy$p_correction_method else NULL,
-    signal_significance_threshold = if (!is.null(signal_significance_threshold)) signal_significance_threshold else if (!is.null(portfolio_policies_obj@signal_selection_policy$signal_significance_threshold)) portfolio_policies_obj@signal_selection_policy$signal_significance_threshold else NULL,
-    chosen_informative_data = if (!is.null(chosen_informative_data)) chosen_informative_data else if (!is.null(portfolio_policies_obj@signal_selection_policy$chosen_informative_data)) portfolio_policies_obj@signal_selection_policy$chosen_informative_data else NULL,
-    priors_type = if (!is.null(priors_type)) priors_type else if (!is.null(portfolio_policies_obj@signal_selection_policy$priors_type)) portfolio_policies_obj@signal_selection_policy$priors_type else NULL,
-    data_availability_cutoff = if (!is.null(data_availability_cutoff)) data_availability_cutoff else if (!is.null(portfolio_policies_obj@signal_selection_policy$data_availability_cutoff)) portfolio_policies_obj@signal_selection_policy$data_availability_cutoff else NULL
+    chosen_signals = if (!is.null(chosen_signals)) chosen_signals else portfolio_policies_obj@signal_selection_policy$chosen_signals,
+    signal_positions = if (!is.null(signal_positions)) signal_positions else portfolio_policies_obj@signal_selection_policy$signal_positions,
+    signal_blending_method = if (!is.null(signal_blending_method)) signal_blending_method else portfolio_policies_obj@signal_selection_policy$signal_blending_method,
+    chosen_sb_metric = if (!is.null(chosen_sb_metric)) chosen_sb_metric else portfolio_policies_obj@signal_selection_policy$chosen_sb_metric,
+    sb_benchmark_weighting_method = if (!missing(sb_benchmark_weighting_method) && !is.null(sb_benchmark_weighting_method)) {
+      sb_benchmark_weighting_method
+    } else if (!is.null(portfolio_policies_obj@signal_selection_policy$sb_benchmark_weighting_method)) {
+      portfolio_policies_obj@signal_selection_policy$sb_benchmark_weighting_method
+    } else {
+      "theme_sb"
+    },
+    max_abs_active_individual_weight = if (!is.null(max_abs_active_individual_weight)) max_abs_active_individual_weight else portfolio_policies_obj@signal_selection_policy$max_abs_active_individual_weight,
+    max_abs_active_group_weight = if (!is.null(max_abs_active_group_weight)) max_abs_active_group_weight else portfolio_policies_obj@signal_selection_policy$max_abs_active_group_weight,
+    p_correction_method = if (!missing(p_correction_method) && p_correction_method != "none") {
+      p_correction_method
+    } else if (!is.null(portfolio_policies_obj@signal_selection_policy$p_correction_method)) {
+      portfolio_policies_obj@signal_selection_policy$p_correction_method
+    } else {
+      "none"
+    },
+    signal_significance_threshold = if (!is.null(signal_significance_threshold)) signal_significance_threshold else portfolio_policies_obj@signal_selection_policy$signal_significance_threshold,
+    data_availability_cutoff = if (!is.null(data_availability_cutoff)) data_availability_cutoff else portfolio_policies_obj@signal_selection_policy$data_availability_cutoff,
+      priors_type = if (!is.null(p_correction_method) && p_correction_method == "bayesian" && is.null(priors_type)) {
+    "uninformative"
+  } else if (!is.null(priors_type)) {
+    priors_type
+  } else {
+    portfolio_policies_obj@signal_selection_policy$priors_type
+  },
+    priors_informative_data = if (!is.null(priors_informative_data)) priors_informative_data else portfolio_policies_obj@signal_selection_policy$priors_informative_data
   )
 
-  # Create the S4 object
+  # Final consistency checks
+
+  # Check if max_abs_active_individual_weight is set but signal_blending_method is not "MTO"
+  if (!is.null(new_signal_selection_policy$signal_blending_method) &&
+      new_signal_selection_policy$signal_blending_method != "MTO" &
+      !is.null(new_signal_selection_policy$max_abs_active_individual_weight)) {
+    stop("signal_blending_method must be equal to MTO if max_abs_active_individual_weight is set")
+  }
+
+  # Check if max_abs_active_group_weight is set but signal_blending_method is not "MTO"
+  if (!is.null(new_signal_selection_policy$signal_blending_method) &&
+      new_signal_selection_policy$signal_blending_method != "MTO" &
+      !is.null(new_signal_selection_policy$max_abs_active_group_weight)) {
+    stop("signal_blending_method must be equal to MTO if max_abs_active_group_weight is set")
+  }
+
+  # Check if chosen_sb_metric is NULL when signal_blending_method is "SW" or "MTO"
+  if (!is.null(new_signal_selection_policy$signal_blending_method) &&
+      new_signal_selection_policy$signal_blending_method %in% c("SW", "MTO") &
+      is.null(new_signal_selection_policy$chosen_sb_metric)) {
+    stop("chosen_sb_metric can't be NULL if signal_blending_method is SW or MTO")
+  }
+
+  # Check if chosen_sb_metric is NULL when signal_blending_method is "SW" or "MTO"
+  if (!is.null(new_signal_selection_policy$signal_blending_method) &&
+      !new_signal_selection_policy$signal_blending_method %in% c("SW", "MTO") &
+      !is.null(new_signal_selection_policy$chosen_sb_metric)) {
+    stop("chosen_sb_metric is only needed if signal_blending_method is SW or MTO")
+  }
+
+  # Check for p_correction_method = "bayesian" and valid priors_type and priors_informative_data
+  if (!is.null(new_signal_selection_policy$p_correction_method) &&
+      new_signal_selection_policy$p_correction_method == "bayesian" &&
+      !new_signal_selection_policy$priors_type %in% c("uninformative", "user") &&
+      is.null(new_signal_selection_policy$priors_informative_data)) {
+    stop("priors_informative_data can't be NULL if p_correction_method is bayesian and priors_type is not uninformative or user")
+  }
+
+  # Create the updated portfolio_policies object
   new_portfolio_policies_obj <- new("portfolio_policies",
                                     liquidity_constraint_policy = portfolio_policies_obj@liquidity_constraint_policy,
                                     signal_selection_policy = new_signal_selection_policy,
@@ -1076,4 +1113,59 @@ setMethod("add_signal_selection_policy", "portfolio_policies", function(portfoli
 
   return(new_portfolio_policies_obj)
 })
+
+
+#' @title Add Liquidity Floor Cutoffs
+#' @description Add liquidity floor cutoffs to the portfolio_policies object.
+#' @param portfolio_policies_obj An S4 object of class `portfolio_policies`.
+#' @param liquidity_metric A character string representing the liquidity metric.
+#' @param cutoffs A numeric vector of length 5 representing the cutoff values for
+#' micro_caps, small_caps, mid_caps, large_caps, and mega_caps.
+#' @return An updated `portfolio_policies` object.
+#' @export
+setGeneric("add_liquidity_floor_cutoffs", function(portfolio_policies_obj, liquidity_metric, cutoffs) {
+  standardGeneric("add_liquidity_floor_cutoffs")
+})
+
+#' @export
+setMethod("add_liquidity_floor_cutoffs", "portfolio_policies", function(portfolio_policies_obj,
+                                                                        liquidity_metric,
+                                                                        cutoffs) {
+  # Validate inputs
+  if (!is.character(liquidity_metric) || length(liquidity_metric) != 1) {
+    stop("liquidity_metric should be a single character string.")
+  }
+
+  if (!is.numeric(cutoffs) || length(cutoffs) != 5 || any(cutoffs <= 0)) {
+    stop("cutoffs must be a numeric vector of length 5, and all values must be positive.")
+  }
+
+  # Check if cutoffs are in ascending order
+  if (!all(diff(cutoffs) > 0)) {
+    stop("cutoffs must be provided in ascending order.")
+  }
+
+  # Initialize liquidity_floor_cutoffs if it doesn't exist
+  if (is.null(portfolio_policies_obj@liquidity_floor_cutoffs)) {
+    portfolio_policies_obj@liquidity_floor_cutoffs <- list(
+      micro_caps = numeric(),
+      small_caps = numeric(),
+      mid_caps = numeric(),
+      large_caps = numeric(),
+      mega_caps = numeric()
+    )
+  }
+
+  # Update each market capitalization class with the new liquidity metric cutoffs
+  portfolio_policies_obj@liquidity_floor_cutoffs$micro_caps[liquidity_metric] <- cutoffs[1]
+  portfolio_policies_obj@liquidity_floor_cutoffs$small_caps[liquidity_metric] <- cutoffs[2]
+  portfolio_policies_obj@liquidity_floor_cutoffs$mid_caps[liquidity_metric] <- cutoffs[3]
+  portfolio_policies_obj@liquidity_floor_cutoffs$large_caps[liquidity_metric] <- cutoffs[4]
+  portfolio_policies_obj@liquidity_floor_cutoffs$mega_caps[liquidity_metric] <- cutoffs[5]
+
+  # Return the updated portfolio policies object
+  return(portfolio_policies_obj)
+})
+
+
 

@@ -273,3 +273,137 @@ setMethod("show", "ml_wf_val_results", function(object) {
   cat("=========================================\n")
 })
 #############################################
+
+
+#' @title Show Portfolio Policies
+#' @description Prints the contents of a `portfolio_policies` object, detailing
+#' the various policies and their configurations.
+#'
+#' @param object A `portfolio_policies` object to be displayed.
+#'
+#' @method show portfolio_policies
+#' @export
+setMethod("show", "portfolio_policies", function(object) {
+  cat("Portfolio Policie:\n")
+
+  # Display Signal Selection Policy
+  cat("\nSignal Selection Policy:\n")
+  if (length(object@signal_selection_policy) == 0) {
+    cat("  No signal selection policy set.\n")
+  } else {
+    cat("  Main info\n")
+    # Show chosen signals with their respective positions
+    chosen_signals_with_positions <- paste0(
+      object@signal_selection_policy$chosen_signals,
+      " (",
+      object@signal_selection_policy$signal_positions,
+      ")",
+      collapse = ", "
+    )
+    cat("  Chosen Signals:", chosen_signals_with_positions, "\n")
+    cat("  Blending Method:", object@signal_selection_policy$signal_blending_method, "\n")
+
+    if (object@signal_selection_policy$signal_blending_method %in% c("SW", "MTO")) {
+      cat("  Chosen Signal-Blending Metric:", object@signal_selection_policy$chosen_sb_metric, "\n")
+    }
+
+    cat("\n")
+    cat("  Signal Eligibility Criteria\n")
+    cat("  Alpha Significance Threshold:", object@signal_selection_policy$signal_significance_threshold, "\n")
+    cat("  Min Number of Periods to Include Signal:", object@signal_selection_policy$data_availability_cutoff, "\n")
+    cat("  Multiple Testing Adjustment:", object@signal_selection_policy$p_correction_method, "\n")
+
+    if (object@signal_selection_policy$p_correction_method == "bayesian") {
+      cat("\n")
+      cat("  Bayesian Adjustment Criteria\n")
+      cat("  Priors Type:", object@signal_selection_policy$priors_type, "\n")
+      if(object@signal_selection_policy$priors_type %in% c("all", "mean")){
+      cat("  Dataset Used to Inform Priors:", object@signal_selection_policy$priors_informative_data, "\n")
+      }
+
+    }
+
+    if (object@signal_selection_policy$signal_blending_method == "MTO") {
+      cat("\n")
+      cat("  Signal Blending Restrictions:\n")
+      cat("  Multisignal Portfolio Benchmark:", object@signal_selection_policy$sb_benchmark_weighting, "\n")
+      cat("  Max Abs Active Individual Weight:", object@signal_selection_policy$max_abs_active_individual_weight, "\n")
+      cat("  Max Abs Active Group Weight:", object@signal_selection_policy$max_abs_active_group_weight, "\n")
+    }
+  }
+
+  cat("\n=================================\n")
+
+  # Display Liquidity Constraint Policy
+  cat("\nLiquidity Constraint Policy:\n")
+  if (length(object@liquidity_constraint_policy) == 0) {
+    cat("  No liquidity constraint policy set.\n")
+  } else {
+    if (!is.null(object@liquidity_constraint_policy$liquidity_floor_rule)) {
+      cat("  Liquidity Floor Rule:", object@liquidity_constraint_policy$liquidity_floor_rule, "\n")
+    } else {
+      cat("  No liquidity floor rule set.\n")
+    }
+    if (length(object@liquidity_constraint_policy) > 1) {
+      cat("  Liquidity Cap Rules:\n")
+      for (rule in names(object@liquidity_constraint_policy)[-1]) {
+        liquidity_rule <- object@liquidity_constraint_policy[[rule]]
+        cat("    - Liquidity Classification:", liquidity_rule$liquidity_classification,
+            "| Liquidity Cap:", liquidity_rule$liquidity_cap, "\n")
+      }
+    } else {
+      cat("  No liquidity cap rules set.\n")
+    }
+  }
+
+  cat("\n=================================\n")
+
+  # Display Turnover Constraint Policy
+  cat("\nTurnover Constraint Policy:\n")
+  if (length(object@turnover_constraint_policy) == 0) {
+    cat("  No turnover constraint policy set.\n")
+  } else {
+    cat("  Number of Turnover Rules:", length(object@turnover_constraint_policy), "\n")
+    for (rule in object@turnover_constraint_policy) {
+      cat("    - Liquidity Classification:", rule$liquidity_classification,
+          "| Turnover Cap:", rule$turnover_cap,
+          "| Top Stock Quantile Buffer Rule:", rule$top_stock_quantile_buffer, "\n")
+    }
+  }
+
+  cat("\n=================================\n")
+
+  # Display Concentration Constraint Policy
+  cat("\nConcentration Constraint Policy:\n")
+  if (length(object@concentration_constraint_policy) == 0) {
+    cat("  No concentration constraint policy set.\n")
+  } else {
+    cat("  Benchmark:", object@concentration_constraint_policy$benchmark, "\n")
+    cat("  Max Absolute Active Individual Weight:", object@concentration_constraint_policy$max_abs_active_individual_weight, "\n")
+    cat("  Max Absolute Active Group Weights:\n")
+    if (!is.null(object@concentration_constraint_policy$max_abs_active_group_weight)) {
+      for (name in names(object@concentration_constraint_policy$max_abs_active_group_weight)) {
+        cat("    -", name, ":", object@concentration_constraint_policy$max_abs_active_group_weight[[name]], "\n")
+      }
+    }
+  }
+
+  cat("\n=================================\n")
+
+  # Display Liquidity Floor Cutoffs
+  cat("\nLiquidity Floor Cutoffs:\n")
+  if (length(object@liquidity_floor_cutoffs) == 0) {
+    cat("  No liquidity floor cutoffs set.\n")
+  } else {
+    for (classification in names(object@liquidity_floor_cutoffs)) {
+      cat("  Classification:", classification, "\n")
+      for (metric in names(object@liquidity_floor_cutoffs[[classification]])) {
+        cat("    - Metric:", metric, "| Value:", object@liquidity_floor_cutoffs[[classification]][[metric]], "\n")
+      }
+    }
+  }
+
+  cat("\n")
+  cat("=================================\n")
+})
+

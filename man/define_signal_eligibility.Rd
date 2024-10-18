@@ -27,7 +27,7 @@ define_signal_eligibility(
 \item{\code{chosen_prior}}{Dataset used to build prior for Bayesian adjustments.}
 \item{\code{priors_type}}{A flag indicating whether priors should be set ("none" if not).}
 \item{\code{chosen_sb_metric}}{The signal to use for final selection after adjustments.}
-\item{\code{sb_benchmark_weighting}}{The benchmark weighting for the concentration constraint policy.}
+\item{\code{sb_benchmark_weighting_method}}{The benchmark weighting for the concentration constraint policy.}
 \item{\code{max_abs_active_group_weight}}{The maximum absolute weight for any group in the concentration constraint policy.}
 }}
 

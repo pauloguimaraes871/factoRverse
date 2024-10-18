@@ -6,20 +6,16 @@
 \usage{
 add_liquidity_constraint_policy(
   portfolio_policies_obj,
-  liquidity_floor_rule,
-  liquidity_cap_rules
+  liquidity_floor_rule = NULL,
+  liquidity_cap_rules = NULL
 )
 }
 \arguments{
 \item{portfolio_policies_obj}{A \code{portfolio_policies} object to which the liquidity constraint policy will be added.}
 
-\item{liquidity_floor_rule}{A character string representing the liquidity floor rule.}
+\item{liquidity_floor_rule}{A character string representing the liquidity floor rule (optional).}
 
-\item{liquidity_cap_rules}{A list of liquidity cap rules, each containing:
-\itemize{
-\item \code{liquidity_classification}: A character string indicating the liquidity classification (must be one of "micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps").
-\item \code{liquidity_cap}: A numeric value representing the liquidity cap.
-}}
+\item{liquidity_cap_rules}{A named numeric vector where names represent liquidity classifications and values represent liquidity caps (optional).}
 }
 \value{
 The updated \code{portfolio_policies} object with the added liquidity constraint policy.
@@ -29,10 +25,8 @@ Adds a liquidity constraint policy to a \code{portfolio_policies} object.
 }
 \examples{
 portfolio <- create_portfolio_policies()
-liquidity_cap_rules <- list(
-  list(liquidity_classification = "micro_caps", liquidity_cap = 0.01),
-  list(liquidity_classification = "small_caps", liquidity_cap = 0.02)
-)
-portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "micro_caps", liquidity_cap_rules = liquidity_cap_rules)
+portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "micro_caps")
+portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_cap_rules = c(micro_caps = 0.01))
+portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "small_caps") # This should update the liquidity_floor_rule
 
 }

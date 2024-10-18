@@ -411,6 +411,23 @@ setMethod("as.list", "ml_wf_val_results", function(x) {
 })
 
 
+#' @title Convert Keras Architecture Parameters to List
+#' @description Converts a `keras_architecture_parameters` object to a list.
+#'
+#' This method extracts the relevant attributes from a `keras_architecture_parameters`
+#' object and returns them as a list, making it easier to work with the parameters
+#' in a more general R context.
+#'
+#' @param x A `keras_architecture_parameters` object that contains the architecture parameters
+#'          for a Keras model.
+#'
+#' @return A list containing the following elements:
+#' \item{units}{The number of units in the layer.}
+#' \item{n_layers}{The number of layers in the architecture.}
+#' \item{activation}{The activation function used in the architecture.}
+#' \item{nn_optimizer}{The optimizer used for training the neural network.}
+#' \item{batch_norm_option}{Indicates if batch normalization is applied.}
+#'
 #' @export
 setMethod("as.list", "keras_architecture_parameters", function(x) {
   list(
@@ -421,6 +438,78 @@ setMethod("as.list", "keras_architecture_parameters", function(x) {
     batch_norm_option = x@batch_norm_option
   )
 })
+
+
+#' @title Accessor for Liquidity Constraint Policy
+#' @description Retrieves the liquidity constraint policy from a `portfolio_policies` object.
+#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @return The liquidity constraint policy list.
+#' @export
+setGeneric("get_liquidity_constraint_policy", function(portfolio_policies_obj) {
+  standardGeneric("get_liquidity_constraint_policy")
+})
+
+#' @export
+setMethod("get_liquidity_constraint_policy", "portfolio_policies", function(portfolio_policies_obj) {
+  return(portfolio_policies_obj@liquidity_constraint_policy)
+})
+
+#' @title Accessor for Signal Selection Policy
+#' @description Retrieves the signal selection policy from a `portfolio_policies` object.
+#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @return The signal selection policy list.
+#' @export
+setGeneric("get_signal_selection_policy", function(portfolio_policies_obj) {
+  standardGeneric("get_signal_selection_policy")
+})
+
+#' @export
+setMethod("get_signal_selection_policy", "portfolio_policies", function(portfolio_policies_obj) {
+  return(portfolio_policies_obj@signal_selection_policy)
+})
+
+#' @title Accessor for Turnover Constraint Policy
+#' @description Retrieves the turnover constraint policy from a `portfolio_policies` object.
+#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @return The turnover constraint policy list.
+#' @export
+setGeneric("get_turnover_constraint_policy", function(portfolio_policies_obj) {
+  standardGeneric("get_turnover_constraint_policy")
+})
+
+#' @export
+setMethod("get_turnover_constraint_policy", "portfolio_policies", function(portfolio_policies_obj) {
+  return(portfolio_policies_obj@turnover_constraint_policy)
+})
+
+#' @title Accessor for Concentration Constraint Policy
+#' @description Retrieves the concentration constraint policy from a `portfolio_policies` object.
+#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @return The concentration constraint policy list.
+#' @export
+setGeneric("get_concentration_constraint_policy", function(portfolio_policies_obj) {
+  standardGeneric("get_concentration_constraint_policy")
+})
+
+#' @export
+setMethod("get_concentration_constraint_policy", "portfolio_policies", function(portfolio_policies_obj) {
+  return(portfolio_policies_obj@concentration_constraint_policy)
+})
+
+#' @title Accessor for Liquidity Floor Cutoffs
+#' @description Retrieves the liquidity floor cutoffs from a `portfolio_policies` object.
+#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @return The liquidity floor cutoffs list.
+#' @export
+setGeneric("get_liquidity_floor_cutoffs", function(portfolio_policies_obj) {
+  standardGeneric("get_liquidity_floor_cutoffs")
+})
+
+#' @export
+setMethod("get_liquidity_floor_cutoffs", "portfolio_policies", function(portfolio_policies_obj) {
+  return(portfolio_policies_obj@liquidity_floor_cutoffs)
+})
+
 
 
 

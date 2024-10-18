@@ -118,3 +118,16 @@ is_hyper_grid_domain <- function(x) {
 is_keras_architecture_parameters <- function(x) {
   is(x, "keras_architecture_parameters")
 }
+
+
+#' Define the is portfolio_policies function
+#' @description Function to check if an object is of class `portfolio_policies`.
+#'
+#' @param x An object to check.
+#'
+#' @return A logical value indicating whether the object is of class `portfolio_policies`.
+#'
+#' @export
+is_portfolio_policies <- function(x) {
+  is(x, "portfolio_policies")
+}

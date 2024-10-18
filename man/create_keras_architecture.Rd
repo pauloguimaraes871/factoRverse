@@ -4,7 +4,7 @@
 \alias{create_keras_architecture}
 \title{Create Keras Architecture}
 \usage{
-create_keras_architecture(nn_optimizer)
+create_keras_architecture(nn_optimizer, units, activation, batch_norm_option)
 }
 \arguments{
 \item{nn_optimizer}{A character string specifying the optimizer to use (e.g., "adam").}

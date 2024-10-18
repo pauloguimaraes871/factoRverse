@@ -4,7 +4,7 @@
 \alias{create_hyper_grid_domain}
 \title{Create a \code{hyper_grid_domain} Object}
 \usage{
-create_hyper_grid_domain(tuning_method, ml_algorithm)
+create_hyper_grid_domain(tuning_method, ml_algorithm, hyperparameters = NULL)
 }
 \arguments{
 \item{tuning_method}{A character string specifying the tuning method to be applied.
@@ -12,6 +12,9 @@ Must be one of "grid_search", "random_search", or "bayesian_optimization".}
 
 \item{ml_algorithm}{A character string specifying the machine-learning algorithm to be used.
 Must be one of "glmnet", "rf", "xgb", "nn", or "ols".}
+
+\item{hyperparameters}{A named list representing the hyperparameter to be added.
+#' @seealso \code{\link{add_hyperparameter}} for more details.}
 }
 \value{
 An instance of the \code{hyper_grid_domain} S4 class.
