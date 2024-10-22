@@ -45,7 +45,11 @@
 #'    )
 #'
 #' @param tuning_method Method for hyperparameter tuning: "random_search", "grid_search", or "bayesian_opt".
-#' @param n_iter Number of iterations for random search.
+#' @param n_iter Number of iterations.
+#' For grid_search, the value does not make difference, as the number of times the ml algorithm validation error will be evaluated equals the exhaustive combination of unique hyperparameters values provided.
+#' For random_search, it should be the number of random draws for each hyperparameter. Random samples of n_iter size will be generated for each hyperparameter and their unique values will be exhaustively combined.
+#' Therefore, for n_iter = 5 and 2 hyperparameters, the ml algorithm validation error should be generally evaluated 5² = 25 times.
+#' For bayesian_opt, it should be the number of times the ml algorithm will be evaluated after initialization.
 #' @param acq Acquisition function for Bayesian optimization: "ucb", "ei", or "poi".
 #' @param init_points Number of initial random points for Bayesian optimization.
 #' @param k_iter Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
@@ -72,6 +76,7 @@
 #' @param quantile_tau A single numeric value indicating target quantile when calculating quantile loss.
 #' @param verbose Logical, indicating whether to print progress messages (default is TRUE).
 #' @param parallel Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).
+#' @param
 #'
 #' @return An object of class ml_wf_val_results with various outputs including model predictions, errors, and validation metrics.
 #'
@@ -108,7 +113,7 @@ ml_walk_forward_validation <- function(
   #Splits
   validation_sample_size = 0, rebalancing_months, split_method = "expanding",
   #Choice of ML algorithm
-  ml_algorithm,
+  ml_algorithm = "ols",
   #Loss/Eval Functions and Related
   custom_objective = "squared_error", chosen_eval_metric = NULL, huber_delta = 1, quantile_tau = 0.5,
   #Hyperparameter tuning Inputs
@@ -116,7 +121,7 @@ ml_walk_forward_validation <- function(
   #Keras architecture Parameters
   keras_architecture_parameters = NULL,
   #Misc
-  show_plots = TRUE, verbose = FALSE, parallel = TRUE
+  show_plots = TRUE, verbose = FALSE, parallel = TRUE, ml_parameters = NULL
 ){
 
   #Measure time to run and run gc

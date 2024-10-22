@@ -12,7 +12,7 @@ ml_walk_forward_validation(
   validation_sample_size = 0,
   rebalancing_months,
   split_method = "expanding",
-  ml_algorithm,
+  ml_algorithm = "ols",
   custom_objective = "squared_error",
   chosen_eval_metric = NULL,
   huber_delta = 1,
@@ -27,7 +27,8 @@ ml_walk_forward_validation(
   keras_architecture_parameters = NULL,
   show_plots = TRUE,
   verbose = FALSE,
-  parallel = TRUE
+  parallel = TRUE,
+  ml_parameters = NULL
 )
 }
 \arguments{
@@ -71,7 +72,11 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{tuning_method}{Method for hyperparameter tuning: "random_search", "grid_search", or "bayesian_opt".}
 
-\item{n_iter}{Number of iterations for random search.}
+\item{n_iter}{Number of iterations.
+For grid_search, the value does not make difference, as the number of times the ml algorithm validation error will be evaluated equals the exhaustive combination of unique hyperparameters values provided.
+For random_search, it should be the number of random draws for each hyperparameter. Random samples of n_iter size will be generated for each hyperparameter and their unique values will be exhaustively combined.
+Therefore, for n_iter = 5 and 2 hyperparameters, the ml algorithm validation error should be generally evaluated 5² = 25 times.
+For bayesian_opt, it should be the number of times the ml algorithm will be evaluated after initialization.}
 
 \item{k_iter}{Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
 If running in parallel, set iters.k to a multiple of the number of cores. Must be lower and preferably a multiple of n_iter.}

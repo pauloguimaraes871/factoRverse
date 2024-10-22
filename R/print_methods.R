@@ -51,11 +51,15 @@ setMethod("show", "hyper_grid_domain", function(object) {
 
   cat("Hyperparameters Grid Domain:\n")
   cat("=================================\n")
-  cat("Chosen tuning_method:\n")
-  cat("  ", object@tuning_method, "\n\n")
+  cat("Machine-Learning Algorithm:\n")
+  cat(" ", object@ml_algorithm)
+  cat("\n")
+  cat("\n")
 
-  cat("Chosen ml_algorithm:\n")
-  cat("  ", object@ml_algorithm, "\n\n")
+  cat("Tuning Method:\n")
+  cat(" ", object@tuning_method)
+  cat("\n")
+  cat("\n")
 
   cat("Hyperparameters:\n")
 
@@ -86,6 +90,347 @@ setMethod("show", "hyper_grid_domain", function(object) {
 
   cat("=================================\n")
 })
+
+
+#' @title Show Method for `hyperparameter_tuning_strategy`
+#' @description Custom show method for displaying the general information of objects that extend `hyperparameter_tuning_strategy`.
+#' This method prints the tuning method, machine learning algorithm, validation sample size, split method, evaluation metric,
+#' early stopping criteria, and the hyperparameter grid domain.
+#' @param object An object of class `hyperparameter_tuning_strategy` or its subclasses (`grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`).
+#' @return Printed information about the base properties of the object.
+#' @examples
+#' # Create a base hyperparameter_tuning_strategy object
+#' base_obj <- create_hyperparameter_tuning_strategy(
+#'   tuning_method = "grid_search",
+#'   ml_algorithm = "rf",
+#'   validation_sample_size = 1000,
+#'   split_method = "expanding"
+#' )
+#' show(base_obj)
+#' @export
+setMethod("show", "hyperparameter_tuning_strategy", function(object) {
+
+  cat("------------------------------\n")
+  cat("Hyperparameter Tuning Strategy:\n")
+  cat("Tuning Method: ", object@tuning_method, "\n")
+  cat("ML Algorithm: ", object@ml_algorithm, "\n")
+  cat("Validation Sample Size: ", object@validation_sample_size, "\n")
+  cat("Split Method: ", object@split_method, "\n")
+  cat("Evaluation Metric: ", object@chosen_eval_metric, "\n")
+
+  if(object@ml_algorithm %in% c("xgb", "nn")){
+  if (!is.null(object@early_stop)) {
+    cat("Early Stop Criteria: ", object@early_stop, "\n")
+  } else {
+    cat("Early Stop Criteria: Not provided\n")
+  }
+  }
+
+  cat("------------------------------\n")
+
+})
+
+
+#' @title Show Method for `grid_search_strategy`
+#' @description Custom show method for displaying information about objects of class `grid_search_strategy`.
+#' This method will display the tuning method, machine learning algorithm, validation sample size,
+#' and details about the hyperparameter grid.
+#' @param object An object of class `grid_search_strategy`.
+#' @return Printed information about the object.
+#' @examples
+#' # Create a grid_search_strategy object
+#' grid_search_obj <- create_hyperparameter_tuning_strategy(
+#'   tuning_method = "grid_search",
+#'   ml_algorithm = "glmnet",
+#'   validation_sample_size = 1000,
+#'   split_method = "expanding",
+#'   chosen_eval_metric = "rmse"
+#' )
+#' show(grid_search_obj)
+#' @export
+setMethod("show", "grid_search_strategy", function(object) {
+  cat("Grid Search Tuning Strategy\n")
+  callNextMethod()  # Calls the base show method for common slots
+  cat("Grid Search Specific Information:\n")
+  cat("- Hyperparameter Grid:\n")
+  if (length(object@hyper_grid_domain@hyperparameter_list) == 0) {
+    cat("  No hyperparameters set.\n")
+  } else {
+    for (name in names(object@hyper_grid_domain@hyperparameter_list)) {
+      cat("  ", name, ":\n")
+      hyperparam <- object@hyper_grid_domain@hyperparameter_list[[name]]
+      if (is.list(hyperparam)) {
+        if ("distribution_choice" %in% names(hyperparam)) {
+          cat("    Distribution Choice:", hyperparam$distribution_choice, "\n")
+          if (hyperparam$distribution_choice == "constant") {
+            cat("    Value:", paste(hyperparam$value, collapse = ", "), "\n")
+          } else {
+            cat("    Parameters:", paste(names(hyperparam$pars), hyperparam$pars, sep = "=", collapse = ", "), "\n")
+          }
+        }
+      } else {
+        if (object@hyper_grid_domain@tuning_method == "bayesian_opt") {
+          cat("    Bounds:", paste(hyperparam, collapse = ", "), "\n")
+        } else {
+          cat("    Values:", paste(hyperparam, collapse = ", "), "\n")
+        }
+      }
+    }
+  }
+
+  # Check hyperparameters validity based on ml_algorithm
+  hyperparameters_names <- names(object@hyper_grid_domain@hyperparameter_list)
+
+  # GLMNET
+  expected_hyperparameters_glmnet <- c("alpha", "lambda.min.ratio")
+  hyperparameters_missing <- expected_hyperparameters_glmnet[which(!expected_hyperparameters_glmnet %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "glmnet"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # RF
+  expected_hyperparameters_rf <- c("mtry", "num.trees", "max.depth", "min.bucket")
+  hyperparameters_missing <- expected_hyperparameters_rf[which(!expected_hyperparameters_rf %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "rf"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # XGB
+  expected_hyperparameters_xgb <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
+  hyperparameters_missing <- expected_hyperparameters_xgb[which(!expected_hyperparameters_xgb %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "xgb"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # NN
+  expected_hyperparameters_nn <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
+  hyperparameters_missing <- expected_hyperparameters_nn[which(!expected_hyperparameters_nn %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "nn"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+  cat("=================================\n")
+
+})
+
+
+#' @title Show Method for `random_search_strategy`
+#' @description Custom show method for displaying information about objects of class `random_search_strategy`.
+#' This method will display the tuning method, machine learning algorithm, validation sample size,
+#' and the number of iterations (`n_iter`) along with hyperparameter distributions.
+#' @param object An object of class `random_search_strategy`.
+#' @return Printed information about the object.
+#' @examples
+#' # Create a random_search_strategy object
+#' random_search_obj <- create_hyperparameter_tuning_strategy(
+#'   tuning_method = "random_search",
+#'   ml_algorithm = "rf",
+#'   validation_sample_size = 1000,
+#'   n_iter = 20
+#' )
+#' show(random_search_obj)
+#' @export
+setMethod("show", "random_search_strategy", function(object) {
+  cat("Random Search Tuning Strategy\n")
+  callNextMethod()  # Calls the base show method for common slots
+  cat("Random Search Specific Information:\n")
+  cat("- Number of Iterations (n_iter): ", object@n_iter, "\n")
+  cat("- Hyperparameter Distribution:\n")
+  if (length(object@hyper_grid_domain@hyperparameter_list) == 0) {
+    cat("  No hyperparameters set.\n")
+  } else {
+    for (name in names(object@hyper_grid_domain@hyperparameter_list)) {
+      cat("  ", name, ":\n")
+      hyperparam <- object@hyper_grid_domain@hyperparameter_list[[name]]
+      if (is.list(hyperparam)) {
+        if ("distribution_choice" %in% names(hyperparam)) {
+          cat("    Distribution Choice:", hyperparam$distribution_choice, "\n")
+          if (hyperparam$distribution_choice == "constant") {
+            cat("    Value:", paste(hyperparam$value, collapse = ", "), "\n")
+          } else {
+            cat("    Parameters:", paste(names(hyperparam$pars), hyperparam$pars, sep = "=", collapse = ", "), "\n")
+          }
+        }
+      } else {
+        if (object@hyper_grid_domain@tuning_method == "bayesian_opt") {
+          cat("    Bounds:", paste(hyperparam, collapse = ", "), "\n")
+        } else {
+          cat("    Values:", paste(hyperparam, collapse = ", "), "\n")
+        }
+      }
+    }
+  }
+
+  # Check hyperparameters validity based on ml_algorithm
+  hyperparameters_names <- names(object@hyper_grid_domain@hyperparameter_list)
+
+  # GLMNET
+  expected_hyperparameters_glmnet <- c("alpha", "lambda.min.ratio")
+  hyperparameters_missing <- expected_hyperparameters_glmnet[which(!expected_hyperparameters_glmnet %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "glmnet"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # RF
+  expected_hyperparameters_rf <- c("mtry", "num.trees", "max.depth", "min.bucket")
+  hyperparameters_missing <- expected_hyperparameters_rf[which(!expected_hyperparameters_rf %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "rf"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # XGB
+  expected_hyperparameters_xgb <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
+  hyperparameters_missing <- expected_hyperparameters_xgb[which(!expected_hyperparameters_xgb %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "xgb"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # NN
+  expected_hyperparameters_nn <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
+  hyperparameters_missing <- expected_hyperparameters_nn[which(!expected_hyperparameters_nn %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "nn"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  cat("=================================\n")
+})
+
+
+#' @title Show Method for `bayesian_opt_strategy`
+#' @description Custom show method for displaying information about objects of class `bayesian_opt_strategy`.
+#' This method will display the tuning method, machine learning algorithm, validation sample size,
+#' and details specific to Bayesian optimization such as `n_iter`, acquisition function (`acq`),
+#' initial points, and hyperparameter bounds.
+#' @param object An object of class `bayesian_opt_strategy`.
+#' @return Printed information about the object.
+#' @examples
+#' # Create a bayesian_opt_strategy object
+#' bayesian_opt_obj <- create_hyperparameter_tuning_strategy(
+#'   tuning_method = "bayesian_opt",
+#'   ml_algorithm = "xgb",
+#'   validation_sample_size = 1000,
+#'   n_iter = 50,
+#'   acq = "ei",
+#'   init_points = 5,
+#'   k_iter = 3
+#' )
+#' show(bayesian_opt_obj)
+#' @export
+setMethod("show", "bayesian_opt_strategy", function(object) {
+  cat("Bayesian Optimization Tuning Strategy\n")
+  callNextMethod()  # Calls the base show method for common slots
+  cat("Bayesian Optimization Specific Information:\n")
+  cat("- Number of Iterations (n_iter): ", object@n_iter, "\n")
+  cat("- Acquisition Function (acq): ", object@acq, "\n")
+  cat("- Initial Points: ", object@init_points, "\n")
+  cat("- k_iter: ", object@k_iter, "\n")
+  cat("- Hyperparameter Bounds:\n")
+  if (length(object@hyper_grid_domain@hyperparameter_list) == 0) {
+    cat("  No hyperparameters set.\n")
+  } else {
+    for (name in names(object@hyper_grid_domain@hyperparameter_list)) {
+      cat("  ", name, ":\n")
+      hyperparam <- object@hyper_grid_domain@hyperparameter_list[[name]]
+      if (is.list(hyperparam)) {
+        if ("distribution_choice" %in% names(hyperparam)) {
+          cat("    Distribution Choice:", hyperparam$distribution_choice, "\n")
+          if (hyperparam$distribution_choice == "constant") {
+            cat("    Value:", paste(hyperparam$value, collapse = ", "), "\n")
+          } else {
+            cat("    Parameters:", paste(names(hyperparam$pars), hyperparam$pars, sep = "=", collapse = ", "), "\n")
+          }
+        }
+      } else {
+        if (object@hyper_grid_domain@tuning_method == "bayesian_opt") {
+          cat("    Bounds:", paste(hyperparam, collapse = ", "), "\n")
+        } else {
+          cat("    Values:", paste(hyperparam, collapse = ", "), "\n")
+        }
+      }
+    }
+  }
+
+  # Check hyperparameters validity based on ml_algorithm
+  hyperparameters_names <- names(object@hyper_grid_domain@hyperparameter_list)
+
+  # GLMNET
+  expected_hyperparameters_glmnet <- c("alpha", "lambda.min.ratio")
+  hyperparameters_missing <- expected_hyperparameters_glmnet[which(!expected_hyperparameters_glmnet %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "glmnet"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # RF
+  expected_hyperparameters_rf <- c("mtry", "num.trees", "max.depth", "min.bucket")
+  hyperparameters_missing <- expected_hyperparameters_rf[which(!expected_hyperparameters_rf %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "rf"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # XGB
+  expected_hyperparameters_xgb <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
+  hyperparameters_missing <- expected_hyperparameters_xgb[which(!expected_hyperparameters_xgb %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "xgb"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  # NN
+  expected_hyperparameters_nn <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
+  hyperparameters_missing <- expected_hyperparameters_nn[which(!expected_hyperparameters_nn %in% hyperparameters_names)]
+  if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "nn"){
+    cat("\n")
+    cat(paste("Hyperparameter(s) still not configured:\n"))
+    cat(paste(hyperparameters_missing, collapse = ", "))
+    cat("\n")
+  }
+
+
+  cat("=================================\n")
+})
+
 
 
 #' @title Print keras_architecture_parameters
@@ -274,6 +619,51 @@ setMethod("show", "ml_wf_val_results", function(object) {
 })
 #############################################
 
+
+#' @title Show ML Experiment
+#' @description Prints the contents of an `ml_experiment` object, detailing the various parameters and their configurations.
+#'
+#' @param object An `ml_experiment` object to be displayed.
+#'
+#' @method show ml_experiment
+#' @export
+setMethod("show", "ml_experiment", function(object) {
+  cat("ML Experiment:
+")
+
+  # Display Main Information
+  cat("\nMain Information:\n")
+  cat("  ML Algorithm:", object@ml_algorithm, "\n")
+  cat("  Target Forward Name:", object@target_fwd_name, "\n")
+
+  # Display Hyperparameter Tuning Information
+  cat("\nHyperparameter Tuning:\n")
+  cat("  Tuning Strategy Class:\n")
+  show(object@hyperparameter_tuning_strategy)
+
+  # Display Custom Objective Information
+  cat("\nCustom Objective:\n")
+  if (!is.null(object@custom_objective)) {
+    cat("  Custom Objective:", object@custom_objective, "\n")
+  } else {
+    cat("  No custom objective set.\n")
+  }
+
+  # Display Keras Architecture Parameters Information
+  cat("\nKeras Architecture Parameters:\n")
+  if (is.null(object@keras_architecture_parameters)) {
+    cat("  No Keras architecture parameters set.\n")
+  } else {
+    cat("  Parameters:", paste(names(object@keras_architecture_parameters), collapse = ", "), "\n")
+  }
+
+  # Display Miscellaneous Parameters
+  cat("\nMiscellaneous Parameters:\n")
+  cat("  Huber Delta:", object@huber_delta, "\n")
+  cat("  Quantile Tau:", object@quantile_tau, "\n")
+
+  cat("\n=================================\n")
+})
 
 #' @title Show Portfolio Policies
 #' @description Prints the contents of a `portfolio_policies` object, detailing

@@ -71,7 +71,7 @@ translate_metrics <- function(ml_algorithm, chosen_eval_metric, custom_objective
     )
 
   } else {}
-  if(ml_algorithm == "nn"){""
+  if(ml_algorithm == "nn"){
     custom_objective_translated <- switch(custom_objective,
                                           squared_error = "mean_squared_error",
                                           absolute_error = "mean_absolute_error",

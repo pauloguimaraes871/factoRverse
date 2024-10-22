@@ -11,10 +11,10 @@ It helps the user in correctly setting this object in the context of the \code{m
 \section{Slots}{
 
 \describe{
-\item{\code{tuning_method}}{A character string specifying the tuning method that will be applied (e.g., "grid_search", "random_search" or "bayesian_optimization").}
-
-\item{\code{ml_algorithm}}{A character string specifying the machine-learning algorithm that will be used.}
-
 \item{\code{hyperparameter_list}}{A list with the hyperparameters relevant to the specified machine learning algorithm.}
+
+\item{\code{tuning_method}}{Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').}
+
+\item{\code{ml_algorithm}}{A character indicating the ml_algorithm used. Should be one of "glmnet", "rf", "xgb" or "nn".}
 }}
 

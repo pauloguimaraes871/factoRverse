@@ -4,10 +4,21 @@
 \alias{create_keras_architecture}
 \title{Create Keras Architecture}
 \usage{
-create_keras_architecture(nn_optimizer, units, activation, batch_norm_option)
+create_keras_architecture(
+  nn_optimizer,
+  units = NULL,
+  activation = NULL,
+  batch_norm_option = NULL
+)
 }
 \arguments{
 \item{nn_optimizer}{A character string specifying the optimizer to use (e.g., "adam").}
+
+\item{units}{A numeric value for the number of units in the new layer.}
+
+\item{activation}{A character string specifying the activation function for the new layer (e.g., "relu").}
+
+\item{batch_norm_option}{A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").}
 }
 \value{
 An object of class \code{keras_architecture_parameters}.

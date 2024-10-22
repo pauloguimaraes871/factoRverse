@@ -105,7 +105,17 @@ is_hyper_grid_domain <- function(x) {
   inherits(x, "hyper_grid_domain")
 }
 
-
+#' Define the is_hyperparameter_tuning_strategy function
+#' @description Function to check if an object is of class `hyperparameter_tuning_strategy`.
+#'
+#' @param x An object to check.
+#'
+#' @return A logical value indicating whether the object is of class `hyperparameter_tuning_strategy`.
+#'
+#' @export
+is_hyperparameter_tuning_strategy <- function(x) {
+  is(x, "hyperparameter_tuning_strategy")
+}
 
 #' Define the is keras_architecture_parameters function
 #' @description Function to check if an object is of class `keras_architecture_parameters`.

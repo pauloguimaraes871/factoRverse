@@ -2,68 +2,93 @@
 % Please edit documentation in R/constructors.R
 \name{add_hyperparameter}
 \alias{add_hyperparameter}
-\title{Add a Hyperparameter to a \code{hyper_grid_domain}}
+\title{Add a Hyperparameter to a \code{hyper_grid_domain}, whether inside a \code{hyperparameter_tuning_strategy} or not.}
 \usage{
-add_hyperparameter(hyper_grid_domain, new_hyperparameters)
+add_hyperparameter(object, hyperparameter, ...)
 }
 \arguments{
-\item{hyper_grid_domain}{A \code{hyper_grid_domain} object to which the hyperparameter will be added.}
+\item{object}{A \code{hyperparameter_tuning_strategy} or a \code{hyper_grid_domain} object.}
 
-\item{new_hyperparameters}{A named list representing the hyperparameter to be added.}
+\item{hyperparameter}{A vector of characters indicating the name of the hyperparameter to be added. Options are:
+\itemize{
+\item \strong{glmnet}: alpha, lambda.min.ratio
+\item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+\item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+\item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+}}
 }
 \value{
-A new \code{hyper_grid_domain} object with the updated hyperparameters.
+A \code{hyper_grid_domain} object with the updated hyperparameters.
 }
 \description{
-This method adds a new hyperparameter to an existing \code{hyper_grid_domain} object.
+This generic function adds a new hyperparameter to an existing \code{hyper_grid_domain} object, whether it is inside a \code{hyperparameter_tuning_strategy} or not.
 }
 \examples{
-# Create an initial hyper_grid_domain object for grid-search
-hyper_grid <- create_hyper_grid_domain(
+# Create an initial hyperparameter_tuning_strategy object for grid-search
+grid_search_obj <- create_hyperparameter_tuning_strategy(
   tuning_method = "grid_search",
-  ml_algorithm = "glmnet"
+  validation_sample_size = 1000,
+  split_method = "expanding",
+  chosen_eval_metric = "rmse"
 )
 
-#Add hyperparameter for grid_search
-hyper_grid <- add_hyperparameter(
-hyper_grid_domain = hyper_grid,
-new_hyperparameters = list(alpha = c(0.2, 0.5)) #Hyperparameters may be added one by one or all at once (eg.: list(alpha = c(0.2, 0.5), lambda.min.ratio = c(0.5, 0.2, 0.3)))
+# Add hyperparameter for grid_search
+grid_search_obj <- add_hyperparameter(
+  grid_search_obj,
+  hyperparameter = c("alpha", "lambda.min.ratio"),
+  grid = list(c(0.2, 0.5), c(0.5, 0.2, 0.3))
 )
 
-random_search and xgb algorithm
-hyper_grid <- create_hyper_grid_domain(
+# Create an initial hyperparameter_tuning_strategy object for random_search
+random_search_obj <- create_hyperparameter_tuning_strategy(
   tuning_method = "random_search",
-  ml_algorithm = "xgb"
+  validation_sample_size = 1000,
+  split_method = "rolling",
+  chosen_eval_metric = "mae",
+  n_iter = 20
 )
 
-hyper_grid <- add_hyperparameter(
-hyper_grid_domain = hyper_grid,
-new_hyperparameters =
-list(min_child_weight = list(distribution_choice = "constant", value = 3),
-     max_depth = list(distribution_choice = "uniform", pars = c(min = 1L, max = 2L)),
-     subsample = list(distribution_choice = "uniform", pars = c(min = 0.25, max = 0.50)),
-     colsample_bytree = list(distribution_choice = "uniform", pars = c(min = 0.25, max = 0.50)),
-     eta = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.2)),
-     alpha = list(distribution_choice = "uniform", pars = c(min = 2, max = 5)),
-     gamma = list(distribution_choice = "constant", value = 0),
-     nrounds = list(distribution_choice = "uniform", pars = c(min = 200L, max = 500L)))
+# Add hyperparameters for random_search
+random_search_obj <- add_hyperparameter(
+  random_search_obj,
+  hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
+  distribution_choice = c("constant", "uniform", "uniform", "uniform", "uniform", "uniform", "constant", "uniform"),
+  pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),  c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
 )
 
-bayesian_opt and rf algorithm
-#' hyper_grid <- create_hyper_grid_domain(
+# Create an initial hyperparameter_tuning_strategy object for bayesian_opt
+bayesian_opt_obj <- create_hyperparameter_tuning_strategy(
   tuning_method = "bayesian_opt",
-  ml_algorithm = "rf"
+  validation_sample_size = 1000,
+  split_method = "expanding",
+  chosen_eval_metric = "mape",
+  n_iter = 50,
+  acq = "ei",
+  init_points = 5,
+  k_iter = 3
 )
 
-
-hyper_grid <- add_hyperparameter(
-hyper_grid_domain = hyper_grid,
-new_hyperparameters =
-list(mtry = c(0,1),
-     num.trees = c(100L, 1000L),
-     max.depth = c(2L, 8L),
-     min.bucket = c(1, 5))
+# Add hyperparameters for bayesian_opt
+bayesian_opt_obj <- add_hyperparameter(
+  bayesian_opt_obj,
+  hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+  bounds = list(c(0,1), c(100L, 1000L), c(2L, 8L), c(1, 5))
 )
 
+# Creating a hyper_grid_domain object for a xgb model
+hyper_grid_xgb_random <- create_hyper_grid_domain(
+ tuning_method = "random_search",
+ ml_algorithm = "xgb"
+ )
+
+ hyper_grid_xgb_random <- add_hyperparameter(
+ hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
+                    "eta", "alpha", "gamma", "nrounds"),
+ distribution_choice = c("constant", "uniform", "uniform", "uniform",
+                         "uniform", "uniform", "constant", "uniform"),
+ pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
+           c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
+           c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
+ )
 
 }

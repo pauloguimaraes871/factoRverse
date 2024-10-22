@@ -13,8 +13,7 @@
 #' @export
 setMethod(
   "plot",
-  signature(x = "meta_dataframe"),
-  function(x, type = "distribution") {
+  signature(x = "meta_dataframe"), function(x, type = "distribution") {
     df <- x@data
 
     if (type == "distribution") {
@@ -62,6 +61,379 @@ setMethod(
 )
 
 ################################
+
+#' @title Plot Method for `grid_search_strategy`
+#' @description Plot the values selected for each hyperparameter in `hyper_grid_domain` for grid search strategy.
+#' @param x An object of class `grid_search_strategy`.
+#' @param y Unused. Included for consistency with the generic `plot` method.
+#' @return A `ggplot` object visualizing the hyperparameter grid and possible limits.
+#' @export
+setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function(x, y) {
+
+  # Extract the hyperparameters and grid values
+  hyper_list <- x@hyper_grid_domain@hyperparameter_list
+  if (length(hyper_list) == 0) {
+    stop("No hyperparameters found in the grid domain.")
+  }
+
+  # Define the predefined min and max ranges for certain hyperparameters
+  predefined_limits <- list(
+    "alpha" = c(0, 1),
+    "lambda.min.ratio" = c(0, 1),
+    "mtry" = c(0, 1),
+    "eta" = c(0, 1),
+    "colsample_bytree" = c(0, 1),
+    "subsample" = c(0, 1),
+    "droprate" = c(0, 1)
+  )
+
+  # Define transformations for specific hyperparameters
+  transformation_rules <- list(
+    "num.trees" = function(x) x / 100,
+    "max.depth" = function(x) x / 10,
+    "min.bucket" = function(x) x / 10,
+    "min_child_weight" = function(x) x / 10,
+    "alpha" = function(x) x / 10,
+    "gamma" = function(x) x / 10,
+    "nrounds" = function(x) x / 100,
+    "regularizer_l1" = function(x) x / 10,
+    "regularizer_l2" = function(x) x / 10,
+    "size_of_batch" = function(x) log(x, base = 2),
+    "number_of_epochs" = function(x) x / 100
+  )
+
+  # Define labels for each transformation
+  transformation_labels <- list(
+    "num.trees" = "/10²",
+    "max.depth" = "/10",
+    "min.bucket" = "/10",
+    "min_child_weight" = "/10",
+    "alpha" = "/10",
+    "gamma" = "/10",
+    "nrounds" = "/10²",
+    "regularizer_l1" = "/10",
+    "regularizer_l2" = "/10",
+    "size_of_batch" = "(log₂)",
+    "number_of_epochs" = "/10²"
+  )
+
+  # Apply transformations to hyperparameters if applicable
+  transformed_hyper_list <- list()
+  for (hp_name in names(hyper_list)) {
+    if (hp_name %in% names(transformation_rules)) {
+      # Apply the transformation
+      transformed_hyper_list[[hp_name]] <- sapply(hyper_list[[hp_name]], transformation_rules[[hp_name]])
+      # Update the hyperparameter name to reflect the transformation
+      names(transformed_hyper_list)[names(transformed_hyper_list) == hp_name] <- paste0(hp_name, transformation_labels[[hp_name]])
+    } else {
+      transformed_hyper_list[[hp_name]] <- hyper_list[[hp_name]]  # No transformation
+    }
+  }
+
+  # Prepare data for actual grid values
+  plot_data <- data.frame(
+    Hyperparameter = rep(names(transformed_hyper_list), sapply(transformed_hyper_list, length)),
+    Value = unlist(transformed_hyper_list)
+  )
+
+  # Prepare data for predefined limits
+  predefined_data <- data.frame(
+    Hyperparameter = character(),
+    MinAllowed = numeric(),
+    MaxAllowed = numeric()
+  )
+
+  # Loop through each hyperparameter and check if predefined limits exist
+  for (hp_name in names(hyper_list)) {
+    if (hp_name %in% names(predefined_limits)) {
+      predefined_data <- rbind(predefined_data, data.frame(
+        Hyperparameter = if (hp_name %in% names(transformation_labels)) {
+          paste0(hp_name, transformation_labels[[hp_name]])
+        } else {
+          hp_name
+        },
+        MinAllowed = predefined_limits[[hp_name]][1],
+        MaxAllowed = predefined_limits[[hp_name]][2]
+      ))
+    }
+  }
+
+  # Create the plot with hyperparameters on the y-axis
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, color = Hyperparameter)) +
+    ggplot2::geom_point(size = 3, colour = "darkblue", shape = 4) +  # Points for actual grid values
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 3, color = "black") +  # Min always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 3, color = "black") +  # Max always closed
+    ggplot2::labs(title = "Grid Search: Hyperparameter Grid Values",
+                  y = "Hyperparameter",
+                  x = "Selected Values") +
+    ggplot2::theme_minimal() +
+    ggplot2::scale_color_brewer(palette = "Set3") +
+    ggplot2::guides(fill = ggplot2::guide_none(), shape = ggplot2::guide_none())  # Remove legend for color and shape
+
+  print(p)
+})
+
+
+
+
+#' @title Plot Method for `random_search_strategy`
+#' @description Generate a sample for each hyperparameter and plot the distribution for random search.
+#' @param x An object of class `random_search_strategy`.
+#' @param y Unused. Included for consistency with the generic `plot` method.
+#' @return A `ggplot` object visualizing the hyperparameter distributions with possible limits.
+#' @export
+setMethod("plot", signature(x = "random_search_strategy", y = "missing"), function(x, y) {
+
+  # Extract n_iter from the object
+  n_iter <- x@n_iter
+
+  # Extract the hyperparameters and distributions
+  hyper_list <- x@hyper_grid_domain@hyperparameter_list
+  if (length(hyper_list) == 0) {
+    stop("No hyperparameters found in the grid domain.")
+  }
+
+  # Define the predefined min and max ranges for certain hyperparameters
+  predefined_limits <- list(
+    "alpha" = c(0, 1),
+    "lambda.min.ratio" = c(0, 1),
+    "mtry" = c(0, 1),
+    "eta" = c(0, 1),
+    "colsample_bytree" = c(0, 1),
+    "subsample" = c(0, 1),
+    "droprate" = c(0, 1)
+  )
+
+  # Define transformations for specific hyperparameters
+  transformation_rules <- list(
+    "num.trees" = function(x) x / 100,
+    "max.depth" = function(x) x / 10,
+    "min.bucket" = function(x) x / 10,
+    "min_child_weight" = function(x) x / 10,
+    "alpha" = function(x) x / 10,
+    "gamma" = function(x) x / 10,
+    "nrounds" = function(x) x / 100,
+    "regularizer_l1" = function(x) x / 10,
+    "regularizer_l2" = function(x) x / 10,
+    "size_of_batch" = function(x) log(x, base = 2),
+    "number_of_epochs" = function(x) x / 100
+  )
+
+  # Define labels for each transformation
+  transformation_labels <- list(
+    "num.trees" = "/10²",
+    "max.depth" = "/10",
+    "min.bucket" = "/10",
+    "min_child_weight" = "/10",
+    "alpha" = "/10",
+    "gamma" = "/10",
+    "nrounds" = "/10²",
+    "regularizer_l1" = "/10",
+    "regularizer_l2" = "/10",
+    "size_of_batch" = "(log₂)",
+    "number_of_epochs" = "/10²"
+  )
+
+  # Apply transformations to hyperparameters if applicable
+  transformed_hyper_list <- list()
+  for (hp_name in names(hyper_list)) {
+    if (hp_name %in% names(transformation_rules)) {
+      # Apply the transformation
+      transformed_hyper_list[[hp_name]] <- hyper_list[[hp_name]]
+      transformed_hyper_list[[hp_name]]$pars <- sapply(hyper_list[[hp_name]]$pars, transformation_rules[[hp_name]])
+      # Update the hyperparameter name to reflect the transformation
+      names(transformed_hyper_list)[names(transformed_hyper_list) == hp_name] <- paste0(hp_name, transformation_labels[[hp_name]])
+    } else {
+      transformed_hyper_list[[hp_name]] <- hyper_list[[hp_name]]  # No transformation
+    }
+  }
+
+  # Prepare a data frame to store the samples
+  plot_data <- data.frame(
+    Hyperparameter = character(),
+    Value = numeric(),
+    Distribution = character()
+  )
+
+  # Prepare a data frame for predefined limits
+  predefined_data <- data.frame(
+    Hyperparameter = character(),
+    MinAllowed = numeric(),
+    MaxAllowed = numeric()
+  )
+
+  # Loop through each hyperparameter to generate samples and check predefined limits
+  for (hp_name in names(transformed_hyper_list)) {
+    dist_choice <- transformed_hyper_list[[hp_name]]$distribution_choice
+    if (dist_choice == "uniform") {
+      pars <- transformed_hyper_list[[hp_name]]$pars
+      samples <- runif(n_iter, min = pars["min"], max = pars["max"])
+    } else if (dist_choice == "normal") {
+      pars <- transformed_hyper_list[[hp_name]]$pars
+      samples <- rnorm(n_iter, mean = pars["mean"], sd = pars["sd"])
+    } else if (dist_choice == "lognormal") {
+      pars <- transformed_hyper_list[[hp_name]]$pars
+      samples <- rlnorm(n_iter, meanlog = pars["meanlog"], sdlog = pars["sdlog"])
+    } else if (dist_choice == "constant") {
+      samples <- rep(transformed_hyper_list[[hp_name]]$value, n_iter)  # Constant value
+    } else {
+      stop(paste("Unsupported distribution:", dist_choice))
+    }
+
+    # Add the samples to the plot_data
+    plot_data <- rbind(plot_data, data.frame(
+      Hyperparameter = rep(hp_name, length(samples)),
+      Value = samples,
+      Distribution = rep(dist_choice, length(samples))
+    ))
+
+    # If predefined limits exist, add them to predefined_data
+    if (hp_name %in% names(predefined_limits)) {
+      predefined_data <- rbind(predefined_data, data.frame(
+        Hyperparameter = hp_name,
+        MinAllowed = predefined_limits[[hp_name]][1],
+        MaxAllowed = predefined_limits[[hp_name]][2]
+      ))
+    }
+  }
+
+  # Create the plot with hyperparameters on the y-axis
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, fill = Hyperparameter)) +
+    ggplot2::geom_violin(data = plot_data[plot_data$Distribution != "constant", ], alpha = 0.7) +  # Violin for non-constant distributions
+    ggplot2::geom_point(data = plot_data[plot_data$Distribution == "constant", ], size = 3, color = "darkblue", shape = 4) +  # Points for constant
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 3, color = "black") +  # Min always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 3, color = "black") +  # Max always closed
+    ggplot2::labs(title = "Random Search: Hyperparameter Distributions",
+                  y = "Hyperparameter",
+                  x = "Sampled Values") +
+    ggplot2::theme_minimal() +
+    ggplot2::scale_fill_brewer(palette = "Set3") +
+    ggplot2::guides(fill = ggplot2::guide_none())  # Remove legend for fill and shape
+
+  print(p)
+})
+
+
+#' @title Plot Method for `bayesian_opt_strategy`
+#' @description Plot the bounds for each hyperparameter in `bayesian_opt_strategy`.
+#' @param x An object of class `bayesian_opt_strategy`.
+#' @param y Unused. Included for consistency with the generic `plot` method.
+#' @return A `ggplot` object visualizing the bounds.
+#' @export
+setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), function(x, y, ...) {
+
+  # Extract hyper_grid_domain and the hyperparameter list
+  hyper_grid <- x@hyper_grid_domain
+  hyper_list <- hyper_grid@hyperparameter_list
+
+  if (length(hyper_list) == 0) {
+    stop("No hyperparameters found in the grid domain.")
+  }
+
+  # Define the predefined min and max ranges for certain hyperparameters
+  predefined_limits <- list(
+    "alpha" = c(0, 1),
+    "lambda.min.ratio" = c(0, 1),
+    "mtry" = c(0, 1),
+    "eta" = c(0, 1),
+    "colsample_bytree" = c(0, 1),
+    "subsample" = c(0, 1),
+    "droprate" = c(0, 1)
+  )
+
+  # Define transformations for specific hyperparameters
+  transformation_rules <- list(
+    "num.trees" = function(x) x / 100,
+    "max.depth" = function(x) x / 10,
+    "min.bucket" = function(x) x / 10,
+    "min_child_weight" = function(x) x / 10,
+    "alpha" = function(x) x / 10,
+    "gamma" = function(x) x / 10,
+    "nrounds" = function(x) x / 100,
+    "regularizer_l1" = function(x) x / 10,
+    "regularizer_l2" = function(x) x / 10,
+    "size_of_batch" = function(x) log(x, base = 2),
+    "number_of_epochs" = function(x) x / 100
+  )
+
+  # Define labels for each transformation
+  transformation_labels <- list(
+    "num.trees" = "/10²",
+    "max.depth" = "/10",
+    "min.bucket" = "/10",
+    "min_child_weight" = "/10",
+    "alpha" = "/10",
+    "gamma" = "/10",
+    "nrounds" = "/10²",
+    "regularizer_l1" = "/10",
+    "regularizer_l2" = "/10",
+    "size_of_batch" = "(log₂)",
+    "number_of_epochs" = "/10²"
+  )
+
+  # Apply transformations to hyperparameters if applicable
+  transformed_hyper_list <- list()
+  for (hp_name in names(hyper_list)) {
+    if (hp_name %in% names(transformation_rules)) {
+      # Apply the transformation
+      transformed_hyper_list[[hp_name]] <- sapply(hyper_list[[hp_name]], transformation_rules[[hp_name]])
+      # Update the hyperparameter name to reflect the transformation
+      names(transformed_hyper_list)[names(transformed_hyper_list) == hp_name] <- paste0(hp_name, transformation_labels[[hp_name]])
+    } else {
+      transformed_hyper_list[[hp_name]] <- hyper_list[[hp_name]]  # No transformation
+    }
+  }
+
+  # Prepare the data frame for plotting
+  plot_data <- do.call(rbind, lapply(names(transformed_hyper_list), function(hp) {
+    bounds <- transformed_hyper_list[[hp]]
+
+    # Check if there are predefined limits
+    if (hp %in% names(predefined_limits)) {
+      limits <- predefined_limits[[hp]]
+      min_val <- limits[1]
+      max_val <- limits[2]
+
+      data.frame(
+        hyperparameter = hp,
+        lower = bounds[1],
+        upper = bounds[2],
+        min_val = min_val,
+        max_val = max_val
+      )
+    } else {
+      data.frame(
+        hyperparameter = hp,
+        lower = bounds[1],
+        upper = bounds[2],
+        min_val = NA,
+        max_val = NA
+      )
+    }
+  }))
+
+  # Create the ggplot
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(y = hyperparameter)) +
+    # Add segments for bounds with thinner lines
+    ggplot2::geom_segment(ggplot2::aes(x = lower, xend = upper, yend = hyperparameter), color = "darkblue", size = 0.8) +
+    # Add points for bounds
+    ggplot2::geom_point(ggplot2::aes(x = lower), size = 3, color = "blue", shape = 16) +  # Closed for lower bounds
+    ggplot2::geom_point(ggplot2::aes(x = upper), size = 3, color = "blue", shape = 16) +  # Closed for upper bounds
+    # Add predefined limits (min and max)
+    ggplot2::geom_point(data = plot_data[!is.na(plot_data$min_val), ], ggplot2::aes(x = min_val, y = hyperparameter), size = 3, color = "black", shape = 124) +  # Red for predefined min
+    ggplot2::geom_point(data = plot_data[!is.na(plot_data$max_val), ], ggplot2::aes(x = max_val, y = hyperparameter), size = 3, color = "black", shape = 124) +  # Red for predefined max
+    # Adjust plot labels
+    ggplot2::labs(
+      title = "Bayesian Optimization: Hyperparameter Bounds",
+      x = "Value",
+      y = "Hyperparameter"
+    ) +
+    ggplot2::theme_minimal()
+
+  print(p)
+})
+
+
 
 
 # Define the plot method for ml_wf_val_results

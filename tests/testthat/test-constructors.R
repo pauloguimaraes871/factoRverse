@@ -1,60 +1,269 @@
+#Hyper grid domain
 test_that("create_hyper_grid_domain works", {
-
 
   expect_no_error(create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet"))
 
   expect_no_error(
-    create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet",
-                                           hyperparameters = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1)),
-                                                                  lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 1))
-                                                                               ))
+    create_hyper_grid_domain(tuning_method = "random_search",
+                             ml_algorithm = "glmnet",
+                             hyperparameter = c("alpha", "lambda.min.ratio"),
+                             distribution_choice = c("uniform", "uniform"),
+                             pars = list(c(min = 0, max = 1), c(min = 0, max = 1))
     )
+  )
 
-
-  hyper_grid_domain <-    create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet",
-                                                   hyperparameters = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1)),
-                                                                          lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9))
-                                                   ))
+  hyper_grid_domain <- create_hyper_grid_domain(
+    ml_algorithm = "glmnet",
+    tuning_method = "random_search",
+    hyperparameter = c("alpha", "lambda.min.ratio"),
+    distribution_choice = c("uniform", "uniform"),
+    pars = list(c(min = 0, max = 1), c(min = 0, max = 0.9))
+  )
 
   expect_equal(hyper_grid_domain@hyperparameter_list$alpha, list(distribution_choice = "uniform", pars = c(min = 0, max = 1)))
   expect_equal(hyper_grid_domain@hyperparameter_list$lambda.min.ratio, list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9)))
 
 
   hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "grid_search", ml_algorithm = "glmnet",
-                                                   hyperparameters = list(alpha = c(0.1, 0.5, 0.9),
-                                                                          lambda.min.ratio = c(0.1, 0.75, 0.9))
-                                                   )
+                                                hyperparameter = c("alpha", "lambda.min.ratio"),
+                                                grid = list(c(0.1, 0.5, 0.9), c(0.1, 0.75, 0.9))
+                                                )
 
   expect_equal(hyper_grid_domain@hyperparameter_list$alpha, c(0.1, 0.5, 0.9))
   expect_equal(hyper_grid_domain@hyperparameter_list$lambda.min.ratio, c(0.1, 0.75, 0.9))
 
 
-})
+  hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "bayesian_opt", ml_algorithm = "glmnet",
+                                                hyperparameter = c("alpha", "lambda.min.ratio"),
+                                                bounds = list(c(0.1, 0.5), c(0.1, 0.9))
+  )
 
-test_that("add_hyperparameters works to add and overwrite", {
+  expect_equal(hyper_grid_domain@hyperparameter_list$alpha, c(0.1, 0.5))
+  expect_equal(hyper_grid_domain@hyperparameter_list$lambda.min.ratio, c(0.1, 0.9))
 
   hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet",
-                                                hyperparameters = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1))
-                                                   ))
+                                                hyperparameter = c("alpha", "lambda.min.ratio"),
+                                                distribution_choice = c("uniform", "constant"),
+                                                pars = list(c(min = 0, max = 1), c(value = 3))
+                                                )
 
-  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain, new_hyperparameters = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.75))
-                                          ))
+  expect_equal(hyper_grid_domain@hyperparameter_list, list(alpha = list(distribution_choice = "uniform", pars = c(min=0,max=1)),
+                                                           lambda.min.ratio = list(distribution_choice = "constant", value = 3))
+               )
+
+
+})
+
+test_that("add_hyperparameters works to add and overwrite a hyper_grid_domain obj", {
+
+  hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet",
+                                                hyperparameter = "alpha",
+                                                distribution_choice = "uniform",
+                                                pars = c(min = 0, max = 1)
+                                                )
+
+  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain, hyperparameter = "alpha",
+                                          distribution_choice = "uniform",
+                                          pars = c(min = 0, max = 0.75)
+                                          )
 
 
   expect_equal(hyper_grid_domain@hyperparameter_list$alpha, list(distribution_choice = "uniform", pars = c(min = 0, max = 0.75)))
 
-  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain, new_hyperparameters = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.50))))
-  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain, new_hyperparameters = list(lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.70))))
-
+  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain, hyperparameter = "alpha", distribution_choice = "uniform", pars = c(min = 0, max = 0.50))
+  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain, hyperparameter = "lambda.min.ratio", distribution_choice = "uniform", pars = c(min = 0, max = 0.70))
 
   expect_equal(hyper_grid_domain@hyperparameter_list$alpha, list(distribution_choice = "uniform", pars = c(min = 0, max = 0.50)))
   expect_equal(hyper_grid_domain@hyperparameter_list$lambda.min.ratio, list(distribution_choice = "uniform", pars = c(min = 0, max = 0.70)))
 
 
+  hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "grid_search", ml_algorithm = "rf",
+                                                hyperparameter = c("mtry", "num.trees", "max.depth"),
+                                                grid = list(2, c(1,2,3), c(2,3,2,4))
+  )
+
+  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain, hyperparameter = c("mtry","min.bucket"),
+                                          grid = list(c(2,3,4), c(1,2,3,2,5))
+  )
+  expect_equal(hyper_grid_domain@hyperparameter_list$min.bucket, c(1,2,3,2,5))
+  expect_equal(hyper_grid_domain@hyperparameter_list$mtry, c(2,3,4))
+  expect_equal(hyper_grid_domain@hyperparameter_list$num.trees, c(1,2,3))
+  expect_equal(hyper_grid_domain@hyperparameter_list$max.depth, c(2,3,2,4))
+
+
+  hyper_grid_domain <- add_hyperparameter(hyper_grid_domain, hyperparameter = c("min.bucket"),
+                                          grid = c(22,3,5)
+  )
+  expect_equal(hyper_grid_domain@hyperparameter_list$num.trees, c(1,2,3))
+
 })
 
+test_that("add_hyperparameters throws an error when choosing wrong hyperparameters, tuning_method or ml_algorithm or when adding an incompatible hyperparameter format", {
+
+  expect_error(create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet",
+                                                hyperparameter = "max_depth",
+                                                distribution_choice = "uniform",
+                                                pars = c(min = 0, max = 1)),
+               "hyperparameters do not match ml_algorithm choice for 'glmnet'")
+
+  expect_error(create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "ranger",
+                                        hyperparameter = "max_depth",
+                                        distribution_choice = "uniform",
+                                        pars = c(min = 0, max = 1)),
+               "Invalid choice for ml_algorithm. Should be one of glmnet, rf, xgb or nn."
+               )
 
 
+
+  expect_error(create_hyper_grid_domain(tuning_method = "random", ml_algorithm = "glmnet",
+                                        hyperparameter = "alpha",
+                                        distribution_choice = "uniform",
+                                        pars = c(min = 0, max = 1)),
+               "Invalid tuning_method. Only 'grid_search', 'random_search', and 'bayesian_opt' are supported."
+               )
+
+  expect_error(create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet",
+                                        hyperparameter = "alpha",
+                                        distribution_choice = "uniform",
+                                        pars = c(a = 0, max = 1)),
+               "For 'uniform', pars must contain 'min' and 'max'."
+               )
+
+  hyper_grid <- create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "rf",
+                                         hyperparameter = "max.depth",
+                                         distribution_choice = "uniform",
+                                         pars = c(min = 0, max = 1))
+
+   expect_error(add_hyperparameter(hyper_grid, hyperparameter = "lambda.min.ratio", grid = c(1,2,3,4,5)),
+                "distribution_choice and pars can't be missing when tuning_method is random_search")
+
+
+})
+
+#Grid Search Strategy
+test_that("add_hyperparameter works for grid_search", {
+  # Create an initial grid_search object
+  grid_search_obj <- create_hyperparameter_tuning_strategy(
+    tuning_method = "grid_search",
+    ml_algorithm = "glmnet",
+    validation_sample_size = 1000,
+    chosen_eval_metric = "rmse"
+  )
+
+  # Add hyperparameters to the grid_search_strategy object
+  grid_search_obj <- add_hyperparameter(
+    grid_search_obj,
+    hyperparameter = c("alpha", "lambda.min.ratio"),
+    grid = list(c(0.1, 0.2, 0.3), c(0.01, 0.1))
+  )
+
+  expect_equal(names(grid_search_obj@hyper_grid_domain@hyperparameter_list), c("alpha", "lambda.min.ratio"))
+  expect_equal(grid_search_obj@hyper_grid_domain@hyperparameter_list$alpha, c(0.1, 0.2, 0.3))
+  expect_equal(grid_search_obj@hyper_grid_domain@hyperparameter_list$lambda.min.ratio, c(0.01, 0.1))
+
+  # Change hyperparameters to the grid_search_strategy object
+  grid_search_obj <- add_hyperparameter(
+    grid_search_obj,
+    hyperparameter = c("alpha"),
+    grid = 0.2
+  )
+
+  expect_equal(names(grid_search_obj@hyper_grid_domain@hyperparameter_list), c("lambda.min.ratio", "alpha"))
+  expect_equal(grid_search_obj@hyper_grid_domain@hyperparameter_list$alpha, 0.2)
+  expect_equal(grid_search_obj@hyper_grid_domain@hyperparameter_list$lambda.min.ratio, c(0.01, 0.1))
+
+})
+
+test_that("add_hyperparameter throws error for missing grid in grid_search", {
+  grid_search_obj <- create_hyperparameter_tuning_strategy(
+    tuning_method = "grid_search",
+    ml_algorithm = "glmnet",
+    chosen_eval_metric = "mphe",
+    validation_sample_size = 1000
+  )
+
+  expect_error(add_hyperparameter(grid_search_obj, hyperparameter = "alpha"), "grid can't be missing when tuning method is grid_search")
+})
+
+#Random Search Strategy
+test_that("add_hyperparameter works for random_search", {
+  # Create an initial random_search object
+  random_search_obj <- create_hyperparameter_tuning_strategy(
+    tuning_method = "random_search",
+    ml_algorithm = "xgb",
+    validation_sample_size = 1000,
+    chosen_eval_metric = "rmse",
+    early_stop = 15,
+    n_iter = 20
+  )
+
+  # Add hyperparameters for random_search_strategy
+  random_search_obj <- add_hyperparameter(
+    random_search_obj,
+    hyperparameter = c("max_depth", "min_child_weight"),
+    distribution_choice = c("uniform", "constant"),
+    pars = list(c(min = 1, max = 10), 3)
+  )
+
+  expect_equal(names(random_search_obj@hyper_grid_domain@hyperparameter_list), c("max_depth", "min_child_weight"))
+  expect_equal(random_search_obj@hyper_grid_domain@hyperparameter_list$max_depth$pars, c(min = 1, max = 10))
+  expect_equal(random_search_obj@hyper_grid_domain@hyperparameter_list$min_child_weight$value, 3)
+})
+
+test_that("add_hyperparameter throws error for missing distribution_choice in random_search", {
+  random_search_obj <- create_hyperparameter_tuning_strategy(
+    tuning_method = "random_search",
+    ml_algorithm = "xgb",
+    validation_sample_size = 1000,
+    chosen_eval_metric = "rmse",
+    n_iter = 20
+  )
+
+  expect_error(add_hyperparameter(random_search_obj, hyperparameter = "max_depth", grid = c(1,2,3,4,5)), "distribution_choice and pars can't be missing when tuning_method is random_search")
+})
+
+#Bayesian Opt Strategy
+test_that("add_hyperparameter works for bayesian_opt", {
+  # Create an initial bayesian_opt object
+  bayesian_opt_obj <- create_hyperparameter_tuning_strategy(
+    tuning_method = "bayesian_opt",
+    ml_algorithm = "rf",
+    validation_sample_size = 1000,
+    chosen_eval_metric = "mae",
+    n_iter = 50,
+    acq = "ei",
+    init_points = 5,
+    k_iter = 3
+  )
+
+  # Add hyperparameters for bayesian_opt_strategy
+  bayesian_opt_obj <- add_hyperparameter(
+    bayesian_opt_obj,
+    hyperparameter = c("mtry", "num.trees"),
+    bounds = list(c(1, 10), c(100, 1000))
+  )
+
+  expect_equal(names(bayesian_opt_obj@hyper_grid_domain@hyperparameter_list), c("mtry", "num.trees"))
+  expect_equal(bayesian_opt_obj@hyper_grid_domain@hyperparameter_list$mtry, c(1, 10))
+  expect_equal(bayesian_opt_obj@hyper_grid_domain@hyperparameter_list$num.trees, c(100, 1000))
+})
+
+test_that("add_hyperparameter throws error for missing bounds in bayesian_opt", {
+  bayesian_opt_obj <- create_hyperparameter_tuning_strategy(
+    tuning_method = "bayesian_opt",
+    ml_algorithm = "rf",
+    chosen_eval_metric = "rmse",
+    validation_sample_size = 1000,
+    n_iter = 50,
+    acq = "ei",
+    init_points = 5,
+    k_iter = 3
+  )
+
+  expect_error(add_hyperparameter(bayesian_opt_obj, hyperparameter = "mtry"), "bounds can't be missing when tuning_method is bayesian_opt")
+})
+
+#Keras
 test_that("create_keras_architecture_parameters works", {
 
   keras <- create_keras_architecture(nn_optimizer = "Adam", units = c(32,16), activation = c("relu", "relu"), batch_norm_option = c(TRUE, TRUE))
@@ -67,11 +276,10 @@ test_that("create_keras_architecture_parameters works", {
 
 })
 
-
 test_that("add_keras_architecture_parameters works", {
 
   keras <- create_keras_architecture(nn_optimizer = "Adam", units = c(32,16), activation = c("relu", "relu"), batch_norm_option = c(TRUE, TRUE))
-  keras <- add_layer(keras, units = 8, activation = "tanh", batch_norm_option = FALSE)
+  keras <- add_keras_layer(keras, units = 8, activation = "tanh", batch_norm_option = FALSE)
 
   expect_equal(keras@units, c(32,16,8))
   expect_equal(keras@batch_norm_option, c(TRUE,TRUE,FALSE))
@@ -82,6 +290,139 @@ test_that("add_keras_architecture_parameters works", {
 })
 
 
+
+###########################################
+##Create ml_experiment
+##########################################
+
+# Test: Create `ml_experiment` Object with Default Values
+# Test that an `ml_experiment` object can be successfully created with default values where applicable.
+test_that("create_ml_experiment works with default values", {
+  ml_exp <- create_ml_experiment(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "rf",
+    hyperparameter_tuning_strategy =
+      create_hyperparameter_tuning_strategy(ml_algorithm = "rf", tuning_method = "grid_search",
+                                            validation_sample_size = 10, chosen_eval_metric = "rmse")
+  )
+
+  expect_s4_class(ml_exp, "ml_experiment")
+  expect_equal(ml_exp@target_fwd_name, "target_variable")
+  expect_equal(ml_exp@ml_algorithm, "rf")
+  expect_equal(ml_exp@custom_objective, "squared_error")
+  expect_equal(ml_exp@quantile_tau, 0.5)
+  expect_equal(ml_exp@huber_delta, 1)
+})
+
+
+# Test: Valid tuning method
+test_that("create_ml_parameters accepts valid tuning method", {
+  ml_params <- create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "xgb",
+    tuning_method = "grid_search"
+  )
+
+  expect_equal(ml_params@tuning_method, "grid_search")
+})
+
+# Test: Invalid tuning method
+test_that("create_ml_parameters throws an error for invalid tuning method", {
+  expect_error(create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "xgb",
+    tuning_method = "invalid_method"
+  ), "Invalid tuning method")
+})
+
+# Test: Valid chosen evaluation metric
+test_that("create_ml_parameters accepts valid chosen_eval_metric", {
+  ml_params <- create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "xgb",
+    chosen_eval_metric = "rmse"
+  )
+
+  expect_equal(ml_params@chosen_eval_metric, "rmse")
+})
+
+# Test: Invalid chosen evaluation metric
+test_that("create_ml_parameters throws an error for invalid chosen_eval_metric", {
+  expect_error(create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "xgb",
+    chosen_eval_metric = "invalid_metric"
+  ), "chosen_eval_metric choice not supported.")
+})
+
+# Test: Quantile tau range
+test_that("create_ml_parameters ensures quantile_tau is between 0 and 1", {
+  expect_error(create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "xgb",
+    quantile_tau = 1.5
+  ), "quantile_tau should be > 0 and less than 1.")
+
+  expect_error(create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "xgb",
+    quantile_tau = -0.5
+  ), "quantile_tau should be > 0 and less than 1.")
+})
+
+# Test: Custom objective only for xgb or nn algorithms
+test_that("create_ml_parameters throws an error if custom_objective is used with unsupported ml_algorithm", {
+  expect_error(create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "rf",
+    custom_objective = "absolute_error"
+  ), "Invalid custom_objective. Custom objectives are only allowed for 'xgb' or 'nn' algorithms.")
+})
+
+# Test: Valid custom objective
+test_that("create_ml_parameters accepts valid custom_objective for xgb or nn", {
+  ml_params <- create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "xgb",
+    custom_objective = "absolute_error"
+  )
+
+  expect_equal(ml_params@custom_objective, "absolute_error")
+})
+
+test_that("create_ml_parameters works with keras_architecture_parameters and hyper_grid_domain", {
+
+  hyper_grid <- create_hyper_grid_domain(tuning_method = "grid_search",
+                                         ml_algorithm = "glmnet", hyperparameters = list(alpha = c(0.2, 0.5, 0.9)))
+  hyper_grid <- add_hyperparameter(hyper_grid, hyperparameter = list(alpha = c(0.2, 0.75, 0.9), lambda.min.ratio = .3))
+
+  keras_architecture <- create_keras_architecture(nn_optimizer = "Adam", units = 32, activation = "relu", batch_norm_option = TRUE)
+
+  keras_architecture <- add_layer(keras_architecture, units = 16, batch_norm_option = FALSE, activation = "relu")
+
+  ml_params <- create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "glmnet",
+    chosen_eval_metric = "rmse",
+    hyper_grid_domain = hyper_grid
+  )
+
+  expect_true(is_hyper_grid_domain(ml_params@hyper_grid_domain))
+
+  ml_params <- create_ml_parameters(
+    target_fwd_name = "target_variable",
+    ml_algorithm = "nn",
+    chosen_eval_metric = "rmse",
+    keras_architecture_parameters = keras_architecture
+  )
+
+  expect_true(is_keras_architecture_parameters(ml_params@keras_architecture_parameters))
+
+})
+
+###########################################
+##add_liquidity_constraint
+##########################################
 
 test_that("add_liquidity_constraint works with only liquidity_floor_rule", {
 

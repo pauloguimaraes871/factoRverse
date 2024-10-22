@@ -4,31 +4,57 @@
 \alias{create_hyper_grid_domain}
 \title{Create a \code{hyper_grid_domain} Object}
 \usage{
-create_hyper_grid_domain(tuning_method, ml_algorithm, hyperparameters = NULL)
+create_hyper_grid_domain(
+  hyperparameter = NULL,
+  tuning_method,
+  ml_algorithm,
+  grid = NULL,
+  distribution_choice = NULL,
+  pars = NULL,
+  bounds = NULL
+)
 }
 \arguments{
-\item{tuning_method}{A character string specifying the tuning method to be applied.
-Must be one of "grid_search", "random_search", or "bayesian_optimization".}
+\item{hyperparameter}{A named list representing the hyperparameter to be added. Should be as follows:
+\itemize{
+\item \strong{glmnet}: alpha, lambda.min.ratio
+\item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+\item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+\item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+}}
 
-\item{ml_algorithm}{A character string specifying the machine-learning algorithm to be used.
-Must be one of "glmnet", "rf", "xgb", "nn", or "ols".}
+\item{tuning_method}{Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.}
 
-\item{hyperparameters}{A named list representing the hyperparameter to be added.
-#' @seealso \code{\link{add_hyperparameter}} for more details.}
+\item{grid}{A numeric vector or list of numeric vectors for grid search values (only used for grid_search).}
+
+\item{distribution_choice}{A character vector indicating the distribution to sample from (only used for random_search).}
+
+\item{pars}{A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).}
+
+\item{bounds}{A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).}
 }
 \value{
 An instance of the \code{hyper_grid_domain} S4 class.
 }
 \description{
 This function creates an instance of the \code{hyper_grid_domain} S4 class.
-It allows users to specify the tuning method, machine learning algorithm, and relevant hyperparameters.
+It allows users to specify relevant hyperparameters.
 }
 \examples{
-# Creating a hyper_grid_domain object for a random forest model
-hyper_grid_rf <- create_hyper_grid_domain(
-  tuning_method = "grid_search",
-  ml_algorithm = "rf"
+# Creating a hyper_grid_domain object for a xgb model
+hyper_grid_xgb_random <- create_hyper_grid_domain(
+ tuning_method = "random_search",
+ ml_algorithm = "xgb",
+ hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
+                    "eta", "alpha", "gamma", "nrounds"),
+ distribution_choice = c("constant", "uniform", "uniform", "uniform",
+                         "uniform", "uniform", "constant", "uniform"),
+ pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
+           c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
+           c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
 )
+
+
 
 
 }

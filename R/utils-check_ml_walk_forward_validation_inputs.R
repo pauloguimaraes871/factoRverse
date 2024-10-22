@@ -196,6 +196,17 @@ check_inputs_ml_wf_val <- function(
 
 
   #Check for correct hyperparameters names in hyper_grid_domain_list
+      if(ml_algorithm == "ols" & !is.null(hyper_grid_domain_list)){
+        stop("ols does not support hyperparameters.")
+      }
+
+
+      if(ml_algorithm != "ols" & is.null(hyper_grid_domain_list)){
+        stop("hyper_grid_domain must be set when ml_algorithm is different from ols.")
+      }
+
+
+
       #GLMNET
       if(ml_algorithm == "glmnet" && !all(names(hyper_grid_domain_list) == c("alpha", "lambda.min.ratio"))){
         stop("hyperparameters do not match ml_algorithm choice")
@@ -240,7 +251,7 @@ check_inputs_ml_wf_val <- function(
   } else {}
 
   if(all(ml_algorithm != "ols", tuning_method == "grid_search",!is.null(n_iter))){
-    warning("When tuning_method is grid_search, hyperparameters are combined exhaustively. Ignoring n_iter value")
+    warning("When tuning_method is grid_search, hyperparameters are combined exhaustively. Ignoring any user set n_iter value")
   }
 
   #Check for correct format in case tuning method is random_search

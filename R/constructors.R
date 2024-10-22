@@ -111,306 +111,415 @@ create_meta_dataframe <- function(data) {
 }
 
 
+#' @title Hyperparameter Tuning Strategy Constructor
+#' @description A constructor function to create a hyperparameter_tuning_strategy object, based on the specified tuning method.
+#' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
+#' @param validation_sample_size Numeric value representing the size of the validation sample.
+#' @param split_method Character string indicating the split method for the data ('expanding' or 'rolling').
+#' @param chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
+#' @param early_stop ANY, optional argument for halting criteria.
+#' @param n_iter Numeric, number of iterations for 'random_search' or 'bayesian_opt'.
+#' @param acq Character string for the acquisition function (for 'bayesian_opt' only).
+#' @param init_points Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).
+#' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
+#' @return An object of class `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
+#' @export
+create_hyperparameter_tuning_strategy <- function(tuning_method,
+                                                  ml_algorithm,
+                                                  validation_sample_size,
+                                                  split_method = "expanding",
+                                                  chosen_eval_metric,
+                                                  hyper_grid_domain = NULL,
+                                                  early_stop = NULL,
+                                                  n_iter = NULL,
+                                                  acq = NULL,
+                                                  init_points = NULL,
+                                                  k_iter = NULL) {
+
+  # Check if hyper_grid_domain is provided; if not, create an empty one
+  if(!tuning_method %in% c("grid_search", "random_search", "bayesian_opt")){
+    stop("tuning_method must be one of grid_search, random_search or bayesian_opt")
+  }
+  if(!ml_algorithm %in% c("glmnet", "rf", "xgb", "nn")){
+    stop("ml_algorithm must be one of glmnet, rf, xgb or nn")
+  }
+  if (is.null(hyper_grid_domain)) {
+    hyper_grid_domain <- new("hyper_grid_domain", ml_algorithm = ml_algorithm, tuning_method = tuning_method, hyperparameter_list = list())
+  } else {
+    #If not null, check if it matches
+    if(hyper_grid_domain@tuning_method != tuning_method){
+      stop("tuning_method in hyper_grid_domain do not match function call")
+    }
+    if(hyper_grid_domain@ml_algorithm != ml_algorithm){
+      stop("ml_algorithm in hyper_grid_domain do not match function call")
+    }
+  }
+
+
+  # Check the value of tuning_method and create the appropriate subclass
+  if (tuning_method == "grid_search") {
+    # Create a grid_search_strategy object
+    return(new("grid_search_strategy",
+               tuning_method = "grid_search",
+               ml_algorithm = ml_algorithm,
+               validation_sample_size = validation_sample_size,
+               split_method = split_method,
+               chosen_eval_metric = chosen_eval_metric,
+               hyper_grid_domain = hyper_grid_domain,
+               early_stop = early_stop))
+
+  } else if (tuning_method == "random_search") {
+    # Create a random_search_strategy object
+    if (is.null(n_iter)) {
+      stop("n_iter must be provided for random_search.")
+    }
+    return(new("random_search_strategy",
+               tuning_method = "random_search",
+               ml_algorithm = ml_algorithm,
+               validation_sample_size = validation_sample_size,
+               split_method = split_method,
+               chosen_eval_metric = chosen_eval_metric,
+               hyper_grid_domain = hyper_grid_domain,
+               early_stop = early_stop,
+               n_iter = n_iter))
+
+  } else if (tuning_method == "bayesian_opt") {
+    # Create a bayesian_opt_strategy object
+    if (is.null(n_iter) || is.null(acq) || is.null(init_points) || is.null(k_iter)) {
+      stop("n_iter, acq, init_points, and k_iter must be provided for bayesian_opt.")
+    }
+    return(new("bayesian_opt_strategy",
+               tuning_method = "bayesian_opt",
+               ml_algorithm = ml_algorithm,
+               validation_sample_size = validation_sample_size,
+               split_method = split_method,
+               chosen_eval_metric = chosen_eval_metric,
+               hyper_grid_domain = hyper_grid_domain,
+               early_stop = early_stop,
+               n_iter = n_iter,
+               acq = acq,
+               init_points = init_points,
+               k_iter = k_iter))
+  } else {
+    stop("Invalid tuning_method. Choose from 'grid_search', 'random_search', or 'bayesian_opt'.")
+  }
+}
+
+
+#' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `hyperparameter_tuning_strategy` or not.
+#'
+#' This generic function adds a new hyperparameter to an existing `hyper_grid_domain` object, whether it is inside a `hyperparameter_tuning_strategy` or not.
+#'
+#' @param object A `hyperparameter_tuning_strategy` or a `hyper_grid_domain` object.
+#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
+#' \itemize{
+#'  \item \strong{glmnet}: alpha, lambda.min.ratio
+#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+#' }
+#'
+#' @return A `hyper_grid_domain` object with the updated hyperparameters.
+#'
+#' @examples
+#' # Create an initial hyperparameter_tuning_strategy object for grid-search
+#' grid_search_obj <- create_hyperparameter_tuning_strategy(
+#'   tuning_method = "grid_search",
+#'   validation_sample_size = 1000,
+#'   split_method = "expanding",
+#'   chosen_eval_metric = "rmse"
+#' )
+#'
+#' # Add hyperparameter for grid_search
+#' grid_search_obj <- add_hyperparameter(
+#'   grid_search_obj,
+#'   hyperparameter = c("alpha", "lambda.min.ratio"),
+#'   grid = list(c(0.2, 0.5), c(0.5, 0.2, 0.3))
+#' )
+#'
+#' # Create an initial hyperparameter_tuning_strategy object for random_search
+#' random_search_obj <- create_hyperparameter_tuning_strategy(
+#'   tuning_method = "random_search",
+#'   validation_sample_size = 1000,
+#'   split_method = "rolling",
+#'   chosen_eval_metric = "mae",
+#'   n_iter = 20
+#' )
+#'
+#' # Add hyperparameters for random_search
+#' random_search_obj <- add_hyperparameter(
+#'   random_search_obj,
+#'   hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
+#'   distribution_choice = c("constant", "uniform", "uniform", "uniform", "uniform", "uniform", "constant", "uniform"),
+#'   pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),  c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
+#' )
+#'
+#' # Create an initial hyperparameter_tuning_strategy object for bayesian_opt
+#' bayesian_opt_obj <- create_hyperparameter_tuning_strategy(
+#'   tuning_method = "bayesian_opt",
+#'   validation_sample_size = 1000,
+#'   split_method = "expanding",
+#'   chosen_eval_metric = "mape",
+#'   n_iter = 50,
+#'   acq = "ei",
+#'   init_points = 5,
+#'   k_iter = 3
+#' )
+#'
+#' # Add hyperparameters for bayesian_opt
+#' bayesian_opt_obj <- add_hyperparameter(
+#'   bayesian_opt_obj,
+#'   hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+#'   bounds = list(c(0,1), c(100L, 1000L), c(2L, 8L), c(1, 5))
+#' )
+#'
+#' # Creating a hyper_grid_domain object for a xgb model
+#' hyper_grid_xgb_random <- create_hyper_grid_domain(
+#'  tuning_method = "random_search",
+#'  ml_algorithm = "xgb"
+#'  )
+#'
+#'  hyper_grid_xgb_random <- add_hyperparameter(
+#'  hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
+#'                     "eta", "alpha", "gamma", "nrounds"),
+#'  distribution_choice = c("constant", "uniform", "uniform", "uniform",
+#'                          "uniform", "uniform", "constant", "uniform"),
+#'  pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
+#'            c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
+#'            c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
+#'  )
+#'
+#' @export
+setGeneric("add_hyperparameter", function(object, hyperparameter, ...) {
+  standardGeneric("add_hyperparameter")
+})
+
+#' @title Add Hyperparameter for `hyper_grid_domain`
+#' @description Adds a hyperparameter to the object based on the specified tuning method.
+#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added.
+#' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
+#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
+#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
+#' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
+#' @export
+setMethod("add_hyperparameter",
+          signature(object = "hyper_grid_domain"),
+          function(object, hyperparameter,
+                   grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
+
+            #Check if tuning_method is correct
+            if(!object@tuning_method %in% c("grid_search", "random_search", "bayesian_opt")){
+              stop("Invalid tuning_method. Only 'grid_search', 'random_search', and 'bayesian_opt' are supported.")
+            }
+
+            # Logic for grid_search
+            if(object@tuning_method == "grid_search"){
+            if (is.null(grid)) {
+              stop("grid can't be missing when tuning method is grid_search")
+            }
+
+              if (!is.list(grid)) {
+                grid <- list(grid)
+              }
+
+              if (!all(sapply(grid, function(x) is.numeric(x) && is.vector(x)))) {
+                stop("Grid should contain only numeric data.")
+              }
+
+              if (length(hyperparameter) != length(grid)) {
+                stop("All hyperparameters should have a grid.")
+              }
+
+              new_hyperparameter_list <- grid
+              names(new_hyperparameter_list) <- hyperparameter
+            }
+
+            # Logic for random_search
+            if(object@tuning_method == "random_search"){
+              if (is.null(distribution_choice) || is.null(pars)) {
+                stop("distribution_choice and pars can't be missing when tuning_method is random_search")
+              }
+
+              if (!is.list(distribution_choice)) {
+                distribution_choice <- as.list(distribution_choice) #As list
+              }
+              if (!is.list(pars)) {
+                pars <- list(pars) #list
+              }
+
+              if (length(hyperparameter) != length(distribution_choice) || length(hyperparameter) != length(pars)) {
+                stop("All hyperparameters should have matching distribution_choice and pars.")
+              }
+
+              valid_distributions <- c("uniform", "normal", "lognormal", "constant")
+              if (!all(distribution_choice %in% valid_distributions)) {
+                stop("Invalid distribution_choice. Choose from 'uniform', 'normal', 'lognormal', or 'constant'.")
+              }
+
+              for (i in seq_along(distribution_choice)) {
+                dist <- distribution_choice[[i]]
+                param <- pars[[i]]
+
+                if (dist == "uniform" && (!all(c("min", "max") %in% names(param)))) {
+                  stop("For 'uniform', pars must contain 'min' and 'max'.")
+                }
+                if (dist == "normal" && (!all(c("mean", "sd") %in% names(param)))) {
+                  stop("For 'normal', pars must contain 'mean' and 'sd'.")
+                }
+                if (dist == "lognormal" && (!all(c("meanlog", "sdlog") %in% names(param)))) {
+                  stop("For 'lognormal', pars must contain 'meanlog' and 'sdlog'.")
+                }
+              }
+
+              new_hyperparameter_list <- mapply(function(hp, dist, param) {
+                if (dist == "constant") {
+                  list(distribution_choice = dist, value = unname(param))
+                } else {
+                  list(distribution_choice = dist, pars = param)
+                }
+              }, hyperparameter, distribution_choice, pars, SIMPLIFY = FALSE)
+
+              names(new_hyperparameter_list) <- hyperparameter
+            }
+
+            # Logic for bayesian_opt
+            if(object@tuning_method == "bayesian_opt"){
+              if (is.null(bounds)) {
+                stop("bounds can't be missing when tuning_method is bayesian_opt")
+              }
+
+              if (!is.list(bounds)) {
+                bounds <- list(bounds)
+              }
+
+              if (!all(sapply(bounds, function(x) is.numeric(x) && length(x) == 2))) {
+                stop("Each hyperparameter must have a bounds vector of length 2 (min and max).")
+              }
+
+              if (length(hyperparameter) != length(bounds)) {
+                stop("All hyperparameters should have corresponding bounds.")
+              }
+
+              new_hyperparameter_list <- bounds
+              names(new_hyperparameter_list) <- hyperparameter
+            }
+
+            # Merge with existing hyperparameters in object
+            if (length(object@hyperparameter_list) != 0) {
+              old_hyperparameter_list <- object@hyperparameter_list
+
+              #Take only those that have no substitute in new hyperparameters
+              if(any(!names(old_hyperparameter_list) %in% hyperparameter)){
+              old_hyperparameter_list_disjoint <- old_hyperparameter_list[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Info
+              old_hyperparameter_list_disjoint_names <- names(old_hyperparameter_list)[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Names
+
+                #Re-combine
+                for(hyper in old_hyperparameter_list_disjoint_names){
+                  new_hyperparameter_list[hyper] <- old_hyperparameter_list[hyper]
+                }
+
+                #Re-order
+                new_hyperparameter_list <- new_hyperparameter_list[c(old_hyperparameter_list_disjoint_names, hyperparameter)]
+              }
+            }
+
+            # Update the object
+            object@hyperparameter_list <- new_hyperparameter_list
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
+
+
+#' @title Add Hyperparameter for `hyperparameter_tuning_strategy`
+#' @description Adds hyperparameters to the `hyper_grid_domain` inside the `hyperparameter_tuning_strategy` based on the specified tuning method.
+#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added.
+#' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
+#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
+#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
+#' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
+#' @export
+setMethod("add_hyperparameter",
+          signature(object = "hyperparameter_tuning_strategy"),
+          function(object, hyperparameter,
+                   grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
+
+            #Extract the current object
+            current_hyper_grid_domain <- object@hyper_grid_domain
+            updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain, hyperparameter = hyperparameter,
+                                                            grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds)
+
+            # Update the object
+            object@hyper_grid_domain <- updated_hyper_grid_domain
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
 
 
 #' Create a `hyper_grid_domain` Object
 #'
 #' This function creates an instance of the `hyper_grid_domain` S4 class.
-#' It allows users to specify the tuning method, machine learning algorithm, and relevant hyperparameters.
+#' It allows users to specify relevant hyperparameters.
 #'
-#' @param tuning_method A character string specifying the tuning method to be applied.
-#'                     Must be one of "grid_search", "random_search", or "bayesian_optimization".
-#' @param ml_algorithm A character string specifying the machine-learning algorithm to be used.
-#'                     Must be one of "glmnet", "rf", "xgb", "nn", or "ols".
-#' @param hyperparameters A named list representing the hyperparameter to be added.
-#'  #' @seealso \code{\link{add_hyperparameter}} for more details.
+#' @param hyperparameter A named list representing the hyperparameter to be added. Should be as follows:
+#' \itemize{
+#'  \item \strong{glmnet}: alpha, lambda.min.ratio
+#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+#' }
+#' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
+#' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
+#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
+#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
+#' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
 #'
 #' @return An instance of the `hyper_grid_domain` S4 class.
 #'
 #' @examples
-#' # Creating a hyper_grid_domain object for a random forest model
-#' hyper_grid_rf <- create_hyper_grid_domain(
-#'   tuning_method = "grid_search",
-#'   ml_algorithm = "rf"
-#' )
+#' # Creating a hyper_grid_domain object for a xgb model
+#' hyper_grid_xgb_random <- create_hyper_grid_domain(
+#'  tuning_method = "random_search",
+#'  ml_algorithm = "xgb",
+#'  hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
+#'                     "eta", "alpha", "gamma", "nrounds"),
+#'  distribution_choice = c("constant", "uniform", "uniform", "uniform",
+#'                          "uniform", "uniform", "constant", "uniform"),
+#'  pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
+#'            c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
+#'            c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
+#')
+#'
+#'
 #'
 #'
 #' @export
-create_hyper_grid_domain <- function(tuning_method, ml_algorithm, hyperparameters = NULL) {
+create_hyper_grid_domain <- function(hyperparameter = NULL, tuning_method, ml_algorithm, grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
 
-  hyperparameter_list <- list()
+  #Create new obj
+  new_hyper_grid_domain <-
+    new("hyper_grid_domain",
+        tuning_method = tuning_method,
+        ml_algorithm = ml_algorithm,
+        hyperparameter_list = list())
 
-
-  # Ensure hyperparameters is a list
-  if (!is.list(hyperparameters) & !is.null(hyperparameters)) {
-    stop("hyperparameters must be a list.")
-  }
-
-  # Validate hyperparameters based on tuning_method
-  if (tuning_method == "grid_search") {
-    if (!all(sapply(hyperparameters, function(x) is.numeric(x) && is.vector(x)))) {
-      stop("For 'grid_search', hyperparameters must be a list of numeric vectors.")
-    }
-  } else if (tuning_method == "random_search") {
-    for (name in names(hyperparameters)) {
-      if (!is.list(hyperparameters[[name]]) || !all(c("distribution_choice") %in% names(hyperparameters[[name]]))) {
-        stop("For 'random_search', each hyperparameters must be a list with 'distribution_choice'.")
-      }
-
-      distribution_choice <- hyperparameters[[name]]$distribution_choice
-
-      if (is.null(distribution_choice) || !(distribution_choice %in% c("normal", "uniform", "lognormal", "constant"))) {
-        stop("distribution_choice must be one of 'normal', 'uniform', 'lognormal', or 'constant'.")
-      }
-
-      if (distribution_choice == "constant") {
-        if (is.null(hyperparameters[[name]]$value) || !is.numeric(hyperparameters[[name]]$value)) {
-          stop("For 'constant', the second argument must be a numeric vector named 'value'.")
-        }
-      } else {
-        if (!is.null(hyperparameters[[name]]$value)) {
-          stop("For distributions other than 'constant', do not specify 'value'.")
-        }
-        pars <- hyperparameters[[name]]$pars
-        if (is.null(pars) || !is.numeric(pars) || !is.vector(pars)) {
-          stop("For distributions, the second argument must be a numeric vector named 'pars'.")
-        }
-
-        # Additional checks based on distribution_choice
-        if (distribution_choice == "normal") {
-          if (!all(names(pars) %in% c("mean", "sd"))) {
-            stop("For 'normal', 'pars' must have names 'mean' and 'sd'.")
-          }
-        } else if (distribution_choice == "uniform") {
-          if (!all(names(pars) %in% c("min", "max"))) {
-            stop("For 'uniform', 'pars' must have names 'min' and 'max'.");
-          }
-        } else if (distribution_choice == "lognormal") {
-          if (!all(names(pars) %in% c("meanlog", "sdlog"))) {
-            stop("For 'lognormal', 'pars' must have names 'meanlog' and 'sdlog'.");
-          }
-        }
-      }
-    }
-  } else if (tuning_method == "bayesian_opt") {
-    if (any(sapply(hyperparameters, function(x) !is.numeric(x) || length(x) != 2))) {
-      stop("For 'bayesian_opt', each hyperparameters must be a numeric vector of length 2 representing the bounds.")
-    }
-  } else {
-    stop("Invalid tuning_method. Only 'grid_search', 'random_search', and 'bayesian_opt' are supported.")
+  if(!is.null(hyperparameter)){
+  #Add hyperparameters
+  new_hyper_grid_domain <- add_hyperparameter(new_hyper_grid_domain, hyperparameter = hyperparameter,
+                                              grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds)
   }
 
 
-  # Check hyperparameters validity based on ml_algorithm
-  hyperparameters_names <- names(hyperparameters)
+  return(new_hyper_grid_domain)
 
-  # GLMNET
-  if (ml_algorithm == "glmnet" && !all(hyperparameters_names %in% c("alpha", "lambda.min.ratio"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'glmnet'")
-  }
-
-  # RF
-  if (ml_algorithm == "rf" && !all(hyperparameters_names %in% c("mtry", "num.trees", "max.depth", "min.bucket"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'rf'")
-  }
-
-  # XGB
-  if (ml_algorithm == "xgb" && !all(hyperparameters_names %in% c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
-                                                                     "eta", "alpha", "gamma", "nrounds"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'xgb'")
-  }
-
-  # NN
-  if (ml_algorithm == "nn" && !all(hyperparameters_names %in% c("regularizer_l1", "regularizer_l2", "droprate", "lr",
-                                                                    "size_of_batch", "number_of_epochs"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'nn'")
-  }
-
-  if(!is.null(hyperparameters)){
-  # Overwrite existing hyperparameters if they are duplicates
-  for (l in 1:length(hyperparameters)) {
-    hyperparameter_list[[l]] <- hyperparameters[[l]]
-  }}
-
-  names(hyperparameter_list) <- hyperparameters_names
-
-  new("hyper_grid_domain",
-      tuning_method = tuning_method,
-      ml_algorithm = ml_algorithm,
-      hyperparameter_list = hyperparameter_list)
 }
 
 
-#' Add a Hyperparameter to a `hyper_grid_domain`
-#'
-#' This method adds a new hyperparameter to an existing `hyper_grid_domain` object.
-#'
-#' @param hyper_grid_domain A `hyper_grid_domain` object to which the hyperparameter will be added.
-#' @param new_hyperparameters A named list representing the hyperparameter to be added.
-#'
-#' @return A new `hyper_grid_domain` object with the updated hyperparameters.
-#'
-#' @examples
-#' # Create an initial hyper_grid_domain object for grid-search
-#' hyper_grid <- create_hyper_grid_domain(
-#'   tuning_method = "grid_search",
-#'   ml_algorithm = "glmnet"
-#' )
-#'
-#' #Add hyperparameter for grid_search
-#' hyper_grid <- add_hyperparameter(
-#' hyper_grid_domain = hyper_grid,
-#' new_hyperparameters = list(alpha = c(0.2, 0.5)) #Hyperparameters may be added one by one or all at once (eg.: list(alpha = c(0.2, 0.5), lambda.min.ratio = c(0.5, 0.2, 0.3)))
-#' )
-#'
-#' random_search and xgb algorithm
-#' hyper_grid <- create_hyper_grid_domain(
-#'   tuning_method = "random_search",
-#'   ml_algorithm = "xgb"
-#' )
-#'
-#' hyper_grid <- add_hyperparameter(
-#' hyper_grid_domain = hyper_grid,
-#' new_hyperparameters =
-#' list(min_child_weight = list(distribution_choice = "constant", value = 3),
-#'      max_depth = list(distribution_choice = "uniform", pars = c(min = 1L, max = 2L)),
-#'      subsample = list(distribution_choice = "uniform", pars = c(min = 0.25, max = 0.50)),
-#'      colsample_bytree = list(distribution_choice = "uniform", pars = c(min = 0.25, max = 0.50)),
-#'      eta = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.2)),
-#'      alpha = list(distribution_choice = "uniform", pars = c(min = 2, max = 5)),
-#'      gamma = list(distribution_choice = "constant", value = 0),
-#'      nrounds = list(distribution_choice = "uniform", pars = c(min = 200L, max = 500L)))
-#' )
-#'
-#' bayesian_opt and rf algorithm
-#' #' hyper_grid <- create_hyper_grid_domain(
-#'   tuning_method = "bayesian_opt",
-#'   ml_algorithm = "rf"
-#' )
-#'
-#'
-#' hyper_grid <- add_hyperparameter(
-#' hyper_grid_domain = hyper_grid,
-#' new_hyperparameters =
-#' list(mtry = c(0,1),
-#'      num.trees = c(100L, 1000L),
-#'      max.depth = c(2L, 8L),
-#'      min.bucket = c(1, 5))
-#' )
-#'
-#'
-#' @export
-setGeneric("add_hyperparameter", function(hyper_grid_domain, new_hyperparameters) standardGeneric("add_hyperparameter"))
-
-#' @export
-setMethod("add_hyperparameter", "hyper_grid_domain", function(hyper_grid_domain, new_hyperparameters) {
-
-  # Ensure new_hyperparameters is a list
-  if (!is.list(new_hyperparameters)) {
-    stop("new_hyperparameters must be a list.")
-  }
-
-  # Get tuning_method and ml_algorithm
-  tuning_method <- hyper_grid_domain@tuning_method
-  ml_algorithm <- hyper_grid_domain@ml_algorithm
-
-  # Validate new_hyperparameters based on tuning_method
-  if (tuning_method == "grid_search") {
-    if (!all(sapply(new_hyperparameters, function(x) is.numeric(x) && is.vector(x)))) {
-      stop("For 'grid_search', new_hyperparameters must be a list of numeric vectors.")
-    }
-  } else if (tuning_method == "random_search") {
-    for (name in names(new_hyperparameters)) {
-      if (!is.list(new_hyperparameters[[name]]) || !all(c("distribution_choice") %in% names(new_hyperparameters[[name]]))) {
-        stop("For 'random_search', each new_hyperparameters must be a list with 'distribution_choice'.")
-      }
-
-      distribution_choice <- new_hyperparameters[[name]]$distribution_choice
-
-      if (is.null(distribution_choice) || !(distribution_choice %in% c("normal", "uniform", "lognormal", "constant"))) {
-        stop("distribution_choice must be one of 'normal', 'uniform', 'lognormal', or 'constant'.")
-      }
-
-      if (distribution_choice == "constant") {
-        if (is.null(new_hyperparameters[[name]]$value) || !is.numeric(new_hyperparameters[[name]]$value)) {
-          stop("For 'constant', the second argument must be a numeric vector named 'value'.")
-        }
-      } else {
-        if (!is.null(new_hyperparameters[[name]]$value)) {
-          stop("For distributions other than 'constant', do not specify 'value'.")
-        }
-        pars <- new_hyperparameters[[name]]$pars
-        if (is.null(pars) || !is.numeric(pars) || !is.vector(pars)) {
-          stop("For distributions, the second argument must be a numeric vector named 'pars'.")
-        }
-
-        # Additional checks based on distribution_choice
-        if (distribution_choice == "normal") {
-          if (!all(names(pars) %in% c("mean", "sd"))) {
-            stop("For 'normal', 'pars' must have names 'mean' and 'sd'.")
-          }
-        } else if (distribution_choice == "uniform") {
-          if (!all(names(pars) %in% c("min", "max"))) {
-            stop("For 'uniform', 'pars' must have names 'min' and 'max'.");
-          }
-        } else if (distribution_choice == "lognormal") {
-          if (!all(names(pars) %in% c("meanlog", "sdlog"))) {
-            stop("For 'lognormal', 'pars' must have names 'meanlog' and 'sdlog'.");
-          }
-        }
-      }
-    }
-  } else if (tuning_method == "bayesian_opt") {
-    if (any(sapply(new_hyperparameters, function(x) !is.numeric(x) || length(x) != 2))) {
-      stop("For 'bayesian_opt', each new_hyperparameters must be a numeric vector of length 2 representing the bounds.")
-    }
-  } else {
-    stop("Invalid tuning_method. Only 'grid_search', 'random_search', and 'bayesian_opt' are supported.")
-  }
-
-
-  # Check new_hyperparameters validity based on ml_algorithm
-  new_hyperparameters_names <- names(new_hyperparameters)
-
-  # GLMNET
-  if (ml_algorithm == "glmnet" && !all(new_hyperparameters_names %in% c("alpha", "lambda.min.ratio"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'glmnet'")
-  }
-
-  # RF
-  if (ml_algorithm == "rf" && !all(new_hyperparameters_names %in% c("mtry", "num.trees", "max.depth", "min.bucket"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'rf'")
-  }
-
-  # XGB
-  if (ml_algorithm == "xgb" && !all(new_hyperparameters_names %in% c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
-                                                                     "eta", "alpha", "gamma", "nrounds"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'xgb'")
-  }
-
-  # NN
-  if (ml_algorithm == "nn" && !all(new_hyperparameters_names %in% c("regularizer_l1", "regularizer_l2", "droprate", "lr",
-                                                                    "size_of_batch", "number_of_epochs"))) {
-    stop("new_hyperparameters do not match ml_algorithm choice for 'nn'")
-  }
-
-  # Get current hyperparameter_list
-  hyperparameter_list <- hyper_grid_domain@hyperparameter_list
-
-  # Overwrite existing hyperparameters if they are duplicates
-  for (name in names(new_hyperparameters)) {
-    hyperparameter_list[[name]] <- new_hyperparameters[[name]]
-  }
-
-  # Create a new hyper_grid_domain object with the updated hyperparameter_list
-  hyper_grid_domain_new <- new("hyper_grid_domain",
-                               tuning_method = hyper_grid_domain@tuning_method,
-                               ml_algorithm = hyper_grid_domain@ml_algorithm,
-                               hyperparameter_list = hyperparameter_list
-  )
-
-  return(hyper_grid_domain_new) # Return the new object
-})
 
 
 
@@ -419,11 +528,14 @@ setMethod("add_hyperparameter", "hyper_grid_domain", function(hyper_grid_domain,
 #' @description Constructor for creating an instance of `keras_architecture_parameters`.
 #'
 #' @param nn_optimizer A character string specifying the optimizer to use (e.g., "adam").
+#' @param units A numeric value for the number of units in the new layer.
+#' @param activation A character string specifying the activation function for the new layer (e.g., "relu").
+#' @param batch_norm_option A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
 #'
 #' @return An object of class `keras_architecture_parameters`.
 #'
 #' @export
-create_keras_architecture <- function(nn_optimizer, units, activation, batch_norm_option) {
+create_keras_architecture <- function(nn_optimizer, units = NULL, activation = NULL, batch_norm_option = NULL) {
 
   # Check nn_optimizer is valid
   valid_optimizers <- c("Adam", "RMSProp")
@@ -431,26 +543,7 @@ create_keras_architecture <- function(nn_optimizer, units, activation, batch_nor
     stop("nn_optimizer should be Adam or RMSProp.")
   }
 
-  # Check that units are numeric
-  if (!all(is.numeric(units))) {
-    stop("units should be numeric")
-  }
-
-  # Check activation functions
-  valid_activations <- c("relu", "sigmoid", "softmax", "softplus", "tanh", "leaky_relu")
-  if (!all(activation %in% valid_activations)) {
-    stop("activation should be one of relu, sigmoid, softmax, softplus, tanh or leaky_relu.")
-  }
-
-  # Check batch_norm_option is logical
-  if (!all(batch_norm_option %in% c(TRUE, FALSE))) {
-    stop("batch_norm_option should be logical (TRUE or FALSE)")
-  }
-
-  if(length(units) > 5){
-    warning("factoRverse only supports up to 5 layers currently")
-  }
-
+  new_keras_architecture_parameters <-
   new("keras_architecture_parameters",
       units = units,
       n_layers = length(units),
@@ -458,6 +551,9 @@ create_keras_architecture <- function(nn_optimizer, units, activation, batch_nor
       nn_optimizer = nn_optimizer,
       batch_norm_option = batch_norm_option
   )
+
+
+  return(new_keras_architecture_parameters)
 
 }
 
@@ -474,12 +570,12 @@ create_keras_architecture <- function(nn_optimizer, units, activation, batch_nor
 #' @return An updated object of class `keras_architecture_parameters`.
 #'
 #' @export
-setGeneric("add_layer", function(object, units, activation, batch_norm_option) {
-  standardGeneric("add_layer")
+setGeneric("add_keras_layer", function(object, units, activation, batch_norm_option) {
+  standardGeneric("add_keras_layer")
 })
 
 setMethod(
-  "add_layer",
+  "add_keras_layer",
   "keras_architecture_parameters",
   function(object, units, activation, batch_norm_option) {
 
@@ -499,6 +595,11 @@ setMethod(
       stop("batch_norm_option should be logical (TRUE or FALSE)")
     }
 
+    #Check length
+    if(length(units) != length(activation) || length(units) != length(batch_norm_option)){
+      stop("units, activation and batch_norm_option should have matching length.")
+    }
+
     # Update the layers
     object@units <- c(object@units, units)
     object@n_layers <- length(object@units)  # Update the number of layers
@@ -512,6 +613,44 @@ setMethod(
     return(object)  # Return the updated object
   }
 )
+
+
+#' @title Create ml_experiment Object
+#' @description Constructs an ml_experiment object.
+#'
+#' @param target_fwd_name Character string indicating the target variable's forward name.
+#' @param ml_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').
+#' @param hyperparameter_tuning_strategy An object of class hyperparameter_tuning_strategy, specifying the strategy for tuning hyperparameters.
+#' @param custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
+#' @param keras_architecture_parameters List or NULL, providing parameters specific to keras-based neural networks.
+#' @param quantile_tau Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
+#' @param huber_delta Numeric value greater than 0, specifying the delta parameter for Huber loss function.
+#'
+#' @return An ml_experiment object.
+#' @export
+create_ml_experiment <- function(
+    target_fwd_name,
+    ml_algorithm = "ols",
+    hyperparameter_tuning_strategy = NULL,
+    custom_objective = "squared_error",
+    keras_architecture_parameters = NULL,
+    quantile_tau = 0.5,
+    huber_delta = 1
+) {
+  # Create the ml_experiment object
+  new("ml_experiment",
+      target_fwd_name = target_fwd_name,
+      ml_algorithm = ml_algorithm,
+      hyperparameter_tuning_strategy = hyperparameter_tuning_strategy,
+      custom_objective = custom_objective,
+      keras_architecture_parameters = keras_architecture_parameters,
+      quantile_tau = quantile_tau,
+      huber_delta = huber_delta
+  )
+}
+
+
+
 
 
 #' @title Create Portfolio Policies
@@ -1141,7 +1280,7 @@ setMethod("add_liquidity_floor_cutoffs", "portfolio_policies", function(portfoli
   }
 
   # Check if cutoffs are in ascending order
-  if (!all(diff(cutoffs) > 0)) {
+  if (!all(diff(cutoffs) >= 0)) {
     stop("cutoffs must be provided in ascending order.")
   }
 
