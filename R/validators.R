@@ -141,3 +141,65 @@ is_keras_architecture_parameters <- function(x) {
 is_portfolio_policies <- function(x) {
   is(x, "portfolio_policies")
 }
+
+#' Get Expected Hyperparameters for a Machine Learning Algorithm or Configuration
+#'
+#' The `hyperparameters` function returns a character vector of expected hyperparameters for a given machine learning algorithm or configuration.
+#'
+#' @param object An `ml_algorithm` character string or an `ml_backtest_config` object.
+#' @return A character vector containing the names of the expected hyperparameters for the specified algorithm.
+#' @export
+setGeneric("hyperparameters", function(object) standardGeneric("hyperparameters"))
+
+
+#' @describeIn hyperparameters Get expected hyperparameters for a given machine learning algorithm.
+#'
+#' @param object A character string specifying the machine learning algorithm.
+#' Valid options are "glmnet", "rf", "xgb", "nn", or "ols".
+#'
+#' @return A character vector of expected hyperparameters.
+#' If the algorithm is "ols" or not recognized, it returns an empty character vector.
+#'
+#' @examples
+#' # Get hyperparameters for glmnet
+#' hyperparameters("glmnet")
+#' # Get hyperparameters for random forest
+#' hyperparameters("rf")
+#'
+#' @export
+setMethod("hyperparameters", signature(object = "character"),
+          function(object) {
+            ml_algorithm <- object
+            expected_hyperparameters <- switch(
+              ml_algorithm,
+              "glmnet" = c("alpha", "lambda.min.ratio"),
+              "rf" = c("mtry", "num.trees", "max.depth", "min.bucket"),
+              "xgb" = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
+                        "eta", "alpha", "gamma", "nrounds"),
+              "nn" = c("regularizer_l1", "regularizer_l2", "droprate", "lr",
+                       "size_of_batch", "number_of_epochs"),
+              character(0) # default for unrecognized algorithms or 'ols'
+            )
+            return(expected_hyperparameters)
+          })
+
+#' @describeIn hyperparameters Get expected hyperparameters from an `ml_backtest_config` object.
+#'
+#' @param object An `ml_backtest_config` object.
+#'
+#' @return A character vector of expected hyperparameters for the algorithm specified in the configuration.
+#' If the algorithm is "ols" or not recognized, it returns an empty character vector.
+#'
+#' @examples
+#' # Assuming you have an ml_backtest_config object named config
+#' hyperparameters(config)
+#'
+#' @export
+setMethod("hyperparameters", signature(object = "ml_backtest_config"),
+          function(object) {
+            ml_algorithm <- object@ml_algorithm
+            expected_hyperparameters <- hyperparameters(ml_algorithm)
+            return(expected_hyperparameters)
+          })
+
+

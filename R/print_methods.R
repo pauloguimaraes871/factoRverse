@@ -70,11 +70,7 @@ setMethod("show", "hyper_grid_domain", function(object) {
           }
         }
       } else {
-        if (object@tuning_method == "bayesian_opt") {
-          cat("    Bounds:", paste(hyperparam, collapse = ", "), "\n")
-        } else {
-          cat("    Values:", paste(hyperparam, collapse = ", "), "\n")
-        }
+        print(object@hyperparameter_list[[name]])
       }
     }
   }
@@ -260,7 +256,7 @@ setMethod("show", "keras_architecture_parameters", function(object) {
 })
 
 
-#' @title Show ML Experiment
+#' @title Show ML Backtest Config
 #' @description Prints the contents of an `ml_backtest_config` object, detailing the various parameters and their configurations.
 #'
 #' @param object An `ml_backtest_config` object to be displayed.
@@ -269,7 +265,7 @@ setMethod("show", "keras_architecture_parameters", function(object) {
 #' @export
 setMethod("show", "ml_backtest_config", function(object) {
   cat("==============================\n")
-  cat("ML Experiment\n\n")
+  cat("ML Backtest Configuration\n\n")
 
   # Display Main Information
   cat("------------------------------\n")
@@ -357,6 +353,56 @@ setMethod("show", "ml_backtest_config", function(object) {
 
   cat("\n=================================\n")
 })
+
+
+
+#' Show Method for ml_metabacktest_config Class
+#'
+#' Displays detailed information about each configuration in the `ml_metabacktest_config` object.
+#'
+#' @param object An `ml_metabacktest_config` object.
+#' @return Invisibly returns `NULL`. This function is called for its side effect of displaying information.
+#' @examples
+#' # Assuming you have an ml_metabacktest_config object named meta_config
+#' show(meta_config)
+#'
+#' @export
+setMethod("show", "ml_metabacktest_config",
+          function(object) {
+            cat("ML metabacktest configuration\n")
+            cat("Target variable: ", unique(sapply(object@ml_backtest_configs, function(x) x@target_fwd_name)), "\n")
+            n_configs <- length(object@ml_backtest_configs)
+            cat(sprintf("Number of backtest configurations: %d\n", n_configs))
+            if (n_configs > 0) {
+              cat("\nBacktest Configuration details:\n")
+              for (i in seq_along(object@ml_backtest_configs)) {
+                config <- object@ml_backtest_configs[[i]]
+                cat(sprintf("Backtest Configuration %d:\n", i))
+                cat(sprintf("  ml_algorithm: %s", config@ml_algorithm))
+                # For neural networks, display number of layers
+                if (config@ml_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
+                  n_layers <- length(config@keras_architecture_parameters@units)
+                  cat(sprintf("  n_layers: %s\n", n_layers))
+                } else {
+                  cat("\n")
+                }
+                cat(sprintf("  custom_objective: %s\n", config@custom_objective))
+
+
+                if (!is.null(config@tuning_strategy)) {
+                  cat("  tuning_strategy:\n")
+                  cat(sprintf("    tuning_method: %s\n", config@tuning_strategy@tuning_method))
+                  cat(sprintf("    chosen_eval_metric: %s\n", config@tuning_strategy@chosen_eval_metric))
+                } else {
+                  cat("  tuning_strategy: NULL\n")
+                }
+                # Add more fields from ml_backtest_config if needed
+                cat("\n")
+              }
+            }
+            invisible(NULL)
+          })
+
 
 
 #' Show Method for refit_ml_model Class

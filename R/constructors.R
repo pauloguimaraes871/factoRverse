@@ -247,6 +247,10 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
             object@tuning_strategy <- create_tuning_strategy(tuning_method = tuning_method, validation_sample_size = validation_sample_size, split_method = split_method,
                                                              chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
                                                              init_points = init_points, k_iter = k_iter)
+
+            # Validate the object explicitly
+            validObject(object)
+
             return(object)
           }
 )
@@ -860,7 +864,7 @@ setMethod(
 #' @return An ml_backtest_config object.
 #' @export
 create_ml_backtest_config <- function(target_fwd_name, ml_algorithm = "ols", tuning_strategy = NULL,
-                                 custom_objective = "squared_error", keras_architecture_parameters = NULL, quantile_tau = 0.5, huber_delta = 1) {
+                                      custom_objective = "squared_error", keras_architecture_parameters = NULL, quantile_tau = 0.5, huber_delta = 1) {
   # Create the ml_backtest_config object
   new("ml_backtest_config",
       target_fwd_name = target_fwd_name,
@@ -872,6 +876,142 @@ create_ml_backtest_config <- function(target_fwd_name, ml_algorithm = "ols", tun
       huber_delta = huber_delta
   )
 }
+
+
+#' Create ML Meta Backtest Configuration
+#'
+#' The `create_ml_metabacktest_config` function creates an `ml_metabacktest_config` object by combining `ml_backtest_config` objects and `tuning_strategy` objects.
+#' This allows you to generate all possible combinations of configurations and strategies for running multiple machine learning backtests, possibly in parallel.
+#'
+#' @param ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` set to `NULL`.
+#' @param tuning_strategies A list of `tuning_strategy` objects (optional).
+#' @param ... Additional arguments (not used).
+#'
+#' @return A `ml_metabacktest_config` object containing all viable combinations of configs and strategies.
+#'
+#' @examples
+#' # Example usage:
+#' # Assuming you have ml_backtest_config objects config1, config2
+#' # and tuning_strategy objects strategy1, strategy2
+#'
+#' # First method: Combine configs and strategies
+#' meta_config <- create_ml_metabacktest_config(
+#'     configs = list(config1, config2),
+#'     strategies = list(strategy1, strategy2)
+#' )
+#'
+#' # Second method: Configs already have tuning_strategy set
+#' meta_config <- create_ml_metabacktest_config(
+#'     configs = list(config1, config2)
+#' )
+#'
+#' @seealso \code{\link{ml_backtest_config}}, \code{\link{tuning_strategy}}, \code{\link{ml_metabacktest_config}}
+#'
+#' @export
+setGeneric("create_ml_metabacktest_config", function(ml_backtest_configs, tuning_strategies, ...) standardGeneric("create_ml_metabacktest_config"))
+
+
+
+
+#' @describeIn create_ml_metabacktest_config Combine configs and strategies
+#'
+#' This method accepts one or multiple `ml_backtest_config` and one or multiple `tuning_strategy` objects.
+#' It combines all possible configurations between the configs and strategies by using the `add_tuning_strategy` method.
+#'
+#' @param ml_backtest_configs A list of `ml_backtest_config` objects.
+#' @param tuning_strategies A list of `tuning_strategy` objects.
+#' @param ... Additional arguments (not used).
+#'
+#' @return An `ml_metabacktest_config` object containing all combinations of configs and strategies.
+#'
+#' @examples
+#' # Assuming you have ml_backtest_config objects config1, config2 (with tuning_strategy = NULL)
+#' # and tuning_strategy objects strategy1, strategy2
+#' meta_config <- create_ml_metabacktest_config(
+#'     configs = list(config1, config2),
+#'     strategies = list(strategy1, strategy2)
+#' )
+#'
+#' @export
+setMethod("create_ml_metabacktest_config",
+          signature(ml_backtest_configs = "list", tuning_strategies = "list"),
+          function(ml_backtest_configs, tuning_strategies, ...) {
+            # Check that all ml_backtest_configs are ml_backtest_config objects
+            if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
+              stop("All elements in 'ml_backtest_configs' must be 'ml_backtest_config' objects.")
+            }
+            # Check that all strategies are tuning_strategy objects
+            if (!all(sapply(tuning_strategies, function(x) is(x, "tuning_strategy")))) {
+              stop("All elements in 'tuning_strategies' must be 'tuning_strategy' objects.")
+            }
+
+            # Combine configs and strategies
+            combined_configs <- list()
+            idx <- 1
+            for (config in ml_backtest_configs) {
+              for (strategy in tuning_strategies) {
+                # Try to add the strategy to the config
+                new_config <- tryCatch({
+                  add_tuning_strategy(config, strategy)
+                }, error = function(e) {
+                  NULL  # Return NULL to indicate failure
+                })
+                if (!is.null(new_config)) {
+                  combined_configs[[idx]] <- new_config
+                  idx <- idx + 1
+                }
+              }
+            }
+
+            # Check if any combinations were successful
+            if (length(combined_configs) == 0) {
+              stop("No valid combinations were created. Please check your configurations and strategies.")
+            }
+
+            # Create the ml_metabacktest_config object
+            meta_config <- new("ml_metabacktest_config", ml_backtest_configs = combined_configs)
+
+            # State the number of valid configurations produced
+            cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
+
+            return(meta_config)
+          }
+)
+
+#' @describeIn create_ml_metabacktest_config Create meta config from configs with tuning_strategy
+#'
+#' This method accepts one or multiple `ml_backtest_config` objects where `tuning_strategy` is already set (not `NULL`).
+#' The `tuning_strategy` slot should be missing or `NULL`.
+#'
+#' @param ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` not `NULL`.
+#' @param ... Additional arguments (not used).
+#'
+#' @return An `ml_metabacktest_config` object containing the provided `ml_backtest_config` objects.
+#'
+#' @examples
+#' # Assuming you have ml_backtest_config objects config3, config4 (with tuning_strategy not NULL)
+#' meta_config <- create_ml_metabacktest_config(
+#'     configs = list(config3, config4)
+#' )
+#'
+#' @export
+setMethod("create_ml_metabacktest_config",
+          signature(ml_backtest_configs = "list", tuning_strategies = "missing"),
+          function(ml_backtest_configs, ...) {
+            # Check that all configs are ml_backtest_config objects with tuning_strategy not NULL
+            if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config") && !is.null(x@tuning_strategy)))) {
+              stop("All elements in 'configs' must be 'ml_backtest_config' objects with 'tuning_strategy' not NULL.")
+            }
+
+            # Create the ml_metabacktest_config object
+            meta_config <- new("ml_metabacktest_config", ml_backtest_configs = ml_backtest_configs)
+            return(meta_config)
+          }
+)
+
+
+
+
 
 
 #' @title Create Portfolio Policies

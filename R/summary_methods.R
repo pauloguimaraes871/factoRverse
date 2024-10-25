@@ -92,6 +92,165 @@ setMethod("summary", "meta_dataframe", function(object) {
 })
 
 
+
+#' Summary Method for ml_metabacktest_config Class
+#'
+#' Provides aggregated statistics about the `ml_metabacktest_config` object, including counts and ranges for various parameters.
+#'
+#' @param object An `ml_metabacktest_config` object.
+#' @param ... Additional arguments (not used).
+#' @return Invisibly returns `NULL`. This function is called for its side effect of displaying information.
+#' @examples
+#' # Assuming you have an ml_metabacktest_config object named meta_config
+#' summary(meta_config)
+#'
+#' @export
+setMethod("summary", "ml_metabacktest_config",
+          function(object, ...) {
+            cat("Summary of 'ml_metabacktest_config' object\n")
+            cat("Target variable:", unique(sapply(object@ml_backtest_configs, function(x) x@target_fwd_name)), "\n")
+            n_configs <- length(object@ml_backtest_configs)
+            cat(sprintf("Number of backtest configurations: %d\n", n_configs))
+            if (n_configs > 0) {
+              cat("\nAggregated statistics:\n")
+
+              # Counts per ml_algorithm
+              ml_algorithms <- sapply(object@ml_backtest_configs, function(x) x@ml_algorithm)
+              algorithm_counts <- table(ml_algorithms)
+              cat("Counts of configurations per ml_algorithm:\n")
+              print(algorithm_counts)
+              cat("\n")
+
+              # For neural networks, count by number of layers
+              nn_configs <- object@ml_backtest_configs[ml_algorithms == "nn"]
+              if (length(nn_configs) > 0) {
+                n_layers_list <- sapply(nn_configs, function(x) {
+                  if (!is.null(x@keras_architecture_parameters@units)) {
+                    length(x@keras_architecture_parameters@units)
+                  } else {
+                    NA
+                  }
+                })
+                n_layers_list <- na.omit(n_layers_list)
+                if (length(n_layers_list) > 0) {
+                  n_layers_counts <- table(n_layers_list)
+                  cat("Counts of nn configurations by n_layers:\n")
+                  print(n_layers_counts)
+                  cat("\n")
+                }
+              }
+
+              # Counts per tuning_method
+              tuning_methods <- sapply(object@ml_backtest_configs, function(x) {
+                if (!is.null(x@tuning_strategy) && !is.null(x@tuning_strategy@tuning_method)) {
+                  x@tuning_strategy@tuning_method
+                } else {
+                  NA
+                }
+              })
+              tuning_methods <- na.omit(tuning_methods)
+              if (length(tuning_methods) > 0) {
+                tuning_method_counts <- table(tuning_methods)
+                cat("Counts of configurations per tuning_method:\n")
+                print(tuning_method_counts)
+                cat("\n")
+              }
+
+              # Counts per custom_objective
+              custom_objectives <- sapply(object@ml_backtest_configs, function(x) x@custom_objective)
+              custom_objective_counts <- table(custom_objectives)
+              cat("Counts of configurations per custom_objective:\n")
+              print(custom_objective_counts)
+              cat("\n")
+
+              # Counts per chosen_eval_metric
+              chosen_eval_metrics <- sapply(object@ml_backtest_configs, function(x) {
+                if (!is.null(x@tuning_strategy) && !is.null(x@tuning_strategy@chosen_eval_metric)) {
+                  x@tuning_strategy@chosen_eval_metric
+                } else {
+                  NA
+                }
+              })
+              chosen_eval_metrics <- na.omit(chosen_eval_metrics)
+              if (length(chosen_eval_metrics) > 0) {
+                chosen_eval_metric_counts <- table(chosen_eval_metrics)
+                cat("Counts of configurations per chosen_eval_metric:\n")
+                print(chosen_eval_metric_counts)
+                cat("\n")
+              }
+
+              # Quantitative metrics
+              # validation_sample_size
+              validation_sizes <- sapply(object@ml_backtest_configs, function(x) {
+                if (!is.null(x@tuning_strategy) && !is.null(x@tuning_strategy@validation_sample_size)) {
+                  x@tuning_strategy@validation_sample_size
+                } else {
+                  NA
+                }
+              })
+              validation_sizes <- na.omit(validation_sizes)
+              if (length(validation_sizes) > 0) {
+                unique_validation_sizes <- unique(validation_sizes)
+                if (length(unique_validation_sizes) == 1) {
+                  cat(sprintf("validation_sample_size: %s\n", unique_validation_sizes))
+                } else {
+                  cat(sprintf("Range of validation_sample_size: %s - %s\n",
+                              min(validation_sizes), max(validation_sizes)))
+                }
+              }
+
+              # early_stop
+              early_stops <- sapply(object@ml_backtest_configs, function(x) {
+                if (!is.null(x@tuning_strategy) && !is.null(x@tuning_strategy@early_stop)) {
+                  x@tuning_strategy@early_stop
+                } else {
+                  NA
+                }
+              })
+              early_stops <- na.omit(early_stops)
+              if (length(early_stops) > 0) {
+                unique_early_stops <- unique(early_stops)
+                if (length(unique_early_stops) == 1) {
+                  cat(sprintf("Unique early_stop value: %s\n", unique_early_stops))
+                } else {
+                  cat(sprintf("Range of early_stop values: %s - %s\n",
+                              min(unique_early_stops), max(unique_early_stops)))
+                }
+              }
+
+              # quantile_tau
+              quantile_taus <- sapply(object@ml_backtest_configs, function(x) x@quantile_tau)
+              quantile_taus <- na.omit(quantile_taus)
+              if (length(quantile_taus) > 0) {
+                unique_quantile_taus <- unique(quantile_taus)
+                if (length(unique_quantile_taus) == 1) {
+                  cat(sprintf("Unique quantile_tau value: %s\n", unique_quantile_taus))
+                } else {
+                  cat(sprintf("Range of quantile_tau values: %s - %s\n",
+                              min(quantile_taus), max(quantile_taus)))
+                }
+              }
+
+              # huber_delta
+              huber_deltas <- sapply(object@ml_backtest_configs, function(x) x@huber_delta)
+              huber_deltas <- na.omit(huber_deltas)
+              if (length(huber_deltas) > 0) {
+                unique_huber_deltas <- unique(huber_deltas)
+                if (length(unique_huber_deltas) == 1) {
+                  cat(sprintf("Unique huber_delta value: %s\n", unique_huber_deltas))
+                } else {
+                  cat(sprintf("Range of huber_delta values: %s - %s\n",
+                              min(huber_deltas), max(huber_deltas)))
+                }
+              }
+            }
+            invisible(NULL)
+          })
+
+
+
+
+
 #' Summary Method for ml_backtest_results Class
 #'
 #' This method provides a comprehensive summary of the `ml_backtest_results`

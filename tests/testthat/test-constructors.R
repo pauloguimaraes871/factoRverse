@@ -427,6 +427,163 @@ test_that("add_hyperparameter throws error for missing bounds in bayesian_opt", 
   expect_error(add_hyperparameter(bayesian_opt_obj, hyperparameter = "mtry"))
 })
 
+#Metabacktest
+test_that("create_metabacktest_config works", {
+
+  ml_backtest_1 <- create_ml_backtest_config(
+    ml_algorithm = "rf",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.2
+  ) %>% add_tuning_strategy(
+    tuning_method = "bayesian_opt",
+    chosen_eval_metric = "mphe",
+    validation_sample_size = 10,
+    n_iter = 20,
+    k_iter = 3,
+    init_points = 5,
+    acq = "ei"
+  ) %>% add_hyperparameter(
+    hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+    bounds = list(c(0, 1), c(100L, 1000L), c(1L, 6L), c(1L, 10L))
+  )
+
+  ml_backtest_2 <- create_ml_backtest_config(
+    ml_algorithm = "rf",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.2
+  ) %>% add_tuning_strategy(
+    tuning_method = "grid_search",
+    chosen_eval_metric = "rmse",
+    validation_sample_size = 10
+  ) %>% add_hyperparameter(
+    hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+    grid = list(c(0, 0.5, 1), c(100, 500, 1000), c(1, 3, 6), c(1, 5, 10))
+  )
+
+  ml_backtest_3 <- create_ml_backtest_config(
+    ml_algorithm = "xgb",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.2
+  ) %>% add_tuning_strategy(
+    tuning_method = "random_search",
+    chosen_eval_metric = "rmse",
+    validation_sample_size = 10,
+    n_iter = 10
+  ) %>% add_hyperparameter(
+    hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
+    distribution_choice = c("uniform", "uniform", "uniform", "uniform", "uniform", "uniform", "uniform", "uniform"),
+    pars = list(c(min = 0, max = 1), c(min = 1L, max = 6L), c(min = 0.5, max = 1), c(min = 0.5, max = 1), c(min = 0.001, max = 0.1),
+                c(min = 1, max = 3), c(min = 0, max = 1), c(min = 100L, max = 1000L))
+  )
+
+  metabacktest_config <- create_ml_metabacktest_config(
+    ml_backtest_configs = list(ml_backtest_1, ml_backtest_2, ml_backtest_3)
+  )
+
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@ml_algorithm), c("rf", "rf", "xgb"))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@target_fwd_name), c("fwd_return_1m", "fwd_return_1m", "fwd_return_1m"))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@huber_delta), c(1.2, 1.2, 1.2))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@tuning_method), c("bayesian_opt", "grid_search", "random_search"))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@chosen_eval_metric), c("mphe", "rmse", "rmse"))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@validation_sample_size), c(10, 10, 10))
+  expect_equal(c(metabacktest_config@ml_backtest_configs[[1]]@tuning_strategy@n_iter, 0, metabacktest_config@ml_backtest_configs[[3]]@tuning_strategy@n_iter) ,c(20, 0, 10))
+  expect_equal(metabacktest_config@ml_backtest_configs[[1]]@tuning_strategy@acq, "ei")
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) names(x@tuning_strategy@hyper_grid_domain@hyperparameter_list)),
+               list(c("mtry", "num.trees", "max.depth", "min.bucket"), c("mtry", "num.trees", "max.depth", "min.bucket"),
+                    c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")))
+
+
+})
+
+test_that("create_metabacktest_config throws an error when trying to add a config with incomplete hyperparameters", {
+
+  ml_backtest_1 <- create_ml_backtest_config(
+    ml_algorithm = "rf",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.2
+  ) %>% add_tuning_strategy(
+    tuning_method = "bayesian_opt",
+    chosen_eval_metric = "mphe",
+    validation_sample_size = 10,
+    n_iter = 20,
+    k_iter = 3,
+    init_points = 5,
+    acq = "ei"
+  ) %>% add_hyperparameter(
+    hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+    bounds = list(c(0, 1), c(100L, 1000L), c(1L, 6L), c(1L, 10L))
+  )
+
+  ml_backtest_2 <- create_ml_backtest_config(
+    ml_algorithm = "rf",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.2
+  ) %>% add_tuning_strategy(
+    tuning_method = "grid_search",
+    chosen_eval_metric = "rmse",
+    validation_sample_size = 10
+  ) %>% add_hyperparameter(
+    hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+    grid = list(c(0, 0.5, 1), c(100, 500, 1000), c(1, 3, 6), c(1, 5, 10))
+  )
+
+  ml_backtest_3 <- create_ml_backtest_config(
+    ml_algorithm = "xgb",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.2
+  ) %>% add_tuning_strategy(
+    tuning_method = "random_search",
+    chosen_eval_metric = "rmse",
+    validation_sample_size = 10,
+    n_iter = 10
+  ) %>% add_hyperparameter(
+    hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma"),
+    distribution_choice = c("uniform", "uniform", "uniform", "uniform", "uniform", "uniform", "uniform"),
+    pars = list(c(min = 0, max = 1), c(min = 1L, max = 6L), c(min = 0.5, max = 1), c(min = 0.5, max = 1), c(min = 0.001, max = 0.1),
+                c(min = 1, max = 3), c(min = 0, max = 1))
+  )
+
+  expect_error(
+  create_ml_metabacktest_config(
+    ml_backtest_configs = list(ml_backtest_1, ml_backtest_2, ml_backtest_3)
+  ), "In config 3, missing hyperparameters for algorithm 'xgb': nrounds."
+  )
+
+})
+
+test_that("ml_metabacktest_config throws an error when target_fwd_name differs", {
+
+  config1 <- create_ml_backtest_config(
+    target_fwd_name = "target_1m",
+    ml_algorithm = "glmnet"
+  ) %>% add_tuning_strategy(
+    tuning_method = "grid_search",
+    chosen_eval_metric = "mphe",
+    validation_sample_size = 1000
+  ) %>% add_hyperparameter(
+    hyperparameter = c("alpha", "lambda.min.ratio"),
+    grid = list(c(0, 0.5, 1), c(0.1, 0.2, 0.9))
+  )
+
+  config2 <- create_ml_backtest_config(
+    target_fwd_name = "target_2m",
+    ml_algorithm = "glmnet"
+  ) %>% add_tuning_strategy(
+    tuning_method = "grid_search",
+    chosen_eval_metric = "mphe",
+    validation_sample_size = 1000
+  ) %>% add_hyperparameter(
+    hyperparameter = c("alpha", "lambda.min.ratio"),
+    grid = list(c(0, 0.5, 1), c(0.1, 0.2, 0.9))
+  )
+
+  expect_error(
+    create_ml_metabacktest_config(
+      ml_backtest_configs = list(config1, config2)
+    ),
+    "The 'target_fwd_name' must match across all 'ml_backtest_config' elements."
+  )
+})
 
 
 #General errors
@@ -580,6 +737,28 @@ test_that("add_hyperparameters throws an error when choosing wrong hyperparamete
         grid = c(0.2, 0.3)
       ),  "Invalid chosen_eval_metric. Choose from 'rss', 'rmse', 'cp', 'mae', 'mphe', 'mpe', 'mape', 'hr', 'mb'."
   )
+
+})
+
+test_that("add_tuning_strategy throws an error when trying to set early_stop for wrong ml algo", {
+
+  expect_error(
+    create_ml_backtest_config(
+      ml_algorithm = "rf",
+      target_fwd_name = "fwd_return_1m",
+      huber_delta = 1.2
+    ) %>% add_tuning_strategy(
+      tuning_method = "bayesian_opt",
+      chosen_eval_metric = "mphe",
+      validation_sample_size = 10,
+      early_stop = 20,
+      n_iter = 20,
+      k_iter = 3,
+      init_points = 5,
+      acq = "ei"
+    ), "Invalid early_stop. Early stop is only allowed for 'xgb' or 'nn' algorithms."
+  )
+
 
 })
 

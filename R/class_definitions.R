@@ -51,8 +51,6 @@ setClass("meta_dataframe",
 #' It helps the user in correctly setting this object in the context of the `ml_walk_forward_validation` function.
 #'
 #' @slot hyperparameter_list A list with the hyperparameters relevant to the specified machine learning algorithm.
-#' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
-#' @slot ml_algorithm A character indicating the ml_algorithm used. Should be one of "glmnet", "rf", "xgb" or "nn".
 #'
 #'
 #' @export
@@ -83,7 +81,19 @@ setClass(
 #' @slot validation_sample_size Numeric value representing the size of the validation sample.
 #' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
-#' @slot hyper_grid_domain An object of class hyper_grid_domain, representing the hyperparameter domain based on which tuning will pe performed.
+#' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
+#' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
+#' The structure of this list depends on the specified tuning method:
+#' \itemize{
+#'   \item \strong{For grid search:} Must be a list of named vectors:
+#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
+#'     \itemize{
+#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
+#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
+#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+#'     }
+#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+#' }
 #' @slot early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
 #' @export
 setClass(
@@ -266,13 +276,24 @@ setClass(
 
 #' @title ml_backtest_config Class
 #' @description The ml_backtest_config class is designed to define an end-to-end machine learning experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
-#' @slot target_fwd_name Character string indicating the forward target variable's name. Should be in the format 'xxxxxx_ym'.
-#' @slot ml_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').
-#' @slot tuning_strategy An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.
+#' @slot target_fwd_name Character string indicating the forward target variable's name. Should be in the format 'xxxxxx_ym' and should be included in
+#' `target_m_df`.
+#' @slot ml_algorithm Character string specifying the machine learning algorithm to be used. Should be one of
+#' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
+#' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
 #' @slot custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
-#' @slot keras_architecture_parameters List or NULL, providing parameters specific to keras-based neural networks.
-#' @slot quantile_tau Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
-#' @slot huber_delta Numeric value greater than 0, specifying the delta parameter for Huber loss function.
+#' Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.
+#' @slot keras_architecture_parameters An object of class `keras_architecture_parameters` or NULL, providing parameters specific to keras-based neural networks.
+#' It includes:
+#' \itemize{
+#'   \item \strong{units}: A numeric vector specifying the number of neurons in each layer.
+#'   \item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
+#'   \item \strong{activation}: A character vector listing the activation functions for each layer (e.g., "relu", "sigmoid", "tanh").
+#'   \item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
+#'   \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
+#' }
+#' @slot quantile_tau A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
+#' @slot huber_delta A single positive numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
 #' @export
 setClass(
   "ml_backtest_config",
@@ -301,6 +322,9 @@ setClass(
     }
     if (!(object@ml_algorithm %in% c("xgb", "nn")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
       return("Invalid custom_objective. Custom objectives are only allowed for 'xgb' or 'nn' algorithms.")
+    }
+    if (!(object@ml_algorithm %in% c("xgb", "nn")) && !is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@early_stop)) {
+      return("Invalid early_stop. Early stop is only allowed for 'xgb' or 'nn' algorithms.")
     }
     if(object@ml_algorithm != "ols" && is.null(object@tuning_strategy)){
       message("when ml_algorithm is not ols, a tuning_strategy must be set")
@@ -462,8 +486,8 @@ setClass(
             if (hyperparameter == "num.trees" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
               stop("num.trees should be a positive integer without decimals")
             }
-            if (hyperparameter == "mtry" && (any(value < 0) || any(value >= 1))) {
-              stop("mtry should be set in interval [0, 1)")
+            if (hyperparameter == "mtry" && (any(value < 0) || any(value > 1))) {
+              stop("mtry should be set in interval [0, 1]")
             }
             if (hyperparameter == "max.depth" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
               stop("max.depth should be a positive integer without decimals")
@@ -622,6 +646,75 @@ setClass(
     if (!all(sapply(object@ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
       return("All elements in 'configs' must be of class 'ml_backtest_config'.")
     }
+
+    # Initialize an empty character vector to collect error messages
+    errors <- character()
+
+    # Check that all elements are ml_backtest_config objects
+    if (!all(sapply(object@ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
+      errors <- c(errors, "All elements in 'ml_backtest_configs' must be of class 'ml_backtest_config'.")
+    }
+
+    # Check that target_fwd_name matches across all configurations
+    target_fwd_names <- sapply(object@ml_backtest_configs, function(x) x@target_fwd_name)
+    if (length(unique(target_fwd_names)) > 1) {
+      errors <- c(errors, "The 'target_fwd_name' must match across all 'ml_backtest_config' elements.")
+    }
+
+    # Loop over each ml_backtest_config in the list
+    for (i in seq_along(object@ml_backtest_configs)) {
+      config <- object@ml_backtest_configs[[i]]
+
+      # Get ml_algorithm
+      ml_algorithm <- config@ml_algorithm
+
+      # If tuning_strategy is NULL, skip hyperparameter checks
+      if (is.null(config@tuning_strategy)) {
+        next
+      }
+      # Get hyperparameters_list names
+      hyperparameters_list <- config@tuning_strategy@hyper_grid_domain@hyperparameter_list
+      hyperparameters_names <- names(hyperparameters_list)
+
+      # Expected hyperparameters for each algorithm
+      expected_hyperparameters <- switch(ml_algorithm,
+                                         "glmnet" = c("alpha", "lambda.min.ratio"),
+                                         "rf" = c("mtry", "num.trees", "max.depth", "min.bucket"),
+                                         "xgb" = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
+                                         "nn" = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
+                                         "ols" = character(0), # OLS does not require hyperparameters
+                                         character(0) # default for unrecognized algorithms
+      )
+
+      # If ml_algorithm is not recognized and not 'ols', record an error
+      if (length(expected_hyperparameters) == 0 && ml_algorithm != "ols") {
+        errors <- c(errors, paste0("Unknown ml_algorithm '", ml_algorithm, "' in config ", i, "."))
+        next
+      }
+
+      # For algorithms other than 'ols', perform hyperparameter checks
+      if (ml_algorithm != "ols") {
+        # Check for missing hyperparameters
+        missing_hyperparameters <- setdiff(expected_hyperparameters, hyperparameters_names)
+        if (length(missing_hyperparameters) > 0) {
+          errors <- c(errors, paste0("In config ", i, ", missing hyperparameters for algorithm '", ml_algorithm, "': ",
+                                     paste(missing_hyperparameters, collapse = ", "), "."))
+        }
+
+        # Check for unexpected hyperparameters
+        extra_hyperparameters <- setdiff(hyperparameters_names, expected_hyperparameters)
+        if (length(extra_hyperparameters) > 0) {
+          errors <- c(errors, paste0("In config ", i, ", unexpected hyperparameters for algorithm '", ml_algorithm, "': ",
+                                     paste(extra_hyperparameters, collapse = ", "), "."))
+        }
+      }
+    }
+
+    # If any errors were collected, return them
+    if (length(errors) > 0) {
+      return(paste(errors, collapse = "\n"))
+    }
+
     return(TRUE)
   }
 )

@@ -3,11 +3,11 @@
 #BEGIN OLS TESTS (TRAINING + TESTING)
 ####################
 #Define your test
-test_that("OLS - run_ml_backtest works with no rebalancing and a 1m target", {
+test_that("OLS - run_ml_backtest_internal works with no rebalancing and a 1m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = data.frame(
         stringsAsFactors = FALSE,
         id = c("Stock A-2001-03-15",
@@ -172,11 +172,11 @@ test_that("OLS - run_ml_backtest works with no rebalancing and a 1m target", {
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with rebalancing and a 1m target", {
+test_that("OLS - run_ml_backtest_internal works with rebalancing and a 1m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df =
         data.frame(
           stringsAsFactors = FALSE,
@@ -370,11 +370,11 @@ test_that("OLS - run_ml_backtest works with rebalancing and a 1m target", {
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with rebalancing occuring at last month and a 1m target", {
+test_that("OLS - run_ml_backtest_internal works with rebalancing occuring at last month and a 1m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df =
         data.frame(
           stringsAsFactors = FALSE,
@@ -541,11 +541,11 @@ test_that("OLS - run_ml_backtest works with rebalancing occuring at last month a
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with rebalancing and a 3m target", {
+test_that("OLS - run_ml_backtest_internal works with rebalancing and a 3m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df =
         data.frame(
           stringsAsFactors = FALSE,
@@ -730,11 +730,11 @@ test_that("OLS - run_ml_backtest works with rebalancing and a 3m target", {
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with two rebalancing dates, unbalanced panel and a 3m target", {
+test_that("OLS - run_ml_backtest_internal works with two rebalancing dates, unbalanced panel and a 3m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df =
         data.frame(
           stringsAsFactors = FALSE,
@@ -1080,13 +1080,13 @@ test_that("OLS - run_ml_backtest works with two rebalancing dates, unbalanced pa
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with toy_preprocessed_features_and_targets", {
+test_that("OLS - run_ml_backtest_internal works with toy_preprocessed_features_and_targets", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       rebalancing_months = 7,
@@ -1307,11 +1307,11 @@ test_that("OLS - run_ml_backtest works with toy_preprocessed_features_and_target
 ####################
 ###Grid Search
 #Define your test Excel sheet test glmnet 1
-test_that("GLMNET - run_ml_backtest works with no rebalancing, 1m target, grid_search as tuning method and rss as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest_internal works with no rebalancing, 1m target, grid_search as tuning method and rss as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -1637,11 +1637,11 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 1m target, grid_s
 })
 
 #Define your test Excel sheet test glmnet 2
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 1m target, grid_search as tuning method and hr as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest_internal works with rebalancing at final, 1m target, grid_search as tuning method and hr as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -2118,11 +2118,11 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 1m target, 
 })
 
 #Define your test Excel sheet test glmnet 3
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and rss as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest_internal works with rebalancing at final, 3m target, grid_search as tuning method and rss as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -2608,11 +2608,11 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 })
 
 #Define your test  Excel sheet test glmnet 4
-test_that("GLMNET - run_ml_backtest works with no rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric - bigger sample",{
+test_that("GLMNET - run_ml_backtest_internal works with no rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric - bigger sample",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df =
         structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                               "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -3088,11 +3088,11 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 3m target, grid_s
 })
 
 #Define your test Excel sheet test glmnet 5
-test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest_internal works with rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -3576,11 +3576,11 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, grid_sear
 })
 
 #Define your test Excel sheet test glmnet 6
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and cp as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest_internal works with rebalancing at final, 3m target, grid_search as tuning method and cp as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -4056,7 +4056,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 })
 
 #Define your test
-test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_ml_backtest_internal works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("multisession")
@@ -4064,7 +4064,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, gr
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -4461,7 +4461,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, gr
 
 
 #Define your test
-test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber (not mentioned) as chosen eval metric and custom_objective pseudo huber error -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_ml_backtest_internal works with rebalancing, 3m target, grid as tuning method, pseudo_huber (not mentioned) as chosen eval metric and custom_objective pseudo huber error -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -4472,7 +4472,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, g
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -4941,7 +4941,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, g
 })
 
 #Define your test
-test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest_internal works with rebalancing, 3m target, grid as tuning method, pseudo_huber and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("sequential")
@@ -4952,7 +4952,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebal
   tensorflow::set_random_seed(100)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -5494,7 +5494,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebal
 })
 
 #Define your test
-test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest_internal works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("sequential")
@@ -5502,7 +5502,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebala
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -5904,14 +5904,14 @@ test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebala
 })
 
 #Define your test
-test_that("RF (Sequential - Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Sequential - Parallel = FALSE) - run_ml_backtest_internal works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -6287,11 +6287,11 @@ test_that("RF (Sequential - Parallel = FALSE) - run_ml_backtest works with rebal
 })
 
 #Define your test Excel sheet test glmnet 7
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest_internal works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -6771,7 +6771,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 
 ###Random Search
 #Define your test Excel sheet test glmnet 8
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, random_search (uniform) as tuning method and rmse as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest_internal works with rebalancing at final, 3m target, random_search (uniform) as tuning method and rmse as chosen eval metric",{
 
 
   ################Uniform Distribution
@@ -6779,7 +6779,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -7264,7 +7264,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 })
 
 #Define your test
-test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, random_search (uniform and lognormal) as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_ml_backtest_internal works with rebalancing, 3m target, random_search (uniform and lognormal) as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   future::plan("multisession")
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
@@ -7272,7 +7272,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ra
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -7705,7 +7705,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ra
 })
 
 #Define your test
-test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, random_search as tuning method and rss as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("GLMNET - run_ml_backtest_internal works with rebalancing, 3m target, random_search as tuning method and rss as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -7717,7 +7717,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, random_se
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -8084,7 +8084,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, random_se
 })
 
 #Define your test
-test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, random as tuning method, rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_ml_backtest_internal works with rebalancing, 3m target, random as tuning method, rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -8095,7 +8095,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, r
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -8612,7 +8612,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, r
 
 ###Bayesian Opt
 #Define your test
-test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("GLMNET - run_ml_backtest_internal works with rebalancing, 3m target, bayesian_opt as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   #For second rebalancing, bayesian_opt could not converge because FUN was evaluating same results. So a hypothetical cov is added just to test bayes opt dynamic
@@ -8621,7 +8621,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -9076,7 +9076,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_
 })
 
 #Define your test
-test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_ml_backtest_internal works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -9086,7 +9086,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ba
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -9577,7 +9577,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ba
 })
 
 #Define your test
-test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_ml_backtest_internal works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -9587,7 +9587,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, b
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -10137,7 +10137,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, b
 })
 
 #Define your test
-test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("NN (Parallel = FALSE) - run_ml_backtest_internal works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -10147,7 +10147,7 @@ test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m ta
   tensorflow::set_random_seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -10719,7 +10719,7 @@ test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m ta
 })
 
 #Define your test
-test_that("Skipped: NN (Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("Skipped: NN (Parallel = TRUE) - run_ml_backtest_internal works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 skip()
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -10730,7 +10730,7 @@ skip()
   tensorflow::set_random_seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -11308,14 +11308,14 @@ skip()
 
 #BEGIN OTHER TESTS
 #####################################
-test_that("run_ml_backtest correctly classifies data as training, validation and testing", {
+test_that("run_ml_backtest_internal correctly classifies data as training, validation and testing", {
 
    load(paste(test_path(),"/testdata/","toy_fulldates_features_and_targets.RData", sep =""))
 
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_features_full_dates,
       target_m_df = toy_target_full_date,
       training_sample_size = 60,
@@ -11346,7 +11346,7 @@ test_that("run_ml_backtest correctly classifies data as training, validation and
 })
 
 #Define your test
-test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m_df",{
+test_that("run_ml_backtest_internal works with NAs in last target_fwd periods of target_m_df",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -11359,7 +11359,7 @@ test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -11727,7 +11727,7 @@ test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m
 })
 
 #Define your test
-test_that("run_ml_backtest does not works with NAs in last target_fwd+ 1 periods of target_m_df",{
+test_that("run_ml_backtest_internal does not works with NAs in last target_fwd+ 1 periods of target_m_df",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -11739,7 +11739,7 @@ test_that("run_ml_backtest does not works with NAs in last target_fwd+ 1 periods
   #Apply function
   expect_error(
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    ml_backtest_results <- run_ml_backtest_internal(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,

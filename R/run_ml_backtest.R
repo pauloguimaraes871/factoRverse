@@ -1,3 +1,150 @@
+#' Run Machine Learning Backtest
+#'
+#' The `run_ml_backtest` function performs out-of-sample testing for a range of machine learning algorithms using walk-forward time series validation.
+#' It supports many ml algorithms and can handle different configurations for objective functions and tuning strategies through S4 objects.
+#' The function divides the data into training, validation, and testing samples, and iteratively refits the model at specified rebalancing dates.
+#'
+#' @param features_m_df A meta_dataframe containing features.
+#' @param target_m_df A meta_dataframe containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
+#' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.
+#' @param training_sample_size Number of observations to include in each training sample.
+#' @param rebalancing_months Months (numeric) when model should be rebalanced (refit).
+#' @param config An object specifying the backtest configuration. Can be an `ml_backtest_config` or `ml_metabacktest_config` object.
+#' @param verbose Logical vector, indicating whether to print progress messages (default is TRUE).
+#' @param parallel Logical vector, indicating whether to run  hyperparameter tuning in parallel (default is TRUE).
+#' @param ... Additional arguments (not used in this method).
+#'
+#' @return An object of class `ml_backtest_results` or `ml_metabacktest_results` with various outputs including model predictions, errors, and validation metrics.
+#'
+#' @details
+#' The function ensures all inputs are correctly formatted and performs checks to
+#' validate the integrity of input data and parameters. It employs the glmnet package
+#' for elastic net regularization, supporting both Lasso and Ridge regression.
+#'
+#' @section Running in Parallel:
+#' By default, tuning_method %in% c("random_search", "grid_search") utilizes furrr::future_pmap, which means they can run according to the built-in backends
+#' from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
+#' tuning will be done sequentially by default (equivalent to future::plan(sequential)). In this case, however,
+#' random number generator will be set to RNGkind("L'Ecuyer-CMRG"), instead of R default (RNGkind("Mersenne-Twister")), making results
+#' not reproducible regarding using purrr:pmap(). In order to run using R's default random number generator, set parallel = FALSE.
+#' Using a different evaluation strategy (e.g., future::plan(multisession)) will tune hyperparameters asynchronously (in parallel).
+#'
+#' For tuning_method = "bayesian_opt", the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the %dopar% operator.
+#' Therefore, in this case, the user can either: (i) use doFuture::registerDoFuture(), in order to use the %dofuture% foreach adapter
+#' (actually, in this case, doFuture::withDoRNG is used to turn %dopar% into %dorng% in order to use parallel-safe RNG), which allows
+#' usage of backends from the future package or (ii) use parallel::makeCluster(), doParallel::registerDoParallel(), doParallel::clusterExport() and
+#' doParallel::clusterEvalQ(), as exemplified by ParBayesianOptimization. If parallel = TRUE and neither strategy is being used,
+#' code will result in error. Therefore, to run bayesian_opt synchronously, either use doFuture::registerDoFuture() with plan(sequential)
+#' or set parallel = FALSE.
+#'
+#' Keras has some limitations when working in parallel, especially when using bayesian optimization as tuning method.
+#'
+#' @seealso
+#' \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split},
+#' \code{\link{ml_backtest_config}}, \code{\link{ml_metabacktest_config}}
+#'
+#' @export
+setGeneric("run_ml_backtest", function(features_m_df, target_m_df, config, training_sample_size, rebalancing_months, verbose, parallel, ...) standardGeneric("run_ml_backtest"))
+
+
+#' @describeIn run_ml_backtest Runs a backtest with a single configuration.
+#' @param config An `ml_backtest_config` object containing the configuration for the backtest.
+#' @examples
+#' # Assuming features_m_df and target_m_df are meta_dataframe objects
+#' # and config is an `ml_backtest_config` object
+#' result <- run_ml_backtest(features_m_df, target_m_df, config, training_sample_size = 30, rebalacing_months = c(6,12), verbose = TRUE, parallel = TRUE)
+#' @export
+setMethod("run_ml_backtest",
+          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "ml_backtest_config",
+                    training_sample_size = "numeric", rebalancing_months = "numeric", verbose = "logical", parallel = "logical"),
+
+          function(features_m_df, target_m_df, config, training_sample_size, rebalancing_months, verbose = TRUE, parallel = TRUE) {
+
+            #Get data from S4 objects
+              ##features_m_df
+              features_m_df <- features_m_df@data #Get features_m_df
+              features_workflow <- features_m_df@workflow #Get workflow
+
+              ##target_m_df
+              target_m_df <- target_m_df@data #Get target_m_df
+              target_workflow <- target_m_df@workflow #Get workflow
+
+              ##General Information
+              ml_algorithm <- config@ml_algorithm #Get ml_algorithm
+              target_fwd_name <- config@target_fwd_name #Get target_fwd_name
+              custom_objective <- config@custom_objective #Get custom_objective
+              keras_architecture_parameters <- if(ml_algorithm == "nn") as.list(config@keras_architecture_parameters) #Get keras_architecture_parameters
+              huber_delta <- config@huber_delta #Get huber_delta
+              quantile_tau <- config@quantile_tau #Get quantile_tau
+
+              ##Tuning Strategy
+              if(ml_algorithm != "ols"){
+                tuning_strategy <- config@tuning_strategy #Get tuning strategy
+                ###Get objects inside tuning strategy
+                tuning_method <- config@tuning_method #Get tuning method
+                split_method <- config@split_method #Get split method
+                validation_sample_size <- config@validation_sample_size #Get validation sample size
+                chosen_eval_metric <- config@chosen_eval_metric #Get chosen eval metric
+                hyper_grid_domain_list <- tuning_strategy@hyper_grid_domain@hyperparameter_list #Get hyper_grid_domain_list
+                early_stop <- tuning_strategy@early_stop #Get early_stop
+
+                ###Grid search
+                if(class(tuning_strategy) == "grid_search_strategy") stop("tuning_strategy should be of class grid_search_strategy when tuning_method is grid_search.")
+
+                ###Random search
+                if(tuning_method == "random_search"){
+                  if(class(tuning_strategy) == "random_search_strategy") stop("tuning_strategy should be of class random_search_strategy when tuning_method is random_search.")
+                  n_iter <- tuning_strategy@n_iter #Get n_iter
+                }
+
+                ###Bayesian Opt
+                if(tuning_method == "bayesian_opt"){
+                  if(class(tuning_strategy) == "bayesian_opt_strategy") stop("tuning_strategy should be of class bayesian_opt_strategy when tuning_method is bayesian_opt.")
+                  n_iter <- tuning_strategy@n_iter #Get n_iter
+                  acq <- tuning_strategy@acq #Get acq
+                  k_iter <- tuning_strategy@k_iter #Get k_iter
+                  init_points <- tuning_strategy@init_points #Get init_points
+                }
+              }
+
+            #Run ML Backtest
+            ml_backtest_results <- run_ml_backtest(features_m_df = features_m_df, target_m_df = target_m_df, ml_algorithm = ml_algorithm,
+                                                   target_fwd_name = target_fwd_name, custom_objective = custom_objective,
+                                                   keras_architecture_parameters = keras_architecture_parameters, huber_delta = huber_delta,
+                                                   quantile_tau = quantile_tau, tuning_strategy = tuning_strategy, tuning_method = tuning_method,
+                                                   split_method = split_method, validation_sample_size = validation_sample_size,
+                                                   chosen_eval_metric = chosen_eval_metric, hyper_grid_domain_list = hyper_grid_domain_list,
+                                                   early_stop = early_stop, n_iter = n_iter, acq = acq, k_iter = k_iter, init_points = init_points,
+                                                   training_sample_size = training_sample_size, rebalancing_months = rebalancing_months, verbose = verbose,
+                                                   parallel = parallel)
+
+            return(ml_backtest_results)
+
+          }
+)
+
+
+
+#' @describeIn run_ml_backtest Runs backtests with multiple configurations.
+#' @param config A `ml_metabacktest_config` object containing multiple configurations.
+#' @return A `ml_metabacktest_results` objects, one for each configuration.
+#' @examples
+#' # Assuming features_m_df and target_m_df are meta_dataframe objects
+#' # and meta_config is an ml_metabacktest_config object
+#' results_list <- run_ml_backtest(features_m_df, target_m_df, training_sample_size = 30, rebalacing_months = c(6,12), meta_config)
+#' @export
+setMethod("run_ml_backtest",
+          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "ml_metabacktest_config",
+                    training_sample_size = "numeric", rebalancing_months = "numeric", verbose = "logical", parallel = "logical"),
+
+          function(features_m_df, target_m_df, config, training_sample_size, rebalancing_months, verbose = TRUE, parallel = TRUE) {
+            # Method implementation...
+          }
+)
+
+
+
+
 #' Perform out-of-sample testing for ML Algorithms with walk-forward time series validation
 #'
 #' This function performs walk-forward validation for time series data using
@@ -14,7 +161,7 @@
 #' @param target_fwd_name Name of the target variable in `target_m_df`.
 #' @param ml_algorithm Choice of ml_algorithm: ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
 #' @param split_method Choice of split method (expanding or rolling).
-#' @param hyper_grid_domain An object of class hyper_grid_domain or a named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
+#' @param hyper_grid_domain A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
 #' \itemize{
 #'   \item \strong{For grid search:} Must be a list of named vectors:
 #'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
@@ -59,7 +206,7 @@
 #' @param early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
 #' @param chosen_eval_metric Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr", and "mb".
 #' @param show_plots Logical, indicating whether to plot results (default is TRUE).
-#' @param keras_architecture_parameters An object of class keras_architecture_parameters or a  named list containing parameters for configuring the Keras neural network architecture. It includes:
+#' @param keras_architecture_parameters A named list containing parameters for configuring the Keras neural network architecture. It includes:
 #' \itemize{
 #'   \item \strong{units}: A numeric vector specifying the number of neurons in each layer.
 #'   \item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
@@ -76,9 +223,8 @@
 #' @param quantile_tau A single numeric value indicating target quantile when calculating quantile loss.
 #' @param verbose Logical, indicating whether to print progress messages (default is TRUE).
 #' @param parallel Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).
-#' @param
 #'
-#' @return An object of class ml_wf_val_results with various outputs including model predictions, errors, and validation metrics.
+#' @return An object of class ml_backtest_results with various outputs including model predictions, errors, and validation metrics.
 #'
 #' @details
 #' The function ensures all inputs are correctly formatted and performs checks to
@@ -105,9 +251,7 @@
 #'
 #' @seealso
 #' \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
-#'
-#' @export
-run_ml_backtest <- function(
+run_ml_backtest_internal <- function(
     #Basic Objects Inputs
   features_m_df, target_m_df, training_sample_size, target_fwd_name,
   #Splits
@@ -129,33 +273,6 @@ run_ml_backtest <- function(
 
     #Visible binding for global variables
     squared_error <- pseudo_huber_error <- quantile_error <- NULL
-
-    #Get data from S4 objects
-      ##features_m_df
-      if(is_meta_dataframe(features_m_df)){
-        features_m_df <- features_m_df@data #Get features_m_df
-        features_workflow <- features_m_df@workflow #Get workflow
-      } else {
-        features_workflow <- NULL
-      }
-      ##target_m_df
-      if(is_meta_dataframe(target_m_df)){
-        target_m_df <- target_m_df@data #Get target_m_df
-        target_workflow <- target_m_df@workflow #Get workflow
-      } else {
-        target_workflow <- NULL
-      }
-     ##hyper_grid_domain_list
-      if(is_hyper_grid_domain(hyper_grid_domain)){
-        hyper_grid_domain_list <- hyper_grid_domain@hyperparameter_list #Get hyper list
-      } else {
-        hyper_grid_domain_list <- hyper_grid_domain
-      }
-
-    ##keras_architecture_parameters
-    if(is_keras_architecture_parameters(keras_architecture_parameters)){
-      keras_architecture_parameters <- as.list(keras_architecture_parameters)
-    }
 
     ################
     ##Check Parameters: This function will test whether inputs match format and current functionalities
