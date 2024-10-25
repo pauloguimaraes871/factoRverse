@@ -3,11 +3,11 @@
 #BEGIN OLS TESTS (TRAINING + TESTING)
 ####################
 #Define your test
-test_that("OLS - ml_walk_forward_validation works with no rebalancing and a 1m target", {
+test_that("OLS - run_ml_backtest works with no rebalancing and a 1m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = data.frame(
         stringsAsFactors = FALSE,
         id = c("Stock A-2001-03-15",
@@ -156,15 +156,15 @@ test_that("OLS - ml_walk_forward_validation works with no rebalancing and a 1m t
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -172,11 +172,11 @@ test_that("OLS - ml_walk_forward_validation works with no rebalancing and a 1m t
 })
 
 #Define your test
-test_that("OLS - ml_walk_forward_validation works with rebalancing and a 1m target", {
+test_that("OLS - run_ml_backtest works with rebalancing and a 1m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df =
         data.frame(
           stringsAsFactors = FALSE,
@@ -353,16 +353,16 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing and a 1m targ
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -370,11 +370,11 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing and a 1m targ
 })
 
 #Define your test
-test_that("OLS - ml_walk_forward_validation works with rebalancing occuring at last month and a 1m target", {
+test_that("OLS - run_ml_backtest works with rebalancing occuring at last month and a 1m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df =
         data.frame(
           stringsAsFactors = FALSE,
@@ -525,15 +525,15 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing occuring at l
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -541,11 +541,11 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing occuring at l
 })
 
 #Define your test
-test_that("OLS - ml_walk_forward_validation works with rebalancing and a 3m target", {
+test_that("OLS - run_ml_backtest works with rebalancing and a 3m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df =
         data.frame(
           stringsAsFactors = FALSE,
@@ -713,16 +713,16 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing and a 3m targ
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -730,11 +730,11 @@ test_that("OLS - ml_walk_forward_validation works with rebalancing and a 3m targ
 })
 
 #Define your test
-test_that("OLS - ml_walk_forward_validation works with two rebalancing dates, unbalanced panel and a 3m target", {
+test_that("OLS - run_ml_backtest works with two rebalancing dates, unbalanced panel and a 3m target", {
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df =
         data.frame(
           stringsAsFactors = FALSE,
@@ -1062,17 +1062,17 @@ test_that("OLS - ml_walk_forward_validation works with two rebalancing dates, un
 
   results$outputs[[4]] <- eval_metrics
   #final_model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
 
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-03
   )
@@ -1080,13 +1080,13 @@ test_that("OLS - ml_walk_forward_validation works with two rebalancing dates, un
 })
 
 #Define your test
-test_that("OLS - ml_walk_forward_validation works with toy_preprocessed_features_and_targets", {
+test_that("OLS - run_ml_backtest works with toy_preprocessed_features_and_targets", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       rebalancing_months = 7,
@@ -1285,17 +1285,17 @@ test_that("OLS - ml_walk_forward_validation works with toy_preprocessed_features
 
   results$outputs[[4]] <- eval_metrics
 
-  if(all(coefficients(second_model) == coefficients(ml_walk_forward_validation_results@final_model@model))){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(coefficients(second_model) == coefficients(ml_backtest_results@final_model@model))){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   names(results$outputs) <- c('oos_prediction_list', 'oos_error_list', 'oos_y_list', 'oos_testing_eval_metrics', 'final_model')
   #Compare
-  expect_equal(ml_walk_forward_validation_results,
+  expect_equal(ml_backtest_results,
                results$outputs,
                tolerance = 1e-05)
 })
@@ -1307,11 +1307,11 @@ test_that("OLS - ml_walk_forward_validation works with toy_preprocessed_features
 ####################
 ###Grid Search
 #Define your test Excel sheet test glmnet 1
-test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 1m target, grid_search as tuning method and rss as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest works with no rebalancing, 1m target, grid_search as tuning method and rss as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -1601,8 +1601,8 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 1m tar
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -1624,12 +1624,12 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 1m tar
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -1637,11 +1637,11 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 1m tar
 })
 
 #Define your test Excel sheet test glmnet 2
-test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 1m target, grid_search as tuning method and hr as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest works with rebalancing at final, 1m target, grid_search as tuning method and hr as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -2082,8 +2082,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -2105,12 +2105,12 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-2
   )
@@ -2118,11 +2118,11 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
 })
 
 #Define your test Excel sheet test glmnet 3
-test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 3m target, grid_search as tuning method and rss as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and rss as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -2572,8 +2572,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -2595,12 +2595,12 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-03
   )
@@ -2608,11 +2608,11 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
 })
 
 #Define your test  Excel sheet test glmnet 4
-test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric - bigger sample",{
+test_that("GLMNET - run_ml_backtest works with no rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric - bigger sample",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df =
         structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                               "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -3050,8 +3050,8 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 3m tar
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -3074,13 +3074,13 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 3m tar
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-1
   )
@@ -3088,11 +3088,11 @@ test_that("GLMNET - ml_walk_forward_validation works with no rebalancing, 3m tar
 })
 
 #Define your test Excel sheet test glmnet 5
-test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -3539,8 +3539,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -3562,13 +3562,13 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
                                "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-1
   )
@@ -3576,11 +3576,11 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
 })
 
 #Define your test Excel sheet test glmnet 6
-test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 3m target, grid_search as tuning method and cp as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and cp as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -4021,8 +4021,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -4043,12 +4043,12 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-3
   )
@@ -4056,7 +4056,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
 })
 
 #Define your test
-test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("multisession")
@@ -4064,7 +4064,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -4422,8 +4422,8 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(rf.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -4446,11 +4446,11 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -4461,7 +4461,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 
 
 #Define your test
-test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3m target, grid as tuning method, pseudo_huber (not mentioned) as chosen eval metric and custom_objective pseudo huber error -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber (not mentioned) as chosen eval metric and custom_objective pseudo huber error -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -4472,7 +4472,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -4893,8 +4893,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(xgb.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -4925,11 +4925,11 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -4941,7 +4941,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 })
 
 #Define your test
-test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works with rebalancing, 3m target, grid as tuning method, pseudo_huber and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("sequential")
@@ -4952,7 +4952,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
   tensorflow::set_random_seed(100)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -5452,7 +5452,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -5479,12 +5479,12 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-3
   )
@@ -5494,7 +5494,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - ml_walk_forward_validation works
 })
 
 #Define your test
-test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("sequential")
@@ -5502,7 +5502,7 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -5866,8 +5866,8 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(rf.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
     #Validation lossess for chosen metric
@@ -5889,12 +5889,12 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -5904,14 +5904,14 @@ test_that("RF (Sequential - Parallel = TRUE) - ml_walk_forward_validation works 
 })
 
 #Define your test
-test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Sequential - Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -6250,8 +6250,8 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(rf.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
    #Validation lossess for chosen metric
@@ -6273,12 +6273,12 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-3
   )
@@ -6287,11 +6287,11 @@ test_that("RF (Sequential - Parallel = FALSE) - ml_walk_forward_validation works
 })
 
 #Define your test Excel sheet test glmnet 7
-test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -6734,8 +6734,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -6757,12 +6757,12 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-3
   )
@@ -6771,7 +6771,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
 
 ###Random Search
 #Define your test Excel sheet test glmnet 8
-test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 3m target, random_search (uniform) as tuning method and rmse as chosen eval metric",{
+test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, random_search (uniform) as tuning method and rmse as chosen eval metric",{
 
 
   ################Uniform Distribution
@@ -6779,7 +6779,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -7230,8 +7230,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
 
@@ -7252,11 +7252,11 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -7264,7 +7264,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing at final, 
 })
 
 #Define your test
-test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m target, random_search (uniform and lognormal) as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, random_search (uniform and lognormal) as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   future::plan("multisession")
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
@@ -7272,7 +7272,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -7668,7 +7668,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -7691,11 +7691,11 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -7705,7 +7705,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 })
 
 #Define your test
-test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target, random_search as tuning method and rss as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, random_search as tuning method and rss as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -7717,7 +7717,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -8051,7 +8051,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -8071,12 +8071,12 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
                               "final_model", "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -8084,7 +8084,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
 })
 
 #Define your test
-test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3m target, random as tuning method, rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, random as tuning method, rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -8095,7 +8095,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -8559,8 +8559,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(xgb.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -8591,13 +8591,13 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -8612,7 +8612,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 
 ###Bayesian Opt
 #Define your test
-test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target, bayesian_opt as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   #For second rebalancing, bayesian_opt could not converge because FUN was evaluating same results. So a hypothetical cov is added just to test bayes opt dynamic
@@ -8621,7 +8621,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -9035,8 +9035,8 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -9062,13 +9062,13 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-2
   )
@@ -9076,7 +9076,7 @@ test_that("GLMNET - ml_walk_forward_validation works with rebalancing, 3m target
 })
 
 #Define your test
-test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -9086,7 +9086,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -9529,8 +9529,8 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(rf.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -9561,12 +9561,12 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -9577,7 +9577,7 @@ test_that("RF (Parallel) - ml_walk_forward_validation works with rebalancing, 3m
 })
 
 #Define your test
-test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -9587,7 +9587,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -10073,8 +10073,8 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit2) - coef(ml_walk_forward_validation_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  if(all(abs(coef(xgb.mod.refit2) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
+    results$outputs[[5]] <- ml_backtest_results@final_model
   }
 
   #Validation lossess for chosen metric
@@ -10122,12 +10122,12 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -10137,7 +10137,7 @@ test_that("XGB (Parallel) - ml_walk_forward_validation works with rebalancing, 3
 })
 
 #Define your test
-test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -10147,7 +10147,7 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
   tensorflow::set_random_seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -10662,7 +10662,7 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -10704,12 +10704,12 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -10719,7 +10719,7 @@ test_that("NN (Parallel = FALSE) - ml_walk_forward_validation works with rebalan
 })
 
 #Define your test
-test_that("Skipped: NN (Parallel = TRUE) - ml_walk_forward_validation works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("Skipped: NN (Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 skip()
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -10730,7 +10730,7 @@ skip()
   tensorflow::set_random_seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -11245,7 +11245,7 @@ skip()
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -11287,12 +11287,12 @@ skip()
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -11308,14 +11308,14 @@ skip()
 
 #BEGIN OTHER TESTS
 #####################################
-test_that("ml_walk_forward_validation correctly classifies data as training, validation and testing", {
+test_that("run_ml_backtest correctly classifies data as training, validation and testing", {
 
    load(paste(test_path(),"/testdata/","toy_fulldates_features_and_targets.RData", sep =""))
 
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_features_full_dates,
       target_m_df = toy_target_full_date,
       training_sample_size = 60,
@@ -11332,7 +11332,7 @@ test_that("ml_walk_forward_validation correctly classifies data as training, val
       show_plots = FALSE
     )}))
 
-  rebalance_dates <- as.Date(rownames(ml_walk_forward_validation_results@validation_eval_metrics_hyper_choice), format = "%Y-%m-%d")
+  rebalance_dates <- as.Date(rownames(ml_backtest_results@validation_eval_metrics_hyper_choice), format = "%Y-%m-%d")
 
 
   #Check if rebalance dates match expected months
@@ -11346,7 +11346,7 @@ test_that("ml_walk_forward_validation correctly classifies data as training, val
 })
 
 #Define your test
-test_that("ml_walk_forward_validation works with NAs in last target_fwd periods of target_m_df",{
+test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m_df",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -11359,7 +11359,7 @@ test_that("ml_walk_forward_validation works with NAs in last target_fwd periods 
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
@@ -11694,7 +11694,7 @@ test_that("ml_walk_forward_validation works with NAs in last target_fwd periods 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_walk_forward_validation_results@final_model
+  results$outputs[[5]] <- ml_backtest_results@final_model
 
 
   #Validation lossess for chosen metric
@@ -11714,12 +11714,12 @@ test_that("ml_walk_forward_validation works with NAs in last target_fwd periods 
                               "final_model", "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_walk_forward_validation_results <- as.list(ml_walk_forward_validation_results)
-  ml_walk_forward_validation_results$metadata <- NULL
+  ml_backtest_results <- as.list(ml_backtest_results)
+  ml_backtest_results$metadata <- NULL
 
 
   expect_equal(
-    ml_walk_forward_validation_results,
+    ml_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -11727,7 +11727,7 @@ test_that("ml_walk_forward_validation works with NAs in last target_fwd periods 
 })
 
 #Define your test
-test_that("ml_walk_forward_validation does not works with NAs in last target_fwd+ 1 periods of target_m_df",{
+test_that("run_ml_backtest does not works with NAs in last target_fwd+ 1 periods of target_m_df",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -11739,7 +11739,7 @@ test_that("ml_walk_forward_validation does not works with NAs in last target_fwd
   #Apply function
   expect_error(
   suppressMessages(suppressWarnings({
-    ml_walk_forward_validation_results <- ml_walk_forward_validation(
+    ml_backtest_results <- run_ml_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,

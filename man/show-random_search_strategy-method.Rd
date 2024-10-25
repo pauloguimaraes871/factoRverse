@@ -19,7 +19,7 @@ and the number of iterations (\code{n_iter}) along with hyperparameter distribut
 }
 \examples{
 # Create a random_search_strategy object
-random_search_obj <- create_hyperparameter_tuning_strategy(
+random_search_obj <- create_tuning_strategy(
   tuning_method = "random_search",
   ml_algorithm = "rf",
   validation_sample_size = 1000,

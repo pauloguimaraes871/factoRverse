@@ -5,7 +5,7 @@
 \alias{random_search_strategy-class}
 \title{Random Search Tuning Strategy}
 \description{
-A subclass of \code{hyperparameter_tuning_strategy} that implements random search.
+A subclass of \code{tuning_strategy} that implements random search.
 }
 \section{Slots}{
 

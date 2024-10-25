@@ -93,7 +93,6 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
     "max.depth" = function(x) x / 10,
     "min.bucket" = function(x) x / 10,
     "min_child_weight" = function(x) x / 10,
-    "alpha" = function(x) x / 10,
     "gamma" = function(x) x / 10,
     "nrounds" = function(x) x / 100,
     "regularizer_l1" = function(x) x / 10,
@@ -108,7 +107,6 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
     "max.depth" = "/10",
     "min.bucket" = "/10",
     "min_child_weight" = "/10",
-    "alpha" = "/10",
     "gamma" = "/10",
     "nrounds" = "/10²",
     "regularizer_l1" = "/10",
@@ -210,7 +208,6 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
     "max.depth" = function(x) x / 10,
     "min.bucket" = function(x) x / 10,
     "min_child_weight" = function(x) x / 10,
-    "alpha" = function(x) x / 10,
     "gamma" = function(x) x / 10,
     "nrounds" = function(x) x / 100,
     "regularizer_l1" = function(x) x / 10,
@@ -225,7 +222,6 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
     "max.depth" = "/10",
     "min.bucket" = "/10",
     "min_child_weight" = "/10",
-    "alpha" = "/10",
     "gamma" = "/10",
     "nrounds" = "/10²",
     "regularizer_l1" = "/10",
@@ -347,7 +343,6 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
     "max.depth" = function(x) x / 10,
     "min.bucket" = function(x) x / 10,
     "min_child_weight" = function(x) x / 10,
-    "alpha" = function(x) x / 10,
     "gamma" = function(x) x / 10,
     "nrounds" = function(x) x / 100,
     "regularizer_l1" = function(x) x / 10,
@@ -362,7 +357,6 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
     "max.depth" = "/10",
     "min.bucket" = "/10",
     "min_child_weight" = "/10",
-    "alpha" = "/10",
     "gamma" = "/10",
     "nrounds" = "/10²",
     "regularizer_l1" = "/10",
@@ -436,14 +430,25 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 
 
 
-# Define the plot method for ml_wf_val_results
+#' @title Plot Method for `ml_backtest_config`
+#' @description Calls the appropriate plot method for `tuning_strategy`.
+#' @param x An object of class `ml_backtest_config`.
+#' @param y Unused. Included for consistency with the generic `plot` method.
+#' @return A `ggplot` object visualizing the hyperparameter distributions with possible limits.
+#' @export
+setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x, y){
+  plot(x@tuning_strategy)
+})
+
+
+# Define the plot method for ml_backtest_results
 ################################
 #' Plot Machine Learning Walk-Forward Validation Results
 #'
 #' This method generates various plots to visualize the performance of machine learning models using walk-forward validation metrics.
 #' It creates plots comparing out-of-sample (OOS) testing metrics, validation metrics, and hyperparameter performance over time.
 #'
-#' @param x An object of class \code{ml_wf_val_results} containing the results of the walk-forward validation.
+#' @param x An object of class \code{ml_backtest_results} containing the results of the walk-forward validation.
 #'
 #' @return The following plots:
 #' \itemize{
@@ -455,7 +460,7 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' }
 #'
 #' @export
-setMethod("plot", "ml_wf_val_results", function(x) {
+setMethod("plot", "ml_backtest_results", function(x) {
 
   # Extract relevant data from the S4 object
   oos_testing_eval_metrics <- x@oos_testing_eval_metrics

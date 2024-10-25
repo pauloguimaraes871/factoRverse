@@ -112,7 +112,7 @@ create_meta_dataframe <- function(data) {
 
 
 #' @title Hyperparameter Tuning Strategy Constructor
-#' @description A constructor function to create a hyperparameter_tuning_strategy object, based on the specified tuning method.
+#' @description A constructor function to create a tuning_strategy object, based on the specified tuning method.
 #' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
 #' @param validation_sample_size Numeric value representing the size of the validation sample.
 #' @param split_method Character string indicating the split method for the data ('expanding' or 'rolling').
@@ -124,27 +124,15 @@ create_meta_dataframe <- function(data) {
 #' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
 #' @return An object of class `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
 #' @export
-create_hyperparameter_tuning_strategy <- function(tuning_method,
-                                                  ml_algorithm,
-                                                  validation_sample_size,
-                                                  split_method = "expanding",
-                                                  chosen_eval_metric,
-                                                  hyper_grid_domain = NULL,
-                                                  early_stop = NULL,
-                                                  n_iter = NULL,
-                                                  acq = NULL,
-                                                  init_points = NULL,
-                                                  k_iter = NULL) {
+create_tuning_strategy <- function(tuning_method, validation_sample_size, split_method = "expanding", chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
+                                                  n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
 
   # Check if hyper_grid_domain is provided; if not, create an empty one
   if(!tuning_method %in% c("grid_search", "random_search", "bayesian_opt")){
     stop("tuning_method must be one of grid_search, random_search or bayesian_opt")
   }
-  if(!ml_algorithm %in% c("glmnet", "rf", "xgb", "nn")){
-    stop("ml_algorithm must be one of glmnet, rf, xgb or nn")
-  }
   if (is.null(hyper_grid_domain)) {
-    hyper_grid_domain <- new("hyper_grid_domain", ml_algorithm = ml_algorithm, tuning_method = tuning_method, hyperparameter_list = list())
+    hyper_grid_domain <-  new("hyper_grid_domain", hyperparameter_list = list())
   } else {
     #If not null, check if it matches
     if(hyper_grid_domain@tuning_method != tuning_method){
@@ -161,7 +149,6 @@ create_hyperparameter_tuning_strategy <- function(tuning_method,
     # Create a grid_search_strategy object
     return(new("grid_search_strategy",
                tuning_method = "grid_search",
-               ml_algorithm = ml_algorithm,
                validation_sample_size = validation_sample_size,
                split_method = split_method,
                chosen_eval_metric = chosen_eval_metric,
@@ -175,7 +162,6 @@ create_hyperparameter_tuning_strategy <- function(tuning_method,
     }
     return(new("random_search_strategy",
                tuning_method = "random_search",
-               ml_algorithm = ml_algorithm,
                validation_sample_size = validation_sample_size,
                split_method = split_method,
                chosen_eval_metric = chosen_eval_metric,
@@ -190,7 +176,6 @@ create_hyperparameter_tuning_strategy <- function(tuning_method,
     }
     return(new("bayesian_opt_strategy",
                tuning_method = "bayesian_opt",
-               ml_algorithm = ml_algorithm,
                validation_sample_size = validation_sample_size,
                split_method = split_method,
                chosen_eval_metric = chosen_eval_metric,
@@ -206,11 +191,73 @@ create_hyperparameter_tuning_strategy <- function(tuning_method,
 }
 
 
-#' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `hyperparameter_tuning_strategy` or not.
+#' Add a `tuning_strategy` to an existing `ml_backtest_config`.
 #'
-#' This generic function adds a new hyperparameter to an existing `hyper_grid_domain` object, whether it is inside a `hyperparameter_tuning_strategy` or not.
+#' This generic function adds an existing `tuning_strategy` to an `ml_backtest_config` object or creates a new `tuning_strategy` if none is provided (i.e., when `tuning_strategy` is `NULL`).
 #'
-#' @param object A `hyperparameter_tuning_strategy` or a `hyper_grid_domain` object.
+#' @param object A `ml_backtest_config` object to which a tuning strategy will be added.
+#' @param tuning_strategy An object of class `tuning_strategy` or `NULL`. If `NULL`, additional parameters must be provided to create a new `tuning_strategy`.
+#' @param ... Additional arguments required to create a new `tuning_strategy`, only needed when `tuning_strategy` is `NULL`.
+#' @return An updated `ml_backtest_config` object with the specified or newly created `tuning_strategy`.
+#' @export
+setGeneric("add_tuning_strategy", function(object, tuning_strategy, ...) {
+  standardGeneric("add_tuning_strategy")
+})
+
+
+
+#' @describeIn add_tuning_strategy Add an existing `tuning_strategy` to the `ml_backtest_config`.
+#'
+#' This method adds a pre-existing `tuning_strategy` to the `ml_backtest_config`. It replaces any existing tuning strategy in the experiment.
+#'
+#' @param object A `ml_backtest_config` object.
+#' @param tuning_strategy An object of class `tuning_strategy` to be added to the `ml_backtest_config`.
+#' @return The updated `ml_backtest_config` object with the provided `tuning_strategy`.
+#' @export
+setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning_strategy = "tuning_strategy"),
+          function(object, tuning_strategy) {
+            object@tuning_strategy <- tuning_strategy
+            return(object)
+          })
+
+
+
+#' @describeIn add_tuning_strategy Create and add a new `tuning_strategy` to the `ml_backtest_config`.
+#'
+#' This method is used when `tuning_strategy` is `NULL`. It creates a new tuning strategy based on the provided parameters and adds it to the `ml_backtest_config`.
+#'
+#' @param object A `ml_backtest_config` object.
+#' @param tuning_strategy `NULL`, indicating that a new `tuning_strategy` should be created.
+#' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
+#' @param validation_sample_size Numeric value representing the size of the validation sample.
+#' @param split_method Character string indicating the split method for the data. Options are 'expanding' or 'rolling'. Default is 'expanding'.
+#' @param chosen_eval_metric Character or `NULL`, specifying the evaluation metric to be optimized.
+#' @param early_stop Optional, stopping criteria for early termination. Can be of any type.
+#' @param n_iter Numeric, number of iterations for 'random_search' or 'bayesian_opt'.
+#' @param acq Character string specifying the acquisition function for Bayesian optimization (for 'bayesian_opt' only).
+#' @param init_points Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).
+#' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
+#' @return An updated `ml_backtest_config` object with a newly created `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
+#' @export
+setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning_strategy = "missing"),
+          function(object, tuning_strategy = NULL, tuning_method, validation_sample_size, split_method = "expanding", chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
+                   n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
+
+            # Create a new tuning_strategy object
+            object@tuning_strategy <- create_tuning_strategy(tuning_method = tuning_method, validation_sample_size = validation_sample_size, split_method = split_method,
+                                                             chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
+                                                             init_points = init_points, k_iter = k_iter)
+            return(object)
+          }
+)
+
+
+
+#' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `ml_backtest_config`, a `tuning_strategy` or on its own.
+#'
+#' This generic function adds a new hyperparameter to an existing `hyper_grid_domain` object. The function is overloaded to handle different types of hyperparameters for different machine learning algorithms.
+#'
+#' @param object A `tuning_strategy` or a `hyper_grid_domain` object.
 #' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
 #' \itemize{
 #'  \item \strong{glmnet}: alpha, lambda.min.ratio
@@ -222,8 +269,8 @@ create_hyperparameter_tuning_strategy <- function(tuning_method,
 #' @return A `hyper_grid_domain` object with the updated hyperparameters.
 #'
 #' @examples
-#' # Create an initial hyperparameter_tuning_strategy object for grid-search
-#' grid_search_obj <- create_hyperparameter_tuning_strategy(
+#' # Create an initial tuning_strategy object for grid-search
+#' grid_search_obj <- create_tuning_strategy(
 #'   tuning_method = "grid_search",
 #'   validation_sample_size = 1000,
 #'   split_method = "expanding",
@@ -237,8 +284,8 @@ create_hyperparameter_tuning_strategy <- function(tuning_method,
 #'   grid = list(c(0.2, 0.5), c(0.5, 0.2, 0.3))
 #' )
 #'
-#' # Create an initial hyperparameter_tuning_strategy object for random_search
-#' random_search_obj <- create_hyperparameter_tuning_strategy(
+#' # Create an initial tuning_strategy object for random_search
+#' random_search_obj <- create_tuning_strategy(
 #'   tuning_method = "random_search",
 #'   validation_sample_size = 1000,
 #'   split_method = "rolling",
@@ -254,8 +301,8 @@ create_hyperparameter_tuning_strategy <- function(tuning_method,
 #'   pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),  c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
 #' )
 #'
-#' # Create an initial hyperparameter_tuning_strategy object for bayesian_opt
-#' bayesian_opt_obj <- create_hyperparameter_tuning_strategy(
+#' # Create an initial tuning_strategy object for bayesian_opt
+#' bayesian_opt_obj <- create_tuning_strategy(
 #'   tuning_method = "bayesian_opt",
 #'   validation_sample_size = 1000,
 #'   split_method = "expanding",
@@ -294,29 +341,72 @@ setGeneric("add_hyperparameter", function(object, hyperparameter, ...) {
   standardGeneric("add_hyperparameter")
 })
 
-#' @title Add Hyperparameter for `hyper_grid_domain`
-#' @description Adds a hyperparameter to the object based on the specified tuning method.
-#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added.
+#' @describeIn add_hyperparameter Add hyperparameter to `hyper_grid_domain` object
+#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
+#' \itemize{
+#'  \item \strong{glmnet}: alpha, lambda.min.ratio
+#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+#' }
 #' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
 #' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
 #' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
 #' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
-#' @export
+#' @param new_hyperparameter_list Used to pass new_hyperparameters_list after specific method at tuning_strategy level.
+#'
 setMethod("add_hyperparameter",
           signature(object = "hyper_grid_domain"),
-          function(object, hyperparameter,
-                   grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
+          function(object, new_hyperparameter_list) {
 
-            #Check if tuning_method is correct
-            if(!object@tuning_method %in% c("grid_search", "random_search", "bayesian_opt")){
-              stop("Invalid tuning_method. Only 'grid_search', 'random_search', and 'bayesian_opt' are supported.")
+            #Get names stored in new_hyperparameter_list
+            hyperparameter <- names(new_hyperparameter_list)
+
+
+
+
+            # Merge with existing hyperparameters in object
+            if (length(object@hyperparameter_list) != 0) {
+              old_hyperparameter_list <- object@hyperparameter_list
+
+              #Take only those that have no substitute in new hyperparameters
+              if(any(!names(old_hyperparameter_list) %in% hyperparameter)){
+              old_hyperparameter_list_disjoint <- old_hyperparameter_list[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Info
+              old_hyperparameter_list_disjoint_names <- names(old_hyperparameter_list)[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Names
+
+                #Re-combine
+                for(hyper in old_hyperparameter_list_disjoint_names){
+                  new_hyperparameter_list[hyper] <- old_hyperparameter_list[hyper]
+                }
+
+                #Re-order
+                new_hyperparameter_list <- new_hyperparameter_list[c(old_hyperparameter_list_disjoint_names, hyperparameter)]
+              }
             }
 
-            # Logic for grid_search
-            if(object@tuning_method == "grid_search"){
-            if (is.null(grid)) {
-              stop("grid can't be missing when tuning method is grid_search")
-            }
+            # Update the object
+            object@hyperparameter_list <- new_hyperparameter_list
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
+
+
+#' @describeIn add_hyperparameter Add hyperparameter to `grid_search_strategy` object
+#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
+#' \itemize{
+#'  \item \strong{glmnet}: alpha, lambda.min.ratio
+#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+#' }
+#' @param grid A numeric vector or list of numeric vectors for grid search values.
+#' @export
+setMethod("add_hyperparameter",
+          signature(object = "grid_search_strategy"),
+          function(object, hyperparameter, grid, ...) {
 
               if (!is.list(grid)) {
                 grid <- list(grid)
@@ -330,16 +420,41 @@ setMethod("add_hyperparameter",
                 stop("All hyperparameters should have a grid.")
               }
 
-              new_hyperparameter_list <- grid
-              names(new_hyperparameter_list) <- hyperparameter
-            }
+            new_hyperparameter_list <- grid
+            names(new_hyperparameter_list) <- hyperparameter
+
+
+            #Extract the current object
+            current_hyper_grid_domain <- object@hyper_grid_domain
+            updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain, new_hyperparameter_list = new_hyperparameter_list)
+
+            # Update the object
+            object@hyper_grid_domain <- updated_hyper_grid_domain
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
+
+
+
+#' @describeIn add_hyperparameter Add hyperparameter to `random_search_strategy` object
+#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
+#' \itemize{
+#'  \item \strong{glmnet}: alpha, lambda.min.ratio
+#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+#' }
+#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
+#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
+#' @export
+setMethod("add_hyperparameter",
+          signature(object = "random_search_strategy"),
+          function(object, hyperparameter, distribution_choice, pars, ...) {
 
             # Logic for random_search
-            if(object@tuning_method == "random_search"){
-              if (is.null(distribution_choice) || is.null(pars)) {
-                stop("distribution_choice and pars can't be missing when tuning_method is random_search")
-              }
-
               if (!is.list(distribution_choice)) {
                 distribution_choice <- as.list(distribution_choice) #As list
               }
@@ -380,14 +495,40 @@ setMethod("add_hyperparameter",
               }, hyperparameter, distribution_choice, pars, SIMPLIFY = FALSE)
 
               names(new_hyperparameter_list) <- hyperparameter
-            }
+
+
+            #Extract the current object
+            current_hyper_grid_domain <- object@hyper_grid_domain
+            updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain,
+                                                            new_hyperparameter_list = new_hyperparameter_list)
+
+            # Update the object
+            object@hyper_grid_domain <- updated_hyper_grid_domain
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
+
+
+#' @describeIn add_hyperparameter Add hyperparameter to `bayesian_opt_strategy` object
+#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
+#' \itemize{
+#'  \item \strong{glmnet}: alpha, lambda.min.ratio
+#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+#' }
+#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
+#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
+#' @export
+setMethod("add_hyperparameter",
+          signature(object = "bayesian_opt_strategy"),
+          function(object, hyperparameter, bounds, ...) {
+
 
             # Logic for bayesian_opt
-            if(object@tuning_method == "bayesian_opt"){
-              if (is.null(bounds)) {
-                stop("bounds can't be missing when tuning_method is bayesian_opt")
-              }
-
               if (!is.list(bounds)) {
                 bounds <- list(bounds)
               }
@@ -402,54 +543,12 @@ setMethod("add_hyperparameter",
 
               new_hyperparameter_list <- bounds
               names(new_hyperparameter_list) <- hyperparameter
-            }
-
-            # Merge with existing hyperparameters in object
-            if (length(object@hyperparameter_list) != 0) {
-              old_hyperparameter_list <- object@hyperparameter_list
-
-              #Take only those that have no substitute in new hyperparameters
-              if(any(!names(old_hyperparameter_list) %in% hyperparameter)){
-              old_hyperparameter_list_disjoint <- old_hyperparameter_list[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Info
-              old_hyperparameter_list_disjoint_names <- names(old_hyperparameter_list)[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Names
-
-                #Re-combine
-                for(hyper in old_hyperparameter_list_disjoint_names){
-                  new_hyperparameter_list[hyper] <- old_hyperparameter_list[hyper]
-                }
-
-                #Re-order
-                new_hyperparameter_list <- new_hyperparameter_list[c(old_hyperparameter_list_disjoint_names, hyperparameter)]
-              }
-            }
-
-            # Update the object
-            object@hyperparameter_list <- new_hyperparameter_list
-
-            # Validate the object explicitly
-            validObject(object)
-
-            return(object)
-          })
 
 
-#' @title Add Hyperparameter for `hyperparameter_tuning_strategy`
-#' @description Adds hyperparameters to the `hyper_grid_domain` inside the `hyperparameter_tuning_strategy` based on the specified tuning method.
-#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added.
-#' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
-#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
-#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
-#' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
-#' @export
-setMethod("add_hyperparameter",
-          signature(object = "hyperparameter_tuning_strategy"),
-          function(object, hyperparameter,
-                   grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
 
             #Extract the current object
             current_hyper_grid_domain <- object@hyper_grid_domain
-            updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain, hyperparameter = hyperparameter,
-                                                            grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds)
+            updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain, new_hyperparameter_list = new_hyperparameter_list)
 
             # Update the object
             object@hyper_grid_domain <- updated_hyper_grid_domain
@@ -460,68 +559,86 @@ setMethod("add_hyperparameter",
             return(object)
           })
 
-
-#' Create a `hyper_grid_domain` Object
-#'
-#' This function creates an instance of the `hyper_grid_domain` S4 class.
-#' It allows users to specify relevant hyperparameters.
-#'
-#' @param hyperparameter A named list representing the hyperparameter to be added. Should be as follows:
-#' \itemize{
-#'  \item \strong{glmnet}: alpha, lambda.min.ratio
-#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
-#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
-#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
-#' }
-#' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
+#' @describeIn add_hyperparameter Add Hyperparameter to `ml_backtest_config` object
+#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added.
 #' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
 #' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
 #' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
 #' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
+#' @export
+setMethod("add_hyperparameter",
+          signature(object = "ml_backtest_config"),
+          function(object, hyperparameter, grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
+
+            #Extract object
+            tuning_strategy <- object@tuning_strategy
+
+
+            #Add hyperparamete
+            updated_tuning_strategy <- add_hyperparameter(tuning_strategy, hyperparameter = hyperparameter,
+                                                          grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds)
+
+            # Update the object
+            object@tuning_strategy <- updated_tuning_strategy
+
+            # Validate the object explicitly
+            validObject(object)
+
+
+            return(object)
+          })
+
+
+#' Add a `hyper_grid_domain` Object
 #'
-#' @return An instance of the `hyper_grid_domain` S4 class.
+#' This function adds a `hyper_grid_domain` S4 class to a `tuning_strategy` or a `ml_backtest_config`.
+#' It allows users to add a `hyper_grid_domain` already built or extracted from other objects.
 #'
-#' @examples
-#' # Creating a hyper_grid_domain object for a xgb model
-#' hyper_grid_xgb_random <- create_hyper_grid_domain(
-#'  tuning_method = "random_search",
-#'  ml_algorithm = "xgb",
-#'  hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
-#'                     "eta", "alpha", "gamma", "nrounds"),
-#'  distribution_choice = c("constant", "uniform", "uniform", "uniform",
-#'                          "uniform", "uniform", "constant", "uniform"),
-#'  pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
-#'            c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
-#'            c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
-#')
+#' @param object An object of class `tuning_strategy` or a `ml_backtest_config`.
+#' @param hyper_grid_domain An object of class `hyper_grid_domain`.
 #'
-#'
-#'
+#' @return The appropriate object with the added `hyper_grid_domain`.
 #'
 #' @export
-create_hyper_grid_domain <- function(hyperparameter = NULL, tuning_method, ml_algorithm, grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
-
-  #Create new obj
-  new_hyper_grid_domain <-
-    new("hyper_grid_domain",
-        tuning_method = tuning_method,
-        ml_algorithm = ml_algorithm,
-        hyperparameter_list = list())
-
-  if(!is.null(hyperparameter)){
-  #Add hyperparameters
-  new_hyper_grid_domain <- add_hyperparameter(new_hyper_grid_domain, hyperparameter = hyperparameter,
-                                              grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds)
-  }
+setGeneric("add_hyper_grid_domain", function(object, hyper_grid_domain) {
+  standardGeneric("add_hyper_grid_domain")
+})
 
 
-  return(new_hyper_grid_domain)
+#' @describeIn add_hyper_grid_domain Add `hyper_grid_domain` to `tuning_strategy` object
+#' @param object An object of class `tuning_strategy`.
+#' @param hyper_grid_domain An object of class `hyper_grid_domain`.
+#' @export
+setMethod("add_hyper_grid_domain",
+          signature(object = "tuning_strategy", hyper_grid_domain = "hyper_grid_domain"),
+          function(object, hyper_grid_domain) {
 
-}
+            #Add hyper_grid_domain
+            object@hyper_grid_domain <- hyper_grid_domain
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
 
 
+#' @describeIn add_hyper_grid_domain Add `hyper_grid_domain` to `ml_backtest_config` object
+#' @param object An object of class `ml_backtest_config`.
+#' @param hyper_grid_domain An object of class `hyper_grid_domain`.
+#' @export
+setMethod("add_hyper_grid_domain",
+          signature(object = "ml_backtest_config", hyper_grid_domain = "hyper_grid_domain"),
+          function(object, hyper_grid_domain) {
 
+            #Add hyper_grid_domain
+            object@tuning_strategy@hyper_grid_domain <- hyper_grid_domain
 
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
 
 
 #' @title Create Keras Architecture
@@ -543,6 +660,18 @@ create_keras_architecture <- function(nn_optimizer, units = NULL, activation = N
     stop("nn_optimizer should be Adam or RMSProp.")
   }
 
+  #Check format
+  if(!is.numeric(units)){
+    stop("units should be a numeric value.")
+  }
+  if(!all(activation %in% c("relu", "sigmoid", "tanh", "softmax"))){
+    stop("activation should be relu, sigmoid, tanh, or softmax.")
+  }
+  if(!all(is.logical(batch_norm_option))){
+    stop("batch_norm_option should be a logical value.")
+  }
+
+ #Create new_keras_architecture
   new_keras_architecture_parameters <-
   new("keras_architecture_parameters",
       units = units,
@@ -558,11 +687,10 @@ create_keras_architecture <- function(nn_optimizer, units = NULL, activation = N
 }
 
 
-
 #' @title Add Layer to Keras Architecture
 #' @description Method to add a new layer to the Keras architecture.
 #'
-#' @param object An object of class `keras_architecture_parameters`.
+#' @param object An object of class `keras_architecture_parameters` or `ml_backtest_config`
 #' @param units A numeric value for the number of units in the new layer.
 #' @param activation A character string specifying the activation function for the new layer (e.g., "relu").
 #' @param batch_norm_option A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
@@ -574,10 +702,11 @@ setGeneric("add_keras_layer", function(object, units, activation, batch_norm_opt
   standardGeneric("add_keras_layer")
 })
 
+#' @describeIn add_keras_layer Add a keras layer to an object of class `keras_architecture_parameters`
+#' @param object An object of class `keras_architecture_parameters`
+#' @export
 setMethod(
-  "add_keras_layer",
-  "keras_architecture_parameters",
-  function(object, units, activation, batch_norm_option) {
+  "add_keras_layer", "keras_architecture_parameters", function(object, units, activation, batch_norm_option) {
 
     # Check that units are numeric
     if (!all(is.numeric(units))) {
@@ -615,42 +744,134 @@ setMethod(
 )
 
 
-#' @title Create ml_experiment Object
-#' @description Constructs an ml_experiment object.
+#' @describeIn add_keras_layer Add a keras layer to an object of class `ml_backtest_config`
+#' @param object An object of class `ml_backtest_config`
+#' @export
+setMethod(
+  "add_keras_layer", "ml_backtest_config", function(object, units, activation, batch_norm_option) {
+
+    object <- add_keras_layer(object@keras_architecture_parameters, units = units, activation = activation, batch_norm_option)
+
+    return(object)  # Return the updated object
+  }
+)
+
+#' @title Add Keras Architecture
+#' @description Method to add a `keras_architecture_parameters` to a `ml_backtest_config`.
+#'
+#' This function allows you to either directly add a pre-existing `keras_architecture_parameters` object or create one dynamically by passing additional arguments.
+#' When `keras_architecture_parameters` is not provided, a new one will be created using the values for `nn_optimizer`, `units`, `activation`, and `batch_norm_option` passed via the `...` argument.
+#'
+#' @param object An object of class `ml_backtest_config`.
+#' @param keras_architecture_parameters An object of class `keras_architecture_parameters`, or `NULL` if a new architecture is to be created.
+#' @param ... Additional arguments used to create a new `keras_architecture_parameters` when `keras_architecture_parameters` is `NULL`. These arguments must include:
+#'   \itemize{
+#'     \item \strong{nn_optimizer}: A character string specifying the optimizer to use (e.g., "adam").
+#'     \item \strong{units}: A numeric value for the number of units in the new layer.
+#'     \item \strong{activation}: A character string specifying the activation function for the new layer (e.g., "relu").
+#'     \item \strong{batch_norm_option}: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
+#'   }
+#'
+#' @return An updated object of class `ml_backtest_config` with the `keras_architecture_parameters` added.
+#' @export
+setGeneric("add_keras_architecture", function(object, keras_architecture_parameters, ...) {
+  standardGeneric("add_keras_architecture")
+})
+
+#' @describeIn add_keras_architecture Add existing `keras_architecture_parameters` object
+#'
+#' This method allows you to add an already existing `keras_architecture_parameters` object to an `ml_backtest_config`.
+#'
+#' @param object An object of class `ml_backtest_config`.
+#' @param keras_architecture_parameters An existing object of class `keras_architecture_parameters`.
+#' @return An updated `ml_backtest_config` object with the provided `keras_architecture_parameters`.
+#' @export
+setMethod(
+  "add_keras_architecture",
+  signature(object = "ml_backtest_config", keras_architecture_parameters = "keras_architecture_parameters"),
+  function(object, keras_architecture_parameters) {
+
+    object@keras_architecture_parameters <- keras_architecture_parameters
+
+    return(object)  # Return the updated object
+  }
+)
+
+
+
+#' @describeIn add_keras_architecture Dynamically create and add `keras_architecture_parameters` object
+#'
+#' This method creates a new `keras_architecture_parameters` object dynamically when `keras_architecture_parameters` is not provided.
+#' The parameters required to create this object must be passed via `...` and include:
+#'   \itemize{
+#'     \item \strong{nn_optimizer}: A character string specifying the optimizer to use (e.g., "adam").
+#'     \item \strong{units}: A numeric value for the number of units in the new layer.
+#'     \item \strong{activation}: A character string specifying the activation function for the new layer (e.g., "relu").
+#'     \item \strong{batch_norm_option}: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
+#'   }
+#'
+#' @param object An object of class `ml_backtest_config`.
+#' @param keras_architecture_parameters Should be `NULL` to dynamically create a new architecture.
+#' @param ... Additional parameters used to create the `keras_architecture_parameters`, including:
+#'   \itemize{
+#'     \item \strong{nn_optimizer}: A character string specifying the optimizer to use (e.g., "adam").
+#'     \item \strong{units}: A numeric value for the number of units in the new layer.
+#'     \item \strong{activation}: A character string specifying the activation function for the new layer (e.g., "relu").
+#'     \item \strong{batch_norm_option}: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
+#'   }
+#' @return An updated `ml_backtest_config` object with the newly created `keras_architecture_parameters`.
+#' @export
+setMethod(
+  "add_keras_architecture",
+  signature(object = "ml_backtest_config", keras_architecture_parameters = "missing"),
+  function(object, keras_architecture_parameters = NULL, ...) {
+
+    #Extract args to build keras
+    args <- list(...)
+
+    # Ensure all required parameters are present
+    if (!all(c("nn_optimizer", "units", "activation", "batch_norm_option") %in% names(args))) {
+      stop("All required parameters (nn_optimizer, units, activation, batch_norm_option) must be provided.")
+    }
+
+    # Create the keras architecture parameters using the additional arguments
+    keras_architecture_parameters <- create_keras_architecture(nn_optimizer = args$nn_optimizer,
+                                                               units = args$units, activation = args$activation, batch_norm_option = args$batch_norm_option)
+
+    # Assign the created keras architecture to the object
+    object@keras_architecture_parameters <- keras_architecture_parameters
+
+    return(object)  # Return the updated object
+  }
+)
+
+
+#' @title Create ml_backtest_config Object
+#' @description Constructs an ml_backtest_config object.
 #'
 #' @param target_fwd_name Character string indicating the target variable's forward name.
 #' @param ml_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').
-#' @param hyperparameter_tuning_strategy An object of class hyperparameter_tuning_strategy, specifying the strategy for tuning hyperparameters.
+#' @param tuning_strategy An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.
 #' @param custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
 #' @param keras_architecture_parameters List or NULL, providing parameters specific to keras-based neural networks.
 #' @param quantile_tau Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
 #' @param huber_delta Numeric value greater than 0, specifying the delta parameter for Huber loss function.
 #'
-#' @return An ml_experiment object.
+#' @return An ml_backtest_config object.
 #' @export
-create_ml_experiment <- function(
-    target_fwd_name,
-    ml_algorithm = "ols",
-    hyperparameter_tuning_strategy = NULL,
-    custom_objective = "squared_error",
-    keras_architecture_parameters = NULL,
-    quantile_tau = 0.5,
-    huber_delta = 1
-) {
-  # Create the ml_experiment object
-  new("ml_experiment",
+create_ml_backtest_config <- function(target_fwd_name, ml_algorithm = "ols", tuning_strategy = NULL,
+                                 custom_objective = "squared_error", keras_architecture_parameters = NULL, quantile_tau = 0.5, huber_delta = 1) {
+  # Create the ml_backtest_config object
+  new("ml_backtest_config",
       target_fwd_name = target_fwd_name,
       ml_algorithm = ml_algorithm,
-      hyperparameter_tuning_strategy = hyperparameter_tuning_strategy,
+      tuning_strategy = tuning_strategy,
       custom_objective = custom_objective,
       keras_architecture_parameters = keras_architecture_parameters,
       quantile_tau = quantile_tau,
       huber_delta = huber_delta
   )
 }
-
-
-
 
 
 #' @title Create Portfolio Policies

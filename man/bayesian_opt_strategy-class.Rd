@@ -11,7 +11,7 @@
 If the intention is running in parallel, set k_iter to a multiple of the number of cores. Must be lower and preferably a multiple of n_iter.}
 }
 \description{
-A subclass of \code{hyperparameter_tuning_strategy} that implements bayesian optimization.
+A subclass of \code{tuning_strategy} that implements bayesian optimization.
 }
 \section{Slots}{
 

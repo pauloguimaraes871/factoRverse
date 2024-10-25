@@ -1,5 +1,5 @@
 # Define your test
-test_that("ml_walk_forward_validation throws an error when features_m_df is not matrix or data.frame", {
+test_that("run_ml_backtest throws an error when features_m_df is not matrix or data.frame", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
@@ -23,7 +23,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df is not 
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
       features_m_df = wrong_features_m_df,
       target_m_df = target_m_df,
       training_sample_size = 4,
@@ -37,7 +37,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df is not 
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when features_m_df don't have adequate structure", {
+test_that("run_ml_backtest throws an error when features_m_df don't have adequate structure", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
@@ -45,7 +45,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df don't h
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = wrong_features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -61,7 +61,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df don't h
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = wrong_features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -77,7 +77,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df don't h
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = wrong_features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -93,7 +93,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df don't h
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = wrong_features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -108,7 +108,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df don't h
   wrong_features_m_df$Alpha[1] <- NA
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = wrong_features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -127,7 +127,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df don't h
 
 
   suppressWarnings(expect_error(
-    suppressMessages(ml_walk_forward_validation(
+    suppressMessages(run_ml_backtest(
       features_m_df = wrong_features_m_df,
       target_m_df = wrong_target_m_df,
       training_sample_size = 4,
@@ -142,7 +142,7 @@ test_that("ml_walk_forward_validation throws an error when features_m_df don't h
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when target_m_df is not matrix or data.frame", {
+test_that("run_ml_backtest throws an error when target_m_df is not matrix or data.frame", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
@@ -151,7 +151,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df is not ma
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -165,7 +165,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df is not ma
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when target_m_df do not have adequate structure", {
+test_that("run_ml_backtest throws an error when target_m_df do not have adequate structure", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
@@ -174,7 +174,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -191,7 +191,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -208,7 +208,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -224,7 +224,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -240,7 +240,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -306,7 +306,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 })
 
 #Define your test
-test_that("ml_walk_forward_validation throws an error when target_m_df do not have same structure as features_m_df.", {
+test_that("run_ml_backtest throws an error when target_m_df do not have same structure as features_m_df.", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
@@ -315,7 +315,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -334,7 +334,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -351,7 +351,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -368,7 +368,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
   expect_error(
     suppressMessages(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = wrong_target_m_df,
         training_sample_size = 4,
@@ -388,7 +388,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 
 
   suppressWarnings(expect_error(
-    suppressMessages(ml_walk_forward_validation(
+    suppressMessages(run_ml_backtest(
       features_m_df = wrong_features_m_df,
       target_m_df = wrong_target_m_df,
       training_sample_size = 4,
@@ -402,7 +402,7 @@ test_that("ml_walk_forward_validation throws an error when target_m_df do not ha
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when dates are less than target_fwd", {
+test_that("run_ml_backtest throws an error when dates are less than target_fwd", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
@@ -414,7 +414,7 @@ test_that("ml_walk_forward_validation throws an error when dates are less than t
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = short_features_m_df,
         target_m_df = short_target_m_df,
         training_sample_size = 4,
@@ -429,7 +429,7 @@ test_that("ml_walk_forward_validation throws an error when dates are less than t
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when dates are not in correct order", {
+test_that("run_ml_backtest throws an error when dates are not in correct order", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
@@ -439,7 +439,7 @@ test_that("ml_walk_forward_validation throws an error when dates are not in corr
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = wrong_features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -454,13 +454,13 @@ test_that("ml_walk_forward_validation throws an error when dates are not in corr
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when rebalancing_months, training_sample_size, validation_sample_size, split_method are not numeric or not appropriate.", {
+test_that("run_ml_backtest throws an error when rebalancing_months, training_sample_size, validation_sample_size, split_method are not numeric or not appropriate.", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -473,7 +473,7 @@ test_that("ml_walk_forward_validation throws an error when rebalancing_months, t
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = "four",
@@ -486,7 +486,7 @@ test_that("ml_walk_forward_validation throws an error when rebalancing_months, t
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -501,7 +501,7 @@ test_that("ml_walk_forward_validation throws an error when rebalancing_months, t
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -517,7 +517,7 @@ test_that("ml_walk_forward_validation throws an error when rebalancing_months, t
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -535,13 +535,13 @@ test_that("ml_walk_forward_validation throws an error when rebalancing_months, t
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when eval_metric not correctly set.", {
+test_that("run_ml_backtest throws an error when eval_metric not correctly set.", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -558,7 +558,7 @@ test_that("ml_walk_forward_validation throws an error when eval_metric not corre
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -578,7 +578,7 @@ test_that("ml_walk_forward_validation throws an error when eval_metric not corre
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -597,14 +597,14 @@ test_that("ml_walk_forward_validation throws an error when eval_metric not corre
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when keras network is not correctly set.", {
+test_that("run_ml_backtest throws an error when keras network is not correctly set.", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
   #Keras Architecture Set as DF
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -623,7 +623,7 @@ test_that("ml_walk_forward_validation throws an error when keras network is not 
   #Keras Architecture missing nn_optimizer
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -642,7 +642,7 @@ test_that("ml_walk_forward_validation throws an error when keras network is not 
   #Keras Architecture with wrong n_layersr
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -661,7 +661,7 @@ test_that("ml_walk_forward_validation throws an error when keras network is not 
   #Keras Architecture with wrong activation
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -680,7 +680,7 @@ test_that("ml_walk_forward_validation throws an error when keras network is not 
   #Keras with wrong optimizer
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -699,7 +699,7 @@ test_that("ml_walk_forward_validation throws an error when keras network is not 
   #Keras with wrong number of units
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -719,7 +719,7 @@ test_that("ml_walk_forward_validation throws an error when keras network is not 
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws no error when keras network is correctly set.", {
+test_that("run_ml_backtest throws no error when keras network is correctly set.", {
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
 
@@ -807,14 +807,14 @@ test_that("ml_walk_forward_validation throws no error when keras network is corr
 })
 
 # Define your test
-test_that("ml_walk_forward_validation does not throw an error when hyperparameters_grid_list are correctly set.", {
+test_that("run_ml_backtest does not throw an error when hyperparameters_grid_list are correctly set.", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
   #GLMNET
   suppressWarnings(
   expect_no_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -832,7 +832,7 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
   #RF
   suppressWarnings(
     expect_no_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -852,7 +852,7 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
   #XGB
   suppressMessages(suppressWarnings(
     expect_no_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -875,7 +875,7 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
   #NN
   suppressMessages(suppressWarnings(
     expect_no_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -899,14 +899,14 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
 })
 
 # Define your test
-test_that("ml_walk_forward_validation does not throw an error when hyperparameters_grid_list is not correctly set.", {
+test_that("run_ml_backtest does not throw an error when hyperparameters_grid_list is not correctly set.", {
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
   #GLMNET
   suppressWarnings(
     expect_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -922,7 +922,7 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
 
   suppressWarnings(
     expect_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -940,7 +940,7 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
   #RF
   suppressWarnings(
     expect_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -968,7 +968,7 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
   #XGB
   suppressMessages(suppressWarnings(
     expect_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -994,7 +994,7 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
   #NN
   suppressMessages(suppressWarnings(
     expect_error(
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1028,14 +1028,14 @@ test_that("ml_walk_forward_validation does not throw an error when hyperparamete
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when grid_search not correctly set.", {
+test_that("run_ml_backtest throws an error when grid_search not correctly set.", {
 
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1052,7 +1052,7 @@ test_that("ml_walk_forward_validation throws an error when grid_search not corre
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1070,14 +1070,14 @@ test_that("ml_walk_forward_validation throws an error when grid_search not corre
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when random_search not correctly set.", {
+test_that("run_ml_backtest throws an error when random_search not correctly set.", {
 
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1094,7 +1094,7 @@ test_that("ml_walk_forward_validation throws an error when random_search not cor
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1111,7 +1111,7 @@ test_that("ml_walk_forward_validation throws an error when random_search not cor
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1128,7 +1128,7 @@ test_that("ml_walk_forward_validation throws an error when random_search not cor
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1147,7 +1147,7 @@ test_that("ml_walk_forward_validation throws an error when random_search not cor
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1165,7 +1165,7 @@ test_that("ml_walk_forward_validation throws an error when random_search not cor
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1183,7 +1183,7 @@ test_that("ml_walk_forward_validation throws an error when random_search not cor
 
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1203,7 +1203,7 @@ test_that("ml_walk_forward_validation throws an error when random_search not cor
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when bayesian_opt not correctly set.", {
+test_that("run_ml_backtest throws an error when bayesian_opt not correctly set.", {
 
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
@@ -1211,7 +1211,7 @@ test_that("ml_walk_forward_validation throws an error when bayesian_opt not corr
   #Three elements instead of two
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1229,7 +1229,7 @@ test_that("ml_walk_forward_validation throws an error when bayesian_opt not corr
   #Not numeric
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1251,7 +1251,7 @@ test_that("ml_walk_forward_validation throws an error when bayesian_opt not corr
 })
 
 # Define your test
-test_that("ml_walk_forward_validation throws an error when custom_objective wrongly set.", {
+test_that("run_ml_backtest throws an error when custom_objective wrongly set.", {
 
 
   load(paste(test_path(),"/testdata/","artificial_ml_wf_val_obj.RData", sep =""))
@@ -1259,7 +1259,7 @@ test_that("ml_walk_forward_validation throws an error when custom_objective wron
   #Setting custom obj for glmnet
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1282,7 +1282,7 @@ test_that("ml_walk_forward_validation throws an error when custom_objective wron
   #Seting wrong custom opbj
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,
@@ -1303,7 +1303,7 @@ test_that("ml_walk_forward_validation throws an error when custom_objective wron
   #Early stop
   expect_error(
     suppressMessages(suppressWarnings({
-      ml_walk_forward_validation(
+      run_ml_backtest(
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         training_sample_size = 4,

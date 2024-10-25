@@ -113,8 +113,8 @@ is_hyper_grid_domain <- function(x) {
 #' @return A logical value indicating whether the object is of class `hyperparameter_tuning_strategy`.
 #'
 #' @export
-is_hyperparameter_tuning_strategy <- function(x) {
-  is(x, "hyperparameter_tuning_strategy")
+is_tuning_strategy <- function(x) {
+  is(x, "tuning_strategy")
 }
 
 #' Define the is keras_architecture_parameters function

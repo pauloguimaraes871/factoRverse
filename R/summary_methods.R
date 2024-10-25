@@ -92,13 +92,13 @@ setMethod("summary", "meta_dataframe", function(object) {
 })
 
 
-#' Summary Method for ml_wf_val_results Class
+#' Summary Method for ml_backtest_results Class
 #'
-#' This method provides a comprehensive summary of the `ml_wf_val_results`
+#' This method provides a comprehensive summary of the `ml_backtest_results`
 #' object, including statistics for out-of-sample predictions, errors,
 #' actual values, evaluation metrics, and hyperparameters.
 #'
-#' @param object An instance of the `ml_wf_val_results` class.
+#' @param object An instance of the `ml_backtest_results` class.
 #'
 #' @return The method prints a summary to the console, including:
 #'   - Main information about the ML algorithm, final model, and objective function.
@@ -108,7 +108,7 @@ setMethod("summary", "meta_dataframe", function(object) {
 #'
 #'
 #' @export
-setMethod("summary", "ml_wf_val_results", function(object) {
+setMethod("summary", "ml_backtest_results", function(object) {
 
   # Helper function to summarize a list of vectors or data frames
   summarize_list <- function(lst) {

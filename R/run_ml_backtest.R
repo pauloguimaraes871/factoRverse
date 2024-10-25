@@ -107,7 +107,7 @@
 #' \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 #'
 #' @export
-ml_walk_forward_validation <- function(
+run_ml_backtest <- function(
     #Basic Objects Inputs
   features_m_df, target_m_df, training_sample_size, target_fwd_name,
   #Splits
@@ -121,7 +121,7 @@ ml_walk_forward_validation <- function(
   #Keras architecture Parameters
   keras_architecture_parameters = NULL,
   #Misc
-  show_plots = TRUE, verbose = FALSE, parallel = TRUE, ml_parameters = NULL
+  show_plots = TRUE, verbose = FALSE, parallel = TRUE
 ){
 
   #Measure time to run and run gc
@@ -159,7 +159,7 @@ ml_walk_forward_validation <- function(
 
     ################
     ##Check Parameters: This function will test whether inputs match format and current functionalities
-    check_inputs_ml_wf_val(
+    check_inputs_ml_backtest(
       features_m_df = features_m_df, target_m_df = target_m_df, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
       validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, ml_algorithm = ml_algorithm,
       custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
@@ -623,8 +623,8 @@ ml_walk_forward_validation <- function(
   )
 
   #Get S4 object
-  ml_results_object <-
-    new("ml_wf_val_results",
+  ml_backtest_results_object <-
+    new("ml_backtest_results",
         oos_prediction_list = result_list$oos_prediction_list,
         oos_error_list = result_list$oos_error_list,
         oos_y_list = result_list$oos_y_list,
@@ -637,10 +637,10 @@ ml_walk_forward_validation <- function(
         )
 
   #Plot
-  if(show_plots) plot(ml_results_object)
+  if(show_plots) plot(ml_backtest_results_object)
 
   #Return List
-  return(ml_results_object)
+  return(ml_backtest_results_object)
 
 
 }

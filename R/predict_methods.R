@@ -64,14 +64,14 @@ setMethod("predict", "refit_ml_model", function(object, new_features_m_df) {
 
 
 
-#' Predict Method for ml_wf_val_results Class
+#' Predict Method for ml_backtest_results Class
 #'
 #' This method generates predictions using a machine learning model that has been
 #' validated through walk-forward validation. It uses the provided new feature
 #' data and applies the appropriate prediction logic based on the underlying
 #' model and its hyperparameters.
 #'
-#' @param object An instance of the `ml_wf_val_results` class containing the
+#' @param object An instance of the `ml_backtest_results` class containing the
 #'   validated model, metadata, and best hyperparameters.
 #' @param new_features_m_df A data frame or an object of class `meta_dataframe`
 #'   containing new feature data for which predictions are to be made. The
@@ -87,12 +87,12 @@ setMethod("predict", "refit_ml_model", function(object, new_features_m_df) {
 #' hyperparameters for making predictions.
 #'
 #' @examples
-#' # Assuming `ml_wf_model` is an instance of `ml_wf_val_results`
+#' # Assuming `ml_wf_model` is an instance of `ml_backtest_results`
 #' # and `new_data` is a properly structured data frame:
 #' predictions <- predict(ml_wf_model, new_data)
 #'
 #' @export
-setMethod("predict", "ml_wf_val_results", function(object, new_features_m_df) {
+setMethod("predict", "ml_backtest_results", function(object, new_features_m_df) {
 
   #Validate input
   if (!is_coercible_to_meta_dataframe(new_features_m_df)) {
@@ -108,7 +108,7 @@ setMethod("predict", "ml_wf_val_results", function(object, new_features_m_df) {
   }
 
   #Get objects of ml_walk_forward_validation_results
-    ml_algorithm <- ml_wf_val_results@metadata$ml_algorithm #Get ML algo
+    ml_algorithm <- ml_backtest_results@metadata$ml_algorithm #Get ML algo
     refit_model <- ml_walk_forward_validation_results@final_model #Get refitted model
     best_hyperparameters <- ml_walk_forward_validation_results@best_hyperparameters #Best hyper
     ##Extract best_lam for glmnet

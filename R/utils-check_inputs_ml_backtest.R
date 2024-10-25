@@ -42,7 +42,7 @@
 #' @keywords internal validation machine-learning
 #'
 #'
-check_inputs_ml_wf_val <- function(
+check_inputs_ml_backtest <- function(
     features_m_df, target_m_df, training_sample_size, target_fwd_name,
     validation_sample_size, rebalancing_months, split_method, ml_algorithm,
     custom_objective, chosen_eval_metric, huber_delta, quantile_tau,

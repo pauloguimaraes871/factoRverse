@@ -2,18 +2,18 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_hyper_grid_domain}
 \alias{get_hyper_grid_domain}
-\alias{get_hyper_grid_domain,ml_experiment-method}
+\alias{get_hyper_grid_domain,ml_backtest_config-method}
 \title{Get Hyperparameter Grid Domain}
 \usage{
 get_hyper_grid_domain(object)
 
-\S4method{get_hyper_grid_domain}{ml_experiment}(object)
+\S4method{get_hyper_grid_domain}{ml_backtest_config}(object)
 }
 \arguments{
-\item{object}{An ml_experiment or hyperparameter_tuning_strategy object}
+\item{object}{An ml_backtest_config or tuning_strategy object}
 }
 \value{
-The \code{hyper_grid_domain} object stored in the \code{hyperparameter_tuning_strategy}.
+The \code{hyper_grid_domain} object stored in the \code{tuning_strategy}.
 }
 \description{
 Accessor function to retrieve the hyperparameter grid domain.

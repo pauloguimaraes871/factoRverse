@@ -19,9 +19,8 @@ and details about the hyperparameter grid.
 }
 \examples{
 # Create a grid_search_strategy object
-grid_search_obj <- create_hyperparameter_tuning_strategy(
+grid_search_obj <- create_tuning_strategy(
   tuning_method = "grid_search",
-  ml_algorithm = "glmnet",
   validation_sample_size = 1000,
   split_method = "expanding",
   chosen_eval_metric = "rmse"

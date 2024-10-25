@@ -20,7 +20,7 @@ initial points, and hyperparameter bounds.
 }
 \examples{
 # Create a bayesian_opt_strategy object
-bayesian_opt_obj <- create_hyperparameter_tuning_strategy(
+bayesian_opt_obj <- create_tuning_strategy(
   tuning_method = "bayesian_opt",
   ml_algorithm = "xgb",
   validation_sample_size = 1000,

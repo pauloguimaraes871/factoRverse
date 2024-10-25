@@ -5,7 +5,7 @@
 \alias{grid_search_strategy-class}
 \title{Grid Search Tuning Strategy}
 \description{
-A subclass of \code{hyperparameter_tuning_strategy} that implements grid search.
+A subclass of \code{tuning_strategy} that implements grid search.
 }
 \section{Slots}{
 

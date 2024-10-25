@@ -2,30 +2,69 @@
 % Please edit documentation in R/constructors.R
 \name{add_hyperparameter}
 \alias{add_hyperparameter}
-\title{Add a Hyperparameter to a \code{hyper_grid_domain}, whether inside a \code{hyperparameter_tuning_strategy} or not.}
+\alias{add_hyperparameter,hyper_grid_domain-method}
+\alias{add_hyperparameter,grid_search_strategy-method}
+\alias{add_hyperparameter,random_search_strategy-method}
+\alias{add_hyperparameter,bayesian_opt_strategy-method}
+\alias{add_hyperparameter,ml_backtest_config-method}
+\title{Add a Hyperparameter to a \code{hyper_grid_domain}, whether inside a \code{ml_backtest_config}, a \code{tuning_strategy} or on its own.}
 \usage{
 add_hyperparameter(object, hyperparameter, ...)
+
+\S4method{add_hyperparameter}{hyper_grid_domain}(object, new_hyperparameter_list)
+
+\S4method{add_hyperparameter}{grid_search_strategy}(object, hyperparameter, grid, ...)
+
+\S4method{add_hyperparameter}{random_search_strategy}(object, hyperparameter, distribution_choice, pars, ...)
+
+\S4method{add_hyperparameter}{bayesian_opt_strategy}(object, hyperparameter, bounds, ...)
+
+\S4method{add_hyperparameter}{ml_backtest_config}(
+  object,
+  hyperparameter,
+  grid = NULL,
+  distribution_choice = NULL,
+  pars = NULL,
+  bounds = NULL
+)
 }
 \arguments{
-\item{object}{A \code{hyperparameter_tuning_strategy} or a \code{hyper_grid_domain} object.}
+\item{object}{A \code{tuning_strategy} or a \code{hyper_grid_domain} object.}
 
-\item{hyperparameter}{A vector of characters indicating the name of the hyperparameter to be added. Options are:
-\itemize{
-\item \strong{glmnet}: alpha, lambda.min.ratio
-\item \strong{rf}: mtry, num.trees, max.depth, min.bucket
-\item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
-\item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
-}}
+\item{hyperparameter}{A vector of characters indicating the name of the hyperparameter to be added.}
+
+\item{new_hyperparameter_list}{Used to pass new_hyperparameters_list after specific method at tuning_strategy level.}
+
+\item{grid}{A numeric vector or list of numeric vectors for grid search values (only used for grid_search).}
+
+\item{distribution_choice}{A character vector indicating the distribution to sample from (only used for random_search).}
+
+\item{pars}{A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).}
+
+\item{bounds}{A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).}
 }
 \value{
 A \code{hyper_grid_domain} object with the updated hyperparameters.
 }
 \description{
-This generic function adds a new hyperparameter to an existing \code{hyper_grid_domain} object, whether it is inside a \code{hyperparameter_tuning_strategy} or not.
+This generic function adds a new hyperparameter to an existing \code{hyper_grid_domain} object. The function is overloaded to handle different types of hyperparameters for different machine learning algorithms.
 }
+\section{Functions}{
+\itemize{
+\item \code{add_hyperparameter(hyper_grid_domain)}: Add hyperparameter to \code{hyper_grid_domain} object
+
+\item \code{add_hyperparameter(grid_search_strategy)}: Add hyperparameter to \code{grid_search_strategy} object
+
+\item \code{add_hyperparameter(random_search_strategy)}: Add hyperparameter to \code{random_search_strategy} object
+
+\item \code{add_hyperparameter(bayesian_opt_strategy)}: Add hyperparameter to \code{bayesian_opt_strategy} object
+
+\item \code{add_hyperparameter(ml_backtest_config)}: Add Hyperparameter to \code{ml_backtest_config} object
+
+}}
 \examples{
-# Create an initial hyperparameter_tuning_strategy object for grid-search
-grid_search_obj <- create_hyperparameter_tuning_strategy(
+# Create an initial tuning_strategy object for grid-search
+grid_search_obj <- create_tuning_strategy(
   tuning_method = "grid_search",
   validation_sample_size = 1000,
   split_method = "expanding",
@@ -39,8 +78,8 @@ grid_search_obj <- add_hyperparameter(
   grid = list(c(0.2, 0.5), c(0.5, 0.2, 0.3))
 )
 
-# Create an initial hyperparameter_tuning_strategy object for random_search
-random_search_obj <- create_hyperparameter_tuning_strategy(
+# Create an initial tuning_strategy object for random_search
+random_search_obj <- create_tuning_strategy(
   tuning_method = "random_search",
   validation_sample_size = 1000,
   split_method = "rolling",
@@ -56,8 +95,8 @@ random_search_obj <- add_hyperparameter(
   pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),  c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
 )
 
-# Create an initial hyperparameter_tuning_strategy object for bayesian_opt
-bayesian_opt_obj <- create_hyperparameter_tuning_strategy(
+# Create an initial tuning_strategy object for bayesian_opt
+bayesian_opt_obj <- create_tuning_strategy(
   tuning_method = "bayesian_opt",
   validation_sample_size = 1000,
   split_method = "expanding",
