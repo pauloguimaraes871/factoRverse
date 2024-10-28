@@ -313,9 +313,9 @@ setClass(
     huber_delta = 1
   ),
   validity = function(object) {
-    valid_ml_algorithms <- c("glmnet", "rf", "xgb", "nn")
+    valid_ml_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn")
     if(!(object@ml_algorithm %in% valid_ml_algorithms)) {
-      return("Invalid ml_algorithm. Choose from glmnet, rf, xgb, or nn.")
+      return("Invalid ml_algorithm. Choose from ols, glmnet, rf, xgb, or nn.")
     }
     if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
       return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")

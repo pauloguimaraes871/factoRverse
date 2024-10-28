@@ -216,7 +216,11 @@ setGeneric("add_tuning_strategy", function(object, tuning_strategy, ...) {
 #' @export
 setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning_strategy = "tuning_strategy"),
           function(object, tuning_strategy) {
-            object@tuning_strategy <- tuning_strategy
+            if(object@ml_algorithm != "ols"){
+              object@tuning_strategy <- tuning_strategy
+            } else {
+              stop("OLS does not require tuning.")
+            }
             return(object)
           })
 
@@ -243,10 +247,15 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
           function(object, tuning_strategy = NULL, tuning_method, validation_sample_size, split_method = "expanding", chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
                    n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
 
+            if(object@ml_algorithm != "ols"){
+
             # Create a new tuning_strategy object
             object@tuning_strategy <- create_tuning_strategy(tuning_method = tuning_method, validation_sample_size = validation_sample_size, split_method = split_method,
                                                              chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
                                                              init_points = init_points, k_iter = k_iter)
+            } else {
+              stop("OLS does not require tuning.")
+            }
 
             # Validate the object explicitly
             validObject(object)
@@ -940,6 +949,7 @@ setMethod("create_ml_metabacktest_config",
             if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
               stop("All elements in 'ml_backtest_configs' must be 'ml_backtest_config' objects.")
             }
+
             # Check that all strategies are tuning_strategy objects
             if (!all(sapply(tuning_strategies, function(x) is(x, "tuning_strategy")))) {
               stop("All elements in 'tuning_strategies' must be 'tuning_strategy' objects.")
@@ -998,9 +1008,17 @@ setMethod("create_ml_metabacktest_config",
 setMethod("create_ml_metabacktest_config",
           signature(ml_backtest_configs = "list", tuning_strategies = "missing"),
           function(ml_backtest_configs, ...) {
-            # Check that all configs are ml_backtest_config objects with tuning_strategy not NULL
-            if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config") && !is.null(x@tuning_strategy)))) {
-              stop("All elements in 'configs' must be 'ml_backtest_config' objects with 'tuning_strategy' not NULL.")
+            # Check that all configs are ml_backtest_config objects
+            if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
+              stop("All elements in 'ml_backtest_configs' must be 'ml_backtest_config' objects.")
+            }
+
+            # Check that tuning_strategy is not NULL for non-'ols' algorithms
+            invalid_configs <- sapply(ml_backtest_configs, function(x) {
+              is.null(x@tuning_strategy) && x@ml_algorithm != "ols"
+            })
+            if (any(invalid_configs)) {
+              stop("All 'ml_backtest_config' objects must have 'tuning_strategy' not NULL, except for those with 'ml_algorithm' equal to 'ols'.")
             }
 
             # Create the ml_metabacktest_config object

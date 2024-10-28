@@ -1,64 +1,389 @@
-#' Plot Method for Meta Dataframe
+#' Plot Method for Meta Dataframe with Custom Statistics and Filtering
 #'
-#' This method generates plots for a `meta_dataframe` object based on the specified plot type.
+#' This method generates enhanced plots for a `meta_dataframe` object based on the specified plot type and chosen calculation statistic.
 #'
 #' @param x A `meta_dataframe` object containing the data to be plotted.
-#' @param type A character string specifying the type of plot to create. Options are:
-#'   \itemize{
-#'     \item \strong{"distribution"}: Plots the distribution of values for numeric columns.
-#'     \item \strong{"date_range"}: Visualizes the frequency of data points over time.
-#'     \item \strong{"unique_tickers"}: Displays the number of unique tickers over time.
-#'   }
+#' @param type A character string specifying the type of plot. Options are "cross_sectional" and "time_series".
+#' @param clustering_variables Character vector. Variables used for grouping in cross-sectional or time series plot.
+#' @param variable Character. The numeric variable for calculating the specified statistic in the plot.
+#' @param tickers Character or vector of characters. Specific tickers to include; defaults to "all" for no filtering.
+#' @param dates Date, single date, or date range. Specific date range to include; defaults to "all" for no filtering.
+#' @param calc_stat Character. Specifies the statistic to calculate. Supported values: "mean", "sd", "median", "min", "max", "sum", "n",
+#'   "q05", "q10", "q25", "q75", "q90", "q95", "cor", "beta", "beta_tstat", "alpha", "alpha_tstat".
+#' @param custom_filter Character or vector of characters. Additional columns to filter by, present in `data`.
+#' @param filter_values List or vector of values to filter by for `custom_filter`.
+#' @param y Optional numeric variable, only required for bivariate statistics like "cor", "beta", "beta_tstat", "alpha", "alpha_tstat".
 #' @return A ggplot object representing the requested plot.
 #' @export
 setMethod(
   "plot",
-  signature(x = "meta_dataframe"), function(x, type = "distribution") {
+  signature(x = "meta_dataframe", y = "missing"),
+  function(x, type = "cross_sectional", clustering_variables = NULL, variable, tickers = "all", dates = "all", calc_stat = "mean",
+           custom_filter = NULL, filter_values = NULL, y = NULL, numeric_aggregation = "decile") {
+
+    #Check for type
+    if(!type %in% c("cross_sectional", "time_series", "distribution")){
+      stop("Invalid plot type. Choose from 'cross_sectional', 'time_series' or distribution.")
+    }
+
+    # Set default clustering_variables based on plot type
+    if (is.null(clustering_variables)) {
+      if (type == "cross_sectional"){
+        clustering_variables <- "tickers"
+      }
+      if (type == "time_series"){
+        clustering_variables <- "dates"
+      }
+    }
+
+    # Define colors for plotting
+    deep_navy <- "#000033"
+    black <- "#000000"
+    white <- "#FFFFFF"
+    vibrant_purple <- "#6A0DAD"
+    neon_green <- "#39FF14"
+    neon_orange <- "#FF5F1F"
+    blue_bg <- "#001f3f"
+
     df <- x@data
+    date_range_text <- ""
+    tickers_text <- ""
 
-    if (type == "distribution") {
-      # Plot distribution of values for numeric columns
-      numeric_columns <- sapply(df, is.numeric)
-      df_numeric <- df[, numeric_columns, drop = FALSE]
+    # Define statistic function based on user choice
+    FUN <- switch(calc_stat,
+                  mean = function(x) mean(x, na.rm = TRUE),
+                  sd = function(x) sd(x, na.rm = TRUE),
+                  median = function(x) median(x, na.rm = TRUE),
+                  min = function(x) min(x, na.rm = TRUE),
+                  max = function(x) max(x, na.rm = TRUE),
+                  sum = function(x) sum(x, na.rm = TRUE),
+                  n = function(x) length(x),
+                  q05 = function(x) quantile(x, 0.05, na.rm = TRUE),
+                  q10 = function(x) quantile(x, 0.10, na.rm = TRUE),
+                  q25 = function(x) quantile(x, 0.25, na.rm = TRUE),
+                  q75 = function(x) quantile(x, 0.75, na.rm = TRUE),
+                  q90 = function(x) quantile(x, 0.90, na.rm = TRUE),
+                  q95 = function(x) quantile(x, 0.95, na.rm = TRUE),
+                  cor = function(x, y) {
+                    if (missing(y)) stop("y is required for correlation calculation")
+                    cor(x, y, use = "complete.obs")
+                  },
+                  beta = function(x, y) {
+                    if (missing(y)) stop("y is required for beta calculation")
+                    lm(y ~ x)$coefficients[2]
+                  },
+                  beta_tstat = function(x, y) {
+                    if (missing(y)) stop("y is required for beta t-stat calculation")
+                    summary(lm(y ~ x))$coefficients[2, 3]
+                  },
+                  alpha = function(x, y) {
+                    if (missing(y)) stop("y is required for alpha calculation")
+                    lm(y ~ x)$coefficients[1]
+                  },
+                  alpha_tstat = function(x, y) {
+                    if (missing(y)) stop("y is required for alpha t-stat calculation")
+                    summary(lm(y ~ x))$coefficients[1, 3]
+                  },
+                  stop("Invalid function")
+    )
 
-      if (ncol(df_numeric) == 0) {
-        stop("No numeric columns found for distribution plot")
+    # Filter based on `tickers`
+    if (!identical(tickers, "all")) {
+      df <- df %>% dplyr::filter(tickers %in% !!tickers)
+      tickers_text <- if (length(tickers) > 10) "> 10 tickers" else paste("Tickers:", paste(tickers, collapse = ", "))
+    } else {
+      tickers_text <- "All tickers"
+    }
+
+    # Filter based on `dates`
+    if (!identical(dates, "all")) {
+      df <- df %>% dplyr::filter(dates %in% !!dates)
+    }
+    date_range_text <- paste("Dates:", paste(unique(range(dates)), collapse = " - "))
+
+    # Apply custom filters if specified
+    if (!is.null(custom_filter) && !is.null(filter_values)) {
+      if (is.character(custom_filter) && is.list(filter_values) && length(custom_filter) == length(filter_values)) {
+        df <- purrr::reduce2(custom_filter, filter_values, .init = df, ~ .x %>% dplyr::filter(!!rlang::sym(.y) %in% .z))
+      } else if (is.character(custom_filter) && is.vector(filter_values)) {
+        df <- df %>% dplyr::filter(!!rlang::sym(custom_filter) %in% filter_values)
+      } else {
+        stop("`custom_filter` and `filter_values` must be compatible: `custom_filter` should be a vector of column names, and `filter_values` a list or vector.")
+      }
+    }
+
+    # Stop if no data after filtering
+    if (nrow(df) == 0) stop("No data available for the specified filters.")
+
+    # Identify numeric clustering variables and create decile-based factors if needed
+    numeric_clustering_variables <- purrr::keep(clustering_variables, ~ is.numeric(df[[.x]]))
+    if (length(numeric_clustering_variables) > 0) {
+
+      # Set number of bins and labels based on chosen aggregation
+      bins <- switch(numeric_aggregation,
+                     decile = 10,
+                     quartile = 4,
+                     tercile = 3,
+                     median = 2,
+                     stop("Invalid numeric_aggregation. Choose from 'decile', 'quartile', 'tercile', or 'median'."))
+
+      # Mutate to create factor-based categorization with proper labels
+      df <- df %>%
+        dplyr::mutate(dplyr::across(
+          dplyr::all_of(numeric_clustering_variables),
+          ~ {
+            labels <- switch(numeric_aggregation,
+                             decile = sprintf("d%02d_%s", 1:10, cur_column()),
+                             quartile = sprintf("q%02d_%s", 1:4, cur_column()),
+                             tercile = sprintf("t%02d_%s", 1:3, cur_column()),
+                             median = c(paste0("below_median_", cur_column()), paste0("above_median_", cur_column())),
+                             NULL)
+            factor(dplyr::ntile(., bins), labels = labels)
+          },
+          .names = "{numeric_aggregation}_{col}"
+        ))
+
+      # Update clustering variables to include the new categorized columns
+      clustering_variables <- purrr::map_chr(clustering_variables, ~ if (.x %in% numeric_clustering_variables) {
+        paste0(numeric_aggregation, "_", .x)
+      } else .x
+      )
+    }
+
+    # Logic for cross-sectional plot
+    if (type == "cross_sectional") {
+      if (is.null(variable)) stop("Please specify the 'variable' argument for cross-sectional plot.")
+
+      # Group by clustering variable and calculate the statistic
+      if (calc_stat %in% c("cor", "beta", "beta_tstat", "alpha", "alpha_tstat")) {
+        if (is.null(y)) stop(paste(calc_stat, "requires a secondary variable 'y'."))
+        df_fun <- df %>%
+          dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
+          dplyr::summarize(Calc_Stat = FUN(!!rlang::sym(variable), !!rlang::sym(y))) %>%
+          dplyr::ungroup()
+      } else {
+        df_fun <- df %>%
+          dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
+          dplyr::summarize(Calc_Stat = FUN(!!rlang::sym(variable))) %>%
+          dplyr::ungroup()
       }
 
-      # Melt the numeric dataframe
-      melted_df <- reshape2::melt(df_numeric, id.vars = NULL, variable.name = "variable", value.name = "value")
+      # Remove rows with NaN in the Calc_Stat column
+      df_fun <- df_fun %>% dplyr::filter(!is.nan(Calc_Stat))
 
-      ggplot2::ggplot(melted_df, ggplot2::aes(x = value)) +
-        ggplot2::geom_histogram(bins = 30) +
-        ggplot2::facet_wrap(~ variable, scales = "free_x") +
-        ggplot2::labs(title = "Distribution of Signals",
-                      x = "Value",
-                      y = "Frequency")
+      # Stop if no data remains after filtering
+      if (nrow(df_fun) == 0) stop("No data available after removing NaN values from Calc_Stat.")
 
-    } else if (type == "date_range") {
-      # Plot the date range
-      ggplot2::ggplot(df, ggplot2::aes(x = dates)) +
-        ggplot2::geom_bar() +
-        ggplot2::labs(title = "Date Range Visualization",
-                      x = "Date",
-                      y = "Count") +
-        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+      # Cross-sectional bar plot
 
-    } else if (type == "unique_tickers") {
-      # Plot the unique tickers over time
-      ticker_counts <- stats::aggregate(id ~ dates, data = df, FUN = function(x) length(unique(x)))
+      p <-
+      ggplot2::ggplot(df_fun, ggplot2::aes(x = interaction(!!!rlang::syms(clustering_variables)), y = Calc_Stat)) +
+        ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = black) +
+        ggplot2::geom_text(ggplot2::aes(label = scales::scientific(Calc_Stat, digits = 2)), vjust = -0.5, color = white) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          panel.grid.minor = ggplot2::element_blank(),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic")
+        ) +
+        ggplot2::labs(
+          title = paste("Cross-section of", variable, "by", paste(clustering_variables, collapse = ", ")),
+          subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+          x = paste(clustering_variables, collapse = ", "),
+          y = paste(calc_stat, variable)
+        )
 
-      ggplot2::ggplot(ticker_counts, ggplot2::aes(x = dates, y = id)) +
-        ggplot2::geom_line() +
-        ggplot2::labs(title = "Number of Unique Tickers Over Time",
-                      x = "Date",
-                      y = "Number of Unique Tickers")
+      print(p)
 
-    } else {
-      stop("Invalid plot type. Choose from 'distribution', 'date_range', or 'unique_tickers'.")
     }
+
+    #Time series
+    if (type == "time_series") {
+      # Ensure 'dates' is included in clustering_variables for time series
+      if (is.null(variable)) stop("Please specify the 'variable' argument for the time series plot.")
+
+      clustering_variables <- c("dates", setdiff(clustering_variables, "dates"))
+
+      # Calculate the statistic based on user-specified function
+      if (calc_stat %in% c("cor", "beta", "beta_tstat", "alpha", "alpha_tstat")) {
+        if (is.null(y)) stop(paste(calc_stat, "requires a secondary variable 'y'."))
+        df_fun <- df %>%
+          dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
+          dplyr::summarize(Calc_Stat = FUN(!!rlang::sym(variable), !!rlang::sym(y)), .groups = "drop")
+      } else {
+        df_fun <- df %>%
+          dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
+          dplyr::summarize(Calc_Stat = FUN(!!rlang::sym(variable)), .groups = "drop")
+      }
+
+      # Remove rows with NaN in the Calc_Stat column
+      df_fun <- df_fun %>% dplyr::filter(!is.nan(Calc_Stat))
+
+      # Stop if no data remains after filtering
+      if (nrow(df_fun) == 0) stop("No data available after removing NaN values from Calc_Stat.")
+
+      # If clustering variables include more than just 'dates', create separate columns for each unique combination
+      if (length(clustering_variables) > 1) {
+
+        # Pivot wider to have one column per unique group of clustering variables, excluding 'dates'
+        df_wide <- df_fun %>%
+          tidyr::pivot_wider(names_from = setdiff(clustering_variables, "dates"),
+                             values_from = Calc_Stat,
+                             names_sep = "_")
+
+        # Choose a color palette (e.g., "Set3" for distinct colors) or any other palette with enough colors
+        num_series <- ncol(df_wide) - 1  # Number of unique time series (columns in df_wide excluding 'dates')
+        color_palette <- RColorBrewer::brewer.pal(min(num_series, 12), "Set3")  # Adjust palette size to number of series
+
+        # If more than 12 series, extend the palette by repeating colors (or use a larger palette if available)
+        if (num_series > 12) {
+          color_palette <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(num_series)
+        }
+
+        # Pivot df_wide to long format for easier plotting with legend
+        df_long <- df_wide %>%
+          tidyr::pivot_longer(cols = -dates, names_to = "Group", values_to = "Calc_Stat")
+
+        # Plot each time series with a unique color and include legend
+        p <-
+        ggplot2::ggplot(df_long, ggplot2::aes(x = dates, y = Calc_Stat, color = Group, group = Group)) +
+          ggplot2::geom_line(size = 1) +
+          ggplot2::scale_y_continuous(labels = scales::scientific) +
+          ggplot2::scale_color_manual(values = color_palette) +  # Apply custom color palette
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = deep_navy, color = NA),
+            panel.background = ggplot2::element_rect(fill = deep_navy, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            panel.grid.minor = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white),
+            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+            legend.position = "bottom",
+            legend.title = ggplot2::element_text(color = white),
+            legend.text = ggplot2::element_text(color = white)
+          ) +
+          ggplot2::labs(
+            title = paste("Time Series of", calc_stat, variable, "by", paste(setdiff(clustering_variables, "dates"), collapse = ", ")),
+            subtitle = date_range_text,
+            x = "Date",
+            y = paste(calc_stat, variable),
+            color = paste(setdiff(clustering_variables, "dates"), collapse = ", ")
+          )
+
+        print(p)
+      } else {
+        # Single time series line plot for Calc_Stat over dates
+        p <-
+        ggplot2::ggplot(df_fun, ggplot2::aes(x = dates, y = Calc_Stat)) +
+          ggplot2::geom_line(size = 1, color = vibrant_purple) +
+          ggplot2::scale_y_continuous(labels = scales::scientific) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            panel.grid.minor = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white),
+            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic")
+          ) +
+          ggplot2::labs(
+            title = paste("Time Series of", calc_stat, variable),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = "Date",
+            y = paste(calc_stat, variable),
+            color = if (!identical(clustering_variables, "tickers")) paste(clustering_variables, collapse = ", ") else NULL
+          )
+        print(p)
+      }
+
+
+
+    }
+
+    # Distribution Plot
+    if (type == "distribution") {
+      if (is.null(variable)) stop("Please specify the 'variable' argument for distribution plot.")
+
+      # Filter out rows with NA in the specified variable
+      df <- dplyr::filter(df, !is.na(!!rlang::sym(variable)))
+
+      # Check if clustering_variables is empty or NULL, in which case we create a single plot
+      if (is.null(clustering_variables) || length(clustering_variables) == 0) {
+        # Single distribution plot with classic histogram
+        p <-
+        ggplot2::ggplot(df, ggplot2::aes_string(x = variable)) +
+          ggplot2::geom_histogram(bins = 30, fill = vibrant_purple, color = black, alpha = 0.7) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            panel.grid.minor = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white),
+            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic")
+          ) +
+          ggplot2::labs(
+            title = paste("Distribution of", variable),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = variable,
+            y = "Frequency"
+          )
+        print(p)
+      } else {
+
+        # Generate color palette based on the number of unique categories
+        num_categories <- length(unique(df[[clustering_variables]]))
+        base_palette <- RColorBrewer::brewer.pal(min(num_categories, 12), "Set3")
+        color_palette <- if (num_categories > 12) {
+          grDevices::colorRampPalette(base_palette)(num_categories)
+        } else {
+          base_palette
+        }
+
+        # Distribution plot faceted by clustering variables with classic histogram
+        p <-
+        ggplot2::ggplot(df, ggplot2::aes_string(x = variable, fill = clustering_variables)) +
+          ggplot2::geom_histogram(bins = 30, color = black, alpha = 0.7, position = "identity") +
+          ggplot2::facet_wrap(ggplot2::vars(interaction(!!!rlang::syms(clustering_variables))), scales = "free") +
+          ggplot2::scale_fill_manual(values = color_palette) +  # Apply custom color palette
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            panel.grid.minor = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white),
+            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+            strip.text = ggplot2::element_text(color = white),  # Set facet label color to white
+            legend.position = "none" #Exclude legend
+          ) +
+          ggplot2::labs(
+            title = paste("Distribution of", variable, "by", paste(clustering_variables, collapse = ", ")),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = variable,
+            y = "Frequency"
+          )
+        print(p)
+      }
+    }
+
   }
 )
+
+
 
 ################################
 
@@ -437,7 +762,12 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @return A `ggplot` object visualizing the hyperparameter distributions with possible limits.
 #' @export
 setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x, y){
-  plot(x@tuning_strategy)
+  if(x@ml_algorithm != "ols"){
+    plot(x@tuning_strategy)
+  } else {
+    message("Plot method not avaiable for `ols` ml_algorithm.")
+  }
+
 })
 
 

@@ -14,14 +14,21 @@ setMethod("show", "meta_dataframe", function(object) {
   # Print a summary of the metadata
   cat("Metadata:\n")
   cat("=================================\n")
+  cat(" Signals:\n")
+  print(object@signals)
   cat("  Number of signals:", ncol(object@data)-3, "\n")
-  cat("  Unique Dates:", object@unique_dates, "\n")
-  cat("  Unique Tickers:", object@unique_tickers, "\n")
+  cat(" Dates:\n")
+  print(unique(as.Date(object@data$dates)))
+  cat("  Number of unique dates:", object@unique_dates, "\n")
+  cat(" Tickers:\n", unique(object@data$tickers), "\n")
+  cat("  Number of unique tickers:", object@unique_tickers, "\n")
   cat("  Total Observations (n_obs):", object@n_obs, "\n")
   cat("  Workflow:\n")
-  print(object@workflow)
-  cat("  Signals:\n")
-  print(object@signals)
+  if(length(object@workflow) == 0){
+    cat("  No workflow set.\n")
+  } else {
+    print(object@workflow)
+  }
 
   cat("=================================\n")
 
@@ -278,12 +285,13 @@ setMethod("show", "ml_backtest_config", function(object) {
 
     cat("  Custom Objective:", object@custom_objective, "\n")
 
+
     # Display Miscellaneous Parameters
     cat("  Function Parameters:")
     cat("  Huber Delta:", object@huber_delta)
     cat("  Quantile Tau:", object@quantile_tau, "\n")
 
-
+  if(object@ml_algorithm != "ols"){
   cat("------------------------------\n")
 
   # Display Keras Architecture Parameters Information
@@ -349,7 +357,7 @@ setMethod("show", "ml_backtest_config", function(object) {
 
   }
 
-
+  }
 
   cat("\n=================================\n")
 })
@@ -394,7 +402,7 @@ setMethod("show", "ml_metabacktest_config",
                   cat(sprintf("    tuning_method: %s\n", config@tuning_strategy@tuning_method))
                   cat(sprintf("    chosen_eval_metric: %s\n", config@tuning_strategy@chosen_eval_metric))
                 } else {
-                  cat("  tuning_strategy: NULL\n")
+                  cat("  No tuning_strategy available\n")
                 }
                 # Add more fields from ml_backtest_config if needed
                 cat("\n")

@@ -1,105 +1,269 @@
 #' Summary Method for meta_dataframe Class
 #'
 #' This method provides a detailed summary of the `meta_dataframe` object,
-#' including basic statistics of the data frame, information about missing
-#' values, descriptive statistics for numeric columns, and counts for
-#' categorical columns.
+#' including tables summarizing numeric and categorical columns.
+#' The tables and plots are styled accordingly, using the specified colors.
 #'
 #' @param object An instance of the `meta_dataframe` class.
 #'
-#' @return The method prints a summary to the console, including:
-#'   - Number of observations and columns.
-#'   - Data types of each column.
-#'   - Missing values count per column.
-#'   - Descriptive statistics for numeric columns.
-#'   - Counts of unique values for categorical columns.
-#'   - Summary statistics for tickers and date range.
-#'   - Overall data frame summary.
+#' @return The method displays:
+#'   - A summary table of numeric columns with specified formatting.
+#'   - A frequency table for the 'tickers' column.
+#'   - Plots for remaining categorical variables (excluding 'id' and 'tickers').
 #'
 #' @export
 setMethod("summary", "meta_dataframe", function(object) {
-  # Basic Data Frame Summary
-  data_summary <- summary(object@data)
 
-  # Additional Information
-  n_obs <- nrow(object@data)
-  n_cols <- ncol(object@data)
-  col_types <- sapply(object@data, class)
+  # Define colors based on the provided code
+  deep_navy <- "#000033"                  # Deep Navy for data rows
+  black <- "#000000"                      # Black for headers and 'Average' row
+  white <- "#FFFFFF"                      # White text
+  vibrant_purple <- "#6A0DAD"             # Vibrant Purple
+  teal_blue <- "#00BFFF"                  # Teal Blue
+  soft_pink <- "#FF69B4"                  # Soft Pink
+  bright_yellow_orange <- "#FFA500"       # Bright Yellow-Orange
+  blue_bg <- "#001f3f"                    # Blue background for plots
+  cluster_colors <- c(vibrant_purple, teal_blue, soft_pink, bright_yellow_orange)
 
-  # Check for missing values in each column
-  missing_values <- sapply(object@data, function(col) sum(is.na(col)))
+  # Exclude 'id', 'tickers', and 'dates' columns
+  data_numeric <- object@data[, !(names(object@data) %in% c("id", "tickers", "dates")), drop = FALSE]
 
-  # Descriptive statistics for numeric columns
-  numeric_summary <- lapply(object@data, function(col) {
-    if (is.numeric(col)) {
-      return(c(
-        Min = min(col, na.rm = TRUE),
-        Max = max(col, na.rm = TRUE),
-        Mean = mean(col, na.rm = TRUE),
-        Median = median(col, na.rm = TRUE),
-        SD = sd(col, na.rm = TRUE),
-        NAs = sum(is.na(col)),
-        Quantiles = quantile(col, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-      ))
-    } else {
-      return(NULL)
+  # Identify numeric columns
+  numeric_cols <- sapply(data_numeric, is.numeric)
+  numeric_data <- data_numeric[, numeric_cols, drop = FALSE]
+
+  # Identify categorical columns (excluding 'id', 'tickers', and 'dates')
+  categorical_cols <- sapply(object@data, function(col) is.factor(col) || is.character(col))
+  categorical_data <- object@data[, categorical_cols, drop = FALSE]
+  categorical_data <- categorical_data[, !(names(categorical_data) %in% c("id", "tickers")), drop = FALSE]
+
+  # Summary for numeric columns
+  if (ncol(numeric_data) > 0) {
+    numeric_summary <- data.frame(
+      Variable = names(numeric_data),
+      NAs = sapply(numeric_data, function(col) sum(is.na(col))),
+      Min = sapply(numeric_data, function(col) min(col, na.rm = TRUE)),
+      `1st Quartile` = sapply(numeric_data, function(col) quantile(col, 0.25, na.rm = TRUE)),
+      Median = sapply(numeric_data, function(col) median(col, na.rm = TRUE)),
+      Mean = sapply(numeric_data, function(col) mean(col, na.rm = TRUE)),
+      `3rd Quartile` = sapply(numeric_data, function(col) quantile(col, 0.75, na.rm = TRUE)),
+      Max = sapply(numeric_data, function(col) max(col, na.rm = TRUE)),
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+
+    # Include a final "Average" row with variable-wise averages
+    average_row <- data.frame(
+      Variable = "Average",
+      NAs = mean(numeric_summary$NAs),
+      Min = mean(as.numeric(numeric_summary$Min), na.rm = TRUE),
+      `1st Quartile` = mean(as.numeric(numeric_summary$`1st Quartile`), na.rm = TRUE),
+      Median = mean(as.numeric(numeric_summary$Median), na.rm = TRUE),
+      Mean = mean(as.numeric(numeric_summary$Mean), na.rm = TRUE),
+      `3rd Quartile` = mean(as.numeric(numeric_summary$`3rd Quartile`), na.rm = TRUE),
+      Max = mean(as.numeric(numeric_summary$Max), na.rm = TRUE),
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+
+    numeric_summary <- rbind(numeric_summary, average_row)
+
+    # Format numeric values (except 'NAs') in scientific notation with two digits after the decimal point
+    numeric_columns <- names(numeric_summary)[!names(numeric_summary) %in% c("Variable", "NAs")]
+    numeric_summary[numeric_columns] <- lapply(numeric_summary[numeric_columns], function(x) {
+      formatC(as.numeric(x), format = "e", digits = 2)
+    })
+    # Round 'NAs' column to two decimal places
+    numeric_summary$NAs <- round(as.numeric(numeric_summary$NAs), 2)
+
+    # Format the numeric summary table
+    numeric_summary_formatted <- DT::datatable(
+      numeric_summary,
+      rownames = FALSE,
+      extensions = c('FixedColumns', 'Scroller'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't',
+        ordering = FALSE
+      ),
+      class = 'cell-border stripe',
+      caption = htmltools::tags$caption(
+        style = paste0('caption-side: top; text-align: center; color: ', white, '; font-weight: bold; font-size: 18px;'),
+        "Summary of Numeric Variables"
+      )
+    )
+
+    # Apply overall styling for data rows
+    numeric_summary_formatted <- numeric_summary_formatted %>%
+      DT::formatStyle(
+        columns = names(numeric_summary),
+        backgroundColor = deep_navy,
+        color = white
+      )
+
+    # Apply styling to the 'Average' row
+    numeric_summary_formatted <- numeric_summary_formatted %>%
+      DT::formatStyle(
+        'Variable',
+        target = 'row',
+        backgroundColor = DT::styleEqual("Average", black),
+        color = DT::styleEqual("Average", white),
+        fontWeight = DT::styleEqual("Average", "bold")
+      )
+
+    # Apply styling to the header via CSS
+    css_styles_numeric <- paste0("
+    table.dataTable thead th {
+      background-color: ", black, " !important;
+      color: ", white, " !important;
     }
-  })
-
-  # Count occurrences for categorical columns
-  categorical_summary <- lapply(object@data, function(col) {
-    if (is.factor(col) || is.character(col)) {
-      return(table(col, useNA = "ifany"))
-    } else {
-      return(NULL)
+    table.dataTable tbody tr:last-child {
+      background-color: ", black, " !important;  /* Black for 'Average' row */
+      color: ", white, " !important;
     }
-  })
+    .dataTable {
+      background-color: ", deep_navy, " !important;
+      color: ", white, ";
+    }
+    table.dataTable tbody tr {
+      background-color: ", deep_navy, " !important;  /* Deep Navy */
+    }
+    table.dataTable tbody td {
+      border-color: #333333 !important;
+    }
+    ")
 
-  # Create a cleaner output for numeric summary
-  numeric_summary <- Filter(Negate(is.null), numeric_summary)
-  categorical_summary <- Filter(Negate(is.null), categorical_summary)
+    # Add CSS to the numeric summary table
+    numeric_summary_formatted <- htmlwidgets::prependContent(
+      numeric_summary_formatted,
+      htmltools::tags$style(css_styles_numeric)
+    )
 
-  # Extract specific column summaries for your data structure
-  id_summary <- unique(object@data$id)
-  ticker_summary <- table(object@data$tickers)
-  date_range <- range(object@data$dates, na.rm = TRUE)
+    # Display the numeric summary table
+    cat("\n")
+    print(numeric_summary_formatted)
+  } else {
+    cat("\nNo numeric columns to summarize.\n")
+  }
 
-  # Print the summary
-  cat("Summary of meta_dataframe:\n")
-  cat("Number of observations:", n_obs, "\n")
-  cat("Number of columns:", n_cols, "\n")
-  cat("Column types:\n")
-  print(col_types)
+  # Frequency table for 'tickers'
+  if ("tickers" %in% names(object@data)) {
+    tickers_data <- object@data$tickers
+    freq_table <- as.data.frame(table(tickers_data, useNA = "ifany"))
+    names(freq_table) <- c("Tickers", "Frequency")
 
-  cat("\nMissing values in each column:\n")
-  print(missing_values)
+    # Format the frequency table
+    freq_table_formatted <- DT::datatable(
+      freq_table,
+      rownames = FALSE,
+      extensions = c('FixedColumns', 'Scroller'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't',
+        ordering = FALSE
+      ),
+      class = 'cell-border stripe',
+      caption = htmltools::tags$caption(
+        style = paste0('caption-side: top; text-align: center; color: ', white, '; font-weight: bold; font-size: 18px;'),
+        "Summary of Tickers"
+      )
+    ) %>%
+      DT::formatStyle(
+        columns = names(freq_table),
+        backgroundColor = deep_navy,
+        color = white,
+        fontWeight = 'bold'
+      )
 
-  cat("\nSummary of numeric columns:\n")
-  print(numeric_summary)
+    # Apply styling to the header via CSS
+    css_styles_tickers <- paste0("
+    table.dataTable thead th {
+      background-color: ", black, " !important;
+      color: ", white, " !important;
+    }
+    .dataTable {
+      background-color: ", deep_navy, " !important;
+      color: ", white, ";
+    }
+    table.dataTable tbody tr {
+      background-color: ", deep_navy, " !important;  /* Deep Navy */
+    }
+    table.dataTable tbody td {
+      border-color: #333333 !important;
+    }
+    ")
 
-  cat("\nSummary of categorical columns:\n")
-  print(categorical_summary)
+    # Add CSS to the frequency table
+    freq_table_formatted <- htmlwidgets::prependContent(
+      freq_table_formatted,
+      htmltools::tags$style(css_styles_tickers)
+    )
 
-  cat("\nTicker Summary (Counts):\n")
-  print(ticker_summary)
+    # Display the frequency table
+    cat("\n")
+    print(freq_table_formatted)
+  }
 
-  cat("\nDate Range:\n")
-  print(date_range)
+  # Plots for remaining categorical variables (excluding 'id' and 'tickers')
+  if (!is.null(categorical_data) && ncol(categorical_data) > 0) {
+    for (col_name in names(categorical_data)) {
+      col_data <- categorical_data[[col_name]]
+      freq_table <- as.data.frame(table(col_data, useNA = "ifany"))
+      names(freq_table) <- c("Category", "Frequency")
 
-  cat("\nOverall data summary:\n")
-  print(data_summary)
+      # Create a bar plot using the specified colors
+      plot <- ggplot2::ggplot(freq_table, ggplot2::aes(x = reorder(Category, -Frequency), y = Frequency)) +
+        ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = white, size = 0.5) +
+        ggplot2::geom_text(ggplot2::aes(label = Frequency), vjust = -0.5, color = white, size = 4) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),    # Deep Navy background outside plot area
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),   # White background inside plot area
+          panel.grid.major = ggplot2::element_blank(),                              # Remove major grid lines
+          panel.grid.minor = ggplot2::element_blank(),                              # Remove minor grid lines
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+          plot.title = ggplot2::element_text(size = 16, face = "bold", color = white, hjust = 0.5),
+          plot.caption = ggplot2::element_text(color = white),
+          legend.position = "none"
+        ) +
+        ggplot2::labs(
+          title = paste("Frequency Plot for", col_name),
+          x = col_name,
+          y = "Frequency"
+        ) +
+        ggplot2::expand_limits(y = max(freq_table$Frequency) * 1.1)  # Add more space above bars
 
+      # Display the plot
+      cat("\n")
+      print(plot)
+    }
+  } else {
+    cat("\nNo additional categorical columns to plot.\n")
+  }
 })
+
+
 
 
 
 #' Summary Method for ml_metabacktest_config Class
 #'
-#' Provides aggregated statistics about the `ml_metabacktest_config` object, including counts and ranges for various parameters.
+#' Produces an interactive table summarizing the counts of configurations by `ml_algorithm` and other parameters using the `DT` package.
+#' Neural networks (`nn`) are grouped by the number of hidden layers, resulting in rows like `nn_1`, `nn_2`, etc.
+#' The table supports horizontal scrolling with the first column frozen and includes visual enhancements using specified colors.
+#' Underscores in column headers are replaced with spaces.
 #'
 #' @param object An `ml_metabacktest_config` object.
 #' @param ... Additional arguments (not used).
-#' @return Invisibly returns `NULL`. This function is called for its side effect of displaying information.
+#' @return Invisibly returns a `DT` table object. This function is called for its side effect of displaying the table.
 #' @examples
 #' # Assuming you have an ml_metabacktest_config object named meta_config
 #' summary(meta_config)
@@ -107,148 +271,316 @@ setMethod("summary", "meta_dataframe", function(object) {
 #' @export
 setMethod("summary", "ml_metabacktest_config",
           function(object, ...) {
+
+
             cat("Summary of 'ml_metabacktest_config' object\n")
-            cat("Target variable:", unique(sapply(object@ml_backtest_configs, function(x) x@target_fwd_name)), "\n")
+            target_var <- unique(sapply(object@ml_backtest_configs, function(x) x@target_fwd_name))
+            cat("Target variable:", target_var, "\n")
             n_configs <- length(object@ml_backtest_configs)
-            cat(sprintf("Number of backtest configurations: %d\n", n_configs))
+            cat(sprintf("Number of backtest configurations: %d\n\n", n_configs))
+
             if (n_configs > 0) {
-              cat("\nAggregated statistics:\n")
-
-              # Counts per ml_algorithm
-              ml_algorithms <- sapply(object@ml_backtest_configs, function(x) x@ml_algorithm)
-              algorithm_counts <- table(ml_algorithms)
-              cat("Counts of configurations per ml_algorithm:\n")
-              print(algorithm_counts)
-              cat("\n")
-
-              # For neural networks, count by number of layers
-              nn_configs <- object@ml_backtest_configs[ml_algorithms == "nn"]
-              if (length(nn_configs) > 0) {
-                n_layers_list <- sapply(nn_configs, function(x) {
-                  if (!is.null(x@keras_architecture_parameters@units)) {
-                    length(x@keras_architecture_parameters@units)
-                  } else {
-                    NA
-                  }
-                })
-                n_layers_list <- na.omit(n_layers_list)
-                if (length(n_layers_list) > 0) {
-                  n_layers_counts <- table(n_layers_list)
-                  cat("Counts of nn configurations by n_layers:\n")
-                  print(n_layers_counts)
-                  cat("\n")
-                }
-              }
-
-              # Counts per tuning_method
-              tuning_methods <- sapply(object@ml_backtest_configs, function(x) {
-                if (!is.null(x@tuning_strategy) && !is.null(x@tuning_strategy@tuning_method)) {
-                  x@tuning_strategy@tuning_method
+              # Collect unique ml_algorithms, handling 'nn' separately
+              ml_algorithms <- unique(sapply(object@ml_backtest_configs, function(x) {
+                if (x@ml_algorithm == "nn") {
+                  # Get number of hidden layers
+                  num_hidden_layers <- length(x@keras_architecture_parameters@units)
+                  return(paste0("nn_", num_hidden_layers))
                 } else {
-                  NA
+                  return(x@ml_algorithm)
                 }
-              })
+              }))
+
+              # Collect possible options
+              tuning_methods <- unique(unlist(sapply(object@ml_backtest_configs, function(x) {
+                if (!is.null(x@tuning_strategy)) x@tuning_strategy@tuning_method else NA
+              })))
+              custom_objectives <- unique(sapply(object@ml_backtest_configs, function(x) x@custom_objective))
+              chosen_eval_metrics <- unique(unlist(sapply(object@ml_backtest_configs, function(x) {
+                if (!is.null(x@tuning_strategy)) x@tuning_strategy@chosen_eval_metric else NA
+              })))
+
+              # Remove NA values
               tuning_methods <- na.omit(tuning_methods)
-              if (length(tuning_methods) > 0) {
-                tuning_method_counts <- table(tuning_methods)
-                cat("Counts of configurations per tuning_method:\n")
-                print(tuning_method_counts)
-                cat("\n")
-              }
-
-              # Counts per custom_objective
-              custom_objectives <- sapply(object@ml_backtest_configs, function(x) x@custom_objective)
-              custom_objective_counts <- table(custom_objectives)
-              cat("Counts of configurations per custom_objective:\n")
-              print(custom_objective_counts)
-              cat("\n")
-
-              # Counts per chosen_eval_metric
-              chosen_eval_metrics <- sapply(object@ml_backtest_configs, function(x) {
-                if (!is.null(x@tuning_strategy) && !is.null(x@tuning_strategy@chosen_eval_metric)) {
-                  x@tuning_strategy@chosen_eval_metric
-                } else {
-                  NA
-                }
-              })
               chosen_eval_metrics <- na.omit(chosen_eval_metrics)
-              if (length(chosen_eval_metrics) > 0) {
-                chosen_eval_metric_counts <- table(chosen_eval_metrics)
-                cat("Counts of configurations per chosen_eval_metric:\n")
-                print(chosen_eval_metric_counts)
-                cat("\n")
+
+              # Create all column names without prefixes
+              count_col_names <- c(tuning_methods, custom_objectives, chosen_eval_metrics)
+              quant_param_names <- c("huber_delta", "quantile_tau", "validation_sample_size")
+              total_count_col <- "Algo_Count"
+              col_names <- c("ml_algorithm", count_col_names, quant_param_names, total_count_col)
+
+              # Create display names by replacing underscores with spaces
+              display_col_names <- gsub("_", " ", col_names)
+
+              # Initialize data frame
+              summary_df <- data.frame(matrix("", nrow = length(ml_algorithms) + 1, ncol = length(col_names)),
+                                       stringsAsFactors = FALSE)
+              names(summary_df) <- col_names
+              summary_df$ml_algorithm <- c(ml_algorithms, "Total")
+
+              # Function to get range or single value
+              get_range_or_value <- function(values) {
+                values <- unique(na.omit(values))
+                if (length(values) == 1) {
+                  return(as.character(values))
+                } else if (length(values) > 1) {
+                  return(paste0(min(values), "-", max(values)))
+                } else {
+                  return(NA)
+                }
               }
 
-              # Quantitative metrics
-              # validation_sample_size
-              validation_sizes <- sapply(object@ml_backtest_configs, function(x) {
-                if (!is.null(x@tuning_strategy) && !is.null(x@tuning_strategy@validation_sample_size)) {
-                  x@tuning_strategy@validation_sample_size
-                } else {
-                  NA
+              # Populate counts and quantitative parameters
+              total_counts <- numeric(length(ml_algorithms))
+              for (i in seq_along(ml_algorithms)) {
+                algo <- ml_algorithms[i]
+                # Filter configs based on ml_algorithm and, for 'nn', the number of hidden layers
+                configs <- object@ml_backtest_configs[sapply(object@ml_backtest_configs, function(x) {
+                  if (x@ml_algorithm == "nn") {
+                    num_hidden_layers <- length(x@keras_architecture_parameters@units)
+                    paste0("nn_", num_hidden_layers) == algo
+                  } else {
+                    x@ml_algorithm == algo
+                  }
+                })]
+
+                # Total count per ml_algorithm
+                total_counts[i] <- length(configs)
+                summary_df[i, total_count_col] <- total_counts[i]
+
+                # Counts for tuning_methods
+                tm_counts <- table(sapply(configs, function(x) {
+                  if (!is.null(x@tuning_strategy)) x@tuning_strategy@tuning_method else NA
+                }))
+                for (tm in names(tm_counts)) {
+                  summary_df[i, tm] <- as.numeric(tm_counts[tm])
                 }
-              })
-              validation_sizes <- na.omit(validation_sizes)
-              if (length(validation_sizes) > 0) {
-                unique_validation_sizes <- unique(validation_sizes)
-                if (length(unique_validation_sizes) == 1) {
-                  cat(sprintf("validation_sample_size: %s\n", unique_validation_sizes))
-                } else {
-                  cat(sprintf("Range of validation_sample_size: %s - %s\n",
-                              min(validation_sizes), max(validation_sizes)))
+
+                # Counts for custom_objectives
+                co_counts <- table(sapply(configs, function(x) x@custom_objective))
+                for (co in names(co_counts)) {
+                  summary_df[i, co] <- as.numeric(co_counts[co])
                 }
+
+                # Counts for chosen_eval_metrics
+                cem_counts <- table(sapply(configs, function(x) {
+                  if (!is.null(x@tuning_strategy)) x@tuning_strategy@chosen_eval_metric else NA
+                }))
+                for (cem in names(cem_counts)) {
+                  summary_df[i, cem] <- as.numeric(cem_counts[cem])
+                }
+
+                # Quantitative parameters
+                # huber_delta
+                huber_deltas <- sapply(configs, function(x) x@huber_delta)
+                summary_df[i, "huber_delta"] <- get_range_or_value(huber_deltas)
+
+                # quantile_tau
+                quantile_taus <- sapply(configs, function(x) x@quantile_tau)
+                summary_df[i, "quantile_tau"] <- get_range_or_value(quantile_taus)
+
+                # validation_sample_size
+                val_sample_sizes <- sapply(configs, function(x) {
+                  if (!is.null(x@tuning_strategy)) x@tuning_strategy@validation_sample_size else NA
+                })
+                summary_df[i, "validation_sample_size"] <- get_range_or_value(val_sample_sizes)
               }
 
-              # early_stop
-              early_stops <- sapply(object@ml_backtest_configs, function(x) {
-                if (!is.null(x@tuning_strategy) && !is.null(x@tuning_strategy@early_stop)) {
-                  x@tuning_strategy@early_stop
-                } else {
-                  NA
-                }
-              })
-              early_stops <- na.omit(early_stops)
-              if (length(early_stops) > 0) {
-                unique_early_stops <- unique(early_stops)
-                if (length(unique_early_stops) == 1) {
-                  cat(sprintf("Unique early_stop value: %s\n", unique_early_stops))
-                } else {
-                  cat(sprintf("Range of early_stop values: %s - %s\n",
-                              min(unique_early_stops), max(unique_early_stops)))
-                }
+              # Calculate totals for counts
+              count_columns <- count_col_names
+              for (col_name in count_columns) {
+                counts <- as.numeric(summary_df[1:length(ml_algorithms), col_name])
+                counts[is.na(counts)] <- 0
+                total <- sum(counts)
+                summary_df[length(ml_algorithms) + 1, col_name] <- total
               }
+
+              # Total count for Total row
+              summary_df[length(ml_algorithms) + 1, total_count_col] <- sum(total_counts)
+
+              # For quantitative parameters in total row, display overall range or value
+              # huber_delta
+              all_huber_deltas <- sapply(object@ml_backtest_configs, function(x) x@huber_delta)
+              summary_df[length(ml_algorithms) + 1, "huber_delta"] <- get_range_or_value(all_huber_deltas)
 
               # quantile_tau
-              quantile_taus <- sapply(object@ml_backtest_configs, function(x) x@quantile_tau)
-              quantile_taus <- na.omit(quantile_taus)
-              if (length(quantile_taus) > 0) {
-                unique_quantile_taus <- unique(quantile_taus)
-                if (length(unique_quantile_taus) == 1) {
-                  cat(sprintf("Unique quantile_tau value: %s\n", unique_quantile_taus))
-                } else {
-                  cat(sprintf("Range of quantile_tau values: %s - %s\n",
-                              min(quantile_taus), max(quantile_taus)))
+              all_quantile_taus <- sapply(object@ml_backtest_configs, function(x) x@quantile_tau)
+              summary_df[length(ml_algorithms) + 1, "quantile_tau"] <- get_range_or_value(all_quantile_taus)
+
+              # validation_sample_size
+              all_val_sample_sizes <- sapply(object@ml_backtest_configs, function(x) {
+                if (!is.null(x@tuning_strategy)) x@tuning_strategy@validation_sample_size else NA
+              })
+              summary_df[length(ml_algorithms) + 1, "validation_sample_size"] <- get_range_or_value(all_val_sample_sizes)
+
+              # Replace empty strings with NA
+              summary_df[summary_df == ""] <- NA
+
+              # Replace NAs with zeros in counts columns
+              for (col_name in c(count_columns, total_count_col)) {
+                summary_df[[col_name]][is.na(summary_df[[col_name]])] <- 0
+                summary_df[[col_name]] <- as.numeric(summary_df[[col_name]])
+              }
+
+              # Convert quantitative parameters to character
+              for (col_name in quant_param_names) {
+                summary_df[[col_name]] <- as.character(summary_df[[col_name]])
+              }
+
+              # Create cluster indices
+              col_index <- 2  # ml_algorithm is at index 1
+              cluster_indices <- list()
+
+              # Tuning Methods
+              if(length(tuning_methods) > 0) {
+                start_tm <- col_index
+                end_tm <- col_index + length(tuning_methods) -1
+                cluster_indices$tuning_methods <- start_tm:end_tm
+                col_index <- end_tm +1
+              }
+
+              # Custom Objectives
+              if(length(custom_objectives) >0) {
+                start_co <- col_index
+                end_co <- col_index + length(custom_objectives) -1
+                cluster_indices$custom_objectives <- start_co:end_co
+                col_index <- end_co +1
+              }
+
+              # Chosen Eval Metrics
+              if(length(chosen_eval_metrics) >0) {
+                start_cem <- col_index
+                end_cem <- col_index + length(chosen_eval_metrics) -1
+                cluster_indices$chosen_eval_metrics <- start_cem:end_cem
+                col_index <- end_cem +1
+              }
+
+              # Quantitative Parameters
+              if(length(quant_param_names) >0) {
+                start_qp <- col_index
+                end_qp <- col_index + length(quant_param_names) -1
+                cluster_indices$quantitative_parameters <- start_qp:end_qp
+                col_index <- end_qp +1
+              }
+
+              # Total Count Column
+              cluster_indices$total_count <- col_index
+
+              # Assign class names to columns via columnDefs
+              columnDefs <- list()
+              def_index <- 1
+
+              # Colors for clusters (specified colors)
+              cluster_colors <- c("#6A0DAD", "#00BFFF", "#FF69B4", "#FFA500")  # Vibrant Purple, Teal Blue, Soft Pink, Bright Yellow-Orange
+              cluster_names <- c("cluster1", "cluster2", "cluster3", "cluster4")
+              cluster_end_names <- c("cluster1_end", "cluster2_end", "cluster3_end", "cluster4_end")
+              cluster_list <- list(cluster_indices$tuning_methods, cluster_indices$custom_objectives,
+                                   cluster_indices$chosen_eval_metrics, cluster_indices$quantitative_parameters)
+
+              for(i in seq_along(cluster_list)) {
+                indices <- cluster_list[[i]]
+                if(!is.null(indices)) {
+                  # Adjust for zero-based indexing
+                  indices_zero_based <- indices -1
+                  # Assign className to columns
+                  columnDefs[[def_index]] <- list(targets = indices_zero_based, className = cluster_names[i])
+                  def_index <- def_index +1
+                  # Assign end className to last column
+                  columnDefs[[def_index]] <- list(targets = max(indices_zero_based), className = cluster_end_names[i])
+                  def_index <- def_index +1
                 }
               }
 
-              # huber_delta
-              huber_deltas <- sapply(object@ml_backtest_configs, function(x) x@huber_delta)
-              huber_deltas <- na.omit(huber_deltas)
-              if (length(huber_deltas) > 0) {
-                unique_huber_deltas <- unique(huber_deltas)
-                if (length(unique_huber_deltas) == 1) {
-                  cat(sprintf("Unique huber_delta value: %s\n", unique_huber_deltas))
-                } else {
-                  cat(sprintf("Range of huber_delta values: %s - %s\n",
-                              min(huber_deltas), max(huber_deltas)))
-                }
+              # Style the Total_Count column
+              total_count_index <- cluster_indices$total_count - 1  # Zero-based index
+              columnDefs[[def_index]] <- list(targets = total_count_index, className = "total_count_col")
+
+              # Create the datatable
+              dt_table <- DT::datatable(
+                summary_df,
+                rownames = FALSE,
+                colnames = display_col_names,  # Use display names with spaces
+                extensions = c('FixedColumns', 'Scroller'),
+                options = list(
+                  scrollX = TRUE,
+                  scrollY = 400,
+                  scroller = TRUE,
+                  fixedColumns = list(leftColumns = 1),
+                  columnDefs = columnDefs,
+                  dom = 't',
+                  ordering = FALSE
+                ),
+                class = 'cell-border stripe'
+              )
+
+              # Apply formatting
+              dt_table <- dt_table %>%
+                DT::formatStyle(
+                  columns = 'ml_algorithm',
+                  fontWeight = 'bold',
+                  backgroundColor = '#000033',  # Deep Navy
+                  color = '#FFFFFF'
+                ) %>%
+                DT::formatStyle(
+                  columns = names(summary_df),
+                  valueColumns = 'ml_algorithm',
+                  backgroundColor = DT::styleEqual("Total", "#000000"),  # Black for 'Total' row
+                  color = DT::styleEqual("Total", "#FFFFFF")
+                )
+
+              # Define CSS styles
+              css_styles <- paste0("
+              .dataTable {
+                background-color: #000033 !important;  /* Deep Navy */
+                color: #FFFFFF;
               }
+              table.dataTable tbody tr {
+                background-color: #000033 !important;  /* Deep Navy */
+              }
+              table.dataTable tbody td {
+                border-color: #333333 !important;
+              }
+              .cluster1 {
+                background-color: rgba(106, 13, 173, 0.2);  /* Vibrant Purple */
+              }
+              .cluster2 {
+                background-color: rgba(0, 191, 255, 0.2);   /* Teal Blue */
+              }
+              .cluster3 {
+                background-color: rgba(255, 105, 180, 0.2);   /* Soft Pink */
+              }
+              .cluster4 {
+                background-color: rgba(255, 165, 0, 0.2);     /* Bright Yellow-Orange */
+              }
+              .cluster1_end, .cluster2_end, .cluster3_end, .cluster4_end, .total_count_col {
+                border-right: 2px solid #FFFFFF !important;
+              }
+              .total_count_col {
+                background-color: #000033 !important;  /* Deep Navy */
+                color: #FFFFFF !important;
+              }
+              thead {
+                background-color: #000000 !important;
+                color: #FFFFFF !important;
+              }
+              /* Style for the 'Total' row */
+              table.dataTable tbody tr:last-child {
+                background-color: #000000 !important;  /* Black */
+                color: #FFFFFF !important;
+              }
+              ")
+
+              # Add CSS to the datatable
+              dt_table <- htmlwidgets::prependContent(dt_table, htmltools::tags$style(css_styles))
+
+              # Print the table
+              print(dt_table)
+
+            } else {
+              invisible(NULL)
             }
-            invisible(NULL)
           })
-
-
-
 
 
 #' Summary Method for ml_backtest_results Class
