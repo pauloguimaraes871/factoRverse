@@ -3,11 +3,14 @@
 \name{get_hyper_grid_domain}
 \alias{get_hyper_grid_domain}
 \alias{get_hyper_grid_domain,ml_backtest_config-method}
+\alias{get_hyper_grid_domain,ml_metabacktest_config-method}
 \title{Get Hyperparameter Grid Domain}
 \usage{
 get_hyper_grid_domain(object)
 
 \S4method{get_hyper_grid_domain}{ml_backtest_config}(object)
+
+\S4method{get_hyper_grid_domain}{ml_metabacktest_config}(object)
 }
 \arguments{
 \item{object}{An ml_backtest_config or tuning_strategy object}

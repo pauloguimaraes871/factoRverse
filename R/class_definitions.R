@@ -529,11 +529,11 @@ setClass(
             if (hyperparameter == "eta" && (any(value < 0) || any(value >= 1))) {
               stop("eta should be set in interval [0, 1)")
             }
-            if (hyperparameter == "colsample_bytree" && (any(value < 0) || any(value >= 1))) {
-              stop("colsample_bytree should be set in interval [0, 1)")
+            if (hyperparameter == "colsample_bytree" && (any(value < 0) || any(value > 1))) {
+              stop("colsample_bytree should be set in interval [0, 1]")
             }
-            if (hyperparameter == "subsample" && (any(value < 0) || any(value >= 1))) {
-              stop("subsample should be set in interval [0, 1)")
+            if (hyperparameter == "subsample" && (any(value < 0) || any(value > 1))) {
+              stop("subsample should be set in interval [0, 1]")
             }
             if (hyperparameter == "max_depth" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
               stop("max_depth should be a positive integer without decimals")
@@ -653,6 +653,22 @@ setClass(
     # Check that all elements are ml_backtest_config objects
     if (!all(sapply(object@ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
       errors <- c(errors, "All elements in 'ml_backtest_configs' must be of class 'ml_backtest_config'.")
+    }
+
+    # Check for identical objects in ml_backtest_configs
+    num_configs <- length(object@ml_backtest_configs)
+    for (i in 1:(num_configs - 1)) {
+      for (j in (i + 1):num_configs) {
+        if (identical(object@ml_backtest_configs[[i]], object@ml_backtest_configs[[j]])) {
+          return("Duplicate objects found in 'ml_backtest_configs'. Each configuration must be unique.")
+        }
+      }
+    }
+
+    # Check for duplicate names in ml_backtest_configs
+    config_names <- names(object@ml_backtest_configs)
+    if (any(duplicated(config_names))) {
+      return("Duplicate names found in 'ml_backtest_configs'. Each configuration must have a unique name.")
     }
 
     # Check that target_fwd_name matches across all configurations
@@ -825,6 +841,24 @@ setClass(
     metadata = "list"
   )
 )
+
+#' @title ml_metabacktest_results Class
+#' @description The ml_metabacktest_results class is designed to store and manage a collection of `ml_backtest_results` objects.
+#' @slot results A list of `ml_backtest_results` objects.
+#' @export
+setClass(
+  "ml_metabacktest_results",
+  slots = list(
+    ml_backtest_results = "list"
+  ),
+  validity = function(object) {
+    if (!all(sapply(object@ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
+      return("All elements in 'results' must be of class 'ml_backtest_results'.")
+    }
+  })
+
+
+
 
 
 #' Define the `portfolio_policies` S4 Class
@@ -1041,6 +1075,13 @@ setMethod("get_tuning_strategy", "ml_backtest_config", function(object) {
 })
 
 
+#' @rdname get_tuning_strategy
+#' @export
+setMethod("get_tuning_strategy", "ml_metabacktest_config", function(object) {
+  return(lapply(object@ml_backtest_configs, function(config) get_tuning_strategy(config)))
+})
+
+
 #' @title Get Hyperparameter Grid Domain
 #' @description Accessor function to retrieve the hyperparameter grid domain.
 #'
@@ -1064,6 +1105,17 @@ setMethod("get_hyper_grid_domain", "tuning_strategy", function(object) {
     return(object@hyper_grid_domain)
 })
 
+#' @rdname get_hyper_grid_domain
+#' @export
+setMethod("get_hyper_grid_domain", "ml_metabacktest_config", function(object) {
+  return(lapply(object@ml_backtest_configs, function(config) {
+    if(is.null(config@tuning_strategy)) {
+      stop("tuning_strategy not available for one of the ml_backtest_config objects.")
+    } else {
+      return(config@tuning_strategy@hyper_grid_domain@hyperparameter_list)
+    }
+  }))
+})
 
 
 #' @title Convert Keras Architecture Parameters to List

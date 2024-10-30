@@ -834,7 +834,7 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
   neon_orange <- "#FF5F1F"
   blue_bg <- "#001f3f"
   light_gray <- "#B0B0B0"  # Lighter shade for grid lines
-
+  neon_cyan <- "#00FFFF"
 
   # Extract the hyperparameters and grid values
   hyper_list <- x@hyper_grid_domain@hyperparameter_list
@@ -925,8 +925,8 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
   # Create the plot with hyperparameters on the y-axis
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, color = Hyperparameter)) +
     ggplot2::geom_point(size = 4, colour = neon_green, shape = 4) +  # Points for actual grid values in white
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 3, color = black) +  # Min always closed
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 3, color = black) +  # Max always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_cyan) +  # Min always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_cyan) +  # Max always closed
     ggplot2::labs(title = "Grid Search: Hyperparameter Grid Values",
                   y = "Hyperparameter",
                   x = "Selected Values") +
@@ -948,8 +948,6 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 
   print(p)
 })
-
-
 
 
 #' @title Plot Method for `random_search_strategy`
@@ -1090,8 +1088,8 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, fill = Hyperparameter)) +
     ggplot2::geom_violin(data = plot_data[plot_data$Distribution != "constant", ], alpha = 0.7, color = neon_cyan) +  # Violin for non-constant distributions
     ggplot2::geom_point(data = plot_data[plot_data$Distribution == "constant", ], size = 3, color = neon_purple, shape = 4) +  # Points for constant in white
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 3, color = neon_green) +  # Min always closed
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 3, color = neon_green) +  # Max always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_green) +  # Min always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_green) +  # Max always closed
     ggplot2::labs(title = "Random Search: Hyperparameter Distributions",
                   y = "Hyperparameter",
                   x = "Sampled Values") +
@@ -1235,8 +1233,8 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
     ggplot2::geom_point(ggplot2::aes(x = lower), size = 3, color = neon_green, shape = 16) +  # Closed for lower bounds
     ggplot2::geom_point(ggplot2::aes(x = upper), size = 3, color = neon_green, shape = 16) +  # Closed for upper bounds
     # Add predefined limits (min and max)
-    ggplot2::geom_point(data = plot_data[!is.na(plot_data$min_val), ], ggplot2::aes(x = min_val, y = hyperparameter), size = 3, color = neon_pink, shape = 124) +  # Neon pink for predefined min
-    ggplot2::geom_point(data = plot_data[!is.na(plot_data$max_val), ], ggplot2::aes(x = max_val, y = hyperparameter), size = 3, color = neon_pink, shape = 124) +  # Neon pink for predefined max
+    ggplot2::geom_point(data = plot_data[!is.na(plot_data$min_val), ], ggplot2::aes(x = min_val, y = hyperparameter), size = 5, color = neon_pink, shape = 124) +  # Neon pink for predefined min
+    ggplot2::geom_point(data = plot_data[!is.na(plot_data$max_val), ], ggplot2::aes(x = max_val, y = hyperparameter), size = 5, color = neon_pink, shape = 124) +  # Neon pink for predefined max
     # Adjust plot labels
     ggplot2::labs(
       title = "Bayesian Optimization: Hyperparameter Bounds",
@@ -1300,7 +1298,12 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
       # Store the plot in the list and add a centered subtitle
       plot_list[[length(plot_list) + 1]] <- p +
         ggplot2::ggtitle(paste("Algorithm:", config@ml_algorithm,
-                               "\nTuning Strategy:", config@tuning_strategy@tuning_method)) +  # Combined title
+                               if(config@ml_algorithm == "nn") paste("with", length(config@keras_architecture_parameters@units), "layers"),
+                               "  | Custom Obj:", config@custom_objective,
+                               "\nTuning Strategy:", config@tuning_strategy@tuning_method,
+                               "  |  Chosen Eval Metric:", config@tuning_strategy@chosen_eval_metric,
+                               "  |  Val Sample Size:", config@tuning_strategy@validation_sample_size)
+                         ) +  # Combined title
         ggplot2::theme(
           plot.title = ggplot2::element_text(size = 10),
           plot.subtitle = ggplot2::element_text(hjust = 0.5, color = "white", size = 9),

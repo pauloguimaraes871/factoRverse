@@ -221,6 +221,9 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
             } else {
               stop("OLS does not require tuning.")
             }
+            # Validate the object explicitly
+            validObject(object)
+
             return(object)
           })
 
@@ -945,30 +948,44 @@ setGeneric("create_ml_metabacktest_config", function(ml_backtest_configs, tuning
 setMethod("create_ml_metabacktest_config",
           signature(ml_backtest_configs = "list", tuning_strategies = "list"),
           function(ml_backtest_configs, tuning_strategies, ...) {
+
             # Check that all ml_backtest_configs are ml_backtest_config objects
             if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
               stop("All elements in 'ml_backtest_configs' must be 'ml_backtest_config' objects.")
             }
 
-            # Check that all strategies are tuning_strategy objects
+            # Check that all tuning_strategies are tuning_strategy objects
             if (!all(sapply(tuning_strategies, function(x) is(x, "tuning_strategy")))) {
               stop("All elements in 'tuning_strategies' must be 'tuning_strategy' objects.")
             }
 
-            # Combine configs and strategies
+            # Prepare to capture the original call argument names
+            call_args <- match.call()
+            config_names <- as.character(call_args$ml_backtest_configs[-1])  # Remove 'list' call
+            strategy_names <- as.character(call_args$tuning_strategies[-1])  # Remove 'list' call
+
             combined_configs <- list()
-            idx <- 1
-            for (config in ml_backtest_configs) {
-              for (strategy in tuning_strategies) {
-                # Try to add the strategy to the config
+
+
+            # Iterate through each configuration and strategy, applying only valid combinations
+            for (i in seq_along(ml_backtest_configs)) {
+              config <- ml_backtest_configs[[i]]
+
+              for (j in seq_along(tuning_strategies)) {
+                strategy <- tuning_strategies[[j]]
+
+                # Attempt to add the tuning strategy to the config
                 new_config <- tryCatch({
                   add_tuning_strategy(config, strategy)
                 }, error = function(e) {
-                  NULL  # Return NULL to indicate failure
+                  NULL  # Return NULL to indicate an invalid combination
                 })
+
+                # If combination is successful, add it to combined_configs
                 if (!is.null(new_config)) {
-                  combined_configs[[idx]] <- new_config
-                  idx <- idx + 1
+                  combined_name <- paste0(config_names[i], "_", strategy_names[j])
+                  combined_configs[[combined_name]] <- new_config
+
                 }
               }
             }
@@ -978,7 +995,7 @@ setMethod("create_ml_metabacktest_config",
               stop("No valid combinations were created. Please check your configurations and strategies.")
             }
 
-            # Create the ml_metabacktest_config object
+           # Create the ml_metabacktest_config object
             meta_config <- new("ml_metabacktest_config", ml_backtest_configs = combined_configs)
 
             # State the number of valid configurations produced
@@ -990,24 +1007,28 @@ setMethod("create_ml_metabacktest_config",
 
 #' @describeIn create_ml_metabacktest_config Create meta config from configs with tuning_strategy
 #'
-#' This method accepts one or multiple `ml_backtest_config` objects where `tuning_strategy` is already set (not `NULL`).
-#' The `tuning_strategy` slot should be missing or `NULL`.
-#'
 #' @param ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` not `NULL`.
 #' @param ... Additional arguments (not used).
 #'
 #' @return An `ml_metabacktest_config` object containing the provided `ml_backtest_config` objects.
-#'
-#' @examples
-#' # Assuming you have ml_backtest_config objects config3, config4 (with tuning_strategy not NULL)
-#' meta_config <- create_ml_metabacktest_config(
-#'     configs = list(config3, config4)
-#' )
-#'
 #' @export
 setMethod("create_ml_metabacktest_config",
           signature(ml_backtest_configs = "list", tuning_strategies = "missing"),
           function(ml_backtest_configs, ...) {
+
+            # Use match.call() to capture the names of each object passed to ml_backtest_configs
+            call_args <- match.call()$ml_backtest_configs
+
+            # Extract the actual names from the call arguments
+            if (is.call(call_args) && call_args[[1]] == "list") {
+              object_names <- as.character(call_args[-1]) # Exclude the "list" element
+            } else {
+              stop("Please provide a list of ml_backtest_config objects.")
+            }
+
+            # Assign these names to the elements in ml_backtest_configs
+            names(ml_backtest_configs) <- object_names
+
             # Check that all configs are ml_backtest_config objects
             if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
               stop("All elements in 'ml_backtest_configs' must be 'ml_backtest_config' objects.")
@@ -1028,6 +1049,71 @@ setMethod("create_ml_metabacktest_config",
 )
 
 
+#' @describeIn add_ml_backtest_config Add one or more ml_backtest_config objects to an ml_metabacktest_config
+#'
+#' @param object An `ml_metabacktest_config` object.
+#' @param ... One or more `ml_backtest_config` objects to add.
+#'
+#' @return An updated `ml_metabacktest_config` object with added configurations.
+#' @export
+setGeneric("add_ml_backtest_config", function(object, ...) standardGeneric("add_ml_backtest_config"))
+
+setMethod("add_ml_backtest_config", "ml_metabacktest_config", function(object, ...) {
+
+  # Capture the names of the new objects from the function call
+  new_configs <- list(...)
+  call_args <- match.call(expand.dots = TRUE)
+  new_names <- as.character(call_args[-(1:2)])  # Skipping the function name and first arg 'object'
+
+  # Check that all new_configs are complete ml_backtest_config objects
+  if(!all(sapply(new_configs, function(x) !is.null(x@tuning_strategy)))) {
+    stop("All elements in '...' must be complete (with tuning_strategy) 'ml_backtest_config' objects.")
+  }
+
+  # Assign names to the new configurations based on the call argument names
+  names(new_configs) <- new_names
+
+  # Combine the current ml_backtest_configs with the new configurations
+  object@ml_backtest_configs <- c(object@ml_backtest_configs, new_configs)
+
+  # Validate the object explicitly
+  validObject(object)
+
+  # Return the updated object
+  return(object)
+})
+
+
+
+#' @describeIn remove_ml_backtest_config Remove an ml_backtest_config by name from an ml_metabacktest_config
+#'
+#' @param object An `ml_metabacktest_config` object.
+#' @param config_name A character string specifying the name of the `ml_backtest_config` to remove.
+#'
+#' @return An updated `ml_metabacktest_config` object with the specified configuration removed.
+#' @export
+setGeneric("remove_ml_backtest_config", function(object, config_name) standardGeneric("remove_ml_backtest_config"))
+
+setMethod("remove_ml_backtest_config", "ml_metabacktest_config", function(object, config_name) {
+  # Check that config_name is provided and is a character string
+  if (missing(config_name) || !is.character(config_name) || length(config_name) != 1) {
+    stop("'config_name' must be a single character string specifying the configuration to remove.")
+  }
+
+  # Check if the specified config_name exists in the list
+  if (!(config_name %in% names(object@ml_backtest_configs))) {
+    stop(paste("No configuration found with the name:", config_name))
+  }
+
+  # Remove the specified configuration
+  object@ml_backtest_configs <- object@ml_backtest_configs[names(object@ml_backtest_configs) != config_name]
+
+  # Validate the object explicitly
+  validObject(object)
+
+  # Return the updated object
+  return(object)
+})
 
 
 

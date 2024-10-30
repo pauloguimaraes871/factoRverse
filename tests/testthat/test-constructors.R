@@ -480,17 +480,89 @@ test_that("create_metabacktest_config works", {
     ml_backtest_configs = list(ml_backtest_1, ml_backtest_2, ml_backtest_3)
   )
 
-  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@ml_algorithm), c("rf", "rf", "xgb"))
-  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@target_fwd_name), c("fwd_return_1m", "fwd_return_1m", "fwd_return_1m"))
-  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@huber_delta), c(1.2, 1.2, 1.2))
-  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@tuning_method), c("bayesian_opt", "grid_search", "random_search"))
-  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@chosen_eval_metric), c("mphe", "rmse", "rmse"))
-  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@validation_sample_size), c(10, 10, 10))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@ml_algorithm) %>% unname(), c("rf", "rf", "xgb"))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@target_fwd_name) %>% unname(), c("fwd_return_1m", "fwd_return_1m", "fwd_return_1m"))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@huber_delta) %>% unname(), c(1.2, 1.2, 1.2))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@tuning_method) %>% unname(), c("bayesian_opt", "grid_search", "random_search"))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@chosen_eval_metric) %>% unname(), c("mphe", "rmse", "rmse"))
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) x@tuning_strategy@validation_sample_size) %>% unname(), c(10, 10, 10))
+  expect_equal(names(metabacktest_config@ml_backtest_configs), c("ml_backtest_1", "ml_backtest_2", "ml_backtest_3"))
+
   expect_equal(c(metabacktest_config@ml_backtest_configs[[1]]@tuning_strategy@n_iter, 0, metabacktest_config@ml_backtest_configs[[3]]@tuning_strategy@n_iter) ,c(20, 0, 10))
   expect_equal(metabacktest_config@ml_backtest_configs[[1]]@tuning_strategy@acq, "ei")
-  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) names(x@tuning_strategy@hyper_grid_domain@hyperparameter_list)),
+  expect_equal(sapply(metabacktest_config@ml_backtest_configs, function(x) names(x@tuning_strategy@hyper_grid_domain@hyperparameter_list)) %>% unname(),
+
                list(c("mtry", "num.trees", "max.depth", "min.bucket"), c("mtry", "num.trees", "max.depth", "min.bucket"),
                     c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")))
+
+
+})
+
+test_that("create_metabacktest_config works when combining tuning_strategy and ml_backtest_configs", {
+
+  rf_config_1 <- create_ml_backtest_config(
+    ml_algorithm = "rf",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.2
+  )
+
+  rf_config_2 <- create_ml_backtest_config(
+    ml_algorithm = "rf",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.5
+  )
+
+  xgb_config <- create_ml_backtest_config(
+    ml_algorithm = "xgb",
+    target_fwd_name = "fwd_return_1m",
+    huber_delta = 1.2
+  )
+
+  rf_tuning_strategy <- create_tuning_strategy(
+    tuning_method = "bayesian_opt",
+    chosen_eval_metric = "mphe",
+    validation_sample_size = 10,
+    n_iter = 20,
+    k_iter = 3,
+    init_points = 5,
+    acq = "ei"
+  ) %>% add_hyperparameter(
+    hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+    bounds = list(c(0, 1), c(100L, 1000L), c(1L, 6L), c(1L, 10L))
+  )
+
+  xgb_tuning_strategy_1 <- create_tuning_strategy(
+    tuning_method = "grid_search",
+    chosen_eval_metric = "rmse",
+    validation_sample_size = 10
+  ) %>% add_hyperparameter(
+    hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
+    grid = list(c(0, 1), c(1, 4), c(0, 0.5), c(0.5, 1), c(0.2,0.3), c(2,3,4,6), gamma = c(10,2,34,5), nrounds = 100)
+  )
+
+  xgb_tuning_strategy_2 <- create_tuning_strategy(
+    tuning_method = "grid_search",
+    chosen_eval_metric = "mphe",
+    validation_sample_size = 25
+  ) %>% add_hyperparameter(
+    hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
+    grid = list(c(0, 1), c(1, 4), c(0, 0.5), c(0.5, 1), c(0.2,0.3), c(2,3,4,6), gamma = c(10,2,34,5), nrounds = 100)
+  )
+
+
+  metabacktest_config <- create_ml_metabacktest_config(
+    ml_backtest_configs = list(rf_config_1, rf_config_2, xgb_config),
+    tuning_strategies = list(rf_tuning_strategy, xgb_tuning_strategy_1 , xgb_tuning_strategy_2)
+  )
+
+
+  expect_equal(length(metabacktest_config@ml_backtest_configs), 4)
+  expect_equal(metabacktest_config@ml_backtest_configs[[1]]@ml_algorithm, "rf")
+  expect_equal(metabacktest_config@ml_backtest_configs[[2]]@ml_algorithm, "rf")
+  expect_equal(metabacktest_config@ml_backtest_configs[[3]]@ml_algorithm, "xgb")
+  expect_equal(metabacktest_config@ml_backtest_configs[[4]]@ml_algorithm, "xgb")
+  expect_equal(names(metabacktest_config@ml_backtest_configs), c("rf_config_1_rf_tuning_strategy", "rf_config_2_rf_tuning_strategy",
+               "xgb_config_xgb_tuning_strategy_1", "xgb_config_xgb_tuning_strategy_2"))
 
 
 })

@@ -22,14 +22,19 @@
 #' for elastic net regularization, supporting both Lasso and Ridge regression.
 #'
 #' @section Running in Parallel:
-#' By default, tuning_method %in% c("random_search", "grid_search") utilizes furrr::future_pmap, which means they can run according to the built-in backends
-#' from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
+#' The function supports parallel execution for runing multiple ml backtests and for hyperparameter tuning, both using the future package.
+#'
+#' The method for `ml_metabacktest_config` is basically a wrapper for `ml_backtest_config` method, which is called iteratively for each configuration,
+#' and possibly run in parallel.
+#'
+#' By default, the method for `ml_metabacktest_config` and, individually, the method for `ml_backtest_config` when tuning_method %in% c("random_search", "grid_search"),
+#' utilizes furrr::future_pmap, which means they can run according to the built-in backends from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
 #' tuning will be done sequentially by default (equivalent to future::plan(sequential)). In this case, however,
 #' random number generator will be set to RNGkind("L'Ecuyer-CMRG"), instead of R default (RNGkind("Mersenne-Twister")), making results
 #' not reproducible regarding using purrr:pmap(). In order to run using R's default random number generator, set parallel = FALSE.
 #' Using a different evaluation strategy (e.g., future::plan(multisession)) will tune hyperparameters asynchronously (in parallel).
 #'
-#' For tuning_method = "bayesian_opt", the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the %dopar% operator.
+#' For tuning_method = "bayesian_opt", under the application in `ml_backtest_config` method, the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the %dopar% operator.
 #' Therefore, in this case, the user can either: (i) use doFuture::registerDoFuture(), in order to use the %dofuture% foreach adapter
 #' (actually, in this case, doFuture::withDoRNG is used to turn %dopar% into %dorng% in order to use parallel-safe RNG), which allows
 #' usage of backends from the future package or (ii) use parallel::makeCluster(), doParallel::registerDoParallel(), doParallel::clusterExport() and
@@ -138,7 +143,56 @@ setMethod("run_ml_backtest",
                     training_sample_size = "numeric", rebalancing_months = "numeric", verbose = "logical", parallel = "logical"),
 
           function(features_m_df, target_m_df, config, training_sample_size, rebalancing_months, verbose = TRUE, parallel = TRUE) {
-            # Method implementation...
+
+            #Get configs
+            ml_backtest_configs <- config@ml_backtest_configs
+
+            #Print start
+            if(verbose == TRUE){
+              tictoc::tic(msg = crayon::green("ML backtests finished"))
+            }
+
+            #Run run_ml_backtest_internal in parallel
+            if(parallel){
+              ml_backtest_results_list <- furrr::future_pmap(ml_backtest_configs, #List of backtest configurations
+                                                             ~ run_ml_backtest( #Backtesting function
+                                                               ...,
+                                                               #Data
+                                                               features_m_df = features_m_df, target_m_df = target_m_df,
+                                                               #Training parameters
+                                                               training_sample_size = training_sample_size, rebalancing_months = rebalancing_months,
+                                                               #Misc
+                                                               verbose = verbose, parallel = parallel
+                                                             ),
+                                                             .options = furrr::furrr_options(seed = TRUE),
+                                                             .progress = verbose
+              )
+
+            } else { #If not running in parallel
+              ml_backtest_results_list <- purrr::pmap(ml_backtest_configs,
+                                                      run_ml_backtest, #Backtesting function
+
+                                                      #Data
+                                                      features_m_df = features_m_df, target_m_df = target_m_df,
+                                                      #Training parameters
+                                                      training_sample_size = training_sample_size, rebalancing_months = rebalancing_months,
+                                                      #Misc
+                                                      verbose = verbose, parallel = parallel
+
+              )
+            }
+
+            #Displays how much time it took
+            if(verbose == TRUE){
+              tictoc::toc()
+            }
+
+            #Create Obj of list of ml_metabacktest_results
+
+
+
+
+
           }
 )
 

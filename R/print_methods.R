@@ -386,6 +386,7 @@ setMethod("show", "ml_metabacktest_config",
               for (i in seq_along(object@ml_backtest_configs)) {
                 config <- object@ml_backtest_configs[[i]]
                 cat(sprintf("Backtest Configuration %d:\n", i))
+                cat(paste("Environment object name:", names(object@ml_backtest_configs)[i], "\n"))
                 cat(sprintf("  ml_algorithm: %s", config@ml_algorithm))
                 # For neural networks, display number of layers
                 if (config@ml_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
