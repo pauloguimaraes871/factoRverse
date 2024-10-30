@@ -2,7 +2,7 @@
 % Please edit documentation in R/print_methods.R
 \name{show,ml_backtest_config-method}
 \alias{show,ml_backtest_config-method}
-\title{Show ML Experiment}
+\title{Show ML Backtest Config}
 \usage{
 \S4method{show}{ml_backtest_config}(object)
 }

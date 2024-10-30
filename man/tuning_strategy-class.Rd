@@ -18,7 +18,19 @@ This class defines the common slots and structure for hyperparameter tuning stra
 
 \item{\code{chosen_eval_metric}}{Character or NULL, specifying the evaluation metric to be optimized.}
 
-\item{\code{hyper_grid_domain}}{An object of class hyper_grid_domain, representing the hyperparameter domain based on which tuning will pe performed.}
+\item{\code{hyper_grid_domain}}{An object of class \code{hyper_grid_domain}, representing the hyperparameter domain based on which tuning will be performed.
+It contains a list slot \code{hyperparameter_list} with the hyperparameters relevant to the specified machine learning algorithm.
+The structure of this list depends on the specified tuning method:
+\itemize{
+\item \strong{For grid search:} Must be a list of named vectors:
+\item \strong{For random search:} Must be a list of named lists, where each named list contains:
+\itemize{
+\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
+\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
+\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+}
+\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+}}
 
 \item{\code{early_stop}}{Sets a halting criteria to prevent overfitting in xgb and nn.}
 }}

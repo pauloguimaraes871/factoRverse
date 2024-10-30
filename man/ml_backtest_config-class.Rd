@@ -3,25 +3,36 @@
 \docType{class}
 \name{ml_backtest_config-class}
 \alias{ml_backtest_config-class}
-\title{Machine Learning Experiment Class}
+\title{ml_backtest_config Class}
 \description{
 The ml_backtest_config class is designed to define an end-to-end machine learning experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{target_fwd_name}}{Character string indicating the forward target variable's name. Should be in the format 'xxxxxx_ym'.}
+\item{\code{target_fwd_name}}{Character string indicating the forward target variable's name. Should be in the format 'xxxxxx_ym' and should be included in
+\code{target_m_df}.}
 
-\item{\code{ml_algorithm}}{Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').}
+\item{\code{ml_algorithm}}{Character string specifying the machine learning algorithm to be used. Should be one of
+ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
 
-\item{\code{tuning_strategy}}{An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.}
+\item{\code{tuning_strategy}}{An object of class \code{tuning_strategy}, specifying the strategy for tuning hyperparameters.}
 
-\item{\code{custom_objective}}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.}
+\item{\code{custom_objective}}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
+Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.}
 
-\item{\code{keras_architecture_parameters}}{List or NULL, providing parameters specific to keras-based neural networks.}
+\item{\code{keras_architecture_parameters}}{An object of class \code{keras_architecture_parameters} or NULL, providing parameters specific to keras-based neural networks.
+It includes:
+\itemize{
+\item \strong{units}: A numeric vector specifying the number of neurons in each layer.
+\item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
+\item \strong{activation}: A character vector listing the activation functions for each layer (e.g., "relu", "sigmoid", "tanh").
+\item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
+\item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
+}}
 
-\item{\code{quantile_tau}}{Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.}
+\item{\code{quantile_tau}}{A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.}
 
-\item{\code{huber_delta}}{Numeric value greater than 0, specifying the delta parameter for Huber loss function.}
+\item{\code{huber_delta}}{A single positive numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.}
 }}
 

@@ -2,120 +2,97 @@
 % Please edit documentation in R/run_ml_backtest.R
 \name{run_ml_backtest}
 \alias{run_ml_backtest}
-\title{Perform out-of-sample testing for ML Algorithms with walk-forward time series validation}
+\alias{run_ml_backtest,meta_dataframe,meta_dataframe,ml_backtest_config,numeric,numeric,logical,logical-method}
+\alias{run_ml_backtest,meta_dataframe,meta_dataframe,ml_metabacktest_config,numeric,numeric,logical,logical-method}
+\title{Run Machine Learning Backtest}
 \usage{
 run_ml_backtest(
   features_m_df,
   target_m_df,
+  config,
   training_sample_size,
-  target_fwd_name,
-  validation_sample_size = 0,
   rebalancing_months,
-  split_method = "expanding",
-  ml_algorithm = "ols",
-  custom_objective = "squared_error",
-  chosen_eval_metric = NULL,
-  huber_delta = 1,
-  quantile_tau = 0.5,
-  hyper_grid_domain = NULL,
-  tuning_method = NULL,
-  n_iter = NULL,
-  k_iter = NULL,
-  acq = "ucb",
-  init_points = NULL,
-  early_stop = NULL,
-  keras_architecture_parameters = NULL,
-  show_plots = TRUE,
-  verbose = FALSE,
-  parallel = TRUE,
-  ml_parameters = NULL
+  verbose,
+  parallel,
+  ...
+)
+
+\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,ml_backtest_config,numeric,numeric,logical,logical}(
+  features_m_df,
+  target_m_df,
+  config,
+  training_sample_size,
+  rebalancing_months,
+  verbose = TRUE,
+  parallel = TRUE
+)
+
+\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,ml_metabacktest_config,numeric,numeric,logical,logical}(
+  features_m_df,
+  target_m_df,
+  config,
+  training_sample_size,
+  rebalancing_months,
+  verbose = TRUE,
+  parallel = TRUE
 )
 }
 \arguments{
-\item{features_m_df}{A meta dataframe or data frame containing features, with columns: id, tickers, dates.}
+\item{features_m_df}{A meta_dataframe containing features.}
 
-\item{target_m_df}{A meta dataframe or data frame containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
+\item{target_m_df}{A meta_dataframe containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
 XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.}
+
+\item{config}{A \code{ml_metabacktest_config} object containing multiple configurations.}
 
 \item{training_sample_size}{Number of observations to include in each training sample.}
 
-\item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
+\item{rebalancing_months}{Months (numeric) when model should be rebalanced (refit).}
 
-\item{validation_sample_size}{Number of observations to include in each validation sample.}
+\item{verbose}{Logical vector, indicating whether to print progress messages (default is TRUE).}
 
-\item{rebalancing_months}{Months (numeric) when model should be rebalanced.}
+\item{parallel}{Logical vector, indicating whether to run  hyperparameter tuning in parallel (default is TRUE).}
 
-\item{split_method}{Choice of split method (expanding or rolling).}
-
-\item{ml_algorithm}{Choice of ml_algorithm: ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
-
-\item{custom_objective}{Custom objective (double differentiable loss function) for xgboost and nn algorithms.
-(current options are squared_error, absolute_error and (pseudo)-huber loss)}
-
-\item{chosen_eval_metric}{Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr", and "mb".}
-
-\item{huber_delta}{A single numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.}
-
-\item{quantile_tau}{A single numeric value indicating target quantile when calculating quantile loss.}
-
-\item{hyper_grid_domain}{An object of class hyper_grid_domain or a named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
-\itemize{
-\item \strong{For grid search:} Must be a list of named vectors:
-\item \strong{For random search:} Must be a list of named lists, where each named list contains:
-\itemize{
-\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
-}
-\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
-}}
-
-\item{tuning_method}{Method for hyperparameter tuning: "random_search", "grid_search", or "bayesian_opt".}
-
-\item{n_iter}{Number of iterations.
-For grid_search, the value does not make difference, as the number of times the ml algorithm validation error will be evaluated equals the exhaustive combination of unique hyperparameters values provided.
-For random_search, it should be the number of random draws for each hyperparameter. Random samples of n_iter size will be generated for each hyperparameter and their unique values will be exhaustively combined.
-Therefore, for n_iter = 5 and 2 hyperparameters, the ml algorithm validation error should be generally evaluated 5² = 25 times.
-For bayesian_opt, it should be the number of times the ml algorithm will be evaluated after initialization.}
-
-\item{k_iter}{Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
-If running in parallel, set iters.k to a multiple of the number of cores. Must be lower and preferably a multiple of n_iter.}
-
-\item{acq}{Acquisition function for Bayesian optimization: "ucb", "ei", or "poi".}
-
-\item{init_points}{Number of initial random points for Bayesian optimization.}
-
-\item{early_stop}{Sets a halting criteria to prevent overfitting in xgb and nn.}
-
-\item{keras_architecture_parameters}{An object of class keras_architecture_parameters or a  named list containing parameters for configuring the Keras neural network architecture. It includes:
-\itemize{
-\item \strong{units}: A numeric vector specifying the number of neurons in each layer.
-\item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
-\item \strong{activation}: A character vector listing the activation functions for each layer (e.g., "relu", "sigmoid", "tanh").
-\item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
-\item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
-}}
-
-\item{show_plots}{Logical, indicating whether to plot results (default is TRUE).}
-
-\item{verbose}{Logical, indicating whether to print progress messages (default is TRUE).}
-
-\item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
+\item{...}{Additional arguments (not used in this method).}
 }
 \value{
-An object of class ml_wf_val_results with various outputs including model predictions, errors, and validation metrics.
+An object of class \code{ml_backtest_results} or \code{ml_metabacktest_results} with various outputs including model predictions, errors, and validation metrics.
+
+A \code{ml_metabacktest_results} objects, one for each configuration.
 }
 \description{
-This function performs walk-forward validation for time series data using
-a range of ML models. It supports hyperparameter tuning via random search, grid search,
-or Bayesian optimization. The function divides the data into training, validation,
-and testing samples, and iteratively refits the model at specified rebalancing dates.
+The \code{run_ml_backtest} function performs out-of-sample testing for a range of machine learning algorithms using walk-forward time series validation.
+It supports many ml algorithms and can handle different configurations for objective functions and tuning strategies through S4 objects.
+The function divides the data into training, validation, and testing samples, and iteratively refits the model at specified rebalancing dates.
 }
 \details{
 The function ensures all inputs are correctly formatted and performs checks to
 validate the integrity of input data and parameters. It employs the glmnet package
 for elastic net regularization, supporting both Lasso and Ridge regression.
 }
+\section{Methods (by class)}{
+\itemize{
+\item \code{run_ml_backtest(
+  features_m_df = meta_dataframe,
+  target_m_df = meta_dataframe,
+  config = ml_backtest_config,
+  training_sample_size = numeric,
+  rebalancing_months = numeric,
+  verbose = logical,
+  parallel = logical
+)}: Runs a backtest with a single configuration.
+
+\item \code{run_ml_backtest(
+  features_m_df = meta_dataframe,
+  target_m_df = meta_dataframe,
+  config = ml_metabacktest_config,
+  training_sample_size = numeric,
+  rebalancing_months = numeric,
+  verbose = logical,
+  parallel = logical
+)}: Runs backtests with multiple configurations.
+
+}}
 \section{Running in Parallel}{
 
 By default, tuning_method \%in\% c("random_search", "grid_search") utilizes furrr::future_pmap, which means they can run according to the built-in backends
@@ -137,29 +114,14 @@ Keras has some limitations when working in parallel, especially when using bayes
 }
 
 \examples{
-# Example of creating hyper_grid_domain_list for grid search
-hyper_grid <- list(
-   alpha = c(0.2, 0.5),
-   lambda.min.ratio = c(0.1, 0.5, 0.9)
-   )
-
-# Example of creating hyper_grid_domain_list for random search
-hyper_grid <- list(
-  alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1), value = NULL),
-  lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9), value = NULL)
-)
-
-# Example of creating hyper_grid_domain_list for bayesian optimization
-hyper_grid <- list(
-   alpha = c(0.2, 0.9),
-   lambda.min.ratio = c(0.1, 0.9)
-   )
-
-# Example of creating a 3 layers keras_architecture_parameters for neural networks.
-keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"),
-                                     nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)
-)
+# Assuming features_m_df and target_m_df are meta_dataframe objects
+# and config is an `ml_backtest_config` object
+result <- run_ml_backtest(features_m_df, target_m_df, config, training_sample_size = 30, rebalacing_months = c(6,12), verbose = TRUE, parallel = TRUE)
+# Assuming features_m_df and target_m_df are meta_dataframe objects
+# and meta_config is an ml_metabacktest_config object
+results_list <- run_ml_backtest(features_m_df, target_m_df, training_sample_size = 30, rebalacing_months = c(6,12), meta_config)
 }
 \seealso{
-\code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
+\code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split},
+\code{\link{ml_backtest_config}}, \code{\link{ml_metabacktest_config}}
 }

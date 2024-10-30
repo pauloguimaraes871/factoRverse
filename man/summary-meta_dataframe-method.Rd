@@ -10,20 +10,15 @@
 \item{object}{An instance of the \code{meta_dataframe} class.}
 }
 \value{
-The method prints a summary to the console, including:
+The method displays:
 \itemize{
-\item Number of observations and columns.
-\item Data types of each column.
-\item Missing values count per column.
-\item Descriptive statistics for numeric columns.
-\item Counts of unique values for categorical columns.
-\item Summary statistics for tickers and date range.
-\item Overall data frame summary.
+\item A summary table of numeric columns with specified formatting.
+\item A frequency table for the 'tickers' column.
+\item Plots for remaining categorical variables (excluding 'id' and 'tickers').
 }
 }
 \description{
 This method provides a detailed summary of the \code{meta_dataframe} object,
-including basic statistics of the data frame, information about missing
-values, descriptive statistics for numeric columns, and counts for
-categorical columns.
+including tables summarizing numeric and categorical columns.
+The tables and plots are styled accordingly, using the specified colors.
 }

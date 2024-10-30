@@ -2,23 +2,47 @@
 % Please edit documentation in R/plot_methods.R
 \name{plot,meta_dataframe,ANY-method}
 \alias{plot,meta_dataframe,ANY-method}
-\title{Plot Method for Meta Dataframe}
+\title{Plot Method for Meta Dataframe with Custom Statistics and Filtering}
 \usage{
-\S4method{plot}{meta_dataframe,ANY}(x, type = "distribution")
+\S4method{plot}{meta_dataframe,ANY}(
+  x,
+  type = "cross_sectional",
+  clustering_variables = NULL,
+  variable,
+  tickers = "all",
+  dates = "all",
+  calc_stat = "mean",
+  custom_filter = NULL,
+  filter_values = NULL,
+  y = NULL,
+  numeric_aggregation = "decile"
+)
 }
 \arguments{
 \item{x}{A \code{meta_dataframe} object containing the data to be plotted.}
 
-\item{type}{A character string specifying the type of plot to create. Options are:
-\itemize{
-\item \strong{"distribution"}: Plots the distribution of values for numeric columns.
-\item \strong{"date_range"}: Visualizes the frequency of data points over time.
-\item \strong{"unique_tickers"}: Displays the number of unique tickers over time.
-}}
+\item{type}{A character string specifying the type of plot. Options are "cross_sectional" and "time_series".}
+
+\item{clustering_variables}{Character vector. Variables used for grouping in cross-sectional or time series plot.}
+
+\item{variable}{Character. The numeric variable for calculating the specified statistic in the plot.}
+
+\item{tickers}{Character or vector of characters. Specific tickers to include; defaults to "all" for no filtering.}
+
+\item{dates}{Date, single date, or date range. Specific date range to include; defaults to "all" for no filtering.}
+
+\item{calc_stat}{Character. Specifies the statistic to calculate. Supported values: "mean", "sd", "median", "min", "max", "sum", "n",
+"q05", "q10", "q25", "q75", "q90", "q95", "cor", "beta", "beta_tstat", "alpha", "alpha_tstat".}
+
+\item{custom_filter}{Character or vector of characters. Additional columns to filter by, present in \code{data}.}
+
+\item{filter_values}{List or vector of values to filter by for \code{custom_filter}.}
+
+\item{y}{Optional numeric variable, only required for bivariate statistics like "cor", "beta", "beta_tstat", "alpha", "alpha_tstat".}
 }
 \value{
 A ggplot object representing the requested plot.
 }
 \description{
-This method generates plots for a \code{meta_dataframe} object based on the specified plot type.
+This method generates enhanced plots for a \code{meta_dataframe} object based on the specified plot type and chosen calculation statistic.
 }

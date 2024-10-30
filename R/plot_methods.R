@@ -19,11 +19,11 @@ setMethod(
   "plot",
   signature(x = "meta_dataframe", y = "missing"),
   function(x, type = "cross_sectional", clustering_variables = NULL, variable, tickers = "all", dates = "all", calc_stat = "mean",
-           custom_filter = NULL, filter_values = NULL, y = NULL, numeric_aggregation = "decile") {
+           custom_filter = NULL, filter_values = NULL, dep_y = NULL, numeric_aggregation = "decile") {
 
     #Check for type
-    if(!type %in% c("cross_sectional", "time_series", "distribution")){
-      stop("Invalid plot type. Choose from 'cross_sectional', 'time_series' or distribution.")
+    if(!type %in% c("cross_sectional", "time_series", "distribution", "composition", "regression", "density2d", "correlogram", "radar")){
+      stop("Invalid plot type. Choose from 'cross_sectional', 'time_series', 'distribution', 'composition', 'regression', 'density2d', 'correlogram' or 'radar'.")
     }
 
     # Set default clustering_variables based on plot type
@@ -34,6 +34,22 @@ setMethod(
       if (type == "time_series"){
         clustering_variables <- "dates"
       }
+    }
+
+    #Treatment for composition plot
+    if(type == "composition"){
+      if(!is.null(clustering_variables)){
+        stop("Composition plot does not support clustering variables.")
+      if(calc_stat != "mean"){
+        stop("Composition plot does not support custom calc_stat.")
+       }
+      }
+    }
+
+
+    #Check for dep_y adequacy
+    if((type == "composition" || type == "distribution" || type == "density2d") && !is.null(dep_y)){
+      stop("dep_y is not supported for this plot type.")
     }
 
     # Define colors for plotting
@@ -64,25 +80,25 @@ setMethod(
                   q75 = function(x) quantile(x, 0.75, na.rm = TRUE),
                   q90 = function(x) quantile(x, 0.90, na.rm = TRUE),
                   q95 = function(x) quantile(x, 0.95, na.rm = TRUE),
-                  cor = function(x, y) {
-                    if (missing(y)) stop("y is required for correlation calculation")
-                    cor(x, y, use = "complete.obs")
+                  cor = function(x, dep_y) {
+                    if (missing(dep_y)) stop("dep_y is required for correlation calculation")
+                    cor(x, dep_y, use = "complete.obs")
                   },
-                  beta = function(x, y) {
-                    if (missing(y)) stop("y is required for beta calculation")
-                    lm(y ~ x)$coefficients[2]
+                  beta = function(x, dep_y) {
+                    if (missing(dep_y)) stop("dep_y is required for beta calculation")
+                    lm(dep_y ~ x)$coefficients[2]
                   },
-                  beta_tstat = function(x, y) {
-                    if (missing(y)) stop("y is required for beta t-stat calculation")
-                    summary(lm(y ~ x))$coefficients[2, 3]
+                  beta_tstat = function(x, dep_y) {
+                    if (missing(dep_y)) stop("dep_y is required for beta t-stat calculation")
+                    summary(lm(dep_y ~ x))$coefficients[2, 3]
                   },
-                  alpha = function(x, y) {
-                    if (missing(y)) stop("y is required for alpha calculation")
+                  alpha = function(x, dep_y) {
+                    if (missing(dep_y)) stop("dep_y is required for alpha calculation")
                     lm(y ~ x)$coefficients[1]
                   },
-                  alpha_tstat = function(x, y) {
-                    if (missing(y)) stop("y is required for alpha t-stat calculation")
-                    summary(lm(y ~ x))$coefficients[1, 3]
+                  alpha_tstat = function(x, dep_y) {
+                    if (missing(dep_y)) stop("dep_y is required for alpha t-stat calculation")
+                    summary(lm(dep_y ~ x))$coefficients[1, 3]
                   },
                   stop("Invalid function")
     )
@@ -133,10 +149,10 @@ setMethod(
           dplyr::all_of(numeric_clustering_variables),
           ~ {
             labels <- switch(numeric_aggregation,
-                             decile = sprintf("d%02d_%s", 1:10, cur_column()),
-                             quartile = sprintf("q%02d_%s", 1:4, cur_column()),
-                             tercile = sprintf("t%02d_%s", 1:3, cur_column()),
-                             median = c(paste0("below_median_", cur_column()), paste0("above_median_", cur_column())),
+                             decile = sprintf("d%02d_%s", 1:10, dplyr::cur_column()),
+                             quartile = sprintf("q%02d_%s", 1:4, dplyr::cur_column()),
+                             tercile = sprintf("t%02d_%s", 1:3, dplyr::cur_column()),
+                             median = c(paste0("below_median_", dplyr::cur_column()), paste0("above_median_", dplyr::cur_column())),
                              NULL)
             factor(dplyr::ntile(., bins), labels = labels)
           },
@@ -304,9 +320,6 @@ setMethod(
           )
         print(p)
       }
-
-
-
     }
 
     # Distribution Plot
@@ -380,6 +393,423 @@ setMethod(
       }
     }
 
+
+    # Composition plot
+    if (type == "composition") {
+      if (is.null(variable)) stop("Please specify the 'variable' argument for the composition plot.")
+
+      # Ensure 'dates' is included in clustering_variables for time series composition
+      clustering_variables <- c("dates", setdiff(clustering_variables, "dates"))
+
+      # Filter out rows with NA in the specified variable
+      df <- df %>% dplyr::filter(!is.na(!!rlang::sym(variable)))
+
+      # Check if variable is numeric, and if so, create deciles or other aggregation
+      if (is.numeric(df[[variable]])) {
+        # Set number of bins and labels based on chosen aggregation
+        bins <- switch(numeric_aggregation,
+                       decile = 10,
+                       quartile = 4,
+                       tercile = 3,
+                       median = 2,
+                       stop("Invalid numeric_aggregation. Choose from 'decile', 'quartile', 'tercile', or 'median'."))
+
+        # Create decile-based factor for the variable
+        df <- df %>%
+          dplyr::mutate(
+            Composition_Group = factor(
+              dplyr::ntile(!!rlang::sym(variable), bins),
+              labels = switch(numeric_aggregation,
+                              decile = sprintf("D%02d", 1:10),
+                              quartile = sprintf("Q%02d", 1:4),
+                              tercile = sprintf("T%02d", 1:3),
+                              median = c("Below Median", "Above Median"))
+            )
+          )
+      } else {
+        # If variable is not numeric, use it directly for composition
+        df <- df %>% dplyr::mutate(Composition_Group = as.factor(!!rlang::sym(variable)))
+      }
+
+      # Aggregate the data by dates and Composition_Group to get the counts per group over time
+      df_fun <- df %>%
+        dplyr::group_by(dates, Composition_Group) %>%
+        dplyr::summarize(Count = dplyr::n(), .groups = "drop")
+
+      # Generate color palette based on the number of unique categories
+      num_categories <- length(unique(df_fun$Composition_Group))
+      base_palette <- RColorBrewer::brewer.pal(min(num_categories, 3), "Set3")
+      color_palette <- if (num_categories > 3) {
+        grDevices::colorRampPalette(base_palette)(num_categories)
+      } else {
+        base_palette
+      }
+
+      # Create the composition area plot
+      p <-
+        ggplot2::ggplot(df_fun, ggplot2::aes(x = dates, y = Count, fill = Composition_Group)) +
+        ggplot2::geom_area(position = "fill", alpha = 0.7) +
+        ggplot2::scale_fill_manual(values = color_palette) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          panel.grid.minor = ggplot2::element_blank(),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white)
+        ) +
+        ggplot2::labs(
+          title = paste("Composition of", variable, "by", paste(clustering_variables, collapse = ", ")),
+          subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+          x = "Date",
+          y = "Proportion",
+          fill = "Composition Group"
+        )
+
+      print(p)
+    }
+
+    # Regression plot
+    if (type == "regression") {
+      # Ensure that `y` is provided
+      if (missing(dep_y)) stop("Please provide a dependent variable (dep_y) for the regression plot.")
+
+
+
+      # Check if clustering variables are provided
+      if (is.null(clustering_variables)) {
+        # Single regression line
+        p <- ggplot2::ggplot(df, ggplot2::aes_string(x = variable, y = dep_y)) +
+          ggplot2::geom_point(color = neon_green, alpha = 0.8) +
+          ggplot2::geom_smooth(method = "lm", se = FALSE, color = vibrant_purple, size = 1.2) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            panel.grid.minor = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white, face = "bold"),
+            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0), # Left-aligned title
+            plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic", hjust = 0) # Left-aligned subtitle
+          ) +
+          ggplot2::labs(
+            title = paste("Regression of", variable, "on", dep_y),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = variable,
+            y = dep_y
+          )
+      } else {
+        # Grouped regression lines
+        p <- ggplot2::ggplot(df, ggplot2::aes_string(x = variable, y = dep_y, color = clustering_variables)) +
+          ggplot2::geom_point(alpha = 0.8) +
+          ggplot2::geom_smooth(method = "lm", se = FALSE, size = 1.2) +
+          ggplot2::scale_color_manual(values = grDevices::colorRampPalette(c(neon_green, vibrant_purple, neon_orange))(length(unique(df[[clustering_variables]])))) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            panel.grid.minor = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white, face = "bold"),
+            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0),
+            plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic", hjust = 0),
+            legend.position = "bottom",
+            legend.title = ggplot2::element_text(color = white),
+            legend.text = ggplot2::element_text(color = white)
+          ) +
+          ggplot2::labs(
+            title = paste("Regression of", variable, "on", dep_y, "by", paste(clustering_variables, collapse = ", ")),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = variable,
+            y = dep_y,
+            color = clustering_variables
+          )
+      }
+
+      print(p)
+    }
+
+    # 2d density
+    if (type == "density2d") {
+
+      #Check for the number of variables provided
+      if (length(variable) != 2 && type == "density2d"){
+        stop("For a 2d density plot, two variables must be provided.")
+      } else {
+        x_1 <- variable[1]
+        x_2 <- variable[2]
+      }
+
+      # Check if clustering variables are provided for faceted density plots
+      if (is.null(clustering_variables)) {
+        # Single 2D density plot without faceting
+        p <- ggplot2::ggplot(df, ggplot2::aes(x = !!rlang::sym(x_1), y = !!rlang::sym(x_2))) +
+          ggplot2::geom_point(color = neon_green, alpha = 0.6) +
+          ggplot2::geom_density_2d_filled(alpha = 0.7, contour_var = "ndensity") +
+          ggplot2::scale_fill_viridis_d(option = "plasma") +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            panel.grid.minor = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white, face = "bold"),
+            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0),
+            plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic", hjust = 0),
+            legend.position = "bottom",                     # Place legend at the bottom
+            legend.title = ggplot2::element_text(color = white),
+            legend.text = ggplot2::element_text(color = white)  # Set legend text color to white
+          ) +
+          ggplot2::labs(
+            title = paste("2D Density Plot of", x_1, "and", x_2),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = x_1,
+            y = dep_y
+          )
+      } else {
+        # Faceted 2D density plot by each category in clustering_variables
+        p <- ggplot2::ggplot(df, ggplot2::aes(x = !!rlang::sym(x_1), y = !!rlang::sym(x_2))) +
+          ggplot2::geom_point(color = neon_green, alpha = 0.6) +
+          ggplot2::geom_density_2d_filled(alpha = 0.7, contour_var = "ndensity") +
+          ggplot2::facet_wrap(ggplot2::vars(!!!rlang::syms(clustering_variables)), scales = "free") +
+          ggplot2::scale_fill_viridis_d(option = "plasma") +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            panel.grid.minor = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white, face = "bold"),
+            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0),
+            plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic", hjust = 0),
+            legend.position = "bottom",                       # Place legend at the bottom
+            legend.title = ggplot2::element_text(color = white),
+            legend.text = ggplot2::element_text(color = white), # Set legend text color to white
+            strip.text = ggplot2::element_text(color = white)  # Facet label text color
+          ) +
+          ggplot2::labs(
+            title = paste("2D Density Plot of", x_1, "and", x_2, "by", paste(clustering_variables, collapse = ", ")),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = x_1,
+            y = x_2
+          )
+      }
+
+      print(p)
+    }
+
+    #Correlogram
+    if (type == "correlogram") {
+      # Check if variables are provided
+      if (is.null(variable) || length(variable) < 2) {
+        stop("Please provide at least two variables in 'variable' for the correlogram.")
+      }
+
+      # Check for clustering variables and adapt accordingly
+      if (!is.null(clustering_variables)) {
+        unique_clusters <- unique(df[[clustering_variables]])
+
+        # Initialize a list to store correlation data
+        corr_data_all <- data.frame()
+
+        # Loop over each unique value of clustering variable
+        for (cluster in unique_clusters) {
+          df_cluster <- dplyr::filter(df, !!rlang::sym(clustering_variables) == cluster)
+
+          # Check if df_cluster contains the specified variables
+          if (all(variable %in% colnames(df_cluster)) && nrow(df_cluster) > 0) {
+            # Calculate correlation matrix for the specific cluster
+            corr_matrix <- stats::cor(df_cluster[variable], use = "pairwise.complete.obs")
+            corr_data <- as.data.frame(as.table(corr_matrix)) %>%
+              dplyr::rename(Var1 = Var1, Var2 = Var2, Correlation = Freq) %>%
+              dplyr::filter(as.numeric(factor(Var1)) < as.numeric(factor(Var2))) %>%
+              dplyr::mutate(Cluster = as.factor(cluster))  # Add cluster label
+
+            # Combine data for all clusters
+            corr_data_all <- rbind(corr_data_all, corr_data)
+          } else {
+            message(paste("Skipping cluster", cluster, "- No data available for the specified variables"))
+          }
+        }
+
+        # Plotting with facet_wrap for each cluster
+        if (nrow(corr_data_all) > 0) {
+          p <- ggplot2::ggplot(data = corr_data_all) +
+            ggplot2::geom_tile(
+              ggplot2::aes(x = Var1, y = Var2, fill = Correlation),
+              color = "white"
+            ) +
+            ggplot2::geom_text(
+              ggplot2::aes(x = Var1, y = Var2, label = sprintf("%.2f", Correlation)),
+              color = "white", size = 4
+            ) +
+            ggplot2::scale_fill_gradient2(
+              low = "#D68EEB", mid = "#8A03C9", high = "#000033", midpoint = 0,
+              limits = c(-1, 1), guide = ggplot2::guide_colorbar(title = "Correlation")
+            ) +
+            ggplot2::theme_minimal() +
+            ggplot2::theme(
+              plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+              panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+              panel.grid = ggplot2::element_blank(),
+              axis.text = ggplot2::element_text(color = white),
+              axis.title = ggplot2::element_text(color = white, face = "bold"),
+              plot.title = ggplot2::element_text(color = white, size = 20, face = "bold", hjust = 0),
+              plot.subtitle = ggplot2::element_text(color = white, size = 12, face = "italic"),
+              legend.position = "bottom",
+              legend.title = ggplot2::element_text(color = white),
+              legend.text = ggplot2::element_text(color = white),
+              strip.text = ggplot2::element_text(color = white, size = 9, face = "bold")  # Smaller titles for each facet
+            ) +
+            ggplot2::labs(
+              title = "Correlogram",
+              subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+              x = NULL, y = NULL
+            ) +
+            ggplot2::facet_wrap(~ Cluster, scales = "free", labeller = ggplot2::labeller(Cluster = setNames(unique_clusters, unique_clusters)))  # Custom labels for each cluster
+
+          print(p)
+        } else {
+          stop("No valid data available for any of the clusters.")
+        }
+
+      } else {
+        # Single correlogram code
+        corr_matrix <- stats::cor(df[variable], use = "pairwise.complete.obs")
+        corr_data <- as.data.frame(as.table(corr_matrix)) %>%
+          dplyr::rename(Var1 = Var1, Var2 = Var2, Correlation = Freq) %>%
+          dplyr::filter(as.numeric(factor(Var1)) < as.numeric(factor(Var2)))
+
+        # Plotting
+        p <- ggplot2::ggplot(data = corr_data) +
+          ggplot2::geom_tile(
+            ggplot2::aes(x = Var1, y = Var2, fill = Correlation),
+            color = "white"
+          ) +
+          ggplot2::geom_text(
+            ggplot2::aes(x = Var1, y = Var2, label = sprintf("%.2f", Correlation)),
+            color = "white", size = 4
+          ) +
+          ggplot2::scale_fill_gradient2(
+            low = "#D68EEB", mid = "#8A03C9", high = "#000033", midpoint = 0,
+            limits = c(-1, 1), guide = ggplot2::guide_colorbar(title = "Correlation")
+          ) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid = ggplot2::element_blank(),
+            axis.text = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white, face = "bold"),
+            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0),
+            plot.subtitle = ggplot2::element_text(color = white, size = 12, face = "italic"),
+            legend.position = "bottom",
+            legend.title = ggplot2::element_text(color = white),
+            legend.text = ggplot2::element_text(color = white)
+          ) +
+          ggplot2::labs(
+            title = "Correlogram",
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = NULL, y = NULL
+          )
+
+        print(p)
+      }
+    }
+
+    # Radar Plot
+    if (type == "radar") {
+      if (is.null(variable) || length(variable) < 1) {
+        stop("Please specify at least one variable for the radar plot.")
+      }
+
+      # Ensure clustering variables are set appropriately
+      if (is.null(clustering_variables)) {
+        stop("clustering_variables can't be missing when type = 'radar'.")  # Default value if not provided
+      }
+
+      # Prepare the data for the radar plot
+      df_radar <- df %>%
+        dplyr::select(!!rlang::sym(clustering_variables), !!!rlang::syms(variable)) %>%
+        dplyr::group_by(!!rlang::sym(clustering_variables)) %>%
+        dplyr::summarize(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")  # Calculate mean, ignoring NAs
+
+      # Dynamically filter out rows with NA or NaN values for specified variables
+      na_filter <- purrr::reduce(variable, function(acc, var) {
+        acc & !is.na(df_radar[[var]]) & !is.nan(df_radar[[var]])
+      }, .init = TRUE)
+
+      df_radar <- df_radar[na_filter, ]  # Apply the filter
+
+      # Check if there's data available for the radar plot
+      if (nrow(df_radar) == 0) {
+        stop("No data available for the specified clustering variables and variable.")
+      }
+
+      # Normalize the data
+      df_radar <- df_radar %>%
+        dplyr::mutate(across(where(is.numeric), ~ ( . - min(., na.rm = TRUE)) / ( max(., na.rm = TRUE) - min(., na.rm = TRUE))))  # Normalization
+
+      # Ensure the first column is treated as a factor for the radar chart
+      df_radar[[clustering_variables]] <- as.character(df_radar[[clustering_variables]])
+
+      # Prepare the data frame for the radar chart
+      max_row <- as.data.frame(t(rep(1, length(variable))))  # Row of maximum values
+      min_row <- as.data.frame(t(rep(0, length(variable))))  # Row of minimum values
+      actual_data <- df_radar %>% dplyr::select(!!!rlang::syms(variable))  # Actual data for the radar plot
+
+      # Set column names for max_row and min_row to match the actual data
+      colnames(max_row) <- variable
+      colnames(min_row) <- variable
+
+      # Combine into one data frame
+      df_radar_chart <- rbind(max_row, min_row, actual_data)
+
+      # Set the colors for each row (example: generate colors)
+      num_rows <- nrow(actual_data)
+      colors <- scales::hue_pal()(num_rows)  # Generate distinct colors for each row
+
+      # Set background color
+      par(bg = "#001f3f")  # Set background color to blue_bg
+
+      # Create the radar plot using fmsb
+      fmsb::radarchart(df_radar_chart, axistype = 1,
+                       pcol = colors, pfcol = scales::alpha(colors, 0.5), plwd = 2, plty = 1,
+                       axislabcol = "white"
+                        # Set the main title color to white
+
+      )
+
+      # Title
+      mtext(side = 3, line = 2.5, adj = 0, cex = 1.25,  # Align to the left
+            paste("Radar Plot of", paste(variable, collapse = ", "), "by", clustering_variables),
+            font = 2, col = "white")
+
+      # Subtitle
+      mtext(side = 3, line = 1, adj = 0, cex = 0.75,  # Align to the left
+            paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            font = 2, col = "white")
+
+
+      # Add legend with white text color at the bottom
+      legend("bottomleft", legend = df_radar[[clustering_variables]], col = colors, pch = 16, bty = "n", text.col = "white")
+
+
+
+
+    }
+
+
   }
 )
 
@@ -394,6 +824,17 @@ setMethod(
 #' @return A `ggplot` object visualizing the hyperparameter grid and possible limits.
 #' @export
 setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function(x, y) {
+
+  # Define colors for plotting
+  deep_navy <- "#000033"
+  black <- "#000000"
+  white <- "#FFFFFF"
+  vibrant_purple <- "#6A0DAD"
+  neon_green <- "#39FF14"
+  neon_orange <- "#FF5F1F"
+  blue_bg <- "#001f3f"
+  light_gray <- "#B0B0B0"  # Lighter shade for grid lines
+
 
   # Extract the hyperparameters and grid values
   hyper_list <- x@hyper_grid_domain@hyperparameter_list
@@ -483,14 +924,26 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 
   # Create the plot with hyperparameters on the y-axis
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, color = Hyperparameter)) +
-    ggplot2::geom_point(size = 3, colour = "darkblue", shape = 4) +  # Points for actual grid values
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 3, color = "black") +  # Min always closed
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 3, color = "black") +  # Max always closed
+    ggplot2::geom_point(size = 4, colour = neon_green, shape = 4) +  # Points for actual grid values in white
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 3, color = black) +  # Min always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 3, color = black) +  # Max always closed
     ggplot2::labs(title = "Grid Search: Hyperparameter Grid Values",
                   y = "Hyperparameter",
                   x = "Selected Values") +
     ggplot2::theme_minimal() +
-    ggplot2::scale_color_brewer(palette = "Set3") +
+    ggplot2::theme(
+      plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+      panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+      plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+      axis.text = ggplot2::element_text(color = white),
+      axis.title = ggplot2::element_text(color = white),
+      legend.position = "bottom",  # Adjust legend position if needed
+      legend.title = ggplot2::element_text(color = white),
+      legend.text = ggplot2::element_text(color = white),
+      panel.grid.major = ggplot2::element_line(color = light_gray),  # Set major grid lines to light gray
+      panel.grid.minor = ggplot2::element_line(color = light_gray)   # Set minor grid lines to light gray
+    ) +
+    ggplot2::scale_color_manual(values = c(vibrant_purple, neon_green, neon_orange, deep_navy)) +  # Use defined colors
     ggplot2::guides(fill = ggplot2::guide_none(), shape = ggplot2::guide_none())  # Remove legend for color and shape
 
   print(p)
@@ -506,6 +959,21 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 #' @return A `ggplot` object visualizing the hyperparameter distributions with possible limits.
 #' @export
 setMethod("plot", signature(x = "random_search_strategy", y = "missing"), function(x, y) {
+
+  # Define colors for plotting
+  deep_navy <- "#000033"
+  black <- "#000000"
+  white <- "#FFFFFF"
+  vibrant_purple <- "#6A0DAD"
+  neon_green <- "#39FF14"
+  neon_orange <- "#FF5F1F"
+  blue_bg <- "#001f3f"
+  light_gray <- "#B0B0B0"  # Lighter shade for grid lines
+  neon_blue <- "#00BFFF"
+  neon_pink <- "#FF1493"   # Added a light pink color
+  neon_cyan <- "#00FFFF"
+  neon_yellow <- "#FFFF00"
+  neon_purple <- "#8A2BE2"
 
   # Extract n_iter from the object
   n_iter <- x@n_iter
@@ -620,15 +1088,28 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 
   # Create the plot with hyperparameters on the y-axis
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, fill = Hyperparameter)) +
-    ggplot2::geom_violin(data = plot_data[plot_data$Distribution != "constant", ], alpha = 0.7) +  # Violin for non-constant distributions
-    ggplot2::geom_point(data = plot_data[plot_data$Distribution == "constant", ], size = 3, color = "darkblue", shape = 4) +  # Points for constant
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 3, color = "black") +  # Min always closed
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 3, color = "black") +  # Max always closed
+    ggplot2::geom_violin(data = plot_data[plot_data$Distribution != "constant", ], alpha = 0.7, color = neon_cyan) +  # Violin for non-constant distributions
+    ggplot2::geom_point(data = plot_data[plot_data$Distribution == "constant", ], size = 3, color = neon_purple, shape = 4) +  # Points for constant in white
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 3, color = neon_green) +  # Min always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 3, color = neon_green) +  # Max always closed
     ggplot2::labs(title = "Random Search: Hyperparameter Distributions",
                   y = "Hyperparameter",
                   x = "Sampled Values") +
     ggplot2::theme_minimal() +
-    ggplot2::scale_fill_brewer(palette = "Set3") +
+    ggplot2::theme(
+      plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+      panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+      plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+      axis.text = ggplot2::element_text(color = white),
+      axis.title = ggplot2::element_text(color = white),
+      legend.position = "bottom",  # Adjust legend position if needed
+      legend.title = ggplot2::element_text(color = white),
+      legend.text = ggplot2::element_text(color = white),
+      panel.grid.major = ggplot2::element_line(color = light_gray),  # Set major grid lines to light gray
+      panel.grid.minor = ggplot2::element_line(color = light_gray)   # Set minor grid lines to light gray
+    ) +
+    ggplot2::scale_fill_manual(values = c(neon_cyan, neon_blue, white, vibrant_purple, neon_green, neon_orange, neon_pink, neon_yellow,
+                                          neon_purple)) +  # Use defined colors
     ggplot2::guides(fill = ggplot2::guide_none())  # Remove legend for fill and shape
 
   print(p)
@@ -642,6 +1123,21 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 #' @return A `ggplot` object visualizing the bounds.
 #' @export
 setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), function(x, y, ...) {
+
+
+  # Define neon colors for plotting
+  neon_blue <- "#00BFFF"
+  neon_pink <- "#FF1493"
+  neon_yellow <- "#FFFF00"
+  neon_purple <- "#8A2BE2"
+  neon_orange <- "#FF4500"
+  neon_green <- "#39FF14"
+  blue_bg <- "#001f3f"
+  light_gray <- "#B0B0B0"
+  black <- "#000000"
+  white <- "#FFFFFF"
+
+
 
   # Extract hyper_grid_domain and the hyperparameter list
   hyper_grid <- x@hyper_grid_domain
@@ -733,21 +1229,33 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 
   # Create the ggplot
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(y = hyperparameter)) +
-    # Add segments for bounds with thinner lines
-    ggplot2::geom_segment(ggplot2::aes(x = lower, xend = upper, yend = hyperparameter), color = "darkblue", size = 0.8) +
+    # Add segments for bounds with neon blue lines
+    ggplot2::geom_segment(ggplot2::aes(x = lower, xend = upper, yend = hyperparameter), color = neon_blue, size = 0.8) +
     # Add points for bounds
-    ggplot2::geom_point(ggplot2::aes(x = lower), size = 3, color = "blue", shape = 16) +  # Closed for lower bounds
-    ggplot2::geom_point(ggplot2::aes(x = upper), size = 3, color = "blue", shape = 16) +  # Closed for upper bounds
+    ggplot2::geom_point(ggplot2::aes(x = lower), size = 3, color = neon_green, shape = 16) +  # Closed for lower bounds
+    ggplot2::geom_point(ggplot2::aes(x = upper), size = 3, color = neon_green, shape = 16) +  # Closed for upper bounds
     # Add predefined limits (min and max)
-    ggplot2::geom_point(data = plot_data[!is.na(plot_data$min_val), ], ggplot2::aes(x = min_val, y = hyperparameter), size = 3, color = "black", shape = 124) +  # Red for predefined min
-    ggplot2::geom_point(data = plot_data[!is.na(plot_data$max_val), ], ggplot2::aes(x = max_val, y = hyperparameter), size = 3, color = "black", shape = 124) +  # Red for predefined max
+    ggplot2::geom_point(data = plot_data[!is.na(plot_data$min_val), ], ggplot2::aes(x = min_val, y = hyperparameter), size = 3, color = neon_pink, shape = 124) +  # Neon pink for predefined min
+    ggplot2::geom_point(data = plot_data[!is.na(plot_data$max_val), ], ggplot2::aes(x = max_val, y = hyperparameter), size = 3, color = neon_pink, shape = 124) +  # Neon pink for predefined max
     # Adjust plot labels
     ggplot2::labs(
       title = "Bayesian Optimization: Hyperparameter Bounds",
-      x = "Value",
+      x = "Bounded Intervals",
       y = "Hyperparameter"
     ) +
-    ggplot2::theme_minimal()
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+      panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+      plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+      axis.text = ggplot2::element_text(color = white),
+      axis.title = ggplot2::element_text(color = white),
+      legend.position = "bottom",  # Adjust legend position if needed
+      legend.title = ggplot2::element_text(color = white),
+      legend.text = ggplot2::element_text(color = white),
+      panel.grid.major = ggplot2::element_line(color = light_gray),  # Set major grid lines to light gray
+      panel.grid.minor = ggplot2::element_line(color = light_gray)   # Set minor grid lines to light gray
+    )
 
   print(p)
 })
@@ -769,6 +1277,69 @@ setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x
   }
 
 })
+
+
+#' @title Plot Method for `ml_metabacktest_config`
+#' @description Combines individual plots from `ml_backtest_config` objects in a grid layout.
+#' @param x An object of class `ml_metabacktest_config`.
+#' @param y Unused. Included for consistency with the generic `plot` method.
+#' @return A combined `ggplot` object visualizing the hyperparameter distributions for all configurations.
+#' @export
+setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), function(x, y){
+
+  # List to hold individual plots
+  plot_list <- list()
+
+  # Loop through each ml_backtest_config in the ml_metabacktest_config
+  for (config in x@ml_backtest_configs) {
+    # Check if the algorithm is not OLS
+    if (config@ml_algorithm != "ols") {
+      # Create the plot using the existing plot method for ml_backtest_config
+      p <- plot(config)  # Call the existing plot method
+
+      # Store the plot in the list and add a centered subtitle
+      plot_list[[length(plot_list) + 1]] <- p +
+        ggplot2::ggtitle(paste("Algorithm:", config@ml_algorithm,
+                               "\nTuning Strategy:", config@tuning_strategy@tuning_method)) +  # Combined title
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(size = 10),
+          plot.subtitle = ggplot2::element_text(hjust = 0.5, color = "white", size = 9),
+          panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
+        )
+    } else {
+      message("Skipping plotting for `ols` ml_algorithm in one of the configs.")
+    }
+  }
+
+  # Check if there are any plots to display
+  if (length(plot_list) > 0) {
+    # Create an empty plot for the main title with the blue background
+    title_plot <- ggplot2::ggplot() +
+      ggplot2::theme_void() +  # No grid lines or axes
+      ggplot2::annotate("text", x = 0.1, y = 0.80,  # Adjusted y position for the title
+                        label = "ML Metabacktest Tuning Strategies",
+                        size = 6.25, color = "white", fontface = "bold", hjust = 0.5) +  # Centered title
+      ggplot2::xlim(0, 1) +  # Control x limits
+      ggplot2::ylim(0, 1) +  # Control y limits
+      ggplot2::theme(plot.background = ggplot2::element_rect(fill = "#001f3f"))  # Set background to blue_bg
+
+    # Combine all individual plots into a single grid layout by algorithm
+    combined_plot <- gridExtra::grid.arrange(title_plot,
+                                              do.call(gridExtra::arrangeGrob, c(plot_list, ncol = 2)),
+                                              nrow = 2, heights = c(0.05, 0.95))  # Adjust height ratios for less space
+
+    # Suppress the output of TableGrob
+    invisible(combined_plot)
+  } else {
+    stop("No valid plots available to display.")
+  }
+})
+
+
+
+
+
+
 
 
 # Define the plot method for ml_backtest_results
