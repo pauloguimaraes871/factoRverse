@@ -12,9 +12,7 @@ This class defines the common slots and structure for hyperparameter tuning stra
 \describe{
 \item{\code{tuning_method}}{Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').}
 
-\item{\code{validation_sample_size}}{Numeric value representing the size of the validation sample.}
-
-\item{\code{split_method}}{Character string indicating the data splitting method ('expanding' or 'rolling').}
+\item{\code{validation_sample_size}}{Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.}
 
 \item{\code{chosen_eval_metric}}{Character or NULL, specifying the evaluation metric to be optimized.}
 

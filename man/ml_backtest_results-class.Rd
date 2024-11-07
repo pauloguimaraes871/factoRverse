@@ -5,7 +5,7 @@
 \alias{ml_backtest_results-class}
 \title{S4 Class for Time Series Walk-Forward Validation Results of Machine-Learning Models}
 \value{
-An S4 object of class \code{ml_backtest_results} containing all the specified results and metadata.
+An S4 object of class \code{ml_backtest_results} containing all the specified results and ml_backtest_workflow.
 }
 \description{
 This S4 class encapsulates the results and parameters from performing walk-forward
@@ -31,7 +31,7 @@ information about the model, data, tuning process, and performance metrics.
 
 \item{\code{validation_eval_metrics_hyper_choice}}{All evaluation metrics calculated for the set of best hyperparameters.}
 
-\item{\code{metadata}}{A list containing metadata about the walk-forward validation process. It includes:
+\item{\code{ml_backtest_workflow}}{A list containing ml_backtest_workflow about the walk-forward validation process. It includes:
 \itemize{
 \item \strong{ml_algorithm}: A character string specifying the machine learning algorithm used.
 \item \strong{custom_objective}: A character string indicating the custom loss function applied (e.g., "squared_error").

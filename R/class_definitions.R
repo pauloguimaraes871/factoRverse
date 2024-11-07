@@ -1,12 +1,12 @@
 #' Define the `meta_dataframe` S4 Class
 #'
-#' This class represents a metadata-enhanced data frame. It extends the functionality
-#' of a standard data frame by including additional metadata slots. The class is designed
+#' This class represents a ml_backtest_workflow-enhanced data frame. It extends the functionality
+#' of a standard data frame by including additional ml_backtest_workflow slots. The class is designed
 #' to ensure that the input data frame adheres to specific structural requirements, including
 #' unique identifiers, valid date formats, and unique column names.
 #'
 #' @slot data A \code{data.frame} containing the actual data.
-#' @slot workflow A \code{list} for storing metadata about the data manipulation workflow.
+#' @slot workflow A \code{list} for storing ml_backtest_workflow about the data manipulation workflow.
 #' @slot signals A \code{character} vector containing the names of columns that represent signals.
 #' @slot unique_dates A \code{numeric} value representing the count of unique dates in the data.
 #' @slot unique_tickers A \code{numeric} value representing the count of unique tickers in the data.
@@ -14,8 +14,8 @@
 #'
 #' @details
 #' The \code{meta_dataframe} class ensures that the data frame is structured correctly with the required columns,
-#' and includes metadata about the data. The \code{signals} slot holds the names of columns representing various signals.
-#' The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the metadata related to the number of unique dates,
+#' and includes ml_backtest_workflow about the data. The \code{signals} slot holds the names of columns representing various signals.
+#' The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the ml_backtest_workflow related to the number of unique dates,
 #' tickers, and total observations respectively.
 #'
 #' @examples
@@ -37,7 +37,7 @@
 setClass("meta_dataframe",
          slots = c(
            data = "data.frame",        # Slot for the data frame
-           workflow = "list",          # Slot for storing metadata about the data manipulation workflow
+           workflow = "list",          # Slot for storing ml_backtest_workflow about the data manipulation workflow
            signals = "character",      # Slot for storing column names
            unique_dates = "numeric",   # Slot for storing count of unique dates
            unique_tickers = "numeric", # Slot for storing count of unique tickers
@@ -78,8 +78,7 @@ setClass(
 #' @title Base class for hyperparameter tuning strategies
 #' @description This class defines the common slots and structure for hyperparameter tuning strategies such as grid search, random search, and Bayesian optimization.
 #' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
-#' @slot validation_sample_size Numeric value representing the size of the validation sample.
-#' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
+#' @slot validation_sample_size Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.
 #' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
 #' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
 #' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
@@ -101,14 +100,10 @@ setClass(
   slots = list(
     tuning_method = "character",
     validation_sample_size = "numeric",
-    split_method = "character",
     chosen_eval_metric = "character",
     hyper_grid_domain = "hyper_grid_domain",
     early_stop = "ANY"
     ),
-  prototype = list(
-    split_method = "expanding"
-  ),
   validity = function(object) {
     if (!(object@tuning_method %in% c("grid_search", "random_search", "bayesian_opt"))) {
       return("Invalid tuning_method.")
@@ -120,9 +115,7 @@ setClass(
     if (!is.null(object@chosen_eval_metric) && !(object@chosen_eval_metric %in% valid_eval_metrics)) {
       return("Invalid chosen_eval_metric. Choose from 'rss', 'rmse', 'cp', 'mae', 'mphe', 'mpe', 'mape', 'hr', 'mb'.")
     }
-    if (object@split_method != "expanding") {
-      return("split_method should be expanding.")
-    }
+
     # Validate hyperparameters based on tuning_method
 
     ##Grid search
@@ -276,11 +269,12 @@ setClass(
 
 #' @title ml_backtest_config Class
 #' @description The ml_backtest_config class is designed to define an end-to-end machine learning experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
-#' @slot target_fwd_name Character string indicating the forward target variable's name. Should be in the format 'xxxxxx_ym' and should be included in
-#' `target_m_df`.
 #' @slot ml_algorithm Character string specifying the machine learning algorithm to be used. Should be one of
 #' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
 #' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
+#' @slot training_sample_size Number of observations to include in each training sample.
+#' @slot rebalancing_months Months (numeric) when model should be rebalanced (refit).
+#' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @slot custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
 #' Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.
 #' @slot keras_architecture_parameters An object of class `keras_architecture_parameters` or NULL, providing parameters specific to keras-based neural networks.
@@ -298,9 +292,11 @@ setClass(
 setClass(
   "ml_backtest_config",
   slots = list(
-    target_fwd_name = "character",
     ml_algorithm = "character",
     tuning_strategy = "ANY",
+    split_method = "character",
+    training_sample_size = "numeric",
+    rebalancing_months = "numeric",
     custom_objective = "character",
     keras_architecture_parameters = "ANY",
     quantile_tau = "numeric",
@@ -308,6 +304,7 @@ setClass(
   ),
   prototype = list(
     ml_algorithm = "ols",
+    split_method = "expanding",
     custom_objective = "squared_error",
     quantile_tau = 0.5,
     huber_delta = 1
@@ -329,10 +326,13 @@ setClass(
     if(object@ml_algorithm != "ols" && is.null(object@tuning_strategy)){
       message("when ml_algorithm is not ols, a tuning_strategy must be set")
     }
-    target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
-    if(!grepl(target_fwd_name_right_pattern, object@target_fwd_name)){
-      stop("target_fwd_name is not in the right pattern")
+    if((object@training_sample_size < 0)){
+      stop("training_sample_size should be positive.")
     }
+    if (object@split_method != "expanding") {
+      return("split_method should be expanding.")
+    }
+
     if(!is.null(object@keras_architecture_parameters)){
       if(!is_keras_architecture_parameters(object@keras_architecture_parameters)){
         return("Invalid keras_architecture_parameters Should be of class keras_architecture_parameters")
@@ -347,12 +347,7 @@ setClass(
     if (!is.null(object@huber_delta) && object@huber_delta <= 0) {
       return("huber_delta must be greater than 0.")
     }
-    if (!is.null(object@quantile_tau) && object@quantile_tau != 0.5) {
-      message("changing quantile_tau impacts both chosen_eval_metric and custom_objective.")
-    }
-    if (!is.null(object@huber_delta) && object@huber_delta != 1) {
-      message("changing huber_delta impacts both chosen_eval_metric and custom_objective. ")
-    }
+
 
     #Check if hypers are correctly set
     if(!is.null(object@tuning_strategy)){
@@ -626,6 +621,11 @@ setClass(
           }
         }
       }
+      #Check if init_points > number of hypers
+      if(tuning_method == "bayesian_opt" && length(hyperparameter_list) >= object@tuning_strategy@init_points){
+        stop("init_points should be greater than the number of hyperparameters")
+      }
+
     }
    }
     return(TRUE)
@@ -635,15 +635,22 @@ setClass(
 
 #' @title ml_metabacktest_config Class
 #' @description The ml_metabacktest_config class is designed to store and manage a collection of ml_backtest_config objects.
-#' @slot configs A list of ml_backtest_config objects.
+#' @slot meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner
+#' @slot base_ml_backtest_configs A list of ml_backtest_config objects whose oos predictions will be fed to the meta learner.
 #' @export
 setClass(
   "ml_metabacktest_config",
   slots = list(
-    ml_backtest_configs = "list"
+    meta_ml_backtest_config = "ml_backtest_config",
+    base_ml_backtest_configs = "list"
   ),
   validity = function(object) {
-    if (!all(sapply(object@ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
+
+    if(is.null(object@meta_ml_backtest_config@tuning_strategy)){
+      return("tuning_strategy in meta_ml_backtest_config can't be NULL.")
+    }
+
+    if (!all(sapply(object@base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
       return("All elements in 'configs' must be of class 'ml_backtest_config'.")
     }
 
@@ -651,41 +658,49 @@ setClass(
     errors <- character()
 
     # Check that all elements are ml_backtest_config objects
-    if (!all(sapply(object@ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
-      errors <- c(errors, "All elements in 'ml_backtest_configs' must be of class 'ml_backtest_config'.")
+    if (!all(sapply(object@base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
+      errors <- c(errors, "All elements in 'base_ml_backtest_configs' must be of class 'ml_backtest_config'.")
     }
 
-    # Check for identical objects in ml_backtest_configs
-    num_configs <- length(object@ml_backtest_configs)
+    # Check for identical objects in base_ml_backtest_configs
+    num_configs <- length(object@base_ml_backtest_configs)
     for (i in 1:(num_configs - 1)) {
       for (j in (i + 1):num_configs) {
-        if (identical(object@ml_backtest_configs[[i]], object@ml_backtest_configs[[j]])) {
-          return("Duplicate objects found in 'ml_backtest_configs'. Each configuration must be unique.")
+        if (identical(object@base_ml_backtest_configs[[i]], object@base_ml_backtest_configs[[j]])) {
+          return("Duplicate objects found in 'base_ml_backtest_configs'. Each configuration must be unique.")
         }
       }
     }
 
-    # Check for duplicate names in ml_backtest_configs
-    config_names <- names(object@ml_backtest_configs)
+    # Check for duplicate names in base_ml_backtest_configs
+    config_names <- names(object@base_ml_backtest_configs)
     if (any(duplicated(config_names))) {
-      return("Duplicate names found in 'ml_backtest_configs'. Each configuration must have a unique name.")
+      return("Duplicate names found in 'base_ml_backtest_configs'. Each configuration must have a unique name.")
     }
 
-    # Check that target_fwd_name matches across all configurations
-    target_fwd_names <- sapply(object@ml_backtest_configs, function(x) x@target_fwd_name)
-    if (length(unique(target_fwd_names)) > 1) {
-      errors <- c(errors, "The 'target_fwd_name' must match across all 'ml_backtest_config' elements.")
+    # Check that training_sample_size + validation_sample_size matches across all configurations
+    sample_sizes <- sapply(object@base_ml_backtest_configs, function(x){
+      x@training_sample_size + if(x@ml_algorithm != "ols") x@tuning_strategy@validation_sample_size else 0
+    })
+    if (length(unique(sample_sizes)) > 1) {
+      errors <- c(errors, "Training sample size + validation sample size must match across all 'ml_backtest_config' elements.")
+    }
+
+    # Check that rebalancing months match
+    rebalancing_months <- sapply(object@base_ml_backtest_configs, function(x) x@rebalancing_months)
+    if (length(unique(rebalancing_months)) > 1){
+      errors <- c(errors, "Rebalancing months must match across all 'ml_backtest_config' elements.")
     }
 
     # Loop over each ml_backtest_config in the list
-    for (i in seq_along(object@ml_backtest_configs)) {
-      config <- object@ml_backtest_configs[[i]]
+    for (i in seq_along(object@base_ml_backtest_configs)) {
+      config <- object@base_ml_backtest_configs[[i]]
 
       # Get ml_algorithm
       ml_algorithm <- config@ml_algorithm
 
-      # If tuning_strategy is NULL, skip hyperparameter checks
-      if (is.null(config@tuning_strategy)) {
+      # If ml_algo is ols, skip hyperparameter checks
+      if (ml_algorithm == "ols") {
         next
       }
       # Get hyperparameters_list names
@@ -702,14 +717,13 @@ setClass(
                                          character(0) # default for unrecognized algorithms
       )
 
-      # If ml_algorithm is not recognized and not 'ols', record an error
-      if (length(expected_hyperparameters) == 0 && ml_algorithm != "ols") {
+      # If ml_algorithm is not recognized, record an error
+      if (length(expected_hyperparameters) == 0) {
         errors <- c(errors, paste0("Unknown ml_algorithm '", ml_algorithm, "' in config ", i, "."))
         next
       }
 
       # For algorithms other than 'ols', perform hyperparameter checks
-      if (ml_algorithm != "ols") {
         # Check for missing hyperparameters
         missing_hyperparameters <- setdiff(expected_hyperparameters, hyperparameters_names)
         if (length(missing_hyperparameters) > 0) {
@@ -724,7 +738,7 @@ setClass(
                                      paste(extra_hyperparameters, collapse = ", "), "."))
         }
       }
-    }
+
 
     # If any errors were collected, return them
     if (length(errors) > 0) {
@@ -781,7 +795,7 @@ setClass(
 #' @slot chosen_eval_metric_validation A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.
 #' @slot best_hyperparameters A data frame containing the best hyperparameters selected during tuning for each rebalancing period.
 #' @slot validation_eval_metrics_hyper_choice All evaluation metrics calculated for the set of best hyperparameters.
-#' @slot metadata A list containing metadata about the walk-forward validation process. It includes:
+#' @slot ml_backtest_workflow A list containing ml_backtest_workflow about the walk-forward validation process. It includes:
 #' \itemize{
 #'   \item \strong{ml_algorithm}: A character string specifying the machine learning algorithm used.
 #'   \item \strong{custom_objective}: A character string indicating the custom loss function applied (e.g., "squared_error").
@@ -823,7 +837,7 @@ setClass(
 #' }
 #'
 #'
-#' @return An S4 object of class `ml_backtest_results` containing all the specified results and metadata.
+#' @return An S4 object of class `ml_backtest_results` containing all the specified results and ml_backtest_workflow.
 #'
 #'
 #'@export
@@ -838,26 +852,43 @@ setClass(
     chosen_eval_metric_validation = "ANY",
     best_hyperparameters = "ANY",
     validation_eval_metrics_hyper_choice = "ANY",
-    metadata = "list"
+    ml_backtest_workflow = "list"
   )
 )
 
 #' @title ml_metabacktest_results Class
-#' @description The ml_metabacktest_results class is designed to store and manage a collection of `ml_backtest_results` objects.
-#' @slot results A list of `ml_backtest_results` objects.
+#' @description An S4 class designed to store and manage a collection of `ml_backtest_results` objects,
+#' along with consolidated and time series evaluation metrics for machine learning models.
+#'
+#' @slot ml_backtest_results A list of `ml_backtest_results` objects.
+#' @slot consolidated_oos_testing_metrics A data frame containing consolidated out-of-sample testing evaluation metrics for each algorithm.
+#' @slot mean_validation_metrics A data frame containing the mean validation metrics for each algorithm.
+#' @slot time_series_oos_testing_metrics A list of data frames for each evaluation metric over time (out-of-sample testing).
+#' @slot time_series_validation_metrics A list of data frames for each evaluation metric over time (validation).
+#'
 #' @export
 setClass(
   "ml_metabacktest_results",
   slots = list(
-    ml_backtest_results = "list"
+    meta_ml_backtest_results = "list",
+    base_ml_backtest_results = "list",
+    consolidated_oos_testing_metrics = "data.frame",
+    mean_validation_metrics = "data.frame",
+    time_series_oos_testing_metrics = "list",
+    time_series_validation_metrics = "list"
   ),
   validity = function(object) {
-    if (!all(sapply(object@ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
-      return("All elements in 'results' must be of class 'ml_backtest_results'.")
+    if (!all(sapply(object@meta_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
+      return("All elements in 'meta_ml_backtest_results' must be of class 'ml_backtest_results'.")
     }
-  })
 
+    if (!all(sapply(object@base_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
+      return("All elements in 'base_ml_backtest_results' must be of class 'ml_backtest_results'.")
+    }
 
+    TRUE
+  }
+)
 
 
 
@@ -885,13 +916,15 @@ setClass("portfolio_policies",
 
 #################################################################
 
-##########################
-#########Methods#########
-##########################
+#####################################
+#########Accesor Methods############
+#####################################
 
 
 ##########################################################
 
+
+# meta_dataframe acessors -------------------------------------------------
 
 #' Accessor Methods for meta_dataframe
 #'
@@ -922,6 +955,10 @@ setMethod(
     as.data.frame(x@data)
   }
 )
+###############################################
+
+
+# refit_ml_model acessors -------------------------------------------------
 
 
 #' Accessor Methods for refit_ml_model
@@ -954,6 +991,12 @@ setGeneric("get_model", function(object) standardGeneric("get_model"))
 setMethod("get_model", "refit_ml_model", function(object) {
   return(object@model)
 })
+
+#############################################
+
+
+
+# ml_backtest_results acessors --------------------------------------------
 
 #' Accessor Methods for ml_backtest_results
 #'
@@ -999,8 +1042,30 @@ setGeneric("get_final_model", function(object) standardGeneric("get_final_model"
 
 #' @export
 setMethod("get_final_model", "ml_backtest_results", function(object) {
-  return(object@final_model)
+    return(object@final_model)
 })
+
+#' @export
+setGeneric("get_tickers", function(object) standardGeneric("get_tickers"))
+
+#' @export
+setMethod("get_tickers", "ml_backtest_results", function(object) {
+  return(object@ml_backtest_workflow$tickers)
+})
+
+#' @export
+setGeneric("get_dates", function(object, ...) standardGeneric("get_dates"))
+
+#' @export
+setMethod("get_dates", "ml_backtest_results", function(object, sample_type = "complete") {
+
+  if(!sample_type %in% c("complete", "testing")) stop("sample_type must be one of `complete` or `testing`")
+
+  if(sample_type == "complete") return(object@ml_backtest_workflow$dates_covered)
+  if(sample_type == "testing") return(object@ml_backtest_workflow$dates_testing_sample)
+
+})
+
 
 #' @export
 setGeneric("get_chosen_eval_metric_validation", function(object) standardGeneric("get_chosen_eval_metric_validation"))
@@ -1024,11 +1089,8 @@ setMethod("get_validation_eval_metrics_hyper_choice", "ml_backtest_results", fun
 })
 
 #' @export
-setGeneric("get_metadata", function(object) standardGeneric("get_metadata"))
-
-#' @export
-setMethod("get_metadata", "ml_backtest_results", function(object) {
-  return(object@metadata)
+setMethod("get_workflow", "ml_backtest_results", function(object) {
+  return(object@ml_backtest_workflow)
 })
 
 
@@ -1057,6 +1119,66 @@ setMethod("as.list", "ml_backtest_results", function(x) {
 })
 
 
+
+##########################
+
+
+# get ml_backtest_config
+#' @title Get ML Backtest Config Object
+#' @description Accessor function to retrieve the ml_backtest_config object from a ml_metabacktest_config object or a ml_backtest_results object
+#'
+#' @param object A `ml_metabacktest_config` or a `ml_backtest_results` object.
+#'
+#' @return The `ml_backtest_configs` slot of the `ml_metabacktest_config` object or a `ml_backtest_config` derived from a `ml_backtest_results` object.
+#' @export
+setGeneric("get_ml_backtest_config", function(object) standardGeneric("get_ml_backtest_config"))
+
+#' @rdname get_ml_backtest_config
+#' @export
+setMethod("get_ml_backtest_config", "ml_metabacktest_config", function(object) {
+  return(object@ml_backtest_configs)
+})
+
+#' @rdname get_ml_backtest_config
+#' @export
+setMethod("get_ml_backtest_config", "ml_backtest_results", function(object) {
+
+  ml_backtest_workflow <- object@ml_backtest_workflow
+
+  #Fabricate tuning strategy
+  tuning_strategy <- get_tuning_strategy(object)
+
+  #Create Backtest Config
+  ml_backtest_config <- create_ml_backtest_config(
+    ml_algorithm = ml_backtest_workflow$ml_algorithm,
+    training_sample_size = ml_backtest_workflow$training_sample_size,
+    rebalancing_months = ml_backtest_workflow$rebalancing_months,
+    split_method = ml_backtest_workflow$split_method,
+    tuning_strategy = tuning_strategy,
+    custom_objective = ml_backtest_workflow$custom_objective,
+    quantile_tau = ml_backtest_workflow$quantile_tau,
+    huber_delta = ml_backtest_workflow$huber_delta
+  )
+
+  #Add keras_architecture_parameters if ml algo is nn
+  if(ml_backtest_workflow$ml_algorithm == "nn") {
+    keras_architecture_parameters <- ml_backtest_workflow$keras_architecture_parameters
+    ml_backtest_config <- add_keras_architecture(ml_backtest_config,
+                                                 nn_optimizer = keras_architecture_parameters$nn_optimizer,
+                                                 units = keras_architecture_parameters$units,
+                                                 activation = keras_architecture_parameters$activation,
+                                                 batch_norm_option = keras_architecture_parameters$batch_norm_option
+                                                 )
+  }
+
+  return(ml_backtest_config)
+
+})
+
+
+
+# get tuning strategy -----------------------------------------------------
+
 #' @title Get Hyperparameter Tuning Strategy
 #' @description Accessor function to retrieve the hyperparameter tuning strategy from an ml_backtest_config object.
 #'
@@ -1081,6 +1203,37 @@ setMethod("get_tuning_strategy", "ml_metabacktest_config", function(object) {
   return(lapply(object@ml_backtest_configs, function(config) get_tuning_strategy(config)))
 })
 
+#' @rdname get_tuning_strategy
+#' @export
+setMethod("get_tuning_strategy", "ml_backtest_results", function(object){
+
+  #WF
+  ml_backtest_workflow <- object@ml_backtest_workflow
+
+  #Hyper Grid Domain
+  hyper_grid_domain <- get_hyper_grid_domain(object)
+
+  if(ml_backtest_workflow$ml_algorithm != "ols"){
+    tuning_strategy <- create_tuning_strategy(tuning_method = ml_backtest_workflow$tuning_method,
+                                              validation_sample_size = ml_backtest_workflow$validation_sample_size,
+                                              chosen_eval_metric = ml_backtest_workflow$chosen_eval_metric,
+                                              hyper_grid_domain = hyper_grid_domain,
+                                              early_stop = ml_backtest_workflow$early_stop,
+                                              n_iter =  if(ml_backtest_workflow$tuning_method != "grid_search") ml_backtest_workflow$n_iter else NULL,
+                                              acq = if(ml_backtest_workflow$tuning_method == "bayesian_opt") ml_backtest_workflow$acq else NULL,
+                                              init_points = if(ml_backtest_workflow$tuning_method == "bayesian_opt") ml_backtest_workflow$init_points else NULL,
+                                              k_iter = if(ml_backtest_workflow$tuning_method == "bayesian_opt") ml_backtest_workflow$k_iter else NULL
+                                              )
+  }
+
+  return(tuning_strategy)
+
+})
+
+###########################
+
+
+# get hyper grid domain -----------------------------------------------------
 
 #' @title Get Hyperparameter Grid Domain
 #' @description Accessor function to retrieve the hyperparameter grid domain.
@@ -1115,6 +1268,85 @@ setMethod("get_hyper_grid_domain", "ml_metabacktest_config", function(object) {
       return(config@tuning_strategy@hyper_grid_domain@hyperparameter_list)
     }
   }))
+})
+
+#' @rdname get_hyper_grid_domain
+#' @export
+setMethod("get_hyper_grid_domain", "ml_backtest_results", function(object){
+
+  hyper_grid_domain <- new("hyper_grid_domain", hyperparameter_list = object@ml_backtest_workflow$hyper_grid_domain_list)
+  return(hyper_grid_domain)
+})
+
+
+
+################################
+
+#' @title Get Keras Architecture Parameters
+#' @description Accessor function to retrieve the keras architecture parameters.
+#'
+#' @param object A ml_backtest_config, a ml_metabacktest_config or a ml_backtest_results object.
+#'
+#' @return A `keras_architecture_parameters` S4 class.
+setGeneric("get_keras_architecture_parameters", function(object) standardGeneric("get_keras_architecture_parameters"))
+
+#' @rdname get_keras_architecture_parameters
+setMethod("get_keras_architecture_parameters", "ml_backtest_config", function(object) {
+
+  if(object@ml_algorithm != "nn"){
+    stop("keras_architecture_parameters not available for non-neural network algorithms.")
+  }
+
+  if(is.null(object@keras_architecture_parameters)){
+    stop("keras_architecture_parameters not available.")
+  } else {
+    return(object@keras_architecture_parameters)
+  }
+})
+
+#' @rdname get_keras_architecture_parameters
+setMethod("get_keras_architecture_parameters", "ml_metabacktest_config", function(object) {
+  return(lapply(object@ml_metabacktest_configs[sapply(object@ml_metabacktest_configs, function(config) config@ml_algorithm == "nn")],
+                function(nn_config) get_keras_architeture_parameters(nn_config)
+  ))
+})
+
+#' @rdname get_keras_architecture_parameters
+setMethod("get_keras_architecture_parameters", "ml_backtest_results", function(object) {
+
+  if(object@ml_backtest_workflow$ml_algorithm != "nn"){
+    stop("keras_architecture_parameters not available for non-neural network algorithms.")
+  } else {
+
+  keras_architecture_parameters <- create_keras_architecture(
+    nn_optimizer = object@ml_backtest_workflow$keras_architecture_parameters$nn_optimizer,
+    units = object@ml_backtest_workflow$keras_architecture_parameters$units,
+    activation = object@ml_backtest_workflow$keras_architecture_parameters$activation,
+    batch_norm_option = object@ml_backtest_workflow$keras_architecture_parameters$batch_norm_option
+  )
+
+  }
+
+  return(keras_architecture_parameters)
+
+})
+
+#' @rdname get_keras_architecture_parameters
+setMethod("get_keras_architecture_parameters", "refit_ml_model", function(object) {
+
+  if(object@ml_algorithm != "nn"){
+    stop("keras_architecture_parameters not available for non-neural network algorithms.")
+  } else {
+  keras_architecture_parameters <- create_keras_architecture(
+    nn_optimizer = object@keras_architecture_parameters$nn_optimizer,
+    units = object@keras_architecture_parameters$units,
+    activation = object@keras_architecture_parameters$activation,
+    batch_norm_option = object@keras_architecture_parameters$batch_norm_option
+  )
+ }
+
+  return(keras_architecture_parameters)
+
 })
 
 

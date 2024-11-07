@@ -97,7 +97,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
                                            keras_architecture_parameters = keras_architecture_parameters,
 
 
-                                           verbose = verbose #verbose
+                                           verbose = FALSE #verbose
 
 
                                            #Future implementation
@@ -143,7 +143,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
                                   keras_architecture_parameters = keras_architecture_parameters,
 
 
-                                  verbose = verbose #verbose
+                                  verbose = FALSE #verbose
 
 
 
@@ -234,7 +234,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
               #Keras Network Parameters
               keras_architecture_parameters = keras_architecture_parameters,
 
-              verbose = verbose
+              verbose = FALSE
 
               #Future Implementation:
               #Functions for custom eval and loss - XGB
@@ -250,7 +250,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
             iters.n = n_iter, #Number of times BO is to be repeated
             iters.k = k_iter, #Number of times to sample the scoring function at each epoch. If running in parallel, set iters.k to some multiple of the number of cores designated for the process
             verbose = verbose, #Display msgs?
-            parallel = parallel #Parallel?
+            parallel = if(ml_algorithm == "nn") FALSE else parallel #Parallel?
           )
         )
       } else { #In case of not PARALLEL
@@ -285,7 +285,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
               #Keras Network Parameters
               keras_architecture_parameters = keras_architecture_parameters,
 
-              verbose = verbose
+              verbose = FALSE
 
               #Future Implementation:
               #Functions for custom eval and loss - XGB
@@ -352,7 +352,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
   #Print Results
   if(verbose == TRUE){
     cat(paste0("Chosen hyperparameters were: "))
-    cat(paste0(names(expanded_hyper_grid_list),":", optimal_hyper, sep=" "))
+    cat(paste0(names(hyper_grid_domain_list),":", optimal_hyper, sep=" "))
     cat("\n")
     cat(paste0("Validation eval_metrics for hyperparameters chosen were: "))
     cat(paste0(names(validation_eval_metrics_hyper_choice_current_date),":",

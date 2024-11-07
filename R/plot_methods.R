@@ -1350,357 +1350,1053 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
 #' Plot Machine Learning Walk-Forward Validation Results
 #'
 #' This method generates various plots to visualize the performance of machine learning models using walk-forward validation metrics.
-#' It creates plots comparing out-of-sample (OOS) testing metrics, validation metrics, and hyperparameter performance over time.
+#' Users can select which plot to display by specifying the `plot_id` parameter,
+#' either by name or by number.
 #'
 #' @param x An object of class \code{ml_backtest_results} containing the results of the walk-forward validation.
+#' @param plot_id A character string or numeric value specifying which plot to display.
+#'   - By name: Options are:
+#'     - `"Chosen Evaluation Metric Over Time"`
+#'     - `"Test vs Validation Chosen Evaluation Metric Over Time"`
+#'     - `"Best Hyperparameters Over Time"`
+#'     - `"Hyperparameters vs Error"`
+#'     - `"All Evaluation Metrics Over Time"`
+#'     - `"Consolidated OOS Testing Metrics"`
+#'     - `"Average Validation Metrics"`
+#'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
+#'   If `NULL` (default), the method lists available plots.
 #'
-#' @return The following plots:
-#' \itemize{
-#'   \item \code{chosen_val_metric_over_time}: Plot of the chosen evaluation metric over time for the test data, including overall and yearly means.
-#'   \item \code{test_vs_val_chosen_eval_metric_over_time}: Plot comparing the chosen evaluation metric over time for both test and validation data.
-#'   \item \code{best_hyper_over_time}: Plot of the best hyperparameter values over time, with separate facets for each hyperparameter.
-#'   \item \code{hyper_vs_error}: Plot showing the performance of hyperparameter choices with respect to the chosen evaluation metric. The plot varies depending on the machine learning algorithm used.
-#'   \item \code{all_eval_metrics_over_time}: Plot of all evaluation metrics over time, including dashed lines for variable means and vertical lines for rebalancing dates.
-#' }
-#'
+#' @return Invisibly returns the input \code{x}.
 #' @export
-setMethod("plot", "ml_backtest_results", function(x) {
+setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
+
+  # List of available plots
+  available_plots <- c(
+    "Chosen Evaluation Metric Over Time",
+    "Test vs Validation Chosen Evaluation Metric Over Time",
+    "Best Hyperparameters Over Time",
+    "Hyperparameters vs Error",
+    "All Evaluation Metrics Over Time",
+    "Average Validation vs Consolidated OOS Testing Metrics"
+  )
+
+  if(x@ml_backtest_workflow$ml_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
+    plot_id <- 5
+    message("'All Evaluation Metrics Over Time' is the only avaialable plot for OLS, EW Ensemble, and Optimal Ensemble. Plotting 'All Evaluation Metrics Over Time'...")
+  }
+  available_plots_ols_and_heuristic_ensembles <- "All Evaluation Metrics Over Time"
+
+  if (is.null(plot_id)) {
+    cat("\nAvailable plots to display:\n")
+    for (i in seq_along(available_plots)) {
+      cat(paste0(i, ": ", available_plots[i], "\n"))
+    }
+    cat("\nPlease specify the 'plot_id' parameter to display a plot.\n")
+    cat("You can select a plot either by name or by number.\n")
+    return(invisible(x))
+  }
+
+  # Determine if plot_id is numeric (index) or character (name)
+  if (is.numeric(plot_id)) {
+    if (plot_id >= 1 && plot_id <= length(available_plots)) {
+      plot_name <- available_plots[plot_id]
+    } else {
+      stop("Invalid plot number. Please select a number between 1 and ", length(available_plots), ".")
+    }
+  } else if (is.character(plot_id)) {
+    if (plot_id %in% available_plots) {
+      plot_name <- plot_id
+    } else {
+      stop("Invalid 'plot_id' specified. Available options are:\n",
+           paste(available_plots, collapse = ", "))
+    }
+  } else {
+    stop("'plot_id' must be either a string or a number corresponding to the plot.")
+  }
 
   # Extract relevant data from the S4 object
   oos_testing_eval_metrics <- x@oos_testing_eval_metrics
   validation_eval_metrics_hyper_choice <- x@validation_eval_metrics_hyper_choice
   hyper_choice_df <- x@best_hyperparameters
-  chosen_eval_metric <- x@metadata$chosen_eval_metric
+  chosen_eval_metric <- x@ml_backtest_workflow$chosen_eval_metric
   chosen_eval_metric_validation <- x@chosen_eval_metric_validation
-  ml_algorithm <- x@metadata$ml_algorithm
-  rebalance_dates <- x@metadata$rebalance_dates
+  ml_algorithm <- x@ml_backtest_workflow$ml_algorithm
+  rebalance_dates <- x@ml_backtest_workflow$rebalance_dates
 
+  # Define color palette
+  neon_blue <- "#00BFFF"
+  neon_pink <- "#FF1493"
+  neon_yellow <- "#FFFF00"
+  neon_purple <- "#8A2BE2"
+  neon_orange <- "#FF4500"
+  neon_green <- "#39FF14"
+  blue_bg <- "#001f3f"
+  faint_blue <- "#003366"
+  light_gray <- "#B0B0B0"
+  black <- "#000000"
+  white <- "#FFFFFF"
+  neon_hot_pink <- "#FF69B4"      # Hot Pink
+  neon_lime_green <- "#32CD32"    # Lime Green
+  neon_bright_orange <- "#FFA500" # Bright Orange
 
-  #Define global variables to pass R Cmd Check
+  # Extended neon palette with 9 colors
+  extended_neon_palette <- c(
+    neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
+    neon_hot_pink, neon_lime_green, neon_bright_orange
+  )
+
+  # Define global variables to pass R CMD check
   dates <- value <- year <- overall_mean <- yearly_mean <- quantile <- concatenation <- median <- lambda.min.ratio <- alpha <- q75 <- median_chosen_eval_metric <-
-    q25 <- variable_mean <- x <- y <- label <- variable <- mtry <- num.trees <- min.bucket <- max.depth <- eta <- max_depth <- colsample_bytree <-
-    lr <- droprate <- regularizer_l2 <- regularizer_l2 <- NULL
+    q25 <- variable_mean <- x_coord <- y_coord <- label <- variable <- mtry <- num.trees <- min.bucket <- max.depth <- eta <- max_depth <- colsample_bytree <-
+    lr <- droprate <- regularizer_l2 <- regularizer_l1 <- min_child_weight <- subsample <- gamma <- nrounds <- NULL
 
-  #Get object
-  plots_list <- list()
+  # Remove 'consolidated' row from oos_testing_eval_metrics before time series plots
+  if ("consolidated" %in% rownames(oos_testing_eval_metrics)) {
+    consolidated_oos_testing_metrics <- oos_testing_eval_metrics["consolidated", , drop = FALSE]
+    oos_testing_eval_metrics <- oos_testing_eval_metrics[rownames(oos_testing_eval_metrics) != "consolidated", , drop = FALSE]
+  } else {
+    consolidated_oos_testing_metrics <- NULL
+  }
 
+  # Remove 'average' row from validation_eval_metrics_hyper_choice before time series plots
+  if ("average" %in% rownames(validation_eval_metrics_hyper_choice)) {
+    average_validation_metrics <- validation_eval_metrics_hyper_choice["average", , drop = FALSE]
+    validation_eval_metrics_hyper_choice <- validation_eval_metrics_hyper_choice[rownames(validation_eval_metrics_hyper_choice) != "average", , drop = FALSE]
+  } else {
+    average_validation_metrics <- NULL
+  }
 
-  #Treatments to oos_testing and validation metrics
-  #Some treatments to oos_testing_eval
-  #Change colnames
-  colnames(oos_testing_eval_metrics) <- paste("oos_testing_",colnames(oos_testing_eval_metrics), sep = "")
-  #Add dates column
+  # Prepare data for plotting
+
+  # Some treatments to oos_testing_eval_metrics
+  # Change colnames
+  colnames(oos_testing_eval_metrics) <- paste("oos_testing_", colnames(oos_testing_eval_metrics), sep = "")
+  # Add dates column
   oos_testing_eval_metrics <- oos_testing_eval_metrics %>% dplyr::mutate(dates = rownames(oos_testing_eval_metrics))
-  oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") #Coerce to dates
-  #Extract dates
-  oos_testing_dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d")
+  oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") # Coerce to dates
 
-  if(ml_algorithm != "ols"){
-    #Some treatments to the validation_eval
-    #Change colnames
-    colnames(validation_eval_metrics_hyper_choice) <- paste("validation_",colnames(validation_eval_metrics_hyper_choice), sep = "")
-    #Add dates column
+  if (!ml_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")) {
+    # Some treatments to validation_eval_metrics_hyper_choice
+    # Change colnames
+    colnames(validation_eval_metrics_hyper_choice) <- paste("validation_", colnames(validation_eval_metrics_hyper_choice), sep = "")
+    # Add dates column
     validation_eval_metrics_hyper_choice <- validation_eval_metrics_hyper_choice %>% dplyr::mutate(dates = rownames(validation_eval_metrics_hyper_choice))
-    validation_eval_metrics_hyper_choice$dates <- as.Date(validation_eval_metrics_hyper_choice$dates, format = "%Y-%m-%d") #Coerce to dates
-    #Extract dates
-    validation_dates <- as.Date(validation_eval_metrics_hyper_choice$dates, format = "%Y-%m-%d")
-    #Join test and validation
+    validation_eval_metrics_hyper_choice$dates <- as.Date(validation_eval_metrics_hyper_choice$dates, format = "%Y-%m-%d") # Coerce to dates
+
+    # Join test and validation
     oos_testing_and_validation <- dplyr::left_join(oos_testing_eval_metrics, validation_eval_metrics_hyper_choice, by = 'dates')
 
-    #Melt
-    oos_testing_and_validation <- oos_testing_and_validation %>% reshape::melt(id.vars="dates")
+    # Melt
+    oos_testing_and_validation <- oos_testing_and_validation %>% reshape::melt(id.vars = "dates")
     oos_testing_and_validation$dates <- as.Date(oos_testing_and_validation$dates, format = "%Y-%m-%d")
 
-    #OOS test data
+    # OOS test data
     oos_testing_data <-  oos_testing_and_validation %>%
-      dplyr::filter(stringr::str_detect(variable, "oos_testing_")) %>% #Filter only OOS test
+      dplyr::filter(stringr::str_detect(variable, "oos_testing_")) %>% # Filter only OOS test
       dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
-      dplyr::group_by(variable) %>% # Group by year
-      dplyr::mutate(variable_mean = mean(value, na.rm = TRUE)) %>% # Take yearly mean
+      dplyr::group_by(variable) %>% # Group by variable
+      dplyr::mutate(variable_mean = mean(value, na.rm = TRUE)) %>% # Take variable mean
       dplyr::ungroup() # Ungroup
 
-    #Chosen eval metric - test data
+    # Chosen eval metric - test data
     chosen_eval_testing_data <- oos_testing_and_validation %>%
-      dplyr::filter(variable == paste("oos_testing_", chosen_eval_metric, sep = "")) %>% #Filter only OOS test chosen eval metric
+      dplyr::filter(variable == paste("oos_testing_", chosen_eval_metric, sep = "")) %>% # Filter only OOS test chosen eval metric
       dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
-      dplyr::mutate(overall_mean = mean(value, na.rm = TRUE)) %>% #Add overall mean
-      dplyr::group_by(year) %>% #Group by year
-      dplyr::mutate(yearly_mean = mean(value, na.rm = TRUE)) %>% #Take yearly mean
-      dplyr::ungroup() #Ungroup
+      dplyr::mutate(overall_mean = mean(value, na.rm = TRUE)) %>% # Add overall mean
+      dplyr::group_by(year) %>% # Group by year
+      dplyr::mutate(yearly_mean = mean(value, na.rm = TRUE)) %>% # Take yearly mean
+      dplyr::ungroup() # Ungroup
 
-    #Validation data
+    # Validation data
     validation_data <- oos_testing_and_validation %>%
-      dplyr::filter(stringr::str_detect(variable, "validation_")) %>% #Filter only validation
+      dplyr::filter(stringr::str_detect(variable, "validation_")) %>% # Filter only validation
       dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
-      dplyr::filter(!is.na(value)) #Filter out nas
+      dplyr::filter(!is.na(value)) # Filter out NAs
 
-    #Chosen eval metric - validation data
+    # Chosen eval metric - validation data
     chosen_eval_validation_data <- oos_testing_and_validation %>%
-      dplyr::filter(variable == paste("validation_", chosen_eval_metric, sep = "")) %>% #Filter only chosen validation metric
-      dplyr::filter(!is.na(value)) #Filter out nas
+      dplyr::filter(variable == paste("validation_", chosen_eval_metric, sep = "")) %>% # Filter only chosen validation metric
+      dplyr::filter(!is.na(value)) # Filter out NAs
 
-    #PLOT 1 - Test chosen validation metric over time
-    plots_list$chosen_val_metric_over_time <-
-      ggplot2::ggplot(chosen_eval_testing_data,
-                      ggplot2::aes(x = dates, y = value, color = paste(chosen_eval_metric))) +
-      ggplot2::geom_line(alpha = 0.5, ggplot2::aes(group = 1)) + # Draw line
-      ggplot2::geom_point() +  # Add points
-      ggplot2::labs(x = "Date", y = chosen_eval_metric) + # Add labels
-      ggplot2::theme_bw() + # Set minimal theme
+  }
+
+  # Initialize plots list
+  plots_list <- list()
+
+  # Now generate the selected plot
+  if (plot_name == "Chosen Evaluation Metric Over Time") {
+    # PLOT 1: Test chosen evaluation metric over time
+    plots_list$chosen_eval_metric_over_time <- ggplot2::ggplot(
+      chosen_eval_testing_data,
+      ggplot2::aes(x = dates, y = value, color = paste(chosen_eval_metric))
+    ) +
+      ggplot2::geom_line(color = neon_blue, alpha = 0.7) +  # Neon cyan line
+      ggplot2::geom_point(color = neon_green) +  # Neon green points
+      ggplot2::labs(x = "Date", y = chosen_eval_metric) +
       ggplot2::ggtitle(paste("Test", chosen_eval_metric, "over time")) +
-      ggplot2::facet_wrap(~year, scales = "free") +  # Ensure free y-axis scales
-      ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +  # Format x-axis labels
-      ggplot2::geom_hline(ggplot2::aes(yintercept = overall_mean, color = "Overall Mean"), linetype = "dashed") + # Add dashed line for overall mean
-      ggplot2::geom_hline(ggplot2::aes(yintercept = yearly_mean, color = "Yearly Mean"), linetype = "dashed") + # Add dashed line for yearly mean
-      ggplot2::scale_color_manual(values = c("red", "black", "black"),
-                                  breaks = c("Overall Mean", "Yearly Mean", "Metric"),
-                                  labels = c("Overall Mean", "Yearly Mean", "Metric")) + # Define legend colors and labels
-      ggplot2::guides(color = ggplot2::guide_legend(title = "")) + # Customize legend title
-      ggplot2::theme(legend.position = "bottom") + # Move legend to bottom
-      ggplot2::scale_y_continuous(limits = c(min(chosen_eval_testing_data$value), max(chosen_eval_testing_data$value))) # Set y-axis limits
-
-      print(plots_list$chosen_val_metric_over_time)
-
-
-    #PLOT 2 - Test vs Validation chosen eval metric over time
-    plots_list$test_vs_val_chosen_eval_metric_over_time <-
-      ggplot2::ggplot() +
-      ggplot2::geom_line(data = chosen_eval_testing_data, ggplot2::aes(x = dates, y = value, color = "Test"), alpha = 0.5) +
-      ggplot2::geom_point(data = chosen_eval_testing_data, ggplot2::aes(x = dates, y = value, color = "Test"), size = 2) +  # Add test data points
-      ggplot2::geom_point(data = chosen_eval_validation_data, ggplot2::aes(x = dates, y = value, color = "Validation"), size = 2) +
-      ggplot2::labs(x = "Date", y = chosen_eval_metric, color = "") +
-      ggplot2::ggtitle(paste("Test and validation", chosen_eval_metric, "over time")) +
-      ggplot2::scale_color_manual(values = c("Test" = "black", "Validation" = "blue")) +
-      ggplot2::theme_bw() +
-      ggplot2::theme(legend.position = "bottom") +
-      ggplot2::geom_text(data = chosen_eval_validation_data, ggplot2::aes(x = dates, y = value, label = dates),
-                         vjust = -1.5, hjust = 0, size = 3, color = "blue") +
-      ggplot2::geom_vline(data = chosen_eval_validation_data, ggplot2::aes(xintercept = dates),
-                          linetype = "dashed", color = "blue")
-
-      print(plots_list$test_vs_val_chosen_eval_metric_over_time)
-
-
-    #PLOT 3 - Best Hyperparameters over time
-    plots_list$best_hyper_over_time <-
-      ggplot2::ggplot(hyper_choice_df %>% dplyr::mutate(dates = as.Date(rownames(hyper_choice_df), format = "%Y-%m-%d")) %>% reshape::melt(id.vars="dates"),
-                      ggplot2::aes(x = dates, y = value, color = variable)) +
-      ggplot2::geom_line(alpha = 0.5) +
-      ggplot2::geom_point() +
-      ggplot2::geom_text(ggplot2::aes(label = round(value, 2)), vjust = -0.5, size = 3) +  # Add text labels for values
-      ggplot2::labs(x = "Date", y = "Best hyperparameter") +
-      ggplot2::theme_bw() +
-      ggplot2::ggtitle("Hyper choice over time") +
-      ggplot2::facet_wrap(~variable, scales = "free") +  # Create subplots for each group specified by the variable column
+      ggplot2::facet_wrap(~year, scales = "free") +
       ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
+      ggplot2::geom_hline(
+        data = chosen_eval_testing_data %>%
+          dplyr::select(year, overall_mean, yearly_mean) %>%
+          dplyr::distinct(),
+        aes(yintercept = overall_mean),
+        color = neon_pink,
+        linetype = "dashed"
+      ) +
+      ggplot2::geom_hline(
+        data = chosen_eval_testing_data %>%
+          dplyr::select(year, overall_mean, yearly_mean) %>%
+          dplyr::distinct(),
+        aes(yintercept = yearly_mean),
+        color = neon_purple,
+        linetype = "dashed"
+      ) +
+      ggplot2::scale_color_manual(values = c("Metric" = neon_blue)) +
       ggplot2::guides(color = ggplot2::guide_legend(title = "")) +
-      ggplot2::theme(legend.position = "bottom")
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),  # White facet labels
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),  # Blended blue for major grid
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)   # Blended blue for minor grid
+      )
 
+    print(plots_list$chosen_eval_metric_over_time)
 
-      print(plots_list$best_hyper_over_time)
+  } else if (plot_name == "Test vs Validation Chosen Evaluation Metric Over Time") {
+    # PLOT 2: Test vs Validation chosen eval metric over time
+    plots_list$test_vs_val_chosen_eval_metric_over_time <- ggplot2::ggplot() +
+      ggplot2::geom_line(
+        data = chosen_eval_testing_data,
+        ggplot2::aes(x = dates, y = value, color = "Test"),
+        alpha = 0.5
+      ) +
+      ggplot2::geom_point(
+        data = chosen_eval_testing_data,
+        ggplot2::aes(x = dates, y = value, color = "Test"),
+        size = 2,
+        color = neon_green
+      ) +
+      ggplot2::geom_point(
+        data = chosen_eval_validation_data,
+        ggplot2::aes(x = dates, y = value, color = "Validation"),
+        size = 3
+      ) +
+      ggplot2::geom_text(
+        data = chosen_eval_validation_data,
+        ggplot2::aes(x = dates, y = value, label = dates),
+        vjust = -0.5, hjust = 0, size = 3, color = neon_yellow
+      ) +  # Display dates next to validation points
+      ggplot2::labs(x = "Date", y = chosen_eval_metric, color = "") +
+      ggplot2::ggtitle(paste("Test and Validation", chosen_eval_metric, "over time")) +
+      ggplot2::scale_color_manual(values = c("Test" = neon_blue, "Validation" = neon_yellow)) +
+      ggplot2::geom_vline(
+        data = chosen_eval_validation_data,
+        ggplot2::aes(xintercept = dates),
+        linetype = "dashed",
+        color = neon_orange
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),  # Blended grid lines
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
 
+    print(plots_list$test_vs_val_chosen_eval_metric_over_time)
 
-    #PLOT 4 - Hyperparameters vs Error
-    #Transform the list in a big rbinded data frame
+  } else if (plot_name == "Best Hyperparameters Over Time") {
+    # PLOT 3: Best Hyperparameters over time
+    plots_list$best_hyper_over_time <- ggplot2::ggplot(
+      hyper_choice_df %>%
+        dplyr::mutate(dates = as.Date(rownames(hyper_choice_df), format = "%Y-%m-%d")) %>%
+        reshape::melt(id.vars = "dates"),
+      ggplot2::aes(x = dates, y = value, color = variable)
+    ) +
+      ggplot2::geom_line(alpha = 0.5) +
+      ggplot2::geom_point(color = neon_green) +  # Neon green points
+      ggplot2::geom_text(
+        ggplot2::aes(label = round(value, 2)),
+        vjust = -0.5, size = 3, color = white
+      ) +  # Display values next to points
+      ggplot2::labs(x = "Date", y = "Best Hyperparameter") +
+      ggplot2::ggtitle("Best Hyperparameters Over Time") +
+      ggplot2::facet_wrap(~variable, scales = "free") +  # Create subplots for each hyperparameter
+      ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
+      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::guides(color = ggplot2::guide_legend(title = "")) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),  # White facet labels
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),  # Blended grid lines
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    print(plots_list$best_hyper_over_time)
+
+  } else if (plot_name == "Hyperparameters vs Error") {
+    # PLOT 4: Hyperparameters vs Error
+    plots_list$hyper_vs_error <- NULL  # Initialize
+
+    # Transform the list into a big rbinded data frame
     chosen_eval_metric_validation_df <- do.call(rbind, chosen_eval_metric_validation)
 
-    #For each column of hyperparameters, turn into categories
-    for(j in 1:(ncol(chosen_eval_metric_validation_df)-1)){
+    # For each column of hyperparameters, turn into categories
+    hyper_cols <- setdiff(names(chosen_eval_metric_validation_df), "chosen_eval_metric")
+    for (j in hyper_cols) {
       tryCatch({
-        chosen_eval_metric_validation_df[,j] <- as.factor(#As category
-          cut(chosen_eval_metric_validation_df[,j], #Cut is specially useful for random_search
-              breaks=unique(stats::quantile(chosen_eval_metric_validation_df[,j], probs = seq(0,1,by=0.1))),
-              include.lowest = TRUE))
-
+        chosen_eval_metric_validation_df[, j] <- as.factor( # As category
+          cut(
+            chosen_eval_metric_validation_df[, j],
+            breaks = unique(stats::quantile(chosen_eval_metric_validation_df[, j], probs = seq(0, 1, by = 0.1), na.rm = TRUE)),
+            include.lowest = TRUE
+          )
+        )
       }, error = function(e) {
-        message(paste("Only one unique value identified for", names(chosen_eval_metric_validation_df)[j]))
-        chosen_eval_metric_validation_df[,j] <- chosen_eval_metric_validation_df[,j]
+        message(paste("Only one unique value identified for", j))
+        chosen_eval_metric_validation_df[, j] <- chosen_eval_metric_validation_df[, j]
       })
     }
 
-    #Concatenation
-    if(ml_algorithm == "glmnet"){
-      chosen_eval_metric_validation_df$concatenation <- paste(chosen_eval_metric_validation_df$alpha, chosen_eval_metric_validation_df$lambda.min.ratio)
-    } else {}
-    if(ml_algorithm == "rf"){
-      chosen_eval_metric_validation_df$concatenation <- paste(chosen_eval_metric_validation_df$mtry, chosen_eval_metric_validation_df$num.trees,
-                                                              chosen_eval_metric_validation_df$max.depth, chosen_eval_metric_validation_df$min.bucket)
-    } else {}
-    if(ml_algorithm == "xgb"){
-      chosen_eval_metric_validation_df$concatenation <- paste(chosen_eval_metric_validation_df$min_child_weight,
-                                                              chosen_eval_metric_validation_df$max_depth,
-                                                              chosen_eval_metric_validation_df$subsample,
-                                                              chosen_eval_metric_validation_df$colsample_bytree,
-                                                              chosen_eval_metric_validation_df$eta,
-                                                              chosen_eval_metric_validation_df$alpha,
-                                                              chosen_eval_metric_validation_df$gamma,
-                                                              chosen_eval_metric_validation_df$nrounds)
-    } else {}
-    if(ml_algorithm == "nn"){
-      chosen_eval_metric_validation_df$concatenation <- paste(chosen_eval_metric_validation_df$regularizer_l1,
-                                                              chosen_eval_metric_validation_df$regularizer_l2,
-                                                              chosen_eval_metric_validation_df$droprate,
-                                                              chosen_eval_metric_validation_df$lr)
+    # Concatenation based on algorithm
+    if (ml_algorithm == "glmnet") {
+      chosen_eval_metric_validation_df$concatenation <- paste(
+        chosen_eval_metric_validation_df$alpha,
+        chosen_eval_metric_validation_df$lambda.min.ratio,
+        sep = "_"
+      )
+    } else if (ml_algorithm == "rf") {
+      chosen_eval_metric_validation_df$concatenation <- paste(
+        chosen_eval_metric_validation_df$mtry,
+        chosen_eval_metric_validation_df$num.trees,
+        chosen_eval_metric_validation_df$max.depth,
+        chosen_eval_metric_validation_df$min.bucket,
+        sep = "_"
+      )
+    } else if (ml_algorithm == "xgb") {
+      chosen_eval_metric_validation_df$concatenation <- paste(
+        chosen_eval_metric_validation_df$eta,
+        chosen_eval_metric_validation_df$gamma,
+        sep = "_"
+      )
+    } else if (ml_algorithm == "nn") {
+      chosen_eval_metric_validation_df$concatenation <- paste(
+        chosen_eval_metric_validation_df$lr,
+        chosen_eval_metric_validation_df$droprate,
+        sep = "_"
+      )
+    } else {
+      # For other algorithms, concatenate all hyperparameters
+      chosen_eval_metric_validation_df$concatenation <- apply(
+        chosen_eval_metric_validation_df[, hyper_cols],
+        1,
+        paste,
+        collapse = "_"
+      )
+    }
 
-    } else {}
-
-
-    ###Summarize main quantiles
-    chosen_eval_metric_validation_summary <- as.data.frame(chosen_eval_metric_validation_df %>%
-                                                             dplyr::group_by(concatenation) %>% #Take by group of hyper combinations
-                                                             dplyr::summarise(median_chosen_eval_metric = stats::median(chosen_eval_metric), #Q50
-                                                                              q25 = stats::quantile(chosen_eval_metric, 0.25), #Q25
-                                                                              q75 = stats::quantile(chosen_eval_metric, 0.75), #Q75
-                                                                              max = stats::quantile(chosen_eval_metric, 1), #Q100
-                                                                              min = stats::quantile(chosen_eval_metric, 0))) #Q0
-    #Join with summary
+    # Summarize main quantiles
+    chosen_eval_metric_validation_summary <- as.data.frame(
+      chosen_eval_metric_validation_df %>%
+        dplyr::group_by(concatenation) %>% # Take by group of hyper combinations
+        dplyr::summarise(
+          median_chosen_eval_metric = stats::median(chosen_eval_metric, na.rm = TRUE), # Q50
+          q25 = stats::quantile(chosen_eval_metric, 0.25, na.rm = TRUE),              # Q25
+          q75 = stats::quantile(chosen_eval_metric, 0.75, na.rm = TRUE),              # Q75
+          max = max(chosen_eval_metric, na.rm = TRUE),                               # Q100
+          min = min(chosen_eval_metric, na.rm = TRUE),                               # Q0
+          .groups = 'drop'
+        )
+    )
+    # Join with summary
     chosen_eval_metric_validation_df <- chosen_eval_metric_validation_df %>%
       dplyr::left_join(chosen_eval_metric_validation_summary, by = "concatenation")
 
-    #Take last hyper tuning
-    chosen_eval_metric_validation_last_tuning <- chosen_eval_metric_validation_df[ #Take rows from beginning to end of last hyper tuning
-      (nrow(chosen_eval_metric_validation_df) - nrow(chosen_eval_metric_validation[[length(chosen_eval_metric_validation)]])):nrow(chosen_eval_metric_validation_df),]
+    # Take last hyper tuning
+    total_rows <- nrow(chosen_eval_metric_validation_df)
+    tuning_period <- nrow(chosen_eval_metric_validation[[length(chosen_eval_metric_validation)]])
+    start_row <- max(total_rows - tuning_period + 1, 1)
+    chosen_eval_metric_validation_last_tuning <- chosen_eval_metric_validation_df[start_row:total_rows, ]
 
+    # Generate Hyperparameters vs Error plot based on algorithm
+    if (ml_algorithm == "glmnet") {
+      # Ensure there are enough colors
+      num_alphas <- length(unique(chosen_eval_metric_validation_last_tuning$alpha))
+      fill_colors <- extended_neon_palette[1:num_alphas]
 
-
-    if(ml_algorithm  == "glmnet"){
-      #Create beautiful Plot!
-      plots_list$hyper_vs_error <-
-        ggplot2::ggplot(chosen_eval_metric_validation_last_tuning, ggplot2::aes(x = lambda.min.ratio, y = chosen_eval_metric, fill = alpha)) +
-        ggplot2::geom_bar(stat = "identity", position = "dodge") +
-        ggplot2::theme_bw() +
-        ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "of last rebalancing facetted by alpha and lambda.min.ratio")) +
+      plots_list$hyper_vs_error <- ggplot2::ggplot(
+        chosen_eval_metric_validation_last_tuning,
+        ggplot2::aes(x = lambda.min.ratio, y = chosen_eval_metric, fill = as.factor(alpha))
+      ) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
         ggplot2::facet_grid(rows = ggplot2::vars(alpha)) +
-        ggplot2::geom_point(ggplot2::aes(y = max), color ="#8B0000", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = q75), color ="#B22222" , size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = median_chosen_eval_metric), color ="#FF0000" , size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = q25), color ="#FF6347", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = min), color ="#FFA07A", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::theme(legend.position = "bottom",
-                       legend.box = "horizontal",
-                       legend.title = ggplot2::element_blank(),
-                       legend.margin = ggplot2::margin(5, 0, 10, 0),
-                       legend.spacing = ggplot2::unit(0.2, "cm"),
-                       legend.text = ggplot2::element_text(size = 10),
-                       plot.margin = ggplot2::margin(2, 5, 5, 5),
-                       plot.caption = ggplot2::element_text(hjust = 0)) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = max),
+          color = neon_yellow,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = q75),
+          color = neon_orange,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = median_chosen_eval_metric),
+          color = neon_green,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = q25),
+          color = neon_purple,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = min),
+          color = neon_blue,
+          size = 2
+        ) +
+        ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by alpha and lambda.min.ratio")) +
+        ggplot2::scale_fill_manual(values = fill_colors) +
+        ggplot2::guides(fill = ggplot2::guide_legend(title = NULL)) +  # Remove legend title
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
+          plot.caption = ggplot2::element_text(color = white, hjust = 0)
+        ) +
         ggplot2::labs(caption = "Dots represent quantiles (min, Q25, Q50, Q75, max) of all rebalancing periods.")
 
-        print(plots_list$hyper_vs_error)
+      print(plots_list$hyper_vs_error)
+    }
 
-    } else {} #end glmnet_specific
+    # RF case
+    if (ml_algorithm == "rf") {
+      # Ensure there are enough colors
+      num_mtrys <- length(unique(chosen_eval_metric_validation_last_tuning$mtry))
+      fill_colors <- extended_neon_palette[1:num_mtrys]
 
-    if(ml_algorithm  == "rf"){
-      #Create beautiful Plot!
-      plots_list$hyper_vs_error <-
-        ggplot2::ggplot(chosen_eval_metric_validation_last_tuning, ggplot2::aes(x = mtry, y = chosen_eval_metric, fill = mtry)) +
-        ggplot2::geom_bar(stat = "identity", position = "dodge") +
-        ggplot2::theme_bw() +
-        ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "of last rebalancing facetted by max.depth and min.bucket")) +
+      plots_list$hyper_vs_error <- ggplot2::ggplot(
+        chosen_eval_metric_validation_last_tuning,
+        ggplot2::aes(x = mtry, y = chosen_eval_metric, fill = as.factor(mtry))
+      ) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
         ggplot2::facet_grid(rows = ggplot2::vars(max.depth), cols = ggplot2::vars(min.bucket)) +
-        ggplot2::geom_point(ggplot2::aes(y = max), color ="#8B0000", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = q75), color ="#B22222" , size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = median_chosen_eval_metric), color ="#FF0000" , size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = q25), color ="#FF6347", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = min), color ="#FFA07A", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::theme(legend.position = "bottom",
-                       legend.box = "horizontal",
-                       legend.title = ggplot2::element_blank(),
-                       legend.margin = ggplot2::margin(5, 0, 10, 0),
-                       legend.spacing = ggplot2::unit(0.2, "cm"),
-                       legend.text = ggplot2::element_text(size = 10),
-                       plot.margin = ggplot2::margin(2, 5, 5, 5),
-                       plot.caption = ggplot2::element_text(hjust = 0)) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = max),
+          color = neon_yellow,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = q75),
+          color = neon_orange,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = median_chosen_eval_metric),
+          color = neon_green,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = q25),
+          color = neon_purple,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = min),
+          color = neon_pink,
+          size = 2
+        ) +
+        ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by max.depth and min.bucket")) +
+        ggplot2::scale_fill_manual(values = fill_colors) +
+        ggplot2::guides(fill = ggplot2::guide_legend(title = NULL)) +  # Remove legend title
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
+          plot.caption = ggplot2::element_text(color = white, hjust = 0)
+        ) +
         ggplot2::labs(caption = "Dots represent quantiles (min, Q25, Q50, Q75, max) of all rebalancing periods.")
 
-        print(plots_list$hyper_vs_error)
+      print(plots_list$hyper_vs_error)
+    }
 
+    # XGB case
+    if (ml_algorithm == "xgb") {
+      # Ensure there are enough colors
+      num_etas <- length(unique(chosen_eval_metric_validation_last_tuning$eta))
+      fill_colors <- extended_neon_palette[1:num_etas]
 
-    } else {} #end rf_specific
-
-    if(ml_algorithm  == "xgb"){
-      #Create beautiful Plot!
-      plots_list$hyper_vs_error <-
-        ggplot2::ggplot(chosen_eval_metric_validation_last_tuning, ggplot2::aes(x = eta, y = chosen_eval_metric, fill = eta)) +
-        ggplot2::geom_bar(stat = "identity", position = "dodge") +
-        ggplot2::theme_bw() +
-        ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "of last rebalancing facetted by max_depth and colsample_bytree")) +
+      plots_list$hyper_vs_error <- ggplot2::ggplot(
+        chosen_eval_metric_validation_last_tuning,
+        ggplot2::aes(x = eta, y = chosen_eval_metric, fill = as.factor(eta))
+      ) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
         ggplot2::facet_grid(rows = ggplot2::vars(max_depth), cols = ggplot2::vars(colsample_bytree)) +
-        ggplot2::geom_point(ggplot2::aes(y = max), color ="#8B0000", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = q75), color ="#B22222" , size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = median_chosen_eval_metric), color ="#FF0000" , size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = q25), color ="#FF6347", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = min), color ="#FFA07A", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::theme(legend.position = "bottom",
-                       legend.box = "horizontal",
-                       legend.title = ggplot2::element_blank(),
-                       legend.margin = ggplot2::margin(5, 0, 10, 0),
-                       legend.spacing = ggplot2::unit(0.2, "cm"),
-                       legend.text = ggplot2::element_text(size = 10),
-                       plot.margin = ggplot2::margin(2, 5, 5, 5),
-                       plot.caption = ggplot2::element_text(hjust = 0)) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = max),
+          color = neon_yellow,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = q75),
+          color = neon_orange,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = median_chosen_eval_metric),
+          color = neon_green,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = q25),
+          color = neon_purple,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = min),
+          color = neon_blue,
+          size = 2
+        ) +
+        ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by max_depth and colsample_bytree")) +
+        ggplot2::scale_fill_manual(values = fill_colors) +
+        ggplot2::guides(fill = ggplot2::guide_legend(title = NULL)) +  # Remove legend title
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
+          plot.caption = ggplot2::element_text(color = white, hjust = 0)
+        ) +
         ggplot2::labs(caption = "Dots represent quantiles (min, Q25, Q50, Q75, max) of all rebalancing periods.")
 
+      print(plots_list$hyper_vs_error)
+    }
 
-        print(plots_list$hyper_vs_error)
+    # NN case
+    if (ml_algorithm == "nn") {
+      # Ensure there are enough colors
+      num_lrs <- length(unique(chosen_eval_metric_validation_last_tuning$lr))
+      fill_colors <- extended_neon_palette[1:num_lrs]
 
-
-    } else {} #end xgb_specific
-
-    if(ml_algorithm  == "nn"){
-      #Create beautiful Plot!
-      plots_list$hyper_vs_error <-
-        ggplot2::ggplot(chosen_eval_metric_validation_last_tuning, ggplot2::aes(x = lr, y = chosen_eval_metric, fill = lr)) +
-        ggplot2::geom_bar(stat = "identity", position = "dodge") +
-        ggplot2::theme_bw() +
-        ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "of last rebalancing facetted by droprate and regularizer_l1")) +
+      plots_list$hyper_vs_error <- ggplot2::ggplot(
+        chosen_eval_metric_validation_last_tuning,
+        ggplot2::aes(x = lr, y = chosen_eval_metric, fill = as.factor(lr))
+      ) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
         ggplot2::facet_grid(rows = ggplot2::vars(droprate), cols = ggplot2::vars(regularizer_l1)) +
-        ggplot2::geom_point(ggplot2::aes(y = max), color ="#8B0000", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = q75), color ="#B22222" , size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = median_chosen_eval_metric), color ="#FF0000" , size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = q25), color ="#FF6347", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::geom_point(ggplot2::aes(y = min), color ="#FFA07A", size=2, position = ggplot2::position_dodge(width=0.9)) +
-        ggplot2::theme(legend.position = "bottom",
-                       legend.box = "horizontal",
-                       legend.title = ggplot2::element_blank(),
-                       legend.margin = ggplot2::margin(5, 0, 10, 0),
-                       legend.spacing = ggplot2::unit(0.2, "cm"),
-                       legend.text = ggplot2::element_text(size = 10),
-                       plot.margin = ggplot2::margin(2, 5, 5, 5),
-                       plot.caption = ggplot2::element_text(hjust = 0)) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = max),
+          color = neon_yellow,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = q75),
+          color = neon_orange,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = median_chosen_eval_metric),
+          color = neon_green,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = q25),
+          color = neon_purple,
+          size = 2
+        ) +
+        ggplot2::geom_point(
+          ggplot2::aes(y = min),
+          color = neon_blue,
+          size = 2
+        ) +
+        ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by droprate and regularizer_l1")) +
+        ggplot2::scale_fill_manual(values = fill_colors) +
+        ggplot2::guides(fill = ggplot2::guide_legend(title = NULL)) +  # Remove legend title
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
+          plot.caption = ggplot2::element_text(color = white, hjust = 0)
+        ) +
         ggplot2::labs(caption = "Dots represent quantiles (min, Q25, Q50, Q75, max) of all rebalancing periods.")
 
+      print(plots_list$hyper_vs_error)
+    }
 
-        print(plots_list$hyper_vs_error)
+  } else if (plot_name == "All Evaluation Metrics Over Time") {
+    browser()
+    # PLOT 5: All Evaluation Metrics Over Time
+    plots_list$all_eval_metrics_over_time <- ggplot2::ggplot(
+      oos_testing_eval_metrics %>%
+        reshape::melt(id.vars = "dates") %>%
+        dplyr::mutate(variable = gsub("^oos_testing_", "", variable)) %>%  # Remove prefix
+        dplyr::filter(!is.na(value)),
+      ggplot2::aes(x = dates, y = value, color = variable)
+    ) +
+      ggplot2::geom_line(alpha = 0.5, show.legend = FALSE) +
+      ggplot2::geom_point(size = 2, show.legend = FALSE) +
+      ggplot2::labs(x = "Date", y = "Metric") +
+      ggplot2::ggtitle("All Evaluation Metrics Over Time") +
+      ggplot2::facet_wrap(~variable, scales = "free") +  # Create subplots for each metric with simplified titles
+      ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
+      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::geom_vline(xintercept = as.numeric(rebalance_dates), color = neon_yellow, linetype = "dashed") +
+      ggplot2::geom_text(
+        data = data.frame(x = rebalance_dates, y = -Inf, label = rebalance_dates),
+        ggplot2::aes(x = x, y = y, label = label),
+        vjust = -0.5, hjust = -0.5, size = 3, color = white
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.position = "none",
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
 
+    # Add horizontal lines for variable means
+    # Create a summary data frame for variable means
+    summary_data <- oos_testing_eval_metrics %>%
+      reshape::melt(id.vars = "dates") %>%
+      dplyr::mutate(variable = gsub("^oos_testing_", "", variable)) %>%
+      dplyr::group_by(variable) %>%
+      dplyr::summarise(variable_mean = mean(value, na.rm = TRUE))
 
-    } else {} #end xgb_specific
-
-  } else {} #end ols_restrictions
-
-  #PLOT 5 - All eval metrics over time
-  plots_list$all_eval_metrics_over_time <-
-    ggplot2::ggplot(oos_testing_eval_metrics %>% reshape::melt(id.vars="dates") %>%
-                      dplyr::group_by(variable) %>% #group by variable
-                      dplyr::mutate(variable_mean = mean(value, na.rm = TRUE)) %>% #Create new variable
-                      dplyr::ungroup(),
-                    ggplot2::aes(x = dates, y = value, color = variable)) +
-    ggplot2::geom_line(alpha = 0.5) +
-    ggplot2::geom_point() +
-    ggplot2::labs(x = "Date", y = "Metric") +
-    ggplot2::theme_light() +
-    ggplot2::ggtitle("All eval metrics over time") +
-    ggplot2::facet_wrap(~variable, scales = "free") +  # Create subplots for each group specified by the variable column
-    ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
-    ggplot2::geom_hline(ggplot2::aes(yintercept = variable_mean, color = variable), linetype = "dashed") + # Map color to variable
-    ggplot2::guides(color = ggplot2::guide_legend(title = "Metric")) +
-    ggplot2::geom_vline(xintercept = rebalance_dates, color = "blue", linetype = "dashed") +  # Add blue dashed lines at specific dates
-    ggplot2::geom_text(data = data.frame(x = rebalance_dates, y = -Inf, label = rebalance_dates),
-                       ggplot2::aes(x = x, y = y, label = label), vjust = -0.5, hjust = -0.5, size = 2, color = "black") +  # Display date labels below the plot
-    ggplot2::theme(legend.position = "bottom")
-
+    plots_list$all_eval_metrics_over_time <- plots_list$all_eval_metrics_over_time +
+      ggplot2::geom_hline(
+        data = summary_data,
+        ggplot2::aes(yintercept = variable_mean, color = variable),
+        linetype = "dashed",
+        show.legend = FALSE
+      )
 
     print(plots_list$all_eval_metrics_over_time)
 
+  } else if (plot_name == "Average Validation vs Consolidated OOS Testing Metrics") {
+    # PLOT 6: Compare Average Validation Metrics with Consolidated OOS Testing Metrics
 
+    # Check if both metrics are available
+    if (is.null(consolidated_oos_testing_metrics) || is.null(average_validation_metrics)) {
+      cat("Both consolidated OOS testing metrics and average validation metrics are required for this plot.\n")
+    } else {
+      # Add an id column to prevent the melt warning
+      consolidated_oos_testing_metrics$id <- "Consolidated"
+      average_validation_metrics$id <- "Average"
+
+      # Melt both data frames to long format with specified id.vars
+      consolidated_data <- reshape2::melt(
+        consolidated_oos_testing_metrics,
+        id.vars = "id",
+        variable.name = "Metric",
+        value.name = "OOS_Testing_Value"
+      )
+      consolidated_data$Metric <- gsub("^oos_testing_", "", consolidated_data$Metric)
+
+      average_data <- reshape2::melt(
+        average_validation_metrics,
+        id.vars = "id",
+        variable.name = "Metric",
+        value.name = "Average_Validation_Value"
+      )
+      average_data$Metric <- gsub("^validation_", "", average_data$Metric)
+
+      # Merge the two data frames on Metric
+      combined_data <- merge(
+        consolidated_data,
+        average_data,
+        by = "Metric",
+        all = TRUE
+      )
+
+      # Reshape to long format for plotting
+      plot_data <- combined_data %>%
+        tidyr::pivot_longer(
+          cols = c("OOS_Testing_Value", "Average_Validation_Value"),
+          names_to = "Type",
+          values_to = "Value"
+        )
+
+      # Replace Type names for clarity
+      plot_data$Type <- dplyr::case_when(
+        plot_data$Type == "OOS_Testing_Value" ~ "OOS Testing",
+        plot_data$Type == "Average_Validation_Value" ~ "Average Validation",
+        TRUE ~ plot_data$Type
+      )
+
+      # Create the combined plot
+      plots_list$comparison_avg_val_oos <- ggplot2::ggplot(
+        plot_data,
+        ggplot2::aes(x = Metric, y = Value, fill = Type)
+      ) +
+        ggplot2::geom_bar(
+          stat = "identity",
+          position = ggplot2::position_dodge(width = 0.8),
+          alpha = 0.8
+        ) +
+        ggplot2::labs(
+          title = "Average Validation vs Consolidated OOS Testing Metrics",
+          x = "Metric",
+          y = "Metric Value",
+          fill = "Metric Type"
+        ) +
+        ggplot2::scale_fill_manual(
+          values = extended_neon_palette[1:2]  # Assuming two types
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.title = ggplot2::element_text(
+            color = white,
+            size = 16,
+            face = "bold",
+            hjust = 0.5
+          ),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          legend.position = "bottom",  # Place legend below the plot
+          panel.grid.major = ggplot2::element_line(
+            color = faint_blue,
+            size = 0.2
+          ),
+          panel.grid.minor = ggplot2::element_line(
+            color = faint_blue,
+            size = 0.1
+          )
+        )
+
+      print(plots_list$comparison_avg_val_oos)
+    }
+  }
+
+
+  invisible(x)
 })
+
+
+
+
+
+#' @title Plot Method for ml_metabacktest_results Class
+#' @description Provides plotting capabilities for an `ml_metabacktest_results` object.
+#' Users can select which plot to display by specifying the `plot_id` parameter,
+#' either by name or by number.
+#'
+#' @param x An object of class `ml_metabacktest_results`.
+#' @param plot_id A character string or numeric value specifying which plot to display.
+#'   - By name: Options are:
+#'     - `"Consolidated OOS Testing Metrics"`
+#'     - `"Mean Validation Metrics"`
+#'     - `"Time Series OOS Testing Metrics"`
+#'     - `"Time Series Validation Metrics"`
+#'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
+#'   If `NULL` (default), the method lists available plots.
+#' @return Invisibly returns the input `x`.
+#' @importFrom methods setMethod
+#' @export
+setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
+
+  # List of available plots
+  available_plots <- c(
+    "Consolidated OOS Testing Metrics",
+    "Mean Validation Metrics",
+    "Time Series OOS Testing Metrics",
+    "Time Series Validation Metrics"
+  )
+
+  if (is.null(plot_id)) {
+    cat("\nAvailable plots to display:\n")
+    for (i in seq_along(available_plots)) {
+      cat(paste0(i, ": ", available_plots[i], "\n"))
+    }
+    cat("\nPlease specify the 'plot_id' parameter to display a plot.\n")
+    cat("You can select a plot either by name or by number.\n")
+    return(invisible(x))
+  }
+
+  # Determine if plot_id is numeric (index) or character (name)
+  if (is.numeric(plot_id)) {
+    if (plot_id >= 1 && plot_id <= length(available_plots)) {
+      plot_name <- available_plots[plot_id]
+    } else {
+      stop("Invalid plot number. Please select a number between 1 and ", length(available_plots), ".")
+    }
+  } else if (is.character(plot_id)) {
+    if (plot_id %in% available_plots) {
+      plot_name <- plot_id
+    } else {
+      stop("Invalid 'plot_id' specified. Available options are:\n",
+           paste(available_plots, collapse = ", "))
+    }
+  } else {
+    stop("'plot_id' must be either a string or a number corresponding to the plot.")
+  }
+
+  # Extract data from the object
+  consolidated_oos_testing_metrics <- x@consolidated_oos_testing_metrics
+  mean_validation_metrics <- x@mean_validation_metrics
+  time_series_oos_testing_metrics <- x@time_series_oos_testing_metrics
+  time_series_validation_metrics <- x@time_series_validation_metrics
+
+  # Define color palette and themes
+  # Use the same colors as in the inspiration code
+  neon_blue <- "#00BFFF"
+  neon_pink <- "#FF1493"
+  neon_yellow <- "#FFFF00"
+  neon_purple <- "#8A2BE2"
+  neon_orange <- "#FF4500"
+  neon_green <- "#39FF14"
+  blue_bg <- "#001f3f"
+  faint_blue <- "#003366"
+  light_gray <- "#B0B0B0"
+  black <- "#000000"
+  white <- "#FFFFFF"
+  neon_hot_pink <- "#FF69B4"   # Hot Pink
+  neon_lime_green <- "#32CD32" # Lime Green
+  neon_bright_orange <- "#FFA500" # Bright Orange
+
+  #Initialize plots list
+  plots_list <- list()
+
+  # Now, generate the selected plot
+  if (plot_name == "Consolidated OOS Testing Metrics") {
+    # Plot consolidated_oos_testing_metrics
+    # Assuming the data frame has columns: Algorithm, chosen_eval_metric, and various metrics
+
+    # Melt the data frame to long format
+    plot_data <- reshape2::melt(consolidated_oos_testing_metrics, id.vars = c("Algorithm", "chosen_eval_metric"))
+
+    # Modify variable names to remove prefixes if any
+    # Assuming variable names are clean
+
+    # Create the plot
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Algorithm, y = value, fill = Algorithm)) +
+      ggplot2::geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
+      ggplot2::facet_wrap(~variable, scales = "free_y") +
+      ggplot2::labs(title = "Consolidated Out-of-Sample Testing Metrics",
+                    x = "Algorithm",
+                    y = "Metric Value") +
+      ggplot2::scale_fill_manual(values = c(neon_blue, neon_green, neon_pink, neon_orange, neon_purple, neon_yellow)) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    print(p)
+
+  } else if (plot_name == "Mean Validation Metrics") {
+    # Plot mean_validation_metrics
+    # Similar to the above plot
+    # Melt the data frame to long format
+    plot_data <- reshape2::melt(mean_validation_metrics, id.vars = c("Algorithm", "chosen_eval_metric"))
+
+    plot_data <- na.omit(plot_data)
+
+    # Create the plot
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Algorithm, y = value, fill = Algorithm)) +
+      ggplot2::geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
+      ggplot2::facet_wrap(~variable, scales = "free_y") +
+      ggplot2::labs(title = "Mean Validation Metrics",
+                    x = "Algorithm",
+                    y = "Metric Value") +
+      ggplot2::scale_fill_manual(values = c(neon_blue, neon_green, neon_pink, neon_orange, neon_purple, neon_yellow)) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    print(p)
+
+  } else if (plot_name == "Time Series OOS Testing Metrics") {
+    # Plot time_series_oos_testing_metrics
+    # time_series_oos_testing_metrics is a list of data frames, one per metric
+
+    # For the time series plots, create a combined data frame
+    metric_names <- names(time_series_oos_testing_metrics)
+
+    # Combine data frames
+    plot_data_list <- lapply(seq_along(metric_names), function(i) {
+      metric_name <- metric_names[i]
+      df <- time_series_oos_testing_metrics[[i]]
+      df$Date <- as.Date(rownames(df))
+      df_long <- reshape2::melt(df, id.vars = "Date", variable.name = "Algorithm", value.name = "Value")
+      df_long$Metric <- metric_name
+      return(df_long)
+    })
+
+    plot_data <- do.call(rbind, plot_data_list)
+
+    # Create the plot similar to the user's example
+    extended_neon_palette <- c(neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
+                               neon_hot_pink, neon_lime_green, neon_bright_orange)
+
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Date, y = Value, color = Algorithm)) +
+      ggplot2::geom_line(alpha = 0.5) +
+      ggplot2::geom_point(size = 1.5) +
+      ggplot2::facet_wrap(~Metric, scales = "free_y") +
+      ggplot2::labs(x = "Date", y = "Metric Value") +
+      ggplot2::ggtitle("Time Series of OOS Testing Metrics") +
+      ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
+      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    print(p)
+
+  } else if (plot_name == "Time Series Validation Metrics") {
+    # Plot time_series_validation_metrics
+    # Similar to the above
+
+    if (length(time_series_validation_metrics) == 0) {
+      cat("No validation metrics available to plot.\n")
+      return(invisible(x))
+    }
+
+    # time_series_validation_metrics is a list of data frames, one per metric
+    # For each metric, plot the time series of the metric across algorithms
+
+    # Combine data frames
+    metric_names <- names(time_series_validation_metrics)
+
+    plot_data_list <- lapply(seq_along(metric_names), function(i) {
+      metric_name <- metric_names[i]
+      df <- time_series_validation_metrics[[i]]
+      df$Date <- as.Date(rownames(df))
+      df_long <- reshape2::melt(df, id.vars = "Date", variable.name = "Algorithm", value.name = "Value")
+      df_long$Metric <- metric_name
+      return(df_long)
+    })
+
+    plot_data <- do.call(rbind, plot_data_list)
+
+    # Create the plot
+    extended_neon_palette <- c(neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
+                               neon_hot_pink, neon_lime_green, neon_bright_orange)
+
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Date, y = Value, color = Algorithm)) +
+      ggplot2::geom_line(alpha = 0.5) +
+      ggplot2::geom_point(size = 1.5) +
+      ggplot2::facet_wrap(~Metric, scales = "free_y") +
+      ggplot2::labs(x = "Date", y = "Metric Value") +
+      ggplot2::ggtitle("Time Series of Validation Metrics") +
+      ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
+      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    print(p)
+  }
+
+  invisible(x)
+})
+

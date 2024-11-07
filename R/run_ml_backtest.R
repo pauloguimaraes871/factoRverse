@@ -7,8 +7,7 @@
 #' @param features_m_df A meta_dataframe containing features.
 #' @param target_m_df A meta_dataframe containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
 #' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.
-#' @param training_sample_size Number of observations to include in each training sample.
-#' @param rebalancing_months Months (numeric) when model should be rebalanced (refit).
+#' @param target_fwd_name Name of the target variable in `target_m_df`.
 #' @param config An object specifying the backtest configuration. Can be an `ml_backtest_config` or `ml_metabacktest_config` object.
 #' @param verbose Logical vector, indicating whether to print progress messages (default is TRUE).
 #' @param parallel Logical vector, indicating whether to run  hyperparameter tuning in parallel (default is TRUE).
@@ -49,7 +48,7 @@
 #' \code{\link{ml_backtest_config}}, \code{\link{ml_metabacktest_config}}
 #'
 #' @export
-setGeneric("run_ml_backtest", function(features_m_df, target_m_df, config, training_sample_size, rebalancing_months, verbose, parallel, ...) standardGeneric("run_ml_backtest"))
+setGeneric("run_ml_backtest", function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel, ...) standardGeneric("run_ml_backtest"))
 
 
 #' @describeIn run_ml_backtest Runs a backtest with a single configuration.
@@ -60,68 +59,109 @@ setGeneric("run_ml_backtest", function(features_m_df, target_m_df, config, train
 #' result <- run_ml_backtest(features_m_df, target_m_df, config, training_sample_size = 30, rebalacing_months = c(6,12), verbose = TRUE, parallel = TRUE)
 #' @export
 setMethod("run_ml_backtest",
-          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "ml_backtest_config",
-                    training_sample_size = "numeric", rebalancing_months = "numeric", verbose = "logical", parallel = "logical"),
+          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", target_fwd_name = "character",
+                    config = "ml_backtest_config",
+                    verbose = "ANY", parallel = "ANY"),
 
-          function(features_m_df, target_m_df, config, training_sample_size, rebalancing_months, verbose = TRUE, parallel = TRUE) {
+          function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel) {
+
+
+            #Assign default values for internal function
+            ###########################
+            split_method <- "expanding"
+            validation_sample_size <- 0
+            custom_objective <- "squared_error"
+            chosen_eval_metric <- NULL
+            huber_delta <- 1
+            quantile_tau <- 0.5
+            hyper_grid_domain_list <- NULL
+            tuning_method <- NULL
+            n_iter <- NULL
+            k_iter <- NULL
+            acq <- "ucb"
+            init_points <- NULL
+            early_stop <- NULL
+            keras_architecture_parameters <- NULL
+
+            ##Set missing values to TRUE
+            if(missing(verbose)){
+              verbose <- TRUE
+            }
+            if(missing(parallel)){
+              parallel <- TRUE
+            }
+
+            ###########################
 
             #Get data from S4 objects
-              ##features_m_df
-              features_m_df <- features_m_df@data #Get features_m_df
-              features_workflow <- features_m_df@workflow #Get workflow
+            ###########################
+            ##features_m_df
+            features_workflow <- features_m_df@workflow #Get workflow
+            features_m_df <- features_m_df@data #Get features_m_df
 
-              ##target_m_df
-              target_m_df <- target_m_df@data #Get target_m_df
-              target_workflow <- target_m_df@workflow #Get workflow
+            ##target_m_df
+            target_workflow <- target_m_df@workflow #Get workflow
+            target_m_df <- target_m_df@data #Get target_m_df
 
-              ##General Information
-              ml_algorithm <- config@ml_algorithm #Get ml_algorithm
-              target_fwd_name <- config@target_fwd_name #Get target_fwd_name
-              custom_objective <- config@custom_objective #Get custom_objective
-              keras_architecture_parameters <- if(ml_algorithm == "nn") as.list(config@keras_architecture_parameters) #Get keras_architecture_parameters
-              huber_delta <- config@huber_delta #Get huber_delta
-              quantile_tau <- config@quantile_tau #Get quantile_tau
 
-              ##Tuning Strategy
-              if(ml_algorithm != "ols"){
-                tuning_strategy <- config@tuning_strategy #Get tuning strategy
-                ###Get objects inside tuning strategy
-                tuning_method <- config@tuning_method #Get tuning method
-                split_method <- config@split_method #Get split method
-                validation_sample_size <- config@validation_sample_size #Get validation sample size
-                chosen_eval_metric <- config@chosen_eval_metric #Get chosen eval metric
-                hyper_grid_domain_list <- tuning_strategy@hyper_grid_domain@hyperparameter_list #Get hyper_grid_domain_list
-                early_stop <- tuning_strategy@early_stop #Get early_stop
+            ##Get general Information from config
+            ml_algorithm <- config@ml_algorithm #Get ml_algorithm
+            training_sample_size <- config@training_sample_size #Get training sample size
+            rebalancing_months <- config@rebalancing_months #Get rebalancing months
+            split_method <- config@split_method #Get split method
+            custom_objective <- config@custom_objective #Get custom_objective
+            keras_architecture_parameters <- if(ml_algorithm == "nn") as.list(config@keras_architecture_parameters) #Get keras_architecture_parameters
+            huber_delta <- config@huber_delta #Get huber_delta
+            quantile_tau <- config@quantile_tau #Get quantile_tau
 
-                ###Grid search
-                if(class(tuning_strategy) == "grid_search_strategy") stop("tuning_strategy should be of class grid_search_strategy when tuning_method is grid_search.")
+            ##Tuning Strategy
+            if(ml_algorithm != "ols"){
+              tuning_strategy <- config@tuning_strategy #Get tuning strategy
+              ###Get objects inside tuning strategy
+              tuning_method <- tuning_strategy@tuning_method #Get tuning method
+              validation_sample_size <- tuning_strategy@validation_sample_size #Get validation sample size
+              chosen_eval_metric <- tuning_strategy@chosen_eval_metric #Get chosen eval metric
+              hyper_grid_domain_list <- tuning_strategy@hyper_grid_domain@hyperparameter_list #Get hyper_grid_domain_list
+              early_stop <- tuning_strategy@early_stop #Get early_stop
 
-                ###Random search
-                if(tuning_method == "random_search"){
-                  if(class(tuning_strategy) == "random_search_strategy") stop("tuning_strategy should be of class random_search_strategy when tuning_method is random_search.")
-                  n_iter <- tuning_strategy@n_iter #Get n_iter
-                }
-
-                ###Bayesian Opt
-                if(tuning_method == "bayesian_opt"){
-                  if(class(tuning_strategy) == "bayesian_opt_strategy") stop("tuning_strategy should be of class bayesian_opt_strategy when tuning_method is bayesian_opt.")
-                  n_iter <- tuning_strategy@n_iter #Get n_iter
-                  acq <- tuning_strategy@acq #Get acq
-                  k_iter <- tuning_strategy@k_iter #Get k_iter
-                  init_points <- tuning_strategy@init_points #Get init_points
-                }
+              ###Random search
+              if(tuning_method == "random_search"){
+                n_iter <- tuning_strategy@n_iter #Get n_iter
               }
 
+              ###Bayesian Opt
+              if(tuning_method == "bayesian_opt"){
+                n_iter <- tuning_strategy@n_iter #Get n_iter
+                acq <- tuning_strategy@acq #Get acq
+                k_iter <- tuning_strategy@k_iter #Get k_iter
+                init_points <- tuning_strategy@init_points #Get init_points
+              }
+            }
+            ###########################
+
             #Run ML Backtest
-            ml_backtest_results <- run_ml_backtest(features_m_df = features_m_df, target_m_df = target_m_df, ml_algorithm = ml_algorithm,
-                                                   target_fwd_name = target_fwd_name, custom_objective = custom_objective,
-                                                   keras_architecture_parameters = keras_architecture_parameters, huber_delta = huber_delta,
-                                                   quantile_tau = quantile_tau, tuning_strategy = tuning_strategy, tuning_method = tuning_method,
-                                                   split_method = split_method, validation_sample_size = validation_sample_size,
-                                                   chosen_eval_metric = chosen_eval_metric, hyper_grid_domain_list = hyper_grid_domain_list,
-                                                   early_stop = early_stop, n_iter = n_iter, acq = acq, k_iter = k_iter, init_points = init_points,
-                                                   training_sample_size = training_sample_size, rebalancing_months = rebalancing_months, verbose = verbose,
-                                                   parallel = parallel)
+            ###########################
+            ml_backtest_results <- run_ml_backtest_internal(
+              features_m_df = features_m_df, target_m_df = target_m_df, ml_algorithm = ml_algorithm,
+              target_fwd_name = target_fwd_name, custom_objective = custom_objective,
+              keras_architecture_parameters = keras_architecture_parameters,
+              huber_delta = huber_delta, quantile_tau = quantile_tau,
+              tuning_method = tuning_method,
+              split_method = split_method, validation_sample_size = validation_sample_size,
+              chosen_eval_metric = chosen_eval_metric, hyper_grid_domain_list = hyper_grid_domain_list,
+              early_stop = early_stop, n_iter = n_iter, acq = acq, k_iter = k_iter, init_points = init_points,
+              training_sample_size = training_sample_size, rebalancing_months = rebalancing_months, verbose = verbose,
+              parallel = parallel
+            )
+            ###########################
+
+            #Adjust ML Backtest WF
+            ###########################
+
+            #Add workflows for target and features
+            ml_backtest_results@ml_backtest_workflow$target_workflow <- target_workflow
+            ml_backtest_results@ml_backtest_workflow$features_workflow <- features_workflow
+            ml_backtest_results@ml_backtest_workflow$call <- sys.call(-2)
 
             return(ml_backtest_results)
 
@@ -131,7 +171,11 @@ setMethod("run_ml_backtest",
 
 
 #' @describeIn run_ml_backtest Runs backtests with multiple configurations.
-#' @param config A `ml_metabacktest_config` object containing multiple configurations.
+#' @param config A `ml_metabacktest_config` object containing multiple individual configurations and a meta configuration.
+#' @param ensemble_method How to combine ensembles? Options are "equal_weight" or "optimal_weight".
+#' @param features_passthrough A character vector indicating which of the features from features_m_df are to be passed through to the meta learner. Should correspond to column names in `features_m_df`.
+#' Alternativelly, if 'all', all features are passed through. If 'none', no features are passed through.
+#' @param heuristic_ensemble_eval_metric The metric to use to combine ensembles in the heuristic benchmark. Options are "rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr" and "mb".
 #' @return A `ml_metabacktest_results` objects, one for each configuration.
 #' @examples
 #' # Assuming features_m_df and target_m_df are meta_dataframe objects
@@ -139,46 +183,65 @@ setMethod("run_ml_backtest",
 #' results_list <- run_ml_backtest(features_m_df, target_m_df, training_sample_size = 30, rebalacing_months = c(6,12), meta_config)
 #' @export
 setMethod("run_ml_backtest",
-          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "ml_metabacktest_config",
-                    training_sample_size = "numeric", rebalancing_months = "numeric", verbose = "logical", parallel = "logical"),
+          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", target_fwd_name = "character",
+                    config = "ml_metabacktest_config",
+                    verbose = "ANY", parallel = "ANY"),
 
-          function(features_m_df, target_m_df, config, training_sample_size, rebalancing_months, verbose = TRUE, parallel = TRUE) {
+          function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel,
+                   winsorize_predictions = TRUE, winsorization_probs = c(0.025, 0.975), normalize_predictions = TRUE,
+                   features_passthrough, heuristic_ensemble_eval_metric = "rmse") {
+
+            ##Initial Preparations
+            #######################
 
             #Get configs
-            ml_backtest_configs <- config@ml_backtest_configs
+            ml_backtest_configs <- config@base_ml_backtest_configs
+            names_ml_backtest_configs <- names(ml_backtest_configs)
+
+            ##Set missing values to TRUE
+            if(missing(verbose)){
+              verbose <- TRUE
+            }
+            if(missing(parallel)){
+              parallel <- TRUE
+            }
 
             #Print start
             if(verbose == TRUE){
-              tictoc::tic(msg = crayon::green("ML backtests finished"))
+              cat(crayon::green("Starting ML Metabacktesting\n"))
+              cat("Starting Base ML backtests:\n")
+              cat(paste("Number of configurations: ", length(ml_backtest_configs), "\n"))
+              cat(paste("Configuration names: ", paste(names(ml_backtest_configs), collapse = ", "), "\n"))
+              tictoc::tic(msg = crayon::green("Base ML backtests finished\n"))
             }
+            #######################
 
-            #Run run_ml_backtest_internal in parallel
+
+            #Run run_ml_backtest_internal
+            #######################
+
+            #In Parallel
             if(parallel){
-              ml_backtest_results_list <- furrr::future_pmap(ml_backtest_configs, #List of backtest configurations
-                                                             ~ run_ml_backtest( #Backtesting function
-                                                               ...,
-                                                               #Data
-                                                               features_m_df = features_m_df, target_m_df = target_m_df,
-                                                               #Training parameters
-                                                               training_sample_size = training_sample_size, rebalancing_months = rebalancing_months,
-                                                               #Misc
-                                                               verbose = verbose, parallel = parallel
-                                                             ),
-                                                             .options = furrr::furrr_options(seed = TRUE),
-                                                             .progress = verbose
+              ml_backtest_results_list <- furrr::future_map(ml_backtest_configs, #List of backtest configurations
+                                                            ~ run_ml_backtest( #Backtesting function
+                                                              ...,
+                                                              #Data
+                                                              features_m_df = features_m_df, target_m_df = target_m_df, target_fwd_name = target_fwd_name,
+                                                              #Misc
+                                                              verbose = FALSE, parallel = parallel
+                                                            ),
+                                                            .options = furrr::furrr_options(seed = TRUE),
+                                                            .progress = verbose
               )
 
             } else { #If not running in parallel
-              ml_backtest_results_list <- purrr::pmap(ml_backtest_configs,
-                                                      run_ml_backtest, #Backtesting function
 
-                                                      #Data
-                                                      features_m_df = features_m_df, target_m_df = target_m_df,
-                                                      #Training parameters
-                                                      training_sample_size = training_sample_size, rebalancing_months = rebalancing_months,
-                                                      #Misc
-                                                      verbose = verbose, parallel = parallel
-
+              ml_backtest_results_list <- purrr::map(ml_backtest_configs,
+                                                     run_ml_backtest, #Backtesting function
+                                                     #Data
+                                                     features_m_df = features_m_df, target_m_df = target_m_df, target_fwd_name = target_fwd_name,
+                                                     #Misc
+                                                     verbose = FALSE, parallel = parallel
               )
             }
 
@@ -186,14 +249,73 @@ setMethod("run_ml_backtest",
             if(verbose == TRUE){
               tictoc::toc()
             }
+            #######################
+
+            #Generate a oos_predictions_m_df and adapt target_m_df
+            #######################
+              #Create base object
+              names(ml_backtest_results_list) <- paste0(names(ml_backtest_results_list), "_backtest_results")
+              oos_predictions_m_df <- convert_oos_predictions_list_to_m_df(ml_backtest_results_list,
+                                                                           winsorize_predictions = winsorize_predictions, winsorization_probs = winsorization_probs, #Winsorization
+                                                                           normalize_predictions = normalize_predictions) #Normalization
+
+              #Add Pass-through features
+              if(features_passthrough == "none"){
+                #If none, do nothing
+                oos_predictions_and_features_m_df@data <- oos_predictions_m_df@data
+              } else {
+                if(features_passthrough == "all"){
+                  #If all, pass everything expect for tickers and dates
+                  oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data, dplyr::select(features_m_df@data, -tickers, -dates), by = "id")
+                } else {
+                  #If specific features, pass only those
+                  oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data, dplyr::select(features_m_df@data, dplyr::all_of(c("id", features_passthrough))), by = "id")
+                }
+              }
+
+              #adapt target_m_df
+              adapted_target_m_df <- target_m_df
+              adapted_target_m_df@data <- dplyr::filter(target_m_df@data, id %in% oos_predictions_m_df@data$id)
+
+            #######################
+            #run_ml_backtest with predictions_m_df
+              if(verbose == TRUE){
+                cat(crayon::green("Starting Meta ML backtesting\n"))
+                tictoc::tic(msg = crayon::green("Meta ML backtest finished\n"))
+              }
+
+              #Fit Meta Model
+              ml_metabacktest_results <- run_ml_backtest(
+                config = config@meta_ml_backtest_config, #Meta ML Configuration
+                features_m_df = oos_predictions_and_features_m_df, #Features are oos predictions for base models
+                target_m_df = adapted_target_m_df, #Target is the original target
+                target_fwd_name = target_fwd_name, #Target forward name
+                verbose = verbose,
+                parallel = parallel
+               )
+
+              #Displays how much time it took
+              if(verbose == TRUE){
+                tictoc::toc()
+              }
+
+            #######################
+            #Get ensemble benchmarks
+            ensemble_ml_backtest_results_list <-
+                create_heuristic_ensembles(ml_backtest_results_list,
+                                           ensemble_eval_metric = config@meta_ml_backtest_config@ml_backtest_workflow$chosen_eval_metric, #Extract chosen eval metric
+                                           huber_delta = mean(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$huber_delta), na.rm = TRUE),
+                                           quantile_tau = mean(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$quantile_tau), na.rm = TRUE)
+                                           )
 
             #Create Obj of list of ml_metabacktest_results
+            ml_metabacktest_results <- create_ml_metabacktest_results(meta_ml_backtest_results = ensemble_ml_backtest_results_list,
+                                                                      base_ml_backtest_results = ml_backtest_results_list
+                                                                      )
 
 
-
-
-
-          }
+            return(ml_metabacktest_results)
+       }
 )
 
 
@@ -210,7 +332,7 @@ setMethod("run_ml_backtest",
 #' @param target_m_df A meta dataframe or data frame containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
 #' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.
 #' @param training_sample_size Number of observations to include in each training sample.
-#' @param validation_sample_size Number of observations to include in each validation sample.
+#' @param validation_sample_size Number of observations to include in each validation sample. If provided a decimal, it will be considered as a percentage of the training sample size.
 #' @param rebalancing_months Months (numeric) when model should be rebalanced.
 #' @param target_fwd_name Name of the target variable in `target_m_df`.
 #' @param ml_algorithm Choice of ml_algorithm: ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
@@ -259,7 +381,6 @@ setMethod("run_ml_backtest",
 #' (current options are squared_error, absolute_error and (pseudo)-huber loss)
 #' @param early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
 #' @param chosen_eval_metric Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr", and "mb".
-#' @param show_plots Logical, indicating whether to plot results (default is TRUE).
 #' @param keras_architecture_parameters A named list containing parameters for configuring the Keras neural network architecture. It includes:
 #' \itemize{
 #'   \item \strong{units}: A numeric vector specifying the number of neurons in each layer.
@@ -315,11 +436,11 @@ run_ml_backtest_internal <- function(
   #Loss/Eval Functions and Related
   custom_objective = "squared_error", chosen_eval_metric = NULL, huber_delta = 1, quantile_tau = 0.5,
   #Hyperparameter tuning Inputs
-  hyper_grid_domain = NULL, tuning_method = NULL, n_iter = NULL, k_iter = NULL, acq = "ucb", init_points = NULL, early_stop = NULL,
+  hyper_grid_domain_list = NULL, tuning_method = NULL, n_iter = NULL, k_iter = NULL, acq = "ucb", init_points = NULL, early_stop = NULL,
   #Keras architecture Parameters
   keras_architecture_parameters = NULL,
   #Misc
-  show_plots = TRUE, verbose = FALSE, parallel = TRUE
+  verbose = FALSE, parallel = TRUE
 ){
 
   #Measure time to run and run gc
@@ -335,16 +456,19 @@ run_ml_backtest_internal <- function(
       validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, ml_algorithm = ml_algorithm,
       custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
       hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
-      init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, show_plots = show_plots,
+      init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
       verbose = verbose, parallel = parallel
     )
 
     ################
 
     #Initial Setup: Making some changes to metrics if needed and displaying initial setup
-    adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric,
-                                          custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta,
-                                          verbose = verbose)
+      ##Adjust custom obj and chosen eval metric
+      if(verbose) cat("=============================\n")
+      adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric,
+                                            custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta,
+                                            verbose = verbose)
+
 
     #Pass adjusted metrics
     custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -353,10 +477,12 @@ run_ml_backtest_internal <- function(
 
     #Prints for initial setup
     if(verbose == TRUE){
-      cat(crayon::green(paste(ml_algorithm, "chosen as predictive algorithm")))
+      cat(crayon::green(paste("Predictive ML algo:", ml_algorithm)))
       cat("\n")
-      print(paste(custom_objective, "chosen as custom objective"), quote = FALSE)
-      print(paste(chosen_eval_metric, "chosen as eval metric for tuning"), quote = FALSE)
+      cat(paste("Custom objective:", custom_objective, "\n"))
+      cat(paste("Eval Metric:", chosen_eval_metric, "\n"))
+      cat(paste("Training sample size:", training_sample_size, "\n"))
+      cat(paste("Validation sample size:", validation_sample_size, "\n"))
     } else {}
 
     ##################
@@ -378,7 +504,7 @@ run_ml_backtest_internal <- function(
 
     #Rebalancing Dates
     dates_testing_sample <- dates_m_vector[(training_sample_size + validation_sample_size):
-                                             (training_sample_size + validation_sample_size + testing_sample_size)] #These are dates inside testing sample
+                                           (training_sample_size + validation_sample_size + testing_sample_size)] #These are dates inside testing sample
 
     first_rebalance_date <- min(dates_testing_sample) #Get first rebalancing date
     rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
@@ -511,7 +637,7 @@ run_ml_backtest_internal <- function(
           #Hyper tune according to chosen tuning_method
           #Print
           if(verbose == TRUE){
-            cat(paste("Starting", tuning_method, "hyperparameter tuning at ", current_date))
+            cat(paste("Starting", tuning_method, "hyperparameter tuning at:", current_date))
             cat("\n")
           }
 
@@ -578,7 +704,7 @@ run_ml_backtest_internal <- function(
                                              #Hyperparameters
                                              alpha = optimal_hyper["alpha"],
                                              lambda.min.ratio = optimal_hyper["lambda.min.ratio"],
-                                             verbose = verbose
+                                             verbose = FALSE
                               ),
 
                               rf = ranger::ranger(paste(target_fwd_name,'~.'), data = janitor::clean_names(full_data_m_refit_clean), #Features and target
@@ -587,7 +713,7 @@ run_ml_backtest_internal <- function(
                                                   num.trees = optimal_hyper["num.trees"],
                                                   max.depth = optimal_hyper["max.depth"],
                                                   min.bucket = optimal_hyper["min.bucket"],
-                                                  verbose = verbose
+                                                  verbose = FALSE
                               ),
 
                               xgb = xgboost::xgb.train(data = xgboost::xgb.DMatrix(data = as.matrix(features_m_refit[,-c(1:3)]), #Features and target
@@ -608,7 +734,7 @@ run_ml_backtest_internal <- function(
                                                        } else {
                                                          c(optimal_hyper["best_iteration"])
                                                        },
-                                                       verbose = verbose
+                                                       verbose = FALSE
                               ),
 
                               nn = fit_keras_model(features_matrix_train_clean = features_m_refit[,-c(1:3)], #Feature
@@ -637,7 +763,7 @@ run_ml_backtest_internal <- function(
                                                    droprate = optimal_hyper["droprate"],
 
 
-                                                   verbose = verbose
+                                                   verbose = FALSE
                               )$model_nn #This is a wrapper for keras
         )
 
@@ -711,7 +837,12 @@ run_ml_backtest_internal <- function(
     names(result_list[[3]]) <- dates_testing_sample #Rename
 
     #OOS Testing Eval-metrics
-    result_list[[4]] <- oos_testing_eval_metrics
+      ##Create consolidated row
+      consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(oos_prediction_list), target = unlist(oos_y_list),
+                                                          huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
+      rownames(consolidated_eval_metrics) <- "consolidated"
+
+    result_list[[4]] <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
 
     #Model
     result_list[[5]] <- refit_ml_model
@@ -725,7 +856,11 @@ run_ml_backtest_internal <- function(
       result_list[[7]] <- hyper_choice_df
 
       #Validation eval-metrics
-      result_list[[8]] <- validation_eval_metrics_hyper_choice
+        ##Create average row
+        avg_validation_eval_metrics_hyper_choice <- as.data.frame(t(colMeans(validation_eval_metrics_hyper_choice)))
+        rownames(avg_validation_eval_metrics_hyper_choice) <- "average"
+
+      result_list[[8]] <- rbind(validation_eval_metrics_hyper_choice, avg_validation_eval_metrics_hyper_choice)
 
       #Fill names
       names(result_list) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
@@ -741,13 +876,16 @@ run_ml_backtest_internal <- function(
 
   #Print elapsed time
   print(elapsed_time)
+  if(verbose) cat("=============================\n")
 
 
-  #Metadata
-  result_list$metadata <- list(
+  #ml_backtest_workflow
+  result_list$ml_backtest_workflow <- list(
     #Algo
     ml_algorithm = ml_algorithm,
     custom_objective = custom_objective,
+    backtest_type = "base_learner",
+    config_name = as.character(substitute(config)),
     #Dates
     dates_covered = dates_m_vector,
     n_dates = length(dates_m_vector),
@@ -756,6 +894,7 @@ run_ml_backtest_internal <- function(
     testing_sample_size = testing_sample_size,
     dates_testing_sample = dates_testing_sample,
     first_rebalance_date = first_rebalance_date,
+    rebalancing_months = rebalancing_months,
     rebalance_dates = rebalance_dates,
     split_method = split_method,
     #Stocks
@@ -766,11 +905,11 @@ run_ml_backtest_internal <- function(
     #Target
     target_fwd_name = target_fwd_name,
     target_fwd = target_fwd,
-    target_workflow = target_workflow,
+    target_workflow = NULL,
     target_object = as.character(substitute(target_m_df)),
     #Features
     features = colnames(features_m_df[,-c(1:3)]),
-    features_workflow = features_workflow,
+    features_workflow = NULL,
     features_object = as.character(substitute(features_m_df)),
     #Tuning
     tuning_method = tuning_method,
@@ -786,7 +925,7 @@ run_ml_backtest_internal <- function(
     #Keras
     keras_architecture_parameters = keras_architecture_parameters,
     #Performance
-    completion_time = Sys.time(),
+    timestamps = c(initialization = Sys.time()),
     elapsed_time = elapsed_time,
     parallel = parallel,
     #Call
@@ -804,11 +943,9 @@ run_ml_backtest_internal <- function(
         chosen_eval_metric_validation = result_list$chosen_eval_metric_validation,
         best_hyperparameters = result_list$best_hyperparameters,
         validation_eval_metrics_hyper_choice = result_list$validation_eval_metrics_hyper_choice,
-        metadata = result_list$metadata
+        ml_backtest_workflow = result_list$ml_backtest_workflow
         )
 
-  #Plot
-  if(show_plots) plot(ml_backtest_results_object)
 
   #Return List
   return(ml_backtest_results_object)

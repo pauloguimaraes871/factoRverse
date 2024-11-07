@@ -17,7 +17,7 @@ Invisibly returns a \code{DT} table object. This function is called for its side
 \description{
 Produces an interactive table summarizing the counts of configurations by \code{ml_algorithm} and other parameters using the \code{DT} package.
 Neural networks (\code{nn}) are grouped by the number of hidden layers, resulting in rows like \code{nn_1}, \code{nn_2}, etc.
-The table supports horizontal scrolling with the first column frozen and includes visual enhancements using specified colors.
+The table supports horizontal and vertical scrolling with the first column frozen and includes visual enhancements using specified colors.
 Underscores in column headers are replaced with spaces.
 }
 \examples{

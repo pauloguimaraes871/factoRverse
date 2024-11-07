@@ -1,7 +1,7 @@
 #' Show Method for meta_dataframe Class
 #'
 #' This method displays a summary of the `meta_dataframe` object, including
-#' metadata information, number of signals, unique dates, unique tickers,
+#' ml_backtest_workflow information, number of signals, unique dates, unique tickers,
 #' total observations, and the first few rows of the data.
 #'
 #' @param object An instance of the `meta_dataframe` class.
@@ -11,19 +11,19 @@
 #' @export
 setMethod("show", "meta_dataframe", function(object) {
 
-  # Print a summary of the metadata
-  cat("Metadata:\n")
+  # Print a summary of the ml_backtest_workflow
+  cat("Meta Dataframe Summary:\n")
   cat("=================================\n")
   cat(" Signals:\n")
   print(object@signals)
   cat("  Number of signals:", ncol(object@data)-3, "\n")
-  cat(" Dates:\n")
+  cat(" \nDates:\n")
   print(unique(as.Date(object@data$dates)))
   cat("  Number of unique dates:", object@unique_dates, "\n")
-  cat(" Tickers:\n", unique(object@data$tickers), "\n")
+  cat(" \nTickers:\n", unique(object@data$tickers), "\n")
   cat("  Number of unique tickers:", object@unique_tickers, "\n")
-  cat("  Total Observations (n_obs):", object@n_obs, "\n")
-  cat("  Workflow:\n")
+  cat("\nTotal Observations (n_obs):", object@n_obs, "\n")
+  cat("  \nWorkflow:\n")
   if(length(object@workflow) == 0){
     cat("  No workflow set.\n")
   } else {
@@ -107,7 +107,6 @@ setMethod("show", "tuning_strategy", function(object) {
   cat("------------------------------\n")
   cat("Tuning Method: ", object@tuning_method, "\n")
   cat("Validation Sample Size: ", object@validation_sample_size, "\n")
-  cat("Split Method: ", object@split_method, "\n")
   cat("Evaluation Metric: ", object@chosen_eval_metric, "\n")
 
   if (!is.null(object@early_stop)) {
@@ -187,12 +186,12 @@ setMethod("show", "random_search_strategy", function(object) {
     for (name in names(object@hyper_grid_domain@hyperparameter_list)) {
       cat("  ", name, ":\n")
       hyperparam <- object@hyper_grid_domain@hyperparameter_list[[name]]
-          cat("    Distribution Choice:", hyperparam$distribution_choice, "\n")
-          if (hyperparam$distribution_choice == "constant") {
-            cat("    Value:", paste(hyperparam$value, collapse = ", "), "\n")
-          } else {
-            cat("    Parameters:", paste(names(hyperparam$pars), hyperparam$pars, sep = "=", collapse = ", "), "\n")
-          }
+      cat("    Distribution Choice:", hyperparam$distribution_choice, "\n")
+      if (hyperparam$distribution_choice == "constant") {
+        cat("    Value:", paste(hyperparam$value, collapse = ", "), "\n")
+      } else {
+        cat("    Parameters:", paste(names(hyperparam$pars), hyperparam$pars, sep = "=", collapse = ", "), "\n")
+      }
     }
   }
 
@@ -236,7 +235,7 @@ setMethod("show", "bayesian_opt_strategy", function(object) {
       cat("  ", name, ":\n")
       hyperparam <- object@hyper_grid_domain@hyperparameter_list[[name]]
       cat("    Bounds:", paste(hyperparam, collapse = ", "), "\n")
-   }
+    }
   }
 
 
@@ -278,84 +277,89 @@ setMethod("show", "ml_backtest_config", function(object) {
   cat("------------------------------\n")
   cat("Main Information:\n")
   cat("------------------------------\n")
-  cat("  ML Algorithm:", object@ml_algorithm, "\n")
-  cat("  Target Forward Name:", object@target_fwd_name, "\n")
+  cat("ML Algorithm:", object@ml_algorithm, "\n")
+  cat("Training Scheme:\n")
+  cat("  Training Sample Size:", object@training_sample_size, "\n")
+  cat("  Rebalancing Months:", paste(object@rebalancing_months, collapse = " "), "\n")
+  cat("  Split Method:", object@split_method, "\n")
+
   # Display Custom Objective Information
-  cat("  Objective Function:\n")
+  cat("Objective Function:\n")
 
-    cat("  Custom Objective:", object@custom_objective, "\n")
+  cat("  Custom Objective:", object@custom_objective, "\n")
 
 
-    # Display Miscellaneous Parameters
-    cat("  Function Parameters:")
-    cat("  Huber Delta:", object@huber_delta)
-    cat("  Quantile Tau:", object@quantile_tau, "\n")
+
+  # Display Miscellaneous Parameters
+  cat("  Function Parameters:")
+  cat("  Huber Delta:", object@huber_delta)
+  cat("  Quantile Tau:", object@quantile_tau, "\n")
 
   if(object@ml_algorithm != "ols"){
-  cat("------------------------------\n")
+    cat("------------------------------\n")
 
-  # Display Keras Architecture Parameters Information
-  if (object@ml_algorithm == "nn"){
-  if (is.null(object@keras_architecture_parameters)) {
-    cat("  No Keras architecture parameters set.\n\n")
-  } else {
-    cat("\n")
-    show(object@keras_architecture_parameters)
-  }
-  }
+    # Display Keras Architecture Parameters Information
+    if (object@ml_algorithm == "nn"){
+      if (is.null(object@keras_architecture_parameters)) {
+        cat("  No Keras architecture parameters set.\n\n")
+      } else {
+        cat("\n")
+        show(object@keras_architecture_parameters)
+      }
+    }
 
 
 
-  # Display Hyperparameter Tuning Information
-  if(is.null(object@tuning_strategy)){
-    cat("  No tuning strategy set.\n")
-  } else {
-    show(object@tuning_strategy)
+    # Display Hyperparameter Tuning Information
+    if(is.null(object@tuning_strategy)){
+      cat("  No tuning strategy set.\n")
+    } else {
+      show(object@tuning_strategy)
 
       ## Check hyperparameters validity based on ml_algorithm
       hyperparameters_names <- names(object@tuning_strategy@hyper_grid_domain@hyperparameter_list)
 
-          ### GLMNET
-          expected_hyperparameters_glmnet <- c("alpha", "lambda.min.ratio")
-          hyperparameters_missing <- expected_hyperparameters_glmnet[which(!expected_hyperparameters_glmnet %in% hyperparameters_names)]
-          if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "glmnet"){
-            cat("\n")
-            cat(paste("Hyperparameter(s) still not configured:\n"))
-            cat(paste(hyperparameters_missing, collapse = ", "))
-            cat("\n")
-          }
+      ### GLMNET
+      expected_hyperparameters_glmnet <- c("alpha", "lambda.min.ratio")
+      hyperparameters_missing <- expected_hyperparameters_glmnet[which(!expected_hyperparameters_glmnet %in% hyperparameters_names)]
+      if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "glmnet"){
+        cat("\n")
+        cat(paste("Hyperparameter(s) still not configured:\n"))
+        cat(paste(hyperparameters_missing, collapse = ", "))
+        cat("\n")
+      }
 
-          ### RF
-          expected_hyperparameters_rf <- c("mtry", "num.trees", "max.depth", "min.bucket")
-          hyperparameters_missing <- expected_hyperparameters_rf[which(!expected_hyperparameters_rf %in% hyperparameters_names)]
-          if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "rf"){
-            cat("\n")
-            cat(paste("Hyperparameter(s) still not configured:\n"))
-            cat(paste(hyperparameters_missing, collapse = ", "))
-            cat("\n")
-          }
+      ### RF
+      expected_hyperparameters_rf <- c("mtry", "num.trees", "max.depth", "min.bucket")
+      hyperparameters_missing <- expected_hyperparameters_rf[which(!expected_hyperparameters_rf %in% hyperparameters_names)]
+      if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "rf"){
+        cat("\n")
+        cat(paste("Hyperparameter(s) still not configured:\n"))
+        cat(paste(hyperparameters_missing, collapse = ", "))
+        cat("\n")
+      }
 
-          ### XGB
-          expected_hyperparameters_xgb <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
-          hyperparameters_missing <- expected_hyperparameters_xgb[which(!expected_hyperparameters_xgb %in% hyperparameters_names)]
-          if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "xgb"){
-            cat("\n")
-            cat(paste("Hyperparameter(s) still not configured:\n"))
-            cat(paste(hyperparameters_missing, collapse = ", "))
-            cat("\n")
-          }
+      ### XGB
+      expected_hyperparameters_xgb <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
+      hyperparameters_missing <- expected_hyperparameters_xgb[which(!expected_hyperparameters_xgb %in% hyperparameters_names)]
+      if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "xgb"){
+        cat("\n")
+        cat(paste("Hyperparameter(s) still not configured:\n"))
+        cat(paste(hyperparameters_missing, collapse = ", "))
+        cat("\n")
+      }
 
-          ### NN
-          expected_hyperparameters_nn <- c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs")
-          hyperparameters_missing <- expected_hyperparameters_nn[which(!expected_hyperparameters_nn %in% hyperparameters_names)]
-          if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "nn"){
-            cat("\n")
-            cat(paste("Hyperparameter(s) still not configured:\n"))
-            cat(paste(hyperparameters_missing, collapse = ", "))
-            cat("\n")
-          }
+      ### NN
+      expected_hyperparameters_nn <- c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs")
+      hyperparameters_missing <- expected_hyperparameters_nn[which(!expected_hyperparameters_nn %in% hyperparameters_names)]
+      if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "nn"){
+        cat("\n")
+        cat(paste("Hyperparameter(s) still not configured:\n"))
+        cat(paste(hyperparameters_missing, collapse = ", "))
+        cat("\n")
+      }
 
-  }
+    }
 
   }
 
@@ -377,42 +381,59 @@ setMethod("show", "ml_backtest_config", function(object) {
 #' @export
 setMethod("show", "ml_metabacktest_config",
           function(object) {
-            cat("ML metabacktest configuration\n")
-            cat("Target variable: ", unique(sapply(object@ml_backtest_configs, function(x) x@target_fwd_name)), "\n")
+            cat(crayon::yellow("ML Metabacktest configuration\n"))
             n_configs <- length(object@ml_backtest_configs)
             cat(sprintf("Number of backtest configurations: %d\n", n_configs))
             if (n_configs > 0) {
-              cat("\nBacktest Configuration details:\n")
+              cat(crayon::yellow("\nBacktest Configuration details:\n\n"))
+
+              # Define a color palette using crayon
+              colors <- list(
+                neon_cyan = crayon::cyan,
+                neon_pink = crayon::magenta,
+                neon_blue = crayon::blue,
+                neon_purple = crayon::make_style("#8A2BE2"),
+                neon_orange = crayon::red,
+                neon_green = crayon::green
+              )
+
+              # Loop through configurations
               for (i in seq_along(object@ml_backtest_configs)) {
                 config <- object@ml_backtest_configs[[i]]
-                cat(sprintf("Backtest Configuration %d:\n", i))
-                cat(paste("Environment object name:", names(object@ml_backtest_configs)[i], "\n"))
-                cat(sprintf("  ml_algorithm: %s", config@ml_algorithm))
+
+                # Use a color from the palette
+                color_func <- colors[[ (i - 1) %% length(colors) + 1 ]]
+
+                # Color the backtest configuration header
+                cat(color_func(sprintf("Backtest Configuration %d:\n", i)))
+                cat(paste("Object name:", names(object@ml_backtest_configs)[i], "\n"))
+                cat(sprintf("  ml_algorithm: %s\n", config@ml_algorithm))
+
                 # For neural networks, display number of layers
                 if (config@ml_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
                   n_layers <- length(config@keras_architecture_parameters@units)
                   cat(sprintf("  n_layers: %s\n", n_layers))
-                } else {
-                  cat("\n")
                 }
-                cat(sprintf("  custom_objective: %s\n", config@custom_objective))
 
+                cat(sprintf("  training_sample_size: %s\n", config@training_sample_size))
+                cat(sprintf("  rebalancing_months: %s\n", paste(config@rebalancing_months, collapse = " ")))
+                cat(sprintf("  custom_objective: %s\n", config@custom_objective))
+                cat(sprintf("  huber_delta: %s\n", config@huber_delta))
+                cat(sprintf("  quantile_tau: %s\n", config@quantile_tau))
 
                 if (!is.null(config@tuning_strategy)) {
-                  cat("  tuning_strategy:\n")
+                  cat("  Tuning_strategy:\n")
                   cat(sprintf("    tuning_method: %s\n", config@tuning_strategy@tuning_method))
+                  cat(sprintf("    validation_sample_size: %s\n", config@tuning_strategy@validation_sample_size))
                   cat(sprintf("    chosen_eval_metric: %s\n", config@tuning_strategy@chosen_eval_metric))
                 } else {
                   cat("  No tuning_strategy available\n")
                 }
-                # Add more fields from ml_backtest_config if needed
                 cat("\n")
               }
             }
             invisible(NULL)
           })
-
-
 
 #' Show Method for refit_ml_model Class
 #'
@@ -489,97 +510,191 @@ setMethod("show", "refit_ml_model", function(object) {
 #' @export
 setMethod("show", "ml_backtest_results", function(object) {
 
-  # Extract the metadata
-  metadata <- object@metadata
+  # Extract the ml_backtest_workflow
+  ml_backtest_workflow <- object@ml_backtest_workflow
 
-  # Create a neat display of the metadata
-  cat("ML Workflow Validation Results Metadata\n")
+  # Create a neat display of the ml_backtest_workflow
+  cat("ML Backtest Workflow Metadata\n")
   cat("=================================\n")
 
   # Display Algorithm Information
-  cat("\nAlgorithm Information:\n")
-  cat("  ML Algorithm:", metadata$ml_algorithm, "\n")
-  cat("  Custom Objective:", metadata$custom_objective, "\n")
+  cat("Algorithm Information:\n")
+  cat(" Config Name:", ml_backtest_workflow$config_name, "\n")
+  cat("  ML Algorithm:", ml_backtest_workflow$ml_algorithm, "\n")
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble")) cat("  Custom Objective:", ml_backtest_workflow$custom_objective, "\n")
+  cat("  Backtest Type:", ml_backtest_workflow$backtest_type, "\n")
+  if(ml_backtest_workflow$backtest_type == "meta_learner"){
+    cat("  Base-Learner Config Names:", ml_backtest_workflow$config_name_bl, "\n")
+    cat("  Base-Learner Algorithms:", ml_backtest_workflow$meta_learner_algorithm, "\n")
+  }
+  if(ml_backtest_workflow$ml_algorithm == "nn"){
+    # Display Keras Information
+    show(create_keras_architecture(
+      nn_optimizer = ml_backtest_workflow$keras_architecture_parameters$nn_optimizer,
+      units = ml_backtest_workflow$keras_architecture_parameters$units,
+      activation = ml_backtest_workflow$keras_architecture_parameters$activation,
+      batch_norm_option = ml_backtest_workflow$keras_architecture_parameters$batch_norm_option)
+    )
+  }
+
 
   cat("=================================\n")
 
   # Display Date Information
-  cat("\nDate Information:\n")
-  cat("  Dates Covered:", paste(metadata$dates_covered, collapse = ", "), "\n")
-  cat("  Number of Dates:", metadata$n_dates, "\n")
-  cat("  First Rebalance Date:", as.Date(metadata$first_rebalance_date), "\n")
-  cat("  Rebalance Dates:", paste(metadata$rebalance_dates, collapse = ", "), "\n")
-  cat("  Split Method:", metadata$split_method, "\n")
+  cat("Date Information:\n")
+  cat("  Dates Covered:", paste(ml_backtest_workflow$dates_covered, collapse = ", "), "\n")
+  cat("  Number of Dates:", ml_backtest_workflow$n_dates, "\n")
+  cat("  First Rebalance Date:", paste(ml_backtest_workflow$first_rebalance_date), "\n")
+  cat("  Rebalance Dates:", paste(ml_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble")) cat("  Split Method:", ml_backtest_workflow$split_method, "\n")
+
+  if(ml_backtest_workflow$backtest_type == "meta_learner"){
+    cat("-------------------------------\n")
+    cat("Base Learners Date Information:\n")
+    cat("  Dates Covered:", paste(as.Date(ml_backtest_workflow$dates_covered_bl), collapse = ", "), "\n")
+    cat("  Number of Dates:", ml_backtest_workflow$n_dates_bl, "\n")
+    cat("-------------------------------\n")
+  }
 
   cat("=================================\n")
 
   # Display Sample Sizes
-  cat("\nSample Sizes:\n")
-  cat("  Training Sample Size:", metadata$training_sample_size, "\n")
-  cat("  Validation Sample Size:", metadata$validation_sample_size, "\n")
-  cat("  Testing Sample Size:", metadata$testing_sample_size, "\n")
-  cat("  Dates in Testing Sample:", paste(metadata$dates_testing_sample, collapse = ", "), "\n")
+  cat("Sample Sizes:\n")
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble")) cat("  Training Sample Size:", ml_backtest_workflow$training_sample_size, "\n")
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("  Validation Sample Size:", ml_backtest_workflow$validation_sample_size, "\n")
+  cat("  Testing Sample Size:", ml_backtest_workflow$testing_sample_size, "\n")
+  cat("  Dates in Testing Sample:", paste(ml_backtest_workflow$dates_testing_sample, collapse = ", "), "\n")
+
+  if(ml_backtest_workflow$backtest_type == "meta_learner"){
+    cat("-------------------------------\n")
+    cat("Base Learners Sample Sizes:\n")
+    cat("  Training Sample Size:", ml_backtest_workflow$training_sample_size_bl, "\n")
+    cat("  Validation Sample Size:", ml_backtest_workflow$validation_sample_size_bl, "\n")
+    cat("  Testing Sample Size:", ml_backtest_workflow$testing_sample_size_bl, "\n")
+    cat("  Dates in Testing Sample:", paste(ml_backtest_workflow$dates_testing_sample_bl, collapse = ", "), "\n")
+    cat("-------------------------------\n")
+  }
 
   cat("=================================\n")
 
   # Display Stocks Information
-  cat("\nStocks Information:\n")
-  cat("  Number of Observations:", metadata$nobs, "\n")
-  cat("  Tickers:", paste(metadata$tickers, collapse = ", "), "\n")
-  cat("  Number of Stocks:", metadata$n_stocks, "\n")
+  cat("Stocks Information:\n")
+  cat("Number of Stocks:", ml_backtest_workflow$n_stocks, "\n")
+  cat("Number of Observations:", ml_backtest_workflow$nobs, "\n")
+  #cat("Tickers:", paste(ml_backtest_workflow$tickers, collapse = ", "), "\n")
 
   cat("=================================\n")
 
   # Display Target Information
-  cat("\nTarget Information:\n")
-  cat("  Forward Target Name:", metadata$target_fwd_name, "\n")
-  cat("  Target Forward:", metadata$target_fwd, "\n")
-  cat("  Target Workflow:", metadata$target_workflow, "\n")
-  cat("  Target Object:", metadata$target_object, "\n")
+  cat("Target Information:\n")
+  cat("  Forward Target Name:", ml_backtest_workflow$target_fwd_name, "\n")
+  cat("  Target Forward:", ml_backtest_workflow$target_fwd, "\n")
+  cat("  Target Workflow:\n")
+  print(ml_backtest_workflow$target_workflow)
+  cat("\n")
+  cat("  Target Object:", ml_backtest_workflow$target_object, "\n")
 
   cat("=================================\n")
 
   # Display Features Information
-  cat("\nFeatures Information:\n")
-  cat("  Features:", paste(metadata$features, collapse = ", "), "\n")
-  cat("  Features Workflow:", metadata$features_workflow, "\n")
-  cat("  Features Object:", metadata$features_object, "\n")
+  cat("Features Information:\n")
+  cat("Features:", paste(ml_backtest_workflow$features, collapse = ", "), "\n")
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
+    cat("  Features Workflow:\n")
+    print(ml_backtest_workflow$features_workflow)
+    cat("\n")
+  }
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("Features Object:", ml_backtest_workflow$features_object, "\n")
 
   cat("=================================\n")
 
   # Display Tuning Information
-  cat("\nTuning Information:\n")
-  cat("  Tuning Method:", metadata$tuning_method, "\n")
-  cat("  Number of Iterations:", metadata$n_iter, "\n")
-  cat("  Number of K-Folds:", metadata$k_iter, "\n")
-  cat("  Acquisition Function:", metadata$acq, "\n")
-  cat("  Initial Points:", metadata$init_points, "\n")
-  cat("  Hyperparameter Grid Domain List:", paste(names(metadata$hyper_grid_domain_list), collapse = ", "), "\n")
-  cat("  Chosen Evaluation Metric:", metadata$chosen_eval_metric, "\n")
-  cat("  Huber Delta:", metadata$huber_delta, "\n")
-  cat("  Quantile Tau:", metadata$quantile_tau, "\n")
-  cat("  Early Stop:", metadata$early_stop, "\n")
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
+    cat("Tuning Information:\n")
+    cat("  Tuning Method:", ml_backtest_workflow$tuning_method, "\n")
+    if(ml_backtest_workflow$tuning_method == "random_search" || ml_backtest_workflow$tuning_method == "bayesian_opt"){
+      cat("  Number of Iterations:", ml_backtest_workflow$n_iter, "\n")
+      if(ml_backtest_workflow$tuning_method == "bayesian_opt"){
+        cat("  Number of Samples of Eval Function:", ml_backtest_workflow$k_iter, "\n")
+        cat("  Acquisition Function:", ml_backtest_workflow$acq, "\n")
+        cat("  Number of Points to Init Process:", ml_backtest_workflow$init_points, "\n")
+      }
+    }
+    cat("  Hyperparameter Grid Domain List:", paste(names(ml_backtest_workflow$hyper_grid_domain_list), collapse = ", "), "\n")
+    cat("  Chosen Evaluation Metric:", ml_backtest_workflow$chosen_eval_metric, "\n")
+    cat("  Huber Delta:", ml_backtest_workflow$huber_delta, "\n")
+    cat("  Quantile Tau:", ml_backtest_workflow$quantile_tau, "\n")
+    cat("  Early Stop:", ml_backtest_workflow$early_stop, "\n")
 
-  cat("=================================\n")
+    cat("=================================\n")
+  }
 
-  # Display Keras Information
-  cat("\nKeras Architecture Parameters:\n")
-  print(metadata$keras_architecture_parameters)
-
-  cat("=================================\n")
 
   # Display Performance Information
-  cat("\nPerformance Information:\n")
-  cat("  Completion Time:", metadata$completion_time, "\n")
-  cat("  Elapsed Time:", metadata$elapsed_time, "seconds\n")
-  cat("  Parallel Processing:", metadata$parallel, "\n")
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
+  cat("Performance Information:\n")
+   cat("  Completion Time:", ml_backtest_workflow$completion_time, "\n")
+   cat("  Elapsed Time:", ml_backtest_workflow$elapsed_time, "seconds\n")
+   cat("  Parallel Processing:", ml_backtest_workflow$parallel, "\n")
+   cat("=================================\n")
+  }
 
   # Display Call Information
-  cat("\nCall:\n")
-  print(metadata$call)
+  cat("Call:\n")
+  cat("  Function Call:\n")
+  print(ml_backtest_workflow$call)
+  cat("\n")
+
+  cat("  Call Timestamp:\n")
+  print(ml_backtest_workflow$timestamps, quotes = FALSE)
+  cat("\n")
 
   cat("=========================================\n")
 })
+
+
+
+#' @title Show Method for ml_metabacktest_results Class
+#' @description Displays the contents of an `ml_metabacktest_results` object,
+#' including consolidated and time series evaluation metrics.
+#'
+#' @param object An object of class `ml_metabacktest_results`.
+#' @export
+setMethod("show", "ml_metabacktest_results", function(object) {
+  # Access the slots
+  consolidated_oos_testing_metrics <- object@consolidated_oos_testing_metrics
+  mean_validation_metrics <- object@mean_validation_metrics
+  time_series_oos_testing_metrics <- object@time_series_oos_testing_metrics
+  time_series_validation_metrics <- object@time_series_validation_metrics
+
+  # Print the consolidated metrics
+  cat("Consolidated Out-of-Sample Testing Evaluation Metrics:\n")
+  print(consolidated_oos_testing_metrics, row.names = FALSE)
+
+  cat("\nMean Validation Evaluation Metrics:\n")
+  print(mean_validation_metrics, row.names = FALSE)
+
+  # Optionally, print the time series metrics
+  cat("\nTime Series of Out-of-Sample Testing Evaluation Metrics:\n")
+  for (metric_name in names(time_series_oos_testing_metrics)) {
+    cat("\nMetric:", metric_name, "\n")
+    print(time_series_oos_testing_metrics[[metric_name]])
+  }
+
+  if (length(time_series_validation_metrics) > 0) {
+    cat("\nTime Series of Validation Evaluation Metrics:\n")
+    for (metric_name in names(time_series_validation_metrics)) {
+      cat("\nMetric:", metric_name, "\n")
+      print(time_series_validation_metrics[[metric_name]])
+    }
+  } else {
+    cat("\nNo Time Series Validation Evaluation Metrics available.\n")
+  }
+})
+
+
+
+
 #############################################
 
 #' @title Show Portfolio Policies
@@ -625,7 +740,7 @@ setMethod("show", "portfolio_policies", function(object) {
       cat("  Bayesian Adjustment Criteria\n")
       cat("  Priors Type:", object@signal_selection_policy$priors_type, "\n")
       if(object@signal_selection_policy$priors_type %in% c("all", "mean")){
-      cat("  Dataset Used to Inform Priors:", object@signal_selection_policy$priors_informative_data, "\n")
+        cat("  Dataset Used to Inform Priors:", object@signal_selection_policy$priors_informative_data, "\n")
       }
 
     }

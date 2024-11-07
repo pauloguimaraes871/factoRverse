@@ -14,6 +14,6 @@ The method returns the object invisibly.
 }
 \description{
 This method displays a summary of the \code{meta_dataframe} object, including
-metadata information, number of signals, unique dates, unique tickers,
+ml_backtest_workflow information, number of signals, unique dates, unique tickers,
 total observations, and the first few rows of the data.
 }

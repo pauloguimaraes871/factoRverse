@@ -10,13 +10,16 @@ The ml_backtest_config class is designed to define an end-to-end machine learnin
 \section{Slots}{
 
 \describe{
-\item{\code{target_fwd_name}}{Character string indicating the forward target variable's name. Should be in the format 'xxxxxx_ym' and should be included in
-\code{target_m_df}.}
-
 \item{\code{ml_algorithm}}{Character string specifying the machine learning algorithm to be used. Should be one of
 ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
 
 \item{\code{tuning_strategy}}{An object of class \code{tuning_strategy}, specifying the strategy for tuning hyperparameters.}
+
+\item{\code{training_sample_size}}{Number of observations to include in each training sample.}
+
+\item{\code{rebalancing_months}}{Months (numeric) when model should be rebalanced (refit).}
+
+\item{\code{split_method}}{Character string indicating the data splitting method ('expanding' or 'rolling').}
 
 \item{\code{custom_objective}}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
 Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.}

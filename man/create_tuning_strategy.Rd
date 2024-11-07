@@ -7,7 +7,6 @@
 create_tuning_strategy(
   tuning_method,
   validation_sample_size,
-  split_method = "expanding",
   chosen_eval_metric,
   hyper_grid_domain = NULL,
   early_stop = NULL,
@@ -21,8 +20,6 @@ create_tuning_strategy(
 \item{tuning_method}{Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.}
 
 \item{validation_sample_size}{Numeric value representing the size of the validation sample.}
-
-\item{split_method}{Character string indicating the split method for the data ('expanding' or 'rolling').}
 
 \item{chosen_eval_metric}{Character or NULL, specifying the evaluation metric to be optimized.}
 

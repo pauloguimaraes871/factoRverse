@@ -4,6 +4,7 @@
 \alias{get_tuning_strategy}
 \alias{get_tuning_strategy,ml_backtest_config-method}
 \alias{get_tuning_strategy,ml_metabacktest_config-method}
+\alias{get_tuning_strategy,ml_backtest_results-method}
 \title{Get Hyperparameter Tuning Strategy}
 \usage{
 get_tuning_strategy(object)
@@ -11,6 +12,8 @@ get_tuning_strategy(object)
 \S4method{get_tuning_strategy}{ml_backtest_config}(object)
 
 \S4method{get_tuning_strategy}{ml_metabacktest_config}(object)
+
+\S4method{get_tuning_strategy}{ml_backtest_results}(object)
 }
 \arguments{
 \item{object}{An ml_backtest_config object.}

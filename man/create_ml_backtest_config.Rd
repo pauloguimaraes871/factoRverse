@@ -5,9 +5,11 @@
 \title{Create ml_backtest_config Object}
 \usage{
 create_ml_backtest_config(
-  target_fwd_name,
   ml_algorithm = "ols",
   tuning_strategy = NULL,
+  training_sample_size,
+  rebalancing_months,
+  split_method = "expanding",
   custom_objective = "squared_error",
   keras_architecture_parameters = NULL,
   quantile_tau = 0.5,
@@ -15,11 +17,15 @@ create_ml_backtest_config(
 )
 }
 \arguments{
-\item{target_fwd_name}{Character string indicating the target variable's forward name.}
-
 \item{ml_algorithm}{Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').}
 
 \item{tuning_strategy}{An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.}
+
+\item{training_sample_size}{Number of observations to include in each training sample.}
+
+\item{rebalancing_months}{Months (numeric) when model should be rebalanced (refit).}
+
+\item{split_method}{Character string indicating the data splitting method ('expanding' or 'rolling').}
 
 \item{custom_objective}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.}
 

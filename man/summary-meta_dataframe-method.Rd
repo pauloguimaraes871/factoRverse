@@ -4,21 +4,29 @@
 \alias{summary,meta_dataframe-method}
 \title{Summary Method for meta_dataframe Class}
 \usage{
-\S4method{summary}{meta_dataframe}(object)
+\S4method{summary}{meta_dataframe}(object, summary_id = NULL)
 }
 \arguments{
 \item{object}{An instance of the \code{meta_dataframe} class.}
+
+\item{summary_id}{A character string or numeric value specifying which summary to display.
+\itemize{
+\item By name: Options are:
+\itemize{
+\item \code{"Numeric Summary Table"}
+\item \code{"Tickers Frequency Table"}
+\item \code{"Categorical Variables Plots"}
+}
+\item By number: Provide a number corresponding to the summary (as listed when \code{summary_id} is \code{NULL}).
+If \code{NULL} (default), the method lists available summaries.
+}}
 }
 \value{
-The method displays:
-\itemize{
-\item A summary table of numeric columns with specified formatting.
-\item A frequency table for the 'tickers' column.
-\item Plots for remaining categorical variables (excluding 'id' and 'tickers').
-}
+Invisibly returns the input \code{object}.
 }
 \description{
-This method provides a detailed summary of the \code{meta_dataframe} object,
-including tables summarizing numeric and categorical columns.
-The tables and plots are styled accordingly, using the specified colors.
+Provides a detailed summary of a \code{meta_dataframe} object.
+Users can select which summary to display by specifying the \code{summary_id} parameter,
+either by name or by number.
+The summary includes tables and plots styled accordingly.
 }

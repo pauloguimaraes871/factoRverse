@@ -15,12 +15,11 @@ add_tuning_strategy(object, tuning_strategy, ...)
   tuning_strategy = NULL,
   tuning_method,
   validation_sample_size,
-  split_method = "expanding",
-  chosen_eval_metric,
+  chosen_eval_metric = NULL,
   hyper_grid_domain = NULL,
   early_stop = NULL,
   n_iter = NULL,
-  acq = NULL,
+  acq = "ucb",
   init_points = NULL,
   k_iter = NULL
 )
@@ -35,8 +34,6 @@ add_tuning_strategy(object, tuning_strategy, ...)
 \item{tuning_method}{Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.}
 
 \item{validation_sample_size}{Numeric value representing the size of the validation sample.}
-
-\item{split_method}{Character string indicating the split method for the data. Options are 'expanding' or 'rolling'. Default is 'expanding'.}
 
 \item{chosen_eval_metric}{Character or \code{NULL}, specifying the evaluation metric to be optimized.}
 

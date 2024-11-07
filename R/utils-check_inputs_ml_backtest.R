@@ -88,6 +88,8 @@ check_inputs_ml_backtest <- function(
         stop("target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.")
       }
 
+
+
       if(all(!is.factor(target_m_df$dates),
              any(!lubridate::is.Date(target_m_df$dates)) ||
              any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
@@ -109,16 +111,16 @@ check_inputs_ml_backtest <- function(
         dplyr::pull(dates) %>%
         unique()
 
-      if(all(length(dates_allowed_to_be_NA_but_are_not_na) != 0, verbose)){
-        message("The following dates from features_m_df contemplate NA rows in target_m_df: ", paste(dates_allowed_to_be_NA_but_are_not_na, collapse = " "))
+      dates_allowed_to_be_NA_and_really_are_na <- as.Date(setdiff(dates_allowed_to_be_NA_in_target_m_df, dates_allowed_to_be_NA_but_are_not_na))
+
+      if(all(length(dates_allowed_to_be_NA_and_really_are_na) != 0, verbose)){
+        message("The following dates from features_m_df contemplate NA rows in target_m_df: ", paste(dates_allowed_to_be_NA_and_really_are_na, collapse = " "))
       }
 
 
 
 
   #Check structure between target_m_df and feature_m_df
-
-
       if(nrow(target_m_df) != nrow(features_m_df)){
         stop("features_m_df and target_m_df must possess same number of rows.")
       }
@@ -160,13 +162,26 @@ check_inputs_ml_backtest <- function(
       stop("training_sample_size should be numeric.")
     }
 
+      if((training_sample_size < 0)){
+        stop("training_sample_size should be positive.")
+      }
+
     if(!(is.numeric(validation_sample_size))){
       stop("validation_sample_size should be numeric.")
+    }
+
+    if((validation_sample_size < 0)){
+       stop("validation_sample_size should be positive.")
     }
 
     if(ml_algorithm == "ols" & validation_sample_size != 0){
       stop("ols do not support validation split.")
     } else {}
+
+    dates_m_vector <- unique(as.Date(features_m_df$dates, format = "%Y-%m-%d"))
+    if(length(dates_m_vector) < (training_sample_size + validation_sample_size)){
+      stop("training_sample_size + validation_sample_size should be less than the number of unique dates in features_m_df.")
+    }
 
   #Check structure of split_method
   if(split_method != "expanding"){

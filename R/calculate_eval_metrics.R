@@ -28,7 +28,7 @@
 #' calculate_eval_metrics(pred, target, chosen_eval_metric = "mphe", huber_delta = 1, quantile_tau = 0.5)
 #'
 #' @export
-calculate_eval_metrics <- function(pred, target, huber_delta, quantile_tau, chosen_eval_metric,
+calculate_eval_metrics <- function(pred, target, huber_delta = 1, quantile_tau = 0.5, chosen_eval_metric = "rmse",
                                    early_stop = NULL, best_iteration = NULL, return_error = FALSE
                                    ){
 

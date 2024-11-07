@@ -45,9 +45,6 @@ It combines all possible configurations between the configs and strategies by us
   tuning_strategies = missing
 )}: Create meta config from configs with tuning_strategy
 
-This method accepts one or multiple \code{ml_backtest_config} objects where \code{tuning_strategy} is already set (not \code{NULL}).
-The \code{tuning_strategy} slot should be missing or \code{NULL}.
-
 }}
 \examples{
 # Example usage:
@@ -70,11 +67,6 @@ meta_config <- create_ml_metabacktest_config(
 meta_config <- create_ml_metabacktest_config(
     configs = list(config1, config2),
     strategies = list(strategy1, strategy2)
-)
-
-# Assuming you have ml_backtest_config objects config3, config4 (with tuning_strategy not NULL)
-meta_config <- create_ml_metabacktest_config(
-    configs = list(config3, config4)
 )
 
 }

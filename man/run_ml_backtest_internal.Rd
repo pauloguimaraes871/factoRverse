@@ -17,7 +17,7 @@ run_ml_backtest_internal(
   chosen_eval_metric = NULL,
   huber_delta = 1,
   quantile_tau = 0.5,
-  hyper_grid_domain = NULL,
+  hyper_grid_domain_list = NULL,
   tuning_method = NULL,
   n_iter = NULL,
   k_iter = NULL,
@@ -25,7 +25,6 @@ run_ml_backtest_internal(
   init_points = NULL,
   early_stop = NULL,
   keras_architecture_parameters = NULL,
-  show_plots = TRUE,
   verbose = FALSE,
   parallel = TRUE
 )
@@ -40,7 +39,7 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
 
-\item{validation_sample_size}{Number of observations to include in each validation sample.}
+\item{validation_sample_size}{Number of observations to include in each validation sample. If provided a decimal, it will be considered as a percentage of the training sample size.}
 
 \item{rebalancing_months}{Months (numeric) when model should be rebalanced.}
 
@@ -56,18 +55,6 @@ XXXX is the name of the target variable, number is the amount of forward periods
 \item{huber_delta}{A single numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.}
 
 \item{quantile_tau}{A single numeric value indicating target quantile when calculating quantile loss.}
-
-\item{hyper_grid_domain}{A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
-\itemize{
-\item \strong{For grid search:} Must be a list of named vectors:
-\item \strong{For random search:} Must be a list of named lists, where each named list contains:
-\itemize{
-\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
-}
-\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
-}}
 
 \item{tuning_method}{Method for hyperparameter tuning: "random_search", "grid_search", or "bayesian_opt".}
 
@@ -95,11 +82,21 @@ If running in parallel, set iters.k to a multiple of the number of cores. Must b
 \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
 }}
 
-\item{show_plots}{Logical, indicating whether to plot results (default is TRUE).}
-
 \item{verbose}{Logical, indicating whether to print progress messages (default is TRUE).}
 
 \item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
+
+\item{hyper_grid_domain}{A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
+\itemize{
+\item \strong{For grid search:} Must be a list of named vectors:
+\item \strong{For random search:} Must be a list of named lists, where each named list contains:
+\itemize{
+\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
+\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
+\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+}
+\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+}}
 }
 \value{
 An object of class ml_backtest_results with various outputs including model predictions, errors, and validation metrics.

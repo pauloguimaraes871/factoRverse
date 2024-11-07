@@ -89,7 +89,7 @@ create_meta_dataframe <- function(data) {
 
   # Check for NA values in remaining columns and report them
   remaining_columns <- setdiff(names(data), required_columns)
-  na_remaining <- sapply(obj[, remaining_columns], function(col) any(is.na(col)))
+  na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
   if (any(duplicated(remaining_columns))) {
     stop("Column names for variables must be unique")
   }
@@ -115,7 +115,6 @@ create_meta_dataframe <- function(data) {
 #' @description A constructor function to create a tuning_strategy object, based on the specified tuning method.
 #' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
 #' @param validation_sample_size Numeric value representing the size of the validation sample.
-#' @param split_method Character string indicating the split method for the data ('expanding' or 'rolling').
 #' @param chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
 #' @param early_stop ANY, optional argument for halting criteria.
 #' @param n_iter Numeric, number of iterations for 'random_search' or 'bayesian_opt'.
@@ -124,8 +123,8 @@ create_meta_dataframe <- function(data) {
 #' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
 #' @return An object of class `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
 #' @export
-create_tuning_strategy <- function(tuning_method, validation_sample_size, split_method = "expanding", chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
-                                                  n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
+create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
+                                   n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
 
   # Check if hyper_grid_domain is provided; if not, create an empty one
   if(!tuning_method %in% c("grid_search", "random_search", "bayesian_opt")){
@@ -133,16 +132,7 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, split_
   }
   if (is.null(hyper_grid_domain)) {
     hyper_grid_domain <-  new("hyper_grid_domain", hyperparameter_list = list())
-  } else {
-    #If not null, check if it matches
-    if(hyper_grid_domain@tuning_method != tuning_method){
-      stop("tuning_method in hyper_grid_domain do not match function call")
-    }
-    if(hyper_grid_domain@ml_algorithm != ml_algorithm){
-      stop("ml_algorithm in hyper_grid_domain do not match function call")
-    }
   }
-
 
   # Check the value of tuning_method and create the appropriate subclass
   if (tuning_method == "grid_search") {
@@ -150,7 +140,6 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, split_
     return(new("grid_search_strategy",
                tuning_method = "grid_search",
                validation_sample_size = validation_sample_size,
-               split_method = split_method,
                chosen_eval_metric = chosen_eval_metric,
                hyper_grid_domain = hyper_grid_domain,
                early_stop = early_stop))
@@ -163,7 +152,6 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, split_
     return(new("random_search_strategy",
                tuning_method = "random_search",
                validation_sample_size = validation_sample_size,
-               split_method = split_method,
                chosen_eval_metric = chosen_eval_metric,
                hyper_grid_domain = hyper_grid_domain,
                early_stop = early_stop,
@@ -177,7 +165,6 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, split_
     return(new("bayesian_opt_strategy",
                tuning_method = "bayesian_opt",
                validation_sample_size = validation_sample_size,
-               split_method = split_method,
                chosen_eval_metric = chosen_eval_metric,
                hyper_grid_domain = hyper_grid_domain,
                early_stop = early_stop,
@@ -216,11 +203,23 @@ setGeneric("add_tuning_strategy", function(object, tuning_strategy, ...) {
 #' @export
 setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning_strategy = "tuning_strategy"),
           function(object, tuning_strategy) {
+
+            #Adjust validation sample size
+            if(tuning_strategy@validation_sample_size < 1){
+              tuning_strategy@validation_sample_size <- round(tuning_strategy@validation_sample_size * object@training_sample_size)
+            }
+
             if(object@ml_algorithm != "ols"){
               object@tuning_strategy <- tuning_strategy
             } else {
               stop("OLS does not require tuning.")
             }
+
+            #Give warning if validation_sample size is bigger than training sample size
+            if(tuning_strategy@validation_sample_size > object@training_sample_size){
+              message("Validation sample size is bigger than training sample size.")
+            }
+
             # Validate the object explicitly
             validObject(object)
 
@@ -237,7 +236,6 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
 #' @param tuning_strategy `NULL`, indicating that a new `tuning_strategy` should be created.
 #' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
 #' @param validation_sample_size Numeric value representing the size of the validation sample.
-#' @param split_method Character string indicating the split method for the data. Options are 'expanding' or 'rolling'. Default is 'expanding'.
 #' @param chosen_eval_metric Character or `NULL`, specifying the evaluation metric to be optimized.
 #' @param early_stop Optional, stopping criteria for early termination. Can be of any type.
 #' @param n_iter Numeric, number of iterations for 'random_search' or 'bayesian_opt'.
@@ -247,18 +245,41 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
 #' @return An updated `ml_backtest_config` object with a newly created `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
 #' @export
 setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning_strategy = "missing"),
-          function(object, tuning_strategy = NULL, tuning_method, validation_sample_size, split_method = "expanding", chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
-                   n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
+          function(object, tuning_strategy = NULL, tuning_method, validation_sample_size, chosen_eval_metric = NULL, hyper_grid_domain = NULL, early_stop = NULL,
+                   n_iter = NULL, acq = "ucb", init_points = NULL, k_iter = NULL) {
+
+            #Custom fill of chosen eval metric in case of null
+            if(is.null(chosen_eval_metric)){
+              chosen_eval_metric <- switch(object@custom_objective,
+                                           "pseudo_huber_error" = "mphe",
+                                           "quantile_error" = "quantile_loss",
+                                           "absolute_error" = "mae",
+                                           "rmse"
+              )
+              message(paste("chosen_eval_metric set to", chosen_eval_metric, "according to custom_objective.\n"))
+
+            }
+
+            #Adjust validation sample size if decimal
+            if(validation_sample_size < 1){
+              validation_sample_size <- round(validation_sample_size * object@training_sample_size)
+            }
+
+            #Give warning if validation_sample size is bigger than training sample size
+            if(validation_sample_size > object@training_sample_size){
+              message("Validation sample size is bigger than training sample size.")
+            }
 
             if(object@ml_algorithm != "ols"){
 
-            # Create a new tuning_strategy object
-            object@tuning_strategy <- create_tuning_strategy(tuning_method = tuning_method, validation_sample_size = validation_sample_size, split_method = split_method,
-                                                             chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
-                                                             init_points = init_points, k_iter = k_iter)
+              # Create a new tuning_strategy object
+              object@tuning_strategy <- create_tuning_strategy(tuning_method = tuning_method, validation_sample_size = validation_sample_size,
+                                                               chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
+                                                               init_points = init_points, k_iter = k_iter)
             } else {
               stop("OLS does not require tuning.")
             }
+
 
             # Validate the object explicitly
             validObject(object)
@@ -378,17 +399,14 @@ setMethod("add_hyperparameter",
             #Get names stored in new_hyperparameter_list
             hyperparameter <- names(new_hyperparameter_list)
 
-
-
-
             # Merge with existing hyperparameters in object
             if (length(object@hyperparameter_list) != 0) {
               old_hyperparameter_list <- object@hyperparameter_list
 
               #Take only those that have no substitute in new hyperparameters
               if(any(!names(old_hyperparameter_list) %in% hyperparameter)){
-              old_hyperparameter_list_disjoint <- old_hyperparameter_list[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Info
-              old_hyperparameter_list_disjoint_names <- names(old_hyperparameter_list)[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Names
+                old_hyperparameter_list_disjoint <- old_hyperparameter_list[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Info
+                old_hyperparameter_list_disjoint_names <- names(old_hyperparameter_list)[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Names
 
                 #Re-combine
                 for(hyper in old_hyperparameter_list_disjoint_names){
@@ -424,17 +442,17 @@ setMethod("add_hyperparameter",
           signature(object = "grid_search_strategy"),
           function(object, hyperparameter, grid, ...) {
 
-              if (!is.list(grid)) {
-                grid <- list(grid)
-              }
+            if (!is.list(grid)) {
+              grid <- list(grid)
+            }
 
-              if (!all(sapply(grid, function(x) is.numeric(x) && is.vector(x)))) {
-                stop("Grid should contain only numeric data.")
-              }
+            if (!all(sapply(grid, function(x) is.numeric(x) && is.vector(x)))) {
+              stop("Grid should contain only numeric data.")
+            }
 
-              if (length(hyperparameter) != length(grid)) {
-                stop("All hyperparameters should have a grid.")
-              }
+            if (length(hyperparameter) != length(grid)) {
+              stop("All hyperparameters should have a grid.")
+            }
 
             new_hyperparameter_list <- grid
             names(new_hyperparameter_list) <- hyperparameter
@@ -471,46 +489,46 @@ setMethod("add_hyperparameter",
           function(object, hyperparameter, distribution_choice, pars, ...) {
 
             # Logic for random_search
-              if (!is.list(distribution_choice)) {
-                distribution_choice <- as.list(distribution_choice) #As list
+            if (!is.list(distribution_choice)) {
+              distribution_choice <- as.list(distribution_choice) #As list
+            }
+            if (!is.list(pars)) {
+              pars <- list(pars) #list
+            }
+
+            if (length(hyperparameter) != length(distribution_choice) || length(hyperparameter) != length(pars)) {
+              stop("All hyperparameters should have matching distribution_choice and pars.")
+            }
+
+            valid_distributions <- c("uniform", "normal", "lognormal", "constant")
+            if (!all(distribution_choice %in% valid_distributions)) {
+              stop("Invalid distribution_choice. Choose from 'uniform', 'normal', 'lognormal', or 'constant'.")
+            }
+
+            for (i in seq_along(distribution_choice)) {
+              dist <- distribution_choice[[i]]
+              param <- pars[[i]]
+
+              if (dist == "uniform" && (!all(c("min", "max") %in% names(param)))) {
+                stop("For 'uniform', pars must contain 'min' and 'max'.")
               }
-              if (!is.list(pars)) {
-                pars <- list(pars) #list
+              if (dist == "normal" && (!all(c("mean", "sd") %in% names(param)))) {
+                stop("For 'normal', pars must contain 'mean' and 'sd'.")
               }
-
-              if (length(hyperparameter) != length(distribution_choice) || length(hyperparameter) != length(pars)) {
-                stop("All hyperparameters should have matching distribution_choice and pars.")
+              if (dist == "lognormal" && (!all(c("meanlog", "sdlog") %in% names(param)))) {
+                stop("For 'lognormal', pars must contain 'meanlog' and 'sdlog'.")
               }
+            }
 
-              valid_distributions <- c("uniform", "normal", "lognormal", "constant")
-              if (!all(distribution_choice %in% valid_distributions)) {
-                stop("Invalid distribution_choice. Choose from 'uniform', 'normal', 'lognormal', or 'constant'.")
+            new_hyperparameter_list <- mapply(function(hp, dist, param) {
+              if (dist == "constant") {
+                list(distribution_choice = dist, value = unname(param))
+              } else {
+                list(distribution_choice = dist, pars = param)
               }
+            }, hyperparameter, distribution_choice, pars, SIMPLIFY = FALSE)
 
-              for (i in seq_along(distribution_choice)) {
-                dist <- distribution_choice[[i]]
-                param <- pars[[i]]
-
-                if (dist == "uniform" && (!all(c("min", "max") %in% names(param)))) {
-                  stop("For 'uniform', pars must contain 'min' and 'max'.")
-                }
-                if (dist == "normal" && (!all(c("mean", "sd") %in% names(param)))) {
-                  stop("For 'normal', pars must contain 'mean' and 'sd'.")
-                }
-                if (dist == "lognormal" && (!all(c("meanlog", "sdlog") %in% names(param)))) {
-                  stop("For 'lognormal', pars must contain 'meanlog' and 'sdlog'.")
-                }
-              }
-
-              new_hyperparameter_list <- mapply(function(hp, dist, param) {
-                if (dist == "constant") {
-                  list(distribution_choice = dist, value = unname(param))
-                } else {
-                  list(distribution_choice = dist, pars = param)
-                }
-              }, hyperparameter, distribution_choice, pars, SIMPLIFY = FALSE)
-
-              names(new_hyperparameter_list) <- hyperparameter
+            names(new_hyperparameter_list) <- hyperparameter
 
 
             #Extract the current object
@@ -545,20 +563,20 @@ setMethod("add_hyperparameter",
 
 
             # Logic for bayesian_opt
-              if (!is.list(bounds)) {
-                bounds <- list(bounds)
-              }
+            if (!is.list(bounds)) {
+              bounds <- list(bounds)
+            }
 
-              if (!all(sapply(bounds, function(x) is.numeric(x) && length(x) == 2))) {
-                stop("Each hyperparameter must have a bounds vector of length 2 (min and max).")
-              }
+            if (!all(sapply(bounds, function(x) is.numeric(x) && length(x) == 2))) {
+              stop("Each hyperparameter must have a bounds vector of length 2 (min and max).")
+            }
 
-              if (length(hyperparameter) != length(bounds)) {
-                stop("All hyperparameters should have corresponding bounds.")
-              }
+            if (length(hyperparameter) != length(bounds)) {
+              stop("All hyperparameters should have corresponding bounds.")
+            }
 
-              new_hyperparameter_list <- bounds
-              names(new_hyperparameter_list) <- hyperparameter
+            new_hyperparameter_list <- bounds
+            names(new_hyperparameter_list) <- hyperparameter
 
 
 
@@ -687,15 +705,15 @@ create_keras_architecture <- function(nn_optimizer, units = NULL, activation = N
     stop("batch_norm_option should be a logical value.")
   }
 
- #Create new_keras_architecture
+  #Create new_keras_architecture
   new_keras_architecture_parameters <-
-  new("keras_architecture_parameters",
-      units = units,
-      n_layers = length(units),
-      activation = activation,
-      nn_optimizer = nn_optimizer,
-      batch_norm_option = batch_norm_option
-  )
+    new("keras_architecture_parameters",
+        units = units,
+        n_layers = length(units),
+        activation = activation,
+        nn_optimizer = nn_optimizer,
+        batch_norm_option = batch_norm_option
+    )
 
 
   return(new_keras_architecture_parameters)
@@ -865,8 +883,10 @@ setMethod(
 #' @title Create ml_backtest_config Object
 #' @description Constructs an ml_backtest_config object.
 #'
-#' @param target_fwd_name Character string indicating the target variable's forward name.
 #' @param ml_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').
+#' @param training_sample_size Number of observations to include in each training sample.
+#' @param rebalancing_months Months (numeric) when model should be rebalanced (refit).
+#' @param split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @param tuning_strategy An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.
 #' @param custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
 #' @param keras_architecture_parameters List or NULL, providing parameters specific to keras-based neural networks.
@@ -875,12 +895,23 @@ setMethod(
 #'
 #' @return An ml_backtest_config object.
 #' @export
-create_ml_backtest_config <- function(target_fwd_name, ml_algorithm = "ols", tuning_strategy = NULL,
+create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
                                       custom_objective = "squared_error", keras_architecture_parameters = NULL, quantile_tau = 0.5, huber_delta = 1) {
+
+  ##Give custom warning related to quantile tau and huber delta
+  if (!is.null(quantile_tau) && quantile_tau != 0.5) {
+    message("changing quantile_tau impacts both chosen_eval_metric and custom_objective.")
+  }
+  if (!is.null(huber_delta) && huber_delta != 1) {
+    message("changing huber_delta impacts both chosen_eval_metric and custom_objective. ")
+  }
+
   # Create the ml_backtest_config object
   new("ml_backtest_config",
-      target_fwd_name = target_fwd_name,
       ml_algorithm = ml_algorithm,
+      training_sample_size = training_sample_size,
+      rebalancing_months = rebalancing_months,
+      split_method = split_method,
       tuning_strategy = tuning_strategy,
       custom_objective = custom_objective,
       keras_architecture_parameters = keras_architecture_parameters,
@@ -1114,6 +1145,315 @@ setMethod("remove_ml_backtest_config", "ml_metabacktest_config", function(object
   # Return the updated object
   return(object)
 })
+
+
+#' @title Create an ml_metabacktest_results Object
+#' @description Constructs an `ml_metabacktest_results` object from a list of `ml_backtest_results` objects.
+#' It computes consolidated and time series evaluation metrics for machine learning models.
+#'
+#' @param ml_backtest_results_list A named list of `ml_backtest_results` objects.
+#' @return An object of class `ml_metabacktest_results` containing the input `ml_backtest_results` and computed metrics.
+#' @examples
+#' \dontrun{
+#' # Assuming you have ml_backtest_results_list
+#' metabacktest_results <- create_ml_metabacktest_results(ml_backtest_results_list)
+#' }
+#' @export
+setGeneric(
+  name = "create_ml_metabacktest_results",
+  def = function(ml_backtest_results_list) {
+    standardGeneric("create_ml_metabacktest_results")
+  }
+)
+
+#' @title Create an ml_metabacktest_results Object
+#' @description Constructs an `ml_metabacktest_results` object from a list of `ml_backtest_results` objects.
+#' It computes consolidated and time series evaluation metrics for machine learning models.
+#'
+#' @param ml_backtest_results_list A named list of `ml_backtest_results` objects.
+#' @return An object of class `ml_metabacktest_results` containing the input `ml_backtest_results` and computed metrics.
+#' @examples
+#' \dontrun{
+#' # Assuming you have ml_backtest_results_list
+#' metabacktest_results <- create_ml_metabacktest_results(ml_backtest_results_list)
+#' }
+#' @export
+setGeneric(
+  name = "create_ml_metabacktest_results",
+  def = function(ml_backtest_results_list) {
+    standardGeneric("create_ml_metabacktest_results")
+  }
+)
+
+#' @rdname create_ml_metabacktest_results
+#' @aliases create_ml_metabacktest_results,list-method
+setMethod(
+  f = "create_ml_metabacktest_results",
+  signature = signature(ml_backtest_results_list = "list"),
+  definition = function(ml_backtest_results_list) {
+
+    # Check that the input is a list of 'ml_backtest_results' objects
+    if (!all(sapply(ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
+      stop("All elements in 'ml_backtest_results_list' must be of class 'ml_backtest_results'")
+    }
+
+    # Get the names of the list elements
+    ml_names <- names(ml_backtest_results_list)
+    if (is.null(ml_names)) {
+      ml_names <- paste0("Model_", seq_along(ml_backtest_results_list))
+      names(ml_backtest_results_list) <- ml_names
+    }
+
+    # Initialize lists to collect metrics
+    oos_metrics_list <- list()
+    validation_metrics_list <- list()
+
+    # For time series metrics
+    all_oos_metrics_long_df <- data.frame()
+    all_validation_metrics_long_df <- data.frame()
+
+    # Collect metric names
+    oos_metric_names <- NULL
+    validation_metric_names <- NULL
+
+    for (i in seq_along(ml_backtest_results_list)) {
+      ml_backtest_result <- ml_backtest_results_list[[i]]
+      ml_name <- ml_names[i]  # Use the name of the list element
+      chosen_eval_metric <- ml_backtest_result@ml_backtest_workflow$chosen_eval_metric
+
+      ## Out-of-Sample Testing Evaluation Metrics ##
+      oos_testing_eval_metrics <- ml_backtest_result@oos_testing_eval_metrics
+
+      # Exclude 'consolidated' row for time series data
+      oos_metrics_time_series <- oos_testing_eval_metrics[rownames(oos_testing_eval_metrics) != "consolidated", , drop = FALSE]
+
+      # Add Date and Algorithm columns for time series data
+      oos_metrics_time_series$Date <- rownames(oos_metrics_time_series)
+      oos_metrics_time_series$Algorithm <- ml_name  # Use ml_name instead of ml_algorithm
+
+      # Reshape to long format for time series data
+      oos_metrics_long <- as.data.frame(tidyr::pivot_longer(
+        oos_metrics_time_series,  # Convert to data frame
+        cols = -c(Date, Algorithm),
+        names_to = "Metric",
+        values_to = "Value"
+      ))
+
+      # Combine with the main data frame
+      all_oos_metrics_long_df <- rbind(all_oos_metrics_long_df, oos_metrics_long)
+
+      # Get 'consolidated' row for consolidated metrics
+      oos_metrics <- oos_testing_eval_metrics["consolidated", , drop = FALSE]
+
+      # Combine ml_name, chosen_eval_metric, and oos_metrics using cbind
+      oos_metrics_df <- cbind(
+        data.frame(
+          Algorithm = ml_name,
+          chosen_eval_metric = chosen_eval_metric,
+          check.names = FALSE,
+          stringsAsFactors = FALSE
+        ),
+        as.data.frame(oos_metrics)  # Ensure it's a data frame
+      )
+
+      # Remove row names from consolidated metrics
+      rownames(oos_metrics_df) <- NULL
+
+      # Collect metric names
+      oos_metric_names <- unique(c(oos_metric_names, names(oos_metrics_df)))
+
+      # Append to the list
+      oos_metrics_list[[i]] <- oos_metrics_df
+
+      ## Validation Evaluation Metrics (if available) ##
+      validation_metrics <- ml_backtest_result@validation_eval_metrics_hyper_choice
+
+      if (!is.null(validation_metrics) && nrow(validation_metrics) > 0) {
+        # Exclude 'average' row for time series data
+        validation_metrics_time_series <- validation_metrics[rownames(validation_metrics) != "average", , drop = FALSE]
+
+        # Add Date and Algorithm columns for time series data
+        validation_metrics_time_series$Date <- rownames(validation_metrics_time_series)
+        validation_metrics_time_series$Algorithm <- ml_name
+
+        # Reshape to long format
+        validation_metrics_long <- as.data.frame(tidyr::pivot_longer(
+          validation_metrics_time_series,  # Convert to data frame
+          cols = -c(Date, Algorithm),
+          names_to = "Metric",
+          values_to = "Value"
+        ))
+
+        # Combine with the main data frame
+        all_validation_metrics_long_df <- rbind(all_validation_metrics_long_df, validation_metrics_long)
+
+        # Get 'average' row for consolidated validation metrics
+        if ("average" %in% rownames(validation_metrics)) {
+          validation_metrics_average <- validation_metrics["average", , drop = FALSE]
+        } else {
+          # Compute mean across rows if 'average' row is not present
+          validation_metrics_average <- as.data.frame(t(colMeans(validation_metrics, na.rm = TRUE)))
+        }
+
+        # Combine ml_name, chosen_eval_metric, and validation_metrics_average using cbind
+        validation_metrics_df <- cbind(
+          data.frame(
+            Algorithm = ml_name,
+            chosen_eval_metric = chosen_eval_metric,
+            check.names = FALSE,
+            stringsAsFactors = FALSE
+          ),
+          as.data.frame(validation_metrics_average)  # Ensure it's a data frame
+        )
+
+        # Remove row names from consolidated metrics
+        rownames(validation_metrics_df) <- NULL
+
+        # Collect validation metric names
+        validation_metric_names <- unique(c(validation_metric_names, names(validation_metrics_df)))
+
+        # Append to the list
+        validation_metrics_list[[i]] <- validation_metrics_df
+      } else {
+        # No validation metrics available
+        # Create a data.frame with NAs for validation metrics
+        na_metrics <- data.frame(
+          Algorithm = ml_name,
+          chosen_eval_metric = chosen_eval_metric,
+          check.names = FALSE,
+          stringsAsFactors = FALSE
+        )
+        # Collect validation metric names (if any)
+        validation_metric_names <- unique(c(validation_metric_names, names(na_metrics)))
+
+        # Append to the list
+        validation_metrics_list[[i]] <- na_metrics
+      }
+    }
+
+    # Ensure all data frames have same columns in oos_metrics_list
+    for (i in seq_along(oos_metrics_list)) {
+      missing_cols <- setdiff(oos_metric_names, names(oos_metrics_list[[i]]))
+      if (length(missing_cols) > 0) {
+        oos_metrics_list[[i]][, missing_cols] <- NA
+      }
+      # Reorder columns
+      oos_metrics_list[[i]] <- oos_metrics_list[[i]][, oos_metric_names]
+    }
+
+    # Similarly for validation_metrics_list
+    for (i in seq_along(validation_metrics_list)) {
+      missing_cols <- setdiff(validation_metric_names, names(validation_metrics_list[[i]]))
+      if (length(missing_cols) > 0) {
+        validation_metrics_list[[i]][, missing_cols] <- NA
+      }
+      # Reorder columns
+      validation_metrics_list[[i]] <- validation_metrics_list[[i]][, validation_metric_names]
+    }
+
+    # Combine lists into data.frames
+    consolidated_oos_testing_metrics <- do.call(rbind, oos_metrics_list)
+    mean_validation_metrics <- do.call(rbind, validation_metrics_list)
+
+    # Remove row names from consolidated metrics data frames
+    rownames(consolidated_oos_testing_metrics) <- NULL
+    rownames(mean_validation_metrics) <- NULL
+
+    # Replace NaN with NA for clarity
+    consolidated_oos_testing_metrics[is.nan(as.matrix(consolidated_oos_testing_metrics))] <- NA
+    mean_validation_metrics[is.nan(as.matrix(mean_validation_metrics))] <- NA
+
+    # Convert appropriate columns to numeric
+    num_cols_oos <- sapply(consolidated_oos_testing_metrics, is.numeric)
+    consolidated_oos_testing_metrics[, num_cols_oos] <- lapply(consolidated_oos_testing_metrics[, num_cols_oos], as.numeric)
+
+    num_cols_val <- sapply(mean_validation_metrics, is.numeric)
+    mean_validation_metrics[, num_cols_val] <- lapply(mean_validation_metrics[, num_cols_val], as.numeric)
+
+    # Create time series data for each metric
+    time_series_oos_testing_metrics <- list()
+
+    # Extract unique metric names from the long data frame
+    time_series_metric_names <- unique(all_oos_metrics_long_df$Metric)
+
+    for (metric in time_series_metric_names) {
+      # Subset the data for the metric
+      metric_df <- subset(all_oos_metrics_long_df, Metric == metric)
+
+      # Reshape to wide format
+      metric_wide_df <- as.data.frame(tidyr::pivot_wider(
+        metric_df,
+        id_cols = Date,
+        names_from = Algorithm,
+        values_from = Value
+      ))
+
+      # Arrange by Date
+      metric_wide_df <- metric_wide_df[order(as.Date(metric_wide_df$Date)), ]
+
+      # Set rownames to Date
+      rownames(metric_wide_df) <- metric_wide_df$Date
+      metric_wide_df$Date <- NULL
+
+      # Convert to data frame
+      metric_wide_df <- as.data.frame(metric_wide_df)
+
+      # Add to the list
+      time_series_oos_testing_metrics[[metric]] <- metric_wide_df
+    }
+
+    # Similarly for validation metrics time series
+    time_series_validation_metrics <- list()
+
+    if (nrow(all_validation_metrics_long_df) > 0) {
+      validation_time_series_metric_names <- unique(all_validation_metrics_long_df$Metric)
+
+      for (metric in validation_time_series_metric_names) {
+        # Subset the data for the metric
+        metric_df <- subset(all_validation_metrics_long_df, Metric == metric)
+
+        # Reshape to wide format
+        metric_wide_df <- as.data.frame(tidyr::pivot_wider(
+          metric_df,  # Ensure data frame
+          id_cols = Date,
+          names_from = Algorithm,
+          values_from = Value
+        ))
+
+        # Arrange by Date
+        # Convert Date to Date class if possible
+        metric_df_dates <- try(as.Date(metric_wide_df$Date), silent = TRUE)
+        if (inherits(metric_df_dates, "Date")) {
+          metric_wide_df <- metric_wide_df[order(metric_df_dates), ]
+        } else {
+          # If Date is not a real date, sort numerically or as character
+          metric_wide_df <- metric_wide_df[order(metric_wide_df$Date), ]
+        }
+
+        # Set rownames to Date
+        rownames(metric_wide_df) <- metric_wide_df$Date
+        metric_wide_df$Date <- NULL
+
+        # Convert to data frame
+        metric_wide_df <- as.data.frame(metric_wide_df)
+
+        # Add to the list
+        time_series_validation_metrics[[metric]] <- metric_wide_df
+      }
+    }
+
+    # Create the 'ml_metabacktest_results' object
+    new_object <- new("ml_metabacktest_results",
+                      ml_backtest_results = ml_backtest_results_list,
+                      consolidated_oos_testing_metrics = consolidated_oos_testing_metrics,
+                      mean_validation_metrics = mean_validation_metrics,
+                      time_series_oos_testing_metrics = time_series_oos_testing_metrics,
+                      time_series_validation_metrics = time_series_validation_metrics)
+
+    return(new_object)
+  }
+)
+
 
 
 

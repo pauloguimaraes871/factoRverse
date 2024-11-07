@@ -4,22 +4,32 @@
 \alias{plot,ml_backtest_results,ANY-method}
 \title{Plot Machine Learning Walk-Forward Validation Results}
 \usage{
-\S4method{plot}{ml_backtest_results,ANY}(x)
+\S4method{plot}{ml_backtest_results,ANY}(x, plot_id = NULL)
 }
 \arguments{
 \item{x}{An object of class \code{ml_backtest_results} containing the results of the walk-forward validation.}
+
+\item{plot_id}{A character string or numeric value specifying which plot to display.
+\itemize{
+\item By name: Options are:
+\itemize{
+\item \code{"Chosen Evaluation Metric Over Time"}
+\item \code{"Test vs Validation Chosen Evaluation Metric Over Time"}
+\item \code{"Best Hyperparameters Over Time"}
+\item \code{"Hyperparameters vs Error"}
+\item \code{"All Evaluation Metrics Over Time"}
+\item \code{"Consolidated OOS Testing Metrics"}
+\item \code{"Average Validation Metrics"}
+}
+\item By number: Provide a number corresponding to the plot (as listed when \code{plot_id} is \code{NULL}).
+If \code{NULL} (default), the method lists available plots.
+}}
 }
 \value{
-The following plots:
-\itemize{
-\item \code{chosen_val_metric_over_time}: Plot of the chosen evaluation metric over time for the test data, including overall and yearly means.
-\item \code{test_vs_val_chosen_eval_metric_over_time}: Plot comparing the chosen evaluation metric over time for both test and validation data.
-\item \code{best_hyper_over_time}: Plot of the best hyperparameter values over time, with separate facets for each hyperparameter.
-\item \code{hyper_vs_error}: Plot showing the performance of hyperparameter choices with respect to the chosen evaluation metric. The plot varies depending on the machine learning algorithm used.
-\item \code{all_eval_metrics_over_time}: Plot of all evaluation metrics over time, including dashed lines for variable means and vertical lines for rebalancing dates.
-}
+Invisibly returns the input \code{x}.
 }
 \description{
 This method generates various plots to visualize the performance of machine learning models using walk-forward validation metrics.
-It creates plots comparing out-of-sample (OOS) testing metrics, validation metrics, and hyperparameter performance over time.
+Users can select which plot to display by specifying the \code{plot_id} parameter,
+either by name or by number.
 }

@@ -2,39 +2,41 @@
 % Please edit documentation in R/run_ml_backtest.R
 \name{run_ml_backtest}
 \alias{run_ml_backtest}
-\alias{run_ml_backtest,meta_dataframe,meta_dataframe,ml_backtest_config,numeric,numeric,logical,logical-method}
-\alias{run_ml_backtest,meta_dataframe,meta_dataframe,ml_metabacktest_config,numeric,numeric,logical,logical-method}
+\alias{run_ml_backtest,meta_dataframe,meta_dataframe,character,ml_backtest_config-method}
+\alias{run_ml_backtest,meta_dataframe,meta_dataframe,character,ml_metabacktest_config-method}
 \title{Run Machine Learning Backtest}
 \usage{
 run_ml_backtest(
   features_m_df,
   target_m_df,
+  target_fwd_name,
   config,
-  training_sample_size,
-  rebalancing_months,
   verbose,
   parallel,
   ...
 )
 
-\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,ml_backtest_config,numeric,numeric,logical,logical}(
+\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,character,ml_backtest_config}(
   features_m_df,
   target_m_df,
+  target_fwd_name,
   config,
-  training_sample_size,
-  rebalancing_months,
-  verbose = TRUE,
-  parallel = TRUE
+  verbose,
+  parallel
 )
 
-\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,ml_metabacktest_config,numeric,numeric,logical,logical}(
+\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,character,ml_metabacktest_config}(
   features_m_df,
   target_m_df,
+  target_fwd_name,
   config,
-  training_sample_size,
-  rebalancing_months,
-  verbose = TRUE,
-  parallel = TRUE
+  verbose,
+  parallel,
+  winsorize_predictions = TRUE,
+  winsorization_probs = c(0.025, 0.975),
+  normalize_predictions = TRUE,
+  features_passthrough,
+  heuristic_ensemble_eval_metric = "rmse"
 )
 }
 \arguments{
@@ -43,17 +45,22 @@ run_ml_backtest(
 \item{target_m_df}{A meta_dataframe containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
 XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.}
 
-\item{config}{A \code{ml_metabacktest_config} object containing multiple configurations.}
+\item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
 
-\item{training_sample_size}{Number of observations to include in each training sample.}
-
-\item{rebalancing_months}{Months (numeric) when model should be rebalanced (refit).}
+\item{config}{A \code{ml_metabacktest_config} object containing multiple individual configurations and a meta configuration.}
 
 \item{verbose}{Logical vector, indicating whether to print progress messages (default is TRUE).}
 
 \item{parallel}{Logical vector, indicating whether to run  hyperparameter tuning in parallel (default is TRUE).}
 
 \item{...}{Additional arguments (not used in this method).}
+
+\item{features_passthrough}{A character vector indicating which of the features from features_m_df are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
+Alternativelly, if 'all', all features are passed through. If 'none', no features are passed through.}
+
+\item{heuristic_ensemble_eval_metric}{The metric to use to combine ensembles in the heuristic benchmark. Options are "rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr" and "mb".}
+
+\item{ensemble_method}{How to combine ensembles? Options are "equal_weight" or "optimal_weight".}
 }
 \value{
 An object of class \code{ml_backtest_results} or \code{ml_metabacktest_results} with various outputs including model predictions, errors, and validation metrics.
@@ -75,34 +82,33 @@ for elastic net regularization, supporting both Lasso and Ridge regression.
 \item \code{run_ml_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
-  config = ml_backtest_config,
-  training_sample_size = numeric,
-  rebalancing_months = numeric,
-  verbose = logical,
-  parallel = logical
+  target_fwd_name = character,
+  config = ml_backtest_config
 )}: Runs a backtest with a single configuration.
 
 \item \code{run_ml_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
-  config = ml_metabacktest_config,
-  training_sample_size = numeric,
-  rebalancing_months = numeric,
-  verbose = logical,
-  parallel = logical
+  target_fwd_name = character,
+  config = ml_metabacktest_config
 )}: Runs backtests with multiple configurations.
 
 }}
 \section{Running in Parallel}{
 
-By default, tuning_method \%in\% c("random_search", "grid_search") utilizes furrr::future_pmap, which means they can run according to the built-in backends
-from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
+The function supports parallel execution for runing multiple ml backtests and for hyperparameter tuning, both using the future package.
+
+The method for \code{ml_metabacktest_config} is basically a wrapper for \code{ml_backtest_config} method, which is called iteratively for each configuration,
+and possibly run in parallel.
+
+By default, the method for \code{ml_metabacktest_config} and, individually, the method for \code{ml_backtest_config} when tuning_method \%in\% c("random_search", "grid_search"),
+utilizes furrr::future_pmap, which means they can run according to the built-in backends from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
 tuning will be done sequentially by default (equivalent to future::plan(sequential)). In this case, however,
 random number generator will be set to RNGkind("L'Ecuyer-CMRG"), instead of R default (RNGkind("Mersenne-Twister")), making results
 not reproducible regarding using purrr:pmap(). In order to run using R's default random number generator, set parallel = FALSE.
 Using a different evaluation strategy (e.g., future::plan(multisession)) will tune hyperparameters asynchronously (in parallel).
 
-For tuning_method = "bayesian_opt", the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the \%dopar\% operator.
+For tuning_method = "bayesian_opt", under the application in \code{ml_backtest_config} method, the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the \%dopar\% operator.
 Therefore, in this case, the user can either: (i) use doFuture::registerDoFuture(), in order to use the \%dofuture\% foreach adapter
 (actually, in this case, doFuture::withDoRNG is used to turn \%dopar\% into \%dorng\% in order to use parallel-safe RNG), which allows
 usage of backends from the future package or (ii) use parallel::makeCluster(), doParallel::registerDoParallel(), doParallel::clusterExport() and
