@@ -555,7 +555,7 @@ test_that("sector_fill integrates with external toy data - Excel Files", {
                                  output_sheet_range = c("B1:I58"),
                                  industry_classification_column_name = c("sector_c1"))
   #Apply functions
-  panel <- panelize_data(features_list = results$inputs$feature_list,
+  panel <- create_meta_dataframe(data = results$inputs$feature_list,
                          row_names = results$inputs$tickers$...1,
                          column_names  = results$inputs$dates,
                          features_names = results$inputs$features_names)
@@ -580,7 +580,7 @@ test_that("sector_fill integrates with external toy data - Excel Files", {
   sector_filled_panel@data[,6][which(is.nan(sector_filled_panel@data[,6]))] <- NA
   sector_filled_panel@data[,7][which(is.nan(sector_filled_panel@data[,7]))] <- NA
 
-
+  results$outputs$dates <- as.Date(results$outputs$dates)
 
 
   # Apply the function to the test data

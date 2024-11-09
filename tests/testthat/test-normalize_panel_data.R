@@ -416,6 +416,35 @@ test_that("Normalize Data is running correctly - Some Infs.", {
 }
 )
 
+test_that("normalize_panel_data sets column to zero when all values are equal", {
+  # Create a test data frame
+  features_m_df <- create_meta_dataframe(
+    data.frame(
+      id = c("Stock A-2022-01-01", "Stock A-2022-01-02", "Stock B-2022-01-01", "Stock B-2022-01-02"),
+      tickers = c("Stock A", "Stock A", "Stock B", "Stock B"),
+      dates = as.Date(c("2022-01-01", "2022-01-02", "2022-01-01", "2022-01-02")),
+      feature_constant = c(5, 1, 5, 3),  # This column has the same value for each date
+      feature_variable = c(1, 2, 3, 4)   # This column has different values
+    ),
+    "jil"
+  )
+
+  # Run the normalization function
+  normalized_data <- normalize_panel_data(features_m_df)
+
+  # Verify that feature_constant has been set to 0 for all rows
+  expect_equal(normalized_data@data$feature_constant, c(0, -1, 0, 1))
+
+  # Verify that feature_variable is normalized between -1 and 1
+  # For this simple test data, it should normalize as intended
+  expect_true(all(normalized_data@data$feature_variable >= -1))
+  expect_true(all(normalized_data@data$feature_variable <= 1))
+
+  # Verify metadata integrity
+  expect_equal(normalized_data@unique_dates, 2)
+  expect_equal(normalized_data@unique_tickers, 2)
+  expect_equal(normalized_data@n_obs, 4)
+})
 
 # Define your test
 test_that("Normalize Data throws an error when columns differ.", {
@@ -502,90 +531,95 @@ test_that("Normalize Data throws an error when dates_vector not in right format.
 # Define your test
 test_that("Normalize Data is integrating correctly with normalize and winsorize.", {
 
-  panel_data <- panelize_data(list(matrix(c(0,1,2,3,7,9,10,4,9), nrow=3, ncol=3),
-                                   matrix(c(4,5,6,7,2,-3,5,4,-2), nrow=3, ncol=3),
-                                   matrix(c(8,9,10,11,-2,-3,4,4,2), nrow=3, ncol=3),
-                                   matrix(c(3,7,9,8,-1,0,5,-2,0), nrow=3, ncol=3)),
-                                    c("Stock A", "Stock B", "Stock C"),
-                                    as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
-                                    c("Alpha", "Beta", "Gamma", "Delta"))
+  panel_data <- create_meta_dataframe(
+    data = list(matrix(c(0,1,2,3,7,9,10,4,9), nrow=3, ncol=3),
+                matrix(c(4,5,6,7,2,-3,5,4,-2), nrow=3, ncol=3),
+                matrix(c(8,9,10,11,-2,-3,4,4,2), nrow=3, ncol=3),
+                matrix(c(3,7,9,8,-1,0,5,-2,0), nrow=3, ncol=3)),
+                row_names = c("Stock A", "Stock B", "Stock C"),
+                column_names = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
+                features_names = c("Alpha", "Beta", "Gamma", "Delta"),
+                meta_dataframe_name = "okay")
 
   winsorized_data <- winsorize_panel_data(panel_data, c(0.975, 0.025), c("Alpha"))
 
-  expected_results <- normalize_panel_data(winsorized_data)
+  actual_results <- normalize_panel_data(winsorized_data)
 
-  expect_equal(expected_results,
-    new("meta_dataframe",
-    data = data.frame(
-      id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock A-2001-05-15",
-              "Stock B-2001-03-15", "Stock B-2001-04-15", "Stock B-2001-05-15",
-              "Stock C-2001-03-15", "Stock C-2001-04-15", "Stock C-2001-05-15")),
-      tickers = (c("Stock A", "Stock A", "Stock A",
-                   "Stock B", "Stock B", "Stock B",
-                   "Stock C", "Stock C", "Stock C")),
-      dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",
-                          "2001-03-15", "2001-04-15", "2001-05-15",
-                          "2001-03-15", "2001-04-15", "2001-05-15")),
-      Alpha = (c(
-        2*((0.05-min(c(0.05,1,1.95), na.rm = TRUE))/(max(c(0.05,1,1.95), na.rm = TRUE)-min(c(0.05,1,1.95), na.rm = TRUE)))-1,
-        2*((3.20-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
-        2*((9.95-min(c(9.95,4.25,9), na.rm = TRUE))/(max(c(9.95,4.25,9), na.rm = TRUE)-min(c(9.95,4.25,9), na.rm = TRUE)))-1,
+  expected_results <- new("meta_dataframe",
+                          data = data.frame(
+                            id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock A-2001-05-15",
+                                    "Stock B-2001-03-15", "Stock B-2001-04-15", "Stock B-2001-05-15",
+                                    "Stock C-2001-03-15", "Stock C-2001-04-15", "Stock C-2001-05-15")),
+                            tickers = (c("Stock A", "Stock A", "Stock A",
+                                         "Stock B", "Stock B", "Stock B",
+                                         "Stock C", "Stock C", "Stock C")),
+                            dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",
+                                              "2001-03-15", "2001-04-15", "2001-05-15",
+                                              "2001-03-15", "2001-04-15", "2001-05-15")),
+                            Alpha = (c(
+                              2*((0.05-min(c(0.05,1,1.95), na.rm = TRUE))/(max(c(0.05,1,1.95), na.rm = TRUE)-min(c(0.05,1,1.95), na.rm = TRUE)))-1,
+                              2*((3.20-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
+                              2*((9.95-min(c(9.95,4.25,9), na.rm = TRUE))/(max(c(9.95,4.25,9), na.rm = TRUE)-min(c(9.95,4.25,9), na.rm = TRUE)))-1,
 
-        2*((1-min(c(0.05,1,1.95), na.rm = TRUE))/(max(c(0.05,1,1.95), na.rm = TRUE)-min(c(0.05,1,1.95), na.rm = TRUE)))-1,
-        2*((7-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
-        2*((4.25-min(c(9.95,4.25,9), na.rm = TRUE))/(max(c(9.95,4.25,9), na.rm = TRUE)-min(c(9.95,4.25,9), na.rm = TRUE)))-1,
+                              2*((1-min(c(0.05,1,1.95), na.rm = TRUE))/(max(c(0.05,1,1.95), na.rm = TRUE)-min(c(0.05,1,1.95), na.rm = TRUE)))-1,
+                              2*((7-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
+                              2*((4.25-min(c(9.95,4.25,9), na.rm = TRUE))/(max(c(9.95,4.25,9), na.rm = TRUE)-min(c(9.95,4.25,9), na.rm = TRUE)))-1,
 
-        2*((1.95-min(c(0.05,1,1.95), na.rm = TRUE))/(max(c(0.05,1,1.95), na.rm = TRUE)-min(c(0.05,1,1.95), na.rm = TRUE)))-1,
-        2*((8.90-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
-        2*((9-min(c(9.95,4.25,9), na.rm = TRUE))/(max(c(9.95,4.25,9), na.rm = TRUE)-min(c(9.95,4.25,9), na.rm = TRUE)))-1)),
+                              2*((1.95-min(c(0.05,1,1.95), na.rm = TRUE))/(max(c(0.05,1,1.95), na.rm = TRUE)-min(c(0.05,1,1.95), na.rm = TRUE)))-1,
+                              2*((8.90-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
+                              2*((9-min(c(9.95,4.25,9), na.rm = TRUE))/(max(c(9.95,4.25,9), na.rm = TRUE)-min(c(9.95,4.25,9), na.rm = TRUE)))-1)),
 
-      Beta = (c(
-        2*((4.05-min(c(4.05,5.00,5.95), na.rm = TRUE))/(max(c(4.05,5.00,5.95), na.rm = TRUE)-min(c(4.05,5.00,5.95), na.rm = TRUE)))-1,
-        2*((6.75-min(c(6.75,2,-2.75), na.rm = TRUE))/(max(c(6.75,2,-2.75), na.rm = TRUE)-min(c(6.75,2,-2.75), na.rm = TRUE)))-1,
-        2*((4.95-min(c(4.95,4,-1.70), na.rm = TRUE))/(max(c(4.95,4,-1.70), na.rm = TRUE)-min(c(4.95,4,-1.70), na.rm = TRUE)))-1,
+                            Beta = (c(
+                              2*((4.05-min(c(4.05,5.00,5.95), na.rm = TRUE))/(max(c(4.05,5.00,5.95), na.rm = TRUE)-min(c(4.05,5.00,5.95), na.rm = TRUE)))-1,
+                              2*((6.75-min(c(6.75,2,-2.75), na.rm = TRUE))/(max(c(6.75,2,-2.75), na.rm = TRUE)-min(c(6.75,2,-2.75), na.rm = TRUE)))-1,
+                              2*((4.95-min(c(4.95,4,-1.70), na.rm = TRUE))/(max(c(4.95,4,-1.70), na.rm = TRUE)-min(c(4.95,4,-1.70), na.rm = TRUE)))-1,
 
-        2*((5-min(c(4.05,5.00,5.95), na.rm = TRUE))/(max(c(4.05,5.00,5.95), na.rm = TRUE)-min(c(4.05,5.00,5.95), na.rm = TRUE)))-1,
-        2*((2-min(c(6.75,2,-2.75), na.rm = TRUE))/(max(c(6.75,2,-2.75), na.rm = TRUE)-min(c(6.75,2,-2.75), na.rm = TRUE)))-1,
-        2*((4-min(c(4.95,4,-1.70), na.rm = TRUE))/(max(c(4.95,4,-1.70), na.rm = TRUE)-min(c(4.95,4,-1.70), na.rm = TRUE)))-1,
+                              2*((5-min(c(4.05,5.00,5.95), na.rm = TRUE))/(max(c(4.05,5.00,5.95), na.rm = TRUE)-min(c(4.05,5.00,5.95), na.rm = TRUE)))-1,
+                              2*((2-min(c(6.75,2,-2.75), na.rm = TRUE))/(max(c(6.75,2,-2.75), na.rm = TRUE)-min(c(6.75,2,-2.75), na.rm = TRUE)))-1,
+                              2*((4-min(c(4.95,4,-1.70), na.rm = TRUE))/(max(c(4.95,4,-1.70), na.rm = TRUE)-min(c(4.95,4,-1.70), na.rm = TRUE)))-1,
 
-        2*((5.95-min(c(4.05,5.00,5.95), na.rm = TRUE))/(max(c(4.05,5.00,5.95), na.rm = TRUE)-min(c(4.05,5.00,5.95), na.rm = TRUE)))-1,
-        2*((-2.75-min(c(6.75,2,-2.75), na.rm = TRUE))/(max(c(6.75,2,-2.75), na.rm = TRUE)-min(c(6.75,2,-2.75), na.rm = TRUE)))-1,
-        2*((-1.70-min(c(4.95,4,-1.70), na.rm = TRUE))/(max(c(4.95,4,-1.70), na.rm = TRUE)-min(c(4.95,4,-1.70), na.rm = TRUE)))-1)),
+                              2*((5.95-min(c(4.05,5.00,5.95), na.rm = TRUE))/(max(c(4.05,5.00,5.95), na.rm = TRUE)-min(c(4.05,5.00,5.95), na.rm = TRUE)))-1,
+                              2*((-2.75-min(c(6.75,2,-2.75), na.rm = TRUE))/(max(c(6.75,2,-2.75), na.rm = TRUE)-min(c(6.75,2,-2.75), na.rm = TRUE)))-1,
+                              2*((-1.70-min(c(4.95,4,-1.70), na.rm = TRUE))/(max(c(4.95,4,-1.70), na.rm = TRUE)-min(c(4.95,4,-1.70), na.rm = TRUE)))-1)),
 
 
-      Gamma = (c(
-        2*((8.05-min(c(8.05,9,9.95), na.rm = TRUE))/(max(c(8.05,9,9.95), na.rm = TRUE)-min(c(8.05,9,9.95), na.rm = TRUE)))-1,
-        2*((10.35-min(c(10.35,-2,-2.95), na.rm = TRUE))/(max(c(10.35,-2,-2.95), na.rm = TRUE)-min(c(10.35,-2,-2.95), na.rm = TRUE)))-1,
-        2*((4-min(c(4,4,2.10), na.rm = TRUE))/(max(c(4,4,2.10), na.rm = TRUE)-min(c(4,4,2.10), na.rm = TRUE)))-1,
+                            Gamma = (c(
+                              2*((8.05-min(c(8.05,9,9.95), na.rm = TRUE))/(max(c(8.05,9,9.95), na.rm = TRUE)-min(c(8.05,9,9.95), na.rm = TRUE)))-1,
+                              2*((10.35-min(c(10.35,-2,-2.95), na.rm = TRUE))/(max(c(10.35,-2,-2.95), na.rm = TRUE)-min(c(10.35,-2,-2.95), na.rm = TRUE)))-1,
+                              2*((4-min(c(4,4,2.10), na.rm = TRUE))/(max(c(4,4,2.10), na.rm = TRUE)-min(c(4,4,2.10), na.rm = TRUE)))-1,
 
-        2*((9-min(c(8.05,9,9.95), na.rm = TRUE))/(max(c(8.05,9,9.95), na.rm = TRUE)-min(c(8.05,9,9.95), na.rm = TRUE)))-1,
-        2*((-2-min(c(10.35,-2,-2.95), na.rm = TRUE))/(max(c(10.35,-2,-2.95), na.rm = TRUE)-min(c(10.35,-2,-2.95), na.rm = TRUE)))-1,
-        2*((4-min(c(4,4,2.10), na.rm = TRUE))/(max(c(4,4,2.10), na.rm = TRUE)-min(c(4,4,2.10), na.rm = TRUE)))-1,
+                              2*((9-min(c(8.05,9,9.95), na.rm = TRUE))/(max(c(8.05,9,9.95), na.rm = TRUE)-min(c(8.05,9,9.95), na.rm = TRUE)))-1,
+                              2*((-2-min(c(10.35,-2,-2.95), na.rm = TRUE))/(max(c(10.35,-2,-2.95), na.rm = TRUE)-min(c(10.35,-2,-2.95), na.rm = TRUE)))-1,
+                              2*((4-min(c(4,4,2.10), na.rm = TRUE))/(max(c(4,4,2.10), na.rm = TRUE)-min(c(4,4,2.10), na.rm = TRUE)))-1,
 
-        2*((9.95-min(c(8.05,9,9.95), na.rm = TRUE))/(max(c(8.05,9,9.95), na.rm = TRUE)-min(c(8.05,9,9.95), na.rm = TRUE)))-1,
-        2*((-2.95-min(c(10.35,-2,-2.95), na.rm = TRUE))/(max(c(10.35,-2,-2.95), na.rm = TRUE)-min(c(10.35,-2,-2.95), na.rm = TRUE)))-1,
-        2*((2.1-min(c(4,4,2.1), na.rm = TRUE))/(max(c(4,4,2.1), na.rm = TRUE)-min(c(4,4,2.1), na.rm = TRUE)))-1)),
+                              2*((9.95-min(c(8.05,9,9.95), na.rm = TRUE))/(max(c(8.05,9,9.95), na.rm = TRUE)-min(c(8.05,9,9.95), na.rm = TRUE)))-1,
+                              2*((-2.95-min(c(10.35,-2,-2.95), na.rm = TRUE))/(max(c(10.35,-2,-2.95), na.rm = TRUE)-min(c(10.35,-2,-2.95), na.rm = TRUE)))-1,
+                              2*((2.1-min(c(4,4,2.1), na.rm = TRUE))/(max(c(4,4,2.1), na.rm = TRUE)-min(c(4,4,2.1), na.rm = TRUE)))-1)),
 
-      Delta = (c(
-        2*((3.20-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
-        2*((7.60-min(c(7.60,-0.95,0), na.rm = TRUE))/(max(c(7.60,-0.95,0), na.rm = TRUE)-min(c(7.60,-0.95,0), na.rm = TRUE)))-1,
-        2*((4.75-min(c(4.75,-1.90,0), na.rm = TRUE))/(max(c(4.75,-1.90,0), na.rm = TRUE)-min(c(4.75,-1.90,0), na.rm = TRUE)))-1,
+                            Delta = (c(
+                              2*((3.20-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
+                              2*((7.60-min(c(7.60,-0.95,0), na.rm = TRUE))/(max(c(7.60,-0.95,0), na.rm = TRUE)-min(c(7.60,-0.95,0), na.rm = TRUE)))-1,
+                              2*((4.75-min(c(4.75,-1.90,0), na.rm = TRUE))/(max(c(4.75,-1.90,0), na.rm = TRUE)-min(c(4.75,-1.90,0), na.rm = TRUE)))-1,
 
-        2*((7-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
-        2*((-0.95-min(c(7.60,-0.95,0), na.rm = TRUE))/(max(c(7.60,-0.95,0), na.rm = TRUE)-min(c(7.60,-0.95,0), na.rm = TRUE)))-1,
-        2*((-1.90-min(c(4.75,-1.90,0), na.rm = TRUE))/(max(c(4.75,-1.90,0), na.rm = TRUE)-min(c(4.75,-1.90,0), na.rm = TRUE)))-1,
+                              2*((7-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
+                              2*((-0.95-min(c(7.60,-0.95,0), na.rm = TRUE))/(max(c(7.60,-0.95,0), na.rm = TRUE)-min(c(7.60,-0.95,0), na.rm = TRUE)))-1,
+                              2*((-1.90-min(c(4.75,-1.90,0), na.rm = TRUE))/(max(c(4.75,-1.90,0), na.rm = TRUE)-min(c(4.75,-1.90,0), na.rm = TRUE)))-1,
 
-        2*((8.90-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
-        2*((0-min(c(7.60,-0.95,0), na.rm = TRUE))/(max(c(7.60,-0.95,0), na.rm = TRUE)-min(c(7.60,-0.95,0), na.rm = TRUE)))-1,
-        2*((0-min(c(4.75,-1.90,0), na.rm = TRUE))/(max(c(4.75,-1.90,0), na.rm = TRUE)-min(c(4.75,-1.90,0), na.rm = TRUE)))-1))
-    ),
-    workflow = expected_results@workflow,
-    signals = expected_results@signals,
-    unique_dates = expected_results@unique_dates,
-    unique_tickers = expected_results@unique_tickers,
-    n_obs = expected_results@n_obs
+                              2*((8.90-min(c(3.20,7,8.90), na.rm = TRUE))/(max(c(3.20,7,8.90), na.rm = TRUE)-min(c(3.20,7,8.90), na.rm = TRUE)))-1,
+                              2*((0-min(c(7.60,-0.95,0), na.rm = TRUE))/(max(c(7.60,-0.95,0), na.rm = TRUE)-min(c(7.60,-0.95,0), na.rm = TRUE)))-1,
+                              2*((0-min(c(4.75,-1.90,0), na.rm = TRUE))/(max(c(4.75,-1.90,0), na.rm = TRUE)-min(c(4.75,-1.90,0), na.rm = TRUE)))-1))
+                          ),
+                          workflow = actual_results@workflow,
+                          signals = actual_results@signals,
+                          unique_dates = actual_results@unique_dates,
+                          unique_tickers = actual_results@unique_tickers,
+                          n_obs = actual_results@n_obs,
+                          meta_dataframe_name = "okay"
   )
-  )
+
+  expect_equal(actual_results@data, expected_results@data)
+
+
 })
 
 
@@ -603,15 +637,18 @@ test_that("normalize_data integrates with external toy data - Excel Files", {
                                  output_sheet_range = c("B1:I58"),
                                  industry_classification_column_name = c("sector_c1"))
   #Apply functions
-  panel <- panelize_data(features_list = results$inputs$feature_list,
+  panel <- create_meta_dataframe(data = results$inputs$feature_list,
                          row_names = results$inputs$tickers$...1,
                          column_names  = results$inputs$dates,
-                         features_names = results$inputs$features_names)
+                         features_names = results$inputs$features_names,
+                         "okay")
 
   winsorized_panel <- winsorize_panel_data(features_m_df = panel,
                                            probs = c(0.975,0.025))
 
   normalized_panel <- normalize_panel_data(features_m_df = winsorized_panel)
+
+  results$outputs$dates <- as.Date(results$outputs$dates)
 
   # Apply the function to the test data
   expect_equal(normalized_panel@data,

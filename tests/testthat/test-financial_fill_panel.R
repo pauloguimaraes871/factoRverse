@@ -339,7 +339,7 @@ test_that("Banks Fill is running correctly when there are no banks.", {
 # Define your test
 test_that("Banks Fill integrates with all other panel functions.", {
 
-  panel_data <- panelize_data(list(matrix(c(0,NA,2,3,7,9,10,4,9), nrow=3, ncol=3),
+  panel_data <- create_meta_dataframe(data = list(matrix(c(0,NA,2,3,7,9,10,4,9), nrow=3, ncol=3),
                                      matrix(c(4,5,6,7,2,-3,5,4,-2), nrow=3, ncol=3),
                                      matrix(c(8,9,10,NA,-2,-3,4,4,2), nrow=3, ncol=3),
                                      matrix(c(NA,7,9,NA,-1,0,NA,-2,0), nrow=3, ncol=3),
@@ -379,7 +379,8 @@ test_that("Banks Fill integrates with all other panel functions.", {
   signals = expected_results@signals,
   unique_dates = expected_results@unique_dates,
   unique_tickers = expected_results@unique_tickers,
-  n_obs = expected_results@n_obs
+  n_obs = expected_results@n_obs,
+  meta_dataframe_name = "not_identified"
   ),
   expected_results)
 

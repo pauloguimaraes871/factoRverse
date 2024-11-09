@@ -1,23 +1,77 @@
 #' Create a meta_dataframe Object
 #'
-#' This function creates an object of class \code{meta_dataframe} from a provided data frame.
+#' This generic function creates an object of class \code{meta_dataframe} from a provided \code{data.frame} or a structured \code{list}.
+#' Specific behaviors are implemented via methods tailored to the class of the input data.
+#'
+#' @param data The input data. The class of this parameter determines which method is dispatched.
+#' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return An object of class \code{meta_dataframe}.
+#'
+#' @details
+#' The function dispatches to specific methods based on the class of the \code{data} argument. Currently, methods are implemented for:
+#' \itemize{
+#'   \item \code{data.frame}: Converts a single \code{data.frame} into a \code{meta_dataframe} object after validation.
+#'   \item \code{list}: Converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
+#' }
+#'
+#' @examples
+#' # Example using a data.frame
+#' df <- data.frame(
+#'   id = c("A-2024-01-01", "B-2024-02-01"),
+#'   tickers = c("A", "B"),
+#'   dates = as.Date(c("2024-01-01", "2024-02-01")),
+#'   value = c(10, 20),
+#'   stringsAsFactors = FALSE
+#' )
+#' meta_df1 <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
+#'
+#' # Example using a list of features
+#' features_list <- list(
+#'   matrix(1:9, nrow = 3, ncol = 3),
+#'   matrix(11:19, nrow = 3, ncol = 3)
+#' )
+#' row_names <- c("A", "B", "C")
+#' column_names <- c("2024-01-01", "2024-02-01", "2024-03-01")
+#' features_names <- c("Feature1", "Feature2")
+#'
+#' data_input <- list(
+#'   features_list = features_list,
+#'   row_names = row_names,
+#'   column_names = column_names,
+#'   features_names = features_names
+#' )
+#' meta_df2 <- create_meta_dataframe(data = data_input, meta_dataframe_name = "PanelData")
+#'
+#' @export
+setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_identified", ...) {
+  standardGeneric("create_meta_dataframe")
+})
+
+#' @describeIn create_meta_dataframe Method for \code{data.frame} Signature
+#'
+#' This method creates an object of class \code{meta_dataframe} from a provided \code{data.frame}.
 #' The data frame must meet specific requirements: it must contain 'id', 'tickers', and 'dates' columns,
 #' where 'dates' must be of class \code{Date} and sorted in ascending order. The 'id' column should
 #' be constructed as \code{paste0(tickers, "-", dates)}. The function also validates that there are no
 #' missing dates, duplicated IDs, or NA values in the required columns.
 #'
 #' @param data A \code{data.frame} containing the data to be converted to a \code{meta_dataframe}.
+#' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
 #'
 #' @return An object of class \code{meta_dataframe} if the input data frame meets all validation criteria.
 #' The returned object includes metadata such as the number of unique dates, unique tickers, and
 #' total number of observations.
 #'
 #' @details
-#' - The 'id' column is expected to be in the format of \code{paste0(tickers, "-", dates)}.
-#' - The 'dates' column must be of class \code{Date} and in ascending chronological order.
-#' - The function checks for NA values in the 'id', 'tickers', and 'dates' columns.
-#' - The function ensures that there are no gaps in the dates sequence and no duplicated IDs.
-#' - The metadata includes the number of unique dates, unique tickers, and total observations.
+#' \itemize{
+#'   \item The 'id' column is expected to be in the format of \code{paste0(tickers, "-", dates)}.
+#'   \item The 'dates' column must be of class \code{Date} and in ascending chronological order.
+#'   \item The function checks for NA values in the 'id', 'tickers', and 'dates' columns.
+#'   \item The function ensures that there are no gaps in the dates sequence and no duplicated IDs.
+#'   \item The metadata includes the number of unique dates, unique tickers, and total observations.
+#' }
 #'
 #' @examples
 #' # Create a sample data frame
@@ -25,90 +79,226 @@
 #'   id = c("A-2024-01-01", "B-2024-02-01"),
 #'   tickers = c("A", "B"),
 #'   dates = as.Date(c("2024-01-01", "2024-02-01")),
-#'   value = c(10, 20)
+#'   value = c(10, 20),
+#'   stringsAsFactors = FALSE
 #' )
 #'
 #' # Create a meta_dataframe object
-#' meta_df <- create_meta_dataframe(df)
+#' meta_df <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
 #'
-#' @export
-create_meta_dataframe <- function(data) {
-  if (!is.data.frame(data)) {
-    stop("Input must be a data.frame")
-  }
+#' @exportMethod create_meta_dataframe
+setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
 
-  required_columns <- c("id", "tickers", "dates")
-  if (!all(required_columns %in% names(data))) {
-    stop("Data must contain 'id', 'tickers', and 'dates' columns")
-  }
+          function(data, meta_dataframe_name = "not_identified") {
+            if (!is.data.frame(data)) {
+              stop("Input must be a data.frame")
+            }
 
-  # Check for NA values in the required columns
-  if (any(is.na(data[required_columns]))) {
-    stop("Columns 'id', 'tickers', or 'dates' contain NA values")
-  }
+            required_columns <- c("id", "tickers", "dates")
+            if (!all(required_columns %in% names(data))) {
+              stop("Data must contain 'id', 'tickers', and 'dates' columns")
+            }
 
-  #Check dates format
-  if (!inherits(data$dates, "Date")) {
-    stop("The 'dates' column must be of class 'Date'")
-  }
+            # Check for NA values in the required columns
+            if (any(is.na(data[required_columns]))) {
+              stop("Columns 'id', 'tickers', or 'dates' contain NA values")
+            }
 
-  if (!all(diff(unique(data$dates)[order(unique(data$dates))]) >= 0)) {
-    stop("Dates must be in ascending chronological order")
-  }
+            #Check dates format
+            if (!inherits(data$dates, "Date")) {
+              stop("The 'dates' column must be of class 'Date'")
+            }
 
-  #Check tickers format
-  if(any(!is.character(data$tickers))){
-    stop("Tickers must be of class character")
-  }
+            if (!all(diff(unique(data$dates)[order(unique(data$dates))]) >= 0)) {
+              stop("Dates must be in ascending chronological order")
+            }
 
-  # Check for NA values in remaining columns and report them
-  remaining_columns <- setdiff(names(data), required_columns)
-  na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
-  if (any(na_remaining)) {
-    message("The following columns contain NA values: ",
-            paste(remaining_columns[na_remaining], collapse = ", "))
-  }
+            #Check tickers format
+            if(any(!is.character(data$tickers))){
+              stop("Tickers must be of class character")
+            }
 
-  # Ensure the 'id' column matches paste0(tickers, "-", dates)
-  expected_id <- paste0(data$tickers, "-", data$dates)
-  if (!all(data$id == expected_id)) {
-    stop("The 'id' column does not match 'tickers-dates')")
-  }
-  # Ensure no gaps in the dates sequence
-  unique_dates <- unique(data$dates)
-  full_dates <- seq(min(unique_dates), max(unique_dates), by = "month")
-  missing_dates <- setdiff(full_dates, unique_dates)
+            # Check for NA values in remaining columns and report them
+            remaining_columns <- setdiff(names(data), required_columns)
+            na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
+            if (any(na_remaining)) {
+              message("The following columns contain NA values: ",
+                      paste(remaining_columns[na_remaining], collapse = ", "))
+            }
 
-  if (length(missing_dates) > 0) {
-    warning("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
-  }
+            # Ensure the 'id' column matches paste0(tickers, "-", dates)
+            expected_id <- paste0(data$tickers, "-", data$dates)
+            if (!all(data$id == expected_id)) {
+              stop("The 'id' column does not match 'tickers-dates')")
+            }
+            # Ensure no gaps in the dates sequence
+            unique_dates <- unique(data$dates)
+            full_dates <- seq(min(unique_dates), max(unique_dates), by = "month")
+            missing_dates <- setdiff(full_dates, unique_dates)
 
-  if (any(duplicated(data$id))) {
-    stop("ID column contains duplicated values")
-  }
+            if (length(missing_dates) > 0) {
+              warning("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
+            }
 
-  # Check for NA values in remaining columns and report them
-  remaining_columns <- setdiff(names(data), required_columns)
-  na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
-  if (any(duplicated(remaining_columns))) {
-    stop("Column names for variables must be unique")
-  }
+            if (any(duplicated(data$id))) {
+              stop("ID column contains duplicated values")
+            }
 
-  # Calculate metadata
-  unique_dates_count <- length(unique(data$dates))
-  unique_tickers_count <- length(unique(data$tickers))
-  total_observations_count <- nrow(data)
+            # Check for NA values in remaining columns and report them
+            remaining_columns <- setdiff(names(data), required_columns)
+            na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
+            if (any(duplicated(remaining_columns))) {
+              stop("Column names for variables must be unique")
+            }
 
-  # Initialize workflow slot as an empty list
-  # Store metadata and column names
-  new("meta_dataframe",
-      data = data,
-      workflow = list(),
-      signals = names(data)[-c(1:3)],
-      unique_dates = unique_dates_count,
-      unique_tickers = unique_tickers_count,
-      n_obs = total_observations_count)
-}
+            # Calculate metadata
+            unique_dates_count <- length(unique(data$dates))
+            unique_tickers_count <- length(unique(data$tickers))
+            total_observations_count <- nrow(data)
+
+            # Initialize workflow slot as an empty list
+            # Store metadata and column names
+            new("meta_dataframe",
+                data = data,
+                workflow = list(),
+                signals = names(data)[-c(1:3)],
+                unique_dates = unique_dates_count,
+                unique_tickers = unique_tickers_count,
+                n_obs = total_observations_count,
+                meta_dataframe_name = meta_dataframe_name
+                )
+          }
+)
+
+
+#' @describeIn create_meta_dataframe Method for \code{list} Signature
+#'
+#' This method converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
+#' The input list must contain specific components required to build the panel data structure.
+#'
+#' @param data A \code{list} containing the following components:
+#'   \describe{
+#'     \item{\code{features_list}}{A list of matrices, \code{data.frames}, or tibbles containing the features.}
+#'     \item{\code{row_names}}{A vector of row names corresponding to entities in the panel data.}
+#'     \item{\code{column_names}}{A vector of column names corresponding to time points or dates in the panel data.}
+#'     \item{\code{features_names}}{A vector of names for each feature in the \code{features_list}.}
+#'   }
+#' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
+#'
+#' @return An object of class \code{meta_dataframe} containing the panel data and associated metadata.
+#'
+#' @details
+#' This method performs the following operations:
+#' \enumerate{
+#'   \item Validates the structure and contents of the input list.
+#'   \item Converts each feature set into a long (panel) format using \code{\link[reshape2]{melt}}.
+#'   \item Merges all features into a single data frame, ensuring that each row represents a unique combination of entity and date.
+#'   \item Calculates metadata such as the number of unique dates, unique entities (tickers), and total observations.
+#'   \item Constructs a \code{meta_dataframe} S4 object encapsulating the transformed data and metadata.
+#' }
+#'
+#' @examples
+#' # Example input data
+#' features_list <- list(
+#'   matrix(1:9, nrow = 3, ncol = 3),
+#'   matrix(11:19, nrow = 3, ncol = 3)
+#' )
+#' row_names <- c("A", "B", "C")
+#' column_names <- c("2024-01-01", "2024-02-01", "2024-03-01")
+#' features_names <- c("Feature1", "Feature2")
+#'
+#' # Structured input list
+#' data_input <- list(
+#'   features_list = features_list,
+#'   row_names = row_names,
+#'   column_names = column_names,
+#'   features_names = features_names
+#' )
+#'
+#' # Create the meta_dataframe object
+#' meta_df <- create_meta_dataframe(data = data_input, meta_dataframe_name = "PanelData")
+#'
+#' # Inspect the meta_dataframe object
+#' print(meta_df)
+#'
+#' @exportMethod create_meta_dataframe
+setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name = "ANY"),
+
+          function(data, row_names, column_names, features_names, meta_dataframe_name = "not_identified"){
+
+            features_list <- data
+
+            # Check if features_list is a list of matrices, data frames, or tibbles
+            if (!is.list(features_list) ||
+                !all(sapply(features_list, function(x) is.data.frame(x) || is.matrix(x) || tibble::is_tibble(x))) ||
+                length(unique(sapply(features_list, nrow))) != 1 ||
+                length(unique(sapply(features_list, ncol))) != 1 ||
+                length(row_names) != unique(sapply(features_list, nrow)) ||
+                length(column_names) != unique(sapply(features_list, ncol)) ||
+                length(features_names) != length(features_list)) {
+              stop("Input must be a list of matrices, data frames or tibbles with the same dimensions.")
+            }
+
+            # Convert each feature in features_list to data frame
+            features_list <- lapply(features_list, as.data.frame)
+
+            #Initialize list
+            panel_features <- list()
+
+            #for every element in list
+            for(l in 1:length(features_list)){
+              #Tickers + Features
+              features_df <- data.frame(row_names, features_list[[l]])
+              colnames(features_df)[1] <- "tickers" #change col name
+              colnames(features_df)[2:length(colnames(features_df))] <- as.character(column_names)
+
+              #melt to panel format
+              panel_matrix <- reshape2::melt(features_df, id.vars="tickers")
+              colnames(panel_matrix)[2] <- "dates" #change name
+              id <- paste(panel_matrix$tickers, panel_matrix$dates, sep = "-") #create new id
+              panel_matrix <- cbind(id, panel_matrix) #append id
+
+              #change col name to characteristic name
+              colnames(panel_matrix)[4] <- features_names[l]
+              panel_matrix <- panel_matrix[order(panel_matrix$id), ] #order alphabetically by id
+              panel_features[[l]] <- panel_matrix #save in list
+            }
+
+            # Create new data frame to store panel data
+            final_panel <- data.frame(id = panel_features[[1]]$id,
+                                      tickers = panel_features[[1]]$tickers,
+                                      dates = as.Date(panel_features[[1]]$dates),
+                                      stringsAsFactors = FALSE)
+
+            #Fill columns with characteristics
+            for(l in 1:length(features_list)){
+              final_panel[[features_names[l]]] <- panel_features[[l]][, 4] #append last column, which is the characteristic
+            }
+
+            # Calculate metadata
+            unique_dates_count <- length(unique(final_panel$dates))
+            unique_tickers_count <- length(unique(final_panel$tickers))
+            total_observations_count <- nrow(final_panel)
+
+            # Create meta_dataframe object
+            final_panel <- new("meta_dataframe",
+                               data = final_panel,
+                               workflow = list(),
+                               signals = features_names,
+                               unique_dates = unique_dates_count,
+                               unique_tickers = unique_tickers_count,
+                               n_obs = total_observations_count,
+                               meta_dataframe_name = meta_dataframe_name
+            )
+
+            return(final_panel)
+
+          }
+
+)
+
+
+
 
 
 #' @title Hyperparameter Tuning Strategy Constructor
@@ -892,11 +1082,13 @@ setMethod(
 #' @param keras_architecture_parameters List or NULL, providing parameters specific to keras-based neural networks.
 #' @param quantile_tau Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
 #' @param huber_delta Numeric value greater than 0, specifying the delta parameter for Huber loss function.
+#' @param config_name Name of the backtest configuration.
 #'
 #' @return An ml_backtest_config object.
 #' @export
 create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
-                                      custom_objective = "squared_error", keras_architecture_parameters = NULL, quantile_tau = 0.5, huber_delta = 1) {
+                                      custom_objective = "squared_error", keras_architecture_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
+                                      config_name = "not_identified") {
 
   ##Give custom warning related to quantile tau and huber delta
   if (!is.null(quantile_tau) && quantile_tau != 0.5) {
@@ -916,18 +1108,23 @@ create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NU
       custom_objective = custom_objective,
       keras_architecture_parameters = keras_architecture_parameters,
       quantile_tau = quantile_tau,
-      huber_delta = huber_delta
+      huber_delta = huber_delta,
+      config_name = config_name
   )
 }
 
 
 #' Create ML Meta Backtest Configuration
 #'
-#' The `create_ml_metabacktest_config` function creates an `ml_metabacktest_config` object by combining `ml_backtest_config` objects and `tuning_strategy` objects.
-#' This allows you to generate all possible combinations of configurations and strategies for running multiple machine learning backtests, possibly in parallel.
+#' The `create_ml_metabacktest_config` function creates an `ml_metabacktest_config` object by combining a `ml_backtest_config` for the meta-learner
+#' and a group of `ml_backtest_config` objects for the base learners. Those can be passed with our without a tuning strategy set. In this latter case, by passing
+#' a list of `tuning_strategy` objects, the function will generate all possible combinations of configurations and strategies for running multiple machine learning backtests,
+#'  possibly in parallel.
 #'
-#' @param ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` set to `NULL`.
+#' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
+#' @param base_ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` set to `NULL`.
 #' @param tuning_strategies A list of `tuning_strategy` objects (optional).
+#' @param config_name Name of the backtest configuration.
 #' @param ... Additional arguments (not used).
 #'
 #' @return A `ml_metabacktest_config` object containing all viable combinations of configs and strategies.
@@ -939,19 +1136,21 @@ create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NU
 #'
 #' # First method: Combine configs and strategies
 #' meta_config <- create_ml_metabacktest_config(
-#'     configs = list(config1, config2),
-#'     strategies = list(strategy1, strategy2)
+#'     meta_ml_backtest_config = ml_backtest_config,
+#'     base_ml_backtest_configs = list(config1, config2),
+#'     tuning_strategies = list(strategy1, strategy2)
 #' )
 #'
 #' # Second method: Configs already have tuning_strategy set
 #' meta_config <- create_ml_metabacktest_config(
-#'     configs = list(config1, config2)
+#'     meta_ml_backtest_config = ml_backtest_config,
+#'     base_ml_backtest_configs = list(config1, config2)
 #' )
 #'
 #' @seealso \code{\link{ml_backtest_config}}, \code{\link{tuning_strategy}}, \code{\link{ml_metabacktest_config}}
 #'
 #' @export
-setGeneric("create_ml_metabacktest_config", function(ml_backtest_configs, tuning_strategies, ...) standardGeneric("create_ml_metabacktest_config"))
+setGeneric("create_ml_metabacktest_config", function(meta_ml_backtest_config, base_ml_backtest_configs, tuning_strategies, ...) standardGeneric("create_ml_metabacktest_config"))
 
 
 
@@ -961,7 +1160,8 @@ setGeneric("create_ml_metabacktest_config", function(ml_backtest_configs, tuning
 #' This method accepts one or multiple `ml_backtest_config` and one or multiple `tuning_strategy` objects.
 #' It combines all possible configurations between the configs and strategies by using the `add_tuning_strategy` method.
 #'
-#' @param ml_backtest_configs A list of `ml_backtest_config` objects.
+#' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
+#' @param base_ml_backtest_configs A list of `ml_backtest_config` objects.
 #' @param tuning_strategies A list of `tuning_strategy` objects.
 #' @param ... Additional arguments (not used).
 #'
@@ -977,12 +1177,12 @@ setGeneric("create_ml_metabacktest_config", function(ml_backtest_configs, tuning
 #'
 #' @export
 setMethod("create_ml_metabacktest_config",
-          signature(ml_backtest_configs = "list", tuning_strategies = "list"),
-          function(ml_backtest_configs, tuning_strategies, ...) {
+          signature(meta_ml_backtest_config = "ml_backtest_config", base_ml_backtest_configs = "list", tuning_strategies = "list"),
+          function(meta_ml_backtest_config, base_ml_backtest_configs, tuning_strategies, config_name = "not_identified", ...) {
 
-            # Check that all ml_backtest_configs are ml_backtest_config objects
-            if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
-              stop("All elements in 'ml_backtest_configs' must be 'ml_backtest_config' objects.")
+            # Check that all base_ml_backtest_configs are ml_backtest_config objects
+            if (!all(sapply(base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
+              stop("All elements in 'base_ml_backtest_configs' must be 'ml_backtest_config' objects.")
             }
 
             # Check that all tuning_strategies are tuning_strategy objects
@@ -992,15 +1192,15 @@ setMethod("create_ml_metabacktest_config",
 
             # Prepare to capture the original call argument names
             call_args <- match.call()
-            config_names <- as.character(call_args$ml_backtest_configs[-1])  # Remove 'list' call
+            config_names <- as.character(call_args$base_ml_backtest_configs[-1])  # Remove 'list' call
             strategy_names <- as.character(call_args$tuning_strategies[-1])  # Remove 'list' call
 
             combined_configs <- list()
 
 
             # Iterate through each configuration and strategy, applying only valid combinations
-            for (i in seq_along(ml_backtest_configs)) {
-              config <- ml_backtest_configs[[i]]
+            for (i in seq_along(base_ml_backtest_configs)) {
+              config <- base_ml_backtest_configs[[i]]
 
               for (j in seq_along(tuning_strategies)) {
                 strategy <- tuning_strategies[[j]]
@@ -1027,7 +1227,10 @@ setMethod("create_ml_metabacktest_config",
             }
 
            # Create the ml_metabacktest_config object
-            meta_config <- new("ml_metabacktest_config", ml_backtest_configs = combined_configs)
+            meta_config <- new("ml_metabacktest_config",
+                               meta_ml_backtest_config = meta_ml_backtest_config,
+                               base_ml_backtest_configs = combined_configs,
+                               config_name = config_name)
 
             # State the number of valid configurations produced
             cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
@@ -1038,35 +1241,23 @@ setMethod("create_ml_metabacktest_config",
 
 #' @describeIn create_ml_metabacktest_config Create meta config from configs with tuning_strategy
 #'
-#' @param ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` not `NULL`.
+#' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
+#' @param base_ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` not `NULL`.
 #' @param ... Additional arguments (not used).
 #'
 #' @return An `ml_metabacktest_config` object containing the provided `ml_backtest_config` objects.
 #' @export
 setMethod("create_ml_metabacktest_config",
-          signature(ml_backtest_configs = "list", tuning_strategies = "missing"),
-          function(ml_backtest_configs, ...) {
-
-            # Use match.call() to capture the names of each object passed to ml_backtest_configs
-            call_args <- match.call()$ml_backtest_configs
-
-            # Extract the actual names from the call arguments
-            if (is.call(call_args) && call_args[[1]] == "list") {
-              object_names <- as.character(call_args[-1]) # Exclude the "list" element
-            } else {
-              stop("Please provide a list of ml_backtest_config objects.")
-            }
-
-            # Assign these names to the elements in ml_backtest_configs
-            names(ml_backtest_configs) <- object_names
+          signature(meta_ml_backtest_config = 'ml_backtest_config', base_ml_backtest_configs = "list", tuning_strategies = "missing"),
+          function(meta_ml_backtest_config, base_ml_backtest_configs, config_name = "not_identified", ...) {
 
             # Check that all configs are ml_backtest_config objects
-            if (!all(sapply(ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
-              stop("All elements in 'ml_backtest_configs' must be 'ml_backtest_config' objects.")
+            if (!all(sapply(base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
+              stop("All elements in 'base_ml_backtest_configs' must be 'ml_backtest_config' objects.")
             }
 
             # Check that tuning_strategy is not NULL for non-'ols' algorithms
-            invalid_configs <- sapply(ml_backtest_configs, function(x) {
+            invalid_configs <- sapply(base_ml_backtest_configs, function(x) {
               is.null(x@tuning_strategy) && x@ml_algorithm != "ols"
             })
             if (any(invalid_configs)) {
@@ -1074,7 +1265,8 @@ setMethod("create_ml_metabacktest_config",
             }
 
             # Create the ml_metabacktest_config object
-            meta_config <- new("ml_metabacktest_config", ml_backtest_configs = ml_backtest_configs)
+            meta_config <- new("ml_metabacktest_config", meta_ml_backtest_config = meta_ml_backtest_config, base_ml_backtest_configs = base_ml_backtest_configs,
+                               config_name = config_name)
             return(meta_config)
           }
 )
@@ -1091,21 +1283,13 @@ setGeneric("add_ml_backtest_config", function(object, ...) standardGeneric("add_
 
 setMethod("add_ml_backtest_config", "ml_metabacktest_config", function(object, ...) {
 
-  # Capture the names of the new objects from the function call
-  new_configs <- list(...)
-  call_args <- match.call(expand.dots = TRUE)
-  new_names <- as.character(call_args[-(1:2)])  # Skipping the function name and first arg 'object'
-
   # Check that all new_configs are complete ml_backtest_config objects
   if(!all(sapply(new_configs, function(x) !is.null(x@tuning_strategy)))) {
     stop("All elements in '...' must be complete (with tuning_strategy) 'ml_backtest_config' objects.")
   }
 
-  # Assign names to the new configurations based on the call argument names
-  names(new_configs) <- new_names
-
-  # Combine the current ml_backtest_configs with the new configurations
-  object@ml_backtest_configs <- c(object@ml_backtest_configs, new_configs)
+  # Combine the current base_ml_backtest_configs with the new configurations
+  object@base_ml_backtest_configs <- c(object@base_ml_backtest_configs, new_configs)
 
   # Validate the object explicitly
   validObject(object)
@@ -1132,12 +1316,13 @@ setMethod("remove_ml_backtest_config", "ml_metabacktest_config", function(object
   }
 
   # Check if the specified config_name exists in the list
-  if (!(config_name %in% names(object@ml_backtest_configs))) {
+  if (!(config_name %in% sapply(object@base_ml_backtest_configs, function(x) x@config_name))) {
     stop(paste("No configuration found with the name:", config_name))
   }
 
   # Remove the specified configuration
-  object@ml_backtest_configs <- object@ml_backtest_configs[names(object@ml_backtest_configs) != config_name]
+  remove_index <- which(config_name %in% sapply(object@base_ml_backtest_configs, function(x) x@config_name))
+  object@base_ml_backtest_configs <- object@base_ml_backtest_configs[-remove_index]
 
   # Validate the object explicitly
   validObject(object)
@@ -1148,39 +1333,34 @@ setMethod("remove_ml_backtest_config", "ml_metabacktest_config", function(object
 
 
 #' @title Create an ml_metabacktest_results Object
-#' @description Constructs an `ml_metabacktest_results` object from a list of `ml_backtest_results` objects.
-#' It computes consolidated and time series evaluation metrics for machine learning models.
+#' @description Constructs an `ml_metabacktest_results` object from a list of `ml_backtest_results` objects for base learners a single
+#' `ml_backtest_results` object for the meta learner.
+#' It computes consolidated and time series evaluation metrics for machine learning backtests.
 #'
-#' @param ml_backtest_results_list A named list of `ml_backtest_results` objects.
-#' @return An object of class `ml_metabacktest_results` containing the input `ml_backtest_results` and computed metrics.
-#' @examples
-#' \dontrun{
-#' # Assuming you have ml_backtest_results_list
-#' metabacktest_results <- create_ml_metabacktest_results(ml_backtest_results_list)
-#' }
+#' @param meta_ml_backtest_results_list A list containing `ml_backtest_results` objects for the meta learner and for the two heuristic ensembles.
+#' @param base_ml_backtest_results_list A named list of `ml_backtest_results` objects for the base learners.
+#' @return An object of class `ml_metabacktest_results`.
+#'
 #' @export
 setGeneric(
   name = "create_ml_metabacktest_results",
-  def = function(ml_backtest_results_list) {
+  def = function(meta_ml_backtest_results, base_ml_backtest_results) {
     standardGeneric("create_ml_metabacktest_results")
   }
 )
 
 #' @title Create an ml_metabacktest_results Object
-#' @description Constructs an `ml_metabacktest_results` object from a list of `ml_backtest_results` objects.
-#' It computes consolidated and time series evaluation metrics for machine learning models.
+#' @description Constructs an `ml_metabacktest_results` object from a list of `ml_backtest_results` objects for base learners a single
+#' `ml_backtest_results` object for the meta learner.
+#' It computes consolidated and time series evaluation metrics for machine learning backtests.
 #'
-#' @param ml_backtest_results_list A named list of `ml_backtest_results` objects.
-#' @return An object of class `ml_metabacktest_results` containing the input `ml_backtest_results` and computed metrics.
-#' @examples
-#' \dontrun{
-#' # Assuming you have ml_backtest_results_list
-#' metabacktest_results <- create_ml_metabacktest_results(ml_backtest_results_list)
-#' }
-#' @export
+#' @param meta_ml_backtest_results_list A list containing `ml_backtest_results` objects for the meta learner and for the two heuristic ensembles.
+#' @param base_ml_backtest_results_list A named list of `ml_backtest_results` objects for the base learners.
+#' @return An object of class `ml_metabacktest_results`.
+#'
 setGeneric(
   name = "create_ml_metabacktest_results",
-  def = function(ml_backtest_results_list) {
+  def = function(meta_ml_backtest_results, base_ml_backtest_results) {
     standardGeneric("create_ml_metabacktest_results")
   }
 )
@@ -1189,19 +1369,27 @@ setGeneric(
 #' @aliases create_ml_metabacktest_results,list-method
 setMethod(
   f = "create_ml_metabacktest_results",
-  signature = signature(ml_backtest_results_list = "list"),
-  definition = function(ml_backtest_results_list) {
+  signature = signature(meta_ml_backtest_results = "list", base_ml_backtest_results = "list"),
+  definition = function(meta_ml_backtest_results, base_ml_backtest_results) {
 
-    # Check that the input is a list of 'ml_backtest_results' objects
-    if (!all(sapply(ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
-      stop("All elements in 'ml_backtest_results_list' must be of class 'ml_backtest_results'")
+    # Check that the meta_ml_backtest_results input is a list of 'ml_backtest_results' object
+    if (!all(sapply(meta_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
+      stop("All elements in 'meta_ml_backtest_results' must be of class 'ml_backtest_results'")
+    }
+    if(length(meta_ml_backtest_results) != 3){
+      stop("The 'meta_ml_backtest_results' list must contain exactly 3 elements: one for the meta learner and two for the heuristic ensembles.")
+    }
+
+    # Check that the base_ml_backtest_results input is a list of 'ml_backtest_results' objects
+    if (!all(sapply(base_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
+      stop("All elements in 'base_ml_backtest_results' must be of class 'ml_backtest_results'")
     }
 
     # Get the names of the list elements
-    ml_names <- names(ml_backtest_results_list)
+    ml_names <- names(base_ml_backtest_results)
     if (is.null(ml_names)) {
-      ml_names <- paste0("Model_", seq_along(ml_backtest_results_list))
-      names(ml_backtest_results_list) <- ml_names
+      ml_names <- paste0("Model_", seq_along(base_ml_backtest_results))
+      names(base_ml_backtest_results) <- ml_names
     }
 
     # Initialize lists to collect metrics
@@ -1216,8 +1404,8 @@ setMethod(
     oos_metric_names <- NULL
     validation_metric_names <- NULL
 
-    for (i in seq_along(ml_backtest_results_list)) {
-      ml_backtest_result <- ml_backtest_results_list[[i]]
+    for (i in seq_along(base_ml_backtest_results)) {
+      ml_backtest_result <- base_ml_backtest_results[[i]]
       ml_name <- ml_names[i]  # Use the name of the list element
       chosen_eval_metric <- ml_backtest_result@ml_backtest_workflow$chosen_eval_metric
 
@@ -1444,7 +1632,8 @@ setMethod(
 
     # Create the 'ml_metabacktest_results' object
     new_object <- new("ml_metabacktest_results",
-                      ml_backtest_results = ml_backtest_results_list,
+
+                      ml_backtest_results = base_ml_backtest_results,
                       consolidated_oos_testing_metrics = consolidated_oos_testing_metrics,
                       mean_validation_metrics = mean_validation_metrics,
                       time_series_oos_testing_metrics = time_series_oos_testing_metrics,

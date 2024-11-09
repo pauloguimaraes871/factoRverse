@@ -2,26 +2,55 @@
 % Please edit documentation in R/constructors.R
 \name{create_meta_dataframe}
 \alias{create_meta_dataframe}
+\alias{create_meta_dataframe,data.frame-method}
+\alias{create_meta_dataframe,list-method}
 \title{Create a meta_dataframe Object}
 \usage{
-create_meta_dataframe(data)
+create_meta_dataframe(data, meta_dataframe_name = "not_identified", ...)
+
+\S4method{create_meta_dataframe}{data.frame}(data, meta_dataframe_name = "not_identified")
+
+\S4method{create_meta_dataframe}{list}(
+  data,
+  row_names,
+  column_names,
+  features_names,
+  meta_dataframe_name = "not_identified"
+)
 }
 \arguments{
-\item{data}{A \code{data.frame} containing the data to be converted to a \code{meta_dataframe}.}
+\item{data}{A \code{list} containing the following components:
+\describe{
+\item{\code{features_list}}{A list of matrices, \code{data.frames}, or tibbles containing the features.}
+\item{\code{row_names}}{A vector of row names corresponding to entities in the panel data.}
+\item{\code{column_names}}{A vector of column names corresponding to time points or dates in the panel data.}
+\item{\code{features_names}}{A vector of names for each feature in the \code{features_list}.}
+}}
+
+\item{meta_dataframe_name}{A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.}
+
+\item{...}{Additional arguments passed to methods.}
 }
 \value{
+An object of class \code{meta_dataframe}.
+
 An object of class \code{meta_dataframe} if the input data frame meets all validation criteria.
 The returned object includes metadata such as the number of unique dates, unique tickers, and
 total number of observations.
+
+An object of class \code{meta_dataframe} containing the panel data and associated metadata.
 }
 \description{
-This function creates an object of class \code{meta_dataframe} from a provided data frame.
-The data frame must meet specific requirements: it must contain 'id', 'tickers', and 'dates' columns,
-where 'dates' must be of class \code{Date} and sorted in ascending order. The 'id' column should
-be constructed as \code{paste0(tickers, "-", dates)}. The function also validates that there are no
-missing dates, duplicated IDs, or NA values in the required columns.
+This generic function creates an object of class \code{meta_dataframe} from a provided \code{data.frame} or a structured \code{list}.
+Specific behaviors are implemented via methods tailored to the class of the input data.
 }
 \details{
+The function dispatches to specific methods based on the class of the \code{data} argument. Currently, methods are implemented for:
+\itemize{
+\item \code{data.frame}: Converts a single \code{data.frame} into a \code{meta_dataframe} object after validation.
+\item \code{list}: Converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
+}
+
 \itemize{
 \item The 'id' column is expected to be in the format of \code{paste0(tickers, "-", dates)}.
 \item The 'dates' column must be of class \code{Date} and in ascending chronological order.
@@ -29,17 +58,93 @@ missing dates, duplicated IDs, or NA values in the required columns.
 \item The function ensures that there are no gaps in the dates sequence and no duplicated IDs.
 \item The metadata includes the number of unique dates, unique tickers, and total observations.
 }
+
+This method performs the following operations:
+\enumerate{
+\item Validates the structure and contents of the input list.
+\item Converts each feature set into a long (panel) format using \code{\link[reshape2]{melt}}.
+\item Merges all features into a single data frame, ensuring that each row represents a unique combination of entity and date.
+\item Calculates metadata such as the number of unique dates, unique entities (tickers), and total observations.
+\item Constructs a \code{meta_dataframe} S4 object encapsulating the transformed data and metadata.
 }
+}
+\section{Functions}{
+\itemize{
+\item \code{create_meta_dataframe(data.frame)}: Method for \code{data.frame} Signature
+
+This method creates an object of class \code{meta_dataframe} from a provided \code{data.frame}.
+The data frame must meet specific requirements: it must contain 'id', 'tickers', and 'dates' columns,
+where 'dates' must be of class \code{Date} and sorted in ascending order. The 'id' column should
+be constructed as \code{paste0(tickers, "-", dates)}. The function also validates that there are no
+missing dates, duplicated IDs, or NA values in the required columns.
+
+\item \code{create_meta_dataframe(list)}: Method for \code{list} Signature
+
+This method converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
+The input list must contain specific components required to build the panel data structure.
+
+}}
 \examples{
+# Example using a data.frame
+df <- data.frame(
+  id = c("A-2024-01-01", "B-2024-02-01"),
+  tickers = c("A", "B"),
+  dates = as.Date(c("2024-01-01", "2024-02-01")),
+  value = c(10, 20),
+  stringsAsFactors = FALSE
+)
+meta_df1 <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
+
+# Example using a list of features
+features_list <- list(
+  matrix(1:9, nrow = 3, ncol = 3),
+  matrix(11:19, nrow = 3, ncol = 3)
+)
+row_names <- c("A", "B", "C")
+column_names <- c("2024-01-01", "2024-02-01", "2024-03-01")
+features_names <- c("Feature1", "Feature2")
+
+data_input <- list(
+  features_list = features_list,
+  row_names = row_names,
+  column_names = column_names,
+  features_names = features_names
+)
+meta_df2 <- create_meta_dataframe(data = data_input, meta_dataframe_name = "PanelData")
+
 # Create a sample data frame
 df <- data.frame(
   id = c("A-2024-01-01", "B-2024-02-01"),
   tickers = c("A", "B"),
   dates = as.Date(c("2024-01-01", "2024-02-01")),
-  value = c(10, 20)
+  value = c(10, 20),
+  stringsAsFactors = FALSE
 )
 
 # Create a meta_dataframe object
-meta_df <- create_meta_dataframe(df)
+meta_df <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
+
+# Example input data
+features_list <- list(
+  matrix(1:9, nrow = 3, ncol = 3),
+  matrix(11:19, nrow = 3, ncol = 3)
+)
+row_names <- c("A", "B", "C")
+column_names <- c("2024-01-01", "2024-02-01", "2024-03-01")
+features_names <- c("Feature1", "Feature2")
+
+# Structured input list
+data_input <- list(
+  features_list = features_list,
+  row_names = row_names,
+  column_names = column_names,
+  features_names = features_names
+)
+
+# Create the meta_dataframe object
+meta_df <- create_meta_dataframe(data = data_input, meta_dataframe_name = "PanelData")
+
+# Inspect the meta_dataframe object
+print(meta_df)
 
 }

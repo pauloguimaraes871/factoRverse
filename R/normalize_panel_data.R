@@ -30,11 +30,14 @@ normalize_panel_data <- function(features_m_df) {
 
   #Extract data.frame in case of meta_dataframe obj
   if(is_meta_dataframe(features_m_df)){
+    meta_dataframe_name <- features_m_df@meta_dataframe_name
     past_workflow <- features_m_df@workflow #get past workflow
     features_m_df <- features_m_df@data #get data
   } else {
     past_workflow <- NULL
+    meta_dataframe_name <- "not_identified"
   }
+
 
   #Get dates vector and check
   dates_vector <- as.Date(unique(features_m_df$dates), format = "%Y-%m-%d") #Get dates
@@ -51,6 +54,7 @@ normalize_panel_data <- function(features_m_df) {
       #Set subset
       subset_matrix_ref <- which(as.Date(features_m_df$dates, format = "%Y-%m-%d") == as.Date(dates_vector[d], format = "%Y-%m-%d"))
       subset_matrix <- features_m_df[subset_matrix_ref, ]
+      #For each col
       for (j in 1:ncol(features_m_df)) {
         if (class(features_m_df[, j]) %in% c("factor", "character", "Date")) {
           # If the column is a factor, character, or Date, skip normalization
@@ -58,13 +62,17 @@ normalize_panel_data <- function(features_m_df) {
         } else {
           subset_min <- ifelse(all(is.na(subset_matrix[,j])), NA, min(subset_matrix[,j], na.rm = TRUE))
           subset_max <- ifelse(all(is.na(subset_matrix[,j])), NA, max(subset_matrix[,j], na.rm = TRUE))
-
+          #Check if all values are the same
+          if(length(unique(subset_matrix[,j])) == 1){
+            subset_matrix[,j] <- 0
+          } else {
           for(i in 1:nrow(subset_matrix)){
             subset_matrix[i,j] <- (2*(subset_matrix[i,j] - subset_min)/(subset_max - subset_min))-1
           }
         }
         normalized_matrix[subset_matrix_ref, j] <- subset_matrix[, j]
       }
+    }
   }
 
   # Calculate metadata
@@ -88,7 +96,8 @@ normalize_panel_data <- function(features_m_df) {
                             signals = features_names,
                             unique_dates = unique_dates_count,
                             unique_tickers = unique_tickers_count,
-                            n_obs = total_observations_count)
+                            n_obs = total_observations_count,
+                            meta_dataframe_name = meta_dataframe_name)
 
   return(normalized_meta_df)
 }

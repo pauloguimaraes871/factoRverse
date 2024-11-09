@@ -33,10 +33,12 @@ winsorize_panel_data <- function(features_m_df, probs, Infs_to_preserve = NULL) 
 
   #Extract data.frame in case of meta_dataframe obj
   if(is_meta_dataframe(features_m_df)){
+    meta_dataframe_name <- features_m_df@meta_dataframe_name
     past_workflow <- features_m_df@workflow #get past workflow
     features_m_df <- features_m_df@data #get data
   } else {
     past_workflow <- NULL
+    meta_dataframe_name <- "not_identified"
   }
 
   #Get dates vector and check
@@ -113,6 +115,7 @@ winsorize_panel_data <- function(features_m_df, probs, Infs_to_preserve = NULL) 
        c(past_workflow, new_workflow)
     }
 
+
     # Create meta_dataframe object
     winsorized_meta_df <- new("meta_dataframe",
                           data = winsorized_matrix,
@@ -120,7 +123,9 @@ winsorize_panel_data <- function(features_m_df, probs, Infs_to_preserve = NULL) 
                           signals = features_names,
                           unique_dates = unique_dates_count,
                           unique_tickers = unique_tickers_count,
-                          n_obs = total_observations_count)
+                          n_obs = total_observations_count,
+                          meta_dataframe_name = meta_dataframe_name
+                          )
 
 
     return(winsorized_meta_df)

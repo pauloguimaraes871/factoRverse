@@ -1,7 +1,7 @@
 # Define your test
 test_that("Panelize Data is running correctly.", {
   expect_equal(
-    panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma"))@data,
@@ -18,7 +18,7 @@ test_that("Panelize Data is running correctly.", {
 
 test_that("Panelize Data is running correctly with character data.frame.", {
   expect_equal(
-    panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), data.frame(c("e","c"),c("d","a")), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), data.frame(c("e","c"),c("d","a")), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma"))@data,
@@ -36,7 +36,7 @@ test_that("Panelize Data is running correctly with character data.frame.", {
 # Define your test
 test_that("Panelize Data is running correctly with data frames and tibbles.", {
   expect_equal(
-    panelize_data(list(as.data.frame(matrix(c(0,1,2,3), nrow=2, ncol=2)), tibble::as_tibble(matrix(c(4,5,6,7), nrow=2, ncol=2), .name_repair = "unique"),
+    create_meta_dataframe(list(as.data.frame(matrix(c(0,1,2,3), nrow=2, ncol=2)), tibble::as_tibble(matrix(c(4,5,6,7), nrow=2, ncol=2), .name_repair = "unique"),
                        as.data.frame(matrix(c(8,9,10,11), nrow=2, ncol=2))),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
@@ -51,7 +51,7 @@ test_that("Panelize Data is running correctly with data frames and tibbles.", {
   )
 
   expect_equal(
-    panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), as.data.frame(matrix(c(4,5,6,7), nrow=2, ncol=2)),
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), as.data.frame(matrix(c(4,5,6,7), nrow=2, ncol=2)),
                        as.data.frame(matrix(c(8,9,10,11), nrow=2, ncol=2))),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
@@ -72,7 +72,7 @@ test_that("Panelize Data is running correctly with data frames and tibbles.", {
 # Define your test
 test_that("Panelize Data is running correctly - Some NAs.", {
   expect_equal(
-    panelize_data(list(matrix(c(0,NA,2,3), nrow=2, ncol=2), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
+    create_meta_dataframe(list(matrix(c(0,NA,2,3), nrow=2, ncol=2), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma"))@data,
@@ -90,7 +90,7 @@ test_that("Panelize Data is running correctly - Some NAs.", {
 # Define your test
 test_that("Panelize Data is running correctly - Many Characteristics and Stocks", {
   expect_equal(
-    panelize_data(list(matrix(c(0,1,2,3,7,9,10,4,9), nrow=3, ncol=3),
+    create_meta_dataframe(list(matrix(c(0,1,2,3,7,9,10,4,9), nrow=3, ncol=3),
                        matrix(c(4,5,6,7,2,-3,5,4,-2), nrow=3, ncol=3),
                        matrix(c(8,9,10,11,-2,-3,4,4,2), nrow=3, ncol=3),
                        matrix(c(3,7,9,8,-1,0,5,-2,0), nrow=3, ncol=3)),
@@ -119,7 +119,7 @@ test_that("Panelize Data is running correctly - Many Characteristics and Stocks"
 # Define your test
 test_that("Panelize Data throws an error when dimensions differ", {
   expect_error(
-    panelize_data(list(matrix(c(0,NA,2,3,4,5), nrow=2, ncol=3), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
+    create_meta_dataframe(list(matrix(c(0,NA,2,3,4,5), nrow=2, ncol=3), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma")),
@@ -132,11 +132,10 @@ test_that("Panelize Data throws an error when dimensions differ", {
 # Define your test
 test_that("Panelize Data throws an error when features_list is not a list", {
   expect_error(
-    panelize_data(matrix(c(4,5,NA,7), nrow=2, ncol=2),
+    create_meta_dataframe(matrix(c(4,5,NA,7), nrow=2, ncol=2),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
-                  c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
+                  c("Alpha", "Beta", "Gamma"))
   )
 }
 )
@@ -144,7 +143,7 @@ test_that("Panelize Data throws an error when features_list is not a list", {
 # Define your test
 test_that("Panelize Data throws an error when one of list objects is not DF or Matrix", {
   expect_error(
-    panelize_data(list(c(0,NA,2,3,4,5), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
+    create_meta_dataframe(list(c(0,NA,2,3,4,5), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma")),
@@ -156,7 +155,7 @@ test_that("Panelize Data throws an error when one of list objects is not DF or M
 # Define your test
 test_that("Panelize Data throws an error when rownames length does not match number of rows in each matrix of list", {
 expect_error(
-  panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+  create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                 c("Stock A", "Stock B", "Ronaldo"),
                 as.Date(c("2001-03-15", "2001-04-15")),
                 c("Alpha", "Beta", "Gamma")),
@@ -167,7 +166,7 @@ expect_error(
 # Define your test
 test_that("Panelize Data throws an error when colnames length does not match number of columns in each matrix of list", {
   expect_error(
-    panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15", "Ronaldo")),
                   c("Alpha", "Beta", "Gamma")),
@@ -178,7 +177,7 @@ test_that("Panelize Data throws an error when colnames length does not match num
 # Define your test
 test_that("Panelize Data throws an error when length of features_names does not match number of elements in features_list", {
   expect_error(
-    panelize_data(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15", "Ronaldo")),
                   c("Alpha", "Beta", "Gamma")),
@@ -188,16 +187,16 @@ test_that("Panelize Data throws an error when length of features_names does not 
 
 
 # Define your test
-test_that("panelize_data throws an error when there are different number of rows in matrices",{
+test_that("create_meta_dataframe throws an error when there are different number of rows in matrices",{
 expect_error(
-  panelize_data(list(matrix(1:4, nrow = 2), matrix(5:7, nrow = 3)),
+  create_meta_dataframe(list(matrix(1:4, nrow = 2), matrix(5:7, nrow = 3)),
                 c("Stock A", "Stock B"), as.Date(c("2001-03-15", "2001-04-15")), c("Alpha", "Beta")),
   "Input must be a list of matrices, data frames or tibbles with the same dimensions."
 )
 })
 
 # Define your test
-test_that("panelize_data works with external toy data - Excel Files", {
+test_that("create_meta_dataframe works with external toy data - Excel Files", {
 
   #Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -209,13 +208,13 @@ test_that("panelize_data works with external toy data - Excel Files", {
                       output_sheet_range = c("B1:I58"),
                       industry_classification_column_name = c("sector_c1"))
   #Apply function
-  panel <- panelize_data(features_list = results$inputs$feature_list,
+  panel <- create_meta_dataframe(data = results$inputs$feature_list,
                          row_names = results$inputs$tickers$...1,
                          column_names  = results$inputs$dates,
                          features_names = results$inputs$features_names)@data
 
 
-
+  results$outputs$dates <- as.Date(results$outputs$dates)
 
   # Apply the function to the test data
   expect_equal(panel,

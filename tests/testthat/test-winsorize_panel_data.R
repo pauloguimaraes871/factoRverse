@@ -349,15 +349,16 @@ test_that("Winsorize Data is running correctly - Some Infs - Alpha only NA", {
 # Define your test
 test_that("Winsorize Data integrates correctly with panelize data.", {
 
-  panel_data <- panelize_data(list(matrix(c(0,1,2,3,7,9,10,4,9), nrow=3, ncol=3),
+  mdf <- create_meta_dataframe(list(matrix(c(0,1,2,3,7,9,10,4,9), nrow=3, ncol=3),
                                          matrix(c(4,5,6,7,2,-3,5,4,-2), nrow=3, ncol=3),
                                          matrix(c(8,9,10,11,-2,-3,4,4,2), nrow=3, ncol=3),
                                          matrix(c(3,7,9,8,-1,0,5,-2,0), nrow=3, ncol=3)),
                                        c("Stock A", "Stock B", "Stock C"),
                                        as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
-                                       c("Alpha", "Beta", "Gamma", "Delta"))
+                                       c("Alpha", "Beta", "Gamma", "Delta"),
+                                        "meta")
 
-  expected_result <- winsorize_panel_data(panel_data,
+  expected_result <- winsorize_panel_data(mdf,
                                           c(0.975, 0.025),
                                           c("Alpha"))
 
@@ -378,10 +379,11 @@ test_that("Winsorize Data integrates correctly with panelize data.", {
       Gamma = (c(8.05, 10.35, 4.00, 9.00, -2.00, 4.00, 9.95, -2.95, 2.10)),
       Delta = c(3.20,7.60,4.75,7.00,-0.95,-1.90,8.90,0.00,0.00)),
     workflow = expected_result@workflow,
-    signals = panel_data@signals,
-    unique_dates = panel_data@unique_dates,
-    unique_tickers = panel_data@unique_tickers,
-    n_obs = panel_data@n_obs
+    signals = mdf@signals,
+    unique_dates = mdf@unique_dates,
+    unique_tickers = mdf@unique_tickers,
+    n_obs = mdf@n_obs,
+    meta_dataframe_name = "meta"
   ),
   expected_result)
 
@@ -559,13 +561,16 @@ test_that("winsorize_data integrates with external toy data - Excel Files", {
                                  output_sheet_range = c("B1:I58"),
                                  industry_classification_column_name = c("sector_c1"))
   #Apply function
-  panel <- panelize_data(features_list = results$inputs$feature_list,
+  panel <- create_meta_dataframe(data = results$inputs$feature_list,
                          row_names = results$inputs$tickers$...1,
                          column_names  = results$inputs$dates,
-                         features_names = results$inputs$features_names)
+                         features_names = results$inputs$features_names,
+                         meta_dataframe_name = "test")
 
   winsorized_panel <- winsorize_panel_data(features_m_df = panel,
                                            probs = c(0.975,0.025))
+
+  results$outputs$dates <- as.Date(results$outputs$dates)
 
   # Apply the function to the test data
   expect_equal(winsorized_panel@data,

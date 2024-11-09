@@ -831,7 +831,7 @@ test_that("ind_unavaible_feature integrates with external toy data - Excel Files
                                  output_sheet_range = c("B1:I58"),
                                  industry_classification_column_name = c("sector_c1"))
   #Apply functions
-  panel <- panelize_data(features_list = results$inputs$feature_list,
+  panel <- create_meta_dataframe(data = results$inputs$feature_list,
                          row_names = results$inputs$tickers$...1,
                          column_names  = results$inputs$dates,
                          features_names = results$inputs$features_names)
@@ -849,7 +849,7 @@ test_that("ind_unavaible_feature integrates with external toy data - Excel Files
                                                                     selected_industries = c("Bancos e Serviços Financeiros"))
 
 
-
+  results$outputs$dates <- as.Date(results$outputs$dates)
 
   # Apply the function to the test data
   expect_equal(normalized_panel_banks_filled@data,
