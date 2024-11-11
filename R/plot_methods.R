@@ -18,12 +18,62 @@
 setMethod(
   "plot",
   signature(x = "meta_dataframe", y = "missing"),
-  function(x, type = "cross_sectional", clustering_variables = NULL, variable, tickers = "all", dates = "all", calc_stat = "mean",
+  function(x, type = "cross_sectional", clustering_variables = NULL, variable = NULL, tickers = "all", dates = "all", calc_stat = "mean",
            custom_filter = NULL, filter_values = NULL, dep_y = NULL, numeric_aggregation = "decile") {
 
-    #Check for type
-    if(!type %in% c("cross_sectional", "time_series", "distribution", "composition", "regression", "density2d", "correlogram", "radar")){
-      stop("Invalid plot type. Choose from 'cross_sectional', 'time_series', 'distribution', 'composition', 'regression', 'density2d', 'correlogram' or 'radar'.")
+    # Prompt for 'type' if not specified
+    if (is.null(type)) {
+      available_types <- c("cross_sectional", "time_series", "distribution", "composition", "regression", "density2d", "correlogram", "radar")
+      cat("\nPlease choose a plot type:\n")
+      for (i in seq_along(available_types)) {
+        cat(paste0(i, ": ", available_types[i], "\n"))
+      }
+      selection <- readline(prompt = "Enter the number of your choice: ")
+      selection <- as.numeric(selection)
+      if (is.na(selection) || selection < 1 || selection > length(available_types)) {
+        stop("Invalid selection.")
+      }
+      type <- available_types[selection]
+    }
+
+    # Check for valid 'type'
+    if (!type %in% c("cross_sectional", "time_series", "distribution", "composition", "regression", "density2d", "correlogram", "radar")) {
+      stop("Invalid plot type. Choose from 'cross_sectional', 'time_series', 'distribution', 'composition', 'regression', 'density2d', 'correlogram', or 'radar'.")
+    }
+
+    # Prompt for 'variable' if not specified and required
+    if (is.null(variable)) {
+      required_for_types <- c("cross_sectional", "time_series", "distribution", "composition", "regression", "density2d", "correlogram", "radar")
+      if (type %in% required_for_types) {
+        available_variables <- setdiff(names(x@data), c("id", "tickers", "dates"))
+        cat("\nPlease choose a variable:\n")
+        for (i in seq_along(available_variables)) {
+          cat(paste0(i, ": ", available_variables[i], "\n"))
+        }
+        selection <- readline(prompt = "Enter the number of your choice: ")
+        selection <- as.numeric(selection)
+        if (is.na(selection) || selection < 1 || selection > length(available_variables)) {
+          stop("Invalid selection.")
+        }
+        variable <- available_variables[selection]
+      }
+    }
+
+    # Prompt for 'calc_stat' if not specified
+    if (is.null(calc_stat)) {
+      available_stats <- c("mean", "sd", "median", "min", "max", "sum", "n",
+                           "q05", "q10", "q25", "q75", "q90", "q95",
+                           "cor", "beta", "beta_tstat", "alpha", "alpha_tstat")
+      cat("\nPlease choose a calculation statistic (calc_stat):\n")
+      for (i in seq_along(available_stats)) {
+        cat(paste0(i, ": ", available_stats[i], "\n"))
+      }
+      selection <- readline(prompt = "Enter the number of your choice: ")
+      selection <- as.numeric(selection)
+      if (is.na(selection) || selection < 1 || selection > length(available_stats)) {
+        stop("Invalid selection.")
+      }
+      calc_stat <- available_stats[selection]
     }
 
     # Set default clustering_variables based on plot type
@@ -1268,6 +1318,7 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @return A `ggplot` object visualizing the hyperparameter distributions with possible limits.
 #' @export
 setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x, y){
+
   if(x@ml_algorithm != "ols"){
     plot(x@tuning_strategy)
   } else {
@@ -1278,68 +1329,142 @@ setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x
 
 
 #' @title Plot Method for `ml_metabacktest_config`
-#' @description Combines individual plots from `ml_backtest_config` objects in a grid layout.
+#' @description Allows the user to plot either the base learners or the meta learner configurations.
+#' If `base_ml_backtest_results` is provided, it extracts the configurations using `get_ml_backtest_config`.
 #' @param x An object of class `ml_metabacktest_config`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
-#' @return A combined `ggplot` object visualizing the hyperparameter distributions for all configurations.
+#' @param which A character string specifying which configurations to plot.
+#'   - `"base"`: Plots the base learners (default).
+#'   - `"meta"`: Plots the meta learner.
+#'   - `"both"`: Plots both base learners and meta learner.
+#'   If not specified, the function will prompt the user to choose.
+#' @param ... Additional arguments (currently unused).
+#' @return A combined `ggplot` object visualizing the hyperparameter distributions for the selected configurations.
 #' @export
-setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), function(x, y){
+setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), function(x, y, which = NULL, ...) {
 
-  # List to hold individual plots
+  # If 'which' is not provided, prompt the user
+  if (is.null(which)) {
+    cat("\nPlease choose what to plot:\n")
+    cat("1: Base Learners\n")
+    cat("2: Meta Learner\n")
+    cat("3: Both\n")
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    selection <- as.numeric(selection)
+    if (selection == 1) {
+      which <- "base"
+    } else if (selection == 2) {
+      which <- "meta"
+    } else if (selection == 3) {
+      which <- "both"
+    } else {
+      stop("Invalid selection.")
+    }
+  }
+
+  # Initialize a list to hold plots
   plot_list <- list()
 
-  # Loop through each ml_backtest_config in the ml_metabacktest_config
-  for (config in x@ml_backtest_configs) {
+  # Plot base learners if requested
+  if (which %in% c("base", "both")) {
+    # Determine whether to use configs or results
+    if (!is.null(x@base_ml_backtest_configs)) {
+      base_configs <- x@base_ml_backtest_configs
+    } else if (!is.null(x@base_ml_backtest_results)) {
+      # Use get_ml_backtest_config to extract configs from results
+      base_configs <- lapply(x@base_ml_backtest_results, get_ml_backtest_config)
+    } else {
+      stop("No base_ml_backtest_configs or base_ml_backtest_results found in the object.")
+    }
+
+    # Loop through each ml_backtest_config in the base_configs
+    for (config in base_configs) {
+      # Check if the algorithm is not OLS
+      if (config@ml_algorithm != "ols") {
+        # Create the plot using the existing plot method for ml_backtest_config
+        p <- plot(config)  # Call the existing plot method
+
+        # Store the plot in the list and add a centered subtitle
+        plot_list[[length(plot_list) + 1]] <- p +
+          ggplot2::ggtitle(paste("Algorithm:", config@ml_algorithm,
+                                 if(config@ml_algorithm == "nn") paste("with", length(config@keras_architecture_parameters@units), "layers"),
+                                 "  | Custom Obj:", config@custom_objective,
+                                 "\nTuning Strategy:", config@tuning_strategy@tuning_method,
+                                 "  |  Chosen Eval Metric:", config@tuning_strategy@chosen_eval_metric,
+                                 "  |  Val Sample Size:", config@tuning_strategy@validation_sample_size)
+          ) +  # Combined title
+          ggplot2::theme(
+            plot.title = ggplot2::element_text(size = 10),
+            plot.subtitle = ggplot2::element_text(hjust = 0.5, color = "white", size = 9),
+            panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
+          )
+      } else {
+        message("Skipping plotting for `ols` ml_algorithm in one of the configs.")
+      }
+    }
+  }
+
+  # Plot meta learner if requested
+  if (which %in% c("meta", "both")) {
+    meta_config <- x@meta_ml_backtest_config
     # Check if the algorithm is not OLS
-    if (config@ml_algorithm != "ols") {
+    if (meta_config@ml_algorithm != "ols") {
       # Create the plot using the existing plot method for ml_backtest_config
-      p <- plot(config)  # Call the existing plot method
+      p <- plot(meta_config)  # Call the existing plot method
 
       # Store the plot in the list and add a centered subtitle
       plot_list[[length(plot_list) + 1]] <- p +
-        ggplot2::ggtitle(paste("Algorithm:", config@ml_algorithm,
-                               if(config@ml_algorithm == "nn") paste("with", length(config@keras_architecture_parameters@units), "layers"),
-                               "  | Custom Obj:", config@custom_objective,
-                               "\nTuning Strategy:", config@tuning_strategy@tuning_method,
-                               "  |  Chosen Eval Metric:", config@tuning_strategy@chosen_eval_metric,
-                               "  |  Val Sample Size:", config@tuning_strategy@validation_sample_size)
-                         ) +  # Combined title
+        ggplot2::ggtitle(paste("Meta Learner - Algorithm:", meta_config@ml_algorithm,
+                               if(meta_config@ml_algorithm == "nn") paste("with", length(meta_config@keras_architecture_parameters@units), "layers"),
+                               "  | Custom Obj:", meta_config@custom_objective,
+                               "\nTuning Strategy:", meta_config@tuning_strategy@tuning_method,
+                               "  |  Chosen Eval Metric:", meta_config@tuning_strategy@chosen_eval_metric,
+                               "  |  Val Sample Size:", meta_config@tuning_strategy@validation_sample_size)
+        ) +  # Combined title
         ggplot2::theme(
           plot.title = ggplot2::element_text(size = 10),
           plot.subtitle = ggplot2::element_text(hjust = 0.5, color = "white", size = 9),
           panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
         )
     } else {
-      message("Skipping plotting for `ols` ml_algorithm in one of the configs.")
+      message("Skipping plotting for `ols` ml_algorithm in the meta learner config.")
     }
   }
 
   # Check if there are any plots to display
   if (length(plot_list) > 0) {
     # Create an empty plot for the main title with the blue background
+    title_text <- switch(which,
+                         "base" = "ML Metabacktest Base Learner Tuning Strategies",
+                         "meta" = "ML Metabacktest Meta Learner Tuning Strategy",
+                         "both" = "ML Metabacktest Tuning Strategies"
+    )
+
     title_plot <- ggplot2::ggplot() +
       ggplot2::theme_void() +  # No grid lines or axes
-      ggplot2::annotate("text", x = 0.1, y = 0.80,  # Adjusted y position for the title
-                        label = "ML Metabacktest Tuning Strategies",
+      ggplot2::annotate("text", x = 0.5, y = 0.5,  # Centered position
+                        label = title_text,
                         size = 6.25, color = "white", fontface = "bold", hjust = 0.5) +  # Centered title
-      ggplot2::xlim(0, 1) +  # Control x limits
-      ggplot2::ylim(0, 1) +  # Control y limits
       ggplot2::theme(plot.background = ggplot2::element_rect(fill = "#001f3f"))  # Set background to blue_bg
 
-    # Combine all individual plots into a single grid layout by algorithm
-    combined_plot <- gridExtra::grid.arrange(title_plot,
-                                              do.call(gridExtra::arrangeGrob, c(plot_list, ncol = 2)),
-                                              nrow = 2, heights = c(0.05, 0.95))  # Adjust height ratios for less space
+    # Determine the number of columns in the layout
+    ncol_layout <- ifelse(length(plot_list) > 1, 2, 1)
 
-    # Suppress the output of TableGrob
-    invisible(combined_plot)
+    # Combine all individual plots into a single grid layout
+    combined_plot <- gridExtra::grid.arrange(
+      title_plot,
+      do.call(gridExtra::arrangeGrob, c(plot_list, ncol = ncol_layout)),
+      nrow = 2,
+      heights = c(0.1, 0.9)  # Adjust height ratios for title and plots
+    )
+
+    # Display the combined plot
+    grid::grid.newpage()
+    grid::grid.draw(combined_plot)
   } else {
     stop("No valid plots available to display.")
   }
 })
-
-
-
 
 
 
@@ -1382,18 +1507,19 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
 
   if(x@ml_backtest_workflow$ml_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
     plot_id <- 5
-    message("'All Evaluation Metrics Over Time' is the only avaialable plot for OLS, EW Ensemble, and Optimal Ensemble. Plotting 'All Evaluation Metrics Over Time'...")
+    message("'All Evaluation Metrics Over Time' is the only available plot for OLS, EW Ensemble, and Optimal Ensemble. Plotting 'All Evaluation Metrics Over Time'...")
   }
-  available_plots_ols_and_heuristic_ensembles <- "All Evaluation Metrics Over Time"
 
   if (is.null(plot_id)) {
-    cat("\nAvailable plots to display:\n")
+    cat("\nPlease choose a plot to display:\n")
     for (i in seq_along(available_plots)) {
       cat(paste0(i, ": ", available_plots[i], "\n"))
     }
-    cat("\nPlease specify the 'plot_id' parameter to display a plot.\n")
-    cat("You can select a plot either by name or by number.\n")
-    return(invisible(x))
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    plot_id <- as.numeric(selection)
+    if (is.na(plot_id) || plot_id < 1 || plot_id > length(available_plots)) {
+      stop("Invalid selection.")
+    }
   }
 
   # Determine if plot_id is numeric (index) or character (name)
@@ -1983,7 +2109,6 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
     }
 
   } else if (plot_name == "All Evaluation Metrics Over Time") {
-    browser()
     # PLOT 5: All Evaluation Metrics Over Time
     plots_list$all_eval_metrics_over_time <- ggplot2::ggplot(
       oos_testing_eval_metrics %>%
@@ -2141,43 +2266,46 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
 
 
 
-
-
 #' @title Plot Method for ml_metabacktest_results Class
-#' @description Provides plotting capabilities for an `ml_metabacktest_results` object.
+#' @description Generates various plots to visualize the performance and metrics of meta-learning backtest results.
 #' Users can select which plot to display by specifying the `plot_id` parameter,
 #' either by name or by number.
+#' The plots include comparisons between base learners and meta learners over time.
 #'
-#' @param x An object of class `ml_metabacktest_results`.
+#' @param x An object of class \code{ml_metabacktest_results} containing the results of the meta-learning backtests.
 #' @param plot_id A character string or numeric value specifying which plot to display.
 #'   - By name: Options are:
-#'     - `"Consolidated OOS Testing Metrics"`
-#'     - `"Mean Validation Metrics"`
+#'     - `"Consolidated OOS Testing Metrics Comparison"`
 #'     - `"Time Series OOS Testing Metrics"`
+#'     - `"Mean Validation Metrics Comparison"`
 #'     - `"Time Series Validation Metrics"`
+#'     - `"Base Learners vs Meta Learners Over Time"`
 #'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
 #'   If `NULL` (default), the method lists available plots.
-#' @return Invisibly returns the input `x`.
-#' @importFrom methods setMethod
+#' @return Invisibly returns the input \code{x}.
 #' @export
 setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
 
   # List of available plots
   available_plots <- c(
-    "Consolidated OOS Testing Metrics",
-    "Mean Validation Metrics",
+    "Consolidated OOS Testing Metrics Comparison",
     "Time Series OOS Testing Metrics",
-    "Time Series Validation Metrics"
+    "Mean Validation Metrics Comparison",
+    "Time Series Validation Metrics",
+    "Base Learners vs Meta Learners Over Time"
   )
 
+  # Display the available plots and prompt the user if plot_id is NULL
   if (is.null(plot_id)) {
-    cat("\nAvailable plots to display:\n")
+    cat("\nPlease choose a plot to display:\n")
     for (i in seq_along(available_plots)) {
       cat(paste0(i, ": ", available_plots[i], "\n"))
     }
-    cat("\nPlease specify the 'plot_id' parameter to display a plot.\n")
-    cat("You can select a plot either by name or by number.\n")
-    return(invisible(x))
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    plot_id <- as.numeric(selection)
+    if (is.na(plot_id) || plot_id < 1 || plot_id > length(available_plots)) {
+      stop("Invalid selection.")
+    }
   }
 
   # Determine if plot_id is numeric (index) or character (name)
@@ -2198,14 +2326,7 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
     stop("'plot_id' must be either a string or a number corresponding to the plot.")
   }
 
-  # Extract data from the object
-  consolidated_oos_testing_metrics <- x@consolidated_oos_testing_metrics
-  mean_validation_metrics <- x@mean_validation_metrics
-  time_series_oos_testing_metrics <- x@time_series_oos_testing_metrics
-  time_series_validation_metrics <- x@time_series_validation_metrics
-
-  # Define color palette and themes
-  # Use the same colors as in the inspiration code
+  # Define color palette
   neon_blue <- "#00BFFF"
   neon_pink <- "#FF1493"
   neon_yellow <- "#FFFF00"
@@ -2214,35 +2335,77 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
   neon_green <- "#39FF14"
   blue_bg <- "#001f3f"
   faint_blue <- "#003366"
-  light_gray <- "#B0B0B0"
   black <- "#000000"
   white <- "#FFFFFF"
-  neon_hot_pink <- "#FF69B4"   # Hot Pink
-  neon_lime_green <- "#32CD32" # Lime Green
+  neon_hot_pink <- "#FF69B4"      # Hot Pink
+  neon_lime_green <- "#32CD32"    # Lime Green
   neon_bright_orange <- "#FFA500" # Bright Orange
 
-  #Initialize plots list
+  # Extended neon palette with 9 colors
+  extended_neon_palette <- c(
+    neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
+    neon_hot_pink, neon_lime_green, neon_bright_orange
+  )
+
+  # Extract data from the ml_metabacktest_results object
+  consolidated_metrics <- x@consolidated_oos_testing_metrics
+  time_series_oos_testing_metrics <- x@time_series_oos_testing_metrics
+  mean_validation_metrics <- x@mean_validation_metrics
+  time_series_validation_metrics <- x@time_series_validation_metrics
+  base_learners <- x@base_ml_backtest_results_list
+  meta_learners <- x@meta_ml_backtest_results_list
+
+  # Initialize plots list
   plots_list <- list()
+  # Now generate the selected plot
+  if (plot_name == "Consolidated OOS Testing Metrics Comparison") {
+    # Plot consolidated OOS testing metrics for all models (base and meta learners)
 
-  # Now, generate the selected plot
-  if (plot_name == "Consolidated OOS Testing Metrics") {
-    # Plot consolidated_oos_testing_metrics
-    # Assuming the data frame has columns: Algorithm, chosen_eval_metric, and various metrics
+    # Prepare data
+    # Extract full periods and common dates metrics
+    full_periods_metrics <- consolidated_metrics$full_periods_oos_testing_metrics
+    common_dates_metrics <- consolidated_metrics$common_dates_oos_testing_metrics
 
-    # Melt the data frame to long format
-    plot_data <- reshape2::melt(consolidated_oos_testing_metrics, id.vars = c("Algorithm", "chosen_eval_metric"))
+    # Combine the two data frames
+    consolidated_data <- rbind(
+      cbind(full_periods_metrics, Period = "Full Periods"),
+      cbind(common_dates_metrics, Period = "Common Dates")
+    )
 
-    # Modify variable names to remove prefixes if any
-    # Assuming variable names are clean
+    # Replace long Backtest identifiers with labels
+    all_backtests <- unique(consolidated_data$Backtest)
+    labels <- seq_along(all_backtests)
+    legend <- data.frame(
+      Backtest = all_backtests,
+      Label = labels
+    )
+    consolidated_data$BacktestLabel <- legend$Label[match(consolidated_data$Backtest, legend$Backtest)]
+
+    # Melt data for plotting
+    plot_data <- reshape2::melt(
+      consolidated_data,
+      id.vars = c("Backtest", "BacktestLabel", "Period", "testing_dates_range", "chosen_eval_metric"),
+      variable.name = "Metric",
+      value.name = "Value"
+    )
+
+    # Exclude non-numeric columns
+    plot_data <- plot_data[!plot_data$Metric %in% c("Backtest", "BacktestLabel", "Period", "testing_dates_range", "chosen_eval_metric"), ]
 
     # Create the plot
-    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Algorithm, y = value, fill = Algorithm)) +
-      ggplot2::geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
-      ggplot2::facet_wrap(~variable, scales = "free_y") +
-      ggplot2::labs(title = "Consolidated Out-of-Sample Testing Metrics",
-                    x = "Algorithm",
-                    y = "Metric Value") +
-      ggplot2::scale_fill_manual(values = c(neon_blue, neon_green, neon_pink, neon_orange, neon_purple, neon_yellow)) +
+    plots_list$consolidated_oos_testing_metrics_comparison <- ggplot2::ggplot(
+      plot_data,
+      ggplot2::aes(x = as.factor(BacktestLabel), y = Value, fill = Metric)
+    ) +
+      ggplot2::geom_bar(stat = "identity", position = "dodge") +
+      ggplot2::facet_wrap(~Period, scales = "free_y") +
+      ggplot2::labs(
+        title = "Consolidated OOS Testing Metrics Comparison",
+        x = "Model (Backtest Label)",
+        y = "Metric Value",
+        fill = "Metric"
+      ) +
+      ggplot2::scale_fill_manual(values = extended_neon_palette) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
         plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
@@ -2251,78 +2414,67 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
         axis.text = ggplot2::element_text(color = white),
         axis.title = ggplot2::element_text(color = white),
         strip.text = ggplot2::element_text(color = white, face = "bold"),
-        legend.position = "bottom",
         legend.title = ggplot2::element_text(color = white),
         legend.text = ggplot2::element_text(color = white),
         panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
         panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
       )
 
-    print(p)
+    # Print the legend mapping Backtest labels to identifiers
+    cat("\nLegend:\n")
+    for (i in seq_along(labels)) {
+      cat(paste(labels[i], ":", all_backtests[i], "\n"))
+    }
 
-  } else if (plot_name == "Mean Validation Metrics") {
-    # Plot mean_validation_metrics
-    # Similar to the above plot
-    # Melt the data frame to long format
-    plot_data <- reshape2::melt(mean_validation_metrics, id.vars = c("Algorithm", "chosen_eval_metric"))
-
-    plot_data <- na.omit(plot_data)
-
-    # Create the plot
-    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Algorithm, y = value, fill = Algorithm)) +
-      ggplot2::geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
-      ggplot2::facet_wrap(~variable, scales = "free_y") +
-      ggplot2::labs(title = "Mean Validation Metrics",
-                    x = "Algorithm",
-                    y = "Metric Value") +
-      ggplot2::scale_fill_manual(values = c(neon_blue, neon_green, neon_pink, neon_orange, neon_purple, neon_yellow)) +
-      ggplot2::theme_minimal() +
-      ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
-        legend.position = "bottom",
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
-      )
-
-    print(p)
+    print(plots_list$consolidated_oos_testing_metrics_comparison)
 
   } else if (plot_name == "Time Series OOS Testing Metrics") {
-    # Plot time_series_oos_testing_metrics
-    # time_series_oos_testing_metrics is a list of data frames, one per metric
+    # Plot time series OOS testing metrics for each model
 
-    # For the time series plots, create a combined data frame
-    metric_names <- names(time_series_oos_testing_metrics)
+    # Prepare data
+    # time_series_oos_testing_metrics is a list of data frames for each metric
+    # We'll combine them into one data frame for plotting
 
-    # Combine data frames
-    plot_data_list <- lapply(seq_along(metric_names), function(i) {
-      metric_name <- metric_names[i]
-      df <- time_series_oos_testing_metrics[[i]]
-      df$Date <- as.Date(rownames(df))
-      df_long <- reshape2::melt(df, id.vars = "Date", variable.name = "Algorithm", value.name = "Value")
-      df_long$Metric <- metric_name
-      return(df_long)
-    })
+    metrics_list <- time_series_oos_testing_metrics
+    metric_names <- names(metrics_list)
 
-    plot_data <- do.call(rbind, plot_data_list)
+    plot_data <- data.frame()
 
-    # Create the plot similar to the user's example
-    extended_neon_palette <- c(neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
-                               neon_hot_pink, neon_lime_green, neon_bright_orange)
+    for (metric_name in metric_names) {
+      metric_df <- metrics_list[[metric_name]]
+      metric_long <- reshape2::melt(
+        as.data.frame(metric_df),
+        id.vars = NULL,
+        variable.name = "Backtest",
+        value.name = "Value"
+      )
+      metric_long$Date <- as.Date(rownames(metric_df))
+      metric_long$Metric <- metric_name
+      plot_data <- rbind(plot_data, metric_long)
+    }
 
-    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Date, y = Value, color = Algorithm)) +
-      ggplot2::geom_line(alpha = 0.5) +
-      ggplot2::geom_point(size = 1.5) +
+    # Replace long Backtest identifiers with labels
+    all_backtests <- unique(plot_data$Backtest)
+    labels <- seq_along(all_backtests)
+    legend <- data.frame(
+      Backtest = all_backtests,
+      Label = labels
+    )
+    plot_data$BacktestLabel <- legend$Label[match(plot_data$Backtest, legend$Backtest)]
+
+    # Create the plot
+    plots_list$time_series_oos_testing_metrics <- ggplot2::ggplot(
+      plot_data,
+      ggplot2::aes(x = Date, y = Value, color = as.factor(BacktestLabel))
+    ) +
+      ggplot2::geom_line() +
       ggplot2::facet_wrap(~Metric, scales = "free_y") +
-      ggplot2::labs(x = "Date", y = "Metric Value") +
-      ggplot2::ggtitle("Time Series of OOS Testing Metrics") +
-      ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
+      ggplot2::labs(
+        title = "Time Series OOS Testing Metrics",
+        x = "Date",
+        y = "Metric Value",
+        color = "Model (Backtest Label)"
+      ) +
       ggplot2::scale_color_manual(values = extended_neon_palette) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
@@ -2332,52 +2484,217 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
         axis.text = ggplot2::element_text(color = white),
         axis.title = ggplot2::element_text(color = white),
         strip.text = ggplot2::element_text(color = white, face = "bold"),
-        legend.position = "bottom",
         legend.title = ggplot2::element_text(color = white),
         legend.text = ggplot2::element_text(color = white),
         panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
         panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
       )
 
-    print(p)
+    # Print the legend mapping Backtest labels to identifiers
+    cat("\nLegend:\n")
+    for (i in seq_along(labels)) {
+      cat(paste(labels[i], ":", all_backtests[i], "\n"))
+    }
+
+    print(plots_list$time_series_oos_testing_metrics)
+
+  } else if (plot_name == "Mean Validation Metrics Comparison") {
+    # Plot mean validation metrics for each model
+
+    # Prepare data
+    data_df <- x@mean_validation_metrics
+
+    # Replace long Backtest identifiers with labels
+    if ("Backtest" %in% names(data_df)) {
+      all_backtests <- unique(data_df$Backtest)
+      labels <- seq_along(all_backtests)
+      legend <- data.frame(
+        Backtest = all_backtests,
+        Label = labels
+      )
+      data_df$BacktestLabel <- legend$Label[match(data_df$Backtest, legend$Backtest)]
+    } else {
+      legend <- NULL
+    }
+
+    # Melt data for plotting
+    plot_data <- reshape2::melt(
+      data_df,
+      id.vars = c("Backtest", "BacktestLabel", "chosen_eval_metric"),
+      variable.name = "Metric",
+      value.name = "Value"
+    )
+
+    # Exclude non-numeric columns
+    plot_data <- plot_data[!plot_data$Metric %in% c("Backtest", "BacktestLabel", "chosen_eval_metric"), ]
+
+    # Create the plot
+    plots_list$mean_validation_metrics_comparison <- ggplot2::ggplot(
+      plot_data,
+      ggplot2::aes(x = as.factor(BacktestLabel), y = Value, fill = Metric)
+    ) +
+      ggplot2::geom_bar(stat = "identity", position = "dodge") +
+      ggplot2::labs(
+        title = "Mean Validation Metrics Comparison",
+        x = "Model (Backtest Label)",
+        y = "Metric Value",
+        fill = "Metric"
+      ) +
+      ggplot2::scale_fill_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    # Print the legend mapping Backtest labels to identifiers
+    if (!is.null(legend)) {
+      cat("\nLegend:\n")
+      for (i in seq_along(labels)) {
+        cat(paste(labels[i], ":", all_backtests[i], "\n"))
+      }
+    }
+
+    print(plots_list$mean_validation_metrics_comparison)
 
   } else if (plot_name == "Time Series Validation Metrics") {
-    # Plot time_series_validation_metrics
-    # Similar to the above
+    # Plot time series validation metrics for each model
 
-    if (length(time_series_validation_metrics) == 0) {
-      cat("No validation metrics available to plot.\n")
+    # Prepare data
+    metrics_list <- time_series_validation_metrics
+    metric_names <- names(metrics_list)
+
+    plot_data <- data.frame()
+
+    for (metric_name in metric_names) {
+      metric_df <- metrics_list[[metric_name]]
+      metric_long <- reshape2::melt(
+        as.data.frame(metric_df),
+        id.vars = NULL,
+        variable.name = "Backtest",
+        value.name = "Value"
+      )
+      metric_long$Date <- as.Date(rownames(metric_df))
+      metric_long$Metric <- metric_name
+      plot_data <- rbind(plot_data, metric_long)
+    }
+
+    # Replace long Backtest identifiers with labels
+    all_backtests <- unique(plot_data$Backtest)
+    labels <- seq_along(all_backtests)
+    legend <- data.frame(
+      Backtest = all_backtests,
+      Label = labels
+    )
+    plot_data$BacktestLabel <- legend$Label[match(plot_data$Backtest, legend$Backtest)]
+
+    # Create the plot
+    plots_list$time_series_validation_metrics <- ggplot2::ggplot(
+      plot_data,
+      ggplot2::aes(x = Date, y = Value, color = as.factor(BacktestLabel))
+    ) +
+      ggplot2::geom_line() +
+      ggplot2::facet_wrap(~Metric, scales = "free_y") +
+      ggplot2::labs(
+        title = "Time Series Validation Metrics",
+        x = "Date",
+        y = "Metric Value",
+        color = "Model (Backtest Label)"
+      ) +
+      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    # Print the legend mapping Backtest labels to identifiers
+    cat("\nLegend:\n")
+    for (i in seq_along(labels)) {
+      cat(paste(labels[i], ":", all_backtests[i], "\n"))
+    }
+
+    print(plots_list$time_series_validation_metrics)
+
+  } else if (plot_name == "Base Learners vs Meta Learners Over Time") {
+    # Plot comparison of base learners and meta learners over time for a selected metric
+
+    # Prompt user to select a metric
+    available_metrics <- names(time_series_oos_testing_metrics)
+    cat("\nAvailable metrics:\n")
+    for (i in seq_along(available_metrics)) {
+      cat(paste0(i, ": ", available_metrics[i], "\n"))
+    }
+    metric_selection <- readline(prompt = "Please select a metric by number: ")
+    metric_selection <- as.numeric(metric_selection)
+    if (is.na(metric_selection) || metric_selection < 1 || metric_selection > length(available_metrics)) {
+      stop("Invalid metric selection.")
+    }
+    metric_name <- available_metrics[metric_selection]
+
+    # Prepare data
+    metric_df <- time_series_oos_testing_metrics[[metric_name]]
+
+    if (is.null(metric_df)) {
+      cat("Metric", metric_name, "not found in time series OOS testing metrics.\n")
       return(invisible(x))
     }
 
-    # time_series_validation_metrics is a list of data frames, one per metric
-    # For each metric, plot the time series of the metric across algorithms
+    # Prepare the data
+    plot_data <- reshape2::melt(
+      as.data.frame(metric_df),
+      id.vars = NULL,
+      variable.name = "Backtest",
+      value.name = "Value"
+    )
+    plot_data$Date <- as.Date(rownames(metric_df))
 
-    # Combine data frames
-    metric_names <- names(time_series_validation_metrics)
+    # Add a column indicating whether the model is a base learner or meta learner
+    base_learner_ids <- sapply(base_learners, function(bl) bl@backtest_identifier)
+    meta_learner_ids <- sapply(meta_learners, function(ml) ml@backtest_identifier)
+    plot_data$ModelType <- ifelse(
+      plot_data$Backtest %in% base_learner_ids, "Base Learner",
+      ifelse(plot_data$Backtest %in% meta_learner_ids, "Meta Learner", "Unknown")
+    )
 
-    plot_data_list <- lapply(seq_along(metric_names), function(i) {
-      metric_name <- metric_names[i]
-      df <- time_series_validation_metrics[[i]]
-      df$Date <- as.Date(rownames(df))
-      df_long <- reshape2::melt(df, id.vars = "Date", variable.name = "Algorithm", value.name = "Value")
-      df_long$Metric <- metric_name
-      return(df_long)
-    })
-
-    plot_data <- do.call(rbind, plot_data_list)
+    # Replace long Backtest identifiers with labels
+    all_backtests <- unique(plot_data$Backtest)
+    labels <- seq_along(all_backtests)
+    legend <- data.frame(
+      Backtest = all_backtests,
+      Label = labels
+    )
+    plot_data$BacktestLabel <- legend$Label[match(plot_data$Backtest, legend$Backtest)]
 
     # Create the plot
-    extended_neon_palette <- c(neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
-                               neon_hot_pink, neon_lime_green, neon_bright_orange)
-
-    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Date, y = Value, color = Algorithm)) +
-      ggplot2::geom_line(alpha = 0.5) +
-      ggplot2::geom_point(size = 1.5) +
-      ggplot2::facet_wrap(~Metric, scales = "free_y") +
-      ggplot2::labs(x = "Date", y = "Metric Value") +
-      ggplot2::ggtitle("Time Series of Validation Metrics") +
-      ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
+    plots_list$base_vs_meta_over_time <- ggplot2::ggplot(
+      plot_data,
+      ggplot2::aes(x = Date, y = Value, color = as.factor(BacktestLabel), linetype = ModelType)
+    ) +
+      ggplot2::geom_line() +
+      ggplot2::labs(
+        title = paste("Base Learners vs Meta Learners Over Time -", metric_name),
+        x = "Date",
+        y = metric_name,
+        color = "Model (Backtest Label)",
+        linetype = "Model Type"
+      ) +
       ggplot2::scale_color_manual(values = extended_neon_palette) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
@@ -2386,17 +2703,22 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
         plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
         axis.text = ggplot2::element_text(color = white),
         axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
-        legend.position = "bottom",
         legend.title = ggplot2::element_text(color = white),
         legend.text = ggplot2::element_text(color = white),
         panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
         panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
       )
 
-    print(p)
+    # Print the legend mapping Backtest labels to identifiers
+    cat("\nLegend:\n")
+    for (i in seq_along(labels)) {
+      cat(paste(labels[i], ":", all_backtests[i], "\n"))
+    }
+
+    print(plots_list$base_vs_meta_over_time)
   }
 
   invisible(x)
 })
+
 

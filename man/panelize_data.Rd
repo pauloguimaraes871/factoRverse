@@ -33,5 +33,4 @@ features_names <- c("Feature1", "Feature2")
 panelize_data(features_list, row_names, column_names, features_names)
 
 
-
 }

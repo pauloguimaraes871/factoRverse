@@ -18,6 +18,7 @@
 #' @export
 create_heuristic_ensembles <- function(ml_backtest_results_list, ensemble_eval_metric = "rmse", ensemble_huber_delta = NULL, ensemble_quantile_tau = NULL) {
 
+
   #Check validity
   ####################
   valid_metrics <- c("rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr", "mb")
@@ -148,7 +149,7 @@ create_heuristic_ensembles <- function(ml_backtest_results_list, ensemble_eval_m
     optimal_current_date <- optimal_unique_oos_dates[d] #Get current date for optimal weights
     cutoff_date <- unique_oos_dates[which(unique_oos_dates == optimal_current_date) - target_fwd] #Get cutoff date
     #If rebalance date
-      if(optimal_current_date %in% rebalance_dates){
+      if(optimal_current_date %in% rebalance_dates || d == 1){
         #If it is a rebalance_date, update optimal weights
         ##Get most up to date weight
         mean_eval_metric_uptd <- eval_metric_ts[
@@ -301,18 +302,22 @@ create_heuristic_ensembles <- function(ml_backtest_results_list, ensemble_eval_m
                              best_hyperparameters = NULL,
                              validation_eval_metrics_hyper_choice = NULL,
                              ml_backtest_workflow = list(
-                               config_name = paste0("ew", unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name)), collapse = "_"),
-                               config_name_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name)),
+                               config_name = paste0("ew_", paste0(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name), collapse = "_")),
+                               config_name_bl = sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name),
                                ml_algorithm = "ew_ensemble",
-                               ml_algorithm_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm)),
+                               ml_algorithm_bl = sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm),
                                backtest_type = "meta_learner",
+                               backtest_identifier = paste("c:ew_ens",
+                                                           paste0(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$backtest_identifier), collapse ="-"),
+                                                           sep = "_"),
                                dates_covered = ew_unique_oos_dates,
                                n_dates = length(ew_unique_oos_dates),
                                dates_covered_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_covered)),
                                n_dates_bl = length(unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_covered))),
-                               ensemble_eval_metric = ensemble_eval_metric,
-                               ensemble_huber = ensemble_huber_delta,
-                               ensemble_quantile_tau = ensemble_quantile_tau,
+                               rebalance_dates_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$rebalance_dates)),
+                               chosen_eval_metric = "not_applicable",
+                               huber_delta = "not_applicable",
+                               quantile_tau = "not_applicable",
                                rebalance_dates = rebalance_dates,
                                first_rebalance_date = rebalance_dates[1],
                                training_sample_size_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$training_sample_size)),
@@ -322,8 +327,8 @@ create_heuristic_ensembles <- function(ml_backtest_results_list, ensemble_eval_m
                                testing_sample_size_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$testing_sample_size)),
                                dates_testing_sample_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_testing_sample)),
                                nobs = length(unlist(ew_ensemble_oos_predictions_list)),
-                               tickers = unique(sapply(ew_ensemble_oos_predictions_list, function(x) names(x))),
-                               n_stocks = length(unique(sapply(ew_ensemble_oos_predictions_list, function(x) names(x)))),
+                               tickers = unique(unname(unlist(sapply(ew_ensemble_oos_predictions_list, function(x) names(x))))),
+                               n_stocks = length(unique(unname(unlist(sapply(ew_ensemble_oos_predictions_list, function(x) names(x)))))),
                                target_fwd_name = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$target_fwd_name)),
                                target_fwd = target_fwd,
                                target_workflow = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$target_workflow)),
@@ -331,7 +336,10 @@ create_heuristic_ensembles <- function(ml_backtest_results_list, ensemble_eval_m
                                features = names(ml_backtest_results_list),
                                timestamps = Sys.time(),
                                call = sys.call()
-                             )
+                             ),
+                             backtest_identifier = paste("c:ew_ens",
+                                                         paste0(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name), collapse ="_"),
+                                                         sep = "-")
   )
 
   ##Optimal
@@ -375,28 +383,36 @@ create_heuristic_ensembles <- function(ml_backtest_results_list, ensemble_eval_m
                                   best_hyperparameters = NULL,
                                   validation_eval_metrics_hyper_choice = NULL,
                                   ml_backtest_workflow = list(
-                                    config_name = paste0("optimal", ensemble_eval_metric, "_",
-                                                         unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name)), collapse = "_"),
-                                    config_name_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name)),
+                                    config_name = paste0("optimal_", ensemble_eval_metric, "_",
+                                                         sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name), collapse = "_"),
+                                    config_name_bl = sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name),
                                     ml_algorithm = "optimal_ensemble",
-                                    ml_algorithm_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm)),
+                                    ml_algorithm_bl = sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm),
                                     backtest_type = "meta_learner",
+                                    backtest_identifier = paste("c:opt_ens",
+                                                                paste0(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$backtest_identifier), collapse ="_"),
+                                                                sep = "-"),
                                     dates_covered = optimal_unique_oos_dates,
                                     n_dates = length(optimal_unique_oos_dates),
                                     dates_covered_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_covered)),
                                     n_dates_bl = length(unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_covered))),
+                                    rebalance_dates_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$rebalance_dates)),
                                     split_method = "expanding",
-                                    ensemble_eval_metric = ensemble_eval_metric,
-                                    ensemble_huber = ensemble_huber_delta,
-                                    ensemble_quantile_tau = ensemble_quantile_tau,
+                                    chosen_eval_metric = ensemble_eval_metric,
+                                    huber_delta = ensemble_huber_delta,
+                                    quantile_tau = ensemble_quantile_tau,
                                     rebalance_dates = rebalance_dates[which(rebalance_dates %in% optimal_unique_oos_dates)],
                                     first_rebalance_date = rebalance_dates[which(rebalance_dates %in% optimal_unique_oos_dates)][1],
+                                    training_sample_size_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$training_sample_size)),
+                                    validation_sample_size_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$validation_sample_size)),
                                     training_sample_size = 1,
                                     testing_sample_size = length(optimal_unique_oos_dates),
                                     dates_testing_sample = optimal_unique_oos_dates,
+                                    dates_testing_sample_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_testing_sample)),
+                                    testing_sample_size_bl = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$testing_sample_size)),
                                     nobs = length(unlist(optimal_ensemble_oos_predictions_list)),
-                                    tickers = unique(sapply(optimal_ensemble_oos_predictions_list, function(x) names(x))),
-                                    n_stocks = length(unique(sapply(optimal_ensemble_oos_predictions_list, function(x) names(x)))),
+                                    tickers = unique(unname(unlist(sapply(optimal_ensemble_oos_predictions_list, function(x) names(x))))),
+                                    n_stocks = length(unique(unname(unlist(sapply(optimal_ensemble_oos_predictions_list, function(x) names(x)))))),
                                     target_fwd_name = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$target_fwd_name)),
                                     target_fwd = target_fwd,
                                     target_workflow = unique(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$target_workflow)),
@@ -404,7 +420,10 @@ create_heuristic_ensembles <- function(ml_backtest_results_list, ensemble_eval_m
                                     features = names(ml_backtest_results_list),
                                     timestamps = Sys.time(),
                                     call = sys.call()
-                                    )
+                                    ),
+                                  backtest_identifier = paste("c:opt_ens",
+                                                              paste0(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name), collapse ="_"),
+                                                              sep = "-")
                                   )
 
                                   #Add to list

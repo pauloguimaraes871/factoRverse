@@ -13,7 +13,8 @@ create_ml_backtest_config(
   custom_objective = "squared_error",
   keras_architecture_parameters = NULL,
   quantile_tau = 0.5,
-  huber_delta = 1
+  huber_delta = 1,
+  config_name = "not_identified"
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ create_ml_backtest_config(
 \item{quantile_tau}{Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.}
 
 \item{huber_delta}{Numeric value greater than 0, specifying the delta parameter for Huber loss function.}
+
+\item{config_name}{Name of the backtest configuration.}
 }
 \value{
 An ml_backtest_config object.

@@ -14,9 +14,10 @@ setMethod("show", "meta_dataframe", function(object) {
   # Print a summary of the ml_backtest_workflow
   cat("Meta Dataframe Summary:\n")
   cat("=================================\n")
+  cat("Meta Dataframe name: ", object@meta_dataframe_name, " \n\n")
   cat(" Signals:\n")
-  print(object@signals)
-  cat("  Number of signals:", ncol(object@data)-3, "\n")
+  cat(paste(object@signals, collapse = ", "))
+  cat("  \nNumber of signals:", ncol(object@data)-3, "\n")
   cat(" \nDates:\n")
   print(unique(as.Date(object@data$dates)))
   cat("  Number of unique dates:", object@unique_dates, "\n")
@@ -278,6 +279,8 @@ setMethod("show", "ml_backtest_config", function(object) {
   cat("Main Information:\n")
   cat("------------------------------\n")
   cat("ML Algorithm:", object@ml_algorithm, "\n")
+  cat("Config Name:", object@config_name, "\n")
+
   cat("Training Scheme:\n")
   cat("  Training Sample Size:", object@training_sample_size, "\n")
   cat("  Rebalancing Months:", paste(object@rebalancing_months, collapse = " "), "\n")
@@ -381,11 +384,45 @@ setMethod("show", "ml_backtest_config", function(object) {
 #' @export
 setMethod("show", "ml_metabacktest_config",
           function(object) {
-            cat(crayon::yellow("ML Metabacktest configuration\n"))
-            n_configs <- length(object@ml_backtest_configs)
-            cat(sprintf("Number of backtest configurations: %d\n", n_configs))
+
+            cat(crayon::yellow("ML Metabacktest Configuration\n"))
+            cat("Config Name: ", object@config_name, "\n")
+
+            cat("------------------------------\n")
+            cat(crayon::cyan("Meta Learner Backtest Configuration:\n"))
+            config <- object@meta_ml_backtest_config
+            cat(sprintf("  ml_algorithm: %s\n", config@ml_algorithm))
+            cat(sprintf("  config_name: %s\n", config@config_name))
+
+
+            # For neural networks, display number of layers
+            if (config@ml_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
+              n_layers <- length(config@keras_architecture_parameters@units)
+              cat(sprintf("  n_layers: %s\n", n_layers))
+            }
+
+            cat(sprintf("  training_sample_size: %s\n", config@training_sample_size))
+            cat(sprintf("  rebalancing_months: %s\n", paste(config@rebalancing_months, collapse = " ")))
+            cat(sprintf("  custom_objective: %s\n", config@custom_objective))
+            cat(sprintf("  huber_delta: %s\n", config@huber_delta))
+            cat(sprintf("  quantile_tau: %s\n", config@quantile_tau))
+
+            if (!is.null(config@tuning_strategy)) {
+              cat("  Tuning_strategy:\n")
+              cat(sprintf("    tuning_method: %s\n", config@tuning_strategy@tuning_method))
+              cat(sprintf("    validation_sample_size: %s\n", config@tuning_strategy@validation_sample_size))
+              cat(sprintf("    chosen_eval_metric: %s\n", config@tuning_strategy@chosen_eval_metric))
+            } else {
+              cat("  No tuning_strategy available\n")
+            }
+            cat("\n")
+
+
+            cat("------------------------------\n")
+            n_configs <- length(object@base_ml_backtest_configs)
             if (n_configs > 0) {
-              cat(crayon::yellow("\nBacktest Configuration details:\n\n"))
+              cat(crayon::yellow("\nBase Backtest Configuration details:\n\n"))
+              cat(sprintf("Number of base ML backtest configurations: %d\n", n_configs))
 
               # Define a color palette using crayon
               colors <- list(
@@ -398,16 +435,17 @@ setMethod("show", "ml_metabacktest_config",
               )
 
               # Loop through configurations
-              for (i in seq_along(object@ml_backtest_configs)) {
-                config <- object@ml_backtest_configs[[i]]
+              for (i in seq_along(object@base_ml_backtest_configs)) {
+                config <- object@base_ml_backtest_configs[[i]]
 
                 # Use a color from the palette
                 color_func <- colors[[ (i - 1) %% length(colors) + 1 ]]
 
                 # Color the backtest configuration header
-                cat(color_func(sprintf("Backtest Configuration %d:\n", i)))
-                cat(paste("Object name:", names(object@ml_backtest_configs)[i], "\n"))
+                cat(color_func(sprintf("Base ML Backtest Configuration %d:\n", i)))
+                cat(paste("Config name:", config@config_name), "\n")
                 cat(sprintf("  ml_algorithm: %s\n", config@ml_algorithm))
+
 
                 # For neural networks, display number of layers
                 if (config@ml_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
@@ -432,6 +470,62 @@ setMethod("show", "ml_metabacktest_config",
                 cat("\n")
               }
             }
+
+            n_results <- length(object@base_ml_backtest_results)
+            if (n_results > 0) {
+              cat(crayon::yellow("\nBase Backtest Results details:\n\n"))
+              cat(sprintf("Number of base ML backtest results: %d\n", n_results))
+
+              # Define a color palette using crayon
+              colors <- list(
+                neon_cyan = crayon::cyan,
+                neon_pink = crayon::magenta,
+                neon_blue = crayon::blue,
+                neon_purple = crayon::make_style("#8A2BE2"),
+                neon_orange = crayon::red,
+                neon_green = crayon::green
+              )
+
+              # Loop through results
+              for (i in seq_along(object@base_ml_backtest_results)) {
+                result <- object@base_ml_backtest_results[[i]]@ml_backtest_workflow
+
+                # Use a color from the palette
+                color_func <- colors[[ (i - 1) %% length(colors) + 1 ]]
+
+                # Color the backtest configuration header
+                cat(color_func(sprintf("Base ML Backtest Results %d:\n", i)))
+                cat(paste("Config name:", result$config_name), "\n")
+                cat(paste("Backtest identifier:", result$backtest_identifier), "\n")
+                cat(sprintf("  ml_algorithm: %s\n", result$ml_algorithm))
+
+
+                # For neural networks, display number of layers
+                if (result$ml_algorithm == "nn" && !is.null(result$keras_architecture_parameters)) {
+                  n_layers <- length(result$keras_architecture_parameters$units)
+                  cat(sprintf("  n_layers: %s\n", n_layers))
+                }
+
+                cat(sprintf("  training_sample_size: %s\n", result$training_sample_size))
+                cat(sprintf("  rebalancing_months: %s\n", paste(result$rebalancing_months, collapse = " ")))
+                cat(sprintf("  custom_objective: %s\n", result$custom_objective))
+                cat(sprintf("  huber_delta: %s\n", result$huber_delta))
+                cat(sprintf("  quantile_tau: %s\n", result$quantile_tau))
+
+                if (!is.null(result$tuning_method)) {
+                  cat("  Tuning_strategy:\n")
+                  cat(sprintf("    tuning_method: %s\n", result$tuning_method))
+                  cat(sprintf("    validation_sample_size: %s\n", result$validation_sample_size))
+                  cat(sprintf("    chosen_eval_metric: %s\n", result$chosen_eval_metric))
+                } else {
+                  cat("  No tuning_strategy available\n")
+                }
+                cat("\n")
+              }
+
+            }
+
+
             invisible(NULL)
           })
 
@@ -515,17 +609,27 @@ setMethod("show", "ml_backtest_results", function(object) {
 
   # Create a neat display of the ml_backtest_workflow
   cat("ML Backtest Workflow Metadata\n")
+  cat("Backtest Identifier: ", object@backtest_identifier, "\n")
   cat("=================================\n")
 
   # Display Algorithm Information
   cat("Algorithm Information:\n")
   cat(" Config Name:", ml_backtest_workflow$config_name, "\n")
   cat("  ML Algorithm:", ml_backtest_workflow$ml_algorithm, "\n")
-  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble")) cat("  Custom Objective:", ml_backtest_workflow$custom_objective, "\n")
+  if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
+    cat("  Custom Objective:", ml_backtest_workflow$custom_objective, "\n")
+    if(ml_backtest_workflow$custom_objective == "pseudo_huber_error") cat("  Custom Huber Delta:", ml_backtest_workflow$huber_delta, "\n")
+  }
+  if(ml_backtest_workflow$ml_algorithm == "opt_ensemble"){
+    cat("  Ensemble Eval Metric:", ml_backtest_workflow$chosen_eval_metric, "\n")
+    cat("  Ensemble Huber Delta:", ml_backtest_workflow$huber_delta, "\n")
+    cat("  Ensemble Quantile Tau:", ml_backtest_workflow$quantile_tau, "\n")
+  }
+
   cat("  Backtest Type:", ml_backtest_workflow$backtest_type, "\n")
   if(ml_backtest_workflow$backtest_type == "meta_learner"){
-    cat("  Base-Learner Config Names:", ml_backtest_workflow$config_name_bl, "\n")
-    cat("  Base-Learner Algorithms:", ml_backtest_workflow$meta_learner_algorithm, "\n")
+    cat("    Base-Learner Config Names:", ml_backtest_workflow$config_name_bl, "\n")
+    cat("    Base-Learner Algorithms:", ml_backtest_workflow$ml_algorithm_bl, "\n")
   }
   if(ml_backtest_workflow$ml_algorithm == "nn"){
     # Display Keras Information
@@ -542,7 +646,7 @@ setMethod("show", "ml_backtest_results", function(object) {
 
   # Display Date Information
   cat("Date Information:\n")
-  cat("  Dates Covered:", paste(ml_backtest_workflow$dates_covered, collapse = ", "), "\n")
+  cat("  Range of Dates Covered:", paste(c(min(ml_backtest_workflow$dates_covered),max(ml_backtest_workflow$dates_covered)), sep = "-"), "\n")
   cat("  Number of Dates:", ml_backtest_workflow$n_dates, "\n")
   cat("  First Rebalance Date:", paste(ml_backtest_workflow$first_rebalance_date), "\n")
   cat("  Rebalance Dates:", paste(ml_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
@@ -550,9 +654,10 @@ setMethod("show", "ml_backtest_results", function(object) {
 
   if(ml_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
-    cat("Base Learners Date Information:\n")
-    cat("  Dates Covered:", paste(as.Date(ml_backtest_workflow$dates_covered_bl), collapse = ", "), "\n")
-    cat("  Number of Dates:", ml_backtest_workflow$n_dates_bl, "\n")
+    cat("  Base Learners Date Information:\n")
+    cat("    Range of Dates Covered:", paste(c(as.Date(min(ml_backtest_workflow$dates_covered_bl)),
+                                             as.Date(max(ml_backtest_workflow$dates_covered_bl))), sep ="-"), "\n")
+    cat("    Number of Dates:", ml_backtest_workflow$n_dates_bl, "\n")
     cat("-------------------------------\n")
   }
 
@@ -563,15 +668,18 @@ setMethod("show", "ml_backtest_results", function(object) {
   if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble")) cat("  Training Sample Size:", ml_backtest_workflow$training_sample_size, "\n")
   if(!ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("  Validation Sample Size:", ml_backtest_workflow$validation_sample_size, "\n")
   cat("  Testing Sample Size:", ml_backtest_workflow$testing_sample_size, "\n")
-  cat("  Dates in Testing Sample:", paste(ml_backtest_workflow$dates_testing_sample, collapse = ", "), "\n")
+  cat("  Range of Dates in Testing Sample:", paste(c(min(ml_backtest_workflow$dates_testing_sample), max(ml_backtest_workflow$dates_testing_sample)), sep ="-"), "\n")
 
   if(ml_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
-    cat("Base Learners Sample Sizes:\n")
-    cat("  Training Sample Size:", ml_backtest_workflow$training_sample_size_bl, "\n")
-    cat("  Validation Sample Size:", ml_backtest_workflow$validation_sample_size_bl, "\n")
-    cat("  Testing Sample Size:", ml_backtest_workflow$testing_sample_size_bl, "\n")
-    cat("  Dates in Testing Sample:", paste(ml_backtest_workflow$dates_testing_sample_bl, collapse = ", "), "\n")
+    cat("  Base Learners Sample Sizes:\n")
+    cat("    Training Sample Size:", ml_backtest_workflow$training_sample_size_bl, "\n")
+    cat("    Validation Sample Size:", ml_backtest_workflow$validation_sample_size_bl, "\n")
+    cat("    Testing Sample Size:", ml_backtest_workflow$testing_sample_size_bl, "\n")
+    cat("    Range of Dates in Testing Sample:", paste(c(as.Date(min(ml_backtest_workflow$dates_testing_sample_bl)),
+                                                        as.Date(max(ml_backtest_workflow$dates_testing_sample_bl))), sep="-"), "\n")
+    cat("    Rebalance Dates:", paste(as.Date(ml_backtest_workflow$rebalance_dates_bl), collapse = ", "), "\n")
+
     cat("-------------------------------\n")
   }
 
@@ -589,10 +697,11 @@ setMethod("show", "ml_backtest_results", function(object) {
   cat("Target Information:\n")
   cat("  Forward Target Name:", ml_backtest_workflow$target_fwd_name, "\n")
   cat("  Target Forward:", ml_backtest_workflow$target_fwd, "\n")
+  cat("  Target Object:", ml_backtest_workflow$target_object, "\n")
   cat("  Target Workflow:\n")
   print(ml_backtest_workflow$target_workflow)
   cat("\n")
-  cat("  Target Object:", ml_backtest_workflow$target_object, "\n")
+
 
   cat("=================================\n")
 
@@ -661,35 +770,213 @@ setMethod("show", "ml_backtest_results", function(object) {
 #' @param object An object of class `ml_metabacktest_results`.
 #' @export
 setMethod("show", "ml_metabacktest_results", function(object) {
-  # Access the slots
-  consolidated_oos_testing_metrics <- object@consolidated_oos_testing_metrics
-  mean_validation_metrics <- object@mean_validation_metrics
-  time_series_oos_testing_metrics <- object@time_series_oos_testing_metrics
-  time_series_validation_metrics <- object@time_series_validation_metrics
 
-  # Print the consolidated metrics
-  cat("Consolidated Out-of-Sample Testing Evaluation Metrics:\n")
-  print(consolidated_oos_testing_metrics, row.names = FALSE)
+  # Extract the meta_learner_ml_backtest_workflow from the meta learner object
+  meta_learner_ml_backtest_workflow <- object@meta_ml_backtest_results_list[[1]]@ml_backtest_workflow
 
-  cat("\nMean Validation Evaluation Metrics:\n")
-  print(mean_validation_metrics, row.names = FALSE)
+  # Create a neat display of the meta_learner_ml_backtest_workflow
+  cat(crayon::cyan("Meta Learner Workflow Metadata\n"))
+  cat("Backtest Identifier: ", object@backtest_identifier, "\n")
+  cat("=================================\n")
 
-  # Optionally, print the time series metrics
-  cat("\nTime Series of Out-of-Sample Testing Evaluation Metrics:\n")
-  for (metric_name in names(time_series_oos_testing_metrics)) {
-    cat("\nMetric:", metric_name, "\n")
-    print(time_series_oos_testing_metrics[[metric_name]])
+  # Display Algorithm Information
+  cat("Algorithm Information:\n")
+  cat(" Config Name:", meta_learner_ml_backtest_workflow$config_name, "\n")
+  cat("  ML Algorithm:", meta_learner_ml_backtest_workflow$ml_algorithm, "\n")
+  if(!meta_learner_ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble")) cat("  Custom Objective:", meta_learner_ml_backtest_workflow$custom_objective, "\n")
+  cat("  Backtest Type:", meta_learner_ml_backtest_workflow$backtest_type, "\n")
+  if(meta_learner_ml_backtest_workflow$backtest_type == "meta_learner"){
+    cat("    Base-Learner Config Names:", meta_learner_ml_backtest_workflow$config_name_bl, "\n")
+    cat("    Base-Learner Algorithms:", meta_learner_ml_backtest_workflow$ml_algorithm_bl, "\n")
+  }
+  if(meta_learner_ml_backtest_workflow$ml_algorithm == "nn"){
+    # Display Keras Information
+    show(create_keras_architecture(
+      nn_optimizer = meta_learner_ml_backtest_workflow$keras_architecture_parameters$nn_optimizer,
+      units = meta_learner_ml_backtest_workflow$keras_architecture_parameters$units,
+      activation = meta_learner_ml_backtest_workflow$keras_architecture_parameters$activation,
+      batch_norm_option = meta_learner_ml_backtest_workflow$keras_architecture_parameters$batch_norm_option)
+    )
   }
 
-  if (length(time_series_validation_metrics) > 0) {
-    cat("\nTime Series of Validation Evaluation Metrics:\n")
-    for (metric_name in names(time_series_validation_metrics)) {
-      cat("\nMetric:", metric_name, "\n")
-      print(time_series_validation_metrics[[metric_name]])
+
+  cat("=================================\n")
+
+  # Display Date Information
+  cat("Date Information:\n")
+  cat("  Range of Dates Covered:", paste(c(min(meta_learner_ml_backtest_workflow$dates_covered),max(meta_learner_ml_backtest_workflow$dates_covered)), sep = "-"), "\n")
+  cat("  Number of Dates:", meta_learner_ml_backtest_workflow$n_dates, "\n")
+  cat("  First Rebalance Date:", paste(meta_learner_ml_backtest_workflow$first_rebalance_date), "\n")
+  cat("  Rebalance Dates:", paste(meta_learner_ml_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
+  if(!meta_learner_ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble")) cat("  Split Method:", meta_learner_ml_backtest_workflow$split_method, "\n")
+
+  if(meta_learner_ml_backtest_workflow$backtest_type == "meta_learner"){
+    cat("-------------------------------\n")
+    cat("  Base Learners Date Information:\n")
+    cat("    Range of Dates Covered:", paste(c(as.Date(min(meta_learner_ml_backtest_workflow$dates_covered_bl)),
+                                               as.Date(max(meta_learner_ml_backtest_workflow$dates_covered_bl))), sep ="-"), "\n")
+    cat("    Number of Dates:", meta_learner_ml_backtest_workflow$n_dates_bl, "\n")
+    cat("-------------------------------\n")
+  }
+
+  cat("=================================\n")
+
+  # Display Sample Sizes
+  cat("Sample Sizes:\n")
+  if(!meta_learner_ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble")) cat("  Training Sample Size:", meta_learner_ml_backtest_workflow$training_sample_size, "\n")
+  if(!meta_learner_ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("  Validation Sample Size:", meta_learner_ml_backtest_workflow$validation_sample_size, "\n")
+  cat("  Testing Sample Size:", meta_learner_ml_backtest_workflow$testing_sample_size, "\n")
+  cat("  Range of Dates in Testing Sample:", paste(c(min(meta_learner_ml_backtest_workflow$dates_testing_sample), max(meta_learner_ml_backtest_workflow$dates_testing_sample)), sep ="-"), "\n")
+
+  if(meta_learner_ml_backtest_workflow$backtest_type == "meta_learner"){
+    cat("-------------------------------\n")
+    cat("  Base Learners Sample Sizes:\n")
+    cat("    Training Sample Size:", meta_learner_ml_backtest_workflow$training_sample_size_bl, "\n")
+    cat("    Validation Sample Size:", meta_learner_ml_backtest_workflow$validation_sample_size_bl, "\n")
+    cat("    Testing Sample Size:", meta_learner_ml_backtest_workflow$testing_sample_size_bl, "\n")
+    cat("    Range of Dates in Testing Sample:", paste(c(as.Date(min(meta_learner_ml_backtest_workflow$dates_testing_sample_bl)),
+                                                         as.Date(max(meta_learner_ml_backtest_workflow$dates_testing_sample_bl))), sep="-"), "\n")
+    cat("    Rebalance Dates:", paste(as.Date(meta_learner_ml_backtest_workflow$rebalance_dates_bl), collapse = ", "), "\n")
+
+    cat("-------------------------------\n")
+  }
+
+  cat("=================================\n")
+
+  # Display Stocks Information
+  cat("Stocks Information:\n")
+  cat("Number of Stocks:", meta_learner_ml_backtest_workflow$n_stocks, "\n")
+  cat("Number of Observations:", meta_learner_ml_backtest_workflow$nobs, "\n")
+  #cat("Tickers:", paste(meta_learner_ml_backtest_workflow$tickers, collapse = ", "), "\n")
+
+  cat("=================================\n")
+
+  # Display Target Information
+  cat("Target Information:\n")
+  cat("  Forward Target Name:", meta_learner_ml_backtest_workflow$target_fwd_name, "\n")
+  cat("  Target Forward:", meta_learner_ml_backtest_workflow$target_fwd, "\n")
+  cat("  Target Object:", meta_learner_ml_backtest_workflow$target_object, "\n")
+  cat("  Target Workflow:\n")
+  print(meta_learner_ml_backtest_workflow$target_workflow)
+  cat("\n")
+
+
+  cat("=================================\n")
+
+  # Display Features Information
+  cat("Features Information:\n")
+  cat("Features:", paste(meta_learner_ml_backtest_workflow$features, collapse = ", "), "\n")
+  if(!meta_learner_ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
+    cat("  Features Workflow:\n")
+    print(meta_learner_ml_backtest_workflow$features_workflow)
+    cat("\n")
+  }
+  if(!meta_learner_ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("Features Object:", meta_learner_ml_backtest_workflow$features_object, "\n")
+
+  cat("=================================\n")
+
+  # Display Tuning Information
+  if(!meta_learner_ml_backtest_workflow$ml_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
+    cat("Tuning Information:\n")
+    cat("  Tuning Method:", meta_learner_ml_backtest_workflow$tuning_method, "\n")
+    if(meta_learner_ml_backtest_workflow$tuning_method == "random_search" || meta_learner_ml_backtest_workflow$tuning_method == "bayesian_opt"){
+      cat("  Number of Iterations:", meta_learner_ml_backtest_workflow$n_iter, "\n")
+      if(meta_learner_ml_backtest_workflow$tuning_method == "bayesian_opt"){
+        cat("  Number of Samples of Eval Function:", meta_learner_ml_backtest_workflow$k_iter, "\n")
+        cat("  Acquisition Function:", meta_learner_ml_backtest_workflow$acq, "\n")
+        cat("  Number of Points to Init Process:", meta_learner_ml_backtest_workflow$init_points, "\n")
+      }
     }
-  } else {
-    cat("\nNo Time Series Validation Evaluation Metrics available.\n")
+    cat("  Hyperparameter Grid Domain List:", paste(names(meta_learner_ml_backtest_workflow$hyper_grid_domain_list), collapse = ", "), "\n")
+    cat("  Chosen Evaluation Metric:", meta_learner_ml_backtest_workflow$chosen_eval_metric, "\n")
+    cat("  Huber Delta:", meta_learner_ml_backtest_workflow$huber_delta, "\n")
+    cat("  Quantile Tau:", meta_learner_ml_backtest_workflow$quantile_tau, "\n")
+    cat("  Early Stop:", meta_learner_ml_backtest_workflow$early_stop, "\n")
+
+    cat("=================================\n")
   }
+
+
+  # Display Performance Information
+  if(!meta_learner_ml_backtest_workflow$ml_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
+    cat("Performance Information:\n")
+    cat("  Completion Time:", meta_learner_ml_backtest_workflow$completion_time, "\n")
+    cat("  Elapsed Time:", meta_learner_ml_backtest_workflow$elapsed_time, "seconds\n")
+    cat("  Parallel Processing:", meta_learner_ml_backtest_workflow$parallel, "\n")
+    cat("=================================\n")
+  }
+
+  # Display Call Information
+  cat("Call:\n")
+  cat("  Function Call:\n")
+  print(meta_learner_ml_backtest_workflow$call)
+  cat("\n")
+
+  cat("  Call Timestamp:\n")
+  print(meta_learner_ml_backtest_workflow$timestamps, quotes = FALSE)
+  cat("\n")
+
+  cat("=========================================\n")
+
+  # Create a neat display for EW
+  cat(crayon::magenta("\n\nEW Ensemble Workflow Metadata\n"))
+  ew_ml_backtest_workflow <- object@meta_ml_backtest_results_list[[2]]@ml_backtest_workflow
+
+  cat("Backtest Identifier: ", ew_ml_backtest_workflow$backtest_identifier, "\n")
+  cat("=================================\n")
+
+  #Algo Info
+  cat("Algorithm Information:\n")
+  cat("  Config Name:", ew_ml_backtest_workflow$config_name, "\n")
+  cat("-------------------------------\n")
+
+  # Display Date Information
+  cat("Date Information:\n")
+  cat("  Range of Dates Covered:", paste(c(min(ew_ml_backtest_workflow$dates_covered),max(ew_ml_backtest_workflow$dates_covered)), sep = "-"), "\n")
+  cat("  Number of Dates:", ew_ml_backtest_workflow$n_dates, "\n")
+  cat("  First Rebalance Date:", paste(ew_ml_backtest_workflow$first_rebalance_date), "\n")
+  cat("  Rebalance Dates:", paste(ew_ml_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
+
+  cat("-------------------------------\n")
+  # Display Sample Sizes
+  cat("Sample Sizes:\n")
+  cat("  Testing Sample Size:", ew_ml_backtest_workflow$testing_sample_size, "\n")
+  cat("  Range of Dates in Testing Sample:", paste(c(min(ew_ml_backtest_workflow$dates_testing_sample), max(ew_ml_backtest_workflow$dates_testing_sample)), sep ="-"), "\n")
+
+  cat("=================================\n")
+
+  # Create a neat display for Opt
+  cat(crayon::magenta("\n\nOptimal Ensemble Workflow Metadata\n"))
+  opt_ml_backtest_workflow <- object@meta_ml_backtest_results_list[[3]]@ml_backtest_workflow
+
+  cat("Backtest Identifier: ", opt_ml_backtest_workflow$backtest_identifier, "\n")
+  cat("=================================\n")
+
+  #Algo Info
+  cat("Algorithm Information:\n")
+  cat("  Config Name:", opt_ml_backtest_workflow$config_name, "\n")
+  cat("  Ensemble Eval Metric:", opt_ml_backtest_workflow$chosen_eval_metric, "\n")
+  cat("  Ensemble Huber Delta:", opt_ml_backtest_workflow$huber_delta, "\n")
+  cat("  Ensemble Quantile Tau:", opt_ml_backtest_workflow$quantile_tau, "\n")
+  cat("-------------------------------\n")
+
+  cat("Date Information:\n")
+  cat("  Range of Dates Covered:", paste(c(min(opt_ml_backtest_workflow$dates_covered),max(opt_ml_backtest_workflow$dates_covered)), sep = "-"), "\n")
+  cat("  Number of Dates:", opt_ml_backtest_workflow$n_dates, "\n")
+  cat("  First Rebalance Date:", paste(opt_ml_backtest_workflow$first_rebalance_date), "\n")
+  cat("  Rebalance Dates:", paste(opt_ml_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
+
+  cat("-------------------------------\n")
+  # Display Sample Sizes
+  cat("Sample Sizes:\n")
+  cat("  Testing Sample Size:", opt_ml_backtest_workflow$testing_sample_size, "\n")
+  cat("  Range of Dates in Testing Sample:", paste(c(min(opt_ml_backtest_workflow$dates_testing_sample), max(opt_ml_backtest_workflow$dates_testing_sample)), sep ="-"), "\n")
+
+  cat("=================================\n")
+
+
+
+
 })
 
 

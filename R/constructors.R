@@ -1119,10 +1119,12 @@ create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NU
 #' The `create_ml_metabacktest_config` function creates an `ml_metabacktest_config` object by combining a `ml_backtest_config` for the meta-learner
 #' and a group of `ml_backtest_config` objects for the base learners. Those can be passed with our without a tuning strategy set. In this latter case, by passing
 #' a list of `tuning_strategy` objects, the function will generate all possible combinations of configurations and strategies for running multiple machine learning backtests,
-#'  possibly in parallel.
+#' possibly in parallel.
+#' Alternatively, the user can provide a list of `ml_backtest_results` directly to be used by the function.
 #'
 #' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
 #' @param base_ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` set to `NULL`.
+#' @param base_ml_backtest_results A list of `ml_backtest_results` objects.
 #' @param tuning_strategies A list of `tuning_strategy` objects (optional).
 #' @param config_name Name of the backtest configuration.
 #' @param ... Additional arguments (not used).
@@ -1150,7 +1152,7 @@ create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NU
 #' @seealso \code{\link{ml_backtest_config}}, \code{\link{tuning_strategy}}, \code{\link{ml_metabacktest_config}}
 #'
 #' @export
-setGeneric("create_ml_metabacktest_config", function(meta_ml_backtest_config, base_ml_backtest_configs, tuning_strategies, ...) standardGeneric("create_ml_metabacktest_config"))
+setGeneric("create_ml_metabacktest_config", function(meta_ml_backtest_config, base_ml_backtest_configs, tuning_strategies, base_ml_backtest_results, ...) standardGeneric("create_ml_metabacktest_config"))
 
 
 
@@ -1162,6 +1164,7 @@ setGeneric("create_ml_metabacktest_config", function(meta_ml_backtest_config, ba
 #'
 #' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
 #' @param base_ml_backtest_configs A list of `ml_backtest_config` objects.
+#' @param config_name Name of the backtest configuration.
 #' @param tuning_strategies A list of `tuning_strategy` objects.
 #' @param ... Additional arguments (not used).
 #'
@@ -1177,7 +1180,7 @@ setGeneric("create_ml_metabacktest_config", function(meta_ml_backtest_config, ba
 #'
 #' @export
 setMethod("create_ml_metabacktest_config",
-          signature(meta_ml_backtest_config = "ml_backtest_config", base_ml_backtest_configs = "list", tuning_strategies = "list"),
+          signature(meta_ml_backtest_config = "ml_backtest_config", base_ml_backtest_configs = "list", tuning_strategies = "list", base_ml_backtest_results = "missing"),
           function(meta_ml_backtest_config, base_ml_backtest_configs, tuning_strategies, config_name = "not_identified", ...) {
 
             # Check that all base_ml_backtest_configs are ml_backtest_config objects
@@ -1227,10 +1230,8 @@ setMethod("create_ml_metabacktest_config",
             }
 
            # Create the ml_metabacktest_config object
-            meta_config <- new("ml_metabacktest_config",
-                               meta_ml_backtest_config = meta_ml_backtest_config,
-                               base_ml_backtest_configs = combined_configs,
-                               config_name = config_name)
+            meta_config <- new("ml_metabacktest_config", meta_ml_backtest_config = meta_ml_backtest_config, base_ml_backtest_configs = combined_configs,
+                               base_ml_backtest_results = NULL, config_name = config_name)
 
             # State the number of valid configurations produced
             cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
@@ -1248,7 +1249,7 @@ setMethod("create_ml_metabacktest_config",
 #' @return An `ml_metabacktest_config` object containing the provided `ml_backtest_config` objects.
 #' @export
 setMethod("create_ml_metabacktest_config",
-          signature(meta_ml_backtest_config = 'ml_backtest_config', base_ml_backtest_configs = "list", tuning_strategies = "missing"),
+          signature(meta_ml_backtest_config = 'ml_backtest_config', base_ml_backtest_configs = "list", tuning_strategies = "missing", base_ml_backtest_results = "missing"),
           function(meta_ml_backtest_config, base_ml_backtest_configs, config_name = "not_identified", ...) {
 
             # Check that all configs are ml_backtest_config objects
@@ -1266,11 +1267,34 @@ setMethod("create_ml_metabacktest_config",
 
             # Create the ml_metabacktest_config object
             meta_config <- new("ml_metabacktest_config", meta_ml_backtest_config = meta_ml_backtest_config, base_ml_backtest_configs = base_ml_backtest_configs,
-                               config_name = config_name)
+                               base_ml_backtest_results = NULL, config_name = config_name)
             return(meta_config)
           }
 )
 
+#' @describeIn create_ml_metabacktest_config Create meta config from configs with tuning_strategy
+#'
+#' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
+#' @param base_ml_backtest_results A list of `ml_backtest_results` objects.
+#' @param ... Additional arguments (not used).
+#'
+#' @return An `ml_metabacktest_config` object containing the provided `ml_backtest_config` objects.
+#' @export
+setMethod("create_ml_metabacktest_config",
+          signature(meta_ml_backtest_config = 'ml_backtest_config', base_ml_backtest_configs = "missing", tuning_strategies = "missing", base_ml_backtest_results = "list"),
+          function(meta_ml_backtest_config, base_ml_backtest_results, config_name = "not_identified", ...) {
+
+            # Check that all configs are ml_backtest_config objects
+            if (!all(sapply(base_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
+              stop("All elements in 'base_ml_backtest_results' must be 'ml_backtest_results' objects.")
+            }
+
+            # Create the ml_metabacktest_config object
+            meta_config <- new("ml_metabacktest_config", meta_ml_backtest_config = meta_ml_backtest_config, base_ml_backtest_configs = NULL,
+                               base_ml_backtest_results = base_ml_backtest_results, config_name = config_name)
+            return(meta_config)
+          }
+)
 
 #' @describeIn add_ml_backtest_config Add one or more ml_backtest_config objects to an ml_metabacktest_config
 #'
@@ -1360,7 +1384,7 @@ setGeneric(
 #'
 setGeneric(
   name = "create_ml_metabacktest_results",
-  def = function(meta_ml_backtest_results, base_ml_backtest_results) {
+  def = function(meta_ml_backtest_results_list, base_ml_backtest_results_list, ...) {
     standardGeneric("create_ml_metabacktest_results")
   }
 )
@@ -1369,31 +1393,50 @@ setGeneric(
 #' @aliases create_ml_metabacktest_results,list-method
 setMethod(
   f = "create_ml_metabacktest_results",
-  signature = signature(meta_ml_backtest_results = "list", base_ml_backtest_results = "list"),
-  definition = function(meta_ml_backtest_results, base_ml_backtest_results) {
+  signature = signature(meta_ml_backtest_results_list = "list", base_ml_backtest_results_list = "list"),
+  definition = function(meta_ml_backtest_results_list, base_ml_backtest_results_list, oos_predictions_m_df) {
+
+  #Initial Checks
+  ##################
 
     # Check that the meta_ml_backtest_results input is a list of 'ml_backtest_results' object
-    if (!all(sapply(meta_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
-      stop("All elements in 'meta_ml_backtest_results' must be of class 'ml_backtest_results'")
+    if (!all(sapply(meta_ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
+      stop("All elements in 'meta_ml_backtest_results_list' must be of class 'ml_backtest_results'")
     }
-    if(length(meta_ml_backtest_results) != 3){
-      stop("The 'meta_ml_backtest_results' list must contain exactly 3 elements: one for the meta learner and two for the heuristic ensembles.")
+    if(length(meta_ml_backtest_results_list) != 3){
+      stop("The 'meta_ml_backtest_results_list' list must contain exactly 3 elements: one for the meta learner and two for the heuristic ensembles.")
     }
 
     # Check that the base_ml_backtest_results input is a list of 'ml_backtest_results' objects
-    if (!all(sapply(base_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
-      stop("All elements in 'base_ml_backtest_results' must be of class 'ml_backtest_results'")
+    if (!all(sapply(base_ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
+      stop("All elements in 'base_ml_backtest_results_list' must be of class 'ml_backtest_results'")
     }
 
+  ##################
+
+  #Initialize
+  ###################
+
+    #Get ML Workflow from meta learner
+    meta_learner_ml_backtest_workflow <- meta_ml_backtest_results_list[[1]]@ml_backtest_workflow
+
     # Get the names of the list elements
-    ml_names <- names(base_ml_backtest_results)
-    if (is.null(ml_names)) {
-      ml_names <- paste0("Model_", seq_along(base_ml_backtest_results))
-      names(base_ml_backtest_results) <- ml_names
-    }
+    base_ml_names <- names(base_ml_backtest_results_list)
+    meta_ml_names <- names(meta_ml_backtest_results_list)
+
+    #Consolidate all results
+    all_ml_backtest_results <- c(base_ml_backtest_results_list, meta_ml_backtest_results_list)
+    all_ml_names <- c(base_ml_names, meta_ml_names)
+
+    #Common testing dates range
+    common_testing_dates_range <- as.Date(Reduce(
+      intersect,
+      sapply(all_ml_backtest_results, function(x) x@ml_backtest_workflow$dates_testing_sample)
+    ))
 
     # Initialize lists to collect metrics
     oos_metrics_list <- list()
+    oos_metrics_common_dates_list <- list()
     validation_metrics_list <- list()
 
     # For time series metrics
@@ -1404,9 +1447,16 @@ setMethod(
     oos_metric_names <- NULL
     validation_metric_names <- NULL
 
-    for (i in seq_along(base_ml_backtest_results)) {
-      ml_backtest_result <- base_ml_backtest_results[[i]]
-      ml_name <- ml_names[i]  # Use the name of the list element
+  ###################
+
+  #Collect OOS Testing Metrics
+  ##########################
+
+    #Loop through all results
+    for (i in seq_along(all_ml_backtest_results)) {
+      #if(i == 3) browser()
+      ml_backtest_result <- all_ml_backtest_results[[i]]
+      ml_name <- all_ml_names[i]  # Use the name of the list element
       chosen_eval_metric <- ml_backtest_result@ml_backtest_workflow$chosen_eval_metric
 
       ## Out-of-Sample Testing Evaluation Metrics ##
@@ -1415,14 +1465,14 @@ setMethod(
       # Exclude 'consolidated' row for time series data
       oos_metrics_time_series <- oos_testing_eval_metrics[rownames(oos_testing_eval_metrics) != "consolidated", , drop = FALSE]
 
-      # Add Date and Algorithm columns for time series data
+      # Add Date and Backtest columns for time series data
       oos_metrics_time_series$Date <- rownames(oos_metrics_time_series)
-      oos_metrics_time_series$Algorithm <- ml_name  # Use ml_name instead of ml_algorithm
+      oos_metrics_time_series$Backtest <- ml_name  # Use ml_name instead of ml_algorithm
 
       # Reshape to long format for time series data
       oos_metrics_long <- as.data.frame(tidyr::pivot_longer(
         oos_metrics_time_series,  # Convert to data frame
-        cols = -c(Date, Algorithm),
+        cols = -c(Date, Backtest),
         names_to = "Metric",
         values_to = "Value"
       ))
@@ -1432,26 +1482,58 @@ setMethod(
 
       # Get 'consolidated' row for consolidated metrics
       oos_metrics <- oos_testing_eval_metrics["consolidated", , drop = FALSE]
+      oos_metrics_common_dates <-
+        oos_testing_eval_metrics[which(rownames(oos_testing_eval_metrics) %in% common_testing_dates_range), , drop = FALSE]
+
 
       # Combine ml_name, chosen_eval_metric, and oos_metrics using cbind
-      oos_metrics_df <- cbind(
-        data.frame(
-          Algorithm = ml_name,
-          chosen_eval_metric = chosen_eval_metric,
-          check.names = FALSE,
-          stringsAsFactors = FALSE
-        ),
-        as.data.frame(oos_metrics)  # Ensure it's a data frame
-      )
+          ##Consolidated
+          oos_metrics_df <- cbind(
+            data.frame(
+              Backtest = ml_name,
+              chosen_eval_metric = chosen_eval_metric,
+              testing_dates_range = paste0(
+                min(as.Date(ml_backtest_result@ml_backtest_workflow$dates_testing_sample)),
+                "-",
+                max(as.Date(ml_backtest_result@ml_backtest_workflow$dates_testing_sample))),
+              check.names = FALSE,
+              stringsAsFactors = FALSE
+            ),
+            as.data.frame(oos_metrics)  # Ensure it's a data frame
+          )
+          ##Common dates
+          oos_metrics_common_dates_df <- cbind(
+            data.frame(
+              Backtest = ml_name,
+              chosen_eval_metric = chosen_eval_metric,
+              testing_dates_range = paste0(
+                min(as.Date(common_testing_dates_range)),
+                "-",
+                max(as.Date(common_testing_dates_range))),
+              check.names = FALSE,
+              stringsAsFactors = FALSE
+            ),
+            as.data.frame(oos_metrics_common_dates)  # Ensure it's a data frame
+          )
+
+
 
       # Remove row names from consolidated metrics
       rownames(oos_metrics_df) <- NULL
+      rownames(oos_metrics_common_dates_df) <- NULL
+
 
       # Collect metric names
       oos_metric_names <- unique(c(oos_metric_names, names(oos_metrics_df)))
 
       # Append to the list
       oos_metrics_list[[i]] <- oos_metrics_df
+      oos_metrics_common_dates_list[[i]] <- oos_metrics_common_dates_df
+
+      ##########################
+
+      #Collect ValMetrics
+      ##########################
 
       ## Validation Evaluation Metrics (if available) ##
       validation_metrics <- ml_backtest_result@validation_eval_metrics_hyper_choice
@@ -1462,12 +1544,12 @@ setMethod(
 
         # Add Date and Algorithm columns for time series data
         validation_metrics_time_series$Date <- rownames(validation_metrics_time_series)
-        validation_metrics_time_series$Algorithm <- ml_name
+        validation_metrics_time_series$Backtest <- ml_name
 
         # Reshape to long format
         validation_metrics_long <- as.data.frame(tidyr::pivot_longer(
           validation_metrics_time_series,  # Convert to data frame
-          cols = -c(Date, Algorithm),
+          cols = -c(Date, Backtest),
           names_to = "Metric",
           values_to = "Value"
         ))
@@ -1486,7 +1568,7 @@ setMethod(
         # Combine ml_name, chosen_eval_metric, and validation_metrics_average using cbind
         validation_metrics_df <- cbind(
           data.frame(
-            Algorithm = ml_name,
+            Backtest = ml_name,
             chosen_eval_metric = chosen_eval_metric,
             check.names = FALSE,
             stringsAsFactors = FALSE
@@ -1502,61 +1584,43 @@ setMethod(
 
         # Append to the list
         validation_metrics_list[[i]] <- validation_metrics_df
-      } else {
-        # No validation metrics available
-        # Create a data.frame with NAs for validation metrics
-        na_metrics <- data.frame(
-          Algorithm = ml_name,
-          chosen_eval_metric = chosen_eval_metric,
-          check.names = FALSE,
-          stringsAsFactors = FALSE
-        )
-        # Collect validation metric names (if any)
-        validation_metric_names <- unique(c(validation_metric_names, names(na_metrics)))
-
-        # Append to the list
-        validation_metrics_list[[i]] <- na_metrics
       }
     }
 
-    # Ensure all data frames have same columns in oos_metrics_list
-    for (i in seq_along(oos_metrics_list)) {
-      missing_cols <- setdiff(oos_metric_names, names(oos_metrics_list[[i]]))
-      if (length(missing_cols) > 0) {
-        oos_metrics_list[[i]][, missing_cols] <- NA
-      }
-      # Reorder columns
-      oos_metrics_list[[i]] <- oos_metrics_list[[i]][, oos_metric_names]
-    }
+    ##########################
 
-    # Similarly for validation_metrics_list
-    for (i in seq_along(validation_metrics_list)) {
-      missing_cols <- setdiff(validation_metric_names, names(validation_metrics_list[[i]]))
-      if (length(missing_cols) > 0) {
-        validation_metrics_list[[i]][, missing_cols] <- NA
-      }
-      # Reorder columns
-      validation_metrics_list[[i]] <- validation_metrics_list[[i]][, validation_metric_names]
-    }
+    #Adjust objects
+    ###########################
 
     # Combine lists into data.frames
-    consolidated_oos_testing_metrics <- do.call(rbind, oos_metrics_list)
+    full_periods_oos_testing_metrics <- do.call(rbind, oos_metrics_list)
+    common_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_common_dates_list)
     mean_validation_metrics <- do.call(rbind, validation_metrics_list)
 
     # Remove row names from consolidated metrics data frames
-    rownames(consolidated_oos_testing_metrics) <- NULL
+    rownames(full_periods_oos_testing_metrics) <- NULL
+    rownames(common_dates_oos_testing_metrics) <- NULL
     rownames(mean_validation_metrics) <- NULL
 
     # Replace NaN with NA for clarity
-    consolidated_oos_testing_metrics[is.nan(as.matrix(consolidated_oos_testing_metrics))] <- NA
+    full_periods_oos_testing_metrics[is.nan(as.matrix(full_periods_oos_testing_metrics))] <- NA
+    common_dates_oos_testing_metrics[is.nan(as.matrix(common_dates_oos_testing_metrics))] <- NA
     mean_validation_metrics[is.nan(as.matrix(mean_validation_metrics))] <- NA
 
     # Convert appropriate columns to numeric
-    num_cols_oos <- sapply(consolidated_oos_testing_metrics, is.numeric)
-    consolidated_oos_testing_metrics[, num_cols_oos] <- lapply(consolidated_oos_testing_metrics[, num_cols_oos], as.numeric)
+    num_cols_oos <- sapply(full_periods_oos_testing_metrics, is.numeric)
+    full_periods_oos_testing_metrics[, num_cols_oos] <- lapply(full_periods_oos_testing_metrics[, num_cols_oos], as.numeric)
+
+    num_cols_common <- sapply(common_dates_oos_testing_metrics, is.numeric)
+    common_dates_oos_testing_metrics[, num_cols_common] <- lapply(common_dates_oos_testing_metrics[, num_cols_common], as.numeric)
 
     num_cols_val <- sapply(mean_validation_metrics, is.numeric)
     mean_validation_metrics[, num_cols_val] <- lapply(mean_validation_metrics[, num_cols_val], as.numeric)
+
+    ###########################
+
+    #Create Time Series Objects
+    ###########################
 
     # Create time series data for each metric
     time_series_oos_testing_metrics <- list()
@@ -1572,7 +1636,7 @@ setMethod(
       metric_wide_df <- as.data.frame(tidyr::pivot_wider(
         metric_df,
         id_cols = Date,
-        names_from = Algorithm,
+        names_from = Backtest,
         values_from = Value
       ))
 
@@ -1604,7 +1668,7 @@ setMethod(
         metric_wide_df <- as.data.frame(tidyr::pivot_wider(
           metric_df,  # Ensure data frame
           id_cols = Date,
-          names_from = Algorithm,
+          names_from = Backtest,
           values_from = Value
         ))
 
@@ -1630,14 +1694,20 @@ setMethod(
       }
     }
 
-    # Create the 'ml_metabacktest_results' object
-    new_object <- new("ml_metabacktest_results",
+  ###########################
 
-                      ml_backtest_results = base_ml_backtest_results,
-                      consolidated_oos_testing_metrics = consolidated_oos_testing_metrics,
+   # Create the 'ml_metabacktest_results' object
+    new_object <- new("ml_metabacktest_results",
+                      meta_ml_backtest_results_list = meta_ml_backtest_results_list,
+                      base_ml_backtest_results_list = base_ml_backtest_results_list,
+                      base_learners_oos_predictions_meta_dataframe = oos_predictions_m_df,
+                      consolidated_oos_testing_metrics = list(full_periods_oos_testing_metrics = full_periods_oos_testing_metrics,
+                                                             common_dates_oos_testing_metrics = common_dates_oos_testing_metrics),
                       mean_validation_metrics = mean_validation_metrics,
                       time_series_oos_testing_metrics = time_series_oos_testing_metrics,
-                      time_series_validation_metrics = time_series_validation_metrics)
+                      time_series_validation_metrics = time_series_validation_metrics,
+                      backtest_identifier = meta_learner_ml_backtest_workflow$backtest_identifier
+                      )
 
     return(new_object)
   }

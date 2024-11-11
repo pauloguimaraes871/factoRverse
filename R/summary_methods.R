@@ -36,18 +36,21 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 
   # Display Main Information always
   cat("\nMeta Dataframe Summary\n")
+  cat("Meta Dataframe Name:", object@meta_dataframe_name, "\n")
   cat("Number of Rows:", nrow(object@data), "\n")
   cat("Number of Columns:", ncol(object@data), "\n")
   cat("Columns:", paste(names(object@data), collapse = ", "), "\n")
 
   if (is.null(summary_id)) {
-    cat("\nAvailable summaries to display:\n")
+    cat("\nPlease choose a summary to display:\n")
     for (i in seq_along(available_summaries)) {
       cat(paste0(i, ": ", available_summaries[i], "\n"))
     }
-    cat("\nPlease specify the 'summary_id' parameter to display a summary.\n")
-    cat("You can select a summary either by name or by number.\n")
-    return(invisible(object))
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    summary_id <- as.numeric(selection)
+    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_summaries)) {
+      stop("Invalid selection.")
+    }
   }
 
   # Determine if summary_id is numeric (index) or character (name)
@@ -136,7 +139,7 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
         class = 'cell-border stripe',
         caption = htmltools::tags$caption(
           style = paste0('caption-side: top; text-align: center; color: ', white, '; background-color: ', black, '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'),
-          'Summary of Numeric Variables'
+          paste0(object@meta_dataframe_name, ': Summary of Numeric Variables')
         )
       )
 
@@ -216,7 +219,7 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
         class = 'cell-border stripe',
         caption = htmltools::tags$caption(
           style = paste0('caption-side: top; text-align: center; color: ', white, '; background-color: ', black, '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'),
-          'Summary of Tickers'
+          paste0(object@meta_dataframe_name, ': Summary of Tickers')
         )
       ) %>%
         DT::formatStyle(
@@ -283,7 +286,7 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
             legend.position = "none"
           ) +
           ggplot2::labs(
-            title = paste("Frequency Plot for", col_name),
+            title = paste(object@meta_dataframe_name, ": Frequency Plot for", col_name),
             x = col_name,
             y = "Frequency"
           ) +
@@ -332,17 +335,51 @@ setMethod("summary", "ml_metabacktest_config",
           function(object, ...) {
 
             cat("Summary of 'ml_metabacktest_config' object\n")
-            n_configs <- length(object@ml_backtest_configs)
-            cat(sprintf("Number of backtest configurations: %d\n\n", n_configs))
-            training_sample_size <- unique(sapply(object@ml_backtest_configs, function(x) x@training_sample_size))
-            cat(paste("Training sample size:", max(training_sample_size), "\n"))
-            cat(paste("Training sample size (OLS):", min(training_sample_size), "\n"))
-            rebalancing_months <- unique(sapply(object@ml_backtest_configs, function(x) x@rebalancing_months))
+            cat("Config Name: ", object@config_name, "\n")
+
+            cat("\n------------------------------\n")
+            cat(crayon::cyan("Meta Learner Backtest Configuration:\n"))
+            config <- object@meta_ml_backtest_config
+            cat(sprintf("  config_name: %s\n", config@config_name))
+            cat(sprintf("  ml_algorithm: %s\n", config@ml_algorithm))
+
+            # For neural networks, display number of layers
+            if (config@ml_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
+              n_layers <- length(config@keras_architecture_parameters@units)
+              cat(sprintf("  n_layers: %s\n", n_layers))
+            }
+
+            cat(sprintf("  Training Sample Size: %s\n", config@training_sample_size))
+            cat(sprintf("  Rebalancing Months: %s\n", paste(config@rebalancing_months, collapse = " ")))
+            cat(sprintf("  Custom Objective: %s\n", config@custom_objective))
+            cat(sprintf("  Huber Delta: %s\n", config@huber_delta))
+            cat(sprintf("  Quantile Tau: %s\n", config@quantile_tau))
+
+            if (!is.null(config@tuning_strategy)) {
+              cat("  Meta ML Config Tuning Strategy:\n")
+              cat(sprintf("    Tuning Method: %s\n", config@tuning_strategy@tuning_method))
+              cat(sprintf("    Validation Sample Size: %s\n", config@tuning_strategy@validation_sample_size))
+              cat(sprintf("    Chosen Eval Metric: %s\n", config@tuning_strategy@chosen_eval_metric))
+            } else {
+              cat("  No tuning_strategy available\n")
+            }
+            cat("\n")
+
+
+            cat("------------------------------\n")
+
+
+            n_configs <- length(object@base_ml_backtest_configs)
+            cat(sprintf("Number of Base ML backtest configurations: %d\n\n", n_configs))
+            training_sample_size <- unique(sapply(object@base_ml_backtest_configs, function(x) x@training_sample_size))
+            cat(paste("Training sample size:", paste(training_sample_size, collapse = ","), "\n"))
+            cat(paste("Training sample size (OLS):", paste(training_sample_size, collapse = ","), "\n"))
+            rebalancing_months <- unique(sapply(object@base_ml_backtest_configs, function(x) x@rebalancing_months))
             cat(paste("Rebalancing months:", paste(rebalancing_months, collapse = ", "), "\n"))
 
             if (n_configs > 0) {
               # Collect unique ml_algorithms, handling 'nn' separately
-              ml_algorithms <- unique(sapply(object@ml_backtest_configs, function(x) {
+              ml_algorithms <- unique(sapply(object@base_ml_backtest_configs, function(x) {
                 if (x@ml_algorithm == "nn") {
                   # Get number of hidden layers
                   num_hidden_layers <- length(x@keras_architecture_parameters@units)
@@ -353,11 +390,11 @@ setMethod("summary", "ml_metabacktest_config",
               }))
 
               # Collect possible options
-              tuning_methods <- unique(unlist(sapply(object@ml_backtest_configs, function(x) {
+              tuning_methods <- unique(unlist(sapply(object@base_ml_backtest_configs, function(x) {
                 if (!is.null(x@tuning_strategy)) x@tuning_strategy@tuning_method else NA
               })))
-              custom_objectives <- unique(sapply(object@ml_backtest_configs, function(x) x@custom_objective))
-              chosen_eval_metrics <- unique(unlist(sapply(object@ml_backtest_configs, function(x) {
+              custom_objectives <- unique(sapply(object@base_ml_backtest_configs, function(x) x@custom_objective))
+              chosen_eval_metrics <- unique(unlist(sapply(object@base_ml_backtest_configs, function(x) {
                 if (!is.null(x@tuning_strategy)) x@tuning_strategy@chosen_eval_metric else NA
               })))
 
@@ -397,7 +434,7 @@ setMethod("summary", "ml_metabacktest_config",
               for (i in seq_along(ml_algorithms)) {
                 algo <- ml_algorithms[i]
                 # Filter configs based on ml_algorithm and, for 'nn', the number of hidden layers
-                configs <- object@ml_backtest_configs[sapply(object@ml_backtest_configs, function(x) {
+                configs <- object@base_ml_backtest_configs[sapply(object@base_ml_backtest_configs, function(x) {
                   if (x@ml_algorithm == "nn") {
                     num_hidden_layers <- length(x@keras_architecture_parameters@units)
                     paste0("nn_", num_hidden_layers) == algo
@@ -463,15 +500,15 @@ setMethod("summary", "ml_metabacktest_config",
 
               # For quantitative parameters in total row, display overall range or value
               # huber_delta
-              all_huber_deltas <- sapply(object@ml_backtest_configs, function(x) x@huber_delta)
+              all_huber_deltas <- sapply(object@base_ml_backtest_configs, function(x) x@huber_delta)
               summary_df[length(ml_algorithms) + 1, "huber_delta"] <- get_range_or_value(all_huber_deltas)
 
               # quantile_tau
-              all_quantile_taus <- sapply(object@ml_backtest_configs, function(x) x@quantile_tau)
+              all_quantile_taus <- sapply(object@base_ml_backtest_configs, function(x) x@quantile_tau)
               summary_df[length(ml_algorithms) + 1, "quantile_tau"] <- get_range_or_value(all_quantile_taus)
 
               # validation_sample_size
-              all_val_sample_sizes <- sapply(object@ml_backtest_configs, function(x) {
+              all_val_sample_sizes <- sapply(object@base_ml_backtest_configs, function(x) {
                 if (!is.null(x@tuning_strategy)) x@tuning_strategy@validation_sample_size else NA
               })
               summary_df[length(ml_algorithms) + 1, "validation_sample_size"] <- get_range_or_value(all_val_sample_sizes)
@@ -576,7 +613,7 @@ setMethod("summary", "ml_metabacktest_config",
                 class = 'cell-border stripe',
                 caption = htmltools::tags$caption(
                   style = 'caption-side: top; text-align: center; color: #FFFFFF; background-color: #000000; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;',
-                  'Summary of ML Metabacktesting Configuration'
+                  'Summary of Base ML Backtesting Configurations'
                 )
               )
 
@@ -686,21 +723,25 @@ setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) 
   )
 
   # Display Main Information always
-  cat("\nML Algorithm:", object@ml_backtest_workflow$ml_algorithm, "\n")
+  cat("Backtest Identifier:", object@backtest_identifier, "\n")
+  cat("ML Algorithm:", object@ml_backtest_workflow$ml_algorithm, "\n")
   cat("Final Model Object Class:", object@final_model@model_class, "\n")
   cat("Custom Objective:", object@ml_backtest_workflow$custom_objective, "\n")
   cat("Chosen Evaluation Metric:", object@ml_backtest_workflow$chosen_eval_metric, "\n")
   cat("Testing Sample Dates:", format(as.Date(object@ml_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")
   cat("Rebalancing Dates:", format(as.Date(object@ml_backtest_workflow$rebalance_dates), "%d-%m-%Y"), "\n")
 
+
   if (is.null(summary_id)) {
-    cat("\nAvailable tables to display:\n")
+    cat("\nPlease choose a table to display:\n")
     for (i in seq_along(available_tables)) {
       cat(paste0(i, ": ", available_tables[i], "\n"))
     }
-    cat("\nPlease specify the 'summary_id' parameter to display a table.\n")
-    cat("You can select a table either by name or by number.\n")
-    return(invisible(object))
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    summary_id <- as.numeric(selection)
+    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_tables)) {
+      stop("Invalid selection.")
+    }
   }
 
   # Determine if summary_id is numeric (index) or character (name)
@@ -950,65 +991,69 @@ setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) 
 #' @param object An object of class `ml_metabacktest_results`.
 #' @param summary_id A character string or numeric value specifying which table to display.
 #'   - By name: Options are:
-#'     - `"Time Series OOS Testing Metrics Summary"`
-#'     - `"Time Series Validation Metrics Summary"`
+#'     - `"Consolidated_OOS_Testing_Metrics"`
+#'     - `"Mean_Validation_Metrics"`
+#'     - `"Time_Series_OOS_Testing_Metrics"`
+#'     - `"Time_Series_Validation_Metrics"`
+#'     - `"Base_Learners_OOS_Predictions"`
 #'   - By number: Provide a number corresponding to the table (as listed when `summary_id` is `NULL`).
-#'   If `NULL` (default), the method lists available summaries.
-#'
+#'   If `NULL` (default), the method lists available tables.
 #' @return Invisibly returns the input `object`.
 #' @importFrom methods setMethod
 #' @export
 setMethod("summary", "ml_metabacktest_results", function(object, summary_id = NULL) {
 
-
   # Define colors for styling
   deep_navy <- "#000033"   # Deep Navy for data rows
   black <- "#000000"       # Black for headers
   white <- "#FFFFFF"       # White text
-  faint_blue <- "#003366"  # Faint Blue for grid lines
 
-  # List of available summaries
-  available_summaries <- c(
-    "Time Series OOS Testing Metrics Summary",
-    "Time Series Validation Metrics Summary"
+  # List of available tables
+  available_tables <- c(
+    "Consolidated_OOS_Testing_Metrics",
+    "Mean_Validation_Metrics",
+    "Time_Series_OOS_Testing_Metrics",
+    "Time_Series_Validation_Metrics",
+    "Base_Learners_OOS_Predictions"
   )
 
-  # Display Main Information
-  cat("\n--- ML Metabacktest Results Summary ---\n")
-  cat("\nNumber of ML Backtest Results:", length(object@ml_backtest_results), "\n")
-  cat("\nConsolidated OOS Testing Metrics (Head):\n")
-  print(utils::head(object@consolidated_oos_testing_metrics))
-  cat("\nMean Validation Metrics (Head):\n")
-  print(utils::head(object@mean_validation_metrics))
+  # Display Main Information always
+  cat("Backtest Identifier:", object@backtest_identifier, "\n")
+  cat("\nBase Learners Algorithms:\n")
+  base_learner_algorithms <- sapply(object@base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm)
+  cat(paste0("- ", base_learner_algorithms), sep = "\n")
+  cat("\nMeta Learners Algorithms:\n")
+  meta_learner_algorithms <- sapply(object@meta_ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm)
+  cat(paste0("- ", meta_learner_algorithms), sep = "\n")
 
-
-  # Handle summary_id == NULL
   if (is.null(summary_id)) {
-    cat("\nAvailable summaries to display:\n")
-    for (i in seq_along(available_summaries)) {
-      cat(paste0(i, ": ", available_summaries[i], "\n"))
+    cat("\nPlease choose a table to display:\n")
+    for (i in seq_along(available_tables)) {
+      cat(paste0(i, ": ", available_tables[i], "\n"))
     }
-    cat("\nPlease specify the 'summary_id' parameter to display a summary table.\n")
-    cat("You can select a summary either by name or by number.\n")
-    return(invisible(object))
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    summary_id <- as.numeric(selection)
+    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_tables)) {
+      stop("Invalid selection.")
+    }
   }
 
   # Determine if summary_id is numeric (index) or character (name)
   if (is.numeric(summary_id)) {
-    if (summary_id >= 1 && summary_id <= length(available_summaries)) {
-      summary_name <- available_summaries[summary_id]
+    if (summary_id >= 1 && summary_id <= length(available_tables)) {
+      table_name <- available_tables[summary_id]
     } else {
-      stop("Invalid summary number. Please select a number between 1 and ", length(available_summaries), ".")
+      stop("Invalid table number. Please select a number between 1 and ", length(available_tables), ".")
     }
   } else if (is.character(summary_id)) {
-    if (summary_id %in% available_summaries) {
-      summary_name <- summary_id
+    if (summary_id %in% available_tables) {
+      table_name <- summary_id
     } else {
       stop("Invalid 'summary_id' specified. Available options are:\n",
-           paste(available_summaries, collapse = ", "))
+           paste(available_tables, collapse = ", "))
     }
   } else {
-    stop("'summary_id' must be either a string or a number corresponding to the summary.")
+    stop("'summary_id' must be either a string or a number corresponding to the table.")
   }
 
   # Function to round numeric columns
@@ -1019,7 +1064,7 @@ setMethod("summary", "ml_metabacktest_results", function(object, summary_id = NU
   }
 
   # Function to create and display a styled datatable
-  display_table <- function(data_df, title) {
+  display_table <- function(data_df, title, legend = NULL) {
     if (is.null(data_df) || nrow(data_df) == 0) {
       cat("No data available for", title, "\n")
       return()
@@ -1027,6 +1072,15 @@ setMethod("summary", "ml_metabacktest_results", function(object, summary_id = NU
 
     # Round numeric columns
     data_df <- round_numeric_columns(data_df, digits = 4)
+
+    # If a legend is provided, replace the 'Backtest' column values with numeric labels
+    if (!is.null(legend)) {
+      # Ensure 'Backtest' column exists
+      if ("Backtest" %in% names(data_df)) {
+        # Replace 'Backtest' values with numbers
+        data_df$Backtest <- legend$labels[data_df$Backtest]
+      }
+    }
 
     # Format the table
     data_dt <- DT::datatable(
@@ -1045,12 +1099,12 @@ setMethod("summary", "ml_metabacktest_results", function(object, summary_id = NU
     )
 
     # Apply overall styling
-    data_dt <- DT::formatStyle(
-      data_dt,
-      columns = names(data_df),
-      backgroundColor = deep_navy,
-      color = white
-    )
+    data_dt <- data_dt %>%
+      DT::formatStyle(
+        columns = names(data_df),
+        backgroundColor = deep_navy,
+        color = white
+      )
 
     # Apply styling to the header via CSS
     css_styles <- paste0("
@@ -1089,84 +1143,149 @@ setMethod("summary", "ml_metabacktest_results", function(object, summary_id = NU
       )
     )
 
+    # Display the legend if provided
+    if (!is.null(legend) && !legend$printed) {
+      legend_text <- paste(legend$labels, ": ", legend$backtest_ids, collapse = "\n")
+      cat("\nLegend:\n")
+      cat(legend_text, "\n\n")
+      legend$printed <- TRUE  # Mark legend as printed
+    }
+
     # Display the table
     print(data_dt)
   }
 
-  # Function to summarize time series metrics
-  summarize_time_series_metrics <- function(metrics_list) {
-    # Initialize an empty data frame
-    summary_df <- data.frame(
-      Metric = character(),
-      Mean = numeric(),
-      Median = numeric(),
-      SD = numeric(),
-      Min = numeric(),
-      Max = numeric(),
-      stringsAsFactors = FALSE
+  # Prepare data based on the selected table
+  if (table_name == "Consolidated_OOS_Testing_Metrics") {
+    # Extract the data
+    consolidated_metrics <- object@consolidated_oos_testing_metrics
+
+    # Collect all unique Backtest identifiers from both tables
+    all_backtests <- unique(unlist(lapply(consolidated_metrics, function(df) df$Backtest)))
+    labels <- seq_along(all_backtests)
+    legend <- list(
+      backtest_ids = all_backtests,
+      labels = setNames(labels, all_backtests),
+      printed = FALSE  # Track if legend has been printed
     )
 
-    # Iterate over each metric's data frame
-    for (metric_name in names(metrics_list)) {
-      metric_df <- metrics_list[[metric_name]]
+    # Display both full periods and common dates metrics
+    for (metric_name in names(consolidated_metrics)) {
+      data_df <- consolidated_metrics[[metric_name]]
 
-      # Check if metric_df is a data.frame
-      if (!is.data.frame(metric_df)) {
-        warning(paste("Metric", metric_name, "is not a data.frame. Skipping."))
-        next
-      }
+      # Replace 'Backtest' values with labels
+      data_df$Backtest <- legend$labels[data_df$Backtest]
 
-      # Identify the value column (assuming it's the first non-Date column)
-      value_columns <- setdiff(names(metric_df), "Date")
-      if (length(value_columns) == 0) {
-        warning(paste("No value columns found for metric", metric_name, ". Skipping."))
-        next
-      }
-
-      # If multiple value columns exist, select the first numeric one
-      value_col <- value_columns[which(sapply(metric_df[value_columns], is.numeric))[1]]
-      if (is.na(value_col)) {
-        warning(paste("No numeric value column found for metric", metric_name, ". Skipping."))
-        next
-      }
-
-      values <- metric_df[[value_col]]
-
-      # Compute summary statistics
-      metric_summary <- data.frame(
-        Metric = metric_name,
-        Mean = mean(values, na.rm = TRUE),
-        Median = median(values, na.rm = TRUE),
-        SD = sd(values, na.rm = TRUE),
-        Min = min(values, na.rm = TRUE),
-        Max = max(values, na.rm = TRUE),
-        stringsAsFactors = FALSE
-      )
-
-      # Append to summary_df
-      summary_df <- rbind(summary_df, metric_summary)
+      display_table(data_df, paste("Consolidated OOS Testing Metrics -", metric_name), legend)
     }
 
-    return(summary_df)
-  }
+  } else if (table_name == "Mean_Validation_Metrics") {
+    data_df <- object@mean_validation_metrics
 
-  # Generate and display the selected summary
-  if (summary_name == "Time Series OOS Testing Metrics Summary") {
-    # Summarize time_series_oos_testing_metrics
-    summary_data <- summarize_time_series_metrics(object@time_series_oos_testing_metrics)
+    # Replace long Backtest identifiers with labels
+    if ("Backtest" %in% names(data_df)) {
+      all_backtests <- unique(data_df$Backtest)
+      labels <- seq_along(all_backtests)
+      legend <- list(
+        backtest_ids = all_backtests,
+        labels = setNames(labels, all_backtests),
+        printed = FALSE
+      )
+      data_df$Backtest <- legend$labels[data_df$Backtest]
+    } else {
+      legend <- NULL
+    }
 
-    # Display the table
-    display_table(summary_data, "Time Series OOS Testing Metrics Summary")
+    display_table(data_df, "Mean Validation Metrics", legend)
 
-  } else if (summary_name == "Time Series Validation Metrics Summary") {
-    # Summarize time_series_validation_metrics
-    summary_data <- summarize_time_series_metrics(object@time_series_validation_metrics)
+  } else if (table_name == "Time_Series_OOS_Testing_Metrics") {
+    # This is a list of data frames for each metric over time
+    # We can display each metric's data frame
 
-    # Display the table
-    display_table(summary_data, "Time Series Validation Metrics Summary")
+    metrics_list <- object@time_series_oos_testing_metrics
+
+    # Collect all unique Backtest identifiers from all metrics
+    all_backtests <- unique(unlist(lapply(metrics_list, function(df) names(df))))
+    labels <- seq_along(all_backtests)
+    legend <- list(
+      backtest_ids = all_backtests,
+      labels = setNames(labels, all_backtests),
+      printed = FALSE
+    )
+
+    # Display the legend once
+    cat("\nLegend:\n")
+    legend_text <- paste(labels, ": ", all_backtests, collapse = "\n")
+    cat(legend_text, "\n\n")
+
+    for (metric_name in names(metrics_list)) {
+      data_df <- metrics_list[[metric_name]]
+      data_df$Date <- rownames(data_df)
+      data_df <- data_df[, c("Date", setdiff(names(data_df), "Date"))]
+
+      # Replace Backtest column names with labels
+      colnames(data_df)[-1] <- legend$labels[colnames(data_df)[-1]]
+
+      display_table(data_df, paste("Time Series OOS Testing Metrics -", metric_name))
+    }
+
+  } else if (table_name == "Time_Series_Validation_Metrics") {
+    # Similarly handle time series validation metrics
+    metrics_list <- object@time_series_validation_metrics
+
+    # Collect all unique Backtest identifiers from all metrics
+    all_backtests <- unique(unlist(lapply(metrics_list, function(df) names(df))))
+    labels <- seq_along(all_backtests)
+    legend <- list(
+      backtest_ids = all_backtests,
+      labels = setNames(labels, all_backtests),
+      printed = FALSE
+    )
+
+    # Display the legend once
+    cat("\nLegend:\n")
+    legend_text <- paste(labels, ": ", all_backtests, collapse = "\n")
+    cat(legend_text, "\n\n")
+
+    for (metric_name in names(metrics_list)) {
+      data_df <- metrics_list[[metric_name]]
+      data_df$Date <- rownames(data_df)
+      data_df <- data_df[, c("Date", setdiff(names(data_df), "Date"))]
+
+      # Replace Backtest column names with labels
+      colnames(data_df)[-1] <- legend$labels[colnames(data_df)[-1]]
+
+      display_table(data_df, paste("Time Series Validation Metrics -", metric_name))
+    }
+
+  } else if (table_name == "Base_Learners_OOS_Predictions") {
+    # base_learners_oos_predictions_meta_dataframe is of class meta_dataframe
+    data_df <- as.data.frame(object@base_learners_oos_predictions_meta_dataframe)
+
+    # Exclude 'id', 'tickers', and 'dates' columns
+    data_numeric <- data_df[, !(names(data_df) %in% c("id", "tickers", "dates")), drop = FALSE]
+
+    # Compute summary statistics for each base learner
+    summary_stats <- data.frame(
+      Base_Learner = names(data_numeric),
+      Mean = sapply(data_numeric, mean, na.rm = TRUE),
+      Median = sapply(data_numeric, median, na.rm = TRUE),
+      SD = sapply(data_numeric, sd, na.rm = TRUE),
+      Min = sapply(data_numeric, min, na.rm = TRUE),
+      Max = sapply(data_numeric, max, na.rm = TRUE)
+    )
+
+    # Remove any rows with all NA values (in case all data was in excluded columns)
+    summary_stats <- summary_stats[complete.cases(summary_stats), ]
+
+    display_table(summary_stats, "Summary Statistics of Base Learners OOS Predictions")
   }
 
   invisible(object)  # Return the object invisibly
 })
+
+
+
+
 
 

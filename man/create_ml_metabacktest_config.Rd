@@ -2,22 +2,42 @@
 % Please edit documentation in R/constructors.R
 \name{create_ml_metabacktest_config}
 \alias{create_ml_metabacktest_config}
-\alias{create_ml_metabacktest_config,list,list-method}
-\alias{create_ml_metabacktest_config,list,missing-method}
+\alias{create_ml_metabacktest_config,ml_backtest_config,list,list-method}
+\alias{create_ml_metabacktest_config,ml_backtest_config,list,missing-method}
 \title{Create ML Meta Backtest Configuration}
 \usage{
-create_ml_metabacktest_config(ml_backtest_configs, tuning_strategies, ...)
+create_ml_metabacktest_config(
+  meta_ml_backtest_config,
+  base_ml_backtest_configs,
+  tuning_strategies,
+  ...
+)
 
-\S4method{create_ml_metabacktest_config}{list,list}(ml_backtest_configs, tuning_strategies, ...)
+\S4method{create_ml_metabacktest_config}{ml_backtest_config,list,list}(
+  meta_ml_backtest_config,
+  base_ml_backtest_configs,
+  tuning_strategies,
+  config_name = "not_identified",
+  ...
+)
 
-\S4method{create_ml_metabacktest_config}{list,missing}(ml_backtest_configs, tuning_strategies, ...)
+\S4method{create_ml_metabacktest_config}{ml_backtest_config,list,missing}(
+  meta_ml_backtest_config,
+  base_ml_backtest_configs,
+  config_name = "not_identified",
+  ...
+)
 }
 \arguments{
-\item{ml_backtest_configs}{A list of \code{ml_backtest_config} objects with \code{tuning_strategy} not \code{NULL}.}
+\item{meta_ml_backtest_config}{A \code{ml_backtest_config} with the configuration for the meta learner.}
+
+\item{base_ml_backtest_configs}{A list of \code{ml_backtest_config} objects with \code{tuning_strategy} not \code{NULL}.}
 
 \item{tuning_strategies}{A list of \code{tuning_strategy} objects.}
 
 \item{...}{Additional arguments (not used).}
+
+\item{config_name}{Name of the backtest configuration.}
 }
 \value{
 A \code{ml_metabacktest_config} object containing all viable combinations of configs and strategies.
@@ -27,13 +47,16 @@ An \code{ml_metabacktest_config} object containing all combinations of configs a
 An \code{ml_metabacktest_config} object containing the provided \code{ml_backtest_config} objects.
 }
 \description{
-The \code{create_ml_metabacktest_config} function creates an \code{ml_metabacktest_config} object by combining \code{ml_backtest_config} objects and \code{tuning_strategy} objects.
-This allows you to generate all possible combinations of configurations and strategies for running multiple machine learning backtests, possibly in parallel.
+The \code{create_ml_metabacktest_config} function creates an \code{ml_metabacktest_config} object by combining a \code{ml_backtest_config} for the meta-learner
+and a group of \code{ml_backtest_config} objects for the base learners. Those can be passed with our without a tuning strategy set. In this latter case, by passing
+a list of \code{tuning_strategy} objects, the function will generate all possible combinations of configurations and strategies for running multiple machine learning backtests,
+possibly in parallel.
 }
 \section{Methods (by class)}{
 \itemize{
 \item \code{create_ml_metabacktest_config(
-  ml_backtest_configs = list,
+  meta_ml_backtest_config = ml_backtest_config,
+  base_ml_backtest_configs = list,
   tuning_strategies = list
 )}: Combine configs and strategies
 
@@ -41,7 +64,8 @@ This method accepts one or multiple \code{ml_backtest_config} and one or multipl
 It combines all possible configurations between the configs and strategies by using the \code{add_tuning_strategy} method.
 
 \item \code{create_ml_metabacktest_config(
-  ml_backtest_configs = list,
+  meta_ml_backtest_config = ml_backtest_config,
+  base_ml_backtest_configs = list,
   tuning_strategies = missing
 )}: Create meta config from configs with tuning_strategy
 
@@ -53,13 +77,15 @@ It combines all possible configurations between the configs and strategies by us
 
 # First method: Combine configs and strategies
 meta_config <- create_ml_metabacktest_config(
-    configs = list(config1, config2),
-    strategies = list(strategy1, strategy2)
+    meta_ml_backtest_config = ml_backtest_config,
+    base_ml_backtest_configs = list(config1, config2),
+    tuning_strategies = list(strategy1, strategy2)
 )
 
 # Second method: Configs already have tuning_strategy set
 meta_config <- create_ml_metabacktest_config(
-    configs = list(config1, config2)
+    meta_ml_backtest_config = ml_backtest_config,
+    base_ml_backtest_configs = list(config1, config2)
 )
 
 # Assuming you have ml_backtest_config objects config1, config2 (with tuning_strategy = NULL)

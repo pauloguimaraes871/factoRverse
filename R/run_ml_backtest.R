@@ -97,10 +97,12 @@ setMethod("run_ml_backtest",
             ###########################
             ##features_m_df
             features_workflow <- features_m_df@workflow #Get workflow
+            features_object_name <- features_m_df@meta_dataframe_name #Get mdf name
             features_m_df <- features_m_df@data #Get features_m_df
 
             ##target_m_df
             target_workflow <- target_m_df@workflow #Get workflow
+            target_object_name <- target_m_df@meta_dataframe_name #Get mdf name
             target_m_df <- target_m_df@data #Get target_m_df
 
 
@@ -158,9 +160,22 @@ setMethod("run_ml_backtest",
             #Adjust ML Backtest WF
             ###########################
 
-            #Add workflows for target and features
+            #Add workflows, config_name and objects for target and features
+            ###Target
+            ml_backtest_results@ml_backtest_workflow$target_object_name <- target_object_name
             ml_backtest_results@ml_backtest_workflow$target_workflow <- target_workflow
+
+            ###Features
+            ml_backtest_results@ml_backtest_workflow$features_object_name <- features_object_name
             ml_backtest_results@ml_backtest_workflow$features_workflow <- features_workflow
+
+            ###IDs
+            ml_backtest_results@ml_backtest_workflow$config_name <- config@config_name
+            ml_backtest_results@ml_backtest_workflow$backtest_identifier <-
+              paste0("c:",config@config_name, "_f:", features_object_name, "_t:", target_object_name,"-",target_fwd_name)
+            ml_backtest_results@backtest_identifier <- ml_backtest_results@ml_backtest_workflow$backtest_identifier
+
+            ###Call
             ml_backtest_results@ml_backtest_workflow$call <- sys.call(-2)
 
             return(ml_backtest_results)
@@ -170,13 +185,16 @@ setMethod("run_ml_backtest",
 
 
 
-#' @describeIn run_ml_backtest Runs backtests with multiple configurations.
-#' @param config A `ml_metabacktest_config` object containing multiple individual configurations and a meta configuration.
-#' @param ensemble_method How to combine ensembles? Options are "equal_weight" or "optimal_weight".
-#' @param features_passthrough A character vector indicating which of the features from features_m_df are to be passed through to the meta learner. Should correspond to column names in `features_m_df`.
-#' Alternativelly, if 'all', all features are passed through. If 'none', no features are passed through.
-#' @param heuristic_ensemble_eval_metric The metric to use to combine ensembles in the heuristic benchmark. Options are "rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr" and "mb".
-#' @return A `ml_metabacktest_results` objects, one for each configuration.
+#' @describeIn run_ml_backtest Run Machine Learning Meta-Backtest
+#' @description Runs machine learning backtests for base learners and a meta learner using the provided configurations.
+#' Users can provide their own base learner results or have the function compute them internally.
+#' @param config A `ml_metabacktest_config` object containing a meta learner configuration and multiple individual configurations.
+#' @param winsorize_predictions Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
+#' @param winsorization_probs Numeric vector of length 2 specifying the lower and upper quantiles for winsorization. Default is \code{c(0.025, 0.975)}.
+#' @param normalize_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
+#' @param features_passthrough A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
+#'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
+#' @return An \code{ml_metabacktest_results} object containing the results of the meta-backtest.
 #' @examples
 #' # Assuming features_m_df and target_m_df are meta_dataframe objects
 #' # and meta_config is an ml_metabacktest_config object
@@ -189,133 +207,194 @@ setMethod("run_ml_backtest",
 
           function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel,
                    winsorize_predictions = TRUE, winsorization_probs = c(0.025, 0.975), normalize_predictions = TRUE,
-                   features_passthrough, heuristic_ensemble_eval_metric = "rmse") {
+                   features_passthrough = "none") {
 
-            ##Initial Preparations
+            ## Initial Preparations
             #######################
 
-            #Get configs
-            ml_backtest_configs <- config@base_ml_backtest_configs
-            names_ml_backtest_configs <- names(ml_backtest_configs)
+            if (is.null(config@base_ml_backtest_results)) {
+              # Run base ML backtests
+              base_ml_backtest_configs <- config@base_ml_backtest_configs
 
-            ##Set missing values to TRUE
-            if(missing(verbose)){
-              verbose <- TRUE
-            }
-            if(missing(parallel)){
-              parallel <- TRUE
-            }
-
-            #Print start
-            if(verbose == TRUE){
-              cat(crayon::green("Starting ML Metabacktesting\n"))
-              cat("Starting Base ML backtests:\n")
-              cat(paste("Number of configurations: ", length(ml_backtest_configs), "\n"))
-              cat(paste("Configuration names: ", paste(names(ml_backtest_configs), collapse = ", "), "\n"))
-              tictoc::tic(msg = crayon::green("Base ML backtests finished\n"))
-            }
-            #######################
-
-
-            #Run run_ml_backtest_internal
-            #######################
-
-            #In Parallel
-            if(parallel){
-              ml_backtest_results_list <- furrr::future_map(ml_backtest_configs, #List of backtest configurations
-                                                            ~ run_ml_backtest( #Backtesting function
-                                                              ...,
-                                                              #Data
-                                                              features_m_df = features_m_df, target_m_df = target_m_df, target_fwd_name = target_fwd_name,
-                                                              #Misc
-                                                              verbose = FALSE, parallel = parallel
-                                                            ),
-                                                            .options = furrr::furrr_options(seed = TRUE),
-                                                            .progress = verbose
-              )
-
-            } else { #If not running in parallel
-
-              ml_backtest_results_list <- purrr::map(ml_backtest_configs,
-                                                     run_ml_backtest, #Backtesting function
-                                                     #Data
-                                                     features_m_df = features_m_df, target_m_df = target_m_df, target_fwd_name = target_fwd_name,
-                                                     #Misc
-                                                     verbose = FALSE, parallel = parallel
-              )
-            }
-
-            #Displays how much time it took
-            if(verbose == TRUE){
-              tictoc::toc()
-            }
-            #######################
-
-            #Generate a oos_predictions_m_df and adapt target_m_df
-            #######################
-              #Create base object
-              names(ml_backtest_results_list) <- paste0(names(ml_backtest_results_list), "_backtest_results")
-              oos_predictions_m_df <- convert_oos_predictions_list_to_m_df(ml_backtest_results_list,
-                                                                           winsorize_predictions = winsorize_predictions, winsorization_probs = winsorization_probs, #Winsorization
-                                                                           normalize_predictions = normalize_predictions) #Normalization
-
-              #Add Pass-through features
-              if(features_passthrough == "none"){
-                #If none, do nothing
-                oos_predictions_and_features_m_df@data <- oos_predictions_m_df@data
-              } else {
-                if(features_passthrough == "all"){
-                  #If all, pass everything expect for tickers and dates
-                  oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data, dplyr::select(features_m_df@data, -tickers, -dates), by = "id")
-                } else {
-                  #If specific features, pass only those
-                  oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data, dplyr::select(features_m_df@data, dplyr::all_of(c("id", features_passthrough))), by = "id")
+                ###Check for name uniqueness
+                if(length(unique(sapply(base_ml_backtest_configs, function(x) x@config_name))) != length(base_ml_backtest_configs)){
+                  stop("Base ML backtest configurations must have unique names.")
                 }
+
+              #Run Individual Backtests
+              base_ml_backtest_results_list <- run_base_ml_backtests(
+                features_m_df = features_m_df,
+                target_m_df = target_m_df,
+                target_fwd_name = target_fwd_name,
+                base_ml_backtest_configs = base_ml_backtest_configs,
+                verbose = verbose,
+                parallel = parallel
+              )
+
+            } else {
+              base_ml_backtest_results_list <- config@base_ml_backtest_results
+              #Check if is right format
+              if (all(sapply(base_ml_backtest_results_list, function(x) class(x)) != "ml_backtest_results")) {
+                stop("base_ml_backtest_results must be a list of ml_backtest_results objects.")
+              }
+              # Use provided base_ml_backtest_results_list
+              if (verbose == TRUE) {
+                cat(crayon::green("Using provided base ML backtest results.\n"))
+              }
+            }
+
+            # Ensure base_ml_backtest_results_list is correctly named
+            names(base_ml_backtest_results_list) <- sapply(base_ml_backtest_results_list, function(x) x@backtest_identifier)
+            base_ml_backtest_configs_names <- sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name)
+
+              ###Check for name uniqueness
+              if(length(unique(base_ml_backtest_configs_names)) != length(base_ml_backtest_configs_names)){
+                stop("Base ML backtest configurations must have unique names.")
               }
 
-              #adapt target_m_df
-              adapted_target_m_df <- target_m_df
-              adapted_target_m_df@data <- dplyr::filter(target_m_df@data, id %in% oos_predictions_m_df@data$id)
+            for (i in 1:length(base_ml_backtest_results_list)) {
+              base_ml_backtest_results_list[[i]]@ml_backtest_workflow$config_name <- base_ml_backtest_configs_names[i]
+            }
 
             #######################
-            #run_ml_backtest with predictions_m_df
-              if(verbose == TRUE){
-                cat(crayon::green("Starting Meta ML backtesting\n"))
+
+            # Generate oos_predictions_m_df and adapt target_m_df
+            #######################
+            # Create base object
+            oos_predictions_m_df <- convert_oos_predictions_list_to_m_df(base_ml_backtest_results_list,
+                                                                         winsorize_predictions = winsorize_predictions, winsorization_probs = winsorization_probs, # Winsorization
+                                                                         normalize_predictions = normalize_predictions) # Normalization
+
+            # Add Pass-through features
+            if (features_passthrough == "none") {
+              # If none, do nothing
+              oos_predictions_and_features_m_df <- oos_predictions_m_df
+              oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
+              oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, "passthrough_none")
+            } else {
+              if (features_passthrough == "all") {
+                # If all, pass everything except for tickers and dates
+                oos_predictions_and_features_m_df <- oos_predictions_m_df
+                oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data,
+                                                                           dplyr::select(features_m_df@data, -tickers, -dates), by = "id")
+                oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
+                oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, "passthrough_all")
+              } else {
+                # If specific features, pass only those
+                oos_predictions_and_features_m_df <- oos_predictions_m_df
+                oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data,
+                                                                           dplyr::select(features_m_df@data, dplyr::all_of(c("id", features_passthrough))), by = "id")
+                oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
+                oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, features_passthrough)
+              }
+            }
+
+            # Adapt target_m_df
+            adapted_target_m_df <- target_m_df
+            adapted_target_m_df@data <- dplyr::filter(target_m_df@data, id %in% oos_predictions_m_df@data$id)
+            adapted_target_m_df@meta_dataframe_name <- paste0(adapted_target_m_df@meta_dataframe_name, "_adj")
+
+            #######################
+            # Run ml_backtest with predictions_m_df
+            # Fit Meta Model
+            meta_learner_backtest_results <- tryCatch({
+
+              if (verbose == TRUE) {
+                cat(crayon::cyan("Starting Meta ML backtesting\n"))
                 tictoc::tic(msg = crayon::green("Meta ML backtest finished\n"))
               }
 
-              #Fit Meta Model
-              ml_metabacktest_results <- run_ml_backtest(
-                config = config@meta_ml_backtest_config, #Meta ML Configuration
-                features_m_df = oos_predictions_and_features_m_df, #Features are oos predictions for base models
-                target_m_df = adapted_target_m_df, #Target is the original target
-                target_fwd_name = target_fwd_name, #Target forward name
+              run_ml_backtest(
+                config = config@meta_ml_backtest_config, # Meta ML Configuration
+                features_m_df = oos_predictions_and_features_m_df, # Features are oos predictions for base models
+                target_m_df = adapted_target_m_df, # Target is the original target
+                target_fwd_name = target_fwd_name, # Target forward name
                 verbose = verbose,
                 parallel = parallel
-               )
+              )
+            }, error = function(e) {
+              stop("An error occurred while running the meta ML backtest. Please check the configurations and input data. Details: ", e$message)
+            })
 
-              #Displays how much time it took
-              if(verbose == TRUE){
-                tictoc::toc()
-              }
+            # Change ML Metadata
+            # Add workflows, config_name and objects for target and features
+            ### Target
+            target_object_name <- adapted_target_m_df@meta_dataframe_name
+            meta_learner_backtest_results@ml_backtest_workflow$target_object_name <- target_object_name
+            meta_learner_backtest_results@ml_backtest_workflow$target_workflow <- adapted_target_m_df@workflow
+
+            ### Features
+            features_object_name <- oos_predictions_and_features_m_df@meta_dataframe_name
+            meta_learner_backtest_results@ml_backtest_workflow$features_object_name <- features_object_name
+            meta_learner_backtest_results@ml_backtest_workflow$features_workflow <- oos_predictions_and_features_m_df@workflow
+            meta_learner_backtest_results@ml_backtest_workflow$features_passthrough <- features_passthrough
+
+            ### IDs
+            meta_learner_backtest_results@ml_backtest_workflow$config_name <- config@config_name
+            meta_learner_backtest_results@ml_backtest_workflow$backtest_identifier <-
+              paste0("c:", config@config_name, "_f:", features_object_name, "_t:", target_object_name, "-", target_fwd_name)
+            meta_learner_backtest_results@backtest_identifier <- meta_learner_backtest_results@ml_backtest_workflow$backtest_identifier
+            meta_learner_backtest_results@ml_backtest_workflow$backtest_type <- "meta_learner"
+
+            ### Call
+            meta_learner_backtest_results@ml_backtest_workflow$call <- sys.call(-2)
+
+            ### Add Base Learners Info
+            meta_learner_backtest_results@ml_backtest_workflow$config_name_bl <- sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name)
+            meta_learner_backtest_results@ml_backtest_workflow$ml_algorithm_bl <- sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm)
+            meta_learner_backtest_results@ml_backtest_workflow$dates_covered_bl <- unique(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_covered))
+            meta_learner_backtest_results@ml_backtest_workflow$n_dates_bl <- length(unique(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_covered)))
+            meta_learner_backtest_results@ml_backtest_workflow$training_sample_size_bl <- unique(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$training_sample_size))
+            meta_learner_backtest_results@ml_backtest_workflow$validation_sample_size_bl <- unique(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$validation_sample_size))
+            meta_learner_backtest_results@ml_backtest_workflow$testing_sample_size_bl <- unique(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$testing_sample_size))
+            meta_learner_backtest_results@ml_backtest_workflow$dates_testing_sample_bl <- unique(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$dates_testing_sample))
+            meta_learner_backtest_results@ml_backtest_workflow$rebalance_dates_bl <- unique(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$rebalance_dates))
+
+            # Displays how much time it took
+            if (verbose == TRUE) {
+              tictoc::toc()
+            }
 
             #######################
-            #Get ensemble benchmarks
-            ensemble_ml_backtest_results_list <-
-                create_heuristic_ensembles(ml_backtest_results_list,
-                                           ensemble_eval_metric = config@meta_ml_backtest_config@ml_backtest_workflow$chosen_eval_metric, #Extract chosen eval metric
-                                           huber_delta = mean(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$huber_delta), na.rm = TRUE),
-                                           quantile_tau = mean(sapply(ml_backtest_results_list, function(x) x@ml_backtest_workflow$quantile_tau), na.rm = TRUE)
-                                           )
+            # Get ensemble benchmarks
 
-            #Create Obj of list of ml_metabacktest_results
-            ml_metabacktest_results <- create_ml_metabacktest_results(meta_ml_backtest_results = ensemble_ml_backtest_results_list,
-                                                                      base_ml_backtest_results = ml_backtest_results_list
-                                                                      )
+            ## Extract info
+            ### Ensemble Eval Metric
+            ensemble_eval_metric <- if (config@meta_ml_backtest_config@ml_algorithm == "ols") {
+              "rmse"
+            } else {
+              config@meta_ml_backtest_config@tuning_strategy@chosen_eval_metric # Extract chosen eval metric
+            }
+            ### Ensemble Huber Delta
+            ensemble_huber_delta <- mean(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$huber_delta), na.rm = TRUE)
+            ### Ensemble Tau
+            ensemble_quantile_tau <- mean(sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$quantile_tau), na.rm = TRUE)
 
+            ### Run Meta Learner Backtest
+            heuristic_ensembles_ml_backtest_results_list <- create_heuristic_ensembles(
+              base_ml_backtest_results_list, # Base Learners results
+              ensemble_eval_metric = ensemble_eval_metric, # Eval metric
+              ensemble_huber_delta = ensemble_huber_delta, ensemble_quantile_tau = ensemble_quantile_tau # Huber delta and tau
+            )
+
+            # Create object with list of ml_metabacktest_results
+            ## List with all ensembles
+            meta_ml_backtest_results_list <- list(
+              meta_learner_backtest_results, # Meta Learner
+              heuristic_ensembles_ml_backtest_results_list$ew_ensemble,
+              heuristic_ensembles_ml_backtest_results_list$optimal_ensemble
+            ) # Heuristic ensembles
+            ## Rename
+            names(meta_ml_backtest_results_list) <- sapply(meta_ml_backtest_results_list, function(x) x@backtest_identifier)
+
+            ml_metabacktest_results <- create_ml_metabacktest_results(
+              meta_ml_backtest_results_list = meta_ml_backtest_results_list,
+              base_ml_backtest_results_list = base_ml_backtest_results_list,
+              oos_predictions_m_df = oos_predictions_m_df
+            )
 
             return(ml_metabacktest_results)
-       }
+          }
 )
 
 
@@ -500,11 +579,11 @@ run_ml_backtest_internal <- function(
      if(verbose)   cat("Predicting a", target_fwd, "months ahead target: ", target_fwd_name, "\n")
 
     #Testing Sample Size
-    testing_sample_size <- length(dates_m_vector) - training_sample_size - validation_sample_size #calculate testing sample size
+    testing_sample_size <- length(dates_m_vector) - training_sample_size - validation_sample_size + 1 #calculate testing sample size
 
     #Rebalancing Dates
     dates_testing_sample <- dates_m_vector[(training_sample_size + validation_sample_size):
-                                           (training_sample_size + validation_sample_size + testing_sample_size)] #These are dates inside testing sample
+                                           (training_sample_size + validation_sample_size + testing_sample_size - 1)] #These are dates inside testing sample
 
     first_rebalance_date <- min(dates_testing_sample) #Get first rebalancing date
     rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
@@ -549,15 +628,15 @@ run_ml_backtest_internal <- function(
     #Time expanding test
     #Store test eval
     oos_testing_eval_metrics <- data.frame(
-      rss = as.vector(rep(NA, testing_sample_size + 1)), #+1 bco first date is also a testing date
-      cp = as.vector(rep(NA, testing_sample_size + 1)),
-      rmse = as.vector(rep(NA, testing_sample_size + 1)),
-      mae = as.vector(rep(NA, testing_sample_size + 1)),
-      mphe = as.vector(rep(NA, testing_sample_size + 1)),
-      mpe = as.vector(rep(NA, testing_sample_size + 1)),
-      mape = as.vector(rep(NA, testing_sample_size + 1)),
-      hr = as.vector(rep(NA, testing_sample_size + 1)),
-      mb = as.vector(rep(NA, testing_sample_size + 1))
+      rss = as.vector(rep(NA, testing_sample_size)), #+1 bco first date is also a testing date
+      cp = as.vector(rep(NA, testing_sample_size)),
+      rmse = as.vector(rep(NA, testing_sample_size)),
+      mae = as.vector(rep(NA, testing_sample_size)),
+      mphe = as.vector(rep(NA, testing_sample_size)),
+      mpe = as.vector(rep(NA, testing_sample_size)),
+      mape = as.vector(rep(NA, testing_sample_size)),
+      hr = as.vector(rep(NA, testing_sample_size)),
+      mb = as.vector(rep(NA, testing_sample_size))
     )
 
     rownames(oos_testing_eval_metrics) <- dates_testing_sample
@@ -574,7 +653,7 @@ run_ml_backtest_internal <- function(
     ###Start Fitting###
     ##################
     #Loop through
-    for(d in (training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size)){
+    for(d in (training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size - 1)){
       #Get current date
       current_date <- dates_m_vector[d]
       #Check if it's a rebalancing month
@@ -878,14 +957,14 @@ run_ml_backtest_internal <- function(
   print(elapsed_time)
   if(verbose) cat("=============================\n")
 
-
   #ml_backtest_workflow
   result_list$ml_backtest_workflow <- list(
     #Algo
     ml_algorithm = ml_algorithm,
+    config_name = "not_identified",
+    backtest_identifier = "not_identified",
     custom_objective = custom_objective,
     backtest_type = "base_learner",
-    config_name = as.character(substitute(config)),
     #Dates
     dates_covered = dates_m_vector,
     n_dates = length(dates_m_vector),
@@ -906,11 +985,11 @@ run_ml_backtest_internal <- function(
     target_fwd_name = target_fwd_name,
     target_fwd = target_fwd,
     target_workflow = NULL,
-    target_object = as.character(substitute(target_m_df)),
+    target_object_name = "not_identified",
     #Features
     features = colnames(features_m_df[,-c(1:3)]),
     features_workflow = NULL,
-    features_object = as.character(substitute(features_m_df)),
+    features_object = "not_identified",
     #Tuning
     tuning_method = tuning_method,
     n_iter = n_iter,
@@ -943,12 +1022,108 @@ run_ml_backtest_internal <- function(
         chosen_eval_metric_validation = result_list$chosen_eval_metric_validation,
         best_hyperparameters = result_list$best_hyperparameters,
         validation_eval_metrics_hyper_choice = result_list$validation_eval_metrics_hyper_choice,
-        ml_backtest_workflow = result_list$ml_backtest_workflow
+        ml_backtest_workflow = result_list$ml_backtest_workflow,
+        backtest_identifier = result_list$ml_backtest_workflow$backtest_identifier
         )
 
 
   #Return List
   return(ml_backtest_results_object)
 
-
 }
+
+
+#' @title Run Base Machine Learning Backtests
+#' @description Runs machine learning backtests for base learners using the provided configurations.
+#' This helper function is used within \code{run_ml_backtest} but can be utilized independently if needed.
+#'
+#' @param features_m_df A \code{meta_dataframe} object containing the features data.
+#' @param target_m_df A \code{meta_dataframe} object containing the target data.
+#' @param target_fwd_name A character string specifying the name of the target forward variable in \code{target_m_df}.
+#' @param base_ml_backtest_configs A list of \code{ml_backtest_config} objects containing configurations for each base learner.
+#' @param verbose Logical; if \code{TRUE}, prints progress messages. Default is \code{TRUE}.
+#' @param parallel Logical; if \code{TRUE}, runs the backtests in parallel using the future framework. Default is \code{TRUE}.
+#' @return A list of \code{ml_backtest_results} objects, one for each base learner configuration.
+#' @examples
+#' # Assuming features_m_df and target_m_df are meta_dataframe objects
+#' # and base_ml_backtest_configs is a list of ml_backtest_config objects
+#' base_results <- run_base_ml_backtests(
+#'   features_m_df = features_m_df,
+#'   target_m_df = target_m_df,
+#'   target_fwd_name = "target",
+#'   base_ml_backtest_configs = base_ml_backtest_configs,
+#'   verbose = TRUE,
+#'   parallel = TRUE
+#' )
+#' @export
+run_base_ml_backtests <- function(features_m_df, target_m_df, target_fwd_name, base_ml_backtest_configs, verbose = TRUE, parallel = TRUE) {
+
+  base_ml_backtest_configs_names <- sapply(base_ml_backtest_configs, function(x) x@config_name)
+
+  if (verbose == TRUE) {
+    cat(crayon::green("Starting Base ML backtests:\n"))
+    cat(paste("Number of configurations: ", length(base_ml_backtest_configs), "\n"))
+    cat(paste("Configuration names: ", paste(base_ml_backtest_configs_names, collapse = ", "), "\n"))
+    tictoc::tic(msg = crayon::green("Base ML backtests finished\n"))
+  }
+
+  tryCatch({
+    #In Parallel
+    if(parallel){
+      base_ml_backtest_results_list <- furrr::future_map(base_ml_backtest_configs, #List of backtest configurations
+                                                         ~ run_ml_backtest( #Backtesting function
+                                                           ...,
+                                                           #Data
+                                                           features_m_df = features_m_df, target_m_df = target_m_df, target_fwd_name = target_fwd_name,
+                                                           #Misc
+                                                           verbose = FALSE, parallel = parallel
+                                                         ),
+                                                         .options = furrr::furrr_options(seed = TRUE),
+                                                         .progress = verbose
+      )
+      cat("\n")
+
+    } else { #If not running in parallel
+      base_ml_backtest_results_list <-  purrr::map(base_ml_backtest_configs,
+                                                   run_ml_backtest, #Backtesting function
+                                                   #Data
+                                                   features_m_df = features_m_df, target_m_df = target_m_df, target_fwd_name = target_fwd_name,
+                                                   #Misc
+                                                   verbose = FALSE, parallel = parallel
+      )
+    }
+  }, error = function(e) {
+    stop("An error occurred while running the base ML backtests. Please check the configurations and input data. Details: ", e$message)
+  })
+
+  # Displays how much time it took
+  if (verbose == TRUE) {
+    tictoc::toc()
+
+    # Show some results
+    cat("Consolidated OOS Testing Eval Metrics:\n")
+    # Create consolidated OOS Testing Eval Metrics
+    all_consolidated_oos_testing_eval_metrics <- data.frame(
+      t(sapply(
+        base_ml_backtest_results_list,
+        function(x) x@oos_testing_eval_metrics[which(rownames(x@oos_testing_eval_metrics) == "consolidated"), ]
+      )),
+      row.names = base_ml_backtest_configs_names
+    )
+    # Print results
+    print(all_consolidated_oos_testing_eval_metrics)
+    cat("\n")
+  }
+
+  # Name Base Learners in Metadata and also the list
+  names(base_ml_backtest_results_list) <- sapply(base_ml_backtest_results_list, function(x) x@backtest_identifier)
+  for (i in 1:length(base_ml_backtest_results_list)) {
+    base_ml_backtest_results_list[[i]]@ml_backtest_workflow$config_name <- base_ml_backtest_configs_names[i]
+  }
+
+  return(base_ml_backtest_results_list)
+}
+
+
+
+

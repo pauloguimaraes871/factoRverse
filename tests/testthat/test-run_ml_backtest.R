@@ -11527,51 +11527,170 @@ skip()
 
 
 ###Metabacktesting
-test_that("Metabacktesting (Sequential) works for 4 algos", {
+
+test_that("Metabacktesting works for configs", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  ols_config <- create_ml_backtest_config(ml_algorithm = "ols", custom_objective = "squared_error",
-                                          training_sample_size = 9, rebalancing_months = 6)
-
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 6, rebalancing_months = 6) %>%
+  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6, config_name = "glmnet_123") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
 
-  rf_config <- create_ml_backtest_config(ml_algorithm = "rf", training_sample_size = 6, rebalancing_months = 6) %>%
+  rf_config <- create_ml_backtest_config(ml_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6, config_name = "rf_101") %>%
     add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
     add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
                        distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
                        pars = list(c(min=0.1, max = 0.9), c(min = 100L, max = 500L), c(meanlog = 1L, sdlog = 1L),
                                    c(min = 1L, max = 10L))
-                       )
+    )
 
-  nn1_config <- create_ml_backtest_config(ml_algorithm = "nn", training_sample_size = 6, rebalancing_months = 6) %>%
-   add_keras_architecture(nn_optimizer = "Adam", units = 32, batch_norm_option = TRUE, activation = "relu") %>%
-   add_tuning_strategy(tuning_method = "bayesian_opt", validation_sample_size = 3, n_iter = 3, k_iter = 3, init_points = 7, early_stop = 5) %>%
-   add_hyperparameter(hyperparameter = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
-                      bounds = list(c(0,1), c(0,1), c(0, 0.75), c(0.1, 0.5), c(32L, 128L), c(1L, 10L))
-   )
+  nn1_config <- create_ml_backtest_config(ml_algorithm = "nn", training_sample_size = 4, rebalancing_months = 6) %>%
+    add_keras_architecture(nn_optimizer = "Adam", units = 32, batch_norm_option = TRUE, activation = "relu") %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3, early_stop = 3) %>%
+    add_hyperparameter(hyperparameter = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
+                       grid = list(c(0,1), c(0,1), c(0, 0.75), c(0.1, 0.5), c(32L, 128L), c(1L, 10L))
+    )
+
+  meta_learner_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4,
+                                                   rebalancing_months = 6, config_name = "meta") %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
 
 
 
-  meta_config <- create_ml_metabacktest_config(list(ols_config, glmnet_config, rf_config, nn1_config))
+  meta_config <-
+    create_ml_metabacktest_config(meta_ml_backtest_config = meta_learner_config,
+                                  base_ml_backtest_configs = list(rf_config, glmnet_config),
+                                  config_name = "meta_rf_glmnet")
 
 
-  #Run
   set.seed(123)
-  tensorflow::set_random_seed(123)
-
   ml_metabacktest_results <- run_ml_backtest(
-    features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
+    features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_fwd_name = "fwd_premium_3m",
     config = meta_config,
-    verbose = TRUE,
-    parallel = FALSE
+    parallel = FALSE,
+    verbose = TRUE
+  )
+
+  set.seed(123)
+  rf_results <- run_ml_backtest(
+    target_m_df = create_meta_dataframe(toy_preprocessed_targets),
+    features_m_df = create_meta_dataframe(toy_preprocessed_features),
+    target_fwd_name = "fwd_premium_3m",
+    config = rf_config,
+    parallel = FALSE,
+    verbose = TRUE
+  )
+
+  glmnet_results <- run_ml_backtest(
+    target_m_df = create_meta_dataframe(toy_preprocessed_targets),
+    features_m_df = create_meta_dataframe(toy_preprocessed_features),
+    target_fwd_name = "fwd_premium_3m",
+    config = glmnet_config,
+    parallel = FALSE,
+    verbose = TRUE
+  )
+
+  oos_predictions_m_df <- convert_oos_predictions_list_to_m_df(
+    list("c:rf_101_f:not_identified_t:not_identified-fwd_premium_3m" = rf_results,
+         "c:glmnet_123_f:not_identified_t:not_identified-fwd_premium_3m" = glmnet_results),
+    winsorize_predictions = TRUE, winsorization_probs = c(0.025, 0.975), # Winsorization
+    normalize_predictions = TRUE) # Normalization
+
+  adapted_target_m_df <- create_meta_dataframe(toy_preprocessed_targets)
+  adapted_target_m_df@data <- adapted_target_m_df@data[which(adapted_target_m_df@data$id %in% oos_predictions_m_df@data$id),]
+
+  meta_results <- run_ml_backtest(
+    target_m_df = adapted_target_m_df,
+    features_m_df = oos_predictions_m_df,
+    target_fwd_name = "fwd_premium_3m",
+    config = meta_learner_config,
+    parallel = FALSE,
+    verbose = TRUE
+  )
+
+  #Check val metrics
+  expect_equal(as.numeric(ml_metabacktest_results@mean_validation_metrics[2, -c(1:2)]),
+               as.numeric(glmnet_results@validation_eval_metrics_hyper_choice[3,]))
+
+  expect_equal(as.numeric(ml_metabacktest_results@mean_validation_metrics[1, -c(1:2)]),
+               as.numeric(rf_results@validation_eval_metrics_hyper_choice[3,])
+               )
+
+  #Check OOS eval
+  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[1,-c(1:3)]),
+               as.numeric(rf_results@oos_testing_eval_metrics[8,])
+               )
+
+  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[2,-c(1:3)]),
+               as.numeric(glmnet_results@oos_testing_eval_metrics[8,])
+  )
+
+
+  expect_equal(ml_metabacktest_results@time_series_oos_testing_metrics$hr[, 1],
+               rf_results@oos_testing_eval_metrics$hr[-8]
+  )
+
+  expect_equal(ml_metabacktest_results@time_series_oos_testing_metrics$hr[, 2],
+               glmnet_results@oos_testing_eval_metrics$hr[-8]
+  )
+
+  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$common_dates_oos_testing_metrics[2,-c(1:3)]),
+               as.numeric(glmnet_results@oos_testing_eval_metrics[7,])
+               )
+
+  #Meta model check
+  expect_equal(oos_predictions_m_df, ml_metabacktest_results@base_learners_oos_predictions_meta_dataframe)
+
+
+
+  expect_equal(as.numeric(meta_results@oos_testing_eval_metrics[2,]),
+               as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[3,-c(1:3)]))
+
+
+  expect_equal(as.Date(rownames(
+    ml_metabacktest_results@meta_ml_backtest_results_list$`c:meta_rf_glmnet_f:meta_rf_glmnet_bpreds_t:not_identified_adj-fwd_premium_3m`@oos_testing_eval_metrics
+    )[-2]),
+    as.Date(get_dates(oos_predictions_m_df)[7])
+  )
+
+
+})
+
+test_that("Metabacktesting works for provided backtests", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  ols_config <- create_ml_backtest_config(ml_algorithm = "ols", custom_objective = "squared_error",
+                                          training_sample_size = 7, rebalancing_months = 6, config_name = "ols")
+
+  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6,
+                                             config_name = "glmnet-grid") %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
+
+  rf_config <- create_ml_backtest_config(ml_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6,
+                                         config_name = "rf-random") %>%
+    add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
+    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+                       distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
+                       pars = list(c(min=0.1, max = 0.9), c(min = 100L, max = 500L), c(meanlog = 1L, sdlog = 1L),
+                                   c(min = 1L, max = 10L))
     )
 
 
+  meta_learner_config <- create_ml_backtest_config(ml_algorithm = "ols", custom_objective = "squared_error", config_name = "meta-ols",
+                                          training_sample_size = 4, rebalancing_months = 6)
+
+
+  meta_config <- create_ml_metabacktest_config(meta_ml_backtest_config = meta_learner_config,
+                                               base_ml_backtest_configs = list(ols_config, glmnet_config, rf_config),
+                                               config_name = "meta123")
+
+
+  #Run
   set.seed(123)
   tensorflow::set_random_seed(123)
   ols_results <- run_ml_backtest(
@@ -11601,83 +11720,73 @@ test_that("Metabacktesting (Sequential) works for 4 algos", {
     parallel = FALSE
   )
 
-  nn1_results <- run_ml_backtest(
+  set.seed(123)
+  tensorflow::set_random_seed(123)
+
+  ml_metabacktest_results <- run_ml_backtest(
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     target_fwd_name = "fwd_premium_3m",
-    config = nn1_config,
+    config = meta_config,
     verbose = TRUE,
     parallel = FALSE
   )
 
 
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rss["glmnet_config"][,1] , glmnet_results@validation_eval_metrics_hyper_choice[-3,"rss"])
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rmse["glmnet_config"][,1] , glmnet_results@validation_eval_metrics_hyper_choice[-3,"rmse"])
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$mphe["glmnet_config"][,1] , glmnet_results@validation_eval_metrics_hyper_choice[-3,"mphe"])
+  #Check
+  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rss[,1] , glmnet_results@validation_eval_metrics_hyper_choice[-3,"rss"])
+  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rmse[,1] , glmnet_results@validation_eval_metrics_hyper_choice[-3,"rmse"])
+  expect_equal(ml_metabacktest_results@time_series_validation_metrics$mphe[,1] , glmnet_results@validation_eval_metrics_hyper_choice[-3,"mphe"])
 
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rss["rf_config"][,1] , rf_results@validation_eval_metrics_hyper_choice[-3,"rss"])
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rmse["rf_config"][,1] , rf_results@validation_eval_metrics_hyper_choice[-3,"rmse"])
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$mphe["rf_config"][,1] , rf_results@validation_eval_metrics_hyper_choice[-3,"mphe"])
+  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rss[,2] , rf_results@validation_eval_metrics_hyper_choice[-3,"rss"])
+  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rmse[,2] , rf_results@validation_eval_metrics_hyper_choice[-3,"rmse"])
+  expect_equal(ml_metabacktest_results@time_series_validation_metrics$mphe[,2] , rf_results@validation_eval_metrics_hyper_choice[-3,"mphe"])
 
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rss["nn1_config"][,1] , nn1_results@validation_eval_metrics_hyper_choice[-3,"rss"])
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$rmse["nn1_config"][,1] , rf_results@validation_eval_metrics_hyper_choice[-3,"rmse"])
-  expect_equal(ml_metabacktest_results@time_series_validation_metrics$mphe["nn1_config"][,1] , rf_results@validation_eval_metrics_hyper_choice[-3,"mphe"])
-
-
-  expect_equal(ml_metabacktest_results@time_series_oos_testing_metrics$hr["ols_config"][,1], ols_results@oos_testing_eval_metrics[-6,"hr"])
-  expect_equal(ml_metabacktest_results@time_series_oos_testing_metrics$rmse["ols_config"][,1], ols_results@oos_testing_eval_metrics[-6,"rmse"])
-
-  expect_equal(as.numeric(ml_metabacktest_results@mean_validation_metrics[3,-c(1:2)]), as.numeric(rf_results@validation_eval_metrics_hyper_choice[3,]))
-
-  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics[2,-c(1:2)]), as.numeric(glmnet_results@oos_testing_eval_metrics[6,]))
-  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics[3,-c(1:2)]), as.numeric(rf_results@oos_testing_eval_metrics[6,]))
-  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics[3,-c(1:2)]), as.numeric(rf_results@oos_testing_eval_metrics[6,]))
+  expect_equal(ml_metabacktest_results@time_series_oos_testing_metrics$hr[,1], ols_results@oos_testing_eval_metrics[-8,"hr"])
+  expect_equal(ml_metabacktest_results@time_series_oos_testing_metrics$rmse[,1], ols_results@oos_testing_eval_metrics[-8,"rmse"])
 
 
-})
+  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[2,-c(1:3)]),
+               as.numeric(glmnet_results@oos_testing_eval_metrics[8,]))
+
+  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[3,-c(1:3)]),
+               as.numeric(rf_results@oos_testing_eval_metrics[8,]))
+
+  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[3,-c(1:3)]),
+               as.numeric(rf_results@oos_testing_eval_metrics[8,]))
 
 
-test_that("Metabacktesting (Parallel) works", {
-
-  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
-
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 6, rebalancing_months = 6) %>%
-    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
-    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
-
-  rf_config <- create_ml_backtest_config(ml_algorithm = "rf", training_sample_size = 6, rebalancing_months = 6) %>%
-    add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
-    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
-                       distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
-                       pars = list(c(min=0.1, max = 0.9), c(min = 100L, max = 500L), c(meanlog = 1L, sdlog = 1L),
-                                   c(min = 1L, max = 10L))
-    )
-
-  nn1_config <- create_ml_backtest_config(ml_algorithm = "nn", training_sample_size = 6, rebalancing_months = 6) %>%
-    add_keras_architecture(nn_optimizer = "Adam", units = 32, batch_norm_option = TRUE, activation = "relu") %>%
-    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3, early_stop = 3) %>%
-    add_hyperparameter(hyperparameter = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
-                       grid = list(c(0,1), c(0,1), c(0, 0.75), c(0.1, 0.5), c(32L, 128L), c(1L, 10L))
-    )
-
-
-  meta_config <- create_ml_metabacktest_config(list(rf_config, glmnet_config, nn1_config))
-
-  future::plan("multisession")
+  #Rerun
+  meta_config2 <- create_ml_metabacktest_config(meta_ml_backtest_config = meta_learner_config,
+                                               base_ml_backtest_results = list(ols_results, glmnet_results, rf_results),
+                                               config_name = "meta123")
 
   set.seed(123)
-  tensorflow::set_random_seed(123)
-  expect_no_error(
-  ml_metabacktest_results <- run_ml_backtest(
-    target_m_df = create_meta_dataframe(toy_preprocessed_targets),
+  ml_metabacktest_results2 <- run_ml_backtest(
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
+    target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     target_fwd_name = "fwd_premium_3m",
-    config = meta_config,
-    parallel = TRUE,
-    verbose = TRUE
+    config = meta_config2,
+    verbose = TRUE,
+    parallel = FALSE
   )
-)
-  future::plan("sequential")
+
+  #Check
+  expect_equal(ml_metabacktest_results2@time_series_validation_metrics, ml_metabacktest_results@time_series_validation_metrics)
+  expect_equal(ml_metabacktest_results2@time_series_oos_testing_metrics, ml_metabacktest_results@time_series_oos_testing_metrics)
+  expect_equal(ml_metabacktest_results2@consolidated_oos_testing_metrics, ml_metabacktest_results@consolidated_oos_testing_metrics)
+  expect_equal(ml_metabacktest_results2@base_learners_oos_predictions_meta_dataframe, ml_metabacktest_results@base_learners_oos_predictions_meta_dataframe)
+  expect_equal(ml_metabacktest_results2@mean_validation_metrics, ml_metabacktest_results@mean_validation_metrics)
+
+  expect_equal(ml_metabacktest_results2@base_ml_backtest_results_list$`c:rf-random_f:not_identified_t:not_identified-fwd_premium_3m`@oos_prediction_list,
+               ml_metabacktest_results@base_ml_backtest_results_list$`c:rf-random_f:not_identified_t:not_identified-fwd_premium_3m`@oos_prediction_list)
+
+  expect_equal(ml_metabacktest_results2@base_ml_backtest_results_list$`c:rf-random_f:not_identified_t:not_identified-fwd_premium_3m`@validation_eval_metrics_hyper_choice,
+               ml_metabacktest_results@base_ml_backtest_results_list$`c:rf-random_f:not_identified_t:not_identified-fwd_premium_3m`@validation_eval_metrics_hyper_choice)
+
+  expect_equal(ml_metabacktest_results2@base_ml_backtest_results_list$`c:rf-random_f:not_identified_t:not_identified-fwd_premium_3m`@chosen_eval_metric_validation,
+               ml_metabacktest_results@base_ml_backtest_results_list$`c:rf-random_f:not_identified_t:not_identified-fwd_premium_3m`@chosen_eval_metric_validation)
+
 
 })
 

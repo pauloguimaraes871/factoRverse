@@ -352,7 +352,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
   #Print Results
   if(verbose == TRUE){
     cat(paste0("Chosen hyperparameters were: "))
-    cat(paste0(names(hyper_grid_domain_list),":", optimal_hyper, sep=" "))
+    if(ml_algorithm != "glmnet") cat(paste0(names(hyper_grid_domain_list),":", round(optimal_hyper, 4), sep=" ")) else cat(paste0(c(names(hyper_grid_domain_list), "best_lam"),":", round(optimal_hyper, 4), sep=" "))
     cat("\n")
     cat(paste0("Validation eval_metrics for hyperparameters chosen were: "))
     cat(paste0(names(validation_eval_metrics_hyper_choice_current_date),":",

@@ -41,7 +41,8 @@ setClass("meta_dataframe",
            signals = "character",      # Slot for storing column names
            unique_dates = "numeric",   # Slot for storing count of unique dates
            unique_tickers = "numeric", # Slot for storing count of unique tickers
-           n_obs = "numeric"           # Slot for storing total number of observations
+           n_obs = "numeric",          # Slot for storing total number of observations
+           meta_dataframe_name = "character"
          ))
 
 
@@ -288,6 +289,7 @@ setClass(
 #' }
 #' @slot quantile_tau A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
 #' @slot huber_delta A single positive numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
+#' @slot config_name A character string to identify the configuration.
 #' @export
 setClass(
   "ml_backtest_config",
@@ -300,7 +302,8 @@ setClass(
     custom_objective = "character",
     keras_architecture_parameters = "ANY",
     quantile_tau = "numeric",
-    huber_delta = "numeric"
+    huber_delta = "numeric",
+    config_name = "character"
   ),
   prototype = list(
     ml_algorithm = "ols",
@@ -636,22 +639,34 @@ setClass(
 #' @title ml_metabacktest_config Class
 #' @description The ml_metabacktest_config class is designed to store and manage a collection of ml_backtest_config objects.
 #' @slot meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner
-#' @slot base_ml_backtest_configs A list of ml_backtest_config objects whose oos predictions will be fed to the meta learner.
+#' @slot base_ml_backtest_configs A list of `ml_backtest_config` objects whose oos predictions will be fed to the meta learner.
+#' @slot base_ml_backtest_results A list of `ml_backtest_result` objects whose oos predictions will be fed to the meta learner.
+#' @slot config_name A character string with the name of the configuration
 #' @export
 setClass(
   "ml_metabacktest_config",
   slots = list(
     meta_ml_backtest_config = "ml_backtest_config",
-    base_ml_backtest_configs = "list"
+    base_ml_backtest_configs = "ANY",
+    base_ml_backtest_results = "ANY",
+    config_name = "character"
   ),
   validity = function(object) {
 
-    if(is.null(object@meta_ml_backtest_config@tuning_strategy)){
-      return("tuning_strategy in meta_ml_backtest_config can't be NULL.")
-    }
+  if(object@meta_ml_backtest_config@ml_algorithm != "ols" && is.null(object@meta_ml_backtest_config@tuning_strategy)){
+    stop("tuning_strategy in meta_ml_backtest_config can't be NULL (except for OLS).")
+  }
+
+
+  if(!is.null(object@base_ml_backtest_configs) & !is.null(object@base_ml_backtest_results)){
+    stop("base_ml_backtest_configs and base_ml_backtest_results can't be set at the same time.")
+  }
+
+
+  if(!is.null(object@base_ml_backtest_configs)){
 
     if (!all(sapply(object@base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
-      return("All elements in 'configs' must be of class 'ml_backtest_config'.")
+      stop("All elements in 'base_ml_backtest_configs' must be of class 'ml_backtest_config'.")
     }
 
     # Initialize an empty character vector to collect error messages
@@ -724,25 +739,37 @@ setClass(
       }
 
       # For algorithms other than 'ols', perform hyperparameter checks
-        # Check for missing hyperparameters
-        missing_hyperparameters <- setdiff(expected_hyperparameters, hyperparameters_names)
-        if (length(missing_hyperparameters) > 0) {
-          errors <- c(errors, paste0("In config ", i, ", missing hyperparameters for algorithm '", ml_algorithm, "': ",
-                                     paste(missing_hyperparameters, collapse = ", "), "."))
-        }
-
-        # Check for unexpected hyperparameters
-        extra_hyperparameters <- setdiff(hyperparameters_names, expected_hyperparameters)
-        if (length(extra_hyperparameters) > 0) {
-          errors <- c(errors, paste0("In config ", i, ", unexpected hyperparameters for algorithm '", ml_algorithm, "': ",
-                                     paste(extra_hyperparameters, collapse = ", "), "."))
-        }
+      # Check for missing hyperparameters
+      missing_hyperparameters <- setdiff(expected_hyperparameters, hyperparameters_names)
+      if (length(missing_hyperparameters) > 0) {
+        errors <- c(errors, paste0("In config ", i, ", missing hyperparameters for algorithm '", ml_algorithm, "': ",
+                                   paste(missing_hyperparameters, collapse = ", "), "."))
       }
+
+      # Check for unexpected hyperparameters
+      extra_hyperparameters <- setdiff(hyperparameters_names, expected_hyperparameters)
+      if (length(extra_hyperparameters) > 0) {
+        errors <- c(errors, paste0("In config ", i, ", unexpected hyperparameters for algorithm '", ml_algorithm, "': ",
+                                   paste(extra_hyperparameters, collapse = ", "), "."))
+      }
+    }
 
 
     # If any errors were collected, return them
     if (length(errors) > 0) {
       return(paste(errors, collapse = "\n"))
+    }
+
+
+
+
+
+    }
+
+    if(!is.null(object@base_ml_backtest_results)){
+      if (!all(sapply(object@base_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
+        stop("All elements in 'base_ml_backtest_results' must be of class 'ml_backtest_results'.")
+      }
     }
 
     return(TRUE)
@@ -852,7 +879,8 @@ setClass(
     chosen_eval_metric_validation = "ANY",
     best_hyperparameters = "ANY",
     validation_eval_metrics_hyper_choice = "ANY",
-    ml_backtest_workflow = "list"
+    ml_backtest_workflow = "list",
+    backtest_identifier = "character"
   )
 )
 
@@ -870,20 +898,26 @@ setClass(
 setClass(
   "ml_metabacktest_results",
   slots = list(
-    meta_ml_backtest_results = "list",
-    base_ml_backtest_results = "list",
-    consolidated_oos_testing_metrics = "data.frame",
+    meta_ml_backtest_results_list = "list",
+    base_ml_backtest_results_list = "list",
+    base_learners_oos_predictions_meta_dataframe = "meta_dataframe",
+    consolidated_oos_testing_metrics = "list",
     mean_validation_metrics = "data.frame",
     time_series_oos_testing_metrics = "list",
-    time_series_validation_metrics = "list"
+    time_series_validation_metrics = "list",
+    backtest_identifier = "character"
   ),
   validity = function(object) {
-    if (!all(sapply(object@meta_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
-      return("All elements in 'meta_ml_backtest_results' must be of class 'ml_backtest_results'.")
+    if (!all(sapply(object@meta_ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
+      return("All elements in 'meta_ml_backtest_results_list' must be of class 'ml_backtest_results'.")
     }
 
-    if (!all(sapply(object@base_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
-      return("All elements in 'base_ml_backtest_results' must be of class 'ml_backtest_results'.")
+    if (!all(sapply(object@base_ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
+      return("All elements in 'base_ml_backtest_results_list' must be of class 'ml_backtest_results'.")
+    }
+
+    if (!all(sapply(object@consolidated_oos_testing_metrics, function(x) is(x, "data.frame")))){
+      return("All elements in 'consolidated_oos_testing_metrics' must be of class 'data.frame'.")
     }
 
     TRUE
@@ -1054,6 +1088,12 @@ setMethod("get_tickers", "ml_backtest_results", function(object) {
 })
 
 #' @export
+setMethod("get_tickers", "meta_dataframe", function(object) {
+  stocks <- unique(object@data$stocks)
+  return(stocks)
+})
+
+#' @export
 setGeneric("get_dates", function(object, ...) standardGeneric("get_dates"))
 
 #' @export
@@ -1066,6 +1106,11 @@ setMethod("get_dates", "ml_backtest_results", function(object, sample_type = "co
 
 })
 
+#' @export
+setMethod("get_dates", "meta_dataframe", function(object) {
+  dates <- unique(object@data$dates)[order(unique(object@data$dates))]
+  return(dates)
+})
 
 #' @export
 setGeneric("get_chosen_eval_metric_validation", function(object) standardGeneric("get_chosen_eval_metric_validation"))
@@ -1209,6 +1254,8 @@ setMethod("get_tuning_strategy", "ml_backtest_results", function(object){
 
   #WF
   ml_backtest_workflow <- object@ml_backtest_workflow
+
+  if(ml_backtest_workflow$ml_algorithm == "ols") return(NULL)
 
   #Hyper Grid Domain
   hyper_grid_domain <- get_hyper_grid_domain(object)

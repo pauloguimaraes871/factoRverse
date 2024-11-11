@@ -2,37 +2,41 @@
 % Please edit documentation in R/constructors.R
 \name{create_ml_metabacktest_results}
 \alias{create_ml_metabacktest_results}
+\alias{create_ml_metabacktest_results,list,list-method}
 \alias{create_ml_metabacktest_results,list-method}
 \title{Create an ml_metabacktest_results Object}
 \usage{
-create_ml_metabacktest_results(ml_backtest_results_list)
+create_ml_metabacktest_results(
+  meta_ml_backtest_results,
+  base_ml_backtest_results
+)
 
-create_ml_metabacktest_results(ml_backtest_results_list)
+create_ml_metabacktest_results(
+  meta_ml_backtest_results,
+  base_ml_backtest_results
+)
 
-\S4method{create_ml_metabacktest_results}{list}(ml_backtest_results_list)
+\S4method{create_ml_metabacktest_results}{list,list}(
+  meta_ml_backtest_results,
+  base_ml_backtest_results
+)
 }
 \arguments{
-\item{ml_backtest_results_list}{A named list of \code{ml_backtest_results} objects.}
+\item{meta_ml_backtest_results_list}{A list containing \code{ml_backtest_results} objects for the meta learner and for the two heuristic ensembles.}
+
+\item{base_ml_backtest_results_list}{A named list of \code{ml_backtest_results} objects for the base learners.}
 }
 \value{
-An object of class \code{ml_metabacktest_results} containing the input \code{ml_backtest_results} and computed metrics.
+An object of class \code{ml_metabacktest_results}.
 
-An object of class \code{ml_metabacktest_results} containing the input \code{ml_backtest_results} and computed metrics.
+An object of class \code{ml_metabacktest_results}.
 }
 \description{
-Constructs an \code{ml_metabacktest_results} object from a list of \code{ml_backtest_results} objects.
-It computes consolidated and time series evaluation metrics for machine learning models.
+Constructs an \code{ml_metabacktest_results} object from a list of \code{ml_backtest_results} objects for base learners a single
+\code{ml_backtest_results} object for the meta learner.
+It computes consolidated and time series evaluation metrics for machine learning backtests.
 
-Constructs an \code{ml_metabacktest_results} object from a list of \code{ml_backtest_results} objects.
-It computes consolidated and time series evaluation metrics for machine learning models.
-}
-\examples{
-\dontrun{
-# Assuming you have ml_backtest_results_list
-metabacktest_results <- create_ml_metabacktest_results(ml_backtest_results_list)
-}
-\dontrun{
-# Assuming you have ml_backtest_results_list
-metabacktest_results <- create_ml_metabacktest_results(ml_backtest_results_list)
-}
+Constructs an \code{ml_metabacktest_results} object from a list of \code{ml_backtest_results} objects for base learners a single
+\code{ml_backtest_results} object for the meta learner.
+It computes consolidated and time series evaluation metrics for machine learning backtests.
 }

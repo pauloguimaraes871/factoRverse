@@ -20,8 +20,7 @@
 #' panelize_data(features_list, row_names, column_names, features_names)
 #'
 #'
-#'
-#' @export
+
 panelize_data <- function(features_list, row_names, column_names, features_names){
 
   # Check if features_list is a list of matrices, data frames, or tibbles
@@ -38,53 +37,40 @@ panelize_data <- function(features_list, row_names, column_names, features_names
   # Convert each feature in features_list to data frame
   features_list <- lapply(features_list, as.data.frame)
 
-    #Initialize list
-    panel_features <- list()
+  #Initialize list
+  panel_features <- list()
 
-    #for every element in list
-    for(l in 1:length(features_list)){
-      #Tickers + Features
-      features_df <- data.frame(row_names, features_list[[l]])
-      colnames(features_df)[1] <- "tickers" #change col name
-      colnames(features_df)[2:length(colnames(features_df))] <- as.character(column_names)
+  #for every element in list
+  for(l in 1:length(features_list)){
+    #Tickers + Features
+    features_df <- data.frame(row_names, features_list[[l]])
+    colnames(features_df)[1] <- "tickers" #change col name
+    colnames(features_df)[2:length(colnames(features_df))] <- as.character(column_names)
 
-      #melt to panel format
-      panel_matrix <- reshape2::melt(features_df, id.vars="tickers")
-      colnames(panel_matrix)[2] <- "dates" #change name
-      id <- paste(panel_matrix$tickers, panel_matrix$dates, sep = "-") #create new id
-      panel_matrix <- cbind(id, panel_matrix) #append id
+    #melt to panel format
+    panel_matrix <- reshape2::melt(features_df, id.vars="tickers")
+    colnames(panel_matrix)[2] <- "dates" #change name
+    id <- paste(panel_matrix$tickers, panel_matrix$dates, sep = "-") #create new id
+    panel_matrix <- cbind(id, panel_matrix) #append id
 
-      #change col name to characteristic name
-      colnames(panel_matrix)[4] <- features_names[l]
-      panel_matrix <- panel_matrix[order(panel_matrix$id), ] #order alphabetically by id
-      panel_features[[l]] <- panel_matrix #save in list
-    }
+    #change col name to characteristic name
+    colnames(panel_matrix)[4] <- features_names[l]
+    panel_matrix <- panel_matrix[order(panel_matrix$id), ] #order alphabetically by id
+    panel_features[[l]] <- panel_matrix #save in list
+  }
 
-    # Create new data frame to store panel data
-    final_panel <- data.frame(id = panel_features[[1]]$id,
-                              tickers = panel_features[[1]]$tickers,
-                              dates = as.Date(panel_features[[1]]$dates),
-                              stringsAsFactors = FALSE)
+  # Create new data frame to store panel data
+  final_panel <- data.frame(id = panel_features[[1]]$id,
+                            tickers = panel_features[[1]]$tickers,
+                            dates = as.Date(panel_features[[1]]$dates),
+                            stringsAsFactors = FALSE)
 
-    #Fill columns with characteristics
-    for(l in 1:length(features_list)){
-      final_panel[[features_names[l]]] <- panel_features[[l]][, 4] #append last column, which is the characteristic
-    }
+  #Fill columns with characteristics
+  for(l in 1:length(features_list)){
+    final_panel[[features_names[l]]] <- panel_features[[l]][, 4] #append last column, which is the characteristic
+  }
 
-    # Calculate metadata
-    unique_dates_count <- length(unique(final_panel$dates))
-    unique_tickers_count <- length(unique(final_panel$tickers))
-    total_observations_count <- nrow(final_panel)
 
-    # Create meta_dataframe object
-    final_panel <- new("meta_dataframe",
-                   data = final_panel,
-                   workflow = list(),
-                   signals = features_names,
-                   unique_dates = unique_dates_count,
-                   unique_tickers = unique_tickers_count,
-                   n_obs = total_observations_count)
-
-    return(final_panel)
+  return(final_panel)
 
 }

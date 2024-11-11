@@ -35,7 +35,7 @@ run_ml_backtest(
   winsorize_predictions = TRUE,
   winsorization_probs = c(0.025, 0.975),
   normalize_predictions = TRUE,
-  features_passthrough,
+  features_passthrough = "none",
   heuristic_ensemble_eval_metric = "rmse"
 )
 }
