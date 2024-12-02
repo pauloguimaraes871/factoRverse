@@ -8,7 +8,7 @@
   x,
   type = "cross_sectional",
   clustering_variables = NULL,
-  variable,
+  variable = NULL,
   tickers = "all",
   dates = "all",
   calc_stat = "mean",

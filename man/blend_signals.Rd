@@ -44,7 +44,8 @@ its active returns will be assigned as 0.
 \item \code{signal_significance_threshold} A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals to blend,
 provide 1. In any case, a signal being selected demands a significant CAPM alpha.
 \item \code{p_correction_method}: A character describing a method to adjust alpha CAPM p-values.
-One of "none", holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr" or "bayesian". In case of bayesian, a bayesian hierarhical mixed effects model is fit in order to
+One of "none", holm", "hochberg", "hommel",
+"bonferroni", "BH", "BY", "fdr" or "bayesian". In case of bayesian, a bayesian hierarhical mixed effects model is fit in order to
 perform inference. When selecting "bayesian"the probability of direction will be used to select signals and a bayesian posterior version of the final_sb_signal
 will be used to give weights.
 In this case, the user needs to provide the following additional elements:

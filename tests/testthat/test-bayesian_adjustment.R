@@ -1,116 +1,373 @@
 test_that("bayesian model correctly shrinks alpha based on conservative priors",{
 
+  #DGP 1
+  ##############################
+  # DGP adapted for lme4::lmer(active_return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
+  set.seed(123)  # For reproducibility
+
+  # Define themes and tickers
+  themes <- c("value", "growth", "momentum", "defensive", "size")
+  theme_ticker_map <- list(
+    value = c("book_yield", "sales_yield", "dividend_yield", "asset_yield", "eps_yield"),
+    growth = c("g_eps", "g_sps", "g_dps", "sur", "g_roe", "g_roic", "g_fcfe", "g_fcf", "g_fcff"),
+    momentum = c("sharpe_6m", "sharpe_12m", "alpha_6m", "alpha_12m", "sharpe_ewma", "alpha_ewma"),
+    defensive = c("low_vol", "low_beta", "roe", "roic", "net_margin", "gross_margin", "low_vol_roe"),
+    size = c("market_cap", "turnover_1m", "trading_volume_3m", "turnover_3m", "trading_volume_1m")
+  )
+
+  # Expand theme-signal combinations into a data frame
+  theme_signal_combinations <- do.call(
+    rbind,
+    lapply(names(theme_ticker_map), function(theme) {
+      data.frame(theme = theme, signal = theme_ticker_map[[theme]])
+    })
+  )
+
+  # Define priors based on the model specification
+  theme_effects_means <- c(0.05, 0.04, 0.07, 0.5, -0.03)  # Fixed intercepts for themes
+  names(theme_effects_means) <- themes
+  theme_effects_sds <- c(0.5, 0.6, 0.6, 0.5, 0.4)     # SD for theme intercept variability
+  names(theme_effects_sds) <- themes
+  theme_slopes_means <- c(0.002, -0.001, 0.03, 0.0005, -0.0005)  # Fixed slopes for market_factor_proxy
+  names(theme_slopes_means) <- themes
+  theme_slopes_sds <- c(0.002, 0, 0.005, 0.007, 0.011)   # SD for theme slope variability
+  names(theme_slopes_sds) <- themes
+
+  # Covariance matrix for random effects (intercept and slope) for theme:tickers
+  random_intercept_tickers_sd <- 0.01    # SD for random intercepts at theme:tickers level
+  random_slope_tickers_sd <- 0.003      # SD for random slopes at theme:tickers level
+  correlation <- 0.2                    # Correlation between random intercept and slope
+  residual_sd <- 0.0450                 # SD for residual error
+
+  cov_matrix <- matrix(
+    c(random_intercept_tickers_sd^2,
+      correlation * random_intercept_tickers_sd * random_slope_tickers_sd,
+      correlation * random_intercept_tickers_sd * random_slope_tickers_sd,
+      random_slope_tickers_sd^2),
+    nrow = 2
+  )
+
+  # Generate random effects for tickers
+  theme_ticker_combinations <- do.call(rbind, lapply(names(theme_ticker_map), function(theme) {
+    data.frame(theme = theme, ticker = theme_ticker_map[[theme]])
+  }))
+  n_tickers <- nrow(theme_ticker_combinations)
+  random_effects_tickers <- MASS::mvrnorm(
+    n = n_tickers,
+    mu = c(0, 0),  # Mean of random intercepts and slopes
+    Sigma = cov_matrix
+  )
+  random_intercepts_tickers <- random_effects_tickers[, 1]
+  random_slopes_tickers <- random_effects_tickers[, 2]
+
+  # Generate data
+  n_obs_per_ticker <- 100
+  active_return <- numeric(n_obs_per_ticker * n_tickers)
+
+  # Predictor: market_factor_proxy
+  market_factor_proxy <- rnorm(n_obs_per_ticker * n_tickers, mean = 0, sd = 1)
+
+  # Generate monthly dates for the observations
+  dates <- rep(
+    seq.Date(as.Date("1980-01-01"), by = "month", length.out = n_obs_per_ticker),
+    times = n_tickers
+  )
+
+  # Loop to calculate active_return for each observation
+  for (i in seq_along(active_return)) {
+    ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
+    theme <- theme_ticker_combinations$theme[ticker_idx]
+    ticker <- theme_ticker_combinations$ticker[ticker_idx]
+
+    # Combine fixed effects, random effects, and residual noise
+    active_return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +  # Fixed intercept with variability
+      rnorm(1, mean = theme_slopes_means[theme], sd = theme_slopes_sds[theme]) * market_factor_proxy[i] +  # Fixed slope with variability
+      random_intercepts_tickers[ticker_idx] +                                                          # Random intercept for theme:tickers
+      random_slopes_tickers[ticker_idx] * market_factor_proxy[i] +                                     # Random slope for theme:tickers
+      rnorm(1, mean = 0, sd = residual_sd)                                                             # Residual noise
+  }
+
+  # Assign signal names to each observation
+  signal_names <- rep(theme_signal_combinations$signal, each = n_obs_per_ticker)
+  theme_names <- rep(theme_signal_combinations$theme, each = n_obs_per_ticker)
+
+  # Create the final data frame
+  simulated_data <- data.frame(
+    id = paste0(signal_names, "-", dates),  # Unique ID combining signal and date
+    dates = dates,                          # Monthly dates
+    theme = theme_names,                    # Theme names
+    tickers = signal_names,                 # Signal names
+    active_return = active_return,          # Response variable
+    market_factor_proxy = market_factor_proxy  # Predictor variable
+  )
+
+  # Reorder columns as requested
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+
+
+  ##############################
+
   set.seed(123)
-  #Generate sample data
-  #Parameters
-  overall_alpha <- rnorm(n = 100, mean = 10, sd = 5) #Big SD to make prior stronger
-  overall_beta <- rnorm(n = 100, mean = 0, sd = 1)
-  tau_u1 <- extraDistr::rhnorm(n = 100, sigma = 1)
-  tau_u2 <- extraDistr::rhnorm(n = 100, sigma = 1)
-  sigma <- extraDistr::rhnorm(n = 100, sigma = 2)
-  bench_return <- rnorm(n = 100, mean = 0, sd = 1)
+  # Define tickers
+  tickers <- c("Stock A", "Stock B", "Stock C")
+  # Define date sequence from "1980-01-01" to "2063-04-01" monthly
+  dates <- seq(as.Date("1980-01-01"), as.Date("1988-04-01"), by = "month")
+  # Define signal column names
+  signal_columns <- simulated_data$tickers %>% unique()
+  # Number of tickers and dates
+  num_tickers <- length(tickers)
+  num_dates <- length(dates)
 
-  #Signal 1 (earnings yield)
-  alpha <- overall_alpha + unlist(purrr::map(tau_u1, ~ rnorm(n=1, mean = 0, sd = .x))) #u1 ~ N(0, tau_u1)
-  beta <- overall_beta + unlist(purrr::map(tau_u2, ~ rnorm(n=1, mean = 0, sd = .x))) #u2 ~ N(0, tau_u2)
+  # Create a data frame with all combinations of tickers and dates
+  signals_m_df <- expand.grid(tickers = tickers, dates = dates) %>%
+    dplyr::arrange(tickers, dates) %>%
+    dplyr::mutate(
+      id = paste(tickers, format(dates, "%Y-%m-%d"), sep = "-")
+    ) %>%
+    dplyr::select(id, tickers, dates)
 
-  parameters <- list(mean = alpha + bench_return*(beta), sigma = sigma)
+  # Function to generate simulated data for signals
+  generate_signals <- function(n, mean = 0, sd = 1) {
+    rnorm(n, mean, sd)
+  }
 
-  subj1 <- purrr::map2_dbl(parameters$mean, parameters$sigma, ~ rnorm(n = 1, mean = .x, sd = .y))
+  # Add simulated signal data to the data frame
+  for (signal in signal_columns) {
+    # Customize mean and sd based on signal type if needed
+    # For simplicity, using mean = 0 and sd = 1 for all signals
+    signals_m_df[[signal]] <- generate_signals(n = nrow(signals_m_df))
+  }
 
-  subj1_data = data.frame(characteristic = rep("earnings_yield", length(subj1)),
-                          dates = seq.Date(as.Date("2001-04-15", format = "%Y-%m-%d"), by = "month", length.out = length(subj1)),
-                          active_return = subj1,
-                          month_year = paste0(lubridate::month(seq.Date(as.Date("2001-04-15", format = "%Y-%m-%d"), by = "month", length.out = length(subj1))),"-",
-                                              lubridate::year(seq.Date(as.Date("2001-04-15", format = "%Y-%m-%d"), by = "month", length.out = length(subj1)))),
-                          theme = "value"
+  signal_positions <- rep("long", length(signal_columns))
+  names(signal_positions) <- signal_columns
+
+  backtest_returns_df <- simulated_data %>% tidyr::pivot_wider(id_cols = dates, names_from = tickers, values_from = active_return)
+
+  correct_names <-   colnames(backtest_returns_df)[-1]
+  correct_names[signal_positions == "short"] <- paste0("low_", names(signal_positions)[signal_positions == "short"])
+
+  colnames(backtest_returns_df)[-1] <- correct_names
+
+  #get selected info
+  selected_signals_and_backtest_list <- select_and_correct_signals(
+    signals_m_df = signals_m_df,
+    chosen_signals = signal_columns,
+    signal_positions = signal_positions,
+    backtest_returns_df = as.data.frame(backtest_returns_df)
   )
 
-  #Signal 2 (book_yield)
-  alpha <- overall_alpha + unlist(purrr::map(tau_u1, ~ rnorm(n=1, mean = 0, sd = .x))) #u1 ~ N(0, tau_u1)
-  beta <- overall_beta + unlist(purrr::map(tau_u2, ~ rnorm(n=1, mean = 0, sd = .x))) #u2 ~ N(0, tau_u2)
-
-  parameters <- list(mean = alpha + bench_return*(beta), sigma = sigma)
-
-  subj2 <- purrr::map2_dbl(parameters$mean, parameters$sigma, ~ rnorm(n = 1, mean = .x, sd = .y))
-
-  subj2_data = data.frame(characteristic = rep("book_yield", length(subj1)),
-                          dates = seq.Date(as.Date("2001-04-15", format = "%Y-%m-%d"), by = "month", length.out = length(subj1)),
-                          active_return = subj2,
-                          month_year = paste0(lubridate::month(seq.Date(as.Date("2001-04-15", format = "%Y-%m-%d"), by = "month", length.out = length(subj2))),"-",
-                                              lubridate::year(seq.Date(as.Date("2001-04-15", format = "%Y-%m-%d"), by = "month", length.out = length(subj2)))),
-                          theme = "value")
-
-  signals_groups_m_d_ref <- data.frame(id = paste0(c("earnings_yield", "book_yield"), "-", "2009-07-15") , tickers = c("earnings_yield", "book_yield"), dates = "2009-07-15", theme = c("value", "value"))
-
-  #bench return
-  bench_return_df <- data.frame(dates = subj1_data$dates, bench_return = bench_return)
-
-  #bind data to backtest
-  backtest_data_df <- data.frame(dates = subj1_data$dates, earnings_yield = subj1_data$active_return, book_yield = subj2_data$active_return)
-
-  #get signal_universe_m_d_ref
-  signal_universe_m_d_ref <- data.frame(id = paste0(c("earnings_yield", "book_yield"),"-", "2009-07-15"), tickers = c("earnings_yield", "book_yield"), dates = "2009-07-15",
-                                        mean_active_return = backtest_data_df[,-1] %>% apply(2, function(x) mean(x)),
-                                        tracking_error = backtest_data_df[,-1] %>% apply(2, function(x) sd(x)),
-                                        IR = backtest_data_df[,-1] %>% apply(2, function(x) mean(x)/sd(x)),
-                                        alpha = backtest_data_df[,-1] %>% apply(2, function(x){
-                                          summary(lm(x ~ bench_return_df[,2]))$coefficients[1]
-                                        }),
-                                        AP = backtest_data_df[,-1] %>% apply(2, function(x){
-                                          summary(lm(x ~ bench_return_df[,2]))$coefficients[5]
-                                        }),
-                                        beta = backtest_data_df[,-1] %>% apply(2, function(x){
-                                          summary(lm(x ~ bench_return_df[,2]))$coefficients[2]
-                                        }),
-                                        treynor = backtest_data_df[,-1] %>% apply(2, function(x){
-                                          mean(x)/summary(lm(x ~ bench_return_df[,2]))$coefficients[2]
-                                        }),
-                                        p_value = backtest_data_df[,-1] %>% apply(2, function(x){
-                                          summary(lm(x ~ bench_return_df[,2]))$coefficients[7]
-                                        }))
+  selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+  selected_backtest_returns_corrected_positions_df <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_df
+  selected_market_factor_proxy_df <- data.frame(dates = dates, IBOV = rnorm(num_dates, 0, 1))
 
 
+  #current info
+  current_date <- "2001-07-15"
+  selected_backtest_returns_corrected_positions_upd_ref <-
+    selected_backtest_returns_corrected_positions_df[which(selected_backtest_returns_corrected_positions_df$dates <= current_date), ]
 
-  #get priors
-  #priors <- set_priors(priors_data = value_data, set_priors_on = "all") #based on data
-  value_prior <- c(brms::set_prior("normal(0,1)", class = "Intercept"), brms::set_prior("normal(0,1)", class = "b", coef = "bench_return"))
-
-
-  #Fit bayesian model
-  results <- bayesian_adjustment(selected_signals_backtest_returns_upd_ref = backtest_data_df,
-                                 selected_benchmark_returns_upd_ref_vector = bench_return_df$bench_return,
-                                 selected_priors_informative_data_m_upd_ref = NULL,
-                                 priors_type = "user",
-                                 user_priors_list = value_prior,
-                                 signals_groups_m_d_ref = signals_groups_m_d_ref)
+  selected_market_factor_proxy_vector_upd_ref <-
+    selected_market_factor_proxy_df[which(selected_market_factor_proxy_df$dates <= current_date), "IBOV"]
 
 
+  signal_themes_m_d_ref <- tibble::enframe(theme_ticker_map, name = "theme", value = "tickers") %>%
+    tidyr::unnest(tickers) %>%
+    dplyr::arrange(theme, tickers) %>% as.data.frame()
+  signal_themes_m_d_ref$dates <- current_date
+  signal_themes_m_d_ref$id <- paste0(signal_themes_m_d_ref$tickers,"-",signal_themes_m_d_ref$dates)
 
-  #Check expectations
-  ##Check that priors is correctly set
-  expect_equal(value_prior, results$elected_priors_list)
+  signal_themes_m_d_ref <- signal_themes_m_d_ref[, c("id", "tickers", "dates", "theme")]
 
 
-  bayesian_fit <- results$bayesian_fit_list[[1]]
+  #Regularizer
+  ##############################
+  # DGP adapted for lme4::lmer(active_return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
+  set.seed(123)  # For reproducibility
 
-  ##Check that data is correctly set for model to consume
-  expected_data <- rbind(
-    data.frame(active_return = subj1_data$active_return, bench_return = bench_return_df$bench_return, signal = "earnings_yield"),
-    data.frame(active_return = subj2_data$active_return, bench_return = bench_return_df$bench_return, signal = "book_yield")
+  # Define themes and tickers
+  themes <- c("value", "growth", "momentum", "defensive", "size")
+  theme_ticker_map <- list(
+    value = c("book_yield", "sales_yield", "dividend_yield", "asset_yield", "eps_yield",
+              "ev_ebitda", "ev_ebit", "fcf_yield", "fcfe_yield", "ev_fcff"),
+    growth = c("g_eps", "g_sps", "g_dps", "sur", "g_roe", "g_roic", "g_fcfe", "g_fcf", "g_fcff",
+               "g_eps_36m", "g_sps_36m", "g_dps_36m", "sur_36m", "g_roe_36m", "g_roic_36m",
+               "g_fcfe_36m", "g_fcf_36m", "g_fcff_36m"),
+    momentum = c("sharpe_6m", "sharpe_12m", "alpha_6m", "alpha_12m", "sharpe_ewma", "alpha_ewma",
+                 "return_6m", "return_12m", "sharpe_3m", "alpha_3m", "return_3m"),
+    defensive = c("low_vol", "low_beta", "roe", "roic", "net_margin", "gross_margin", "low_vol_roe",
+                  "low_vol_roic", "low_leverage", "fscore", "fcff_at", "fcfe_bv"),
+    size = c("market_cap", "turnover_1m", "trading_volume_3m", "turnover_3m", "trading_volume_1m")
   )
-  expect_equal(bayesian_fit$data$active_return, expected_data$active_return)
-  expect_equal(bayesian_fit$data$bench_return, expected_data$bench_return)
-  expect_equal(bayesian_fit$data$signal, expected_data$signal)
 
-  ##Check posteriors
-  post_samples <- insight::get_parameters(bayesian_fit, effects = "all")
+  # Expand theme-signal combinations into a data frame
+  theme_signal_combinations <- do.call(
+    rbind,
+    lapply(names(theme_ticker_map), function(theme) {
+      data.frame(theme = theme, signal = theme_ticker_map[[theme]])
+    })
+  )
 
-  post_samples$b_Intercept %>% hist()
+  # Define priors based on the model specification
+  theme_effects_means <- c(0, 0, 0, 0, 2.5)  # Fixed intercepts for themes
+  names(theme_effects_means) <- themes
+  theme_effects_sds <- c(0.000001, 0.0000001, 0.0000001, 0.00001, 0.000001)     # SD for theme intercept variability
+  names(theme_effects_sds) <- themes
+  theme_slopes_means <- c(0.002, -0.001, 0.03, 0.0005, -0.0005)  # Fixed slopes for market_factor_proxy
+  names(theme_slopes_means) <- themes
+  theme_slopes_sds <- c(0.002, 0, 0.005, 0.007, 0.011)   # SD for theme slope variability
+  names(theme_slopes_sds) <- themes
 
-  # Plot posterior distributions
-  library(bayesplot)
-  mcmc_dens(post_samples, pars = c("b_Intercept", "b_bench_return"))
+  # Covariance matrix for random effects (intercept and slope) for theme:tickers
+  random_intercept_tickers_sd <- 0.00001    # SD for random intercepts at theme:tickers level
+  random_slope_tickers_sd <- 0.003      # SD for random slopes at theme:tickers level
+  correlation <- 0.2                    # Correlation between random intercept and slope
+  residual_sd <- 0.00450                 # SD for residual error
+
+  cov_matrix <- matrix(
+    c(random_intercept_tickers_sd^2,
+      correlation * random_intercept_tickers_sd * random_slope_tickers_sd,
+      correlation * random_intercept_tickers_sd * random_slope_tickers_sd,
+      random_slope_tickers_sd^2),
+    nrow = 2
+  )
+
+  # Generate random effects for tickers
+  theme_ticker_combinations <- do.call(rbind, lapply(names(theme_ticker_map), function(theme) {
+    data.frame(theme = theme, ticker = theme_ticker_map[[theme]])
+  }))
+  n_tickers <- nrow(theme_ticker_combinations)
+  random_effects_tickers <- MASS::mvrnorm(
+    n = n_tickers,
+    mu = c(0, 0),  # Mean of random intercepts and slopes
+    Sigma = cov_matrix
+  )
+  random_intercepts_tickers <- random_effects_tickers[, 1]
+  random_slopes_tickers <- random_effects_tickers[, 2]
+
+  # Generate data
+  n_obs_per_ticker <- 3000
+  active_return <- numeric(n_obs_per_ticker * n_tickers)
+
+  # Predictor: market_factor_proxy
+  market_factor_proxy <- rnorm(n_obs_per_ticker * n_tickers, mean = 0, sd = 1)
+
+  # Generate monthly dates for the observations
+  dates <- rep(
+    seq.Date(as.Date("1980-01-01"), by = "month", length.out = n_obs_per_ticker),
+    times = n_tickers
+  )
+
+  # Loop to calculate active_return for each observation
+  for (i in seq_along(active_return)) {
+    ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
+    theme <- theme_ticker_combinations$theme[ticker_idx]
+    ticker <- theme_ticker_combinations$ticker[ticker_idx]
+
+    # Combine fixed effects, random effects, and residual noise
+    active_return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +  # Fixed intercept with variability
+      rnorm(1, mean = theme_slopes_means[theme], sd = theme_slopes_sds[theme]) * market_factor_proxy[i] +  # Fixed slope with variability
+      random_intercepts_tickers[ticker_idx] +                                                          # Random intercept for theme:tickers
+      random_slopes_tickers[ticker_idx] * market_factor_proxy[i] +                                     # Random slope for theme:tickers
+      rnorm(1, mean = 0, sd = residual_sd)                                                             # Residual noise
+  }
+
+  # Assign signal names to each observation
+  signal_names <- rep(theme_signal_combinations$signal, each = n_obs_per_ticker)
+  theme_names <- rep(theme_signal_combinations$theme, each = n_obs_per_ticker)
+
+  # Create the final data frame
+  simulated_data <- data.frame(
+    id = paste0(signal_names, "-", dates),  # Unique ID combining signal and date
+    dates = dates,                          # Monthly dates
+    theme = theme_names,                    # Theme names
+    tickers = signal_names,                 # Signal names
+    active_return = active_return,          # Response variable
+    market_factor_proxy = market_factor_proxy  # Predictor variable
+  )
+
+  # Reorder columns as requested
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+
+
+  ##############################
+
+  priors_m_df <- simulated_data
+  priors_m_upd_ref <- priors_m_df[priors_m_df$dates <= current_date,]
+
+  #expected results
+  expected_result <- data.frame(id = paste0(colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],"-",current_date),
+                                tickers = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1], dates = current_date)
+  expected_result$dates <- as.Date(expected_result$dates, format = "%Y-%m-%d")
+  expected_result$mean_active_return <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x))
+  expected_result$tracking_error <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) sd(x))
+  expected_result$IR <- expected_result$mean_active_return/expected_result$tracking_error
+
+  lm_model_summary_list <- purrr::map(lapply(selected_backtest_returns_corrected_positions_upd_ref[,-1], as.vector),
+                                      ~ summary(lm(.x ~ selected_market_factor_proxy_vector_upd_ref)))
+
+  expected_result$alpha <- sapply(lm_model_summary_list, function(x) x$coefficients[1])
+  expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
+  expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
+  expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
+  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])
+
+
+  future::plan("multisession")
+  suppressWarnings(
+  result <- bayesian_adjustment(signal_universe_m_d_ref = expected_result,
+                                selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
+                                selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
+                                priors_m_upd_ref = priors_m_upd_ref, v = 30, lmer_optimizer = "Nelder_Mead", user_priors = NULL,
+                                model_spec_theme_level = "fixed_intercepts",
+                                signal_themes_m_d_ref = signal_themes_m_d_ref,
+                                iter = 2000, warmup = 1000
+                                )
+  )
+
+  comparison <- result$posterior_signal_universe_m_d_ref[,c("id", "tickers", "alpha", "alpha_t_stat",
+                                              "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_t_stat")]
+
+  comparison_value <- comparison[which(comparison$tickers %in%
+                                 theme_signal_combinations$signal[which(theme_signal_combinations$theme == "value")]
+                                 ),]
+
+  expect_lt(mean(comparison_value$posterior_alpha_t_stat), mean(comparison_value$alpha_t_stat))
+  expect_lt(mean(comparison_value$posterior_individual_alpha), mean(comparison_value$alpha))
+
+
+  comparison_growth <- comparison[which(comparison$tickers %in%
+                                         theme_signal_combinations$signal[which(theme_signal_combinations$theme == "growth")]
+  ),]
+
+  expect_lt(mean(comparison_growth$posterior_alpha_t_stat), mean(comparison_growth$alpha_t_stat))
+  expect_lt(mean(comparison_growth$posterior_individual_alpha), mean(comparison_growth$alpha))
+
+
+
+  comparison_momentum <- comparison[which(comparison$tickers %in%
+                                          theme_signal_combinations$signal[which(theme_signal_combinations$theme == "momentum")]
+  ),]
+
+  expect_lt(mean(comparison_momentum$posterior_alpha_t_stat), mean(comparison_momentum$alpha_t_stat))
+  expect_lt(mean(comparison_momentum$posterior_individual_alpha), mean(comparison_momentum$alpha))
+
+
+  comparison_defensive <- comparison[which(comparison$tickers %in%
+                                            theme_signal_combinations$signal[which(theme_signal_combinations$theme == "defensive")]
+  ),]
+
+  expect_lt(mean(comparison_defensive$posterior_alpha_t_stat), mean(comparison_defensive$alpha_t_stat))
+  expect_lt(mean(comparison_defensive$posterior_individual_alpha), mean(comparison_defensive$alpha))
+
+
+
+  comparison_size <- comparison[which(comparison$tickers %in%
+                                      theme_signal_combinations$signal[which(theme_signal_combinations$theme == "size")]
+  ),]
+
+  expect_gt(mean(comparison_size$posterior_alpha_t_stat), mean(comparison_size$alpha_t_stat))
+  expect_gt(mean(comparison_size$posterior_individual_alpha), mean(comparison_size$alpha))
+
 
 })
 

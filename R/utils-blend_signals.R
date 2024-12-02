@@ -18,7 +18,8 @@
 #' - `signal_significance_threshold` A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals to blend,
 #' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
 #' - `p_correction_method`: A character describing a method to adjust alpha CAPM p-values.
-#'  One of "none", holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr" or "bayesian". In case of bayesian, a bayesian hierarhical mixed effects model is fit in order to
+#'  One of "none", holm", "hochberg", "hommel",
+#'   "bonferroni", "BH", "BY", "fdr" or "bayesian". In case of bayesian, a bayesian hierarhical mixed effects model is fit in order to
 #'  perform inference. When selecting "bayesian"the probability of direction will be used to select signals and a bayesian posterior version of the final_sb_signal
 #'  will be used to give weights.
 #'  In this case, the user needs to provide the following additional elements:
@@ -69,152 +70,152 @@ blend_signals <- function(current_date,
   #Initial preparations
   #########################
 
-    ##Get signal_selection_policy objects
-    signal_positions <- signal_selection_policy$signal_positions
-    signal_blending_method <- signal_selection_policy$signal_blending_method
-    sb_benchmark_weighting_method <- signal_selection_policy$sb_benchmark_weighting_method
-    max_abs_active_individual_weight <- signal_selection_policy$max_abs_active_individual_weight
-    max_abs_active_group_weight <- signal_selection_policy$max_abs_active_group_weight
-    ml_parameters <- signal_selection_policy$ml_parameters
+  ##Get signal_selection_policy objects
+  signal_positions <- signal_selection_policy$signal_positions
+  signal_blending_method <- signal_selection_policy$signal_blending_method
+  sb_benchmark_weighting_method <- signal_selection_policy$sb_benchmark_weighting_method
+  max_abs_active_individual_weight <- signal_selection_policy$max_abs_active_individual_weight
+  max_abs_active_group_weight <- signal_selection_policy$max_abs_active_group_weight
+  ml_parameters <- signal_selection_policy$ml_parameters
 
-    ##Prepare objects to up-to-date version
-      ###Get upd ref
-      upd_ref <- which(as.Date(signals_m_df$dates,  format = "%Y-%m-%d") <= current_date) #What references correspond up to this date?
+  ##Prepare objects to up-to-date version
+  ###Get upd ref
+  upd_ref <- which(as.Date(signals_m_df$dates,  format = "%Y-%m-%d") <= current_date) #What references correspond up to this date?
 
-      ###m_upd_ref
-      ####signals_m_upd_ref
-      signals_m_upd_ref <- signals_m_df[upd_ref, ]
+  ###m_upd_ref
+  ####signals_m_upd_ref
+  signals_m_upd_ref <- signals_m_df[upd_ref, ]
 
-      ####target_m_upd_ref
-      target_m_upd_ref <- target_m_df[upd_ref,]
+  ####target_m_upd_ref
+  target_m_upd_ref <- target_m_df[upd_ref,]
 
-      ####priors_m_upd_ref_list
-      try(priors_m_upd_ref_list <- lapply(priors_m_df_list, function(x){if(is.data.frame(x)) return(x[which(x$dates <= current_date), ]) else x}))
-      ###Select Priors
-      priors_informative_data <- signal_selection_policy$priors_informative_data ##Get chosen informative_prior_data
-      try(selected_priors_informative_data_m_upd_ref <- priors_m_upd_ref_list[[priors_informative_data]], silent = TRUE)
+  ####priors_m_upd_ref_list
+  try(priors_m_upd_ref_list <- lapply(priors_m_df_list, function(x){if(is.data.frame(x)) return(x[which(x$dates <= current_date), ]) else x}))
+  ###Select Priors
+  priors_informative_data <- signal_selection_policy$priors_informative_data ##Get chosen informative_prior_data
+  try(selected_priors_informative_data_m_upd_ref <- priors_m_upd_ref_list[[priors_informative_data]], silent = TRUE)
 
-      ###upd_ref
-      ####returns_df objects
-      try(backtest_returns_upd_ref <-  backtest_returns_df[which(backtest_returns_df$dates <= current_date), ])#Only dates before current_date
-      try(selected_benchmark_returns_upd_ref <- selected_benchmark_returns_df[which(selected_benchmark_returns_df$dates <= current_date), ]) #Only dates before current_date
+  ###upd_ref
+  ####returns_df objects
+  try(backtest_returns_upd_ref <-  backtest_returns_df[which(backtest_returns_df$dates <= current_date), ])#Only dates before current_date
+  try(selected_benchmark_returns_upd_ref <- selected_benchmark_returns_df[which(selected_benchmark_returns_df$dates <= current_date), ]) #Only dates before current_date
 
-    ##Select signals and respective backtests based on user choice
-      selected_signals_and_backtest_list <- select_and_correct_signals(
-        #Signal Selection Policy
-        signal_selection_policy = signal_selection_policy,
-        #Signals DF
-        signals_m_upd_ref = signals_m_upd_ref,
-        #Signals backtest
-        backtest_returns_upd_ref = backtest_returns_upd_ref
-      )
+  ##Select signals and respective backtests based on user choice
+  selected_signals_and_backtest_list <- select_and_correct_signals(
+    #Signal Selection Policy
+    signal_selection_policy = signal_selection_policy,
+    #Signals DF
+    signals_m_upd_ref = signals_m_upd_ref,
+    #Signals backtest
+    backtest_returns_upd_ref = backtest_returns_upd_ref
+  )
 
-      ##Selected signals corrected positions
-      selected_signals_corrected_positions_m_upd_ref <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_upd_ref
-      ###Get selected_signals_corrected_positions_m_d_ref
-      d_ref <- which(selected_signals_corrected_positions_m_upd_ref$dates == current_date)
-      selected_signals_corrected_positions_m_d_ref <- selected_signals_corrected_positions_m_upd_ref[d_ref,]
+  ##Selected signals corrected positions
+  selected_signals_corrected_positions_m_upd_ref <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_upd_ref
+  ###Get selected_signals_corrected_positions_m_d_ref
+  d_ref <- which(selected_signals_corrected_positions_m_upd_ref$dates == current_date)
+  selected_signals_corrected_positions_m_d_ref <- selected_signals_corrected_positions_m_upd_ref[d_ref,]
 
-      ##Selected signals backtest returns
-      selected_signals_backtest_returns_upd_ref <- selected_signals_and_backtest_list$selected_signals_backtest_returns_upd_ref
+  ##Selected signals backtest returns
+  selected_signals_backtest_returns_upd_ref <- selected_signals_and_backtest_list$selected_signals_backtest_returns_upd_ref
 
-        ###Check if both are contemplated in signals_groups
-        if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_d_ref, -id, -tickers, -dates)) %in% signals_groups_m_d_ref$tickers)){
-          stop("all selected signals (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
-        }
-        if(!is.null(selected_signals_backtest_returns_upd_ref)){
-          if(
-            any(!colnames(dplyr::select(selected_signals_backtest_returns_upd_ref, -dates)) %in% signals_groups_m_d_ref$tickers)){
-            stop("all selected signals in backtests (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
-         }
-        }
+  ###Check if both are contemplated in signals_groups
+  if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_d_ref, -id, -tickers, -dates)) %in% signals_groups_m_d_ref$tickers)){
+    stop("all selected signals (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
+  }
+  if(!is.null(selected_signals_backtest_returns_upd_ref)){
+    if(
+      any(!colnames(dplyr::select(selected_signals_backtest_returns_upd_ref, -dates)) %in% signals_groups_m_d_ref$tickers)){
+      stop("all selected signals in backtests (with corrected positions) should have a theme classification in signals_groups_m_d_ref")
+    }
+  }
 
-      #########################
+  #########################
 
 
-      #Define signal eligibility
-      ############################
-      ###Check if eligible signals were already defined
-      if(is.null(eligible_signals)){
-        ##Check for p_correction_method and backtest_returns_d_ref
-        if(!is.null(selected_signals_backtest_returns_upd_ref)){
-          if(verbose){
-            cat("\n")
-            cat(crayon::yellow(paste0("Defining signal eligibility following ", signal_selection_policy$p_correction_method, " method")))
-          }
-          ###Create signal_universe_d_ref
-          signal_eligibility_results_list <- define_signal_eligibility(
-            #Backtests
-            selected_signals_backtest_returns_upd_ref = selected_signals_backtest_returns_upd_ref,
-            selected_benchmark_returns_upd_ref = selected_benchmark_returns_upd_ref,
-            #Signal selection policy
-            signal_selection_policy = signal_selection_policy,
-            #Groups
-            signals_groups_m_d_ref = signals_groups_m_d_ref,
-            #Priors
-            selected_priors_informative_data_m_upd_ref = selected_priors_informative_data_m_upd_ref
-          )
-          ###Get results
-          signal_universe_m_d_ref <- signal_eligibility_results_list$signal_universe_m_d_ref
-          bayesian_fit_list <- signal_eligibility_results_list$bayesian_fit_list
-
-          if(verbose){
-            cat("\n")
-            cat(crayon::green(paste0("Eligible signals defined: ")))
-            cat(signal_universe_m_d_ref$tickers[which(signal_universe_m_d_ref$is_eligible == 1)])
-          }
-          #In case there is no backtest avaiable, generate signal signal_universe_m_d_ref
-        } else {
-          signal_universe_m_d_ref <- data.frame(tickers = colnames(selected_signals_corrected_positions_m_upd_ref)[-c(1:3)])
-          signal_universe_m_d_ref$is_eligible <- rep(1, nrow(signal_universe_m_d_ref))
-        }
-
-        ##Eligible signals
-        eligible_signals <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
+  #Define signal eligibility
+  ############################
+  ###Check if eligible signals were already defined
+  if(is.null(eligible_signals)){
+    ##Check for p_correction_method and backtest_returns_d_ref
+    if(!is.null(selected_signals_backtest_returns_upd_ref)){
+      if(verbose){
+        cat("\n")
+        cat(crayon::yellow(paste0("Defining signal eligibility following ", signal_selection_policy$p_correction_method, " method")))
       }
+      ###Create signal_universe_d_ref
+      signal_eligibility_results_list <- define_signal_eligibility(
+        #Backtests
+        selected_signals_backtest_returns_upd_ref = selected_signals_backtest_returns_upd_ref,
+        selected_benchmark_returns_upd_ref = selected_benchmark_returns_upd_ref,
+        #Signal selection policy
+        signal_selection_policy = signal_selection_policy,
+        #Groups
+        signals_groups_m_d_ref = signals_groups_m_d_ref,
+        #Priors
+        selected_priors_informative_data_m_upd_ref = selected_priors_informative_data_m_upd_ref
+      )
+      ###Get results
+      signal_universe_m_d_ref <- signal_eligibility_results_list$signal_universe_m_d_ref
+      bayesian_fit_list <- signal_eligibility_results_list$bayesian_fit_list
 
-      #########################
+      if(verbose){
+        cat("\n")
+        cat(crayon::green(paste0("Eligible signals defined: ")))
+        cat(signal_universe_m_d_ref$tickers[which(signal_universe_m_d_ref$is_eligible == 1)])
+      }
+      #In case there is no backtest avaiable, generate signal signal_universe_m_d_ref
+    } else {
+      signal_universe_m_d_ref <- data.frame(tickers = colnames(selected_signals_corrected_positions_m_upd_ref)[-c(1:3)])
+      signal_universe_m_d_ref$is_eligible <- rep(1, nrow(signal_universe_m_d_ref))
+    }
 
-      ###Define Signal Weights or ML model
-      ####################################
-      ###Check if signal_weights or ml_walk_forward_validation_results have already been provided
-      if(all(is.null(signal_weights), is.null(ml_walk_forward_validation_results))){
-        if(verbose){
-          cat("\n")
-          cat(crayon::yellow(paste("Setting signal weights for blending following the", signal_blending_method, "method")))
-          cat("\n")
-        }
+    ##Eligible signals
+    eligible_signals <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
+  }
 
-        #In case of backtest derived weights
-        if(signal_blending_method != "ML"){
+  #########################
 
-          ##Set Signal Blend Portfolio Weights
-          signal_universe_m_d_ref <- set_portfolio_weights(
-            #Signal universe object
-            universe_m_d_ref = signal_universe_m_d_ref,
-            #Signal Blending method
-            portfolio_construction_method = signal_blending_method,
-            #Groups
-            groups_m_d_ref = signals_groups_m_d_ref,
-            #Returns sample
-            returns_upd_ref = selected_signals_backtest_returns_upd_ref,
-            #Covariance Estimation Method
-            covariance_estimation_method = covariance_estimation_method, covariance_matrix_sample_size = NULL, #Sample size to estimate cov matrix (NULL => full period)
-            #Number of random portfolios to generate for numeric optimization
-            n_random_portfolios = n_random_portfolios,
-            #RandomPorts method
-            rp_method = rp_method,
-            #What to optimize? #Objective for MTO Optimization
-            mto_port_objective = mto_port_objective,
-            #Set concentration constraint policy for signals
-            concentration_constraint_policy = list(
-              benchmark = sb_benchmark_weighting_method, #Reference benchmark
-              max_abs_active_individual_weight = max_abs_active_individual_weight, #Max abs active individual weight
-              max_abs_active_group_weight = max_abs_active_group_weight), #Max group weight for signal
-            #Winsorization
-            lower_quantile_winsorization = lower_quantile_winsorization, #Quantiles for winsorization
-            upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
-          )
+  ###Define Signal Weights or ML model
+  ####################################
+  ###Check if signal_weights or ml_walk_forward_validation_results have already been provided
+  if(all(is.null(signal_weights), is.null(ml_walk_forward_validation_results))){
+    if(verbose){
+      cat("\n")
+      cat(crayon::yellow(paste("Setting signal weights for blending following the", signal_blending_method, "method")))
+      cat("\n")
+    }
+
+    #In case of backtest derived weights
+    if(signal_blending_method != "ML"){
+
+      ##Set Signal Blend Portfolio Weights
+      signal_universe_m_d_ref <- set_portfolio_weights(
+        #Signal universe object
+        universe_m_d_ref = signal_universe_m_d_ref,
+        #Signal Blending method
+        portfolio_construction_method = signal_blending_method,
+        #Groups
+        groups_m_d_ref = signals_groups_m_d_ref,
+        #Returns sample
+        returns_upd_ref = selected_signals_backtest_returns_upd_ref,
+        #Covariance Estimation Method
+        covariance_estimation_method = covariance_estimation_method, covariance_matrix_sample_size = NULL, #Sample size to estimate cov matrix (NULL => full period)
+        #Number of random portfolios to generate for numeric optimization
+        n_random_portfolios = n_random_portfolios,
+        #RandomPorts method
+        rp_method = rp_method,
+        #What to optimize? #Objective for MTO Optimization
+        mto_port_objective = mto_port_objective,
+        #Set concentration constraint policy for signals
+        concentration_constraint_policy = list(
+          benchmark = sb_benchmark_weighting_method, #Reference benchmark
+          max_abs_active_individual_weight = max_abs_active_individual_weight, #Max abs active individual weight
+          max_abs_active_group_weight = max_abs_active_group_weight), #Max group weight for signal
+        #Winsorization
+        lower_quantile_winsorization = lower_quantile_winsorization, #Quantiles for winsorization
+        upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
+      )
 
       #Get signal weights
       signal_weights <- signal_universe_m_d_ref$weights

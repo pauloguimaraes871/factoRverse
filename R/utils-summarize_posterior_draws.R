@@ -3,9 +3,16 @@
 #' This function computes various posterior summary statistics for a given set of signals, themes, and posterior draws.
 #' It updates the `signal_universe_m_d_ref` data frame with posterior statistics including alphas, betas, sigmas, and other metrics.
 #'
-#' @param signal_universe_m_d_ref A data frame containing the signal universe data with tickers and additional columns that will be updated.
-#' @param posteriors_draws A named list where each element is a data frame containing posterior draws for a specific theme.
-#' @param groups A data frame that maps signals groups to themes
+#' @param brm_model A bayesian model fit with `brms::brm`.
+#' @param signal_universe_m_d_ref A dataframe with tickers, is_eligible and final_signal columns
+#' @param signal_themes_m_d_ref A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
+#' for defining clusters in bayesian hierarchical model. It should contain data only for current date.
+#' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
+#'   Options include:
+#'   - `"random_intercept"`: Includes random effects for the intercept at the theme level.
+#'   - `"fixed_intercepts"`: Uses fixed intercepts for each theme.
+#'   - `"fixed_intercepts_and_slopes"`: Includes fixed intercepts and slopes for each theme.
+#'   - `"none"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
 #'
 #' @return The `signal_universe_m_d_ref` data frame is updated in place with posterior summary statistics.
 #' @details The function performs the following operations for each theme:
@@ -18,107 +25,271 @@
 #'   \item Computes and updates additional performance metrics like Appraisal Ratio (AP) and Treynor ratio.
 #' }
 #'
-summarize_posterior_draws <- function(signal_universe_m_d_ref, posteriors_draws_list, signals_groups_m_d_ref, selected_benchmark_returns_vector_upd_ref){
+summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref, signal_themes_m_d_ref, model_spec_theme_level){
 
-  #Get themes
-  themes <- names(posteriors_draws_list)
-  frequentist_metrics <- colnames(signal_universe_m_d_ref)[-1]
-  #Loop through all signals
-  for(i in 1:length(posteriors_draws_list)){
+  #Get tidy posterior draws from brm_model
+  #####################
+  vars <- tidybayes::get_variables(brm_model) #Get all variables in model
+  theme_tickers_key <- signal_themes_m_d_ref %>% dplyr::mutate(tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme) #Create key
 
-    #Get references of signals
-    signals_in_current_theme <- unique(signals_groups_m_d_ref$tickers[which(signals_groups_m_d_ref$theme == themes[i])])
-    positions_of_signals_in_current_theme <- which(signal_universe_m_d_ref$tickers %in% signals_in_current_theme)
-    #Get draws from current theme
-    current_theme_posteriors_draws <- posteriors_draws_list[[i]]
+    ##Alpha (Beta_0)
+    ################
+      ###Random Effects at Theme Level
+      if(model_spec_theme_level == "random_intercept"){
+        tidy_posterior_draws_intercept <- brm_model %>%
+          tidybayes::spread_draws(b_Intercept, r_theme[theme, theme_term], `r_theme:tickers`[tickers, tickers_term]) %>%
+          dplyr::filter(stringr::str_detect(tickers, theme) & theme_term == "Intercept" & tickers_term == "Intercept") %>% # Keep only rows where tickers contain the theme
+          dplyr::mutate(
+            #Posterior Theme
+            posterior_theme_alpha = b_Intercept + r_theme, #Posterior Theme Alpha and Beta = Fixed Effect + Random Effect at Theme Level
+            #Posterior Individual
+            posterior_individual_alpha = b_Intercept + r_theme + `r_theme:tickers` #Posterior Individual Alpha and Beta = Fixed Effect + Random Effect at Theme Level + Random Effect at Signal Level
+          ) %>%
+          dplyr::rename(r_tickers_intercept = `r_theme:tickers`) #Rename
+      }
 
-    ##Alpha
-    ###################
-    #Get random and fixed effects
-    fixed_effect_intercept <- current_theme_posteriors_draws$b_Intercept
-    random_effects_intercept <- current_theme_posteriors_draws[, paste0("r_signal[", signal_universe_m_d_ref$tickers[positions_of_signals_in_current_theme], ",Intercept]")]
-    both_effects_intercept <- data.frame(random_effects_intercept + fixed_effect_intercept)
+      ###Fixed Intercepts for Each Theme
+      ###Select variables starting with 'b_' and not containing 'market_factor_proxy'
+      if(model_spec_theme_level %in% c("fixed_intercepts", "fixed_intercepts_and_slopes")){
+        b_variables <- vars[grepl("^b_", vars) & !grepl("market_factor_proxy", vars)] #Select variables starting with 'b_' and not containing 'market_factor_proxy'
 
-    ##Posterior Overall Alpha
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_overall_alpha"] <- median(fixed_effect_intercept)
+        tidy_posterior_draws_intercept <- brm_model %>%
+          tidybayes::spread_draws(c(!!!rlang::syms(b_variables)), `r_theme:tickers`[tickers, tickers_term]) %>%
+          dplyr::filter(tickers_term == "Intercept") %>% # Keep only rows where tickers contain the theme
+          dplyr::left_join(theme_tickers_key, by = "tickers") %>% #Join with theme_tickers_key to get theme_tickers
+          tidyr::pivot_longer(cols = dplyr::all_of(b_variables), names_to = "fixed_effect_name", values_to = "fixed_effect_value") %>% #Pivot long
+          dplyr::mutate(theme_fixed_effect = sub("^b_theme", "", fixed_effect_name)) %>% #Extract theme from fixed_effect_name
+          dplyr::filter(theme_fixed_effect == theme) %>% #Keep only rows where theme_fixed == theme
+          dplyr::mutate(
+            #Posterior Theme
+            posterior_theme_alpha = fixed_effect_value, #Posterior Theme Alpha and Beta = Fixed Effect + Random Effect at Theme Level
+            #Posterior Individual
+            posterior_individual_alpha = fixed_effect_value + `r_theme:tickers` #Posterior Individual Alpha and Beta = Fixed Effect + Random Effect at Theme Level + Random Effect at Signal Level
+          ) %>%
+          dplyr::select(-theme, -theme_fixed_effect, -fixed_effect_value, -fixed_effect_name) %>% #Remove intermediate colms
+          dplyr::rename(r_tickers_intercept = `r_theme:tickers`) #Rename
+      }
 
-    ##Posterior Individual Alpha
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_alpha"] <- apply(both_effects_intercept, 2, function(x) median(x))
+      ###No effects on theme level
+      if(model_spec_theme_level == "none"){
+        tidy_posterior_draws_intercept <- brm_model %>%
+          tidybayes::spread_draws(b_Intercept, `r_theme:tickers`[tickers, tickers_term]) %>%
+          dplyr::left_join(theme_tickers_key, by = "tickers") %>% #Join with theme_tickers_key to get theme_tickers
+          dplyr::filter(stringr::str_detect(tickers, theme) & tickers_term == "Intercept") %>% # Keep only rows where tickers contain the theme
+          dplyr::mutate(
+            #Posterior Theme
+            posterior_theme_alpha = b_Intercept, #Posterior Theme Alpha and Beta = Fixed Effect + Random Effect at Theme Level
+            #Posterior Individual
+            posterior_individual_alpha = b_Intercept + `r_theme:tickers` #Posterior Individual Alpha and Beta = Fixed Effect + Random Effect at Theme Level + Random Effect at Signal Level
+          ) %>%
+          dplyr::select(-theme) %>% #Remove intermediate colms
+          dplyr::rename(r_tickers_intercept = `r_theme:tickers`) #Rename
+      }
 
-    ##Probability of (Positive) Direction of Posterior Overall Alpha
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "pd_overall_alpha"] <- mean(fixed_effect_intercept > 0)
+      ###Summarize median and 89% CI
+      tidy_posterior_draws_intercept_summary <- tidy_posterior_draws_intercept %>%
+        #Compute CIs with 89% width (more stable)
+        tidybayes::median_qi(.width = 0.89) %>% #Quantile interval
+        #Select relevant columns
+        dplyr::select(tickers,
+                      posterior_theme_alpha, posterior_theme_alpha.lower, posterior_theme_alpha.upper,
+                      posterior_individual_alpha, posterior_individual_alpha.lower, posterior_individual_alpha.upper) %>% as.data.frame() #get df
 
-    ##Probability of Direction Posterior Individual Alpha
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "pd_alpha"] <- mean(both_effects_intercept > 0)
-    #####################
+    ################
 
-    ##Beta
-    ###################
-    #Get random and fixed effects
-    fixed_effect_beta <- current_theme_posteriors_draws$b_bench_return
-    random_effects_beta <- current_theme_posteriors_draws[, paste0("r_signal[", signal_universe_m_d_ref$tickers[positions_of_signals_in_current_theme], ",bench_return]")]
-    both_effects_beta <- data.frame(random_effects_beta + fixed_effect_beta)
+    ##Slope (Beta_1)
+    ################
+      ###Fixed Slopes for Each Theme
+      if(model_spec_theme_level %in% c("fixed_intercepts_and_slopes")){
+        b_variables <- vars[grepl("^b_", vars) & grepl("market_factor_proxy", vars)] #Select variables starting with 'b_' and containing 'market_factor_proxy'
 
-    ##Posterior Overall Beta
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_overall_beta"] <- median(fixed_effect_beta)
+        tidy_posterior_draws_slope <- brm_model %>%
+          tidybayes::spread_draws(c(!!!rlang::syms(b_variables)), `r_theme:tickers`[tickers, tickers_term]) %>%
+          dplyr::filter(tickers_term == "market_factor_proxy") %>% # Keep only rows where tickers contain the theme
+          dplyr::left_join(theme_tickers_key, by = "tickers") %>% #Join with theme_tickers_key to get theme_tickers
+          tidyr::pivot_longer(cols = dplyr::all_of(b_variables), names_to = "fixed_effect_name", values_to = "fixed_effect_value") %>% #Pivot long
+          dplyr::mutate(theme_fixed_effect = sub("^b_theme([^:]+):.*$", "\\1", fixed_effect_name)) %>% #Extract theme from fixed_effect_name
+          dplyr::filter(theme_fixed_effect == theme) %>% #Keep only rows where theme_fixed == theme
+          dplyr::mutate(
+            #Posterior Theme
+            posterior_theme_beta = fixed_effect_value, #Posterior Theme Alpha and Beta = Fixed Effect + Random Effect at Theme Level
+            #Posterior Individual
+            posterior_individual_beta = fixed_effect_value + `r_theme:tickers` #Posterior Individual Alpha and Beta = Fixed Effect + Random Effect at Theme Level + Random Effect at Signal Level
+          ) %>%
+          dplyr::select(-theme, -theme_fixed_effect, -fixed_effect_value, -fixed_effect_name) %>% #Remove intermediate colms
+          dplyr::rename(r_tickers_slope = `r_theme:tickers`) #Rename
+      }
 
-    ##Posterior Individual Beta
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_beta"] <- apply(both_effects_beta, 2, function(x) median(x))
+      ###No effects on theme level
+      if(model_spec_theme_level %in% c("random_intercept", "fixed_intercepts", "none")){
+      tidy_posterior_draws_slope <- brm_model %>%
+        tidybayes::spread_draws(b_market_factor_proxy, `r_theme:tickers`[tickers, tickers_term]) %>%
+        dplyr::filter(tickers_term == "market_factor_proxy") %>% # Keep only rows where tickers contain the theme
+        dplyr::mutate(
+          #Posterior Theme
+          posterior_theme_beta = b_market_factor_proxy, #Posterior Theme Alpha and Beta = Fixed Effect + Random Effect at Theme Level
+          #Posterior Individual
+          posterior_individual_beta = b_market_factor_proxy + `r_theme:tickers` #Posterior Individual Alpha and Beta = Fixed Effect + Random Effect at Theme Level + Random Effect at Signal Level
+        ) %>%
+        dplyr::rename(r_tickers_slope = `r_theme:tickers`) #Rename
+      }
 
-    #####################
+      #Summarize median and 89% CI
+      tidy_posterior_draws_slope_summary <- tidy_posterior_draws_slope %>%
+        #Compute CIs with 89% width (more stable)
+        tidybayes::median_qi(.width = 0.89) %>% #Quantile interval
+        #Select relevant columns
+        dplyr::select(tickers,
+                      posterior_theme_beta, posterior_theme_beta.lower, posterior_theme_beta.upper,
+                      posterior_individual_beta, posterior_individual_beta.lower, posterior_individual_beta.upper) %>% as.data.frame() #get df
+
+    ################
 
     ##Sigma
-    ###################
-    #Get random and fixed effects
-    fixed_effect_sigma <- current_theme_posteriors_draws$b_sigma_Intercept
-    random_effects_sigma <- current_theme_posteriors_draws[, paste0("r_signal__sigma[", signal_universe_m_d_ref$tickers[positions_of_signals_in_current_theme], ",Intercept]")]
-    both_effects_sigma <- data.frame(exp(random_effects_sigma + fixed_effect_sigma))
+    ################
+      ##Random Effects at Theme Level
+      if(model_spec_theme_level == "random_intercept"){
+      tidy_posterior_draws_sd <- brm_model %>%
+        tidybayes::spread_draws(
+          sd_theme__Intercept, #sigma(u_0j)
+          `sd_theme:tickers__Intercept`, #sigma(v_0k(j))
+          `sd_theme:tickers__market_factor_proxy`, #sigma(v_1k(j))
+          sigma, #sigma(e_ijk)
+          `cor_theme:tickers__Intercept__market_factor_proxy`
+        ) %>% dplyr::rename(
+          posterior_r_theme_alpha = sd_theme__Intercept,
+          posterior_r_tickers_alpha = `sd_theme:tickers__Intercept`,
+          posterior_r_tickers_beta = `sd_theme:tickers__market_factor_proxy`,
+          posterior_sigma = sigma,
+          posterior_cor_r_alpha_beta = `cor_theme:tickers__Intercept__market_factor_proxy`
+        )
+      }
 
-    ##Posterior Individual sigma
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_sigma"] <- apply(both_effects_sigma, 2, function(x) median(x))
+      ##No Random Effects at Theme Level
+      if(model_spec_theme_level %in% c("fixed_intercepts", "fixed_intercepts_and_slopes", "none")){
+        tidy_posterior_draws_sd <- brm_model %>%
+          tidybayes::spread_draws(
+            `sd_theme:tickers__Intercept`, #sigma(v_0k(j))
+            `sd_theme:tickers__market_factor_proxy`, #sigma(v_1k(j))
+            sigma, #sigma(e_ijk)
+            `cor_theme:tickers__Intercept__market_factor_proxy`
+          ) %>% dplyr::rename(
+            posterior_r_tickers_alpha = `sd_theme:tickers__Intercept`,
+            posterior_r_tickers_beta = `sd_theme:tickers__market_factor_proxy`,
+            posterior_sigma = sigma,
+            posterior_cor_r_alpha_beta = `cor_theme:tickers__Intercept__market_factor_proxy`
+          )
+      }
 
-    #####################
+      #Summarize median and 89% CI
+      tidy_posterior_draws_sd_summary <- tidy_posterior_draws_sd %>%
+        #Compute CIs with 89% width (more stable)
+        tidybayes::median_qi(.width = 0.89) %>%  #Quantile interval
+        #Select relevant columns
+        dplyr::select(-.width, -.point, -.interval) %>% as.data.frame() #get df
 
-    ##Other metrics
-    ###Posterior Active Return, Tracking Error and IR
-    for(i in 1:ncol(both_effects_beta)){
-      current_signal <- signal_universe_m_d_ref$tickers[positions_of_signals_in_current_theme][i]
-      # Multiply the current beta column by each benchmark return and add alpha (result will be (Beta * Ibov) + Alpha)
-      active_returns_df <- as.data.frame(sapply(selected_benchmark_returns_vector_upd_ref, function(x) both_effects_beta[,i] * x + both_effects_intercept[,i]))
-      #Get the mean active return and te for each draw
-      mean_active_returns_df <- apply(active_returns_df, 1, function(x) mean(x))
-      te_df <- apply(active_returns_df, 1, function(x) sd(x))
-      #Summarize with median
-      median_mean_active_return <- median(mean_active_returns_df)
-      median_te <- median(te_df)
+      ################
 
-      #Place in df
-      signal_universe_m_d_ref[which(signal_universe_m_d_ref$tickers == current_signal), "posterior_mean_active_return"] <- median_mean_active_return
-      signal_universe_m_d_ref[which(signal_universe_m_d_ref$tickers == current_signal), "posterior_tracking_error"] <- median_te
-      signal_universe_m_d_ref[which(signal_universe_m_d_ref$tickers == current_signal), "posterior_IR"] <- median_mean_active_return/median_te
-    }
+      ##Expectation of Posterior Predictive (E(active_returns))
+      ################
+      tidy_posterior_epred_draws <- brm_model$data %>% tidybayes::add_epred_draws(brm_model)
 
-    ###AP
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_AP"] <-
-      signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_alpha"]/signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_sigma"]
+      #Summarize median and 89% CI
+      tidy_posterior_epred_draws_summary <- tidy_posterior_epred_draws %>%
+        #Compute CIs with 89% width (more stable)
+        tidybayes::median_qi(.width = 0.89) %>% #Quantile interval
+        #Select relevant columns
+        dplyr::select(-.width, -.point, -.interval) %>% as.data.frame() #get df
 
-    ###Treynor
-    signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_treynor"] <-
-      signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_mean_active_return"]/signal_universe_m_d_ref[positions_of_signals_in_current_theme, "posterior_beta"]
+      ################
+
+      ##Posterior Predictive (active_returns ~ Normal(E(active_returns), sigma))
+      ################
+      tidy_posterior_predicted_draws <- brm_model$data %>% tidybayes::add_predicted_draws(brm_model)
+
+      #Summarize median and 89% CI
+      tidy_posterior_predicted_draws_summary <- tidy_posterior_predicted_draws %>%
+        #Compute CIs with 89% width (more stable)
+        tidybayes::median_qi(.width = 0.89) %>% #Quantile interval
+        #Select relevant columns
+        dplyr::select(-.width, -.point, -.interval) %>% as.data.frame() #get df
+
+      ################
+
+      #####################
+
+      #Add posterior results to signal_universe_m_d_ref
+      #####################
+      theme_tickers_key <- signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme_tickers) #Redefine key
+      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(theme_tickers_key, by = "tickers") #Add key to signal_universe_m_d_ref
+
+      ##Intercept Metrics
+      posterior_intercept_metrics <- tidy_posterior_draws_intercept %>%
+        dplyr::group_by(tickers) %>%
+        dplyr::summarise(
+          pd_theme_alpha = mean(posterior_theme_alpha > 0), #Probability of direction for alpha at theme level
+          posterior_theme_alpha = median(posterior_theme_alpha), #Median of alpha at theme level
+          pd_alpha = mean(posterior_individual_alpha > 0), #Probability of direction for alpha at individual level
+          posterior_alpha_t_stat = mean(posterior_individual_alpha)/sd(posterior_individual_alpha), #T-stat of alpha at individual level
+          posterior_individual_alpha = median(posterior_individual_alpha), #Median of alpha at individual level
+        )
+      ##Add to signal_universe
+      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_intercept_metrics, by = c("theme_tickers" = "tickers"))
+
+      ##Slope Metrics
+      posterior_slope_metrics <- tidy_posterior_draws_slope %>%
+        dplyr::group_by(tickers) %>%
+        dplyr::summarise(
+          posterior_theme_beta = median(posterior_theme_beta), #Median of beta at theme level
+          posterior_individual_beta = median(posterior_individual_beta) #Median of beta at individual level
+        )
+      ##Add to signal_universe
+      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_slope_metrics, by = c("theme_tickers" = "tickers"))
+
+      ##Performance Metrics
+      posterior_performance_metrics <- tidy_posterior_predicted_draws %>%
+        dplyr::group_by(tickers) %>%
+        dplyr::summarise(
+          posterior_mean_active_return = mean(.prediction), #Mean Active Return
+          posterior_tracking_error = sd(.prediction), #SD of Active Return
+          posterior_IR = mean(.prediction)/sd(.prediction) #IR
+        )
+      ##Add to signal_universe
+      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_performance_metrics, by = c("tickers"))
+
+      ##Add treynor
+      signal_universe_m_d_ref[, "posterior_treynor"] <- signal_universe_m_d_ref$posterior_mean_active_return/signal_universe_m_d_ref$posterior_individual_beta
+
+
+      #####################
+
+      #Re-order
+      ##New metrics
+      ordered_metrics <- c("id", "tickers", "dates", "mean_active_return", "tracking_error", "IR", "alpha", "alpha_t_stat", "beta", "treynor", "p_value",
+                           "posterior_mean_active_return", "posterior_tracking_error", "posterior_IR", "posterior_theme_alpha", "posterior_individual_alpha",
+                           "posterior_alpha_t_stat", "posterior_theme_beta", "posterior_individual_beta", "posterior_treynor", "pd_theme_alpha", "pd_alpha")
+
+    signal_universe_m_d_ref <- signal_universe_m_d_ref[, ordered_metrics]
+    rownames(signal_universe_m_d_ref) <- NULL
+
+  #Create result object
+  posteriors_results_list <- list(
+    bayesian_model = brm_model,
+    signal_universe_m_d_ref = signal_universe_m_d_ref,
+    posterior_draws_summaries = list(
+      intercept_summary = tidy_posterior_draws_intercept_summary,
+      slope_summary = tidy_posterior_draws_slope_summary,
+      sd_summary = tidy_posterior_draws_sd_summary,
+      epred_summary = tidy_posterior_epred_draws_summary,
+      predicted_summary = tidy_posterior_predicted_draws_summary
+    )
+  )
+
+  #Return
+  return(posteriors_results_list)
 
   }
 
-  #Reorder
-
-    ##New metrics
-    bayesian_metrics <- setdiff(colnames(signal_universe_m_d_ref)[-1], frequentist_metrics)
-    ordered_metrics <- c(frequentist_metrics, "posterior_mean_active_return", "posterior_sigma", "posterior_IR", "posterior_overall_alpha",
-                         "posterior_alpha", "posterior_AP", "posterior_overall_beta", "posterior_beta",
-                         "posterior_treynor", "pd_overall_alpha", "pd_alpha")
-    signal_universe_m_d_ref <- signal_universe_m_d_ref[, c("id", ordered_metrics)]
-    rownames(signal_universe_m_d_ref) <- NULL
-
-  return(signal_universe_m_d_ref)
 
 
-}
+

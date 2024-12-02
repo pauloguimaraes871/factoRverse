@@ -18,21 +18,27 @@
 #' Mean Tracking-Error (MTO) and Risk-Parity (RP)
 #' @param covariance_estimation_method One of SAM (Sample), EWMA, CC (Constant Correlation), PCA1, PCA2, Shrink_ID or Shrink_CC.
 #' If NULL, blending_method can only be EW or IR
+#' @param custom_target_name A character indicating a custom target to be used in the backtest. Default is to use fwd_return_1m in `target_m_df`. If
+#' a different variable is provided, the function will first seek that variable in columns of `target_m_df` and then in `signals_m_df`, in that order. If a variable
+#' in target_m_df is chosen, the function will derive its prediction horizon based on naming convention and then name the time series accordingly. Otherwise,
+#' ir will refer to current date.
+#'
 #' @return
 #' @export
 #'
 #' @examples
-metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
-                         dates_m_vector, rebalancing_months, n_months_until_first_rebalancing_date,
-                         selected_signal, chosen_characteristics, chosen_ml_algorithms,
-                         liquidity_m_df, benchmark_weights_m_df, volatility_m_df, target_m_df){
+metabacktest <- function(signals_m_df,
+                         rebalancing_months, initial_buffer_period,
+                         liquidity_m_df, benchmark_weights_m_df, volatility_m_df, target_m_df, custom_target_name = "fwd_return_1m"
+
+                         ){
 
 
   #Measure time to run and run gc
   elapsed_time <- system.time({
 
     #Get data frame in case of meta_df object
-    if(class(signals_m_df == "meta_dataframe")){
+    if(class(signals_m_df) == "meta_dataframe"){
       signals_m_df <- signals_m_df@data
       workflow <- signals_m_df@workflow
     }
@@ -45,19 +51,50 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
     ###Init objects###
     ##################
 
+    ###Get Custom Target
+    if (custom_target_name %in% names(target_m_df)) {
+      ###If custom target name is in target_m_df, use it
+      custom_target_m_df <- target_m_df[, c("id", "tickers", "dates", custom_target_name)] ###Build m_df
+      custom_target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", custom_target_name)) ###Infer prediction horizon
+      custom_target_type <- "return"
+
+    } else if (custom_target_name %in% names(signals_m_df)) {
+      ###Otherwise, if custom target name is in signals_m_df, use it
+      if(verbose) warning("Custom target not found in target_m_df. Searching in signals_m_df")
+      custom_target_m_df <- signals_m_df[, c("id", "tickers", "dates", custom_target_name)]
+      custom_target_fwd <- 0
+      custom_target_type <- "signal"
+
+    } else {
+      stop("Custom target not found in signals_m_df.")
+    }
+
+      ###Print
+      if(verbose) message("Custom target: ", custom_target_name, " of type: ", custom_target_type, " with forward horizon of: ", custom_target_fwd)
+
     ###Dates Related
         #Coerce dates
-        dates_m_vector <- as.Date(unique(signals_m_df$dates), format = "%Y-%m-%d")
+        dates_m_vector <- as.Date(unique(signals_m_df$dates), format = "%Y-%m-%d") #coerce just to be sure
+        dates_m_vector <- dates_m_vector[order(dates_m_vector)] #Re-order ascending just to be sure
 
         #Backtest length
-        backtest_length <- length(dates_m_vector) - nmonths_until_first_rebalancing_dates
-
+        backtest_length <- length(dates_m_vector) - initial_buffer_period + 1 #Backtest length follows signals_m_df format, varying accordingly to dates_m_vector.
         #Backtest dates
-        dates_backtest <- dates_m_vector[(nmonths_until_first_rebalancing_dates):(nmonths_until_first_rebalancing_dates + backtest_length)] #These are dates of backtest
+        dates_backtest <- dates_m_vector[(initial_buffer_period):(initial_buffer_period + backtest_length - 1)] #These are dates of backtest
 
-        #Return calculation dates
-        dates_return_calculation <- c(dates_backtest, lubridate::add_with_rollback(dates_backtest[backtest_length], months(1))) #Add extra month bco of target_fwd_1m
-        dates_return_calculation <- dates_return_calculation[-1] #Remove first date
+        #Backtest target calculation dates
+        if (custom_target_fwd == 0) {
+          # No need to add extra dates or remove any
+          dates_target_calculation <- dates_backtest
+        } else {
+          # Add extra months at the end
+          extended_dates <- c(
+            dates_backtest,
+            lubridate::add_with_rollback(dates_backtest[backtest_length], months(seq_len(custom_target_fwd)))
+          )
+          # Remove the first 'custom_target_fwd' dates
+          dates_target_calculation <- extended_dates[-seq_len(custom_target_fwd)]
+        }
 
         #Rebalancing Dates
         first_rebalance_date <- min(dates_backtest) #Get first rebalancing date
@@ -74,27 +111,33 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
 
     ###Portfolio objects
         #Create object to store portfolio weights
-        portfolio_weights_m_df <- signals_m_df %>% select(id, tickers, dates) #These are most up-to-date portfolio weights
+        portfolio_weights_m_df <- signals_m_df %>% dplyr::select(id, tickers, dates) #These are most up-to-date portfolio weights
 
           ##Initialize
           portfolio_weights_m_df$portfolio_weights <- 0
 
-        #Create object to store portfolio returns
-          portfolio_returns_df <- data.frame(dates = dates_return_calculation,
-                                             raw_return = NA, raw_active_return = NA, net_return = NA, net_active_return = NA,
-                                             direct_cost = NA, market_impact_cost = NA, total_cost = NA, turnover = NA,
-                                             placeholder = NA  # Temporary placeholder
-          )
+        #Create object to store portfolio target
+            ###In case custom target type is a return, it makes sense to calculate net_return and net_active_return.
+            ###Otherwise, net and net_active targets should be eliiminated
+            portfolio_targets_df <- data.frame(dates = dates_target_calculation,
+                                               raw_target = NA, raw_active_target = NA, net_target = NA, net_active_target = NA,
+                                               direct_cost = NA, market_impact_cost = NA, total_cost = NA, turnover = NA,
+                                               placeholder = NA  # Temporary placeholder
+            )
 
-          # Rename the last column dynamically
-          names(portfolio_returns_df)[names(portfolio_returns_df) == "placeholder"] <- concentration_constraint_policy$benchmark
+           ###Rename the last column dynamically to get benchmark name
+           names(portfolio_targets_df)[names(portfolio_targets_df) == "placeholder"] <- concentration_constraint_policy$benchmark
 
 
     ###Main liquidity metric
-          if(is.null(main_liquidity_metric)){
-            warning("main_liquidity_metric is missing and mean_volfin_3m will be used")
-          }
-          main_liquidity_metric <- ifelse(is.null(main_liquidity_metric), "mean_volfin_3m", main_liquidity_metric)
+        if(is.null(main_liquidity_metric)){
+         warning("main_liquidity_metric is missing and mean_volfin_3m will be used")
+        }
+        main_liquidity_metric <- ifelse(is.null(main_liquidity_metric), "mean_volfin_3m", main_liquidity_metric)
+
+    ###Selected Benchmark Returns
+        selected_benchmark_returns_df <- benchmark_returns_df[, c("dates", concentration_constraint_policy$benchmark)]
+
 
     ###Results objects
         #stock_universe_list
@@ -167,13 +210,13 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
     ###Backtest###
     ##################
     #Loop through
-    for(d in (n_months_until_first_rebalancing_date):(n_months_until_first_rebalancing_date + backtest_length)){
+    for(d in (initial_buffer_period):(initial_buffer_period + backtest_length)){
 
       #Get current date
       current_date <- dates_m_vector[d]
 
       #Is rebalancing month?
-      is_rebalancing_month <- (lubridate::month(current_date) %in% rebalancing_months) || d == (n_months_until_first_rebalancing_date)
+      is_rebalancing_month <- (lubridate::month(current_date) %in% rebalancing_months) || d == (initial_buffer_period)
 
       ###Set date_reference objects
       ##########################
@@ -185,7 +228,6 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
       target_m_d_ref <- target_m_df[d_ref,]
 
       #Transaction cost calculation data
-      ###transaction_cost_list_d_ref
       ###liquidity_m_df
       liquidity_m_d_ref <- liquidity_m_df[d_ref, ]
       ###volatility_m_df
@@ -194,8 +236,6 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
       #Benchmarks data
       ###benchmark_weights_m_d_ref
       benchmark_weights_m_d_ref <- benchmark_weights_m_df[d_ref, ]
-      ##selected_benchmark_returns
-      selected_benchmark_returns_df <- benchmark_returns_df[, c("dates", concentration_constraint_policy$benchmark)]
 
       ##Get up to date references for daily stock returns and create adequate sample
       try(daily_active_returns_upd_ref <- daily_active_returns_df[which(daily_returns_df$dates <= current_date),], silent = TRUE) #Get dates sequence
@@ -420,7 +460,7 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
           if(signal_selection_policy$signal_blending_method == "ML"){
             #Predictions
               ##Reference for input in testing list
-              testing_lists_ref <- d - nmonths_until_first_rebalancing_dates + 1
+              testing_lists_ref <- d - initial_buffer_period + 1
               ##Target object
               target_vector_ref <- target_m_df[which(target_m_df$dates == current_date), signal_selection_policy$ml_parameters$target_fwd_name]
 
@@ -457,7 +497,7 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
               #Returns to calculate portfolio returns
               fwd_returns_m_d_ref = fwd_returns_m_d_ref,
               #Returns DF
-              portfolio_returns_df = portfolio_returns_df, selected_benchmark_returns_df = selected_benchmark_returns_df,
+              portfolio_targets_df = portfolio_targets_df, selected_benchmark_returns_df = selected_benchmark_returns_df,
               #Portfolio weights objects
               portfolio_weights_m_d_ref = portfolio_weights_m_d_ref, portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref,
               #Transaction cost calculation
@@ -475,7 +515,7 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
             ###Updated Port weights (current portfolio with weights updated to next period)
             updated_portfolio_weights <- portfolio_returns_results_list$updated_portfolio_weights #Updated weights
             ##Portfolio Returns
-            portfolio_returns_df <- portfolio_returns_results_list$portfolio_returns_df
+            portfolio_targets_df <- portfolio_returns_results_list$portfolio_targets_df
             ###Transactions
             transactions_m_df_list[[d]] <- portfolio_returns_results_list$transactions_m_d_ref
 
@@ -516,7 +556,7 @@ metabacktest <- function(signals_m_df, ml_walk_forward_validation_results_list,
         results_list$portfolio_weights_m_df <- portfolio_weights_m_df
 
         ##Portfolio Returns
-        results_list$portfolio_returns_df <- portfolio_returns_df
+        results_list$portfolio_targets_df <- portfolio_targets_df
 
         ##Signal Blend
         results_list$signal_blend_m_df <- signal_blend_m_df

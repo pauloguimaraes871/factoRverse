@@ -35,8 +35,7 @@ run_ml_backtest(
   winsorize_predictions = TRUE,
   winsorization_probs = c(0.025, 0.975),
   normalize_predictions = TRUE,
-  features_passthrough = "none",
-  heuristic_ensemble_eval_metric = "rmse"
+  features_passthrough = "none"
 )
 }
 \arguments{
@@ -47,7 +46,7 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
 
-\item{config}{A \code{ml_metabacktest_config} object containing multiple individual configurations and a meta configuration.}
+\item{config}{A \code{ml_metabacktest_config} object containing a meta learner configuration and multiple individual configurations.}
 
 \item{verbose}{Logical vector, indicating whether to print progress messages (default is TRUE).}
 
@@ -55,22 +54,27 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{...}{Additional arguments (not used in this method).}
 
-\item{features_passthrough}{A character vector indicating which of the features from features_m_df are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
-Alternativelly, if 'all', all features are passed through. If 'none', no features are passed through.}
+\item{winsorize_predictions}{Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.}
 
-\item{heuristic_ensemble_eval_metric}{The metric to use to combine ensembles in the heuristic benchmark. Options are "rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr" and "mb".}
+\item{winsorization_probs}{Numeric vector of length 2 specifying the lower and upper quantiles for winsorization. Default is \code{c(0.025, 0.975)}.}
 
-\item{ensemble_method}{How to combine ensembles? Options are "equal_weight" or "optimal_weight".}
+\item{normalize_predictions}{Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.}
+
+\item{features_passthrough}{A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
+Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.}
 }
 \value{
 An object of class \code{ml_backtest_results} or \code{ml_metabacktest_results} with various outputs including model predictions, errors, and validation metrics.
 
-A \code{ml_metabacktest_results} objects, one for each configuration.
+An \code{ml_metabacktest_results} object containing the results of the meta-backtest.
 }
 \description{
 The \code{run_ml_backtest} function performs out-of-sample testing for a range of machine learning algorithms using walk-forward time series validation.
 It supports many ml algorithms and can handle different configurations for objective functions and tuning strategies through S4 objects.
 The function divides the data into training, validation, and testing samples, and iteratively refits the model at specified rebalancing dates.
+
+Runs machine learning backtests for base learners and a meta learner using the provided configurations.
+Users can provide their own base learner results or have the function compute them internally.
 }
 \details{
 The function ensures all inputs are correctly formatted and performs checks to
@@ -91,7 +95,7 @@ for elastic net regularization, supporting both Lasso and Ridge regression.
   target_m_df = meta_dataframe,
   target_fwd_name = character,
   config = ml_metabacktest_config
-)}: Runs backtests with multiple configurations.
+)}: Run Machine Learning Meta-Backtest
 
 }}
 \section{Running in Parallel}{

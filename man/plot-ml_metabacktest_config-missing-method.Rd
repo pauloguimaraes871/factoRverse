@@ -4,16 +4,27 @@
 \alias{plot,ml_metabacktest_config,missing-method}
 \title{Plot Method for \code{ml_metabacktest_config}}
 \usage{
-\S4method{plot}{ml_metabacktest_config,missing}(x, y)
+\S4method{plot}{ml_metabacktest_config,missing}(x, y, which = NULL, ...)
 }
 \arguments{
 \item{x}{An object of class \code{ml_metabacktest_config}.}
 
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
+
+\item{which}{A character string specifying which configurations to plot.
+\itemize{
+\item \code{"base"}: Plots the base learners (default).
+\item \code{"meta"}: Plots the meta learner.
+\item \code{"both"}: Plots both base learners and meta learner.
+If not specified, the function will prompt the user to choose.
+}}
+
+\item{...}{Additional arguments (currently unused).}
 }
 \value{
-A combined \code{ggplot} object visualizing the hyperparameter distributions for all configurations.
+A combined \code{ggplot} object visualizing the hyperparameter histograms for the selected configurations.
 }
 \description{
-Combines individual plots from \code{ml_backtest_config} objects in a grid layout.
+Allows the user to plot either the base learners or the meta learner configurations.
+If \code{base_ml_backtest_results} is provided, it extracts the configurations using \code{get_ml_backtest_config}.
 }

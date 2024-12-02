@@ -37,5 +37,7 @@ It includes:
 \item{\code{quantile_tau}}{A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.}
 
 \item{\code{huber_delta}}{A single positive numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.}
+
+\item{\code{config_name}}{A character string to identify the configuration.}
 }}
 

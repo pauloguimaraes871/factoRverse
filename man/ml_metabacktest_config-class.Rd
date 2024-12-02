@@ -12,6 +12,10 @@ The ml_metabacktest_config class is designed to store and manage a collection of
 \describe{
 \item{\code{meta_ml_backtest_config}}{A \code{ml_backtest_config} with the configuration for the meta learner}
 
-\item{\code{base_ml_backtest_configs}}{A list of ml_backtest_config objects whose oos predictions will be fed to the meta learner.}
+\item{\code{base_ml_backtest_configs}}{A list of \code{ml_backtest_config} objects whose oos predictions will be fed to the meta learner.}
+
+\item{\code{base_ml_backtest_results}}{A list of \code{ml_backtest_result} objects whose oos predictions will be fed to the meta learner.}
+
+\item{\code{config_name}}{A character string with the name of the configuration}
 }}
 

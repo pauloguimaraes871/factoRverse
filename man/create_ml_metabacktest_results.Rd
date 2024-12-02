@@ -7,18 +7,21 @@
 \title{Create an ml_metabacktest_results Object}
 \usage{
 create_ml_metabacktest_results(
-  meta_ml_backtest_results,
-  base_ml_backtest_results
+  meta_ml_backtest_results_list,
+  base_ml_backtest_results_list,
+  ...
 )
 
 create_ml_metabacktest_results(
-  meta_ml_backtest_results,
-  base_ml_backtest_results
+  meta_ml_backtest_results_list,
+  base_ml_backtest_results_list,
+  ...
 )
 
 \S4method{create_ml_metabacktest_results}{list,list}(
-  meta_ml_backtest_results,
-  base_ml_backtest_results
+  meta_ml_backtest_results_list,
+  base_ml_backtest_results_list,
+  oos_predictions_m_df
 )
 }
 \arguments{

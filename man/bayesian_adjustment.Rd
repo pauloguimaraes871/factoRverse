@@ -5,40 +5,183 @@
 \title{Bayesian Adjustment Function}
 \usage{
 bayesian_adjustment(
-  selected_signals_backtest_returns_upd_ref,
-  selected_benchmark_returns_vector_upd_ref,
   signal_universe_m_d_ref,
-  selected_priors_informative_data_m_upd_ref,
-  priors_type,
-  user_priors_list,
-  signals_groups_m_d_ref,
+  selected_backtest_returns_corrected_positions_upd_ref,
+  selected_market_factor_proxy_vector_upd_ref,
+  priors_m_upd_ref = NULL,
+  model_spec_theme_level,
+  v,
+  lmer_optimizer,
+  signal_themes_m_d_ref,
+  user_priors_list = NULL,
+  chains = 4,
+  iter = 2000,
+  warmup = floor(iter/2),
+  thin = 1,
+  seed = NA,
+  adapt_delta = 0.99,
+  parallel = TRUE,
   verbose = TRUE
 )
 }
 \arguments{
-\item{selected_signals_backtest_returns_upd_ref}{A data frame or matrix containing the backtest returns for the selected signals. This data is used for model fitting.}
+\item{signal_universe_m_d_ref}{Data frame.
+A dataframe containing information about signals with the following columns:
+\describe{
+\item{tickers}{Unique identifiers for each signal.}
+\item{is_eligible}{Logical indicator specifying if a signal is eligible for modeling.}
+\item{final_signal}{Finalized signals to be used in the Bayesian adjustment.}
+}}
 
-\item{selected_priors_informative_data_m_upd_ref}{A data frame or matrix containing informative prior data. This data is used to set priors if \code{priors_type} is not \code{"none"}.}
+\item{selected_backtest_returns_corrected_positions_upd_ref}{Data frame.
+Contains backtest returns data for various signals. The structure should be:
+\describe{
+\item{First column}{Identifiers for the signals (e.g., \code{tickers}).}
+\item{Subsequent columns}{Returns data corresponding to each signal.}
+}}
 
-\item{priors_type}{A character string indicating if and how priors should be set. If \code{"none"}, no priors are set. Otherwise, the function \code{set_priors} is used to determine the priors.}
+\item{selected_market_factor_proxy_vector_upd_ref}{Numeric vector.
+A vector containing benchmark returns data. This vector will be recycled to match the length of the backtest returns data.}
 
-\item{signals_groups_m_d_ref}{A data frame containing groups of signals with associated metadata, such as themes. This information is used to fit the Bayesian hierarchical model.}
+\item{priors_m_upd_ref}{Data frame.
+A (meta)data frame with the following columns:
+\describe{
+\item{id}{Identifier for each observation.}
+\item{characteristic/signal}{Characteristic or signal associated with each observation.}
+\item{dates}{Date of each observation.}
+\item{theme}{Theme associated with each signal, used for clustering in the hierarchical Bayesian model.}
+\item{alpha}{Mean and standard error values for the alpha parameter.}
+\item{beta}{Mean and standard error values for the beta parameter.}
+\item{sigma}{Sigma values used to build priors.}
+}
+\strong{Note:} This dataframe should contain data only for the current date.}
 
-\item{verbose}{A logical value indicating whether to print progress messages. If TRUE, progress messages are printed; otherwise, they are suppressed. Default is TRUE.}
+\item{model_spec_theme_level}{Character string.
+Specifies the structure of the hierarchical Bayesian model at the theme level. Options include:
+\describe{
+\item{\code{"random_intercept"}}{Random effects on the theme-level intercept. Includes random intercepts for themes and both random intercepts and slopes for each theme-signal combination.}
+\item{\code{"fixed_intercepts"}}{Fixed intercepts for each theme, with a global slope for the market factor proxy. Nested variability within themes is modeled using random intercepts and slopes for theme-signal combinations.}
+\item{\code{"fixed_intercepts_and_slopes"}}{Fixed intercepts and slopes for each theme. Includes interaction terms between themes and the market factor proxy, with random intercepts for tickers.}
+\item{\code{"none"}}{No theme-level effects; only random intercepts and slopes for theme-signal combinations.}
+}}
 
-\item{selected_benchmark_returns_upd_ref}{A data frame or matrix containing the updated benchmark returns. The second column is used for model fitting and posterior analysis.}
+\item{v}{Numeric.
+The degrees of freedom in the half-t distribution applied to model random effects. This parameter controls the tails of the distribution. Default is \code{30}.}
+
+\item{lmer_optimizer}{Character string.
+Specifies the optimizer to be used in the \code{lme4::lmer} function. Options include:
+\describe{
+\item{\code{"nloptwrap"}}{Non-linear optimization using the NLopt library.}
+\item{\code{"bobyqa"}}{Bound optimization BY quadratic approximation.}
+\item{\code{"Nelder_Mead"}}{Simplex-based Nelder-Mead optimization.}
+\item{\code{"nlminbwrap"}}{Wrapper for the \code{nlminb} optimizer.}
+}
+Default is \code{"nloptwrap"}.}
+
+\item{signal_themes_m_d_ref}{Data frame.
+A (meta)data frame containing metadata about signals with the following columns:
+\describe{
+\item{id}{Identifier for each observation.}
+\item{tickers}{Signal identifiers matching those in \code{signal_universe_m_d_ref} and \code{selected_backtest_returns_corrected_positions_upd_ref}.}
+\item{dates}{Dates corresponding to the backtest data.}
+\item{theme}{Group membership for each signal, defining the clusters for the Bayesian hierarchical model.}
+}
+\strong{Note:} This dataframe should contain data only for the current date.}
+
+\item{user_priors_list}{List.
+A list containing user-defined priors for the hierarchical Bayesian model, used when \code{priors_type} is \code{"user"}. The list should conform to the structure required by the \code{brms} package.}
+
+\item{chains}{Integer.
+The number of Markov chains to run for the MCMC sampling. Default is \code{4}.}
+
+\item{iter}{Integer.
+The total number of iterations per chain for the MCMC sampling. Default is \code{2000}.}
+
+\item{warmup}{Integer.
+The number of warmup (burn-in) iterations per chain for the MCMC sampling. Default is \code{floor(iter / 2)}.}
+
+\item{thin}{Integer.
+The thinning interval for MCMC sampling. Default is \code{1}.}
+
+\item{seed}{Integer or \code{NA}.
+The seed for random number generation to ensure reproducibility. Set to a specific integer for reproducible results or \code{NA} for random seeding. Default is \code{NA}.}
+
+\item{adapt_delta}{Numeric.
+The target acceptance probability for the Hamiltonian Monte Carlo sampler. Higher values can lead to better convergence at the cost of slower sampling. Must be between \code{0} and \code{1}. Default is \code{0.99}.}
+
+\item{parallel}{Logical.
+Indicates whether to enable parallel computation using the \code{future} package. Default is \code{TRUE}.}
+
+\item{verbose}{Logical.
+Indicates whether to print progress messages during the Bayesian model fitting process. If \code{TRUE}, progress messages are printed; otherwise, they are suppressed. Default is \code{TRUE}.}
 }
 \value{
-A data frame or matrix (\code{signal_universe_m_d_ref}) updated with posterior statistics based on the Bayesian model fitting.
+A named list with the following components:
+\describe{
+\item{\code{posterior_signal_universe_m_d_ref}}{Data frame.
+The input \code{signal_universe_m_d_ref} updated with posterior summary statistics derived from the Bayesian model fitting. This includes metrics such as posterior alphas, betas, sigmas, active returns, tracking errors, information ratios (IR), appraisal ratios (AP), and Treynor ratios.
+}
+\item{\code{bayesian_model}}{\code{brmsfit} object.
+The fitted Bayesian hierarchical model containing posterior distributions, parameter estimates, diagnostics, and other details of the model fit.
+}
+\item{\code{elected_priors}}{List.
+The priors used in the Bayesian model, either derived from data or provided by the user.
+}
+\item{\code{frequentist_model}}{\code{lme4::lmer} object.
+The fitted frequentist linear mixed-effects model used to derive informative priors.
+}
+}
 }
 \description{
-Performs Bayesian p-value adjustment based on priors, fits a Bayesian hierarchical model to signals, and summarizes posterior draws. Optionally provides progress updates if verbose is set to TRUE.
+Performs Bayesian p-value adjustment by setting priors, fitting a Bayesian hierarchical model to signals, and summarizing posterior draws. Optionally provides progress updates if \code{verbose} is set to \code{TRUE}.
 }
 \details{
-This function performs the following steps:
+This function performs Bayesian p-value adjustment through the following steps:
+\enumerate{
+\item \strong{Initial Checks}: Validates input parameters, ensuring \code{priors_type} is valid and that necessary prior data is provided based on the specified \code{priors_type}.
+\item \strong{Set Priors}:
 \itemize{
-\item If \code{priors_type} is not \code{"uninformative"}, it sets priors based on the provided informative data using the \code{set_priors} function.
-\item It fits a Bayesian hierarchical model to each theme in \code{signals_groups_m_d_ref} using parallel processing. Progress messages are printed if \code{verbose} is TRUE.
-\item It extracts posterior draws from the fitted models and summarizes them using the \code{summarize_posterior_draws} function.
+\item If \code{priors_m_upd_ref} is provided, it sets priors based on the provided informative data using the \code{derive_informative_priors_from_data} function.
+\item If \code{user_priors_list} is provided, it utilizes user-defined priors provided.
+\item If neither \code{user_priors_list} or \code{priors_m_upd_ref} are provided, it employs default uninformative priors as defined by the \code{brms} package.
 }
+\item \strong{Fit Bayesian Hierarchical Model}:
+Fits a Bayesian hierarchical model to each theme in \code{signal_themes_m_d_ref} using the \code{fit_bayesian_model} function. This process leverages parallel processing for efficiency. Progress messages are displayed if \code{verbose} is \code{TRUE}.
+\item \strong{Extract and Summarize Posteriors}:
+Extracts posterior draws from the fitted models and summarizes them using the \code{summarize_posterior_draws} function. The summary includes metrics such as alphas, betas, sigmas, active returns, tracking errors, information ratios, appraisal ratios, and Treynor ratios.
+}
+
+The Bayesian hierarchical model accounts for both theme-level and signal-level variations, allowing for nuanced adjustments based on the hierarchical structure of the data. Informative priors can be derived from existing data or specified by the user, providing flexibility in modeling approaches.
+}
+\examples{
+\dontrun{
+# Example usage of bayesian_adjustment function
+results <- bayesian_adjustment(
+  signal_universe_m_d_ref = signal_universe_df,
+  selected_backtest_returns_corrected_positions_upd_ref = backtest_returns_df,
+  selected_market_factor_proxy_vector_upd_ref = market_factor_vector,
+  priors_m_upd_ref = priors_df,
+  priors_type = "all",
+  model_spec_theme_level = "random_intercept",
+  v = 30,
+  lmer_optimizer = "nloptwrap",
+  signal_themes_m_d_ref = signal_themes_df,
+  user_priors_list = NULL,
+  chains = 4,
+  iter = 2000,
+  warmup = 1000,
+  thin = 1,
+  seed = 123,
+  adapt_delta = 0.99,
+  parallel = TRUE,
+  verbose = TRUE
+)
+
+# Access the updated signal universe with posterior metrics
+updated_signal_universe <- results$posterior_signal_universe_m_d_ref
+
+# Access the fitted Bayesian model
+bayesian_model <- results$bayesian_model
+}
+
 }

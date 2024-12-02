@@ -7,16 +7,17 @@
 \S4method{plot}{ml_metabacktest_results,ANY}(x, plot_id = NULL)
 }
 \arguments{
-\item{x}{An object of class \code{ml_metabacktest_results}.}
+\item{x}{An object of class \code{ml_metabacktest_results} containing the results of the meta-learning backtests.}
 
 \item{plot_id}{A character string or numeric value specifying which plot to display.
 \itemize{
 \item By name: Options are:
 \itemize{
-\item \code{"Consolidated OOS Testing Metrics"}
-\item \code{"Mean Validation Metrics"}
+\item \code{"Consolidated OOS Testing Metrics Comparison"}
 \item \code{"Time Series OOS Testing Metrics"}
+\item \code{"Mean Validation Metrics Comparison"}
 \item \code{"Time Series Validation Metrics"}
+\item \code{"Base Learners vs Meta Learners Over Time"}
 }
 \item By number: Provide a number corresponding to the plot (as listed when \code{plot_id} is \code{NULL}).
 If \code{NULL} (default), the method lists available plots.
@@ -26,7 +27,8 @@ If \code{NULL} (default), the method lists available plots.
 Invisibly returns the input \code{x}.
 }
 \description{
-Provides plotting capabilities for an \code{ml_metabacktest_results} object.
+Generates various plots to visualize the performance and metrics of meta-learning backtest results.
 Users can select which plot to display by specifying the \code{plot_id} parameter,
 either by name or by number.
+The plots include comparisons between base learners and meta learners over time.
 }

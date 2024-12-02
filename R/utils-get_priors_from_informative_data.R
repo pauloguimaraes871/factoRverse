@@ -4,12 +4,14 @@
 #' Hierarchical bayesian models can be built based on such priors. Signals are groups and are defined theme-wise.
 #' The priors are determined using a Bayesian Information Criterion (BIC) approach to select the best-fitting distribution to reference historical data
 #'
-#' @param selected_priors_informative_data_m_upd_ref A data frame containing historical data with columns: `dates`, `theme`, `alpha`, `beta`, and `sigma`. This data is used to estimate priors for each theme.
-#' @param priors_type A character indicating to which parameters should priors be defined. If `mean`, priors will be set on alpha and beta.
-#' If `all`, priors will also be set on variance (`tau_u1`, `tau_u2`, `tau_u_sigma`) and correlation parameters.
-#' If `uninformative`, brms default uninformative priors will be used
-#'
-#'
+#' @param priors_m_upd_ref A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
+#' and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
+#' @param priors_type A flag indicating which priors should be set. Possible options are:
+#' \itemize{
+#'    \item {"all"}: Set priors for all parameters, including mean (´mu´), variance (´tau´) and correlation based on `priors_m_df` data.
+#'    \item: {"mean"}: Set priors only for mean ('mu').
+#'    \item: {"uninformative"}: Set uninformative priors for all parameters.
+#'    \item: {"user"}: Set priors defined by the user.#'
 #'
 #' @return A list, where each component contains `brms::set_prior` objects for each theme.
 #'
@@ -22,18 +24,17 @@
 #'   \item Returns a list of `brms::set_prior` objects for each theme.
 #' }
 #'
-#' @export
-get_priors_from_informative_data <- function(selected_priors_informative_data_m_upd_ref, priors_type){
+get_priors_from_informative_data <- function(priors_m_upd_ref, priors_type){
 
   #Get dates
-  dates <- unique(as.Date(selected_priors_informative_data_m_upd_ref$dates, format = "%Y-%m-%d"))
-  current_dates <- dates[which.max(dates)]
+  dates <- unique(as.Date(priors_m_upd_ref$dates, format = "%Y-%m-%d"))
+  current_date <- dates[which.max(dates)]
 
   #Get themes
-  themes <- unique(selected_priors_informative_data_m_upd_ref$theme)
+  themes <- unique(priors_m_upd_ref$theme)
 
   #Get Current Themes Data
-  current_themes_data <- selected_priors_informative_data_m_upd_ref %>% dplyr::filter(dates == current_dates) %>%
+  current_themes_data <- priors_m_upd_ref %>% dplyr::filter(dates == current_date) %>%
     dplyr::group_by(theme) %>% #Get information by theme
     #Summarize information by cluster
     dplyr::summarise(grand_mean_alpha = mean(alpha), #alpha ~ N(grand_mean_alpha, grand_sd_alpha)
@@ -51,7 +52,7 @@ get_priors_from_informative_data <- function(selected_priors_informative_data_m_
     ###Prepare objects
     ##################
     ####Get theme specific data
-    specific_theme_data <- selected_priors_informative_data_m_upd_ref %>% dplyr::filter(theme == current_theme)
+    specific_theme_data <- priors_m_upd_ref %>% dplyr::filter(theme == current_theme)
 
     ####Get overall info by dates
     specific_theme_overall_data_by_dates <- specific_theme_data %>%
@@ -83,7 +84,7 @@ get_priors_from_informative_data <- function(selected_priors_informative_data_m_
     ###Choose Priors
     #####################
     #Priors for Overall Alpha
-    overall_alpha <- specific_theme_data$overall_alpha_mean_by_dates
+    overall_alpha <- unique(specific_theme_data$overall_alpha_mean_by_dates) #Consider one value by date
     overall_alpha_prior <- choose_prior(vector = overall_alpha, parameter_class = "location")
 
     #Priors for u1
@@ -101,7 +102,7 @@ get_priors_from_informative_data <- function(selected_priors_informative_data_m_
     }
 
     #Priors for Overall Beta
-    overall_beta <- specific_theme_data$overall_beta_mean_by_dates
+    overall_beta <- unique(specific_theme_data$overall_beta_mean_by_dates) #Consider one value by date
     overall_beta <- overall_beta[!is.na(overall_beta)] #NAs might arise in first dates because of division by a NA var
     overall_beta_prior <- choose_prior(vector = overall_beta, parameter_class = "location")
 
@@ -121,7 +122,7 @@ get_priors_from_informative_data <- function(selected_priors_informative_data_m_
 
     #Priors for Overall Sigma
     if(priors_type == "all"){
-      overall_sigma <- specific_theme_data$overall_sigma_mean_by_dates
+      overall_sigma <- unique(specific_theme_data$overall_sigma_mean_by_dates) #Consider one value by date
       overall_sigma <- overall_sigma[!is.na(overall_sigma)]
       overall_sigma_prior <- choose_prior(vector = log(overall_sigma), parameter_class = "location") #Log because sigma_alpha will enter exponentially
 

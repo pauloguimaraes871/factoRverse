@@ -6,22 +6,32 @@
 \title{Select and Correct Signal Positions}
 \usage{
 select_and_correct_signals(
-  signal_selection_policy,
-  signals_m_upd_ref,
-  backtest_returns_upd_ref = NULL
+  signals_m_df,
+  chosen_signals,
+  signal_positions,
+  backtest_returns_df = NULL
 )
 
 select_and_correct_signals(
-  signal_selection_policy,
-  signals_m_upd_ref,
-  backtest_returns_upd_ref = NULL
+  signals_m_df,
+  chosen_signals,
+  signal_positions,
+  backtest_returns_df = NULL
 )
 }
 \arguments{
+\item{signals_m_df}{A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.}
+
+\item{chosen_signals}{A vector with user-defined characteristics to be considered.}
+
+\item{signal_positions}{A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short".}
+
+\item{backtest_returns_df}{A data frame with a 'dates' column and remaining columns named according to signals in signals_m_df, containing historical backtested returns.}
+
 \item{signal_selection_policy}{A list containing the following elements:
 \itemize{
 \item \code{chosen_signals}: A character vector of selected signal names.
-\item \code{signal_positions}: A named character vector where names are signal names and values are their positions ("long" or "short").
+\item \code{signals_position}: A named character vector where names are signal names and values are their positions ("long" or "short").
 }}
 
 \item{signals_m_upd_ref}{A data frame with columns including "id", "tickers", "dates", and the selected signals. This data frame contains the current signal data.}
@@ -37,8 +47,8 @@ A list with two components:
 
 A list with two components:
 \itemize{
-\item \code{selected_signals_corrected_positions_m_upd_ref}: The updated data frame from \code{signals_m_upd_ref} with corrected signal positions and adjusted column names.
-\item \code{selected_signals_backtest_returns_upd_ref}: The data frame from \code{backtest_returns_upd_ref} with columns matching the corrected signal positions.
+\item \code{selected_signals_corrected_positions_m_df}: The updated data frame from \code{signals_m_df} with corrected signal positions and adjusted column names.
+\item \code{selected_backtest_returns_corrected_positions_df}: The data frame from \code{backtest_returns_df} with columns matching the corrected signal positions.
 }
 }
 \description{
@@ -58,15 +68,15 @@ The function performs the following operations:
 
 The function performs the following operations:
 \itemize{
-\item Extracts the chosen signals from \code{signals_m_upd_ref} and subsets the data frame to include only these signals.
+\item Extracts the chosen signals from \code{signals_m_df} and subsets the data frame to include only these signals.
 \item Checks for consistency between the length of \code{chosen_signals} and \code{signal_positions} and ensures that all chosen signals have corresponding positions.
 \item Adjusts the signal positions based on whether they are "short" by multiplying their values by -1.
 \item Updates column names in the data frame to reflect the corrected positions of the signals.
-\item Validates that all adjusted signals have corresponding columns in \code{backtest_returns_upd_ref}.
+\item Validates that all adjusted signals have corresponding columns in \code{backtest_returns_df}.
 }
 }
 \seealso{
 \code{\link{backtest_returns_upd_ref}}
 
-\code{\link{backtest_returns_upd_ref}}
+\code{\link{backtest_returns_df}}
 }

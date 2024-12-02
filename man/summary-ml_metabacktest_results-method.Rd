@@ -13,11 +13,14 @@
 \itemize{
 \item By name: Options are:
 \itemize{
-\item \code{"Time Series OOS Testing Metrics Summary"}
-\item \code{"Time Series Validation Metrics Summary"}
+\item \code{"Consolidated_OOS_Testing_Metrics"}
+\item \code{"Mean_Validation_Metrics"}
+\item \code{"Time_Series_OOS_Testing_Metrics"}
+\item \code{"Time_Series_Validation_Metrics"}
+\item \code{"Base_Learners_OOS_Predictions"}
 }
 \item By number: Provide a number corresponding to the table (as listed when \code{summary_id} is \code{NULL}).
-If \code{NULL} (default), the method lists available summaries.
+If \code{NULL} (default), the method lists available tables.
 }}
 }
 \value{

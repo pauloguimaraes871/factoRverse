@@ -5,35 +5,92 @@
 \title{Define Signal Eligibility}
 \usage{
 define_signal_eligibility(
-  selected_signals_backtest_returns_upd_ref,
-  selected_benchmark_returns_upd_ref,
-  signal_selection_policy,
-  signals_groups_m_d_ref,
-  selected_priors_informative_data_m_upd_ref,
+  selected_backtest_returns_corrected_positions_upd_ref,
+  selected_market_factor_proxy_upd_ref,
+  data_availability_cutoff,
+  p_correction_method,
+  signal_significance_threshold,
+  max_abs_active_group_weight,
+  heuristic_sb_metric,
+  priors_m_upd_ref,
+  user_priors,
+  model_spec_theme_level,
+  signal_themes_m_d_ref,
+  lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
-  lower_quantile_winsorization = 0.025
+  verbose = TRUE
 )
 }
 \arguments{
-\item{selected_signals_backtest_returns_upd_ref}{A data frame containing backtest returns for various signals. The first column should be identifiers for the signals, and the subsequent columns should contain the returns data.}
+\item{selected_backtest_returns_corrected_positions_upd_ref}{A data frame containing backtest returns for various signals. The first column should be identifiers for the signals, and the subsequent columns should contain the returns data.}
 
-\item{selected_benchmark_returns_upd_ref}{A data frame containing benchmark returns data. The first column should be identifiers for the benchmarks, and the subsequent columns should contain the returns data.}
+\item{selected_market_factor_proxy_upd_ref}{A data frame containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.}
 
-\item{signal_selection_policy}{A list containing the signal selection policy. This list should include:
-\describe{
-\item{\code{data_availability_cutoff}}{The minimum number of non-NA observations required for a backtest to be considered.}
-\item{\code{p_correction_method}}{The method for p-value correction ("none", holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr" or "bayesian").}
-\item{\code{benchmark}}{The benchmark to use for performance comparisons.}
-\item{\code{chosen_prior}}{Dataset used to build prior for Bayesian adjustments.}
-\item{\code{priors_type}}{A flag indicating whether priors should be set ("none" if not).}
-\item{\code{chosen_sb_metric}}{The signal to use for final selection after adjustments.}
-\item{\code{sb_benchmark_weighting_method}}{The benchmark weighting for the concentration constraint policy.}
-\item{\code{max_abs_active_group_weight}}{The maximum absolute weight for any group in the concentration constraint policy.}
+\item{data_availability_cutoff}{The minimum number of non-NA observations required for a backtest to be considered.}
+
+\item{p_correction_method}{The method for p-value correction. Possible options are:
+\itemize{
+\item{"none"}: No correction.
+\item{"bayesian"}: When bayesian is set, a hierarchical mixed-effects bayesian linear model is fitted to the data, using the \code{brms} package,
+which is an interface to the \code{Stan} probabilistic programming language.
+The user can also choose one of the following frequentist methods, which will control Family-Wise Error Rate (FWER) or the False Discovery Rate (FDR).
+FDR is less stringent than FWER.
+For FWER, possible options are:
+\item{"bonferroni"}: Bonferroni correction, which is dominated by Holm's method.
+\item{"holm"}: Holm's (1979) method.
+\item{"hochberg"}: Hochberg's (1988) method, valid when hypothesis tests are independent or non-negatively associated. Less powerful than Hommel's (1988) method, but
+faster to compute.
+\item{"hommel"}: Hommel's (1988) method, also valid when hypothesis tests are independent or non-negatively associated, but is more powerful than Hochberg (1988).
+For FDR, possible options are:
+\item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
+\item{"BY"}: Benjamini-Yekutieli (2001) procedure.
 }}
 
-\item{signals_groups_d_ref}{An optional data frame that maps signals to groups for Bayesian modeling and concentration constraints. It should contain a column named \code{theme} that categorizes the signals.}
+\item{signal_significance_threshold}{A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
 
-\item{priors_m_d_ref}{An optional list of prior distributions for Bayesian adjustments. The list should contain prior data frames or objects indexed by names corresponding to \code{chosen_prior}.}
+\item{max_abs_active_group_weight}{A decimal indicating the maximum absolute weight that a theme of signals can have in the final portfolio.}
+
+\item{heuristic_sb_metric}{A signal in \code{signals_m_df} that is used for sb_algorithms "SW" and "MTO". At this stage, it is used to select which signal will be elected in
+case of theme representativeness (when no signal in a given theme was deemed significant and a concentration_constraint_policy for signals is set in place).
+It only makes sense when sb_algorithm is "MTO".}
+
+\item{user_priors}{An object of class \code{brmsprior} with user-defined priors for the hierarchical bayesian model. It should be set with \code{model_spec_theme_level} structure in mind.
+brms::set_prior() can be used to define the priors. Should not be provided if \code{priors_m_d_ref} is already being provided.}
+
+\item{model_spec_theme_level}{A character string specifying the desired Bayesian model structure.
+Options include:
+\itemize{
+\item \code{"random_intercept"}: Includes random effects for the intercept at the theme level.
+\item \code{"fixed_intercepts"}: Uses fixed intercepts for each theme.
+\item \code{"fixed_intercepts_and_slopes"}: Includes fixed intercepts and slopes for each theme.
+\item \code{"none"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
+}
+
+@param v A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
+Although the function specifies a regular student t distribution, \code{brms} will use half-t distribution, ensuring strictly positive parameters.
+
+@param lmer_optimizer A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
+It will be passed to lme4::lmerControl, which will be used in the \code{lme4::lmer} function.
+Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'}
+
+\item{signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
+for defining clusters in bayesian hierarchical model. It should contain data only for current date.}
+
+\item{lower_quantile_winsorization}{Numeric value for lower winsorization.}
+
+\item{upper_quantile_winsorization}{Numeric value for upper winsorization.}
+
+\item{verbose}{A boolean indicating whether to print messages to the console.}
+
+\item{se_benchmark_weighting_method}{The weighting method for the SB benchmarks. Can be "individual" or "theme".
+When "individual", all signals in the SB benchmark universe are weighted equally. When "theme", the signals are weighted by theme.}
+
+\item{priors_m_d_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
+and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
+Should not be provided if \code{user_priors_list} is already being provided.
+When \code{priors_m_d_ref} is provided, a lme4 model is fit to the data using the \code{lme4} package, and the priors are then estimated from the model.
+In such case, ther user can control some aspects of the prior definition process with params: \code{model_spec_theme_level}, \code{v} and \code{lmer_optimizer}}
 }
 \value{
 A data frame containing the updated signal universe with computed performance metrics, adjusted p-values, and final signal classifications. The columns include:
@@ -49,6 +106,67 @@ A data frame containing the updated signal universe with computed performance me
 \item{\code{p_value}}{The p-value of the alpha.}
 \item{\code{adjusted_p_value}}{The p-value adjusted for multiple comparisons, if applicable.}
 \item{\code{final_signal}}{The final signal classification after applying transformations and adjustments.}
+}
+
+#' @details
+Setting informative priors
+When providing \code{priors_m_upd_ref}, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
+
+\itemize{
+\item Priors for location parameters (e.g., intercepts, slopes) follow a normal distribution.
+\item Priors for scale parameters (e.g., random effect standard deviations) follow a half-t distribution.
+\item Correlation priors for random effects are modeled using the LKJ (Lewandowski-Kurowicka-Joe) distribution.
+}
+\subsection{Model Specifications at Theme Level}{
+\subsection{\code{random_intercept}}{
+
+This model includes:
+\itemize{
+\item Fixed intercept and slope for the market factor proxy.
+\item Random intercepts at the \code{theme} level.
+\item Random intercepts and slopes for each theme-signal combination.
+}
+The model equation is:
+\deqn{y_i = \beta_0 + \beta_1 \cdot x_i + b_{0,t_i} + b_{0,g_i} + b_{1,g_i} \cdot x_i + \epsilon_i}
+See the detailed breakdown in the example section.
+}
+
+\subsection{\code{fixed_intercepts}}{
+
+This model includes:
+\itemize{
+\item Fixed intercepts for each \code{theme}, expressed as a summation over all themes.
+\item A global fixed slope for the market factor proxy.
+\item Random intercepts and slopes for theme-signal combinations.
+}
+The model equation is:
+\deqn{y_{i} = \sum_{k} \beta_{k} \cdot \text{theme}_{k,i} + \beta_{m} \cdot x_{i} + b_{0,g_{i}} + b_{1,g_{i}} \cdot x_{i} + \epsilon_{i}}
+}
+
+\subsection{\code{fixed_intercepts_and_slopes}}{
+
+This model includes:
+\itemize{
+\item Fixed intercepts and slopes for each \code{theme}.
+\item Interaction terms between themes and the market factor proxy.
+\item Random intercepts for tickers.
+}
+The model equation is:
+\deqn{y_{it} = \sum_k \beta_k \cdot \text{theme}_{k,i} + \sum_k \gamma_k \cdot \text{theme}_{k,i} \cdot x_{it} + \beta_m \cdot X_{it} + b_{0,i} + \epsilon_{it}}
+}
+
+}
+
+A list with two components:
+\itemize{
+\item \code{priors}: A list of \code{brms::set_prior} objects specifying the derived priors.
+\item \code{model}: The fitted linear mixed-effects model (\code{lme4::lmer} object).
+}
+\subsection{\code{none}}{
+
+This model includes no parameter at the theme level and just models random intercepts and slopes for each signal.
+The model equation is:
+\deqn{y_i = \beta_0 + \beta_1 \cdot x_i + b_{0,g_i} + b_{1,g_i} \cdot x_i + \epsilon_i}
 }
 }
 \description{

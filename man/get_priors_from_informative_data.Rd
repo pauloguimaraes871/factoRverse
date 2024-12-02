@@ -4,17 +4,11 @@
 \alias{get_priors_from_informative_data}
 \title{Get Priors for Signals Based on Informative Data}
 \usage{
-get_priors_from_informative_data(
-  selected_priors_informative_data_m_upd_ref,
-  priors_type
-)
+get_priors_from_informative_data(priors_m_upd_ref, priors_type)
 }
 \arguments{
-\item{selected_priors_informative_data_m_upd_ref}{A data frame containing historical data with columns: \code{dates}, \code{theme}, \code{alpha}, \code{beta}, and \code{sigma}. This data is used to estimate priors for each theme.}
-
-\item{priors_type}{A character indicating to which parameters should priors be defined. If \code{mean}, priors will be set on alpha and beta.
-If \code{all}, priors will also be set on variance (\code{tau_u1}, \code{tau_u2}, \code{tau_u_sigma}) and correlation parameters.
-If \code{uninformative}, brms default uninformative priors will be used}
+\item{priors_m_upd_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
+and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.}
 }
 \value{
 A list, where each component contains \code{brms::set_prior} objects for each theme.

@@ -2,22 +2,110 @@
 #'
 #' This function evaluates the eligibility of signals for inclusion in the investment universe based on various performance metrics and statistical adjustments. It performs initial data checks, computes performance metrics, applies statistical adjustments (both frequentist and Bayesian), and classifies signals according to the specified selection policy.
 #'
-#' @param selected_signals_backtest_returns_upd_ref A data frame containing backtest returns for various signals. The first column should be identifiers for the signals, and the subsequent columns should contain the returns data.
-#' @param selected_benchmark_returns_upd_ref A data frame containing benchmark returns data. The first column should be identifiers for the benchmarks, and the subsequent columns should contain the returns data.
-#' @param signal_selection_policy A list containing the signal selection policy. This list should include:
-#' \describe{
-#'   \item{\code{data_availability_cutoff}}{The minimum number of non-NA observations required for a backtest to be considered.}
-#'   \item{\code{p_correction_method}}{The method for p-value correction ("none", holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr" or "bayesian").}
-#'   \item{\code{benchmark}}{The benchmark to use for performance comparisons.}
-#'   \item{\code{chosen_prior}}{Dataset used to build prior for Bayesian adjustments.}
-#'   \item{\code{priors_type}}{A flag indicating whether priors should be set ("none" if not).}
-#'   \item{\code{chosen_sb_metric}}{The signal to use for final selection after adjustments.}
-#'   \item{\code{sb_benchmark_weighting_method}}{The benchmark weighting for the concentration constraint policy.}
-#'   \item{\code{max_abs_active_group_weight}}{The maximum absolute weight for any group in the concentration constraint policy.}
-#' }
-#' @param signals_groups_d_ref An optional data frame that maps signals to groups for Bayesian modeling and concentration constraints. It should contain a column named \code{theme} that categorizes the signals.
-#' @param priors_m_d_ref An optional list of prior distributions for Bayesian adjustments. The list should contain prior data frames or objects indexed by names corresponding to \code{chosen_prior}.
+#' @param selected_backtest_returns_corrected_positions_upd_ref A data frame containing backtest returns for various signals. The first column should be identifiers for the signals, and the subsequent columns should contain the returns data.
+#' @param selected_market_factor_proxy_upd_ref A data frame containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.
+#' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
+#' @param p_correction_method The method for p-value correction. Possible options are:
+#'\itemize{
+#'  \item{"none"}: No correction.
+#'  \item{"bayesian"}: When bayesian is set, a hierarchical mixed-effects bayesian linear model is fitted to the data, using the `brms` package,
+#'  which is an interface to the `Stan` probabilistic programming language.
+#'  The user can also choose one of the following frequentist methods, which will control Family-Wise Error Rate (FWER) or the False Discovery Rate (FDR).
+#'  FDR is less stringent than FWER.
+#'  For FWER, possible options are:
+#'  \item{"bonferroni"}: Bonferroni correction, which is dominated by Holm's method.
+#'  \item{"holm"}: Holm's (1979) method.
+#'  \item{"hochberg"}: Hochberg's (1988) method, valid when hypothesis tests are independent or non-negatively associated. Less powerful than Hommel's (1988) method, but
+#'  faster to compute.
+#'  \item{"hommel"}: Hommel's (1988) method, also valid when hypothesis tests are independent or non-negatively associated, but is more powerful than Hochberg (1988).
+#'  For FDR, possible options are:
+#'  \item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
+#'  \item{"BY"}: Benjamini-Yekutieli (2001) procedure.
+#'  }
+#' @param signal_significance_threshold A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+#' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
+#' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_d_ref` does not have any eligible signal, the signal
+#' with highest alpha t-stat will be elected.
+#' @param priors_m_upd_ref A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
+#' and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
+#' Should not be provided if `user_priors_list` is already being provided.
+#' When `priors_m_upd_ref` is provided, a lme4 model is fit to the data using the `lme4` package, and the priors are then estimated from the model.
+#' In such case, ther user can control some aspects of the prior definition process with params: `model_spec_theme_level`, `v` and `lmer_optimizer`
 #'
+#' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
+#'   Options include:
+#'   - `"random_intercept"`: Includes random effects for the intercept at the theme level.
+#'   - `"fixed_intercepts"`: Uses fixed intercepts for each theme.
+#'   - `"fixed_intercepts_and_slopes"`: Includes fixed intercepts and slopes for each theme.
+#'   - `"none"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
+#'
+#' @param v A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
+#' Although the function specifies a regular student t distribution, `brms` will use half-t distribution, ensuring strictly positive parameters.
+#'
+#' @param lmer_optimizer A character string specifying the optimizer to be used in the `lme4::lmer` function.
+#' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
+#' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+#'
+#' @param brms_control Other additional parameters to be passed to brms::brm function:
+#' \itemize{
+#' \item{chains} Integer.
+#' The number of Markov chains to run for the MCMC sampling. Default is `4`.
+#'
+#' \item{iter} Integer.
+#' The total number of iterations per chain for the MCMC sampling. Default is `2000`.
+#'
+#' \item{warmup} Integer.
+#' The number of warmup (burn-in) iterations per chain for the MCMC sampling. Default is `floor(iter / 2)`.
+#'
+#' \item{thin} Integer.
+#' The thinning interval for MCMC sampling. Default is `1`.
+#'
+#' \item{seed} Integer or `NA`.
+#' The seed for random number generation to ensure reproducibility. Set to a specific integer for reproducible results or `NA` for random seeding. Default is `NA`.
+#'
+#' \item{adapt_delta] Numeric.
+#' The target acceptance probability for the Hamiltonian Monte Carlo sampler. Higher values can lead to better convergence at the cost of slower sampling. Must be between `0` and `1`. Default is `0.99`.
+#' }
+#'
+#' @param parallel Logical.
+#'   Indicates whether to enable parallel computation using the `future` package. Only avaialable for bayesian model. Default is `TRUE`.
+#'
+#' @param signal_themes_m_d_ref A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
+#' for defining clusters in bayesian hierarchical model. It should contain data only for current date.
+#'
+#' @param user_priors An object of class `brmsprior` with user-defined priors for the hierarchical bayesian model. It should be set with `model_spec_theme_level` structure in mind.
+#' brms::set_prior() can be used to define the priors. Should not be provided if `priors_m_d_ref` is already being provided.
+#'
+#' @examples
+#' \dontrun{
+#'  Definition of priors for model_spec_theme_level = "random_intercept"
+#'   elected_priors <- c(
+#'   Prior for Intercept
+#'  brms::set_prior("normal(0.0012, 0.0016)", class = "Intercept"),
+#'
+#'  Prior for market_factor_proxy coefficient
+#'  brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"),
+#'
+#'  Prior for sd of Intercept at theme:tickers level
+#'  brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+#'
+#'  Prior for sd of market_factor_proxy at theme:tickers level
+#'  brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+#'
+#'  Prior for sd of Intercept at theme level
+#'  brms::set_prior("student_t(30, 0, 0.0011)", class = "sd", group = "theme", coef = "Intercept"),
+#'
+#'  Prior for residual error (sigma)
+#'  brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+#'
+#'  LKJ prior for correlations
+#'  brms::set_prior("lkj(2)", class = "cor")
+#')
+#'
+#'
+#' @param upper_quantile_winsorization Numeric value for upper winsorization.
+#' @param lower_quantile_winsorization Numeric value for lower winsorization.
+#' @param verbose A boolean indicating whether to print messages to the console.
 #' @return A data frame containing the updated signal universe with computed performance metrics, adjusted p-values, and final signal classifications. The columns include:
 #' \describe{
 #'   \item{\code{tickers}}{The identifiers for the signals.}
@@ -32,27 +120,91 @@
 #'   \item{\code{adjusted_p_value}}{The p-value adjusted for multiple comparisons, if applicable.}
 #'   \item{\code{final_signal}}{The final signal classification after applying transformations and adjustments.}
 #' }
+#'
+#' #' @details
+#'
+#' When providing `priors_m_upd_ref` to set informative priors, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
+#'
+#'   \itemize{
+#'     \item Priors for location parameters (e.g., intercepts, slopes) follow a normal distribution.
+#'     \item Priors for scale parameters (e.g., random effect standard deviations) follow a half-t distribution.
+#'     \item Correlation priors for random effects are modeled using the LKJ (Lewandowski-Kurowicka-Joe) distribution.
+#'   }
+#'
+#' ### Model Specifications at Theme Level
+#'
+#' #### \code{random_intercept}
+#' This model includes:
+#'   \itemize{
+#'     \item Fixed intercept and slope for the market factor proxy.
+#'     \item Random intercepts at the \code{theme} level.
+#'     \item Random intercepts and slopes for each theme-signal combination.
+#'   }
+#' The model equation is:
+#' \deqn{y_i = \beta_0 + \beta_1 \cdot x_i + b_{0,t_i} + b_{0,g_i} + b_{1,g_i} \cdot x_i + \epsilon_i}
+#' See the detailed breakdown in the example section.
+#'
+#' #### \code{fixed_intercepts}
+#' This model includes:
+#'   \itemize{
+#'     \item Fixed intercepts for each \code{theme}, expressed as a summation over all themes.
+#'     \item A global fixed slope for the market factor proxy.
+#'     \item Random intercepts and slopes for theme-signal combinations.
+#'   }
+#' The model equation is:
+#' \deqn{y_{i} = \sum_{k} \beta_{k} \cdot \text{theme}_{k,i} + \beta_{m} \cdot x_{i} + b_{0,g_{i}} + b_{1,g_{i}} \cdot x_{i} + \epsilon_{i}}
+#'
+#'
+#' #### \code{fixed_intercepts_and_slopes}
+#' This model includes:
+#'   \itemize{
+#'     \item Fixed intercepts and slopes for each \code{theme}.
+#'     \item Interaction terms between themes and the market factor proxy.
+#'     \item Random intercepts for tickers.
+#'   }
+#' The model equation is:
+#' \deqn{y_{it} = \sum_k \beta_k \cdot \text{theme}_{k,i} + \sum_k \gamma_k \cdot \text{theme}_{k,i} \cdot x_{it} + \beta_m \cdot X_{it} + b_{0,i} + \epsilon_{it}}
+#'
+#' @return A list with two components:
+#'   \itemize{
+#'     \item \code{priors}: A list of \code{brms::set_prior} objects specifying the derived priors.
+#'     \item \code{model}: The fitted linear mixed-effects model (\code{lme4::lmer} object).
+#'   }
+#'
+#' #### \code{none}
+#' This model includes no parameter at the theme level and just models random intercepts and slopes for each signal.
+#' The model equation is:
+#' \deqn{y_i = \beta_0 + \beta_1 \cdot x_i + b_{0,g_i} + b_{1,g_i} \cdot x_i + \epsilon_i}
+#'
 #' @export
-define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref, selected_benchmark_returns_upd_ref,
-                                      signal_selection_policy,
-                                      signals_groups_m_d_ref,
-                                      selected_priors_informative_data_m_upd_ref,
-                                      upper_quantile_winsorization = 0.975, lower_quantile_winsorization = 0.025){
-
+define_signal_eligibility <- function(
+  #Backtests
+  selected_backtest_returns_corrected_positions_upd_ref,
+  selected_market_factor_proxy_upd_ref,
+  #Data Avaialability
+  data_availability_cutoff = 36,
+  #P-Values
+  p_correction_method = "none", signal_significance_threshold = 0.05,
+  #Theme representativeness
+  enable_theme_representativeness = TRUE,
+  #Bayesian method
+  priors_m_upd_ref = NULL, user_priors = NULL, model_spec_theme_level = "random_intercept", brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
+  lmer_optimizer = "nloptwrap", v = 30,
+  #Signal Themes
+  signal_themes_m_d_ref,
+  #Winsorization
+  lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+  #Verbose
+  verbose = TRUE, parallel = TRUE
+){
 
   #Initial Preparations
   ##################
-  ###Get objects from signal_selection_policy
-  data_availability_cutoff <- signal_selection_policy$data_availability_cutoff
-  p_correction_method <- signal_selection_policy$p_correction_method
-  priors_type <- signal_selection_policy$priors_type
-  user_priors_list <- signal_selection_policy$user_priors_list
-  chosen_sb_metric <- signal_selection_policy$chosen_sb_metric
-  ###Get objects from selected_signals_backtest_returns_upd_ref
-  selected_signals <- colnames(selected_signals_backtest_returns_upd_ref)[-1]
-  current_date <- selected_signals_backtest_returns_upd_ref$dates[length(selected_signals_backtest_returns_upd_ref$dates)]
-  ###Get selected_benchmark_returns_vector_upd_ref
-  selected_benchmark_returns_vector_upd_ref <- selected_benchmark_returns_upd_ref[,2]
+  ###Get objects from selected_backtest_returns_corrected_positions_upd_ref
+  selected_signals <- colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1]
+  current_date <- selected_backtest_returns_corrected_positions_upd_ref$dates[length(selected_backtest_returns_corrected_positions_upd_ref$dates)]
+  ###Get selected_market_factor_proxy_vector_upd_ref
+  selected_market_factor_proxy_vector_upd_ref <- selected_market_factor_proxy_upd_ref[,2]
   ##################
 
   #Create signal_universe_m_d_ref
@@ -65,43 +217,45 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
     #Dates
     dates = current_date,
     #Mean Active Return
-    mean_active_return = selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(x) mean(x, na.rm = TRUE)),
+    mean_active_return = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x, na.rm = TRUE)),
     #Tracking Error
-    tracking_error =  selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(x) sd(x, na.rm = TRUE)),
+    tracking_error =  selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) sd(x, na.rm = TRUE)),
     #Information Ratio
-    IR = selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(x) mean(x, na.rm = TRUE)/sd(x, na.rm = TRUE)), #Calculate IR
+    IR = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x, na.rm = TRUE)/sd(x, na.rm = TRUE)), #Calculate IR
     #Alpha
-    alpha = selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_benchmark_returns_vector_upd_ref))$coefficients[1]}), #Calculate OLS Capm Alpha
-    #AP (T-STAT)
-    AP = selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_benchmark_returns_vector_upd_ref))$coefficients[5]}), #Get Alpha t-stat
+    alpha = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
+      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[1]}), #Calculate OLS Capm Alpha
+    #T-STAT
+    alpha_t_stat = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
+      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[5]}), #Get Alpha t-stat
     #Beta
-    beta = selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_benchmark_returns_vector_upd_ref))$coefficients[2]}), #Get Beta
+    beta = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
+      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[2]}), #Get Beta
     #Treynor
-    treynor = selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(x){
-      mean(x, na.rm = TRUE)/summary(lm(x ~ selected_benchmark_returns_vector_upd_ref))$coefficients[2]}), #Get Treynor
+    treynor = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
+      mean(x, na.rm = TRUE)/summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[2]}), #Get Treynor
     #Alpha P-value
-    p_value = selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_benchmark_returns_vector_upd_ref))$coefficients[7]}), #Get Alpha p-value
+    p_value = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
+      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[7]}), #Get Alpha p-value
 
     row.names = NULL
   )
 
   #Correct based on backtest length
-    ##Check if backtests have enough length to be considered
-    cutted_out_backtests <- selected_signals_backtest_returns_upd_ref[,-1] %>% apply(2, function(col){
-      length(which(is.na(col))) >= data_availability_cutoff
-    })
+  ##Check if backtests have enough length to be considered
+  cutted_out_backtests <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(col){
+    length(which(is.na(col))) >= data_availability_cutoff
+  })
 
-    ##Send warning
-    if(any(cutted_out_backtests)){
+  ##Send warning
+  if(any(cutted_out_backtests)){
+    if(verbose){
       warning(paste0("The following signals backtests have less periods than data_avaiability_cutoff and will not be used: ",
                      names(cutted_out_backtests[which(cutted_out_backtests)])))
-      ##Ignore signals that do not have enough data
-      signal_universe_m_d_ref[which(cutted_out_backtests), -c(1:3)] <- NA #NA reflects lack of knowledge about signal behavior
     }
+    ##Ignore signals that do not have enough data
+    signal_universe_m_d_ref[which(cutted_out_backtests), -c(1:3)] <- NA #NA reflects lack of knowledge about signal behavior
+  }
   #################################
 
   #P-adjust!
@@ -115,7 +269,7 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
 
     #Elect final signal for signal_universe_m_d_ref
     signal_universe_m_d_ref[, "final_signal"] <- signal_transform(
-      signal_universe_m_d_ref[, chosen_sb_metric],
+      signal_universe_m_d_ref[, "alpha_t_stat"],
       upper_quantile_winsorization = upper_quantile_winsorization,
       lower_quantile_winsorization = lower_quantile_winsorization
     )
@@ -126,28 +280,39 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
     #Beware of the ALMIGHTY Bayesian model
     ######################################
 
+    #Get parameters of brms_control
+    chains <- brms_control$chains
+    iter <- brms_control$iter
+    warmup <- if(is.null(brms_control$warmup)) round(iter/2) else brms_control$warmup
+    thin <- if(is.null(brms_control$thin)) 1 else brms_control$thin
+    seed <- if(is.null(brms_control$seed)) NA else brms_control$seed
+    adapt_delta <- if(is.null(brms_control$adapt_delta)) 0.80 else brms_control$adapt_delta
+
     #Bayesian adjustment
     bayesian_adjustment_results_list <- bayesian_adjustment(
       #Signals and benchmark
       signal_universe_m_d_ref = signal_universe_m_d_ref,
-      selected_signals_backtest_returns_upd_ref = selected_signals_backtest_returns_upd_ref,
-      selected_benchmark_returns_vector_upd_ref = selected_benchmark_returns_vector_upd_ref,
+      selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
+      selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
       #Priors
-      selected_priors_informative_data_m_upd_ref = selected_priors_informative_data_m_upd_ref,
-      priors_type = priors_type,
-      user_priors_list = user_priors_list,
-      #Grou´s
-      signals_groups_m_d_ref = signals_groups_m_d_ref
+      priors_m_upd_ref = priors_m_upd_ref, v = v, lmer_optimizer = lmer_optimizer,
+      user_priors = user_priors,
+      model_spec_theme_level = model_spec_theme_level,
+      #Groups
+      signal_themes_m_d_ref = signal_themes_m_d_ref,
+      #brms control
+      chains = chains, iter = iter, warmup = warmup, thin = thin, seed = seed, adapt_delta = adapt_delta,
+      parallel = parallel, verbose = verbose
     )
 
     ##Get results from bayesian adjustment
     signal_universe_m_d_ref <- bayesian_adjustment_results_list$posterior_signal_universe_m_d_ref
-    bayesian_fit_list <- bayesian_adjustment_results_list$bayesian_fit_list
+    bayesian_results <- bayesian_adjustment_results_list[-1]
 
 
     #Elect final signal for signal_universe_m_d_ref
     signal_universe_m_d_ref[, "final_signal"] <- signal_transform(
-      signal_universe_m_d_ref[, paste0("posterior_", chosen_sb_metric)], #Final signal
+      signal_universe_m_d_ref[, paste0("posterior_", "alpha_t_stat")], #Final signal
       #Winsorization quantiles
       upper_quantile_winsorization = upper_quantile_winsorization,
       lower_quantile_winsorization = lower_quantile_winsorization
@@ -161,19 +326,19 @@ define_signal_eligibility <- function(selected_signals_backtest_returns_upd_ref,
   ###################################
   signal_universe_m_d_ref <- classify_investment_universe(
     signals_m_d_ref = signal_universe_m_d_ref, #Signal Universe
-    signal_significance_threshold = signal_selection_policy$signal_significance_threshold, #Signal Significance Threshold
-    groups_m_d_ref = signals_groups_m_d_ref, #Groups to select
+    signal_significance_threshold = signal_significance_threshold, #Signal Significance Threshold
+    groups_m_d_ref = signal_themes_m_d_ref, #Groups to select
     #Build concentration constraint policy for signals
     concentration_constraint_policy =  list(
-      benchmark = signal_selection_policy$sb_benchmark_weighting_method, #Reference benchmark
-      max_abs_active_group_weight = signal_selection_policy$max_abs_active_group_weight), #Max group weight for signal
+      benchmark = c("theme_ss", "theme_sb"), #Reference benchmark
+      max_abs_active_group_weight = if(enable_theme_representativeness) 0.1 else NULL), #Set an arbitrary value to enable theme representativeness
     asset_object = "signals"
   )
   ################################
 
   signal_eligibility_results_list <- list()
-  signal_eligibility_results_list$signal_universe_m_d_ref <- signal_universe_m_d_ref
-  try(signal_eligibility_results_list$bayesian_fit_list <- bayesian_fit_list, silent = TRUE)
+  signal_eligibility_results_list$signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::select(-final_signal)
+  try(signal_eligibility_results_list$bayesian_results <- bayesian_results, silent = TRUE)
 
   return(signal_eligibility_results_list)
 

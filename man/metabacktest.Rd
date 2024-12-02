@@ -7,26 +7,35 @@ expected returns from ml model predictions}
 \usage{
 metabacktest(
   signals_m_df,
-  ml_walk_forward_validation_results_list,
-  dates_m_vector,
   rebalancing_months,
-  n_months_until_first_rebalancing_date,
-  selected_signal,
-  chosen_characteristics,
-  chosen_ml_algorithms,
+  initial_buffer_period,
   liquidity_m_df,
   benchmark_weights_m_df,
   volatility_m_df,
-  target_m_df
+  target_m_df,
+  custom_target_name = "fwd_return_1m"
 )
 }
 \arguments{
 \item{signals_m_df}{A matrix or data frame containing simple features, with columns: id, tickers, dates,
 to be used for signal-portfolio construction}
 
+\item{rebalancing_months}{Months (numeric) when portfolio should be rebalanced.}
+
+\item{liquidity_m_df}{A data frame (similar to \code{features_m_df}) containing columns for id, tickers, dates,
+and one or more market liquidity measures (e.g., inflation-adjusted mean financial volume).}
+
+\item{custom_target_name}{A character indicating a custom target to be used in the backtest. Default is to use fwd_return_1m in \code{target_m_df}. If
+a different variable is provided, the function will first seek that variable in columns of \code{target_m_df} and then in \code{signals_m_df}, in that order. If a variable
+in target_m_df is chosen, the function will derive its prediction horizon based on naming convention and then name the time series accordingly. Otherwise,
+ir will refer to current date.}
+
+\item{ml_walk_forward_validation_results}{Optional. A list of one or more objects of class ml_walk_forward_validation_results
+whose oos_prediction_list is to be used as signals and chosen_eval_metric_validation can be used to produce ml ensembles}
+
 \item{dates_m_vector}{A vector of dates corresponding to the data.}
 
-\item{rebalancing_months}{Months (numeric) when portfolio should be rebalanced.}
+\item{nmonths_until_first_rebalancing_date}{The amount of dates in dates_m_vector to be skipped before backtest starts}
 
 \item{selected_signal}{One of ml_model, characteristics or meta_signal IS THIS REALLY NECESSARY????????}
 
@@ -34,14 +43,6 @@ to be used for signal-portfolio construction}
 
 \item{chosen_ml_algorithms}{A vector of ml_algorithms that indicate which ml model predictions of ml_walk_forward_validation_results_list
 should be used as signals. If NULL, all objects of ml_walk_forward_validation_results wil be considered}
-
-\item{liquidity_m_df}{A data frame (similar to \code{features_m_df}) containing columns for id, tickers, dates,
-and one or more market liquidity measures (e.g., inflation-adjusted mean financial volume).}
-
-\item{ml_walk_forward_validation_results}{Optional. A list of one or more objects of class ml_walk_forward_validation_results
-whose oos_prediction_list is to be used as signals and chosen_eval_metric_validation can be used to produce ml ensembles}
-
-\item{nmonths_until_first_rebalancing_date}{The amount of dates in dates_m_vector to be skipped before backtest starts}
 
 \item{portfolio_construction_method}{The type of portfolio construction method for setting weights. Possibilities are heuristics (EW, CW, CS, SW),
 Mean Tracking-Error (MTO) and Risk-Parity (RP)}

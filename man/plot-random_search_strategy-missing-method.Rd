@@ -12,8 +12,8 @@
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
 }
 \value{
-A \code{ggplot} object visualizing the hyperparameter distributions with possible limits.
+A \code{ggplot} object visualizing the hyperparameter histograms with possible limits.
 }
 \description{
-Generate a sample for each hyperparameter and plot the distribution for random search.
+Generate a sample for each hyperparameter and plot the histogram for random search.
 }

@@ -88,8 +88,6 @@ check_inputs_ml_backtest <- function(
         stop("target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.")
       }
 
-
-
       if(all(!is.factor(target_m_df$dates),
              any(!lubridate::is.Date(target_m_df$dates)) ||
              any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
@@ -146,6 +144,10 @@ check_inputs_ml_backtest <- function(
   #Check structure of rebalancing_months
     if(!is.numeric(rebalancing_months)){
       stop("rebalancing_months should be numeric.")
+    }
+
+    if(rebalancing_months < 0 || rebalancing_months > 12){
+      stop("rebalancing_months should be between 1 and 12.")
     }
 
   #Check structure of target_fwd_name

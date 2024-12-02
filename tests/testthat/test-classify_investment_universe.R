@@ -1,9 +1,8 @@
 #Signals
-
 test_that("classify_investment_universe works with no additional rules for signals (frequentist), respecting group representativeness", {
 
   #THEME SB
-  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
   #Create signal_universe_m_d_ref
   set.seed(123)
@@ -14,7 +13,7 @@ test_that("classify_investment_universe works with no additional rules for signa
                                 tracking_error = runif(3, 0, 1),
                                 IR = rnorm(3,0,1),
                                 alpha = rnorm(3,0,1),
-                                AP = rnorm(3,0,1),
+                                alpha_t_stat = rnorm(3,0,1),
                                 beta = rnorm(3,0,1),
                                 treynor = rnorm(3,0,1),
                                 p_value = c(0.05,0.20,0.03)
@@ -34,10 +33,11 @@ test_that("classify_investment_universe works with no additional rules for signa
   expected_results$top_assets <- c(1,0,1)
 
 
-  #GET SB BENCHMARK
-  sb_benchmark <- create_sb_benchmark(expected_results, signals_groups_m_d_ref)
+  #GET SE BENCHMARKS
+  se_benchmarks <- create_se_benchmarks(expected_results, signals_groups_m_d_ref)
 
-  expected_results$theme_sb_bench_weights <- sb_benchmark$theme_sb
+  expected_results$theme_ss_bench_weights <- se_benchmarks$theme_ss
+  expected_results$theme_sb_bench_weights <- se_benchmarks$theme_sb
   expected_results$theme = signals_groups_m_d_ref$theme
 
 
@@ -47,68 +47,21 @@ test_that("classify_investment_universe works with no additional rules for signa
     classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
                                  groups_m_d_ref = signals_groups_m_d_ref,
                                  concentration_constraint_policy = list(
-                                   benchmark = signal_selection_policy$sb_benchmark_weighting,
-                                   max_abs_active_group_weight = signal_selection_policy$max_abs_active_group_weight
+                                   benchmark = c("theme_ss", "theme_sb"),
+                                   max_abs_active_group_weight = 0.1
                                  ),
                                  asset_object = "signals"),
 
     expected_results
   )
 
-
-
-  #INDIVIDUAL SB
-  #Create signals_m_d_ref_test
-  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
-
-  signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
-                                         tickers = c("Alpha", "low_Beta", "Gamma"),
-                                         dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
-                                         mean_active_return = rnorm(3, 0, 1),
-                                         tracking_error = runif(3, 0, 1),
-                                         IR = rnorm(3,0,1),
-                                         alpha = rnorm(3,0,1),
-                                         AP = rnorm(3,0,1),
-                                         beta = rnorm(3,0,1),
-                                         treynor = rnorm(3,0,1),
-                                         p_value = c(0.05,0.20,0.03)
-  )
-
-  signals_groups_m_d_ref <- NULL
-
-  signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "none")
-  signals_universe_m_d_ref$final_signal <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
-
-  expected_results <- signals_universe_m_d_ref
-  expected_results$top_assets <- c(1,0,1)
-
-
-  #GET SB BENCHMARK
-  sb_benchmark <- create_sb_benchmark(expected_results, signals_groups_m_d_ref)
-
-  expected_results$individual_sb_bench_weights <- sb_benchmark$individual_sb
-
-
-  expected_results$is_eligible <- c(1,0,1)
-
-  expect_equal(
-    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
-                                 groups_m_d_ref = signals_groups_m_d_ref,
-                                 concentration_constraint_policy = list(
-                                   benchmark = "individual_sb",
-                                   max_abs_active_group_weight = NULL
-                                 ),
-                                 asset_object = "signals"),
-
-    expected_results
-  )
 
 })
 
 test_that("classify_investment_universe works with no additional rules for signals (frequentist), respecting group representativeness when there are two competing unsignificant signals", {
 
   #THEME SB
-  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
   #Create signal_universe_m_d_ref
   set.seed(103)
@@ -119,7 +72,7 @@ test_that("classify_investment_universe works with no additional rules for signa
                                          tracking_error = runif(4, 0, 1),
                                          IR = rnorm(4,0,1),
                                          alpha = rnorm(4,0,1),
-                                         AP = rnorm(4,0,1),
+                                         alpha_t_stat = rnorm(4,0,1),
                                          beta = rnorm(4,0,1),
                                          treynor = rnorm(4,0,1),
                                          p_value = c(0.05,0.20,0.03, 0.10)
@@ -138,11 +91,11 @@ test_that("classify_investment_universe works with no additional rules for signa
   expected_results <- signals_universe_m_d_ref
   expected_results$top_assets <- c(1,0,1,0)
 
+  #GET SE BENCHMARKS
+  se_benchmarks <- create_se_benchmarks(expected_results, signals_groups_m_d_ref)
 
-  #GET SB BENCHMARK
-  sb_benchmark <- create_sb_benchmark(expected_results, signals_groups_m_d_ref)
-
-  expected_results$theme_sb_bench_weights <- sb_benchmark$theme_sb
+  expected_results$theme_ss_bench_weights <- se_benchmarks$theme_ss
+  expected_results$theme_sb_bench_weights <- se_benchmarks$theme_sb
   expected_results$theme = signals_groups_m_d_ref$theme
 
 
@@ -152,16 +105,13 @@ test_that("classify_investment_universe works with no additional rules for signa
     classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
                                  groups_m_d_ref = signals_groups_m_d_ref,
                                  concentration_constraint_policy = list(
-                                   benchmark = signal_selection_policy$sb_benchmark_weighting,
-                                   max_abs_active_group_weight = signal_selection_policy$max_abs_active_group_weight
+                                   benchmark = c("theme_ss", "theme_sb"),
+                                   max_abs_active_group_weight = 0.1
                                  ),
                                  asset_object = "signals"),
 
     expected_results
   )
-
-
-
 
 })
 
@@ -169,7 +119,7 @@ test_that("classify_investment_universe works with no additional rules for signa
 
   #THEME SB
   #Create signals_m_d_ref_test
-  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
   set.seed(123)
   signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
@@ -179,20 +129,20 @@ test_that("classify_investment_universe works with no additional rules for signa
                                          tracking_error = runif(3, 0, 1),
                                          IR = rnorm(3,0,1),
                                          alpha = rnorm(3,0,1),
-                                         AP = rnorm(3,0,1),
+                                         alpha_t_stat = rnorm(3,0,1),
                                          beta = rnorm(3,0,1),
                                          treynor = rnorm(3,0,1),
                                          p_value = c(0.05,0.20,0.03),
                                          posterior_mean_active_return = rnorm(3, 0, 1),
-                                         posterior_sigma = runif(3, 0, 1),
+                                         posterior_tracking_error = runif(3, 0, 1),
                                          posterior_IR = rnorm(3,0,1),
-                                         posterior_overall_alpha = rnorm(3,0,1),
-                                         posterior_alpha = rnorm(3,0,1),
-                                         posterior_AP = rnorm(3,0,1),
-                                         posterior_overall_beta = c(0.07, -0.05, 0.07),
-                                         posterior_beta = rnorm(3,0,0.02),
+                                         posterior_theme_alpha = rnorm(3,0,1),
+                                         posterior_individual_alpha = rnorm(3,0,1),
+                                         posterior_alpha_t_stat = rnorm(3,0,1),
+                                         posterior_theme_beta = c(0.07, -0.05, 0.07),
+                                         posterior_individual_beta = rnorm(3,0,0.02),
                                          posterior_treynor = rnorm(3,0,1),
-                                         pd_overall_alpha = c(0.90,0.99,0.90),
+                                         pd_theme_alpha = c(0.90,0.99,0.90),
                                          pd_alpha = c(0.99,0.75,0.99)
   )
 
@@ -209,10 +159,12 @@ test_that("classify_investment_universe works with no additional rules for signa
   expected_results$top_assets <- c(1,0,1)
 
 
-  #GET SB BENCHMARK
-  sb_benchmark <- create_sb_benchmark(expected_results, signals_groups_m_d_ref)
+  #GET SE BENCHMARK
+  se_benchmarks <- create_se_benchmarks(expected_results, signals_groups_m_d_ref)
 
-  expected_results$theme_sb_bench_weights <- sb_benchmark$theme_sb
+  expected_results$theme_sb_bench_weights <- se_benchmarks$theme_sb
+  expected_results$theme_ss_bench_weights <- se_benchmarks$theme_ss
+
   expected_results$theme = signals_groups_m_d_ref$theme
 
 
@@ -222,8 +174,8 @@ test_that("classify_investment_universe works with no additional rules for signa
     classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
                                  groups_m_d_ref = signals_groups_m_d_ref,
                                  concentration_constraint_policy = list(
-                                   benchmark = signal_selection_policy$sb_benchmark_weighting,
-                                   max_abs_active_group_weight = signal_selection_policy$max_abs_active_group_weight
+                                   benchmark = c("theme_sb", "theme_ss"),
+                                   max_abs_active_group_weight = 0.1
                                  ),
                                  asset_object = "signals"),
 
@@ -897,7 +849,7 @@ test_that("classify_investment_universe throws an error when no signals are sign
                                          tracking_error = runif(3, 0, 1),
                                          IR = rnorm(3,0,1),
                                          alpha = rnorm(3,0,1),
-                                         AP = rnorm(3,0,1),
+                                         alpha_t_stat = rnorm(3,0,1),
                                          beta = rnorm(3,0,1),
                                          treynor = rnorm(3,0,1),
                                          p_value = c(0.05,0.20,0.03)

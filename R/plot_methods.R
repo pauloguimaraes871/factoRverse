@@ -21,9 +21,10 @@ setMethod(
   function(x, type = "cross_sectional", clustering_variables = NULL, variable = NULL, tickers = "all", dates = "all", calc_stat = "mean",
            custom_filter = NULL, filter_values = NULL, dep_y = NULL, numeric_aggregation = "decile") {
 
+
     # Prompt for 'type' if not specified
     if (is.null(type)) {
-      available_types <- c("cross_sectional", "time_series", "distribution", "composition", "regression", "density2d", "correlogram", "radar")
+      available_types <- c("cross_sectional", "time_series", "histogram", "boxplot", "composition", "regression", "density2d", "correlogram", "radar")
       cat("\nPlease choose a plot type:\n")
       for (i in seq_along(available_types)) {
         cat(paste0(i, ": ", available_types[i], "\n"))
@@ -37,13 +38,13 @@ setMethod(
     }
 
     # Check for valid 'type'
-    if (!type %in% c("cross_sectional", "time_series", "distribution", "composition", "regression", "density2d", "correlogram", "radar")) {
-      stop("Invalid plot type. Choose from 'cross_sectional', 'time_series', 'distribution', 'composition', 'regression', 'density2d', 'correlogram', or 'radar'.")
+    if (!type %in% c("cross_sectional", "time_series", "histogram", "boxplot", "composition", "regression", "density2d", "correlogram", "radar")) {
+      stop("Invalid plot type. Choose from 'cross_sectional', 'time_series', 'histogram', 'boxplot', 'composition', 'regression', 'density2d', 'correlogram', or 'radar'.")
     }
 
     # Prompt for 'variable' if not specified and required
     if (is.null(variable)) {
-      required_for_types <- c("cross_sectional", "time_series", "distribution", "composition", "regression", "density2d", "correlogram", "radar")
+      required_for_types <- c("cross_sectional", "time_series", "histogram", "composition", "regression", "density2d", "correlogram", "radar")
       if (type %in% required_for_types) {
         available_variables <- setdiff(names(x@data), c("id", "tickers", "dates"))
         cat("\nPlease choose a variable:\n")
@@ -96,9 +97,17 @@ setMethod(
       }
     }
 
+    #Check if variable and dep_y are set as character
+    if(any(!is.character(variable), !is.character(dep_y))){
+      stop("variable and dep_y must be set as character values describing colnames in the data.frame.")
+    }
+
+    if(!all(c(variable, dep_y) %in% colnames(x@data))){
+      stop("variable and dep_y must be present in the data.frame.")
+    }
 
     #Check for dep_y adequacy
-    if((type == "composition" || type == "distribution" || type == "density2d") && !is.null(dep_y)){
+    if((type == "composition" || type == "histogram" || type == "density2d") && !is.null(dep_y)){
       stop("dep_y is not supported for this plot type.")
     }
 
@@ -372,16 +381,16 @@ setMethod(
       }
     }
 
-    # Distribution Plot
-    if (type == "distribution") {
-      if (is.null(variable)) stop("Please specify the 'variable' argument for distribution plot.")
+    # histogram Plot
+    if (type == "histogram") {
+      if (is.null(variable)) stop("Please specify the 'variable' argument for histogram plot.")
 
       # Filter out rows with NA in the specified variable
       df <- dplyr::filter(df, !is.na(!!rlang::sym(variable)))
 
       # Check if clustering_variables is empty or NULL, in which case we create a single plot
       if (is.null(clustering_variables) || length(clustering_variables) == 0) {
-        # Single distribution plot with classic histogram
+        # Single histogram plot with classic histogram
         p <-
         ggplot2::ggplot(df, ggplot2::aes_string(x = variable)) +
           ggplot2::geom_histogram(bins = 30, fill = vibrant_purple, color = black, alpha = 0.7) +
@@ -397,7 +406,7 @@ setMethod(
             plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic")
           ) +
           ggplot2::labs(
-            title = paste("Distribution of", variable),
+            title = paste("histogram of", variable),
             subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
             x = variable,
             y = "Frequency"
@@ -414,7 +423,7 @@ setMethod(
           base_palette
         }
 
-        # Distribution plot faceted by clustering variables with classic histogram
+        # histogram plot faceted by clustering variables with classic histogram
         p <-
         ggplot2::ggplot(df, ggplot2::aes_string(x = variable, fill = clustering_variables)) +
           ggplot2::geom_histogram(bins = 30, color = black, alpha = 0.7, position = "identity") +
@@ -434,13 +443,57 @@ setMethod(
             legend.position = "none" #Exclude legend
           ) +
           ggplot2::labs(
-            title = paste("Distribution of", variable, "by", paste(clustering_variables, collapse = ", ")),
+            title = paste("histogram of", variable, "by", paste(clustering_variables, collapse = ", ")),
             subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
             x = variable,
             y = "Frequency"
           )
         print(p)
       }
+    }
+
+    # Boxplot
+    if (type == "boxplot") {
+      if (is.null(variable)) stop("Please specify the 'variable' argument for the boxplot.")
+      if (is.null(clustering_variables) || length(clustering_variables) == 0) {
+        stop("Please specify 'clustering_variables' for the boxplot.")
+      }
+
+      # Filter out rows with NA in the specified variable
+      df <- df %>% dplyr::filter(!is.na(!!rlang::sym(variable)))
+
+      # Generate color palette based on the number of unique categories
+      num_categories <- length(unique(df[[clustering_variables]]))
+      base_palette <- RColorBrewer::brewer.pal(min(num_categories, 12), "Set3")
+      color_palette <- if (num_categories > 12) {
+        grDevices::colorRampPalette(base_palette)(num_categories)
+      } else {
+        base_palette
+      }
+
+      # Create the boxplot
+      p <- ggplot2::ggplot(df, ggplot2::aes_string(x = clustering_variables, y = variable, fill = clustering_variables)) +
+        ggplot2::geom_boxplot() +
+        ggplot2::scale_fill_manual(values = color_palette) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          panel.grid.minor = ggplot2::element_blank(),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          legend.position = "none"
+        ) +
+        ggplot2::labs(
+          title = paste("Boxplot of", variable, "by", paste(clustering_variables, collapse = ", ")),
+          subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+          x = paste(clustering_variables, collapse = ", "),
+          y = variable
+        )
+      print(p)
     }
 
 
@@ -529,7 +582,6 @@ setMethod(
     if (type == "regression") {
       # Ensure that `y` is provided
       if (missing(dep_y)) stop("Please provide a dependent variable (dep_y) for the regression plot.")
-
 
 
       # Check if clustering variables are provided
@@ -1001,10 +1053,10 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 
 
 #' @title Plot Method for `random_search_strategy`
-#' @description Generate a sample for each hyperparameter and plot the distribution for random search.
+#' @description Generate a sample for each hyperparameter and plot the histogram for random search.
 #' @param x An object of class `random_search_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
-#' @return A `ggplot` object visualizing the hyperparameter distributions with possible limits.
+#' @return A `ggplot` object visualizing the hyperparameter histograms with possible limits.
 #' @export
 setMethod("plot", signature(x = "random_search_strategy", y = "missing"), function(x, y) {
 
@@ -1026,7 +1078,7 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
   # Extract n_iter from the object
   n_iter <- x@n_iter
 
-  # Extract the hyperparameters and distributions
+  # Extract the hyperparameters and histograms
   hyper_list <- x@hyper_grid_domain@hyperparameter_list
   if (length(hyper_list) == 0) {
     stop("No hyperparameters found in the grid domain.")
@@ -1089,7 +1141,7 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
   plot_data <- data.frame(
     Hyperparameter = character(),
     Value = numeric(),
-    Distribution = character()
+    histogram = character()
   )
 
   # Prepare a data frame for predefined limits
@@ -1101,7 +1153,7 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 
   # Loop through each hyperparameter to generate samples and check predefined limits
   for (hp_name in names(transformed_hyper_list)) {
-    dist_choice <- transformed_hyper_list[[hp_name]]$distribution_choice
+    dist_choice <- transformed_hyper_list[[hp_name]]$histogram_choice
     if (dist_choice == "uniform") {
       pars <- transformed_hyper_list[[hp_name]]$pars
       samples <- runif(n_iter, min = pars["min"], max = pars["max"])
@@ -1114,14 +1166,14 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
     } else if (dist_choice == "constant") {
       samples <- rep(transformed_hyper_list[[hp_name]]$value, n_iter)  # Constant value
     } else {
-      stop(paste("Unsupported distribution:", dist_choice))
+      stop(paste("Unsupported histogram:", dist_choice))
     }
 
     # Add the samples to the plot_data
     plot_data <- rbind(plot_data, data.frame(
       Hyperparameter = rep(hp_name, length(samples)),
       Value = samples,
-      Distribution = rep(dist_choice, length(samples))
+      histogram = rep(dist_choice, length(samples))
     ))
 
     # If predefined limits exist, add them to predefined_data
@@ -1136,11 +1188,11 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 
   # Create the plot with hyperparameters on the y-axis
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, fill = Hyperparameter)) +
-    ggplot2::geom_violin(data = plot_data[plot_data$Distribution != "constant", ], alpha = 0.7, color = neon_cyan) +  # Violin for non-constant distributions
-    ggplot2::geom_point(data = plot_data[plot_data$Distribution == "constant", ], size = 3, color = neon_purple, shape = 4) +  # Points for constant in white
+    ggplot2::geom_violin(data = plot_data[plot_data$histogram != "constant", ], alpha = 0.7, color = neon_cyan) +  # Violin for non-constant histograms
+    ggplot2::geom_point(data = plot_data[plot_data$histogram == "constant", ], size = 3, color = neon_purple, shape = 4) +  # Points for constant in white
     ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_green) +  # Min always closed
     ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_green) +  # Max always closed
-    ggplot2::labs(title = "Random Search: Hyperparameter Distributions",
+    ggplot2::labs(title = "Random Search: Hyperparameter histograms",
                   y = "Hyperparameter",
                   x = "Sampled Values") +
     ggplot2::theme_minimal() +
@@ -1315,7 +1367,7 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @description Calls the appropriate plot method for `tuning_strategy`.
 #' @param x An object of class `ml_backtest_config`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
-#' @return A `ggplot` object visualizing the hyperparameter distributions with possible limits.
+#' @return A `ggplot` object visualizing the hyperparameter histograms with possible limits.
 #' @export
 setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x, y){
 
@@ -1339,7 +1391,7 @@ setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x
 #'   - `"both"`: Plots both base learners and meta learner.
 #'   If not specified, the function will prompt the user to choose.
 #' @param ... Additional arguments (currently unused).
-#' @return A combined `ggplot` object visualizing the hyperparameter distributions for the selected configurations.
+#' @return A combined `ggplot` object visualizing the hyperparameter histograms for the selected configurations.
 #' @export
 setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), function(x, y, which = NULL, ...) {
 

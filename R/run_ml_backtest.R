@@ -216,10 +216,10 @@ setMethod("run_ml_backtest",
               # Run base ML backtests
               base_ml_backtest_configs <- config@base_ml_backtest_configs
 
-                ###Check for name uniqueness
-                if(length(unique(sapply(base_ml_backtest_configs, function(x) x@config_name))) != length(base_ml_backtest_configs)){
-                  stop("Base ML backtest configurations must have unique names.")
-                }
+              ###Check for name uniqueness
+              if(length(unique(sapply(base_ml_backtest_configs, function(x) x@config_name))) != length(base_ml_backtest_configs)){
+                stop("Base ML backtest configurations must have unique names.")
+              }
 
               #Run Individual Backtests
               base_ml_backtest_results_list <- run_base_ml_backtests(
@@ -247,10 +247,10 @@ setMethod("run_ml_backtest",
             names(base_ml_backtest_results_list) <- sapply(base_ml_backtest_results_list, function(x) x@backtest_identifier)
             base_ml_backtest_configs_names <- sapply(base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$config_name)
 
-              ###Check for name uniqueness
-              if(length(unique(base_ml_backtest_configs_names)) != length(base_ml_backtest_configs_names)){
-                stop("Base ML backtest configurations must have unique names.")
-              }
+            ###Check for name uniqueness
+            if(length(unique(base_ml_backtest_configs_names)) != length(base_ml_backtest_configs_names)){
+              stop("Base ML backtest configurations must have unique names.")
+            }
 
             for (i in 1:length(base_ml_backtest_results_list)) {
               base_ml_backtest_results_list[[i]]@ml_backtest_workflow$config_name <- base_ml_backtest_configs_names[i]
@@ -542,11 +542,11 @@ run_ml_backtest_internal <- function(
     ################
 
     #Initial Setup: Making some changes to metrics if needed and displaying initial setup
-      ##Adjust custom obj and chosen eval metric
-      if(verbose) cat("=============================\n")
-      adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric,
-                                            custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta,
-                                            verbose = verbose)
+    ##Adjust custom obj and chosen eval metric
+    if(verbose) cat("=============================\n")
+    adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric,
+                                          custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta,
+                                          verbose = verbose)
 
 
     #Pass adjusted metrics

@@ -12,7 +12,7 @@
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
 }
 \value{
-A \code{ggplot} object visualizing the hyperparameter distributions with possible limits.
+A \code{ggplot} object visualizing the hyperparameter histograms with possible limits.
 }
 \description{
 Calls the appropriate plot method for \code{tuning_strategy}.

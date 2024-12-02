@@ -335,6 +335,9 @@ setClass(
     if (object@split_method != "expanding") {
       return("split_method should be expanding.")
     }
+    if (object@rebalancing_months < 0 || object@rebalancing_months > 12){
+      stop("rebalancing_months should be between 1 and 12.")
+    }
 
     if(!is.null(object@keras_architecture_parameters)){
       if(!is_keras_architecture_parameters(object@keras_architecture_parameters)){
