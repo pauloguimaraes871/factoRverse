@@ -297,10 +297,6 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 
 )
 
-
-
-
-
 #' @title Hyperparameter Tuning Strategy Constructor
 #' @description A constructor function to create a tuning_strategy object, based on the specified tuning method.
 #' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
@@ -1712,6 +1708,243 @@ setMethod(
     return(new_object)
   }
 )
+
+#' @title Create an alpha_test_strategy object
+#' @description A constructor function to create instances of alpha_test_strategy or its subclasses
+#' (frequentist_alpha_test_strategy and bayesian_alpha_test_strategy).
+#' @param signal_significance_threshold A numeric value indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria.
+#'   Must be between 0 and 1. Defaults to 0.05.
+#' @param p_correction_method A character string specifying the p-value correction method.
+#'   Options include `"none"`, `"bonferroni"`, `"holm"`, `"hochberg"`, `"hommel"`, `"BH"`, `"fdr"`, `"BY"`, and `"bayesian"`.
+#' @param market_factor_proxy A character string indicating the market factor proxy to be used in the CAPM model.
+#' @param bayesian_model_parameters (Optional) An object of class `bayesian_model_parameters`.
+#'   Required when `p_correction_method` is `"bayesian"`.
+#' @return An object of class `alpha_test_strategy`, `frequentist_alpha_test_strategy`, or `bayesian_alpha_test_strategy`.
+#' @export
+create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
+                                       p_correction_method = "none",
+                                       market_factor_proxy,
+                                       bayesian_model_parameters = NULL) {
+
+  # Validate input arguments
+  if (!p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY", "bayesian")) {
+    stop("Invalid p_correction_method. Must be one of: 'none', 'bonferroni', 'holm', 'hochberg', 'hommel', 'BH', 'fdr', 'BY', 'bayesian'.")
+  }
+  if (signal_significance_threshold < 0 || signal_significance_threshold > 1) {
+    stop("signal_significance_threshold must be between 0 and 1.")
+  }
+  if (missing(market_factor_proxy) || !is.character(market_factor_proxy) || length(market_factor_proxy) != 1) {
+    stop("market_factor_proxy must be a single character string.")
+  }
+
+  # Handle Bayesian subclass creation
+  if (p_correction_method == "bayesian") {
+    if (!is.null(bayesian_model_parameters) && !inherits(bayesian_model_parameters, "bayesian_model_parameters")) {
+      stop("When p_correction_method is 'bayesian', bayesian_model_parameters must be a bayesian_model_parameters object.")
+    }
+
+    #Check if a bayesian_model_parametesr is being provided
+    if(is.null(bayesian_model_parameters)){
+      #If not create a generic one
+      bayesian_model_parameters = new("bayesian_model_parameters",
+                                      user_priors = NULL,
+                                      model_spec_theme_level = "random_intercept",
+                                      prior_derivation_control = NULL,
+                                      brms_control = NULL
+      )
+    }
+
+    return(new("bayesian_alpha_test_strategy",
+               signal_significance_threshold = signal_significance_threshold,
+               p_correction_method = p_correction_method,
+               market_factor_proxy = market_factor_proxy, #For a new bayesian class, create an uniformative bayesian_model_parameters
+               bayesian_model_parameters = bayesian_model_parameters
+               )
+           )
+  }
+
+  # Handle Frequentist subclass creation
+  if (p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY")) {
+    return(new("frequentist_alpha_test_strategy",
+               signal_significance_threshold = signal_significance_threshold,
+               p_correction_method = p_correction_method,
+               market_factor_proxy = market_factor_proxy))
+  }
+
+  # Default fallback (should not reach here due to prior validation)
+  stop("Unexpected error in create_alpha_test_strategy. Check input parameters.")
+}
+
+
+#' @title Add Bayesian Model Parameters
+#' @description Adds an object of class `bayesian_model_parameters` to a `bayesian_alpha_test_strategy` object.
+#' @param object An object of class `bayesian_alpha_test_strategy`.
+#' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
+#'   Options: `"random_intercept"`, `"fixed_intercepts"`, `"fixed_intercepts_and_slopes"`, `"none"`.
+#' @param user_priors An optional object of class `brmsprior`.
+#' @param prior_derivation_control An optional list containing `half_t_df`, `lmer_optimizer` and/or `lmer_optimization_objective`
+#' @param brms_control An optional list of parameters for `brms::brm`.
+#' @return An updated `bayesian_alpha_test_strategy` object with the `bayesian_model_parameters` slot populated.
+#' @export
+setGeneric("add_bayesian_model_parameters", function(object, ...) standardGeneric("add_bayesian_model_parameters"))
+
+setMethod("add_bayesian_model_parameters", "bayesian_alpha_test_strategy",
+          function(object, model_spec_theme_level, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
+            # Validate `model_spec_theme_level`
+            if (!model_spec_theme_level %in% c("random_intercept", "fixed_intercepts", "fixed_intercepts_and_slopes", "none")) {
+              stop("Invalid model_spec_theme_level. Must be one of: 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes', 'none'.")
+            }
+
+            # Ensure only one of `user_priors` or `prior_derivation_control` is provided
+            if (!is.null(user_priors) && !is.null(prior_derivation_control)) {
+              stop("Only one of 'user_priors' or 'prior_derivation_control' can be provided, not both.")
+            }
+
+            # Check user_priors arg
+            if(!is.null(user_priors)){
+              if(!inherits(user_priors, "brmsprior")){
+                stop("When provided, 'user_priors' must be an object of class 'brmsprior'.")
+              }
+            }
+
+            # Create `bayesian_model_parameters` object
+            bayesian_params <- new("bayesian_model_parameters",
+                                   user_priors = user_priors,
+                                   model_spec_theme_level = model_spec_theme_level,
+                                   prior_derivation_control = prior_derivation_control,
+                                   brms_control = brms_control)
+
+            # Add `bayesian_model_parameters` to `bayesian_alpha_test_strategy`
+            object@bayesian_model_parameters <- bayesian_params
+            return(object)
+          })
+
+#' @title Add Prior to Bayesian Alpha Test Strategy
+#' @description Adds a prior to a `bayesian_alpha_test_strategy` object based on provided parameters.
+#' @param object An object of class `bayesian_alpha_test_strategy`.
+#' @param distribution_choice A vector of strings representing the distribution of the prior. See details for valid options.
+#' @param pars A list of named numeric vectors. The names should match the expected parameter names for the chosen distribution.
+#' @param class A vector of character strings representing the class of the prior. Should be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.
+#' @param coef A vector of character strings representing the coefficient name. Only applicable when `class` is 'b' or 'sd'.
+#' @param group A vector of character strings representing the group name. Only applicable when `class` is 'b' or 'sd'.
+#' @return An updated `bayesian_alpha_test_strategy` object with the added prior.
+#' @export
+setGeneric("add_brms_prior", function(object, ...) standardGeneric("add_brms_prior"))
+
+setMethod("add_brms_prior", "bayesian_alpha_test_strategy",
+          function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
+
+            # Ensure lengths match
+            n <- length(distribution_choice)
+            if (!all(lengths(list(distribution_choice, pars, class)) == n)) {
+              stop("All arguments must have the same length.")
+            }
+            if (!is.null(coef) && length(coef) != n) {
+              stop("`coef` must be NULL or have the same length as `distribution_choice`.")
+            }
+            if (!is.null(group) && length(group) != n) {
+              stop("`group` must be NULL or have the same length as `distribution_choice`.")
+            }
+
+            # Replace NA values with empty strings for `coef` and `group`
+            if (is.null(coef)) {
+              coef <- rep("", n)
+            } else {
+              coef[is.na(coef)] <- ""
+            }
+            if (is.null(group)) {
+              group <- rep("", n)
+            } else {
+              group[is.na(group)] <- ""
+            }
+
+            # Validate `class`
+            if (!all(class %in% c("Intercept", "b", "sd", "sigma", "cor"))) {
+              stop("Invalid `class` values. Must be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.")
+            }
+
+            # Validate `pars` against `distribution_choice`
+            valid_distributions <- list(
+              normal = c("mean", "sd"),
+              student_t = c("df", "mean", "sd"),
+              cauchy = c("location", "scale"),
+              lognormal = c("meanlog", "sdlog"),
+              inv_gamma = c("shape", "scale"),
+              lkj = c("eta")
+            )
+            mapply(function(dist, params) {
+              if (!dist %in% names(valid_distributions)) {
+                stop(sprintf("Invalid distribution: '%s'.", dist))
+              }
+              missing_params <- setdiff(valid_distributions[[dist]], names(params))
+              if (length(missing_params) > 0) {
+                stop(sprintf("Missing parameters for '%s': %s.", dist, paste(missing_params, collapse = ", ")))
+              }
+              TRUE
+            }, distribution_choice, pars, SIMPLIFY = FALSE)
+
+            # Corrected validation for group and coef restrictions
+            if (any(!(class %in% c("b", "sd")) & group != "")) {
+              stop("Group should only be specified for class 'b' or 'sd'.")
+            }
+            if (any(!(class %in% c("b", "sd")) & coef != "")) {
+              stop("Coef should only be specified for class 'b' or 'sd'.")
+            }
+
+            # Validate against `model_spec_theme_level`
+            model_spec_theme_level <- object@bayesian_model_parameters@model_spec_theme_level
+            invalid_priors <- switch(
+              model_spec_theme_level,
+              "random_intercept" = {
+                sapply(seq_along(distribution_choice), function(i) {
+                  grepl("^theme", coef[i]) || grepl("^theme.*:market_factor_proxy$", coef[i])
+                })
+              },
+              "fixed_intercepts" = {
+                sapply(seq_along(distribution_choice), function(i) {
+                  class[i] == "Intercept" || grepl("^theme.*:market_factor_proxy$", coef[i])
+                })
+              },
+              "fixed_intercepts_and_slopes" = {
+                sapply(seq_along(distribution_choice), function(i) {
+                  class[i] == "Intercept" || coef[i] == "market_factor_proxy"
+                })
+              },
+              "none" = {
+                sapply(seq_along(distribution_choice), function(i) {
+                  grepl("^theme", coef[i])
+                })
+              },
+              stop("Invalid model_spec_theme_level.")
+            )
+
+            if (any(invalid_priors)) {
+              stop(sprintf("Some priors are invalid for model_spec_theme_level '%s'.", model_spec_theme_level))
+            }
+
+            # Generate `brmsprior` object
+            new_priors <- lapply(seq_along(distribution_choice), function(i) {
+              brms::set_prior(
+                paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
+                class = class[i],
+                coef = coef[i],
+                group = group[i]
+              )
+            })
+
+            # Combine with existing `user_priors`
+            if (is.null(object@bayesian_model_parameters@user_priors)) {
+              object@bayesian_model_parameters@user_priors <- do.call(rbind, new_priors)
+            } else {
+              object@bayesian_model_parameters@user_priors <- rbind(
+                object@bayesian_model_parameters@user_priors,
+                do.call(rbind, new_priors)
+              )
+            }
+
+            validObject(object@bayesian_model_parameters)
+            return(object)
+          })
 
 
 

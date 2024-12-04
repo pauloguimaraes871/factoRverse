@@ -20,12 +20,14 @@
 #'     \item \code{"fixed_intercepts_and_slopes"}: Fixed intercepts and slopes for each \code{theme}. Includes interaction terms between themes and the market factor proxy, with random intercepts for tickers.
 #'   }
 #'
-#'  @param v A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
+#'  @param half_t_df A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
 #'  Although the function specifies a regular student t distribution, `brms` will use half-t distribution, ensuring strictly positive parameters.
 #'
 #'  @param lmer_optimizer A character string specifying the optimizer to be used in the `lme4::lmer` function.
 #'  It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
 #'  Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+#'
+#'  @param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 #'
 #'
 #' #' @details
@@ -99,7 +101,7 @@
 #'
 #' @export
 derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_theme_level = "random_intercept",
-                                                v = 30, lmer_optimizer = "nloptwrap"){
+                                                half_t_df = 30, lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML"){
 
   #Initial checks
   ###Model specification correct
@@ -114,8 +116,8 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
   }
 
   ###Check if df is numeric
-  if(!is.numeric(v)){
-    stop("v should be numeric")
+  if(!is.numeric(half_t_df)){
+    stop("half_t_df should be numeric")
   }
 
   ###Check validity of lmer optimizer
@@ -123,10 +125,22 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     stop("Invalid optimizer. Please choose from 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'.")
   }
 
+  ##Check validitidy of optimization_objective
+  if(!lmer_optimization_objective %in% c("REML", "likelihood")){
+    stop("optimization_objective should be either 'REML' or 'likelihood'.")
+  } else {
+    if(lmer_optimization_objective == "REML"){
+      REML <- TRUE
+    } else {
+      REML <- FALSE
+    }
+  }
+
+
   if(model_spec_theme_level == "random_intercept"){
     # Random effects on intercept on theme level
     lme_model <- lme4::lmer(active_return ~ market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers),
-                            data = priors_m_upd_ref,
+                            data = priors_m_upd_ref, REML = REML,
                             control = lme4::lmerControl(optimizer = lmer_optimizer))
 
     # Extract fixed effects estimates and standard errors from the model summary
@@ -153,7 +167,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
       # Random effects priors for theme:tickers
       ## Intercept
-      brms::set_prior(paste0("student_t(",v,",0,",
+      brms::set_prior(paste0("student_t(",half_t_df,",0,",
                              round(random_effects$sdcor[
                                random_effects$grp == "theme:tickers" &
                                  is.na(random_effects$var2) &
@@ -161,7 +175,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
                       class = "sd", group = "theme:tickers", coef = "Intercept"
       ),
       ## Slope
-      brms::set_prior(paste0("student_t(",v,",0,",
+      brms::set_prior(paste0("student_t(",half_t_df,",0,",
                round(random_effects$sdcor[
                  random_effects$grp == "theme:tickers" &
                    random_effects$var1 == "market_factor_proxy"], 4), ")"),
@@ -170,7 +184,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
       # Random effects priors for theme
       ## Intercept
-      brms::set_prior(paste0("student_t(",v,",0,",
+      brms::set_prior(paste0("student_t(",half_t_df,",0,",
                round(random_effects$sdcor[
                  random_effects$grp == "theme" &
                    is.na(random_effects$var2) &
@@ -179,7 +193,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
       ),
 
       # Residual Standard Deviation Prior
-      brms::set_prior(paste0("student_t(",v,",0,",
+      brms::set_prior(paste0("student_t(",half_t_df,",0,",
                round(sigma(lme_model), 4), ")"),
         class = "sigma"
       )
@@ -198,7 +212,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
   if(model_spec_theme_level == "fixed_intercepts"){
     # Random effects on intercept on theme level
       lme_model <- lme4::lmer(active_return ~ 0 + theme + market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
-                              data = priors_m_upd_ref,
+                              data = priors_m_upd_ref, REML = REML,
                               control = lme4::lmerControl(optimizer = lmer_optimizer))
 
 
@@ -270,7 +284,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     priors <- rbind(
       priors,
       data.frame(
-        prior = paste0("student_t(",v,",0,",
+        prior = paste0("student_t(",half_t_df,",0,",
                        round(random_effects$sdcor[random_effects$grp == "theme:tickers" &
                                                   random_effects$var1 == "(Intercept)" &
                                                   is.na(random_effects$var2)
@@ -287,7 +301,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
         stringsAsFactors = FALSE
       ),
       data.frame(
-        prior = paste0("student_t(",v,",0,",
+        prior = paste0("student_t(",half_t_df,",0,",
                        round(random_effects$sdcor[
                              random_effects$grp == "theme:tickers" &
                              random_effects$var1 == "market_factor_proxy"], 4), ")"),
@@ -308,7 +322,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     priors <- rbind(
       priors,
       data.frame(
-        prior = paste0("student_t(",v,",0,", round(sigma(lme_model), 4), ")"),
+        prior = paste0("student_t(",half_t_df,",0,", round(sigma(lme_model), 4), ")"),
         class = "sigma",
         coef = "",
         group = "",
@@ -348,7 +362,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
   if(model_spec_theme_level == "fixed_intercepts_and_slopes"){
     # Random effects on intercept on theme level
     lme_model <- lme4::lmer(active_return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
-                            data = priors_m_upd_ref,
+                            data = priors_m_upd_ref, REML = REML,
                             control = lme4::lmerControl(optimizer = lmer_optimizer))
 
 
@@ -400,7 +414,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     priors <- rbind(
       priors,
       data.frame(
-        prior = paste0("student_t(",v,",0,",
+        prior = paste0("student_t(",half_t_df,",0,",
                        round(random_effects$sdcor[random_effects$grp == "theme:tickers" &
                                                   random_effects$var1 == "(Intercept)" &
                                                   is.na(random_effects$var2)
@@ -417,7 +431,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
         stringsAsFactors = FALSE
       ),
       data.frame(
-        prior = paste0("student_t(",v,",0,",
+        prior = paste0("student_t(",half_t_df,",0,",
                        round(random_effects$sdcor[
                          random_effects$grp == "theme:tickers" &
                            random_effects$var1 == "market_factor_proxy"], 4), ")"),
@@ -438,7 +452,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     priors <- rbind(
       priors,
       data.frame(
-        prior = paste0("student_t(",v,",0,", round(sigma(lme_model), 4), ")"),
+        prior = paste0("student_t(",half_t_df,",0,", round(sigma(lme_model), 4), ")"),
         class = "sigma",
         coef = "",
         group = "",
@@ -479,7 +493,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
   if(model_spec_theme_level == "none"){
     # No effects on theme level
     lme_model <- lme4::lmer(active_return ~ market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
-                            data = priors_m_upd_ref,
+                            data = priors_m_upd_ref, REML = REML,
                             control = lme4::lmerControl(optimizer = lmer_optimizer))
 
 
@@ -507,7 +521,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
       # Random effects priors for theme:tickers
       ## Intercept
-      brms::set_prior(paste0("student_t(",v,",0,",
+      brms::set_prior(paste0("student_t(",half_t_df,",0,",
                              round(random_effects$sdcor[
                                random_effects$grp == "theme:tickers" &
                                  is.na(random_effects$var2) &
@@ -515,7 +529,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
                       class = "sd", group = "theme:tickers", coef = "Intercept"
       ),
       ## Slope
-      brms::set_prior(paste0("student_t(",v,",0,",
+      brms::set_prior(paste0("student_t(",half_t_df,",0,",
                              round(random_effects$sdcor[
                                random_effects$grp == "theme:tickers" &
                                  random_effects$var1 == "market_factor_proxy"], 4), ")"),
@@ -523,7 +537,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
       ),
 
       # Residual Standard Deviation Prior
-      brms::set_prior(paste0("student_t(",v,",0,",
+      brms::set_prior(paste0("student_t(",half_t_df,",0,",
                              round(sigma(lme_model), 4), ")"),
                       class = "sigma"
       )

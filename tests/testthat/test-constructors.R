@@ -427,7 +427,33 @@ test_that("add_hyperparameter throws error for missing bounds in bayesian_opt", 
   expect_error(add_hyperparameter(bayesian_opt_obj, hyperparameter = "mtry"))
 })
 
-#Metabacktest
+#Keras
+test_that("create_keras_architecture_parameters works", {
+
+  keras <- create_keras_architecture(nn_optimizer = "Adam", units = c(32,16), activation = c("relu", "relu"), batch_norm_option = c(TRUE, TRUE))
+
+  expect_equal(keras@units, c(32,16))
+  expect_equal(keras@batch_norm_option, c(TRUE,TRUE))
+  expect_equal(keras@activation, c("relu","relu"))
+  expect_equal(keras@nn_optimizer, "Adam")
+  expect_equal(keras@n_layers, 2)
+
+})
+
+test_that("add_keras_architecture_parameters works", {
+
+  keras <- create_keras_architecture(nn_optimizer = "Adam", units = c(32,16), activation = c("relu", "relu"), batch_norm_option = c(TRUE, TRUE))
+  keras <- add_keras_layer(keras, units = 8, activation = "tanh", batch_norm_option = FALSE)
+
+  expect_equal(keras@units, c(32,16,8))
+  expect_equal(keras@batch_norm_option, c(TRUE,TRUE,FALSE))
+  expect_equal(keras@activation, c("relu","relu","tanh"))
+  expect_equal(keras@nn_optimizer, "Adam")
+  expect_equal(keras@n_layers, 3)
+
+})
+
+#ML Backtest and Metabacktest
 test_that("create_metabacktest_config works", {
 
   ml_backtest_1 <- create_ml_backtest_config(
@@ -623,38 +649,206 @@ test_that("create_metabacktest_config throws an error when trying to add a confi
 
 })
 
-test_that("ml_metabacktest_config throws an error when target_fwd_name differs", {
 
-  config1 <- create_ml_backtest_config(
-    target_fwd_name = "target_1m",
-    ml_algorithm = "glmnet"
-  ) %>% add_tuning_strategy(
-    tuning_method = "grid_search",
-    chosen_eval_metric = "mphe",
-    validation_sample_size = 1000
-  ) %>% add_hyperparameter(
-    hyperparameter = c("alpha", "lambda.min.ratio"),
-    grid = list(c(0, 0.5, 1), c(0.1, 0.2, 0.9))
+#Alpha Test Strategy
+test_that("create_alpha_test_strategy constructs valid objects for valid inputs", {
+  # Frequentist method with default significance threshold
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "holm",
+    market_factor_proxy = "IBOV"
   )
 
-  config2 <- create_ml_backtest_config(
-    target_fwd_name = "target_2m",
-    ml_algorithm = "glmnet"
-  ) %>% add_tuning_strategy(
-    tuning_method = "grid_search",
-    chosen_eval_metric = "mphe",
-    validation_sample_size = 1000
-  ) %>% add_hyperparameter(
-    hyperparameter = c("alpha", "lambda.min.ratio"),
-    grid = list(c(0, 0.5, 1), c(0.1, 0.2, 0.9))
+  expect_s4_class(obj, "frequentist_alpha_test_strategy")
+  expect_equal(obj@signal_significance_threshold, 0.05)
+  expect_equal(obj@p_correction_method, "holm")
+  expect_equal(obj@market_factor_proxy, "IBOV")
+
+  # Bayesian method
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.1,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "SMLL"
   )
 
-  expect_error(
-    create_ml_metabacktest_config(
-      ml_backtest_configs = list(config1, config2)
+  expect_s4_class(obj, "bayesian_alpha_test_strategy")
+  expect_equal(obj@signal_significance_threshold, 0.1)
+  expect_equal(obj@p_correction_method, "bayesian")
+  expect_equal(obj@market_factor_proxy, "SMLL")
+  expect_s4_class(obj@bayesian_model_parameters, "bayesian_model_parameters")
+})
+
+test_that("create_alpha_test_strategy handles edge cases", {
+  # Boundary values for signal_significance_threshold
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0,
+    p_correction_method = "holm",
+    market_factor_proxy = "S&P500"
+  )
+  expect_equal(obj@signal_significance_threshold, 0)
+
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 1,
+    p_correction_method = "holm",
+    market_factor_proxy = "S&P500"
+  )
+  expect_equal(obj@signal_significance_threshold, 1)
+})
+
+#Bayesian Model Parameters
+test_that("add_bayesian_model_parameters works with valid inputs", {
+  # Create a bayesian_alpha_test_strategy object
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "ISE"
+  )
+
+  # Add Bayesian model parameters
+  updated_obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    user_priors = NULL,
+    prior_derivation_control = list(half_t_df = 30),
+    brms_control = list(chains = 4, iter = 2000, warmup = 1000, seed = 123, adapt_delta = 0.9)
+  )
+
+  # Check updated object
+  expect_s4_class(updated_obj, "bayesian_alpha_test_strategy")
+  expect_equal(updated_obj@bayesian_model_parameters@model_spec_theme_level, "random_intercept")
+  expect_equal(updated_obj@bayesian_model_parameters@prior_derivation_control$half_t_df, 30)
+  expect_equal(updated_obj@bayesian_model_parameters@brms_control$chains, 4)
+  expect_equal(updated_obj@bayesian_model_parameters@brms_control$adapt_delta, 0.9)
+})
+
+test_that("add_prior adds valid priors to bayesian_alpha_test_strategy for random_intercept", {
+  # Create a bayesian_alpha_test_strategy object
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "IDIV"
+  ) %>% add_bayesian_model_parameters(
+    model_spec_theme_level = "random_intercept"
+  )
+
+  # Add valid priors
+  updated_obj <- add_brms_prior(
+    object = obj,
+    distribution_choice = c("normal", "student_t"),
+    pars = list(
+      c(mean = 0.0012, sd = 0.0016),
+      c(df = 30, mean = 0, sd = 0.0113)
     ),
-    "The 'target_fwd_name' must match across all 'ml_backtest_config' elements."
+    class = c("Intercept", "sd"),
+    coef = c(NA, "Intercept"),
+    group = c(NA, "theme:tickers") # Keep group only for 'sd'
   )
+
+  # Check updated object
+  expect_s4_class(updated_obj, "bayesian_alpha_test_strategy")
+  expect_equal(nrow(updated_obj@bayesian_model_parameters@user_priors), 2)
+  expect_equal(updated_obj@bayesian_model_parameters@user_priors$class[1], "Intercept")
+  expect_equal(updated_obj@bayesian_model_parameters@user_priors$class[2], "sd")
+
+  # Add valid priors
+  updated_obj <- add_brms_prior(
+    object = updated_obj,
+    distribution_choice = c("normal", "student_t"),
+    pars = list(
+      c(mean = 0.0003, sd = 0.0003),
+      c(df = 30, mean = 0, sd = 0.0018)
+    ),
+    class = c("b", "sd"),
+    coef = c("market_factor_proxy", "market_factor_proxy"),
+    group = c(NA, "theme:tickers") # Keep group only for 'sd'
+  ) %>% add_brms_prior(
+    distribution_choice = c("student_t", "student_t", "lkj"),
+    pars = list(c(df = 30, mean = 0, sd = 0.0011), c(df = 30, mean = 0, sd = 0.0256), c(eta = 2)),
+    class = c("sd", "sigma", "cor"),
+    coef = c("Intercept", NA, NA),
+    group = c("theme", NA, NA)
+    )
+
+  expect_equal(nrow(updated_obj@bayesian_model_parameters@user_priors), 7)
+  expect_equal(updated_obj@bayesian_model_parameters@user_priors$class, c("Intercept", "sd", "b", "sd", "sd", "sigma", "cor"))
+
+  expected_priors <- c(
+    # Prior for Intercept
+    brms::set_prior("normal(0.0012, 0.0016)", class = "Intercept"), #ok
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"), #ok
+
+    # Prior for market_factor_proxy coefficient
+    brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"), #ok
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"), #ok
+
+    # Prior for sd of Intercept at theme level
+    brms::set_prior("student_t(30, 0, 0.0011)", class = "sd", group = "theme", coef = "Intercept"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+  expect_equal(updated_obj@bayesian_model_parameters@user_priors, expected_priors)
+
+
+
+
+})
+
+test_that("add_prior adds valid priors to bayesian_alpha_test_strategy for fixed_intercepts", {
+  # Create a bayesian_alpha_test_strategy object
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "IDIV"
+  ) %>% add_bayesian_model_parameters(
+    model_spec_theme_level = "fixed_intercepts"
+  )
+
+  # Add valid priors
+  updated_obj <- add_brms_prior(
+    object = obj,
+    distribution_choice = c("normal", "normal", "normal", "student_t", "student_t", "student_t", "lkj"),
+    pars = list(
+      c(mean = 0.0012, sd = 0.0016), c(mean = 0.0025,sd = 0.0016), c(mean = 0.0003, sd = 0.0003),
+      c(df = 30, mean = 0, sd = 0.0113),  c(df = 30, mean = 0, sd = 0.0018),  c(df = 30, mean = 0, sd = 0.0256), c(eta = 2)
+    ),
+    class = c("b", "b", "b", "sd", "sd", "sigma", "cor"),
+    coef = c("themevalue", "thememomentum", "market_factor_proxy", "Intercept", "market_factor_proxy", NA, NA),
+    group = c(NA, NA, NA, "theme:tickers", "theme:tickers", NA, NA) # Keep group only for 'sd'
+  )
+
+
+  expected_priors <-  c(
+    # Prior for Value and Mom
+    brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themevalue"),
+    brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "thememomentum"),
+
+    # Prior for market_factor_proxy coefficient
+    brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"),
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+  expect_equal(updated_obj@bayesian_model_parameters@user_priors, expected_priors)
+
 })
 
 
@@ -859,30 +1053,338 @@ test_that("Invalid droprate value in bayesian_opt for nn", {
 
 })
 
-#Keras
-test_that("create_keras_architecture_parameters works", {
+test_that("create_alpha_test_strategy rejects invalid inputs", {
+  # Invalid p_correction_method
+  expect_error(create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "invalid_method",
+    market_factor_proxy = "S&P500"
+  ), "Invalid p_correction_method")
 
-  keras <- create_keras_architecture(nn_optimizer = "Adam", units = c(32,16), activation = c("relu", "relu"), batch_norm_option = c(TRUE, TRUE))
+  # Missing market_factor_proxy
+  expect_error(create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "holm"
+  ), "market_factor_proxy must be a single character string")
 
-  expect_equal(keras@units, c(32,16))
-  expect_equal(keras@batch_norm_option, c(TRUE,TRUE))
-  expect_equal(keras@activation, c("relu","relu"))
-  expect_equal(keras@nn_optimizer, "Adam")
-  expect_equal(keras@n_layers, 2)
+  # Invalid signal_significance_threshold
+  expect_error(create_alpha_test_strategy(
+    signal_significance_threshold = -0.1,
+    p_correction_method = "holm",
+    market_factor_proxy = "S&P500"
+  ), "signal_significance_threshold must be between 0 and 1")
+
+  expect_error(create_alpha_test_strategy(
+    signal_significance_threshold = 1.1,
+    p_correction_method = "holm",
+    market_factor_proxy = "S&P500"
+  ), "signal_significance_threshold must be between 0 and 1")
+
 
 })
 
-test_that("add_keras_architecture_parameters works", {
+test_that("add_bayesian_model_parameters rejects invalid model_spec_theme_level", {
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "NASDAQ"
+  )
 
-  keras <- create_keras_architecture(nn_optimizer = "Adam", units = c(32,16), activation = c("relu", "relu"), batch_norm_option = c(TRUE, TRUE))
-  keras <- add_keras_layer(keras, units = 8, activation = "tanh", batch_norm_option = FALSE)
+  expect_error(add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "invalid_level",
+    user_priors = NULL
+  ), "Invalid model_spec_theme_level. Must be one of: 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes', 'none'.")
+})
 
-  expect_equal(keras@units, c(32,16,8))
-  expect_equal(keras@batch_norm_option, c(TRUE,TRUE,FALSE))
-  expect_equal(keras@activation, c("relu","relu","tanh"))
-  expect_equal(keras@nn_optimizer, "Adam")
-  expect_equal(keras@n_layers, 3)
+test_that("add_bayesian_model_parameters rejects both user_priors and prior_derivation_control", {
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "NASDAQ"
+  )
 
+  brms_prior <- brms::set_prior("normal(0, 1)", class = "b")
+  expect_error(add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    user_priors = brms_prior,
+    prior_derivation_control = list(half_t_df = 30, lmer_optimizer = "Nelder_Mead")
+  ), "Only one of 'user_priors' or 'prior_derivation_control' can be provided, not both.")
+})
+
+test_that("add_bayesian_model_parameters rejects invalid brms_control parameters", {
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "NASDAQ"
+  )
+
+  # Invalid chains
+  expect_error(add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    brms_control = list(chains = -1)
+  ), "chains must be a positive number.")
+
+  # Invalid adapt_delta
+  expect_error(add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    brms_control = list(adapt_delta = 1.5)
+  ), "adapt_delta should be between 0 and 1.")
+
+  # Warmup >= iter
+  expect_error(add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    brms_control = list(iter = 1000, warmup = 1000)
+  ), "warmup must be less than iter.")
+
+})
+
+test_that("add_bayesian_model_parameters rejects invalid prior_derivation_control parameters", {
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "NASDAQ"
+  )
+
+  # Invalid half_t_df
+  expect_error(add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    prior_derivation_control = list(half_t_df = -1)
+  ), "half_t_df must be a positive numeric value.")
+
+  # Invalid lmer_optimizer
+  expect_error(add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    prior_derivation_control = list(lmer_optimizer = "invalid_optimizer")
+  ), "lmer_optimizer must be one of 'nloptwrap', 'bobyqa', 'Nelder_Mead', or 'nlminbwrap'.")
+
+  # Invalid lmer_optimization_objective
+  expect_error(add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    prior_derivation_control = list(lmer_optimization_objective = "invalid_objective")
+  ), "lmer_optimization_objective should be one of 'likelihood' or 'REML'.")
+})
+
+test_that("add_bayesian_model_parameters handles empty user_priors", {
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "NASDAQ"
+  )
+
+  updated_obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept",
+    user_priors = NULL
+  )
+
+  expect_null(updated_obj@bayesian_model_parameters@user_priors)
+})
+
+test_that("add_prior rejects invalid distribution_choice", {
+
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "NASDAQ"
+  )
+
+  obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept"
+  )
+
+  expect_error(
+    add_brms_prior(
+      object = obj,
+      distribution_choice = c("invalid_distribution"),
+      pars = list(c(mean = 0.0012, sd = 0.0016)),
+      class = c("Intercept"),
+      coef = c(NA),
+      group = c(NA)
+    ),
+    "Invalid distribution: 'invalid_distribution'."
+  )
+})
+
+test_that("add_prior rejects missing parameters for distribution", {
+
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "NASDAQ"
+  )
+
+  obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept"
+  )
+
+  expect_error(
+    add_brms_prior(
+      object = obj,
+      distribution_choice = c("normal"),
+      pars = list(c(mean = 0.0012)),  # Missing 'sd'
+      class = c("Intercept"),
+      coef = c(NA),
+      group = c(NA)
+    ),
+    "Missing parameters for 'normal': sd."
+  )
+})
+
+test_that("add_prior rejects invalid class", {
+
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "IDIV"
+  )
+
+  obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept"
+  )
+
+  expect_error(
+    add_brms_prior(
+      object = obj,
+      distribution_choice = c("normal"),
+      pars = list(c(mean = 0.0012, sd = 0.0016)),
+      class = c("invalid_class"),
+      coef = c(NA),
+      group = c(NA)
+    ),
+    "Invalid `class` values. Must be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'."
+  )
+})
+
+test_that("add_prior rejects invalid coef and group specifications", {
+
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "SMLL"
+  )
+
+  obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept"
+  )
+
+  # Coef specified for 'sigma' class
+  expect_error(
+    add_brms_prior(
+      object = obj,
+      distribution_choice = c("cauchy"),
+      pars = list(c(location = 0, scale = 2.5)),
+      class = c("sigma"),
+      coef = c("some_coef"),
+      group = c(NA)
+    ),
+    "Coef should only be specified for class 'b' or 'sd'."
+  )
+
+  # Group specified for 'Intercept' class
+  expect_error(
+    add_brms_prior(
+      object = obj,
+      distribution_choice = c("normal"),
+      pars = list(c(mean = 0, sd = 1)),
+      class = c("Intercept"),
+      coef = c(NA),
+      group = c("some_group")
+    ),
+    "Group should only be specified for class 'b' or 'sd'."
+  )
+})
+
+test_that("add_prior rejects invalid priors for 'random_intercept' model", {
+
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.05,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "NASDAQ"
+  )
+
+  obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "random_intercept"
+  )
+
+  # Attempt to add a prior with coef starting with 'theme', which is invalid
+  expect_error(
+    add_brms_prior(
+      object = obj,
+      distribution_choice = c("normal"),
+      pars = list(c(mean = 0, sd = 1)),
+      class = c("b"),
+      coef = c("themeGrowth"),
+      group = c(NA)
+    ),
+    "Some priors are invalid for model_spec_theme_level 'random_intercept'."
+  )
+})
+
+test_that("add_prior rejects invalid priors for 'fixed_intercepts' model", {
+
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.1,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "S&P500"
+  )
+
+  obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "fixed_intercepts"
+  )
+
+  # Attempt to add an 'Intercept' class prior, which is invalid for this model
+  expect_error(
+    add_brms_prior(
+      object = obj,
+      distribution_choice = c("normal"),
+      pars = list(c(mean = 0, sd = 1)),
+      class = c("Intercept"),
+      coef = c(NA),
+      group = c(NA)
+    ),
+    "Some priors are invalid for model_spec_theme_level 'fixed_intercepts'."
+  )
+})
+
+test_that("add_prior rejects invalid priors for 'fixed_intercepts_and_slopes' model", {
+
+  obj <- create_alpha_test_strategy(
+    signal_significance_threshold = 0.2,
+    p_correction_method = "bayesian",
+    market_factor_proxy = "DOWJONES"
+  )
+
+  obj <- add_bayesian_model_parameters(
+    object = obj,
+    model_spec_theme_level = "fixed_intercepts_and_slopes"
+  )
+
+  # Attempt to add a prior for 'market_factor_proxy', which is invalid for this model
+  expect_error(
+    add_brms_prior(
+      object = obj,
+      distribution_choice = c("normal"),
+      pars = list(c(mean = 0, sd = 1)),
+      class = c("b"),
+      coef = c("market_factor_proxy"),
+      group = c(NA)
+    ),
+    "Some priors are invalid for model_spec_theme_level 'fixed_intercepts_and_slopes'."
+  )
 })
 
 

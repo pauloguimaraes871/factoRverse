@@ -226,7 +226,8 @@ test_that("define_signal_elibility works for bayesian setting", {
     selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
     selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_upd_ref$IBOV,
     user_priors = user_priors,
-    signal_themes_m_d_ref = signal_themes_m_d_ref
+    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    seed = 123
   )
   )
 
@@ -236,7 +237,7 @@ test_that("define_signal_elibility works for bayesian setting", {
                                                    lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization)
 
   #Classify
-  concentration_constraint_policy_test <- list(benchmarks = c("theme_sb", "theme_ss"), max_abs_active_group_weight = NULL)
+  concentration_constraint_policy_test <- list(benchmarks = c("theme_ss", "theme_sb"), max_abs_active_group_weight = NULL)
   #Adjust significance threshold to have at least one significant signal
   signal_significance_threshold <- 1.30 #this makes no sense
   p_correction_method <- "bayesian" #this makes no sense
@@ -248,6 +249,8 @@ test_that("define_signal_elibility works for bayesian setting", {
     bayesian_fit_list = bayesian_results[-1]
   )
 
+  expected_result$signal_universe_m_d_ref$final_signal <- NULL
+
   #results
   set.seed(123)
   results <- suppressWarnings(define_signal_eligibility(
@@ -257,10 +260,11 @@ test_that("define_signal_elibility works for bayesian setting", {
     p_correction_method = "bayesian",
     signal_significance_threshold = signal_significance_threshold, enable_theme_representativeness = FALSE,
     user_priors = user_priors,
-    signal_themes_m_d_ref = signal_themes_m_d_ref
+    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    brms_control = list(seed = 123)
   ))
 
   expect_equal(results$signal_universe_m_d_ref, expected_result$signal_universe_m_d_ref)
-
+  expect_equal(results$bayesian_results$posterior_draws_summaries, expected_result$bayesian_fit_list$posterior_draws_summaries)
 
 })

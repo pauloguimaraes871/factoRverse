@@ -981,6 +981,112 @@ setMethod("show", "ml_metabacktest_results", function(object) {
 
 
 
+#' @title Show Alpha Test Strategy
+#' @description Prints the contents of an `alpha_test_strategy` object, detailing the various parameters and their configurations.
+#' @param object An `alpha_test_strategy` object to be displayed.
+#' @method show alpha_test_strategy
+#' @export
+setMethod("show", "alpha_test_strategy", function(object) {
+
+  # Display Main Information
+  cat("------------------------------\n")
+  cat("Main Information:\n")
+  cat("------------------------------\n")
+  cat("Signal Significance Threshold:", object@signal_significance_threshold, "\n")
+  cat("P Correction Method:", object@p_correction_method, "\n")
+  cat("Market Factor Proxy:", object@market_factor_proxy, "\n")
+
+  cat("\n==============================\n")
+})
+
+
+#' @title Show Frequentist Alpha Test Strategy
+#' @description Prints the contents of a `frequentist_alpha_test_strategy` object, detailing the various parameters and their configurations.
+#' @param object A `frequentist_alpha_test_strategy` object to be displayed.
+#' @method show frequentist_alpha_test_strategy
+#' @export
+setMethod("show", "frequentist_alpha_test_strategy", function(object) {
+  cat("==============================\n")
+  cat("Frequentist Alpha Test Strategy Configuration\n")
+  cat("==============================\n\n")
+
+  # Call the parent class show method to display common information
+  callNextMethod()
+
+  # Additional frequentist-specific information can be added here if necessary
+
+  cat("\n==============================\n")
+})
+
+
+#' @title Show Bayesian Alpha Test Strategy
+#' @description Prints the contents of a `bayesian_alpha_test_strategy` object, detailing the various parameters and their configurations.
+#' @param object A `bayesian_alpha_test_strategy` object to be displayed.
+#' @method show bayesian_alpha_test_strategy
+#' @export
+setMethod("show", "bayesian_alpha_test_strategy", function(object) {
+  cat("==============================\n")
+  cat("Bayesian Alpha Test Strategy Configuration\n")
+  cat("==============================\n\n")
+
+  # Call the parent class show method to display common information
+  callNextMethod()
+
+  # Display Bayesian Model Parameters
+  cat("\n------------------------------\n")
+  cat("Bayesian Model Parameters:\n")
+  cat("------------------------------\n")
+
+  bayesian_params <- object@bayesian_model_parameters
+  if (!is.null(bayesian_params)) {
+    show(bayesian_params)
+  } else {
+    cat("No Bayesian Model Parameters set.\n")
+  }
+
+  cat("\n==============================\n")
+})
+
+#' @title Show Bayesian Model Parameters
+#' @description Prints the contents of a `bayesian_model_parameters` object, detailing the various parameters and configurations.
+#' @param object A `bayesian_model_parameters` object to be displayed.
+#' @method show bayesian_model_parameters
+#' @export
+setMethod("show", "bayesian_model_parameters", function(object) {
+  cat("Model Specification Theme Level:", object@model_spec_theme_level, "\n")
+
+  # Display Prior Derivation Control
+  if (!is.null(object@prior_derivation_control)) {
+    cat("\nPrior Derivation Control:\n")
+    cat("------------------------------\n")
+    for (param_name in names(object@prior_derivation_control)) {
+      cat("  ", param_name, ": ", object@prior_derivation_control[[param_name]], "\n")
+    }
+  } else {
+    cat("\nNo Prior Derivation Control set.\n")
+  }
+
+  # Display brms Control Parameters
+  if (!is.null(object@brms_control)) {
+    cat("\nBrms Control Parameters:\n")
+    cat("------------------------------\n")
+    for (param_name in names(object@brms_control)) {
+      cat("  ", param_name, ": ", object@brms_control[[param_name]], "\n")
+    }
+  } else {
+    cat("\nNo Brms Control Parameters set.\n")
+  }
+
+  # Display User Priors
+  if (!is.null(object@user_priors)) {
+    cat("\nUser Priors:\n")
+    cat("------------------------------\n")
+    print(object@user_priors)
+  } else {
+    cat("\nNo User Priors set.\n")
+  }
+})
+
 
 #############################################
 

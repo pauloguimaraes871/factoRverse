@@ -42,7 +42,7 @@
 #'     \item{`"none"`}{No theme-level effects; only random intercepts and slopes for theme-signal combinations.}
 #'   }
 #'
-#' @param v Numeric.
+#' @param half_t_df Numeric.
 #'   The degrees of freedom in the half-t distribution applied to model random effects. This parameter controls the tails of the distribution. Default is `30`.
 #'
 #' @param lmer_optimizer Character string.
@@ -54,6 +54,8 @@
 #'     \item{`"nlminbwrap"`}{Wrapper for the `nlminb` optimizer.}
 #'   }
 #'   Default is `"nloptwrap"`.
+#'
+#'  @param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 #'
 #' @param signal_themes_m_d_ref Data frame.
 #'   A (meta)data frame containing metadata about signals with the following columns:
@@ -160,7 +162,8 @@
 #'
 #' @export
 bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_returns_corrected_positions_upd_ref, selected_market_factor_proxy_vector_upd_ref, #Data
-                                priors_m_upd_ref = NULL, model_spec_theme_level = "random_intercept", v = 30, lmer_optimizer = "nloptwrap", user_priors = NULL, #Priors
+                                priors_m_upd_ref = NULL, model_spec_theme_level = "random_intercept", user_priors = NULL, #Priors
+                                lmer_optimization_objective = "REML", half_t_df = 30, lmer_optimizer = "nloptwrap",  #lme4 parameters
                                 signal_themes_m_d_ref,
                                 chains = 4, iter = 2000, warmup = floor(iter/2), thin = 1, seed = NA, adapt_delta = 0.80, #MCMC parameters
                                 parallel = TRUE, verbose = TRUE){
@@ -205,8 +208,9 @@ bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_retur
       elected_priors_list <- derive_informative_priors_from_data(
         priors_m_upd_ref = priors_m_upd_ref, #priors_m_d_ref
         model_spec_theme_level = model_spec_theme_level, #Specification for hierarchical model
-        v = v, #Degrees of freedom for student-t prior
-        lmer_optimizer = lmer_optimizer #LMER Optimizer
+        half_t_df = half_t_df, #Degrees of freedom for student-t prior
+        lmer_optimizer = lmer_optimizer, #LMER Optimizer,
+        lmer_optimization_objective = lmer_optimization_objective #LMER Optimization Objective
       )
     }
     if(verbose){

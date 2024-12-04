@@ -61,7 +61,7 @@ setGeneric("run_ml_backtest", function(features_m_df, target_m_df, target_fwd_na
 setMethod("run_ml_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", target_fwd_name = "character",
                     config = "ml_backtest_config",
-                    verbose = "ANY", parallel = "ANY"),
+                    verbose = "logical", parallel = "logical"),
 
           function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel) {
 
@@ -203,7 +203,7 @@ setMethod("run_ml_backtest",
 setMethod("run_ml_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", target_fwd_name = "character",
                     config = "ml_metabacktest_config",
-                    verbose = "ANY", parallel = "ANY"),
+                    verbose = "logical", parallel = "logical"),
 
           function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel,
                    winsorize_predictions = TRUE, winsorization_probs = c(0.025, 0.975), normalize_predictions = TRUE,
@@ -399,7 +399,7 @@ setMethod("run_ml_backtest",
 
 
 
-
+#' @describeIn run_ml_backtest Run Signal Selection Backtest
 #' Perform out-of-sample testing for ML Algorithms with walk-forward time series validation
 #'
 #' This function performs walk-forward validation for time series data using

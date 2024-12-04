@@ -39,12 +39,16 @@
 #'   - `"fixed_intercepts_and_slopes"`: Includes fixed intercepts and slopes for each theme.
 #'   - `"none"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
 #'
-#' @param v A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
-#' Although the function specifies a regular student t distribution, `brms` will use half-t distribution, ensuring strictly positive parameters.
+#' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
+#' \itemize{
+#' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
 #'
-#' @param lmer_optimizer A character string specifying the optimizer to be used in the `lme4::lmer` function.
+#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the `lme4::lmer` function.
 #' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
 #' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+#'
+#' \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+#' }
 #'
 #' @param brms_control Other additional parameters to be passed to brms::brm function:
 #' \itemize{
@@ -188,13 +192,14 @@ define_signal_eligibility <- function(
   #Theme representativeness
   enable_theme_representativeness = TRUE,
   #Bayesian method
-  priors_m_upd_ref = NULL, user_priors = NULL, model_spec_theme_level = "random_intercept", brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
-  lmer_optimizer = "nloptwrap", v = 30,
+  priors_m_upd_ref = NULL, user_priors = NULL, model_spec_theme_level = "random_intercept",
+  brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
+  prior_derivation_control = list(lmer_optimizer = "nloptwrap", half_t_df = 30, lmer_optimization_objective = "REML"),
   #Signal Themes
   signal_themes_m_d_ref,
   #Winsorization
   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
-  #Verbose
+  #Verbose & Parallel
   verbose = TRUE, parallel = TRUE
 ){
 
@@ -281,12 +286,17 @@ define_signal_eligibility <- function(
     ######################################
 
     #Get parameters of brms_control
-    chains <- brms_control$chains
-    iter <- brms_control$iter
+    chains <- if(is.null(brms_control$chains)) 4 else brms_control$chains
+    iter <- if(is.null(brms_control$iter)) 2000 else brms_control$iter
     warmup <- if(is.null(brms_control$warmup)) round(iter/2) else brms_control$warmup
     thin <- if(is.null(brms_control$thin)) 1 else brms_control$thin
     seed <- if(is.null(brms_control$seed)) NA else brms_control$seed
     adapt_delta <- if(is.null(brms_control$adapt_delta)) 0.80 else brms_control$adapt_delta
+
+    #Get parameters of prior_derivation_control
+    half_t_df <- if(is.null(prior_derivation_control$half_t_df)) 30 else prior_derivation_control$half_t_df
+    lmer_optimizer <- if(is.null(prior_derivation_control$lmer_optimizer)) "nloptwrap" else prior_derivation_control$lmer_optimizer
+    lmer_optimization_objective <- if(is.null(prior_derivation_control$lmer_optimization_objective)) "REML" else prior_derivation_control$lmer_optimization_objective
 
     #Bayesian adjustment
     bayesian_adjustment_results_list <- bayesian_adjustment(
@@ -295,13 +305,15 @@ define_signal_eligibility <- function(
       selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
       selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
       #Priors
-      priors_m_upd_ref = priors_m_upd_ref, v = v, lmer_optimizer = lmer_optimizer,
+      priors_m_upd_ref = priors_m_upd_ref,
       user_priors = user_priors,
       model_spec_theme_level = model_spec_theme_level,
-      #Groups
-      signal_themes_m_d_ref = signal_themes_m_d_ref,
+      #lmer control
+      half_t_df = half_t_df, lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective,
       #brms control
       chains = chains, iter = iter, warmup = warmup, thin = thin, seed = seed, adapt_delta = adapt_delta,
+      #Groups
+      signal_themes_m_d_ref = signal_themes_m_d_ref,
       parallel = parallel, verbose = verbose
     )
 

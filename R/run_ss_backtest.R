@@ -2,16 +2,146 @@
 #'
 #' This function performs iterative signal selection based on frequentist or Bayesian methods, which are applied to portfolio returns backtests to identify which signals can be considered significant in stock-level return prediction.
 #'
+#' To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM),
+#' computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
+#'
+#' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
+#' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
+#' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in `signals_m_df`, containing historical backtested returns.
+#' @param benchmark_returns_df A data frame with a 'dates' column and columns with benchmark returns, named accordingly.
+#' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
+#' and values for active_return, bench_return, alpha (mean and se), beta (mean and se), and sigma. Data should be exogenous, as it will be used to set priors for the hierarchical Bayesian model.
+#' @param signal_themes_m_df A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in `signals_m_df`, and a "theme" column providing group membership for each signal.
+#' @param upper_quantile_winsorization Numeric value for upper winsorization.
+#' @param lower_quantile_winsorization Numeric value for lower winsorization.
+#' @param verbose A boolean indicating whether to print messages.
+#' @param parallel A boolean indicating whether to run the backtest in parallel.
+#' @param ... Additional arguments (not used in this method).
+#' @export
+setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_df, benchmark_returns_df, priors_m_df, signal_themes_m_df,
+                                       verbose, parallel, ...) {
+  standardGeneric("run_ss_backtest")
+})
+
+#' @describeIn run_ss_backtest Run Signal Selection Backtest
+#' @description Runs signal selection backtest given bayesian or frequentist approaches for p-value correction.
+#' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
+#' @export
+setMethod("run_ss_backtest",
+          signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_df = "data.frame", benchmark_returns_df = "data.frame",
+                    priors_m_df = "ANY", signal_themes_m_df = "meta_dataframe", verbose = "ANY", parallel = "ANY"),
+
+          function(config, signals_m_df, backtest_returns_df, benchmark_returns_df, priors_m_df = NULL, signal_themes_m_df,
+                   winsorization_probs = c(0.025, 0.975),
+                   verbose = TRUE, parallel = TRUE){
+
+            ## Initial Preparations
+            #######################
+            #Assign default values for internal function (to avoid getting vars from global environ)
+            data_availability_cutoff <- 60
+            split_method <- "expanding"
+            market_factor_proxy <- "IBOV"
+            p_correction_method <- "none"
+            signal_significance_threshold <- 0.05
+            enable_theme_representativeness <- TRUE
+            user_priors <- NULL
+            model_spec_theme_level <- "random_intercept"
+            brms_control <- list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80)
+            prior_derivation_control <- list(lmer_optimizer = "nloptwrap", half_t_df = 30, lmer_optimization_objective = "REML")
+            lower_quantile_winsorization <- min(winsorization_probs)
+            upper_quantile_winsorization <- max(winsorization_probs)
+
+            ##Set missing values to TRUE
+            if(missing(verbose)){
+              verbose <- TRUE
+            }
+            if(missing(parallel)){
+              parallel <- TRUE
+            }
+            #######################
+
+            #Get data from S4 objects
+            #########################
+            ##signals_m_df
+            signals_workflow <- signals_m_df@workflow #Get workflow
+            signals_object_name <- signals_m_df@meta_dataframe_name #Get mdf name
+            signals_m_df <- signals_m_df@data #Get signals_m_df
+
+            ##priors_m_df
+            if(!is.null(priors_m_df)){
+              priors_workflow <- priors_m_df@workflow #Get workflow
+              priors_object_name <- priors_m_df@meta_dataframe_name #Get mdf name
+              priors_m_df <- priors_m_df@data #Get priors_m_df
+            }
+
+            ##signal_themes_m_df
+            signal_themes_workflow <- signal_themes_m_df@workflow #Get workflow
+            signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name #Get mdf name
+            signal_themes_m_df <- signal_themes_m_df@data #Get signal_themes_m_df
+
+            ##Get general info from contig
+            chosen_signals <- config@chosen_signals
+            signal_positions <- config@signal_positions
+            data_availability_cutoff <- config@data_availability_cutoff
+            initial_sample_size <- config@initial_sample_size
+            rebalancing_months <- config@rebalancing_months
+            split_method <- config@split_method
+            enable_theme_representativeness <- config@enable_theme_representativeness
+            config_name <- config@config_name
+            alpha_test_strategy <- config@alpha_test_strategy
+
+            ##Get general info from alpha_test_strategy
+            signal_significance_threshold <- alpha_test_strategy@signal_significance_threshold
+            p_correction_method <- alpha_test_strategy@p_correction_method
+            market_factor_proxy <- alpha_test_strategy@market_factor_proxy
+            if(p_correction_method == "bayesian"){
+              #Get information that is specific to bayesian approach
+              bayesian_model_parameters <- alpha_test_strategy@bayesian_model_parameters
+              user_priors <- bayesian_model_parameters@user_priors
+              model_spec_theme_level <- bayesian_model_parameters@model_spec_theme_level
+
+              brms_control <- if(!is.null(bayesian_model_parameters@brms_control)) bayesian_model_parameters@brms_control else brms_control
+              prior_derivation_control <- if(!is.null(bayesian_model_parameters@prior_derivation_control)) bayesian_model_parameters@prior_derivation_control else prior_derivation_control
+            }
+
+            #########################
+
+            #Run SS Backtest
+            #########################
+            ss_backtest_results <- run_ss_backtest_internal(
+              initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff, split_method = split_method,
+              signals_m_df = signals_m_df, chosen_signals = chosen_signals, signal_positions = signal_positions,
+              backtest_returns_df = backtest_returns_df, benchmark_returns_df = benchmark_returns_df, market_factor_proxy = market_factor_proxy,
+              p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold, enable_theme_representativeness = enable_theme_representativeness,
+              priors_m_df = priors_m_df, user_priors = user_priors, model_spec_theme_level = model_spec_theme_level, brms_control = brms_control, prior_derivation_control = prior_derivation_control,
+              signal_themes_m_df, lower_quantile_winsorization =  lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, verbose = verbose, parallel = parallel
+              )
+
+
+
+
+
+
+          }
+
+          )
+
+#' @describeIn run_ss_backtest Run Signal Selection Backtest
+#' Run a Signal Selection Backtest
+#'
+#' This function performs iterative signal selection based on frequentist or Bayesian methods, which are applied to portfolio returns backtests to identify which signals can be considered significant in stock-level return prediction.
+#'
 #' To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM), computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
 #'
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
 #' @param chosen_signals A vector of user-defined characteristics to be considered.
 #' @param signal_positions A named vector with the same length and names as `chosen_signals`, describing whether positions should be taken "long" or "short".
 #' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in `signals_m_df`, containing historical backtested returns.
+#' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
 #' @param split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
 #' @param rebalancing_months Numeric months when signal selection should be implemented.
-#' @param selected_benchmark_returns_df A data frame with a 'dates' column and a column with benchmark returns, named accordingly.
+#' @param benchmark_returns_df A data frame with a 'dates' column and columns with benchmark returns, named accordingly.
 #' @param p_correction_method The method for p-value correction. Possible options are:
 #' \itemize{
 #'   \item \strong{"none"}: No correction.
@@ -34,26 +164,58 @@
 #'   }
 #' }
 #' @param signal_significance_threshold A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If you want to select all `chosen_signals`, provide 1.
-#' @param heuristic_sb_metric A signal in `signals_m_df` used for `sb_algorithms` "SW" and "MTO". It selects which signal will be elected in case of theme representativeness when no signal in a given theme was deemed significant.
-#' @param max_abs_active_group_weight A decimal indicating the maximum absolute weight that a theme of signals can have in the final portfolio.
+#' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
+#' with highest alpha t-stat will be elected.
 #' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
 #' and values for active_return, bench_return, alpha (mean and se), beta (mean and se), and sigma. Data should be exogenous, as it will be used to set priors for the hierarchical Bayesian model.
-#' @param priors_type A flag indicating which priors should be set. Possible options are:
-#' \itemize{
-#'   \item \strong{"all"}: Set priors for all parameters, including mean (`mu`), variance (`tau`), and correlation based on `priors_m_df` data.
-#'   \item \strong{"mean"}: Set priors only for mean (`mu`).
-#'   \item \strong{"uninformative"}: Set uninformative priors for all parameters.
-#'   \item \strong{"user"}: Set priors defined by the user.
-#' }
 #' @param signal_themes_m_df A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in `signals_m_df`, and a "theme" column providing group membership for each signal.
-#' @param user_priors_list A list with user-defined priors for the hierarchical Bayesian model, used when `priors_type = "user"`.
+#' @param user_priors An object with user-defined priors for the hierarchical Bayesian model, used when `priors_type = "user"`.
 #' Each element of the list represents a theme and should contain priors set with brms::set_prior (class `brmsprior`). For instance, setting priors only for
 #' alpha and beta global parameters can be done with:
 #' c(brms::set_prior("normal(0,1)", class = "Intercept"), brms::set_prior("normal(0,1)", class = "b", coef = "bench_return"))
+#' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
+#'   Options include:
+#'   - `"random_intercept"`: Includes random effects for the intercept at the theme level.
+#'   - `"fixed_intercepts"`: Uses fixed intercepts for each theme.
+#'   - `"fixed_intercepts_and_slopes"`: Includes fixed intercepts and slopes for each theme.
+#'   - `"none"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
+#'
+#' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
+#' \itemize{
+#' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
+#'
+#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the `lme4::lmer` function.
+#' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
+#' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+#'
+#' \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+#' }
+#'
+#' @param brms_control Other additional parameters to be passed to brms::brm function:
+#' \itemize{
+#' \item{chains} Integer.
+#' The number of Markov chains to run for the MCMC sampling. Default is `4`.
+#'
+#' \item{iter} Integer.
+#' The total number of iterations per chain for the MCMC sampling. Default is `2000`.
+#'
+#' \item{warmup} Integer.
+#' The number of warmup (burn-in) iterations per chain for the MCMC sampling. Default is `floor(iter / 2)`.
+#'
+#' \item{thin} Integer.
+#' The thinning interval for MCMC sampling. Default is `1`.
+#'
+#' \item{seed} Integer or `NA`.
+#' The seed for random number generation to ensure reproducibility. Set to a specific integer for reproducible results or `NA` for random seeding. Default is `NA`.
+#'
+#' \item{adapt_delta] Numeric.
+#' The target acceptance probability for the Hamiltonian Monte Carlo sampler. Higher values can lead to better convergence at the cost of slower sampling. Must be between `0` and `1`. Default is `0.99`.
+#' }
 #'
 #' @param upper_quantile_winsorization Numeric value for upper winsorization.
 #' @param lower_quantile_winsorization Numeric value for lower winsorization.
 #' @param verbose A boolean indicating whether to print messages.
+#' @param parallel A boolean indicating whether to use parallel processing.
 #'
 #' @section Bayesian Hierarchical Model
 #'
@@ -129,9 +291,6 @@
 #'
 #' Comparing predictive and return performance of the SS and SB Benchmarks provides insights into the effectiveness of the signal selection process. Additionally, comparing performance between the SB Benchmark and the final portfolio evaluates the performance of the signal blending process. SE Benchmarks are built based on themes; weights are first equally distributed among themes and then equally distributed among signals within each theme.
 #'
-#' @section MTO Constraint Policy
-#'
-#' When `sb_algorithm` is "MTO", you can set a `concentration_constraint_policy` to impose diversification throughout the signal engineering process. In this case, `signal_themes_m_df`, `heuristic_sb_metric`, and `max_abs_active_group_weight` are used to guarantee theme representativeness at the signal selection step. If no signal in a given theme is deemed significant, the signal with the highest value of `heuristic_sb_metric` is elected.
 #'
 #' @details
 #' The function performs the following operations:
@@ -150,20 +309,24 @@
 #' @export
 run_ss_backtest_internal <- function(
     #Dates
-    rebalancing_months, data_availability_cutoff = 60, split_method = "expanding",
+    initial_sample_size, rebalancing_months, data_availability_cutoff = 60, split_method = "expanding",
     #Signals
     signals_m_df, chosen_signals, signal_positions,
     #Backtests and benchmarks
     backtest_returns_df, benchmark_returns_df, market_factor_proxy = "IBOV",
     #P-value
     p_correction_method = "none", signal_significance_threshold = 0.05,
-    #Eligiblity for MTO Constraints
-    heuristic_sb_metric = "IR", max_abs_active_group_weight,
+    #Theme Representativeness Eligiblity
+    enable_theme_representativeness = TRUE,
     #Bayesian variables
-    priors_m_df = NULL, priors_type = "all", signal_themes_m_df = NULL, user_priors_list = NULL,
+    priors_m_df = NULL, user_priors = NULL, model_spec_theme_level = "random_intercept",
+    brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80),
+    prior_derivation_control = list(lmer_optimizer = "nloptwrap", half_t_df = 30, lmer_optimization_objective = "REML"),
+    #Signal Themes
+    signal_themes_m_df,
     #Winsorization
     lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
-    verbose = TRUE
+    verbose = TRUE, parallel = TRUE
     ){
 
   #Create structures to get results
@@ -184,7 +347,7 @@ run_ss_backtest_internal <- function(
 
     #Rebalancing Dates
     dates_backtest <- dates_m_vector[data_availability_cutoff:
-                                    (data_avaialability_cutoff + backtest_length - 1)] #These are dates inside backtest
+                                    (data_availability_cutoff + backtest_length - 1)] #These are dates inside backtest
 
     first_rebalance_date <- min(dates_backtest) #Get first rebalancing date
     rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
@@ -202,11 +365,23 @@ run_ss_backtest_internal <- function(
     #################
     ##Check Parameters
     check_inputs_ss_backtest(
-      rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff,
+      #Dates
+      initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff, split_method = split_method,
+      #Signals
       signals_m_df = signals_m_df, chosen_signals = chosen_signals, signal_positions = signal_positions,
-      backtest_returns_df = backtest_returns_df, selected_benchmark_returns_df = selected_benchmark_returns_df,
+      #Backtest and benchmarks
+      backtest_returns_df = backtest_returns_df, benchmark_returns_df = benchmark_returns_df, market_factor_proxy = market_factor_proxy,
+      #P-value
       p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold,
-      priors_m_df = priors_m_df, priors_type = priors_type, signal_themes_m_df = signal_themes_m_df
+      #Theme Representativeness Eligiblity
+      enable_theme_representativeness = enable_theme_representativeness,
+      #Priors
+      priors_m_df = priors_m_df, user_priors = user_priors, model_spec_theme_level = model_spec_theme_level,
+      brms_control = brms_control, prior_derivation_control = prior_derivation_control,
+      #Signal Themes
+      signal_themes_m_df = signal_themes_m_df,
+      #Winsorization
+      lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization
     )
 
     #Initial Prints
@@ -220,9 +395,7 @@ run_ss_backtest_internal <- function(
       cat("\n")
       cat(paste("Signal significance threshold set as", signal_significance_threshold))
       cat("\n")
-
     }
-
 
     #################
 
@@ -243,12 +416,11 @@ run_ss_backtest_internal <- function(
     selected_backtest_returns_corrected_positions_df <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_df
 
     ###Check if both are contemplated in signal_themes
-    if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% signal_themes_m_df$tickers)){
+    if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(signal_themes_m_df$tickers))){
       stop("all selected signals (with corrected positions) should have a theme classification in signal_themes_m_df")
     }
     if(!is.null(selected_backtest_returns_corrected_positions_df)){
-      if(
-        any(!colnames(dplyr::select(selected_backtest_returns_corrected_positions_df, -dates)) %in% signal_themes_m_df$tickers)){
+      if(any(!colnames(dplyr::select(selected_backtest_returns_corrected_positions_df, -dates)) %in% signal_themes_m_df$tickers)){
         stop("all selected signals in backtests (with corrected positions) should have a theme classification in signal_themes_m_df")
       }
     }
@@ -259,7 +431,7 @@ run_ss_backtest_internal <- function(
 
     ##Start Backtest##
     #################
-    for(d in data_availability_cutoff:(data_availability_cutoff + backtest_length - 1)){
+    for(d in initial_sample_size:(initial_sample_size + backtest_length - 1)){
       #Extract date and references
       current_date <- dates_m_vector[d]
       upd_ref <- which(as.Date(signals_m_df$dates,  format = "%Y-%m-%d") <= current_date) #Get upd_ref
@@ -271,8 +443,8 @@ run_ss_backtest_internal <- function(
       priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
       signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
 
-      #Check if it's a rebalancing month
-      if((lubridate::month(current_date) %in% rebalancing_months) || d == (data_avaialability_cutoff)){
+       #Check if it's a rebalancing month
+      if((lubridate::month(current_date) %in% rebalancing_months) || d == (data_availability_cutoff)){
         #Print refitting message
         if(verbose){
           cat("\n")
@@ -290,11 +462,18 @@ run_ss_backtest_internal <- function(
           #P adjustment
           p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold,
           #Theme Representativeness Eligibiility
-          max_abs_active_group_weight = max_abs_active_group_weight, heuristic_sb_metric = heuristic_sb_metric,
+          enable_theme_representativeness = enable_theme_representativeness,
           #Bayesian method
-          priors_type = priors_type, priors_m_upd_ref = priors_m_upd_ref, signal_themes_m_d_ref = signal_themes_m_d_ref,
-          user_priors = user_priors
+          priors_m_upd_ref = priors_m_upd_ref, user_priors = user_priors, model_spec_theme_level = model_spec_theme_level,
+          brms_control = brms_control, prior_derivation_control = prior_derivation_control,
+          #Signal Themes
+          signal_themes_m_d_ref = signal_themes_m_d_ref,
+          #Winsorization
+          lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
+          #Verbose & Parallel
+          verbose = verbose, parallel = parallel
         )
+
         ###Get results
         signal_universe_m_d_ref <- signal_eligibility_results_list$signal_universe_m_d_ref
         bayesian_fit_list <- signal_eligibility_results_list$bayesian_fit_list
@@ -306,7 +485,7 @@ run_ss_backtest_internal <- function(
           cat(signal_universe_m_d_ref$tickers[which(signal_universe_m_d_ref$is_eligible == 1)])
         }
 
-      ###Set results
+      ###Get results
       signal_universe_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <-  signal_universe_m_d_ref
       bayesian_fit_nested_list[[which(rebalance_dates %in% current_date)]] <- bayesian_fit_list
       eligible_signals_list[[d - data_availability_cutoff + 1]] <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)

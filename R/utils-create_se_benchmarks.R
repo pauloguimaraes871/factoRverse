@@ -39,7 +39,12 @@ create_se_benchmarks <- function(signal_universe_m_d_ref, signal_themes_m_d_ref)
 
   # Check if there are any significant signals
   if (nrow(sb_benchmark_weights_m_d_ref) == 0) {
-    stop("No statistically significant signals to build sb_benchmark")
+    stop("No statistically significant signals to build se_benchmarks")
+  }
+
+  #Check if any tickers does not have a theme
+  if (any(!signal_universe_m_d_ref$tickers %in% signal_themes_m_d_ref$tickers)) {
+    stop("Some tickers do not have a theme assigned")
   }
 
   #Define set se_benchmarks_weights function
@@ -76,15 +81,15 @@ create_se_benchmarks <- function(signal_universe_m_d_ref, signal_themes_m_d_ref)
   }
 
   #Create ss and sb benchmarks
-  ss_anb_sb_benchmark_weights_m_d_ref_list <- purrr::map(list(sb_benchmark_weights_m_d_ref, ss_benchmark_weights_m_d_ref), set_se_benchmark_weights)
-  names(ss_anb_sb_benchmark_weights_m_d_ref_list) <- c("sb_benchmark_weights_m_d_ref", "ss_benchmark_weights_m_d_ref")
+  ss_and_sb_benchmark_weights_m_d_ref_list <- purrr::map(list(sb_benchmark_weights_m_d_ref, ss_benchmark_weights_m_d_ref), set_se_benchmark_weights)
+  names(ss_and_sb_benchmark_weights_m_d_ref_list) <- c("sb_benchmark_weights_m_d_ref", "ss_benchmark_weights_m_d_ref")
 
   #Change colnames
-  colnames(ss_anb_sb_benchmark_weights_m_d_ref_list$sb_benchmark_weights_m_d_ref) <- c("id", "tickers", "dates", "theme_sb")
-  colnames(ss_anb_sb_benchmark_weights_m_d_ref_list$ss_benchmark_weights_m_d_ref) <- c("id", "tickers", "dates", "theme_ss")
+  colnames(ss_and_sb_benchmark_weights_m_d_ref_list$sb_benchmark_weights_m_d_ref) <- c("id", "tickers", "dates", "theme_sb")
+  colnames(ss_and_sb_benchmark_weights_m_d_ref_list$ss_benchmark_weights_m_d_ref) <- c("id", "tickers", "dates", "theme_ss")
   #Join into a consolidated
-  se_benchmark_weights_m_d_ref <- dplyr::left_join(ss_anb_sb_benchmark_weights_m_d_ref_list$ss_benchmark_weights_m_d_ref,
-                                                   dplyr::select(ss_anb_sb_benchmark_weights_m_d_ref_list$sb_benchmark_weights_m_d_ref, id, theme_sb), by = c("id"))
+  se_benchmark_weights_m_d_ref <- dplyr::left_join(ss_and_sb_benchmark_weights_m_d_ref_list$ss_benchmark_weights_m_d_ref,
+                                                   dplyr::select(ss_and_sb_benchmark_weights_m_d_ref_list$sb_benchmark_weights_m_d_ref, id, theme_sb), by = c("id"))
 
   #Return
   return(se_benchmark_weights_m_d_ref)

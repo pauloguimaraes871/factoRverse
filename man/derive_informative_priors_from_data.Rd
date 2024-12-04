@@ -7,8 +7,9 @@
 derive_informative_priors_from_data(
   priors_m_upd_ref,
   model_spec_theme_level = "random_intercept",
-  v = 30,
-  lmer_optimizer = "nloptwrap"
+  half_t_df = 30,
+  lmer_optimizer = "nloptwrap",
+  lmer_optimization_objective = "REML"
 )
 }
 \arguments{
@@ -30,12 +31,14 @@ The data frame should only include observations up to the current date.}
 \item \code{"fixed_intercepts_and_slopes"}: Fixed intercepts and slopes for each \code{theme}. Includes interaction terms between themes and the market factor proxy, with random intercepts for tickers.
 }
 
-@param v A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
+@param half_t_df A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
 Although the function specifies a regular student t distribution, \code{brms} will use half-t distribution, ensuring strictly positive parameters.
 
 @param lmer_optimizer A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
 It will be passed to lme4::lmerControl, which will be used in the \code{lme4::lmer} function.
 Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+
+@param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 
 #' @details
 The function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:

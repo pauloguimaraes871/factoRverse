@@ -9,17 +9,18 @@ bayesian_adjustment(
   selected_backtest_returns_corrected_positions_upd_ref,
   selected_market_factor_proxy_vector_upd_ref,
   priors_m_upd_ref = NULL,
-  model_spec_theme_level,
-  v,
-  lmer_optimizer,
+  model_spec_theme_level = "random_intercept",
+  user_priors = NULL,
+  lmer_optimization_objective = "REML",
+  half_t_df = 30,
+  lmer_optimizer = "nloptwrap",
   signal_themes_m_d_ref,
-  user_priors_list = NULL,
   chains = 4,
   iter = 2000,
   warmup = floor(iter/2),
   thin = 1,
   seed = NA,
-  adapt_delta = 0.99,
+  adapt_delta = 0.8,
   parallel = TRUE,
   verbose = TRUE
 )
@@ -65,7 +66,10 @@ Specifies the structure of the hierarchical Bayesian model at the theme level. O
 \item{\code{"none"}}{No theme-level effects; only random intercepts and slopes for theme-signal combinations.}
 }}
 
-\item{v}{Numeric.
+\item{user_priors}{List.
+A list containing user-defined priors for the hierarchical Bayesian model, used when \code{priors_type} is \code{"user"}. The list should conform to the structure required by the \code{brms} package.}
+
+\item{half_t_df}{Numeric.
 The degrees of freedom in the half-t distribution applied to model random effects. This parameter controls the tails of the distribution. Default is \code{30}.}
 
 \item{lmer_optimizer}{Character string.
@@ -76,7 +80,9 @@ Specifies the optimizer to be used in the \code{lme4::lmer} function. Options in
 \item{\code{"Nelder_Mead"}}{Simplex-based Nelder-Mead optimization.}
 \item{\code{"nlminbwrap"}}{Wrapper for the \code{nlminb} optimizer.}
 }
-Default is \code{"nloptwrap"}.}
+Default is \code{"nloptwrap"}.
+
+@param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.}
 
 \item{signal_themes_m_d_ref}{Data frame.
 A (meta)data frame containing metadata about signals with the following columns:
@@ -87,9 +93,6 @@ A (meta)data frame containing metadata about signals with the following columns:
 \item{theme}{Group membership for each signal, defining the clusters for the Bayesian hierarchical model.}
 }
 \strong{Note:} This dataframe should contain data only for the current date.}
-
-\item{user_priors_list}{List.
-A list containing user-defined priors for the hierarchical Bayesian model, used when \code{priors_type} is \code{"user"}. The list should conform to the structure required by the \code{brms} package.}
 
 \item{chains}{Integer.
 The number of Markov chains to run for the MCMC sampling. Default is \code{4}.}

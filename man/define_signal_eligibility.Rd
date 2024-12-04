@@ -7,18 +7,21 @@
 define_signal_eligibility(
   selected_backtest_returns_corrected_positions_upd_ref,
   selected_market_factor_proxy_upd_ref,
-  data_availability_cutoff,
-  p_correction_method,
-  signal_significance_threshold,
-  max_abs_active_group_weight,
-  heuristic_sb_metric,
-  priors_m_upd_ref,
-  user_priors,
-  model_spec_theme_level,
+  data_availability_cutoff = 36,
+  p_correction_method = "none",
+  signal_significance_threshold = 0.05,
+  enable_theme_representativeness = TRUE,
+  priors_m_upd_ref = NULL,
+  user_priors = NULL,
+  model_spec_theme_level = "random_intercept",
+  brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
+  prior_derivation_control = list(lmer_optimizer = "nloptwrap", half_t_df = 30,
+    lmer_optimization_objective = "REML"),
   signal_themes_m_d_ref,
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
-  verbose = TRUE
+  verbose = TRUE,
+  parallel = TRUE
 )
 }
 \arguments{
@@ -49,11 +52,14 @@ For FDR, possible options are:
 \item{signal_significance_threshold}{A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
 
-\item{max_abs_active_group_weight}{A decimal indicating the maximum absolute weight that a theme of signals can have in the final portfolio.}
+\item{enable_theme_representativeness}{If TRUE, in case a given theme in \code{signal_themes_m_d_ref} does not have any eligible signal, the signal
+with highest alpha t-stat will be elected.}
 
-\item{heuristic_sb_metric}{A signal in \code{signals_m_df} that is used for sb_algorithms "SW" and "MTO". At this stage, it is used to select which signal will be elected in
-case of theme representativeness (when no signal in a given theme was deemed significant and a concentration_constraint_policy for signals is set in place).
-It only makes sense when sb_algorithm is "MTO".}
+\item{priors_m_upd_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
+and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
+Should not be provided if \code{user_priors_list} is already being provided.
+When \code{priors_m_upd_ref} is provided, a lme4 model is fit to the data using the \code{lme4} package, and the priors are then estimated from the model.
+In such case, ther user can control some aspects of the prior definition process with params: \code{model_spec_theme_level}, \code{v} and \code{lmer_optimizer}}
 
 \item{user_priors}{An object of class \code{brmsprior} with user-defined priors for the hierarchical bayesian model. It should be set with \code{model_spec_theme_level} structure in mind.
 brms::set_prior() can be used to define the priors. Should not be provided if \code{priors_m_d_ref} is already being provided.}
@@ -65,14 +71,18 @@ Options include:
 \item \code{"fixed_intercepts"}: Uses fixed intercepts for each theme.
 \item \code{"fixed_intercepts_and_slopes"}: Includes fixed intercepts and slopes for each theme.
 \item \code{"none"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
-}
+}}
 
-@param v A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
-Although the function specifies a regular student t distribution, \code{brms} will use half-t distribution, ensuring strictly positive parameters.
+\item{prior_derivation_control}{A list of additional parameters to be passed to the \code{lme4::lmer} function:
+\itemize{
+\item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
 
-@param lmer_optimizer A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
+\item{lmer_optimizer} A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
 It will be passed to lme4::lmerControl, which will be used in the \code{lme4::lmer} function.
-Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'}
+Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+
+\item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+}}
 
 \item{signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
 for defining clusters in bayesian hierarchical model. It should contain data only for current date.}
@@ -83,14 +93,8 @@ for defining clusters in bayesian hierarchical model. It should contain data onl
 
 \item{verbose}{A boolean indicating whether to print messages to the console.}
 
-\item{se_benchmark_weighting_method}{The weighting method for the SB benchmarks. Can be "individual" or "theme".
-When "individual", all signals in the SB benchmark universe are weighted equally. When "theme", the signals are weighted by theme.}
-
-\item{priors_m_d_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
-and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
-Should not be provided if \code{user_priors_list} is already being provided.
-When \code{priors_m_d_ref} is provided, a lme4 model is fit to the data using the \code{lme4} package, and the priors are then estimated from the model.
-In such case, ther user can control some aspects of the prior definition process with params: \code{model_spec_theme_level}, \code{v} and \code{lmer_optimizer}}
+\item{parallel}{Logical.
+Indicates whether to enable parallel computation using the \code{future} package. Only avaialable for bayesian model. Default is \code{TRUE}.}
 }
 \value{
 A data frame containing the updated signal universe with computed performance metrics, adjusted p-values, and final signal classifications. The columns include:
@@ -109,8 +113,8 @@ A data frame containing the updated signal universe with computed performance me
 }
 
 #' @details
-Setting informative priors
-When providing \code{priors_m_upd_ref}, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
+
+When providing \code{priors_m_upd_ref} to set informative priors, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
 
 \itemize{
 \item Priors for location parameters (e.g., intercepts, slopes) follow a normal distribution.

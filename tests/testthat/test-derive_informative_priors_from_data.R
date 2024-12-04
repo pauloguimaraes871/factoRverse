@@ -116,7 +116,7 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
   #Get priors for dgp 1
   results_dgp_1 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
                                                  model_spec_theme_level = "random_intercept",
-                                                 v = 30)
+                                                 half_t_distribution = 30)
 
   expect_s3_class(results_dgp_1$priors, "brmsprior")
   expect_equal(results_dgp_1$priors$class, c("Intercept", "b", "sd", "sd", "sd", "sigma", "cor"))
@@ -279,7 +279,7 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
   #Get priors for dgp 2
   results_dgp_2 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
                                                        model_spec_theme_level = "random_intercept",
-                                                       v = 30)
+                                                       half_t_distribution = 30)
 
   #Fixed Intercept
   expect_lt(as.numeric(sub("normal\\((-?[0-9.]+),.*", "\\1", results_dgp_1$priors$prior[1])),
@@ -422,7 +422,7 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
   #Get priors for dgp 1
   results_dgp_1 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
                                                        model_spec_theme_level = "fixed_intercepts",
-                                                       v = 30)
+                                                       half_t_distribution = 30)
 
   expect_s3_class(results_dgp_1$priors, "brmsprior")
   expect_equal(results_dgp_1$priors$class, c(rep("b", length(unique(theme_names))), "b", "sd", "sd", "sigma", "cor"))
@@ -583,7 +583,7 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
   #Get priors for dgp 2
   results_dgp_2 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
                                                        model_spec_theme_level = "fixed_intercepts",
-                                                       v = 30)
+                                                       half_t_distribution = 30)
 
   #Fixed Intercepts
   #Defensive
@@ -731,7 +731,7 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
   #Get priors for dgp 1
   results_dgp_1 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
                                                        model_spec_theme_level = "fixed_intercepts_and_slopes",
-                                                       v = 30, lmer_optimizer = "Nelder_Mead")
+                                                       half_t_distribution = 30, lmer_optimizer = "Nelder_Mead")
 
   expect_s3_class(results_dgp_1$priors, "brmsprior")
   expect_equal(results_dgp_1$priors$class, c(rep("b", length(unique(theme_names))),
@@ -908,7 +908,7 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
   #Get priors for dgp 1
   results_dgp_1 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
                                                        model_spec_theme_level = "none",
-                                                       v = 30, lmer_optimizer = "Nelder_Mead")
+                                                       half_t_distribution = 30, lmer_optimizer = "Nelder_Mead")
 
   expect_s3_class(results_dgp_1$priors, "brmsprior")
   expect_equal(results_dgp_1$priors$class, c("Intercept", "b", "sd", "sd", "sigma", "cor"))

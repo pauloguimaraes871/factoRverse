@@ -49,16 +49,16 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   #Create priors for model
   elected_priors <- c(
     # Prior for Intercept
-    brms::set_prior("normal(0.0012, 0.0016)", class = "Intercept"),
+    brms::set_prior("normal(0.0012, 0.0016)", class = "Intercept"), #ok
 
     # Prior for market_factor_proxy coefficient
-    brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"),
+    brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"), #ok
 
     # Prior for sd of Intercept at theme:tickers level
-    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"), #ok
 
     # Prior for sd of market_factor_proxy at theme:tickers level
-    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"), #ok
 
     # Prior for sd of Intercept at theme level
     brms::set_prior("student_t(30, 0, 0.0011)", class = "sd", group = "theme", coef = "Intercept"),

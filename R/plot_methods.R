@@ -2774,3 +2774,225 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
 })
 
 
+#' @title Plot Bayesian Model Parameters Priors
+#' @description Plots the distribution curves for each prior in a `bayesian_model_parameters` object, with a cyberpunk theme.
+#' @param x A `bayesian_model_parameters` object.
+#' @param ... Additional arguments (currently unused).
+#' @method plot bayesian_model_parameters
+#' @export
+setMethod("plot", "bayesian_model_parameters", function(x, ...) {
+  if (is.null(x@user_priors)) {
+    cat("No user priors to plot.\n")
+    return(invisible(NULL))
+  }
+
+  # Convert user_priors to data frame
+  priors_df <- as.data.frame(x@user_priors)
+
+  # Define color palette and theme elements (Cyberpunk style)
+  neon_blue <- "#00BFFF"
+  neon_pink <- "#FF1493"
+  neon_yellow <- "#FFFF00"
+  neon_purple <- "#8A2BE2"
+  neon_orange <- "#FF4500"
+  neon_green <- "#39FF14"
+  blue_bg <- "#001f3f"
+  faint_blue <- "#003366"
+  light_gray <- "#B0B0B0"
+  black <- "#000000"
+  white <- "#FFFFFF"
+
+  # Helper function to parse prior strings
+  parse_prior_string <- function(prior_str) {
+    # Remove spaces
+    prior_str <- gsub(" ", "", prior_str)
+
+    # Regular expression to match distribution and parameters
+    regex <- "^([a-zA-Z_]+)\\((.*)\\)$"
+    matches <- regmatches(prior_str, regexec(regex, prior_str))[[1]]
+
+    if (length(matches) < 3) {
+      return(NULL)
+    }
+
+    dist_name <- matches[2]
+    params_str <- matches[3]
+
+    # Split parameters
+    params <- strsplit(params_str, ",")[[1]]
+    param_list <- list()
+    for (param in params) {
+      # Split by '=' if present
+      if (grepl("=", param)) {
+        parts <- strsplit(param, "=")[[1]]
+        name <- parts[1]
+        value <- as.numeric(parts[2])
+        param_list[[name]] <- value
+      } else {
+        # If no name, use positional argument
+        param_list[[length(param_list) + 1]] <- as.numeric(param)
+      }
+    }
+
+    list(dist = dist_name, params = param_list)
+  }
+
+  # Helper function to generate plot data based on distribution
+  generate_plot_data <- function(dist_name, params) {
+    x_seq <- seq(-10, 10, length.out = 1000)
+    density <- NULL
+
+    switch(dist_name,
+           "normal" = {
+             mean <- params[[1]]
+             sd <- params[[2]]
+             x_seq <- seq(mean - 4 * sd, mean + 4 * sd, length.out = 1000)
+             density <- dnorm(x_seq, mean = mean, sd = sd)
+           },
+           "student_t" = {
+             df <- params[[1]]
+             mean <- params[[2]]
+             sd <- params[[3]]
+             x_seq <- seq(mean - 4 * sd, mean + 4 * sd, length.out = 1000)
+             density <- dt((x_seq - mean) / sd, df = df) / sd
+           },
+           "cauchy" = {
+             location <- params[[1]]
+             scale <- params[[2]]
+             x_seq <- seq(location - 10 * scale, location + 10 * scale, length.out = 1000)
+             density <- dcauchy(x_seq, location = location, scale = scale)
+           },
+           "lognormal" = {
+             meanlog <- params[[1]]
+             sdlog <- params[[2]]
+             x_seq <- seq(0, qlnorm(0.995, meanlog, sdlog), length.out = 1000)
+             density <- dlnorm(x_seq, meanlog = meanlog, sdlog = sdlog)
+           },
+           "inv_gamma" = {
+             if (!requireNamespace("invgamma", quietly = TRUE)) {
+               warning("Package 'invgamma' is required for 'inv_gamma' distribution.")
+               return(NULL)
+             }
+             shape <- params[[1]]
+             scale <- params[[2]]
+             x_seq <- seq(0.0001, invgamma::qinvgamma(0.995, shape, scale = scale), length.out = 1000)
+             density <- invgamma::dinvgamma(x_seq, shape, scale = scale)
+           },
+           "exponential" = {
+             rate <- params[[1]]
+             x_seq <- seq(0, qexp(0.995, rate = rate), length.out = 1000)
+             density <- dexp(x_seq, rate = rate)
+           },
+           "beta" = {
+             shape1 <- params[[1]]
+             shape2 <- params[[2]]
+             x_seq <- seq(0, 1, length.out = 1000)
+             density <- dbeta(x_seq, shape1 = shape1, shape2 = shape2)
+           },
+           {
+             # Unsupported distribution
+             return(NULL)
+           })
+
+    data.frame(x = x_seq, density = density)
+  }
+
+  # Prepare an empty list to store plots
+  plot_list <- list()
+
+  # Iterate over each prior
+  for (i in seq_len(nrow(priors_df))) {
+    prior_row <- priors_df[i, ]
+
+    prior_str <- prior_row$prior
+    class_str <- prior_row$class
+    coef_str <- prior_row$coef
+    group_str <- prior_row$group
+
+    # Create identification string by concatenating class, coef, and group
+    id_components <- c(
+      paste0("class: ", class_str),
+      if (!is.na(coef_str) && coef_str != "") paste0("coef: ", coef_str) else NULL,
+      if (!is.na(group_str) && group_str != "") paste0("group: ", group_str) else NULL
+    )
+    id_str <- paste(id_components, collapse = ", ")
+
+    # Parse the prior string to extract distribution and parameters
+    parsed_prior <- parse_prior_string(prior_str)
+    if (is.null(parsed_prior)) {
+      message(sprintf("Could not parse prior: '%s'. Skipping.", prior_str))
+      next
+    }
+
+    dist_name <- parsed_prior$dist
+    params <- parsed_prior$params
+
+    # Handle 'lkj' distribution separately
+    if (dist_name == "lkj") {
+      # Provide an informative message
+      message(sprintf("The 'lkj' prior (prior '%s' with %s) will be skipped.", prior_str, id_str))
+      next
+    }
+
+    # Generate data for plotting based on distribution
+    plot_data <- generate_plot_data(dist_name, params)
+    if (is.null(plot_data)) {
+      message(sprintf("Unsupported distribution '%s' for prior '%s' with %s. Skipping.", dist_name, prior_str, id_str))
+      next
+    }
+
+    # Create the plot with cyberpunk style
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = x, y = density)) +
+      ggplot2::geom_line(color = neon_blue, size = 1) +
+      ggplot2::labs(
+        title = paste0(prior_str, "\n", id_str),
+        x = "Value", y = "Density"
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 14, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        legend.position = "none",
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    # Store the plot in the list
+    plot_list[[length(plot_list) + 1]] <- p
+  }
+
+  # Arrange and display the plots
+  if (length(plot_list) > 0) {
+    gridExtra::grid.arrange(grobs = plot_list, ncol = 1)
+  } else {
+    cat("No valid priors to plot.\n")
+  }
+
+  invisible(NULL)
+})
+
+
+
+
+#' @title Plot Bayesian Alpha Test Strategy Priors
+#' @description Plots the prior distributions defined in a `bayesian_alpha_test_strategy` object.
+#' @param x A `bayesian_alpha_test_strategy` object.
+#' @param ... Additional arguments (currently unused).
+#' @method plot bayesian_alpha_test_strategy
+#' @export
+setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
+  if (is.null(x@bayesian_model_parameters)) {
+    cat("No Bayesian model parameters to plot.\n")
+    return(invisible(NULL))
+  }
+
+  # Call the plot method of bayesian_model_parameters
+  plot(x@bayesian_model_parameters, ...)
+})
+
+
+
+

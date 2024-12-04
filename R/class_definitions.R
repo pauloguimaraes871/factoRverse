@@ -638,6 +638,305 @@ setClass(
   }
 )
 
+#' @title alpha_test_strategy Class
+#' @description The alpha_test_strategy class is designed to specify parameters of hypothesis testing regarding
+#' CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches.
+#' In the latter, the user can change the hierarchical model specification and how priors are going to be set.
+#' @slot signal_significance_threshold A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+#' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
+#' @slot p_correction_method The method for p-value correction. Possible options are:
+#'\itemize{
+#'  \item{"none"}: No correction.
+#'  \item{"bayesian"}: When bayesian is set, a hierarchical mixed-effects bayesian linear model is fitted to the data, using the `brms` package,
+#'  which is an interface to the `Stan` probabilistic programming language.
+#'  The user can also choose one of the following frequentist methods, which will control Family-Wise Error Rate (FWER) or the False Discovery Rate (FDR).
+#'  FDR is less stringent than FWER.
+#'  For FWER, possible options are:
+#'  \item{"bonferroni"}: Bonferroni correction, which is dominated by Holm's method.
+#'  \item{"holm"}: Holm's (1979) method.
+#'  \item{"hochberg"}: Hochberg's (1988) method, valid when hypothesis tests are independent or non-negatively associated. Less powerful than Hommel's (1988) method, but
+#'  faster to compute.
+#'  \item{"hommel"}: Hommel's (1988) method, also valid when hypothesis tests are independent or non-negatively associated, but is more powerful than Hochberg (1988).
+#'  For FDR, possible options are:
+#'  \item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
+#'  \item{"BY"}: Benjamini-Yekutieli (2001) procedure.
+#'  }
+#' @slot market_factor_proxy A character string indicating the market factor proxy to be used in the CAPM model.
+#' Should correspond to one of the columns in `benchmark_returns_df`.
+#' @slot bayesian_model_parameters An object of class `bayesian_model_parameters`, containing the
+#' parameters needed to build the hierarhicical bayesian model and specify its priors.
+setClass("alpha_test_strategy",
+         slots = list(
+           signal_significance_threshold = "numeric",
+           p_correction_method = "character",
+           market_factor_proxy = "character"
+         ),
+         validity = function(object) {
+           if (!(object@p_correction_method %in% c(
+             "none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY", "bayesian"
+           ))) {
+             stop("Invalid p_correction_method.")
+           }
+           if (object@signal_significance_threshold < 0 || object@signal_significance_threshold > 1) {
+             stop("signal_significance_threshold must be between 0 and 1.")
+           }
+           TRUE
+         },
+         prototype = list(
+           signal_significance_threshold = 0.05,
+           p_correction_method = "none"
+         )
+)
+
+#' @title frequentist_alpha_test_strategy Class
+#' @description A subclass of alpha_test_strategy for frequentist methods.
+setClass("frequentist_alpha_test_strategy",
+         contains = "alpha_test_strategy",
+         validity = function(object) {
+           if (object@p_correction_method == "bayesian") {
+             stop("p_correction_method cannot be 'bayesian' for frequentist_alpha_test_strategy.")
+           }
+           TRUE
+         }
+)
+
+
+
+#' @title bayesian_model_parameters Class
+#' @description A class encapsulating parameters necessary to specify the hierarchical Bayesian model and its priors.
+#'
+#' @slot user_priors An object of class `brmsprior` with user-defined priors for the hierarchical Bayesian model.
+#' Should be structured according to the `model_spec_theme_level`.
+#' @slot model_spec_theme_level A character string specifying the desired Bayesian model structure.
+#' Options include:
+#'   - `"random_intercept"`: Random intercepts at the theme level.
+#'   - `"fixed_intercepts"`: Fixed intercepts for each theme.
+#'   - `"fixed_intercepts_and_slopes"`: Fixed intercepts and slopes for each theme.
+#'   - `"none"`: No theme-level intercepts, with random effects at the theme:signal level.
+#' @slot prior_derivation_control A list of additional parameters for deriving priors when `priors_type` is `"informative_exogenous_dataset"`.
+#' Should include:
+#'   - `half_t_df`: Degrees of freedom for the half-t distribution applied to sd priors.
+#'   - `lmer_optimizer`: Optimizer to be used in `lme4::lmer` for deriving priors.
+#'     Options include: `"nloptwrap"`, `"bobyqa"`, `"Nelder_Mead"`, `"nlminbwrap"`.
+#'   - `lmer_optimization_objective`: Criteria to be optimized in `lme4::lmer` for deriving priors.
+#'     Options include: `likelihood`, `REML`.
+#' @slot brms_control A list of additional parameters to be passed to `brms::brm` for MCMC sampling, including:
+#'   - `chains`: Number of Markov chains to run (default is 4).
+#'   - `iter`: Total number of iterations per chain (default is 2000).
+#'   - `warmup`: Number of warmup iterations per chain (default is `floor(iter / 2)`).
+#'   - `thin`: Thinning interval for MCMC sampling (default is 1).
+#'   - `seed`: Seed for reproducibility (default is `NA` for random seeding).
+#'   - `adapt_delta`: Target acceptance probability for the Hamiltonian Monte Carlo sampler (default is 0.99).
+#'
+#' @export
+setClass(
+  "bayesian_model_parameters",
+  slots = list(
+    user_priors = "ANY", # To accommodate brmsprior objects or NULL
+    model_spec_theme_level = "character",
+    prior_derivation_control = "ANY",
+    brms_control = "ANY"
+  ),
+  prototype = list(
+    user_priors = NULL,
+    model_spec_theme_level = "random_intercept",
+    brms_control = list(
+      chains = 4,
+      iter = 2000,
+      warmup = 1000,
+      thin = 1,
+      seed = NA,
+      adapt_delta = 0.80
+    )
+  ),
+  validity = function(object) {
+    # Validate model_spec_theme_level
+    if (!object@model_spec_theme_level %in% c("random_intercept", "fixed_intercepts", "fixed_intercepts_and_slopes", "none")) {
+      stop("Invalid model_spec_theme_level. Must be one of: 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes', or 'none'.")
+    }
+
+    # Validate user_priors if not NULL
+    if (!is.null(object@user_priors)) {
+      if (!inherits(object@user_priors, "brmsprior")) {
+        return("user_priors must be a 'brmsprior' object.")
+      }
+
+      # Convert user_priors to data frame for easier manipulation
+      priors_df <- as.data.frame(object@user_priors)
+
+      # Warnings for missing typical priors based on model_spec_theme_level
+      if (object@model_spec_theme_level == "random_intercept") {
+        # Check for prior with class 'sd', coef 'Intercept', group 'theme'
+        required_row <- subset(priors_df, class == "sd" & coef == "Intercept" & group == "theme")
+        if (nrow(required_row) == 0) {
+          warning("For model_spec_theme_level 'random_intercept', it is recommended to include a prior with class = 'sd', coef = 'Intercept', and group = 'theme'.")
+        }
+      } else if (object@model_spec_theme_level == "fixed_intercepts") {
+        # Check for priors with class 'b' and coef matching 'theme...'
+        required_rows <- subset(priors_df, class == "b" & grepl("^theme", coef))
+        if (nrow(required_rows) == 0) {
+          warning("For model_spec_theme_level 'fixed_intercepts', it is recommended to include priors with class = 'b' and coef starting with 'theme'.")
+        }
+      } else if (object@model_spec_theme_level == "fixed_intercepts_and_slopes") {
+        # Check for priors with class 'b' and coef matching 'theme...' and 'theme...:market_factor_proxy'
+        required_rows_intercepts <- subset(priors_df, class == "b" & grepl("^theme[^:]*$", coef))
+        required_rows_slopes <- subset(priors_df, class == "b" & grepl("^theme[^:]*:market_factor_proxy$", coef))
+        if (nrow(required_rows_intercepts) == 0) {
+          warning("For model_spec_theme_level 'fixed_intercepts_and_slopes', it is recommended to include priors with class = 'b' and coef starting with 'theme' for intercepts.")
+        }
+        if (nrow(required_rows_slopes) == 0) {
+          warning("For model_spec_theme_level 'fixed_intercepts_and_slopes', it is recommended to include priors with class = 'b' and coef starting with 'theme' and ending with ':market_factor_proxy' for slopes.")
+        }
+      }
+    }
+
+
+    # Validate prior_derivation_control
+    if (!is.null(object@prior_derivation_control)) {
+      if (!is.list(object@prior_derivation_control) || any(!names(object@prior_derivation_control) %in% c("half_t_df", "lmer_optimizer", "lmer_optimization_objective"))) {
+        return("prior_derivation_control must be a list with 'half_t_df', 'lmer_optimizer' and/or 'lmer_optimization_objective'.")
+      }
+      if (!is.null(object@prior_derivation_control$half_t_df)){
+        if (!is.numeric(object@prior_derivation_control$half_t_df) || object@prior_derivation_control$half_t_df <= 0) {
+          stop("half_t_df must be a positive numeric value.")
+        }
+      }
+      if (!is.null(object@prior_derivation_control$lmer_optimizer)){
+        if (!is.character(object@prior_derivation_control$lmer_optimizer) || !object@prior_derivation_control$lmer_optimizer %in% c("nloptwrap", "bobyqa", "Nelder_Mead", "nlminbwrap")) {
+          stop("lmer_optimizer must be one of 'nloptwrap', 'bobyqa', 'Nelder_Mead', or 'nlminbwrap'.")
+        }
+      }
+      if( !is.null(object@prior_derivation_control$lmer_optimization_objective)){
+        if(!is.character(object@prior_derivation_control$lmer_optimization_objective) || !object@prior_derivation_control$lmer_optimization_objective %in% c("likelihood", "REML")){
+          stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'.")
+        }
+      }
+    }
+    #Validate brms_control
+    if(!is.null(object@brms_control)){
+      if(any(!names(object@brms_control) %in% c("chains", "iter", "warmup", "thin", "seed", "adapt_delta"))){
+        stop("brms_control must be a list containing 'chains', 'iter', 'warmup', 'thin', 'seed' and/or 'adapt_delta'.")
+      }
+
+      #chains
+      if(!is.null(object@brms_control$chains)){
+        if(!is.numeric(object@brms_control$chains) || object@brms_control$chains <= 0){
+          stop("chains must be a positive number.")
+        }
+      }
+
+      #iter
+      if(!is.null(object@brms_control$iter)){
+        if(!is.numeric(object@brms_control$iter) || object@brms_control$iter <= 0){
+          stop("iter must be a positive number.")
+        }
+      }
+
+      #warmup
+      if(!is.null(object@brms_control$warmup)){
+        if(!is.numeric(object@brms_control$warmup) || object@brms_control$warmup <= 0){
+          stop("warmup must be a positive number.")
+        }
+      }
+
+      #thin
+      if(!is.null(object@brms_control$thin)){
+        if(!is.numeric(object@brms_control$thin) || object@brms_control$thin <= 0){
+          stop("thin must be a positive number.")
+        }
+      }
+
+      #seed
+      if(!is.null(object@brms_control$seed)){
+        if(!is.numeric(object@brms_control$seed) || object@brms_control$seed <= 0){
+          stop("seed must be a positive number.")
+        }
+      }
+
+      #adapt_delta
+      if(!is.null(object@brms_control$adapt_delta)){
+        if(!is.numeric(object@brms_control$adapt_delta) || object@brms_control$adapt_delta <= 0 || object@brms_control$adapt_delta > 1){
+          stop("adapt_delta should be between 0 and 1.")
+        }
+      }
+
+      #warmup and iter
+      if(!is.null(object@brms_control$warmup) && !is.null(object@brms_control$iter) && object@brms_control$warmup >= object@brms_control$iter){
+        stop("warmup must be less than iter.")
+      }
+    }
+
+    TRUE
+  }
+)
+
+#' @title bayesian_alpha_test_strategy Class
+#' @description A subclass of alpha_test_strategy for Bayesian methods.
+#' @slot bayesian_model_parameters Parameters for the hierarchical Bayesian model.
+setClass("bayesian_alpha_test_strategy",
+         contains = "alpha_test_strategy",
+         slots = list(
+           bayesian_model_parameters = "bayesian_model_parameters"
+         ),
+         validity = function(object) {
+           if (object@p_correction_method != "bayesian") {
+             stop("p_correction_method must be 'bayesian' for bayesian_alpha_test_strategy.")
+           }
+           TRUE
+         }
+)
+
+
+#' @title ss_backtest_config Class
+#' @description The ss_backtest_config class is designed to define an end-to-end signal selection experiment based on
+#' backtest returns of associated strategies. The class includes parameters for manipulating the backtest returns object and
+#' conducting hypothesis tests regarding CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches. In the
+#' latter, a hierarhical model is fit, with informative priors set according to an exogeneous dataset or by the user, or
+#' default uninformative priors.
+#' @slot chosen_signals A vector of user-defined characteristics to be considered.
+#' @slot signal_positions A named vector with the same length and names as `chosen_signals`, describing whether positions should be taken "long" or "short".
+#' @slot data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
+#' @slot initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
+#' @slot split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
+#' @slot enable_theme_representativeness A logical indicating whether, if a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
+#' with highest alpha t-stat should be elected.
+#' @slot alpha_test_strategy An `alpha_test_strategy` object with the configuration for the alpha test.
+#' @export
+setClass("ss_backtest_config",
+         slots = list(
+           chosen_signals = "character",
+           signal_positions = "character",
+           data_availability_cutoff = "numeric",
+           initial_sample_size = "numeric",
+           rebalancing_months = "numeric",
+           split_method = "character",
+           enable_theme_representativeness = "logical",
+           alpha_test_strategy = "alpha_test_strategy",
+           config_name = "character"
+         ), prototype = list(
+           split_method = "expanding",
+           enable_theme_representativeness = TRUE
+         ),
+         validity = function(object) {
+           if(any(names(object@signal_positions) != object@chosen_signals)){
+             stop("signal_positions should have the same names as chosen_signals")
+           }
+           if(!all(object@signal_positions %in% c("long", "short"))){
+             stop("signal_positions should be either 'long' or 'short'")
+           }
+           if(object@data_availability_cutoff < 0){
+             stop("data_availability_cutoff can't be negative")
+           }
+           if(object@initial_sample_size < 0){
+             stop("initial_sample_size can't be negative")
+           }
+           if(object@initial_sample_size < object@data_availability_cutoff){
+             stop("initial_sample_size should be greater than or equal to data_availability_cutoff")
+           }
+          }
+         )
+
+
 
 #' @title ml_metabacktest_config Class
 #' @description The ml_metabacktest_config class is designed to store and manage a collection of ml_backtest_config objects.

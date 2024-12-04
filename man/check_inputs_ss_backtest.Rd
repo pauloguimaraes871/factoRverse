@@ -5,21 +5,32 @@
 \title{Perform validation checks on inputs for Signal Selection (SS) Workflow}
 \usage{
 check_inputs_ss_backtest(
+  initial_sample_size,
   rebalancing_months,
   data_availability_cutoff,
+  split_method,
   signals_m_df,
   chosen_signals,
   signal_positions,
   backtest_returns_df,
-  selected_benchmark_returns_df,
+  benchmark_returns_df,
+  market_factor_proxy,
   p_correction_method,
   signal_significance_threshold,
+  enable_theme_representativeness,
   priors_m_df,
-  priors_type,
-  signal_themes_m_df
+  user_priors,
+  model_spec_theme_level,
+  brms_control,
+  prior_derivation_control,
+  signal_themes_m_df,
+  lower_quantile_winsorization,
+  upper_quantile_winsorization
 )
 }
 \arguments{
+\item{initial_sample_size}{A numeric indicating the minimum number of observations required to begin the backtest.}
+
 \item{rebalancing_months}{Months (numeric) when signal selection should be implemented.}
 
 \item{data_availability_cutoff}{The minimum number of non-NA observations required for a backtest to be considered.}
@@ -31,8 +42,6 @@ check_inputs_ss_backtest(
 \item{signal_positions}{A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short".}
 
 \item{backtest_returns_df}{A data frame with a 'dates' column and remaining columns named according to signals in signals_m_df, containing historical backtested returns.}
-
-\item{selected_benchmark_returns_df}{A data frame with a 'dates' column and a column with benchmark returns, named accordingly.}
 
 \item{p_correction_method}{The method for p-value correction. Possible options are:
 \itemize{
@@ -55,11 +64,43 @@ For FDR, possible options are:
 \item{signal_significance_threshold}{A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
 
+\item{enable_theme_representativeness}{If TRUE, in case a given theme in \code{signal_themes_m_df} does not have any eligible signal, the signal
+with highest alpha t-stat will be elected.}
+
 \item{priors_m_df}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
 and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors.}
 
+\item{model_spec_theme_level}{A character string specifying the desired Bayesian model structure.
+Options include:
+\itemize{
+\item \code{"random_intercept"}: Includes random effects for the intercept at the theme level.
+\item \code{"fixed_intercepts"}: Uses fixed intercepts for each theme.
+\item \code{"fixed_intercepts_and_slopes"}: Includes fixed intercepts and slopes for each theme.
+\item \code{"none"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
+}}
+
+\item{prior_derivation_control}{A list of additional parameters to be passed to the \code{lme4::lmer} function:
+\itemize{
+\item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
+
+\item{lmer_optimizer} A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
+It will be passed to lme4::lmerControl, which will be used in the \code{lme4::lmer} function.
+Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+
+\item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+}}
+
 \item{signal_themes_m_df}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
 for defining clusters in bayesian hierarchical model.}
+
+\item{lower_quantile_winsorization}{Numeric value for lower winsorization.}
+
+\item{upper_quantile_winsorization}{Numeric value for upper winsorization.}
+
+\item{selected_benchmark_returns_df}{A data frame with a 'dates' column and a column with benchmark returns, named accordingly.}
+
+\item{parallel}{Logical.
+Indicates whether to enable parallel computation using the \code{future} package. Only avaialable for bayesian model. Default is \code{TRUE}.}
 }
 \description{
 This function validates and checks various inputs required for signal selection in the context of run_ss_backtest function.
