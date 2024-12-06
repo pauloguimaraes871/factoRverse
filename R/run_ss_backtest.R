@@ -7,6 +7,8 @@
 #'
 #' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
+#' @param chosen_signals A vector of user-defined characteristics to be considered.
+#' @param signal_positions A named vector with the same length and names as `chosen_signals`, describing whether positions should be taken "long" or "short".
 #' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in `signals_m_df`, containing historical backtested returns.
 #' @param benchmark_returns_df A data frame with a 'dates' column and columns with benchmark returns, named accordingly.
 #' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
@@ -18,8 +20,9 @@
 #' @param parallel A boolean indicating whether to run the backtest in parallel.
 #' @param ... Additional arguments (not used in this method).
 #' @export
-setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_df, benchmark_returns_df, priors_m_df, signal_themes_m_df,
-                                       verbose, parallel, ...) {
+setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_df, benchmark_returns_df, signal_themes_m_df,
+                                       chosen_signals, signal_positions,
+                                       ...) {
   standardGeneric("run_ss_backtest")
 })
 
@@ -29,12 +32,13 @@ setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_df
 #' @export
 setMethod("run_ss_backtest",
           signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_df = "data.frame", benchmark_returns_df = "data.frame",
-                    priors_m_df = "ANY", signal_themes_m_df = "meta_dataframe", verbose = "ANY", parallel = "ANY"),
+                    signal_themes_m_df = "meta_dataframe",
+                    chosen_signals = "character", signal_positions = "character"),
 
-          function(config, signals_m_df, backtest_returns_df, benchmark_returns_df, priors_m_df = NULL, signal_themes_m_df,
-                   winsorization_probs = c(0.025, 0.975),
-                   verbose = TRUE, parallel = TRUE){
-
+          function(config, signals_m_df, backtest_returns_df, benchmark_returns_df, signal_themes_m_df,
+                   chosen_signals = "all", signal_positions, priors_m_df = NULL,
+                   verbose = TRUE, parallel = TRUE, winsorization_probs = c(0.025, 0.975)){
+browser()
             ## Initial Preparations
             #######################
             #Assign default values for internal function (to avoid getting vars from global environ)
@@ -46,8 +50,19 @@ setMethod("run_ss_backtest",
             enable_theme_representativeness <- TRUE
             user_priors <- NULL
             model_spec_theme_level <- "random_intercept"
-            brms_control <- list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80)
+            brms_control <- list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80, warmup = 1000)
             prior_derivation_control <- list(lmer_optimizer = "nloptwrap", half_t_df = 30, lmer_optimization_objective = "REML")
+
+            chosen_signals <- if(length(chosen_signals) == 1 && chosen_signals == "all") colnames(signals_m_df@data)[-c(1:3)] else chosen_signals
+            # Input validation
+            if (length(signal_positions) != length(chosen_signals) ||
+                any(names(signal_positions) != chosen_signals)) {
+              stop("signal_positions must have the same length and names as chosen_signals.")
+            }
+            if (!all(signal_positions %in% c("long", "short"))) {
+              stop("signal_positions should contain only 'long' or 'short'.")
+            }
+
             lower_quantile_winsorization <- min(winsorization_probs)
             upper_quantile_winsorization <- max(winsorization_probs)
 
@@ -67,26 +82,16 @@ setMethod("run_ss_backtest",
             signals_object_name <- signals_m_df@meta_dataframe_name #Get mdf name
             signals_m_df <- signals_m_df@data #Get signals_m_df
 
-            ##priors_m_df
-            if(!is.null(priors_m_df)){
-              priors_workflow <- priors_m_df@workflow #Get workflow
-              priors_object_name <- priors_m_df@meta_dataframe_name #Get mdf name
-              priors_m_df <- priors_m_df@data #Get priors_m_df
-            }
-
             ##signal_themes_m_df
             signal_themes_workflow <- signal_themes_m_df@workflow #Get workflow
             signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name #Get mdf name
             signal_themes_m_df <- signal_themes_m_df@data #Get signal_themes_m_df
 
             ##Get general info from contig
-            chosen_signals <- config@chosen_signals
-            signal_positions <- config@signal_positions
             data_availability_cutoff <- config@data_availability_cutoff
             initial_sample_size <- config@initial_sample_size
             rebalancing_months <- config@rebalancing_months
             split_method <- config@split_method
-            enable_theme_representativeness <- config@enable_theme_representativeness
             config_name <- config@config_name
             alpha_test_strategy <- config@alpha_test_strategy
 
@@ -94,8 +99,19 @@ setMethod("run_ss_backtest",
             signal_significance_threshold <- alpha_test_strategy@signal_significance_threshold
             p_correction_method <- alpha_test_strategy@p_correction_method
             market_factor_proxy <- alpha_test_strategy@market_factor_proxy
+            enable_theme_representativeness <- alpha_test_strategy@enable_theme_representativeness
+
+
             if(p_correction_method == "bayesian"){
               #Get information that is specific to bayesian approach
+
+              ##priors_m_df
+              if(!is.null(priors_m_df)){
+                priors_workflow <- priors_m_df@workflow #Get workflow
+                priors_object_name <- priors_m_df@meta_dataframe_name #Get mdf name
+                priors_m_df <- priors_m_df@data #Get priors_m_df
+              }
+
               bayesian_model_parameters <- alpha_test_strategy@bayesian_model_parameters
               user_priors <- bayesian_model_parameters@user_priors
               model_spec_theme_level <- bayesian_model_parameters@model_spec_theme_level
@@ -116,15 +132,52 @@ setMethod("run_ss_backtest",
               priors_m_df = priors_m_df, user_priors = user_priors, model_spec_theme_level = model_spec_theme_level, brms_control = brms_control, prior_derivation_control = prior_derivation_control,
               signal_themes_m_df, lower_quantile_winsorization =  lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, verbose = verbose, parallel = parallel
               )
+            #########################
+
+            #Adjust SS Backtest WF
+            ###########################
+
+            #Add workflows, config_name and objects for target and features
+            ###Signals
+            ss_backtest_results@ss_backtest_workflow$signals_object_name <- signals_object_name
+            ss_backtest_results@ss_backtest_workflow$signals_workflow <- signals_workflow
+
+            ###Signal Themes
+            ss_backtest_results@ss_backtest_workflow$signal_themes_object_name <- signal_themes_object_name
+            ss_backtest_results@ss_backtest_workflow$signal_themes_workflow <- signal_themes_workflow
+
+            ###Priors Themes
+            if(!is.null(priors_m_df)){
+            ss_backtest_results@ss_backtest_workflow$priors_object_name <- priors_object_name
+            ss_backtest_results@ss_backtest_workflow$priors_workflow <- priors_workflow
+            }
+
+            ###Backtest Returns DF
+            #ss_backtest_results@ss_backtest_workflow$backtest_returns_object <- backtest_returns_object_name
+
+            ###IDs
+            ss_backtest_results@ss_backtest_workflow$config_name <- config@config_name
+            ss_backtest_results@ss_backtest_workflow$backtest_identifier <-
+              paste0("c:",config@config_name, "_s:", signals_object_name, "_st:", signal_themes_object_name)
+              #Add for priors_m_df
+              if(!is.null(priors_m_df)){
+                ss_backtest_results@ss_backtest_workflow$backtest_identifier <-
+                  paste0(ss_backtest_results@ss_backtest_workflow$backtest_identifier, "_p:", priors_object_name)
+              }
+            ss_backtest_results@backtest_identifier <- ss_backtest_results@ss_backtest_workflow$backtest_identifier
+
+            ###Workflow for signal_universe_m_df
+            ss_backtest_results@signal_universe_m_df@workflow <- list(paste0("signal_universe_m_df result of ", ss_backtest_results@backtest_identifier))
+            ss_backtest_results@final_signal_universe_m_d_ref@workflow <- list(paste0("final_signal_universe_m_d_ref result of ", ss_backtest_results@backtest_identifier))
 
 
+            ###Call
+            ss_backtest_results@ss_backtest_workflow$call <- sys.call(-2)
 
+            return(ss_backtest_results)
 
-
-
-          }
-
-          )
+       }
+      )
 
 #' @describeIn run_ss_backtest Run Signal Selection Backtest
 #' Run a Signal Selection Backtest
@@ -343,11 +396,11 @@ run_ss_backtest_internal <- function(
     dates_m_vector <- dates_m_vector[order(dates_m_vector)] #Re-order ascending just to be sure
 
     #Backtest length
-    backtest_length <- length(dates_m_vector) - data_availability_cutoff + 1 #calculate backtest_length
+    backtest_length <- length(dates_m_vector) - initial_sample_size + 1 #calculate backtest_length
 
     #Rebalancing Dates
-    dates_backtest <- dates_m_vector[data_availability_cutoff:
-                                    (data_availability_cutoff + backtest_length - 1)] #These are dates inside backtest
+    dates_backtest <- dates_m_vector[initial_sample_size:
+                                    (initial_sample_size + backtest_length - 1)] #These are dates inside backtest
 
     first_rebalance_date <- min(dates_backtest) #Get first rebalancing date
     rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
@@ -360,7 +413,7 @@ run_ss_backtest_internal <- function(
 
     #Last rebalance date
     last_rebalance_date <- max(rebalance_dates)
-
+browser()
 
     #################
     ##Check Parameters
@@ -436,21 +489,22 @@ run_ss_backtest_internal <- function(
       current_date <- dates_m_vector[d]
       upd_ref <- which(as.Date(signals_m_df$dates,  format = "%Y-%m-%d") <= current_date) #Get upd_ref
 
-      #Subset signals, backtest, market factor and priors
-      selected_signals_corrected_positions_m_upd_ref <- selected_signals_corrected_positions_m_df[upd_ref,]
-      selected_backtest_returns_corrected_positions_upd_ref <- selected_backtest_returns_corrected_positions_df[which(selected_backtest_returns_corrected_positions_df$dates <= current_date), ]
-      selected_market_factor_proxy_upd_ref <- selected_market_factor_proxy_df[which(selected_market_factor_proxy_df$dates <= current_date), ]
-      priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
-      signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
-
-       #Check if it's a rebalancing month
-      if((lubridate::month(current_date) %in% rebalancing_months) || d == (data_availability_cutoff)){
+      #Check if it's a rebalancing month
+      if((lubridate::month(current_date) %in% rebalancing_months) || d == (initial_sample_size)){
         #Print refitting message
         if(verbose){
           cat("\n")
           cat(crayon::yellow(paste("Running signal selection backtest at:", current_date)))
           cat("\n")
         }
+
+        #Subset signals, backtest, market factor and priors
+        selected_signals_corrected_positions_m_upd_ref <- selected_signals_corrected_positions_m_df[upd_ref,]
+        selected_backtest_returns_corrected_positions_upd_ref <- selected_backtest_returns_corrected_positions_df[which(selected_backtest_returns_corrected_positions_df$dates <= current_date), ]
+        selected_market_factor_proxy_upd_ref <- selected_market_factor_proxy_df[which(selected_market_factor_proxy_df$dates <= current_date), ]
+        priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
+        signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
+
 
         ###Elect signals
         signal_eligibility_results_list <- define_signal_eligibility(
@@ -488,14 +542,33 @@ run_ss_backtest_internal <- function(
       ###Get results
       signal_universe_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <-  signal_universe_m_d_ref
       bayesian_fit_nested_list[[which(rebalance_dates %in% current_date)]] <- bayesian_fit_list
-      eligible_signals_list[[d - data_availability_cutoff + 1]] <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
+      eligible_signals_list[[d - initial_sample_size + 1]] <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
 
 
       } #End rebalancing month
 
     #When there is no rebalancing, just repeat eligible signals from last month
-    eligible_signals_list[[d - data_availability_cutoff + 1]] <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
+    eligible_signals_list[[d - initial_sample_size + 1]] <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
     } #End loop
+
+    #Assign dates to names of objects
+    names(signal_universe_m_d_ref_list) <- rebalance_dates
+    if (length(bayesian_fit_nested_list) > 0) names(bayesian_fit_nested_list) <- rebalance_dates
+    names(eligible_signals_list) <- dates_backtest
+
+    #Turn signal_universe_m_d_ref_list into a signle meta_dataframe
+    signal_universe_m_df <- do.call(rbind, signal_universe_m_d_ref_list)
+    rownames(signal_universe_m_df) <- NULL #erase rownames
+      ##Create m_df
+      signal_universe_m_df <- suppressWarnings(create_meta_dataframe(signal_universe_m_df))
+
+    #Create final_signal_universe_m_d_ref
+    final_signal_universe_m_d_ref <- create_meta_dataframe(signal_universe_m_d_ref)
+
+  })
+
+  #End timer
+  print(elapsed_time)
 
     #Get workflow
     ss_backtest_workflow <- list(
@@ -507,13 +580,15 @@ run_ss_backtest_internal <- function(
       signal_significance_threshold = signal_significance_threshold,
       market_factor_proxy = market_factor_proxy,
       data_availability_cutoff = data_availability_cutoff,
-      #MTO constraints
-      heuristic_sb_metric = heuristic_sb_metric,
-      max_abs_active_group_weight = max_abs_active_group_weight,
+      enable_theme_representativeness = enable_theme_representativeness,
       #Bayesian
-      priors_type = priors_type,
-      user_priors_list = user_priors_list,
+      user_priors = user_priors,
+      model_spec_theme_level = model_spec_theme_level,
+      brms_control = brms_control,
+      prior_derivation_control = prior_derivation_control,
       #Dates
+      initial_sample_size = initial_sample_size,
+      rebalancing_months = rebalancing_months,
       dates_covered = dates_m_vector,
       n_dates = length(dates_m_vector),
       dates_backtest = dates_backtest,
@@ -527,11 +602,14 @@ run_ss_backtest_internal <- function(
       selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],
       n_signals = length(chosen_signals),
       signals_workflow = NULL,
-      signals_object = "not_identified",
-      signal_themes_object = "not_identified",
-      priors_object = "not_identified",
-      backtest_returns_object = "not_identified",
-      benchmark_returns_object = "not_identified",
+      signals_object_name = "not_identified",
+      signal_themes_workflow = NULL,
+      signal_themes_object_name = "not_identified",
+      priors_workflow = NULL,
+      priors_object_name = "not_present",
+      backtest_returns_object_name = "not_identified",
+      lower_quantile_winsorization = lower_quantile_winsorization,
+      upper_quantile_winsorization = upper_quantile_winsorization,
       #Performance
       elapsed_time = elapsed_time,
       timestamps = c(initialization = Sys.time()),
@@ -542,16 +620,15 @@ run_ss_backtest_internal <- function(
 
     #Get final object
     ss_backtest_results <- new("ss_backtest_results",
-                               backtest_type = ss_backtest_workflow$backtest_type,
-                               signal_universe_m_d_ref_list = signal_universe_m_d_ref_list,
+                               signal_universe_m_df = signal_universe_m_df,
+                               final_signal_universe_m_d_ref = final_signal_universe_m_d_ref,
+                               selected_market_factor_proxy_upd_ref = selected_market_factor_proxy_upd_ref,
                                bayesian_fit_nested_list = bayesian_fit_nested_list,
                                eligible_signals_list = eligible_signals_list,
-                               ss_backtest_workflow = ss_backtest_workflow
+                               p_correction_method = p_correction_method,
+                               ss_backtest_workflow = ss_backtest_workflow,
+                               backtest_identifier = "not_identified"
                                )
-
-    })
-    #End timer
-    print(elapsed_time)
 
     #Return
     return(ss_backtest_results)

@@ -1709,6 +1709,62 @@ setMethod(
   }
 )
 
+#' @title Create an ss_backtest_config Object
+#' @description This function constructs an object of class `ss_backtest_config`, ensuring the proper initialization
+#' and validation of its slots.
+#' @param data_availability_cutoff A numeric indicating the minimum number of non-NA observations required for a backtest.
+#' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
+#' @param rebalancing_months A numeric indicating the number of months for rebalancing.
+#' @param split_method A character string specifying the splitting method, either "expanding" (default) or "rolling".
+#' @param enable_theme_representativeness Logical, whether to enable theme representativeness (default is TRUE).
+#' @param alpha_test_strategy An `alpha_test_strategy` object defining the alpha test configuration.
+#' @param config_name A character string naming the configuration.
+#' @return An object of class `ss_backtest_config`.
+#' @examples
+#' # Example usage:
+#' config <- create_ss_backtest_config(
+#'   data_availability_cutoff = 100,
+#'   initial_sample_size = 200,
+#'   rebalancing_months = 6,
+#'   alpha_test_strategy = alpha_test_strategy_obj,
+#'   config_name = "ExampleConfig"
+#' )
+#' @export
+create_ss_backtest_config <- function(
+    data_availability_cutoff,
+    initial_sample_size,
+    rebalancing_months,
+    split_method = "expanding",
+    alpha_test_strategy = NULL,
+    config_name
+) {
+  # Input validation
+  if (data_availability_cutoff < 0) {
+    stop("data_availability_cutoff cannot be negative.")
+  }
+  if (initial_sample_size < 0) {
+    stop("initial_sample_size cannot be negative.")
+  }
+  if (initial_sample_size < data_availability_cutoff) {
+    stop("initial_sample_size must be greater than or equal to data_availability_cutoff.")
+  }
+  if (!split_method %in% c("expanding", "rolling")) {
+    stop("split_method must be either 'expanding' or 'rolling'.")
+  }
+
+  # Create and return the object
+  new("ss_backtest_config",
+     data_availability_cutoff = data_availability_cutoff,
+      initial_sample_size = initial_sample_size,
+      rebalancing_months = rebalancing_months,
+      split_method = split_method,
+      alpha_test_strategy = alpha_test_strategy,
+      config_name = config_name)
+}
+
+
+
+
 #' @title Create an alpha_test_strategy object
 #' @description A constructor function to create instances of alpha_test_strategy or its subclasses
 #' (frequentist_alpha_test_strategy and bayesian_alpha_test_strategy).
@@ -1724,7 +1780,9 @@ setMethod(
 create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
                                        p_correction_method = "none",
                                        market_factor_proxy,
-                                       bayesian_model_parameters = NULL) {
+                                       bayesian_model_parameters = NULL,
+                                       enable_theme_representativeness = TRUE
+                                       ) {
 
   # Validate input arguments
   if (!p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY", "bayesian")) {
@@ -1758,6 +1816,7 @@ create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
                signal_significance_threshold = signal_significance_threshold,
                p_correction_method = p_correction_method,
                market_factor_proxy = market_factor_proxy, #For a new bayesian class, create an uniformative bayesian_model_parameters
+               enable_theme_representativeness = enable_theme_representativeness,
                bayesian_model_parameters = bayesian_model_parameters
                )
            )
@@ -1768,6 +1827,7 @@ create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
     return(new("frequentist_alpha_test_strategy",
                signal_significance_threshold = signal_significance_threshold,
                p_correction_method = p_correction_method,
+               enable_theme_representativeness = enable_theme_representativeness,
                market_factor_proxy = market_factor_proxy))
   }
 
@@ -1776,48 +1836,161 @@ create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
 }
 
 
+#' @title Add Alpha Test Strategy to ss_backtest_config
+#' @description This method allows you to add an `alpha_test_strategy` object to an `ss_backtest_config` object.
+#' @param object An `ss_backtest_config` object.
+#' @param alpha_test_strategy An `alpha_test_strategy` object to be added.
+#' @return The updated `ss_backtest_config` object with the specified `alpha_test_strategy` added.
+#' @examples
+#' # Example usage
+#' alpha_strategy <- new("frequentist_alpha_test_strategy",
+#'                        signal_significance_threshold = 0.05,
+#'                        p_correction_method = "holm",
+#'                        market_factor_proxy = "S&P500")
+#' config <- create_ss_backtest_config(
+#'   data_availability_cutoff = 100,
+#'   initial_sample_size = 200,
+#'   rebalancing_months = 6,
+#'   alpha_test_strategy = NULL,
+#'   config_name = "ExampleConfig"
+#' )
+#' config <- add_alpha_test_strategy(config, alpha_strategy)
+#' @export
+setGeneric("add_alpha_test_strategy", function(object, alpha_test_strategy, ...) {
+  standardGeneric("add_alpha_test_strategy")
+})
+
+#' @rdname add_alpha_test_strategy
+#' @export
+setMethod(
+  "add_alpha_test_strategy",
+  signature(object = "ss_backtest_config", alpha_test_strategy = "alpha_test_strategy"),
+  function(object, alpha_test_strategy) {
+
+    # Set the alpha_test_strategy slot
+    object@alpha_test_strategy <- alpha_test_strategy
+
+    # Return the updated object
+    return(object)
+  }
+)
+
+#' @rdname add_alpha_test_strategy
+#' @export
+setMethod(
+  "add_alpha_test_strategy",
+  signature(object = "ss_backtest_config", alpha_test_strategy = "missing"),
+  function(object, signal_significance_threshold = 0.05, p_correction_method = "none", market_factor_proxy,
+           enable_theme_representativeness = TRUE, bayesian_model_parameters = NULL) {
+
+    alpha_test_strategy <- create_alpha_test_strategy(signal_significance_threshold = signal_significance_threshold,
+                                                      p_correction_method = p_correction_method,
+                                                      market_factor_proxy = market_factor_proxy,
+                                                      enable_theme_representativeness = enable_theme_representativeness,
+                                                      bayesian_model_parameters = bayesian_model_parameters
+                                                      )
+
+    # Set the alpha_test_strategy slot
+    object@alpha_test_strategy <- alpha_test_strategy
+
+    # Return the updated object
+    return(object)
+  }
+)
+
 #' @title Add Bayesian Model Parameters
-#' @description Adds an object of class `bayesian_model_parameters` to a `bayesian_alpha_test_strategy` object.
-#' @param object An object of class `bayesian_alpha_test_strategy`.
+#' @description Generic function to add Bayesian model parameters.
+#' @param object The object to which Bayesian model parameters will be added.
 #' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
 #'   Options: `"random_intercept"`, `"fixed_intercepts"`, `"fixed_intercepts_and_slopes"`, `"none"`.
 #' @param user_priors An optional object of class `brmsprior`.
-#' @param prior_derivation_control An optional list containing `half_t_df`, `lmer_optimizer` and/or `lmer_optimization_objective`
+#' @param prior_derivation_control An optional list containing prior derivation control parameters.
 #' @param brms_control An optional list of parameters for `brms::brm`.
-#' @return An updated `bayesian_alpha_test_strategy` object with the `bayesian_model_parameters` slot populated.
+#' @return The updated object with the `bayesian_model_parameters` added.
 #' @export
-setGeneric("add_bayesian_model_parameters", function(object, ...) standardGeneric("add_bayesian_model_parameters"))
+setGeneric("add_bayesian_model_parameters", function(object,
+                                                     model_spec_theme_level,
+                                                     user_priors = NULL,
+                                                     prior_derivation_control = NULL,
+                                                     brms_control = NULL) {
+  standardGeneric("add_bayesian_model_parameters")
+})
 
-setMethod("add_bayesian_model_parameters", "bayesian_alpha_test_strategy",
-          function(object, model_spec_theme_level, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
-            # Validate `model_spec_theme_level`
-            if (!model_spec_theme_level %in% c("random_intercept", "fixed_intercepts", "fixed_intercepts_and_slopes", "none")) {
-              stop("Invalid model_spec_theme_level. Must be one of: 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes', 'none'.")
-            }
+#' @rdname add_bayesian_model_parameters
+#' @export
+setMethod(
+  "add_bayesian_model_parameters",
+  signature(object = "bayesian_alpha_test_strategy"),
+  function(object,
+           model_spec_theme_level,
+           user_priors = NULL,
+           prior_derivation_control = NULL,
+           brms_control = NULL) {
+    # Validate `model_spec_theme_level`
+    if (!model_spec_theme_level %in% c("random_intercept",
+                                       "fixed_intercepts",
+                                       "fixed_intercepts_and_slopes",
+                                       "none")) {
+      stop("Invalid 'model_spec_theme_level'. Must be one of: 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes', 'none'.")
+    }
 
-            # Ensure only one of `user_priors` or `prior_derivation_control` is provided
-            if (!is.null(user_priors) && !is.null(prior_derivation_control)) {
-              stop("Only one of 'user_priors' or 'prior_derivation_control' can be provided, not both.")
-            }
+    # Ensure only one of `user_priors` or `prior_derivation_control` is provided
+    if (!is.null(user_priors) && !is.null(prior_derivation_control)) {
+      stop("Only one of 'user_priors' or 'prior_derivation_control' can be provided, not both.")
+    }
 
-            # Check user_priors arg
-            if(!is.null(user_priors)){
-              if(!inherits(user_priors, "brmsprior")){
-                stop("When provided, 'user_priors' must be an object of class 'brmsprior'.")
-              }
-            }
+    # Check `user_priors` argument
+    if (!is.null(user_priors) && !inherits(user_priors, "brmsprior")) {
+      stop("When provided, 'user_priors' must be an object of class 'brmsprior'.")
+    }
 
-            # Create `bayesian_model_parameters` object
-            bayesian_params <- new("bayesian_model_parameters",
-                                   user_priors = user_priors,
-                                   model_spec_theme_level = model_spec_theme_level,
-                                   prior_derivation_control = prior_derivation_control,
-                                   brms_control = brms_control)
+    # Create `bayesian_model_parameters` object
+    bayesian_params <- new("bayesian_model_parameters",
+                           user_priors = user_priors,
+                           model_spec_theme_level = model_spec_theme_level,
+                           prior_derivation_control = prior_derivation_control,
+                           brms_control = brms_control)
 
-            # Add `bayesian_model_parameters` to `bayesian_alpha_test_strategy`
-            object@bayesian_model_parameters <- bayesian_params
-            return(object)
-          })
+    # Add `bayesian_model_parameters` to `bayesian_alpha_test_strategy`
+    object@bayesian_model_parameters <- bayesian_params
+    return(object)
+  }
+)
+
+#' @rdname add_bayesian_model_parameters
+#' @export
+setMethod(
+  "add_bayesian_model_parameters",
+  signature(object = "ss_backtest_config"),
+  function(object,
+           model_spec_theme_level,
+           user_priors = NULL,
+           prior_derivation_control = NULL,
+           brms_control = NULL) {
+    # Check if `alpha_test_strategy` is set
+    if (is.null(object@alpha_test_strategy)) {
+      stop("The 'alpha_test_strategy' slot is not set in the ss_backtest_config object.")
+    }
+
+    # Ensure the `alpha_test_strategy` is of class `bayesian_alpha_test_strategy`
+    if (!is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
+      stop("The 'alpha_test_strategy' in the ss_backtest_config object is not of class 'bayesian_alpha_test_strategy'.")
+    }
+
+    # Call the method for 'bayesian_alpha_test_strategy' to add 'bayesian_model_parameters'
+    object@alpha_test_strategy <- add_bayesian_model_parameters(
+      object@alpha_test_strategy,
+      model_spec_theme_level = model_spec_theme_level,
+      user_priors = user_priors,
+      prior_derivation_control = prior_derivation_control,
+      brms_control = brms_control
+    )
+
+    # Return the updated 'ss_backtest_config' object
+    return(object)
+  }
+)
+
 
 #' @title Add Prior to Bayesian Alpha Test Strategy
 #' @description Adds a prior to a `bayesian_alpha_test_strategy` object based on provided parameters.
@@ -1831,7 +2004,10 @@ setMethod("add_bayesian_model_parameters", "bayesian_alpha_test_strategy",
 #' @export
 setGeneric("add_brms_prior", function(object, ...) standardGeneric("add_brms_prior"))
 
-setMethod("add_brms_prior", "bayesian_alpha_test_strategy",
+#' @rdname add_brms_prior
+#' @export
+setMethod("add_brms_prior",
+          signature(object = "bayesian_alpha_test_strategy"),
           function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
 
             # Ensure lengths match
@@ -1946,7 +2122,38 @@ setMethod("add_brms_prior", "bayesian_alpha_test_strategy",
             return(object)
           })
 
+#' @rdname add_brms_prior
+#' @export
+#' @rdname add_brms_prior
+#' @export
+setMethod(
+  "add_brms_prior",
+  signature(object = "ss_backtest_config"),
+  function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
+    # Check if `alpha_test_strategy` is set
+    if (is.null(object@alpha_test_strategy)) {
+      stop("The 'alpha_test_strategy' slot is not set in the ss_backtest_config object.")
+    }
 
+    # Ensure the `alpha_test_strategy` is of class `bayesian_alpha_test_strategy`
+    if (!is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
+      stop("The 'alpha_test_strategy' in the ss_backtest_config object is not of class 'bayesian_alpha_test_strategy'.")
+    }
+
+    # Delegate the call to the 'alpha_test_strategy' object's method
+    object@alpha_test_strategy <- add_brms_prior(
+      object@alpha_test_strategy,
+      distribution_choice = distribution_choice,
+      pars = pars,
+      class = class,
+      coef = coef,
+      group = group
+    )
+
+    # Return the updated 'ss_backtest_config' object
+    return(object)
+  }
+)
 
 
 

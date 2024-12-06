@@ -270,10 +270,6 @@ check_inputs_ss_backtest <- function(
       if(!is.null(brms_control$thin) && !is.numeric(brms_control$thin) || brms_control$thin <= 0){
         stop("thin must be a positive number.")
       }
-      #seed
-      if(!is.null(brms_control$seed) && !is.numeric(brms_control$seed) || brms_control$seed <= 0){
-        stop("thin must be a positive number.")
-      }
       #adapt_delta
       if(!is.null(brms_control$adapt_delta) && !is.numeric(brms_control$adapt_delta) || brms_control$adapt_delta <= 0 || brms_control$adapt_delta > 1){
         stop("adapt_delta should be between 0 and 1.")

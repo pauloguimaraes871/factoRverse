@@ -18,13 +18,14 @@
 setMethod(
   "plot",
   signature(x = "meta_dataframe", y = "missing"),
-  function(x, type = "cross_sectional", clustering_variables = NULL, variable = NULL, tickers = "all", dates = "all", calc_stat = "mean",
+  function(x, type = NULL, clustering_variables = NULL, variable = NULL, tickers = "all", dates = "all", calc_stat = NULL,
            custom_filter = NULL, filter_values = NULL, dep_y = NULL, numeric_aggregation = "decile") {
 
 
     # Prompt for 'type' if not specified
     if (is.null(type)) {
-      available_types <- c("cross_sectional", "time_series", "histogram", "boxplot", "composition", "regression", "density2d", "correlogram", "radar")
+      available_types <- c("cross_sectional", "time_series", "histogram", "boxplot", "composition",
+                           "regression", "density2d", "correlogram", "radar", "waterfall", "tile_heatmap")
       cat("\nPlease choose a plot type:\n")
       for (i in seq_along(available_types)) {
         cat(paste0(i, ": ", available_types[i], "\n"))
@@ -37,34 +38,82 @@ setMethod(
       type <- available_types[selection]
     }
 
-    # Check for valid 'type'
-    if (!type %in% c("cross_sectional", "time_series", "histogram", "boxplot", "composition", "regression", "density2d", "correlogram", "radar")) {
-      stop("Invalid plot type. Choose from 'cross_sectional', 'time_series', 'histogram', 'boxplot', 'composition', 'regression', 'density2d', 'correlogram', or 'radar'.")
+    # Prompt for 'variables' if not specified
+    if (is.null(variable)) {
+      available_variables <- setdiff(names(x@data), c("id", "tickers", "dates"))
+      cat("\nPlease choose variable(s) (separated by commas, or press Enter to skip):\n")
+      for (i in seq_along(available_variables)) {
+        cat(paste0(i, ": ", available_variables[i], "\n"))
+      }
+      selection <- readline(prompt = "Enter your choices (e.g., 1,2): ")
+      if (nzchar(selection)) {
+        indices <- as.numeric(strsplit(selection, ",")[[1]])
+        if (any(is.na(indices)) || any(indices < 1 | indices > length(available_variables))) {
+          stop("Invalid selection for variable.")
+        }
+        variable <- available_variables[indices]
+      }
     }
 
-    # Prompt for 'variable' if not specified and required
-    if (is.null(variable)) {
-      required_for_types <- c("cross_sectional", "time_series", "histogram", "composition", "regression", "density2d", "correlogram", "radar")
-      if (type %in% required_for_types) {
-        available_variables <- setdiff(names(x@data), c("id", "tickers", "dates"))
-        cat("\nPlease choose a variable:\n")
-        for (i in seq_along(available_variables)) {
-          cat(paste0(i, ": ", available_variables[i], "\n"))
+
+    #Check number of variables provided
+    if(length(variable) == 0){
+      stop("Please select at least one variable.")
+    }
+    if(length(variable) > 1 && !type %in% c("density2d", "correlogram", "radar", "waterfall")){
+      if(!type == "regression"){
+        stop("Currently, only one variable can be selected for the chosen plot type.")
+      } else {
+        stop("For regression, set only one variable (the independent variable) and then set dep_y (the dependent variable).")
+      }
+    }
+    if(length(variable) < 3 && type == "radar"){
+      stop("For radar plots, select at least three variables.")
+    }
+
+
+    # Prompt for 'clustering_variables' if not specified
+    if (is.null(clustering_variables) && !type %in% c("composition")) {
+      available_clustering_vars <- setdiff(names(x@data), c("id", variable))
+      cat("\nPlease choose clustering variables (separated by commas, or press Enter to skip):\n")
+      for (i in seq_along(available_clustering_vars)) {
+        cat(paste0(i, ": ", available_clustering_vars[i], "\n"))
+      }
+      selection <- readline(prompt = "Enter your choices (e.g., 1,2): ")
+      if (nzchar(selection)) {
+        indices <- as.numeric(strsplit(selection, ",")[[1]])
+        if (any(is.na(indices)) || any(indices < 1 | indices > length(available_clustering_vars))) {
+          stop("Invalid selection for clustering variables.")
         }
-        selection <- readline(prompt = "Enter the number of your choice: ")
-        selection <- as.numeric(selection)
-        if (is.na(selection) || selection < 1 || selection > length(available_variables)) {
-          stop("Invalid selection.")
+        clustering_variables <- available_clustering_vars[indices]
+      }
+    }
+
+    # Prompt for 'tickers' if not specified
+    if (identical(tickers, "all")) {
+      cat("\nDo you want to include all tickers or select specific ones? (Type 'all' or enter tickers separated by commas):\n")
+      selection <- readline(prompt = "Enter your choice: ")
+      if (nzchar(selection) && selection != "all") {
+        tickers <- strsplit(selection, ",")[[1]]
+      }
+    }
+
+    # Prompt for 'dates' if not specified
+    if (identical(dates, "all")) {
+      cat("\nDo you want to include all dates or select a date range? (Type 'all' or enter range in 'YYYY-MM-DD,YYYY-MM-DD' format):\n")
+      selection <- readline(prompt = "Enter your choice: ")
+      if (nzchar(selection) && selection != "all") {
+        date_range <- strsplit(selection, ",")[[1]]
+        if (length(date_range) != 2 || any(!grepl("^\\d{4}-\\d{2}-\\d{2}$", date_range))) {
+          stop("Invalid date range format. Use 'YYYY-MM-DD,YYYY-MM-DD'.")
         }
-        variable <- available_variables[selection]
+        dates <- seq.Date(as.Date(date_range[1]), as.Date(date_range[2]), by = "day")
       }
     }
 
     # Prompt for 'calc_stat' if not specified
-    if (is.null(calc_stat)) {
-      available_stats <- c("mean", "sd", "median", "min", "max", "sum", "n",
-                           "q05", "q10", "q25", "q75", "q90", "q95",
-                           "cor", "beta", "beta_tstat", "alpha", "alpha_tstat")
+    if (is.null(calc_stat) && type %in% c("cross_sectional", "time_series", "waterfall")) {
+      available_stats <- c("mean", "sd", "median", "min", "max", "sum", "n", "q05", "q10", "q25", "q75", "q90", "q95", "cor", "beta", "beta_tstat", "alpha", "alpha_tstat")
       cat("\nPlease choose a calculation statistic (calc_stat):\n")
       for (i in seq_along(available_stats)) {
         cat(paste0(i, ": ", available_stats[i], "\n"))
@@ -72,9 +121,26 @@ setMethod(
       selection <- readline(prompt = "Enter the number of your choice: ")
       selection <- as.numeric(selection)
       if (is.na(selection) || selection < 1 || selection > length(available_stats)) {
-        stop("Invalid selection.")
+        stop("Invalid selection for calc_stat.")
       }
       calc_stat <- available_stats[selection]
+    } else {
+      calc_stat <- if(type %in% c("waterfall", "signal_evolution")) "sum" else "mean"
+    }
+
+    # Prompt for 'dep_y' if applicable
+    if (is.null(dep_y) && (calc_stat %in% c("cor", "beta", "beta_tstat", "alpha", "alpha_tstat") || type == "regression")) {
+      available_variables <- setdiff(names(x@data), c("id", "tickers", "dates", variable))
+      cat("\nPlease choose a dependent variable (dep_y):\n")
+      for (i in seq_along(available_variables)) {
+        cat(paste0(i, ": ", available_variables[i], "\n"))
+      }
+      selection <- readline(prompt = "Enter the number of your choice: ")
+      selection <- as.numeric(selection)
+      if (is.na(selection) || selection < 1 || selection > length(available_variables)) {
+        stop("Invalid selection for dep_y.")
+      }
+      dep_y <- available_variables[selection]
     }
 
     # Set default clustering_variables based on plot type
@@ -91,24 +157,35 @@ setMethod(
     if(type == "composition"){
       if(!is.null(clustering_variables)){
         stop("Composition plot does not support clustering variables.")
-      if(calc_stat != "mean"){
-        stop("Composition plot does not support custom calc_stat.")
-       }
+        if(calc_stat != "mean"){
+          stop("Composition plot does not support custom calc_stat.")
+        }
       }
     }
 
     #Check if variable and dep_y are set as character
-    if(any(!is.character(variable), !is.character(dep_y))){
-      stop("variable and dep_y must be set as character values describing colnames in the data.frame.")
+    if(any(!is.character(variable)) && !type %in% c("tile_heatmap")){
+      stop("variable must be set as character values describing colnames in the data.frame.")
     }
 
-    if(!all(c(variable, dep_y) %in% colnames(x@data))){
-      stop("variable and dep_y must be present in the data.frame.")
+    if(!all(variable %in% colnames(x@data))){
+      stop("variable must be present in the data.frame.")
     }
 
     #Check for dep_y adequacy
-    if((type == "composition" || type == "histogram" || type == "density2d") && !is.null(dep_y)){
-      stop("dep_y is not supported for this plot type.")
+    if(!is.null(dep_y)){
+      if(any(!is.character(dep_y))){
+        stop("dep_y must be set as character values describing colnames in the data.frame.")
+      }
+
+      if(!all(dep_y %in% colnames(x@data))){
+        stop("dep_y must be present in the data.frame.")
+      }
+
+      if((type == "composition" || type == "histogram" || type == "density2d")){
+        stop("dep_y is not supported for this plot type.")
+      }
+
     }
 
     # Define colors for plotting
@@ -119,6 +196,9 @@ setMethod(
     neon_green <- "#39FF14"
     neon_orange <- "#FF5F1F"
     blue_bg <- "#001f3f"
+    neon_yellow <- "#FFDC00"
+    neon_pink <- "#FF007F"
+    cyan <- "#7FDBFF"
 
     df <- x@data
     date_range_text <- ""
@@ -162,7 +242,7 @@ setMethod(
                   stop("Invalid function")
     )
 
-    # Filter based on `tickers`
+    # Filter based on tickers
     if (!identical(tickers, "all")) {
       df <- df %>% dplyr::filter(tickers %in% !!tickers)
       tickers_text <- if (length(tickers) > 10) "> 10 tickers" else paste("Tickers:", paste(tickers, collapse = ", "))
@@ -170,7 +250,7 @@ setMethod(
       tickers_text <- "All tickers"
     }
 
-    # Filter based on `dates`
+    # Filter based on dates
     if (!identical(dates, "all")) {
       df <- df %>% dplyr::filter(dates %in% !!dates)
     }
@@ -183,7 +263,7 @@ setMethod(
       } else if (is.character(custom_filter) && is.vector(filter_values)) {
         df <- df %>% dplyr::filter(!!rlang::sym(custom_filter) %in% filter_values)
       } else {
-        stop("`custom_filter` and `filter_values` must be compatible: `custom_filter` should be a vector of column names, and `filter_values` a list or vector.")
+        stop("custom_filter and filter_values must be compatible: custom_filter should be a vector of column names, and filter_values a list or vector.")
       }
     }
 
@@ -191,38 +271,63 @@ setMethod(
     if (nrow(df) == 0) stop("No data available for the specified filters.")
 
     # Identify numeric clustering variables and create decile-based factors if needed
+    # Set number of bins and labels based on chosen aggregation
+    bins <- switch(numeric_aggregation,
+                   decile = 10,
+                   quartile = 4,
+                   tercile = 3,
+                   median = 2,
+                   stop("Invalid numeric_aggregation. Choose from 'decile', 'quartile', 'tercile', or 'median'."))
+
+    # Pre-compute labels once
+    label_list <- switch(numeric_aggregation,
+                         decile = sprintf("d%02d", 1:10),
+                         quartile = sprintf("q%02d", 1:4),
+                         tercile = sprintf("t%02d", 1:3),
+                         median = c("below_median", "above_median"))
+
     numeric_clustering_variables <- purrr::keep(clustering_variables, ~ is.numeric(df[[.x]]))
+
     if (length(numeric_clustering_variables) > 0) {
 
-      # Set number of bins and labels based on chosen aggregation
-      bins <- switch(numeric_aggregation,
-                     decile = 10,
-                     quartile = 4,
-                     tercile = 3,
-                     median = 2,
-                     stop("Invalid numeric_aggregation. Choose from 'decile', 'quartile', 'tercile', or 'median'."))
+      # Check if any date has fewer observations than the number of bins
+      insufficient_obs <- df %>%
+        dplyr::group_by(dates) %>%
+        dplyr::summarise(n_obs = dplyr::n(), .groups = 'drop') %>%
+        dplyr::filter(n_obs < bins)
 
-      # Mutate to create factor-based categorization with proper labels
+      if (nrow(insufficient_obs) > 0) {
+        # Create a descriptive error message listing problematic dates and their observation counts
+        error_message <- paste0(
+          "Not enough observations to create '", numeric_aggregation, "' bins on the following date(s): ",
+          paste(insufficient_obs$dates, collapse = ", "),
+          ".\nRequested: ", bins, " bins. Available: ", insufficient_obs$n_obs,
+          " observation(s) each.\nConsider using a less granular 'numeric_aggregation' or providing more data."
+        )
+        stop(error_message, call. = FALSE)
+      }
+
+      # Mutate to create factor-based categorization with proper labels (date-wise)
       df <- df %>%
-        dplyr::mutate(dplyr::across(
-          dplyr::all_of(numeric_clustering_variables),
-          ~ {
-            labels <- switch(numeric_aggregation,
-                             decile = sprintf("d%02d_%s", 1:10, dplyr::cur_column()),
-                             quartile = sprintf("q%02d_%s", 1:4, dplyr::cur_column()),
-                             tercile = sprintf("t%02d_%s", 1:3, dplyr::cur_column()),
-                             median = c(paste0("below_median_", dplyr::cur_column()), paste0("above_median_", dplyr::cur_column())),
-                             NULL)
-            factor(dplyr::ntile(., bins), labels = labels)
-          },
-          .names = "{numeric_aggregation}_{col}"
-        ))
+        dplyr::group_by(dates) %>%
+        dplyr::mutate(
+          dplyr::across(
+            dplyr::all_of(numeric_clustering_variables),
+            ~ {
+              var_name <- dplyr::cur_column()
+              var_labels <- paste0(label_list, "_", var_name)
+              factor_val <- dplyr::ntile(., bins)
+              factor(factor_val, levels = seq_len(bins), labels = var_labels)
+            },
+            .names = "{numeric_aggregation}_{col}"
+          )
+        ) %>%
+        dplyr::ungroup()
 
       # Update clustering variables to include the new categorized columns
       clustering_variables <- purrr::map_chr(clustering_variables, ~ if (.x %in% numeric_clustering_variables) {
         paste0(numeric_aggregation, "_", .x)
-      } else .x
-      )
+      } else .x)
     }
 
     # Logic for cross-sectional plot
@@ -252,7 +357,7 @@ setMethod(
       # Cross-sectional bar plot
 
       p <-
-      ggplot2::ggplot(df_fun, ggplot2::aes(x = interaction(!!!rlang::syms(clustering_variables)), y = Calc_Stat)) +
+        ggplot2::ggplot(df_fun, ggplot2::aes(x = interaction(!!!rlang::syms(clustering_variables)), y = Calc_Stat)) +
         ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = black) +
         ggplot2::geom_text(ggplot2::aes(label = scales::scientific(Calc_Stat, digits = 2)), vjust = -0.5, color = white) +
         ggplot2::theme_minimal() +
@@ -325,8 +430,14 @@ setMethod(
           tidyr::pivot_longer(cols = -dates, names_to = "Group", values_to = "Calc_Stat")
 
         # Plot each time series with a unique color and include legend
+        custom_title <- if(all(clustering_variables == c("dates", "tickers"))){
+          paste("Time Series of", variable, "by", paste(setdiff(clustering_variables, "dates"), collapse = ", "))
+        } else {
+          paste("Time Series of", calc_stat, variable, "by", paste(setdiff(clustering_variables, "dates"), collapse = ", "))
+        }
+
         p <-
-        ggplot2::ggplot(df_long, ggplot2::aes(x = dates, y = Calc_Stat, color = Group, group = Group)) +
+          ggplot2::ggplot(df_long, ggplot2::aes(x = dates, y = Calc_Stat, color = Group, group = Group)) +
           ggplot2::geom_line(size = 1) +
           ggplot2::scale_y_continuous(labels = scales::scientific) +
           ggplot2::scale_color_manual(values = color_palette) +  # Apply custom color palette
@@ -345,7 +456,7 @@ setMethod(
             legend.text = ggplot2::element_text(color = white)
           ) +
           ggplot2::labs(
-            title = paste("Time Series of", calc_stat, variable, "by", paste(setdiff(clustering_variables, "dates"), collapse = ", ")),
+            title = custom_title,
             subtitle = date_range_text,
             x = "Date",
             y = paste(calc_stat, variable),
@@ -356,7 +467,7 @@ setMethod(
       } else {
         # Single time series line plot for Calc_Stat over dates
         p <-
-        ggplot2::ggplot(df_fun, ggplot2::aes(x = dates, y = Calc_Stat)) +
+          ggplot2::ggplot(df_fun, ggplot2::aes(x = dates, y = Calc_Stat)) +
           ggplot2::geom_line(size = 1, color = vibrant_purple) +
           ggplot2::scale_y_continuous(labels = scales::scientific) +
           ggplot2::theme_minimal() +
@@ -392,7 +503,7 @@ setMethod(
       if (is.null(clustering_variables) || length(clustering_variables) == 0) {
         # Single histogram plot with classic histogram
         p <-
-        ggplot2::ggplot(df, ggplot2::aes_string(x = variable)) +
+          ggplot2::ggplot(df, ggplot2::aes_string(x = variable)) +
           ggplot2::geom_histogram(bins = 30, fill = vibrant_purple, color = black, alpha = 0.7) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
@@ -425,7 +536,7 @@ setMethod(
 
         # histogram plot faceted by clustering variables with classic histogram
         p <-
-        ggplot2::ggplot(df, ggplot2::aes_string(x = variable, fill = clustering_variables)) +
+          ggplot2::ggplot(df, ggplot2::aes_string(x = variable, fill = clustering_variables)) +
           ggplot2::geom_histogram(bins = 30, color = black, alpha = 0.7, position = "identity") +
           ggplot2::facet_wrap(ggplot2::vars(interaction(!!!rlang::syms(clustering_variables))), scales = "free") +
           ggplot2::scale_fill_manual(values = color_palette) +  # Apply custom color palette
@@ -580,7 +691,7 @@ setMethod(
 
     # Regression plot
     if (type == "regression") {
-      # Ensure that `y` is provided
+      # Ensure that y is provided
       if (missing(dep_y)) stop("Please provide a dependent variable (dep_y) for the regression plot.")
 
 
@@ -675,7 +786,7 @@ setMethod(
             title = paste("2D Density Plot of", x_1, "and", x_2),
             subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
             x = x_1,
-            y = dep_y
+            y = x_2
           )
       } else {
         # Faceted 2D density plot by each category in clustering_variables
@@ -888,7 +999,7 @@ setMethod(
       fmsb::radarchart(df_radar_chart, axistype = 1,
                        pcol = colors, pfcol = scales::alpha(colors, 0.5), plwd = 2, plty = 1,
                        axislabcol = "white"
-                        # Set the main title color to white
+                       # Set the main title color to white
 
       )
 
@@ -905,15 +1016,280 @@ setMethod(
 
       # Add legend with white text color at the bottom
       legend("bottomleft", legend = df_radar[[clustering_variables]], col = colors, pch = 16, bty = "n", text.col = "white")
-
-
-
-
     }
 
+    # Waterfall Plot
+    if (type == "waterfall") {
+
+      # Check variables
+      if (is.null(variable) || length(variable) < 2) {
+        stop("Please specify at least two numeric variables for the waterfall plot.")
+      }
+
+      # Check all variables are present and numeric
+      if (!all(variable %in% names(df))) {
+        stop("Some specified variables not found in the dataframe.")
+      }
+
+      # Check numeric
+      if (any(!sapply(variable, function(v) is.numeric(df[[v]])))) {
+        stop("All variables must be numeric for the waterfall plot.")
+      }
+
+      # Check clustering_variables
+      if (is.null(clustering_variables) || length(clustering_variables) == 0) {
+        clustering_variables <- "tickers"
+      }
+
+      # If calc_stat is not specified, use sum by default
+      if (is.null(calc_stat)) {
+        calc_stat <- "sum"
+      }
+
+      # Define the function for calc_stat
+      FUN <- switch(calc_stat,
+                    mean = function(x) mean(x, na.rm = TRUE),
+                    sd = function(x) sd(x, na.rm = TRUE),
+                    median = function(x) median(x, na.rm = TRUE),
+                    min = function(x) min(x, na.rm = TRUE),
+                    max = function(x) max(x, na.rm = TRUE),
+                    sum = function(x) sum(x, na.rm = TRUE),
+                    stop("Invalid calc_stat for waterfall plot. Please use sum, mean, sd, median, min, or max.")
+      )
+
+      # Aggregate data by clustering variables and apply FUN to each variable
+      agg_data <- df %>%
+        dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
+        dplyr::summarize(dplyr::across(dplyr::all_of(variable), FUN), .groups = "drop")
+
+      if (nrow(agg_data) == 0) {
+        stop("No data available for the specified filters.")
+      }
+
+      # Pivot from wide to long so that each chosen variable is now a row called "Component"
+      agg_long <- agg_data %>%
+        tidyr::pivot_longer(cols = dplyr::all_of(variable), names_to = "Component", values_to = "Value")
+
+      # Make Component a factor with the order given by the user
+      agg_long <- agg_long %>%
+        dplyr::mutate(Component = factor(Component, levels = variable))
+
+      # Now compute the cumulative sums by each cluster combination, in the order of "Component"
+      # Group by clustering_variables (the facets), and then arrange by Component to ensure correct order
+      agg_long <- agg_long %>%
+        dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
+        dplyr::arrange(Component, .by_group = TRUE) %>%
+        dplyr::mutate(
+          Cumulative_Start = dplyr::lag(cumsum(Value), default = 0),
+          Cumulative_End = Cumulative_Start + Value,
+          Sign = ifelse(Value >= 0, "Positive", "Negative")
+        ) %>%
+        dplyr::ungroup()
+
+      # Choose colors for positive and negative contributions
+      pos_color <- neon_green
+      neg_color <- neon_orange
+
+      # If we have more than one clustering variable, we facet by them
+      # If we have just one, it's still a single facet but shows a single plot
+      # The x-axis now is Component
+      main_plot <- ggplot2::ggplot(agg_long, ggplot2::aes(x = Component, ymin = Cumulative_Start, ymax = Cumulative_End, fill = Sign)) +
+        ggplot2::geom_rect(
+          xmin = as.numeric(agg_long$Component) - 0.4,
+          xmax = as.numeric(agg_long$Component) + 0.4,
+          color = black
+        ) +
+        ggplot2::scale_fill_manual(values = c(Positive = pos_color, Negative = neg_color)) +
+        ggplot2::geom_hline(yintercept = 0, color = white, linetype = "dashed") +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          panel.grid.minor = ggplot2::element_blank(),
+          axis.text = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          strip.text = ggplot2::element_text(color = white)
+        ) +
+        ggplot2::labs(
+          title = paste("Waterfall Plot of", paste(variable, collapse = ", "), "Components"),
+          subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+          x = "Components",
+          y = paste(calc_stat, "of", paste(variable, collapse = ", ")),
+          fill = "Contribution"
+        )
+
+      # If more than one clustering variable, facet by them
+      # If exactly one clustering variable, it will just show one facet (one plot)
+      if (length(clustering_variables) > 1) {
+        facet_clusters <- clustering_variables
+        main_plot <- main_plot + ggplot2::facet_wrap(facets = facet_clusters, scales = "free_x")
+      } else if (length(clustering_variables) == 1) {
+        # One clustering variable means multiple categories produce multiple rows.
+        main_plot <- main_plot + ggplot2::facet_wrap(facets = clustering_variables, scales = "free_x")
+      }
+      print(main_plot)
+    }
+
+    # Tile Heatmap
+    if (type == "tile_heatmap") {
+
+      # Ensure 'variable' is specified and is numeric
+      if (is.null(variable) || length(variable) != 1) {
+        stop("Please specify exactly one numeric 'variable' for the tile heatmap plot.")
+      }
+
+      # Determine y-axis variable based on clustering_variables
+      if (!is.null(clustering_variables) && length(clustering_variables) > 0) {
+        # Check if clustering_variables exist in the dataframe
+        missing_vars <- setdiff(clustering_variables, names(df))
+        if (length(missing_vars) > 0) {
+          stop("The following clustering_variables are missing from the dataframe: ", paste(missing_vars, collapse = ", "))
+        }
+        y_vars <- clustering_variables
+      } else {
+        y_vars <- "tickers"
+        if (!"tickers" %in% names(df)) {
+          stop("'tickers' column is not present in the dataframe, and clustering_variables is NULL.")
+        }
+      }
+
+      # Create an interaction term if multiple clustering variables are provided
+      if (length(y_vars) > 1) {
+        df <- df %>%
+          dplyr::mutate(Cluster = interaction(!!!rlang::syms(y_vars), sep = "_"))
+      } else {
+        df <- df %>%
+          dplyr::mutate(Cluster = !!rlang::sym(y_vars))
+      }
+
+      # Group by Cluster and Dates, then apply calc_stat on variable if numeric
+      if(is.numeric(df[[variable]])){
+      df_summary <- df %>%
+        dplyr::group_by(Cluster, dates) %>%
+        dplyr::summarize(
+          Calc_Stat = FUN(!!rlang::sym(variable)),
+          .groups = "drop"
+        )
+
+      # Check if there are valid rows to process
+      if (nrow(df_summary) == 0) stop("No data available after filtering or summarization.")
+
+      # Define the number of bins and labels based on numeric_aggregation
+      bins <- switch(numeric_aggregation,
+                     decile = 10,
+                     quartile = 4,
+                     tercile = 3,
+                     median = 2,
+                     stop("Invalid numeric_aggregation. Choose from 'decile', 'quartile', 'tercile', or 'median'."))
+
+      label_list <- switch(numeric_aggregation,
+                           decile = sprintf("D%02d", 1:10),
+                           quartile = sprintf("Q%02d", 1:4),
+                           tercile = sprintf("T%02d", 1:3),
+                           median = c("Below_Median", "Above_Median"))
+
+
+      # Categorize each Cluster by Calc_Stat for each date
+      df_summary <- df_summary %>%
+        group_by(dates) %>%
+        mutate(
+          bin = ntile(Calc_Stat,
+                      switch(numeric_aggregation,
+                             decile = 10,
+                             quartile = 4,
+                             tercile = 3,
+                             median = 2)),
+          bin_label = case_when(
+            numeric_aggregation == "decile" ~ sprintf("D%02d", bin),
+            numeric_aggregation == "quartile" ~ sprintf("Q%02d", bin),
+            numeric_aggregation == "tercile" ~ sprintf("T%02d", bin),
+            numeric_aggregation == "median" ~ ifelse(bin == 1, "Below_Median", "Above_Median")
+          )
+        ) %>%
+        ungroup()
+
+      # Color palette for bins
+      color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
+
+      # Create the plot
+      p <- ggplot2::ggplot(df_summary, ggplot2::aes(x = dates, y = Cluster, fill = bin_label)) +
+        ggplot2::geom_tile(color = white) +
+        ggplot2::scale_fill_manual(
+          values = setNames(color_palette[1:bins], label_list),
+          na.value = "grey50"
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          axis.text.x = ggplot2::element_text(color = white, angle = 45, hjust = 1),
+          axis.text.y = ggplot2::element_text(color = white),
+          axis.title = ggplot2::element_text(color = white),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = white, size = 12, face = "italic"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          panel.grid = ggplot2::element_blank()
+        ) +
+        ggplot2::labs(
+          title = paste("Tile Heatmap of", variable," by dates and", clustering_variables),
+          subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+          x = "Dates",
+          y = clustering_variables,
+          fill = variable
+        )
+      } else {
+        #Treatment for character
+        df_summary <- df %>% dplyr::select(Cluster, dates, !!rlang::sym(variable)) %>% dplyr::rename(bin_label = !!rlang::sym(variable))
+        # Color palette for bins
+        color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
+        unique_labels <- unique(df_summary$bin_label)
+        theme_colors <- setNames(color_palette[seq_along(unique_labels)], unique_labels)
+
+        # Create the plot
+        p <-
+          ggplot2::ggplot(df_summary, ggplot2::aes(x = dates, y = Cluster, fill = bin_label)) +
+          ggplot2::geom_tile(color = "white") +
+          ggplot2::scale_fill_manual(
+            values = theme_colors,
+            na.value = "grey50"
+          ) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+            panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+            axis.text.x = ggplot2::element_text(color = "white", angle = 45, hjust = 1),
+            axis.text.y = ggplot2::element_text(color = "white"),
+            axis.title = ggplot2::element_text(color = "white"),
+            plot.title = ggplot2::element_text(color = "white", size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = "white", size = 12, face = "italic"),
+            legend.position = "bottom",
+            legend.title = ggplot2::element_text(color = "white"),
+            legend.text = ggplot2::element_text(color = "white"),
+            panel.grid = ggplot2::element_blank()
+          ) +
+          ggplot2::labs(
+            title = paste("Tile Heatmap of", variable, "by dates and", clustering_variables),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = "Dates",
+            y = clustering_variables,
+            fill = variable
+          )
+    }
+      print(p)
+    }
 
   }
+
 )
+
 
 
 
@@ -2992,6 +3368,178 @@ setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
   # Call the plot method of bayesian_model_parameters
   plot(x@bayesian_model_parameters, ...)
 })
+
+
+#' @title Plot Method for ss_backtest_results Class
+#' @description Generates various plots to visualize metrics from the `ss_backtest_results` object.
+#' Users can select which plot to display by specifying the `plot_id` parameter.
+#' @param x An object of class `ss_backtest_results`.
+#' @param plot_id A character string or numeric value specifying which plot to display.
+#'   - By name: Options are:
+#'     - `"Time-Series Metrics by Ticker"`
+#'     - `"Average Time-Series Metrics by Theme"`
+#'     - `"Compare Metrics Side-by-Side by Theme"`
+#'     - `"Box-Plot by Theme"`
+#'     - `"Box-Plot by Eligibility"`
+#'     - `"Waterfall Plot by Ticker"`
+#'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
+#'   If `NULL` (default), the method lists available plots.
+#' @return Invisibly returns the input object.
+#' @export
+setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
+
+  # List of available plots
+  available_plots <- c(
+    "Time-Series Metrics by Ticker",
+    "Average Time-Series Metrics by Theme",
+    "Compare Metrics Side-by-Side by Tickers",
+    "Compare Metrics Side-by-Side by Theme",
+    "Box-Plot by Theme",
+    "Box-Plot by Eligibility",
+    "Waterfall Plot by Ticker",
+    "Waterfall Plot by Theme",
+    "Eligibility by Time"
+  )
+
+  if (is.null(plot_id)) {
+    cat("\nPlease choose a plot to display:\n")
+    for (i in seq_along(available_plots)) {
+      cat(paste0(i, ": ", available_plots[i], "\n"))
+    }
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    plot_id <- as.numeric(selection)
+    if (is.na(plot_id) || plot_id < 1 || plot_id > length(available_plots)) {
+      stop("Invalid selection.")
+    }
+  }
+
+  # Determine plot name from the selection
+  if (is.numeric(plot_id)) {
+    if (plot_id >= 1 && plot_id <= length(available_plots)) {
+      plot_name <- available_plots[plot_id]
+    } else {
+      stop("Invalid plot number. Please select a valid plot.")
+    }
+  } else if (is.character(plot_id)) {
+    if (plot_id %in% available_plots) {
+      plot_name <- plot_id
+    } else {
+      stop("Invalid 'plot_id' specified. Available options are:\n",
+           paste(available_plots, collapse = ", "))
+    }
+  } else {
+    stop("'plot_id' must be either a string or a number corresponding to the plot.")
+  }
+
+  # Define the data sources
+  signal_universe_m_df <- x@signal_universe_m_df
+  final_signal_universe_m_d_ref <- x@final_signal_universe_m_d_ref
+  eligible_signals_list <- x@eligible_signals_list
+
+
+  # Plot 1: Time-Series Metrics by Ticker
+  if (plot_name == "Time-Series Metrics by Ticker") {
+
+    plot_type <- "time_series"
+    clustering_variables <- "tickers"
+    calc_stat <- "mean"
+
+    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables)
+
+
+  } else if (plot_name == "Average Time-Series Metrics by Theme") {
+    # Plot 2: Average Time-Series Metrics by Theme
+
+    plot_type <- "time_series"
+    clustering_variables <- "theme"
+    calc_stat <- "mean"
+
+    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables)
+
+
+  } else if (plot_name == "Compare Metrics Side-by-Side by Tickers") {
+    # Plot 3: Compare Metrics Side-by-Side by Tickers
+
+    plot_type <- "cross_sectional"
+    clustering_variables <- "tickers"
+    calc_stat <- "mean"
+
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+  } else if (plot_name == "Compare Metrics Side-by-Side by Theme") {
+    # Plot 4: Compare Metrics Side-by-Side by Theme
+
+    plot_type <- "cross_sectional"
+    clustering_variables <- "theme"
+    calc_stat <- "mean"
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+
+  } else if (plot_name == "Box-Plot by Theme") {
+    # Plot 5: Box-Plot by Theme
+
+    plot_type <- "boxplot"
+    clustering_variables <- "theme"
+
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables)
+
+  } else if (plot_name == "Box-Plot by Eligibility") {
+    # Plot 6: Box-Plot by Eligibility
+    final_signal_universe_m_d_ref$eligibility <- ifelse(final_signal_universe_m_d_ref$is_eligible == 1, "elected", "not_elected")
+
+    plot_type <- "boxplot"
+    clustering_variables <- "eligibility"
+
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables)
+
+  } else if (plot_name == "Waterfall Plot by Ticker") {
+    # Plot 7: Waterfall Plot by Ticker
+    final_signal_universe_m_d_ref <- final_signal_universe_m_d_ref %>%
+      dplyr::mutate(mean_market_factor_proxy = mean(object@selected_market_factor_proxy_upd_ref[,2]),
+                    beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
+                    residual = mean_active_return - alpha - beta_x_mean_market_factor_proxy)
+
+    plot_type <- "waterfall"
+    clustering_variables <- "tickers"
+    variables <- c("alpha", "beta_x_mean_market_factor_proxy", "residual")
+    calc_stat <- "mean"
+
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat)
+
+
+  } else if (plot_name == "Waterfall Plot by Theme") {
+    # Plot 8: Waterfall Plot by Ticker
+    final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
+      dplyr::mutate(mean_market_factor_proxy = mean(object@selected_market_factor_proxy_upd_ref[,2]),
+                    beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
+                    residual = mean_active_return - alpha - beta_x_mean_market_factor_proxy)
+
+    plot_type <- "waterfall"
+    clustering_variables <- "theme"
+    variables <- c("alpha", "beta_x_mean_market_factor_proxy", "residual")
+    calc_stat <- "mean"
+
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat)
+
+
+  } else if (plot_name == "Eligibility by Time") {
+    #Plot 9
+    signal_universe_m_df@data <- signal_universe_m_df@data %>%
+      dplyr::mutate(eligibility = ifelse(is_eligible == 1, "elected", "not_elected"))
+
+    plot_type <- "tile_heatmap"
+    clustering_variables <- "tickers"
+    variables <- "eligibility"
+    calc_stat <- "mean"
+
+    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat)
+
+  }
+
+  invisible(x)
+})
+
+
 
 
 

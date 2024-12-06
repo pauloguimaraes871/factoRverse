@@ -1286,6 +1286,284 @@ setMethod("summary", "ml_metabacktest_results", function(object, summary_id = NU
 
 
 
+#' @title Summary Method for ss_backtest_results Class
+#' @description Provides a detailed summary of an `ss_backtest_results` object.
+#' Users can select which summary table to display by specifying the `summary_id` parameter.
+#' The summary includes interactive tables styled using the `DT` package.
+#'
+#' @param object An object of class `ss_backtest_results`.
+#' @param summary_id A character string or numeric value specifying which table to display.
+#' @return Invisibly returns the input `object`.
+#' @export
+methods::setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) {
+  # Define colors
+  deep_navy <- "#000033"
+  black <- "#000000"
+  white <- "#FFFFFF"
+
+  # Available tables
+  available_tables <- c(
+    "Eligibility_Count",
+    "Theme_Eligibility_Proportion",
+    "Eligibility_Over_Time",
+    "Metric_Rate_of_Change",
+    "Metrics_By_Theme",
+    "Metrics_By_Eligibility",
+    "Top_Signals",
+    "Top_Themes"
+  )
+
+  # Print summary header
+  cat("==============================\n")
+  cat("Signal Selection Backtest Results Summary\n")
+  cat("==============================\n\n")
+  cat("Backtest Config Name:", object@backtest_identifier, "\n")
+
+  # If no summary_id provided, prompt the user to select
+  if (is.null(summary_id)) {
+    cat("\nPlease choose a table to display:\n")
+    for (i in seq_along(available_tables)) {
+      cat(paste0(i, ": ", available_tables[i], "\n"))
+    }
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    summary_id <- as.numeric(selection)
+    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_tables)) {
+      stop("Invalid selection.")
+    }
+  }
+
+  # Resolve summary_id to table name
+  if (is.numeric(summary_id)) {
+    if (summary_id >= 1 && summary_id <= length(available_tables)) {
+      table_name <- available_tables[summary_id]
+    } else {
+      stop("Invalid table number. Please select a number between 1 and ", length(available_tables), ".")
+    }
+  } else if (is.character(summary_id)) {
+    if (summary_id %in% available_tables) {
+      table_name <- summary_id
+    } else {
+      stop("Invalid 'summary_id' specified. Available options are:\n",
+           paste(available_tables, collapse = ", "))
+    }
+  } else {
+    stop("'summary_id' must be either a string or a number corresponding to the table.")
+  }
+
+  # Helper: Round numeric columns
+  round_numeric_columns <- function(df, digits = 4) {
+    numeric_cols <- sapply(df, is.numeric)
+    df[numeric_cols] <- lapply(df[numeric_cols], round, digits = digits)
+    return(df)
+  }
+
+  # Helper: Display data table with styling
+  # Function to create and display a styled datatable
+  display_table <- function(data_df, title) {
+    if (is.null(data_df) || nrow(data_df) == 0) {
+      cat("No data available for", title, "\n")
+      return()
+    }
+
+    # Round numeric columns
+    data_df <- round_numeric_columns(data_df, digits = 4)
+
+    # Format the table
+    data_dt <- DT::datatable(
+      data_df,
+      rownames = FALSE,
+      extensions = c('FixedColumns'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = '400px',
+        scrollCollapse = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't',
+        ordering = FALSE
+      ),
+      class = 'cell-border stripe'
+    )
+
+    # Apply overall styling
+    data_dt <- data_dt %>%
+      DT::formatStyle(
+        columns = names(data_df),
+        backgroundColor = deep_navy,
+        color = white
+      )
+
+    # Apply styling to the header via CSS
+    css_styles <- paste0("
+  table.dataTable thead th {
+    background-color: ", black, " !important;
+    color: ", white, " !important;
+  }
+  .dataTable {
+    background-color: ", deep_navy, " !important;
+    color: ", white, ";
+  }
+  table.dataTable tbody tr {
+    background-color: ", deep_navy, " !important;
+  }
+  table.dataTable tbody td {
+    border-color: #333333 !important;
+  }
+  .dataTables_wrapper {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+  }
+  ")
+
+    # Add CSS to the table
+    data_dt <- htmlwidgets::prependContent(
+      data_dt,
+      htmltools::tags$style(css_styles)
+    )
+
+    # Add title above the table
+    data_dt <- htmlwidgets::prependContent(
+      data_dt,
+      htmltools::tags$h3(
+        style = paste0("color: ", white, "; background-color: ", black, "; padding: 10px; margin-bottom: 10px;"),
+        title
+      )
+    )
+
+    # Display the table
+    print(data_dt)
+  }
+
+
+  # Data extraction
+  signal_universe_df <- object@signal_universe_m_df@data
+  final_signal_universe_df <- object@final_signal_universe_m_d_ref@data
+
+  # Table logic
+  if (table_name == "Eligibility_Count") {
+    eligibility_count <- dplyr::group_by(signal_universe_df, tickers, theme) %>%
+      dplyr::summarise(
+        times_eligible = sum(is_eligible),
+        total_periods = dplyr::n(),
+        proportion_eligible = times_eligible / total_periods,
+        .groups = 'drop'
+      )
+    display_table(eligibility_count, "Eligibility Count by Ticker and Theme")
+
+  } else if (table_name == "Theme_Eligibility_Proportion") {
+    theme_eligibility_total <- dplyr::group_by(signal_universe_df, theme) %>%
+      dplyr::summarise(
+        total_periods = dplyr::n_distinct(dates),
+        total_eligible = sum(is_eligible),
+        max_possible = dplyr::n_distinct(tickers) * total_periods,
+        overall_proportion_eligible = total_eligible / max_possible,
+        .groups = 'drop'
+      )
+    display_table(theme_eligibility_total, "Proportion of Eligible Tickers by Theme")
+
+  } else if (table_name == "Eligibility_Over_Time") {
+    eligibility_over_time <- dplyr::group_by(signal_universe_df, dates) %>%
+      dplyr::summarise(
+        total_tickers = dplyr::n_distinct(tickers),
+        eligible_tickers = sum(is_eligible),
+        proportion_eligible = eligible_tickers / total_tickers,
+        .groups = 'drop'
+      )
+    display_table(eligibility_over_time, "Eligibility Over Time")
+
+  } else if (table_name == "Metric_Rate_of_Change") {
+    first_date <- min(signal_universe_df$dates)
+    last_date <- max(signal_universe_df$dates)
+
+    data_first <- dplyr::filter(signal_universe_df, dates == first_date)
+    data_last <- dplyr::filter(signal_universe_df, dates == last_date)
+
+    metric_columns <- setdiff(names(signal_universe_df), c("id", "tickers", "dates", "theme", "is_eligible"))
+    metric_columns <- metric_columns[sapply(signal_universe_df[metric_columns], is.numeric)]
+
+    data_merged <- dplyr::inner_join(
+      data_first[, c("tickers", metric_columns)],
+      data_last[, c("tickers", metric_columns)],
+      by = "tickers",
+      suffix = c("_first", "_last")
+    )
+
+    for (metric in metric_columns) {
+      data_merged[[paste0(metric, "_rate_of_change")]] <- (data_merged[[paste0(metric, "_last")]] - data_merged[[paste0(metric, "_first")]]) / abs(data_merged[[paste0(metric, "_first")]])
+    }
+
+    rate_of_change_columns <- grep("_rate_of_change$", names(data_merged), value = TRUE)
+    rate_of_change_df <- data_merged[, c("tickers", rate_of_change_columns)]
+    display_table(rate_of_change_df, "Rate of Change of Metrics between First and Last Periods")
+
+  } else if (table_name == "Metrics_By_Theme") {
+    known_columns <- c("id", "tickers", "dates", "theme", "is_eligible")
+    metric_columns <- setdiff(names(final_signal_universe_df), known_columns)
+    metrics_by_theme <- final_signal_universe_df %>%
+      dplyr::group_by(theme) %>%
+      dplyr::summarise(
+        dplyr::across(
+          dplyr::all_of(metric_columns),
+          list(mean = ~mean(. , na.rm = TRUE), sd = ~stats::sd(. , na.rm = TRUE)),
+          .names = "{.col}_{.fn}"
+        ),
+        .groups = 'drop'
+      )
+    display_table(metrics_by_theme, "Metrics Summary by Theme")
+
+  } else if (table_name == "Metrics_By_Eligibility") {
+    # Summarise metrics by eligibility (two categories)
+    known_columns <- c("id", "tickers", "dates", "theme", "is_eligible")
+    metric_columns <- setdiff(names(final_signal_universe_df), known_columns)
+    metrics_by_eligibility <- final_signal_universe_df %>%
+      dplyr::group_by(is_eligible) %>%
+      dplyr::summarise(
+        dplyr::across(
+          dplyr::all_of(metric_columns),
+          list(mean = ~mean(. , na.rm = TRUE), sd = ~stats::sd(. , na.rm = TRUE)),
+          .names = "{.col}_{.fn}"
+        ),
+        .groups = 'drop'
+      )
+    display_table(metrics_by_eligibility, "Metrics Summary by Eligibility")
+
+  } else if (table_name == "Top_Signals") {
+    # Top signals by avg_ir, including alpha_t_stat
+    top_signals <- final_signal_universe_df %>%
+      dplyr::group_by(tickers) %>%
+      dplyr::summarise(
+        avg_ir = mean(IR, na.rm = TRUE),
+        avg_alpha = mean(alpha, na.rm = TRUE),
+        alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+        .groups = 'drop'
+      ) %>%
+      dplyr::arrange(dplyr::desc(avg_ir)) %>%
+      dplyr::slice_head(n = 5)
+    display_table(top_signals, "Top Signals by Average Information Ratio (IR)")
+
+  } else if (table_name == "Top_Themes") {
+    # Top themes by avg_ir, including alpha_t_stat
+    top_themes <- final_signal_universe_df %>%
+      dplyr::group_by(theme) %>%
+      dplyr::summarise(
+        avg_ir = mean(IR, na.rm = TRUE),
+        avg_alpha = mean(alpha, na.rm = TRUE),
+        alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+        .groups = 'drop'
+      ) %>%
+      dplyr::arrange(dplyr::desc(avg_ir)) %>%
+      dplyr::slice_head(n = 5)
+    display_table(top_themes, "Top Themes by Average Information Ratio (IR)")
+  } else {
+    stop("Unknown table name.")
+  }
+
+  invisible(object)
+})
+
+
+
+
+
 
 
 

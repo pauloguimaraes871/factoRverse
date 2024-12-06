@@ -48,7 +48,7 @@
 #' \code{\link{ml_backtest_config}}, \code{\link{ml_metabacktest_config}}
 #'
 #' @export
-setGeneric("run_ml_backtest", function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel, ...) standardGeneric("run_ml_backtest"))
+setGeneric("run_ml_backtest", function(features_m_df, target_m_df, target_fwd_name, config, ...) standardGeneric("run_ml_backtest"))
 
 
 #' @describeIn run_ml_backtest Runs a backtest with a single configuration.
@@ -60,10 +60,9 @@ setGeneric("run_ml_backtest", function(features_m_df, target_m_df, target_fwd_na
 #' @export
 setMethod("run_ml_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", target_fwd_name = "character",
-                    config = "ml_backtest_config",
-                    verbose = "logical", parallel = "logical"),
+                    config = "ml_backtest_config"),
 
-          function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel) {
+          function(features_m_df, target_m_df, target_fwd_name, config, verbose = TRUE, parallel = TRUE) {
 
 
             #Assign default values for internal function
@@ -202,10 +201,9 @@ setMethod("run_ml_backtest",
 #' @export
 setMethod("run_ml_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", target_fwd_name = "character",
-                    config = "ml_metabacktest_config",
-                    verbose = "logical", parallel = "logical"),
+                    config = "ml_metabacktest_config"),
 
-          function(features_m_df, target_m_df, target_fwd_name, config, verbose, parallel,
+          function(features_m_df, target_m_df, target_fwd_name, config, verbose = TRUE, parallel = TRUE,
                    winsorize_predictions = TRUE, winsorization_probs = c(0.025, 0.975), normalize_predictions = TRUE,
                    features_passthrough = "none") {
 
@@ -399,7 +397,7 @@ setMethod("run_ml_backtest",
 
 
 
-#' @describeIn run_ml_backtest Run Signal Selection Backtest
+#' @describeIn run_ml_backtest Run ML Backtest
 #' Perform out-of-sample testing for ML Algorithms with walk-forward time series validation
 #'
 #' This function performs walk-forward validation for time series data using

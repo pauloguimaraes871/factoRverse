@@ -979,6 +979,43 @@ setMethod("show", "ml_metabacktest_results", function(object) {
 
 })
 
+#' @title Show Signal Selection Backtest Config
+#' @description Prints the contents of an `ss_backtest_config` object, detailing the various parameters and their configurations.
+#'
+#' @param object An `ss_backtest_config` object to be displayed.
+#' @method show ss_backtest_config
+#' @export
+setMethod("show", "ss_backtest_config", function(object) {
+  cat("==============================\n")
+  cat("Signal Selection Backtest Configuration\n")
+  cat("==============================\n\n")
+
+  # Display Main Information
+  cat("------------------------------\n")
+  cat("Main Information:\n")
+  cat("------------------------------\n")
+  cat("Config Name:", object@config_name, "\n\n")
+
+  # Display Backtest Parameters
+  cat("------------------------------\n")
+  cat("Backtest Parameters:\n")
+  cat("------------------------------\n")
+  cat("Data Availability Cutoff:", object@data_availability_cutoff, "\n")
+  cat("Initial Sample Size:", object@initial_sample_size, "\n")
+  cat("Rebalancing Months:", object@rebalancing_months, "\n")
+  cat("Split Method:", object@split_method, "\n")
+
+  # Display Alpha Test Strategy
+  cat("------------------------------\n")
+
+  if (!is.null(object@alpha_test_strategy)) {
+    show(object@alpha_test_strategy)
+  } else {
+    cat("  No Alpha Test Strategy set.\n")
+  }
+
+  cat("\n==============================\n")
+})
 
 
 #' @title Show Alpha Test Strategy
@@ -995,8 +1032,8 @@ setMethod("show", "alpha_test_strategy", function(object) {
   cat("Signal Significance Threshold:", object@signal_significance_threshold, "\n")
   cat("P Correction Method:", object@p_correction_method, "\n")
   cat("Market Factor Proxy:", object@market_factor_proxy, "\n")
+  cat("Enable Theme Representativeness:", object@enable_theme_representativeness, "\n\n")
 
-  cat("\n==============================\n")
 })
 
 
@@ -1008,14 +1045,11 @@ setMethod("show", "alpha_test_strategy", function(object) {
 setMethod("show", "frequentist_alpha_test_strategy", function(object) {
   cat("==============================\n")
   cat("Frequentist Alpha Test Strategy Configuration\n")
-  cat("==============================\n\n")
+  cat("==============================\n")
 
   # Call the parent class show method to display common information
   callNextMethod()
 
-  # Additional frequentist-specific information can be added here if necessary
-
-  cat("\n==============================\n")
 })
 
 
@@ -1027,7 +1061,7 @@ setMethod("show", "frequentist_alpha_test_strategy", function(object) {
 setMethod("show", "bayesian_alpha_test_strategy", function(object) {
   cat("==============================\n")
   cat("Bayesian Alpha Test Strategy Configuration\n")
-  cat("==============================\n\n")
+  cat("==============================\n")
 
   # Call the parent class show method to display common information
   callNextMethod()
@@ -1044,7 +1078,6 @@ setMethod("show", "bayesian_alpha_test_strategy", function(object) {
     cat("No Bayesian Model Parameters set.\n")
   }
 
-  cat("\n==============================\n")
 })
 
 #' @title Show Bayesian Model Parameters
@@ -1084,6 +1117,130 @@ setMethod("show", "bayesian_model_parameters", function(object) {
     print(object@user_priors)
   } else {
     cat("\nNo User Priors set.\n")
+  }
+})
+
+#' Show Method for ss_backtest_results Class
+#'
+#' This method displays a detailed summary of the `ss_backtest_results` object,
+#' including metadata on the signal selection backtest results,
+#' configuration details, date information, signals information,
+#' p-value correction methods, Bayesian model parameters (if applicable),
+#' performance metrics, and the original call.
+#'
+#' @param object An instance of the `ss_backtest_results` class.
+#'
+#' @return The method returns the object invisibly.
+#'
+#' @export
+setMethod("show", "ss_backtest_results", function(object) {
+
+  # Extract the ss_backtest_workflow
+  ss_backtest_workflow <- object@ss_backtest_workflow
+
+  # Create a neat display of the ss_backtest_workflow
+  cat("Signal Selection Backtest Workflow Metadata\n")
+  cat("Backtest Identifier: ", object@backtest_identifier, "\n")
+  cat("=========================================\n")
+
+  # Display Backtest Configuration Information
+  cat("Backtest Configuration:\n")
+  cat("  Config Name: ", ss_backtest_workflow$config_name, "\n")
+  cat("  Backtest Type: ", ss_backtest_workflow$backtest_type, "\n")
+  cat("  Alpha Test Strategy Parameters:\n")
+  cat("    Market Factor Proxy: ", ss_backtest_workflow$market_factor_proxy, "\n")
+  cat("    Data Availability Cutoff: ", ss_backtest_workflow$data_availability_cutoff, "\n")
+  cat("    Signal Significance Threshold: ", ss_backtest_workflow$signal_significance_threshold, "\n")
+  cat("    Enable Theme Representativeness: ", ss_backtest_workflow$enable_theme_representativeness, "\n")
+  cat("=========================================\n")
+
+  # Display P-Value Correction Method
+  cat("P-Value Correction Method:\n")
+  cat("  Method: ", ss_backtest_workflow$p_correction_method, "\n")
+  if (ss_backtest_workflow$p_correction_method == "bayesian") {
+    # Display Bayesian Model Parameters
+    cat("Bayesian Model Parameters:\n")
+    cat("  User Priors: ", ifelse(is.null(ss_backtest_workflow$user_priors), "NULL", "Provided"), "\n")
+    cat("  Model Specification Theme Level: ", ss_backtest_workflow$model_spec_theme_level, "\n")
+    cat("  brms Control Parameters:\n")
+    print(ss_backtest_workflow$brms_control)
+    cat("  Prior Derivation Control Parameters:\n")
+    print(ss_backtest_workflow$prior_derivation_control)
+  }
+  cat("=========================================\n")
+
+  # Display Date Information
+  cat("Date Information:\n")
+  cat("  Dates Covered: ", paste(as.character(range(ss_backtest_workflow$dates_covered)), collapse = " - "), "\n")
+  cat("  Number of Dates: ", ss_backtest_workflow$n_dates, "\n")
+  cat("  Initial Sample Size: ", ss_backtest_workflow$initial_sample_size, "\n")
+  cat("  Rebalancing Months: ", paste(ss_backtest_workflow$rebalancing_months, collapse = ", "), "\n")
+  cat("  Rebalance Dates: ", paste(as.character(ss_backtest_workflow$rebalance_dates), collapse = ", "), "\n")
+  cat("  Number of Rebalance Months: ", ss_backtest_workflow$n_rebalance_months, "\n")
+  cat("  First Rebalance Date: ", as.character(ss_backtest_workflow$first_rebalance_date), "\n")
+  cat("  Split Method: ", ss_backtest_workflow$split_method, "\n")
+  cat("=========================================\n")
+
+  # Display Signals Information
+  cat("Signals Information:\n")
+  cat("  Chosen Signals: ", paste(ss_backtest_workflow$chosen_signals, collapse = ", "), "\n")
+  cat("  Signal Positions:\n")
+  print(ss_backtest_workflow$signal_positions)
+  cat("  Number of Signals: ", ss_backtest_workflow$n_signals, "\n")
+  cat("  Selected Signals with Corrected Positions:\n")
+  cat("    ", paste(ss_backtest_workflow$selected_signals_corrected_positions, collapse = ", "), "\n")
+  if (!is.null(ss_backtest_workflow$signals_workflow)) {
+    cat("  Signals Workflow:\n")
+    print(ss_backtest_workflow$signals_workflow)
+  }
+  if (!is.null(ss_backtest_workflow$signals_object)) {
+    cat("  Signals Object Name: ", ss_backtest_workflow$signals_object, "\n")
+  }
+  cat("=========================================\n")
+
+  # Display Signal Themes Information
+  if (!is.null(ss_backtest_workflow$signal_themes_workflow)) {
+    cat("Signal Themes Information:\n")
+    cat("  Signal Themes Workflow:\n")
+    print(ss_backtest_workflow$signal_themes_workflow)
+    cat("  Signal Themes Object Name: ", ss_backtest_workflow$signal_themes_object, "\n")
+    cat("=========================================\n")
+  }
+
+  # Display Priors Information
+  if (ss_backtest_workflow$p_correction_method == "bayesian") {
+    cat("Priors Information:\n")
+    if (!is.null(ss_backtest_workflow$priors_workflow)) {
+      cat("  Priors Workflow:\n")
+      print(ss_backtest_workflow$priors_workflow)
+      cat("  Priors Object Name: ", ss_backtest_workflow$priors_object, "\n")
+    } else {
+      cat("  No priors workflow information available.\n")
+    }
+    cat("=========================================\n")
+  }
+
+  # Display Winsorization Information
+  cat("Winsorization Parameters:\n")
+  cat("  Lower Quantile Winsorization: ", ss_backtest_workflow$lower_quantile_winsorization, "\n")
+  cat("  Upper Quantile Winsorization: ", ss_backtest_workflow$upper_quantile_winsorization, "\n")
+  cat("=========================================\n")
+
+  # Display Performance Information
+  cat("Performance Information:\n")
+  cat("  Elapsed Time: ", ss_backtest_workflow$elapsed_time[["elapsed"]], " seconds\n")
+  if (!is.null(ss_backtest_workflow$timestamps)) {
+    cat("  Timestamps:\n")
+    print(ss_backtest_workflow$timestamps, quote = FALSE)
+  }
+  cat("=========================================\n")
+
+  # Display Call Information
+  if (!is.null(ss_backtest_workflow$call)) {
+    cat("Call:\n")
+    cat("  Function Call:\n")
+    print(ss_backtest_workflow$call)
+    cat("=========================================\n")
   }
 })
 

@@ -41,7 +41,7 @@ setClass("meta_dataframe",
            signals = "character",      # Slot for storing column names
            unique_dates = "numeric",   # Slot for storing count of unique dates
            unique_tickers = "numeric", # Slot for storing count of unique tickers
-           n_obs = "numeric",          # Slot for storing total number of observations
+           n_obs = "numeric",          #  Slot for storing total number of observations
            meta_dataframe_name = "character"
          ))
 
@@ -665,10 +665,14 @@ setClass(
 #' Should correspond to one of the columns in `benchmark_returns_df`.
 #' @slot bayesian_model_parameters An object of class `bayesian_model_parameters`, containing the
 #' parameters needed to build the hierarhicical bayesian model and specify its priors.
+#' #' @slot enable_theme_representativeness A logical indicating whether, if a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
+#' with highest alpha t-stat should be elected.
+
 setClass("alpha_test_strategy",
          slots = list(
            signal_significance_threshold = "numeric",
            p_correction_method = "character",
+           enable_theme_representativeness = "logical",
            market_factor_proxy = "character"
          ),
          validity = function(object) {
@@ -684,7 +688,8 @@ setClass("alpha_test_strategy",
          },
          prototype = list(
            signal_significance_threshold = 0.05,
-           p_correction_method = "none"
+           p_correction_method = "none",
+           enable_theme_representativeness = TRUE
          )
 )
 
@@ -893,37 +898,23 @@ setClass("bayesian_alpha_test_strategy",
 #' conducting hypothesis tests regarding CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches. In the
 #' latter, a hierarhical model is fit, with informative priors set according to an exogeneous dataset or by the user, or
 #' default uninformative priors.
-#' @slot chosen_signals A vector of user-defined characteristics to be considered.
-#' @slot signal_positions A named vector with the same length and names as `chosen_signals`, describing whether positions should be taken "long" or "short".
 #' @slot data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
 #' @slot initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @slot split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
-#' @slot enable_theme_representativeness A logical indicating whether, if a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
-#' with highest alpha t-stat should be elected.
 #' @slot alpha_test_strategy An `alpha_test_strategy` object with the configuration for the alpha test.
 #' @export
 setClass("ss_backtest_config",
          slots = list(
-           chosen_signals = "character",
-           signal_positions = "character",
            data_availability_cutoff = "numeric",
            initial_sample_size = "numeric",
            rebalancing_months = "numeric",
            split_method = "character",
-           enable_theme_representativeness = "logical",
-           alpha_test_strategy = "alpha_test_strategy",
+           alpha_test_strategy = "ANY",
            config_name = "character"
          ), prototype = list(
-           split_method = "expanding",
-           enable_theme_representativeness = TRUE
+           split_method = "expanding"
          ),
          validity = function(object) {
-           if(any(names(object@signal_positions) != object@chosen_signals)){
-             stop("signal_positions should have the same names as chosen_signals")
-           }
-           if(!all(object@signal_positions %in% c("long", "short"))){
-             stop("signal_positions should be either 'long' or 'short'")
-           }
            if(object@data_availability_cutoff < 0){
              stop("data_availability_cutoff can't be negative")
            }
@@ -1226,6 +1217,35 @@ setClass(
   }
 )
 
+#' S4 Class for Signal Selection Backtest Results
+#'
+#' This S4 class encapsulates the results and parameters from performing a signal selection backtest.
+#' It includes information about eligible signals, signal universes, Bayesian fits, and the backtest workflow.
+#'
+#' @slot signal_universe_m_df A meta dataframe containing the signal universes at each rebalancing period.
+#' @slot final_signal_universe_m_d_ref A meta dataframe containing the last signal universe.
+#' @slot bayesian_fit_nested_list A list of Bayesian model fit results for each rebalancing period.
+#' @slot eligible_signals_list A list of eligible signals for each backtest period.
+#' @slot p_correction_method A character string indicating the p-value correction method used.
+#' @slot ss_backtest_workflow A list describing the signal selection backtest workflow, including parameters and metadata.
+#' @slot backtest_identifier A character string representing the backtest identifier.
+#'
+#' @return An S4 object of class `ss_backtest_results`.
+#'
+#' @export
+setClass(
+  "ss_backtest_results",
+  slots = list(
+    signal_universe_m_df = "meta_dataframe",
+    final_signal_universe_m_d_ref = "meta_dataframe",
+    selected_market_factor_proxy_upd_ref = "data.frame",
+    bayesian_fit_nested_list = "list",
+    eligible_signals_list = "list",
+    p_correction_method = "character",
+    ss_backtest_workflow = "list",
+    backtest_identifier = "character"
+  )
+)
 
 
 #' Define the `portfolio_policies` S4 Class
