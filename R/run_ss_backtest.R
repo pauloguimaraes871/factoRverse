@@ -7,8 +7,8 @@
 #'
 #' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
-#' @param chosen_signals A vector of user-defined characteristics to be considered.
-#' @param signal_positions A named vector with the same length and names as `chosen_signals`, describing whether positions should be taken "long" or "short".
+#' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
+#' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
 #' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in `signals_m_df`, containing historical backtested returns.
 #' @param benchmark_returns_df A data frame with a 'dates' column and columns with benchmark returns, named accordingly.
 #' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
@@ -21,7 +21,7 @@
 #' @param ... Additional arguments (not used in this method).
 #' @export
 setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_df, benchmark_returns_df, signal_themes_m_df,
-                                       chosen_signals, signal_positions,
+                                       chosen_signals_and_positions,
                                        ...) {
   standardGeneric("run_ss_backtest")
 })
@@ -33,12 +33,12 @@ setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_df
 setMethod("run_ss_backtest",
           signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_df = "data.frame", benchmark_returns_df = "data.frame",
                     signal_themes_m_df = "meta_dataframe",
-                    chosen_signals = "character", signal_positions = "character"),
+                    chosen_signals_and_positions = "character"),
 
           function(config, signals_m_df, backtest_returns_df, benchmark_returns_df, signal_themes_m_df,
-                   chosen_signals = "all", signal_positions, priors_m_df = NULL,
+                   chosen_signals_and_positions, priors_m_df = NULL,
                    verbose = TRUE, parallel = TRUE, winsorization_probs = c(0.025, 0.975)){
-browser()
+
             ## Initial Preparations
             #######################
             #Assign default values for internal function (to avoid getting vars from global environ)
@@ -52,15 +52,13 @@ browser()
             model_spec_theme_level <- "random_intercept"
             brms_control <- list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80, warmup = 1000)
             prior_derivation_control <- list(lmer_optimizer = "nloptwrap", half_t_df = 30, lmer_optimization_objective = "REML")
-
-            chosen_signals <- if(length(chosen_signals) == 1 && chosen_signals == "all") colnames(signals_m_df@data)[-c(1:3)] else chosen_signals
+            browser()
             # Input validation
-            if (length(signal_positions) != length(chosen_signals) ||
-                any(names(signal_positions) != chosen_signals)) {
-              stop("signal_positions must have the same length and names as chosen_signals.")
+            if (any(!names(chosen_signals_and_positions) %in% colnames(signals_m_df@data)[-c(1:3)])) {
+              stop("names of chosen_signals_and_positions must be present in signals_m_df.")
             }
-            if (!all(signal_positions %in% c("long", "short"))) {
-              stop("signal_positions should contain only 'long' or 'short'.")
+            if (!all(chosen_signals_and_positions %in% c("long", "short"))) {
+              stop("chosen_signals_and_positions should contain only 'long' or 'short'.")
             }
 
             lower_quantile_winsorization <- min(winsorization_probs)
@@ -126,7 +124,7 @@ browser()
             #########################
             ss_backtest_results <- run_ss_backtest_internal(
               initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff, split_method = split_method,
-              signals_m_df = signals_m_df, chosen_signals = chosen_signals, signal_positions = signal_positions,
+              signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
               backtest_returns_df = backtest_returns_df, benchmark_returns_df = benchmark_returns_df, market_factor_proxy = market_factor_proxy,
               p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold, enable_theme_representativeness = enable_theme_representativeness,
               priors_m_df = priors_m_df, user_priors = user_priors, model_spec_theme_level = model_spec_theme_level, brms_control = brms_control, prior_derivation_control = prior_derivation_control,
@@ -187,8 +185,8 @@ browser()
 #' To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM), computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
 #'
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
-#' @param chosen_signals A vector of user-defined characteristics to be considered.
-#' @param signal_positions A named vector with the same length and names as `chosen_signals`, describing whether positions should be taken "long" or "short".
+#' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
+#' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
 #' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in `signals_m_df`, containing historical backtested returns.
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
@@ -216,7 +214,7 @@ browser()
 #'     \item \strong{"BY"}: Benjamini-Yekutieli (2001) procedure.
 #'   }
 #' }
-#' @param signal_significance_threshold A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If you want to select all `chosen_signals`, provide 1.
+#' @param signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If you want to select all `chosen_signals`, provide 1.
 #' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
 #' with highest alpha t-stat will be elected.
 #' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
@@ -349,7 +347,7 @@ browser()
 #' The function performs the following operations:
 #' \itemize{
 #'   \item Extracts the user-defined chosen signals from `signals_m_df` and subsets the data frame to include only these signals.
-#'   \item Checks for consistency between the length of `chosen_signals` and `signal_positions` and ensures that all chosen signals have corresponding positions.
+#'   \item Checks for consistency in `chosen_signals_and_positions`.
 #'   \item Adjusts the signal positions based on whether they are "short" by multiplying their values by -1.
 #'   \item Updates column names in the data frame to reflect the corrected positions of the signals.
 #'   \item Validates that all adjusted signals have corresponding columns in `backtest_returns_df`.
@@ -364,7 +362,7 @@ run_ss_backtest_internal <- function(
     #Dates
     initial_sample_size, rebalancing_months, data_availability_cutoff = 60, split_method = "expanding",
     #Signals
-    signals_m_df, chosen_signals, signal_positions,
+    signals_m_df, chosen_signals_and_positions,
     #Backtests and benchmarks
     backtest_returns_df, benchmark_returns_df, market_factor_proxy = "IBOV",
     #P-value
@@ -384,7 +382,6 @@ run_ss_backtest_internal <- function(
 
   #Create structures to get results
   signal_universe_m_d_ref_list <- list()
-  bayesian_fit_nested_list <- list()
   eligible_signals_list <- list()
 
 
@@ -421,7 +418,7 @@ browser()
       #Dates
       initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff, split_method = split_method,
       #Signals
-      signals_m_df = signals_m_df, chosen_signals = chosen_signals, signal_positions = signal_positions,
+      signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
       #Backtest and benchmarks
       backtest_returns_df = backtest_returns_df, benchmark_returns_df = benchmark_returns_df, market_factor_proxy = market_factor_proxy,
       #P-value
@@ -458,7 +455,7 @@ browser()
       #signals_m_df
       signals_m_df = signals_m_df,
       #Chosen signals and positions
-      chosen_signals = chosen_signals, signal_positions = signal_positions,
+      chosen_signals_and_positions = chosen_signals_and_positions,
       #Signals backtest
       backtest_returns_df = backtest_returns_df
     )
@@ -530,7 +527,6 @@ browser()
 
         ###Get results
         signal_universe_m_d_ref <- signal_eligibility_results_list$signal_universe_m_d_ref
-        bayesian_fit_list <- signal_eligibility_results_list$bayesian_fit_list
 
         ###Print results
         if(verbose){
@@ -541,7 +537,6 @@ browser()
 
       ###Get results
       signal_universe_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <-  signal_universe_m_d_ref
-      bayesian_fit_nested_list[[which(rebalance_dates %in% current_date)]] <- bayesian_fit_list
       eligible_signals_list[[d - initial_sample_size + 1]] <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
 
 
@@ -553,7 +548,6 @@ browser()
 
     #Assign dates to names of objects
     names(signal_universe_m_d_ref_list) <- rebalance_dates
-    if (length(bayesian_fit_nested_list) > 0) names(bayesian_fit_nested_list) <- rebalance_dates
     names(eligible_signals_list) <- dates_backtest
 
     #Turn signal_universe_m_d_ref_list into a signle meta_dataframe
@@ -597,10 +591,9 @@ browser()
       first_rebalance_date = first_rebalance_date,
       split_method = split_method,
       #Signals
-      chosen_signals = chosen_signals,
-      signal_positions = signal_positions,
+      chosen_signals_and_positions = chosen_signals_and_positions,
       selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],
-      n_signals = length(chosen_signals),
+      n_signals = length(chosen_signals_and_positions),
       signals_workflow = NULL,
       signals_object_name = "not_identified",
       signal_themes_workflow = NULL,
@@ -623,7 +616,7 @@ browser()
                                signal_universe_m_df = signal_universe_m_df,
                                final_signal_universe_m_d_ref = final_signal_universe_m_d_ref,
                                selected_market_factor_proxy_upd_ref = selected_market_factor_proxy_upd_ref,
-                               bayesian_fit_nested_list = bayesian_fit_nested_list,
+                               final_bayesian_fit_list = signal_eligibility_results_list$bayesian_results,
                                eligible_signals_list = eligible_signals_list,
                                p_correction_method = p_correction_method,
                                ss_backtest_workflow = ss_backtest_workflow,

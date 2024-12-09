@@ -3,8 +3,8 @@
 #' This function selects signals based on a given policy, adjusts their positions according to the policy, and validates the data against backtest returns.
 #'
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
-#' @param chosen_signals A vector with user-defined characteristics to be considered.
-#' @param signal_positions A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short".
+#' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
+#' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
 #' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in signals_m_df, containing historical backtested returns.
 #'
 #' @details
@@ -27,10 +27,12 @@
 #' @importFrom dplyr select
 #' @importFrom stats setNames
 #' @export
-select_and_correct_signals <- function(signals_m_df, chosen_signals, signal_positions, backtest_returns_df = NULL){
+select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, backtest_returns_df = NULL){
 
   ###Get chosen signals
   #####################
+  chosen_signals <- names(chosen_signals_and_positions) #Get chosen signals
+  signal_positions <- unname(chosen_signals_and_positions) #Get signal positions
 
   ###selected_signals_m_df
   selected_signals_m_df <- signals_m_df[, c("id", "tickers", "dates", chosen_signals)] #subset cols present in signals_m_df

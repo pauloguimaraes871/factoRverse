@@ -1183,9 +1183,8 @@ setMethod("show", "ss_backtest_results", function(object) {
 
   # Display Signals Information
   cat("Signals Information:\n")
-  cat("  Chosen Signals: ", paste(ss_backtest_workflow$chosen_signals, collapse = ", "), "\n")
-  cat("  Signal Positions:\n")
-  print(ss_backtest_workflow$signal_positions)
+  cat("  Chosen Signals and Positions:\n")
+  print(ss_backtest_workflow$chosen_signals_and_positions)
   cat("  Number of Signals: ", ss_backtest_workflow$n_signals, "\n")
   cat("  Selected Signals with Corrected Positions:\n")
   cat("    ", paste(ss_backtest_workflow$selected_signals_corrected_positions, collapse = ", "), "\n")

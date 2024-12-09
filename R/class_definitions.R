@@ -642,7 +642,7 @@ setClass(
 #' @description The alpha_test_strategy class is designed to specify parameters of hypothesis testing regarding
 #' CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches.
 #' In the latter, the user can change the hierarchical model specification and how priors are going to be set.
-#' @slot signal_significance_threshold A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+#' @slot signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 #' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
 #' @slot p_correction_method The method for p-value correction. Possible options are:
 #'\itemize{
@@ -1224,7 +1224,7 @@ setClass(
 #'
 #' @slot signal_universe_m_df A meta dataframe containing the signal universes at each rebalancing period.
 #' @slot final_signal_universe_m_d_ref A meta dataframe containing the last signal universe.
-#' @slot bayesian_fit_nested_list A list of Bayesian model fit results for each rebalancing period.
+#' @slot final_bayesian_fit_list A list of Bayesian model fit results for each rebalancing period.
 #' @slot eligible_signals_list A list of eligible signals for each backtest period.
 #' @slot p_correction_method A character string indicating the p-value correction method used.
 #' @slot ss_backtest_workflow A list describing the signal selection backtest workflow, including parameters and metadata.
@@ -1239,7 +1239,7 @@ setClass(
     signal_universe_m_df = "meta_dataframe",
     final_signal_universe_m_d_ref = "meta_dataframe",
     selected_market_factor_proxy_upd_ref = "data.frame",
-    bayesian_fit_nested_list = "list",
+    final_bayesian_fit_list = "ANY",
     eligible_signals_list = "list",
     p_correction_method = "character",
     ss_backtest_workflow = "list",
@@ -1748,6 +1748,111 @@ setMethod("as.list", "keras_architecture_parameters", function(x) {
 })
 
 
+#' @title Get brms priors
+#' @description Accessor function to retrieve brms priors.
+#'
+#' @param object A `ss_backtest_config` or a `ss_backtest_results` object.
+#'
+#' @return A `brmsprior` S4 class.
+setGeneric("get_brms_prior", function(object){
+  standardGeneric("get_brms_prior")
+})
+
+#' @export
+setMethod("get_brms_prior", "ss_backtest_results", function(object){
+  if(!object@p_correction_method == "bayesian"){
+    stop("brms prior not available for non-bayesian models.")
+  }
+  return(object@final_bayesian_fit_list$elected_priors)
+
+})
+
+#' @export
+setMethod("get_brms_prior", "ss_backtest_config", function(object){
+
+  alpha_test_strategy <- object@alpha_test_strategy
+
+  if(!is.null(alpha_test_strategy) && !is.null(alpha_test_strategy@bayesian_model_parameters) && !is.null(alpha_test_strategy@bayesian_model_parameters@user_priors)){
+     return(alpha_test_strategy@bayesian_model_parameters@user_priors)
+  } else {
+    stop("brms prior not available.")
+  }
+
+})
+
+
+#' @title Get alpha test strategy
+#' @description Accessor function to retrieve alpha_test_strategy
+#'
+#' @param object A `ss_backtest_config` object.
+#'
+#' @return A `alpha_test_strategy` S4 class.
+setGeneric("get_alpha_test_strategy", function(object){
+  standardGeneric("get_alpha_test_strategy")
+})
+
+#' @export
+setMethod("get_alpha_test_strategy", "ss_backtest_config", function(object){
+  alpha_test_strategy <- object@alpha_test_strategy
+
+  if(!is.null(alpha_test_strategy)){
+    return(alpha_test_strategy)
+  } else {
+    stop("alpha_test_strategy not available.")
+  }
+
+})
+
+
+#' @title Get eligible signals
+#' @description Accessor function to retrieve eligible signals
+#'
+#' @param object A `ss_backtest_results` object.
+#'
+#' @return A list of eligible signals.
+setGeneric("get_eligible_signals", function(object){
+  standardGeneric("get_eligible_signals")
+})
+
+#' @export
+setMethod("get_eligible_signals", "ss_backtest_results", function(object){
+  return(object@eligible_signals_list)
+})
+
+#' @title Get signal_universe
+#' @description Accessor function to retrieve signal universe
+#'
+#' @param object A `ss_backtest_results` object.
+#'
+#' @return A list of eligible signals.
+setGeneric("get_signal_universe", function(object){
+  standardGeneric("get_signal_universe")
+})
+
+#' @export
+setMethod("get_signal_universe", "ss_backtest_results", function(object){
+  return(object@signal_universe_m_df)
+})
+
+
+#' @title Get bayesian_fit
+#' @description Accessor function to retrieve bayesian_fit_list
+#'
+#' @param object A `ss_backtest_results` object.
+#'
+#' @return A list of eligible signals.
+setGeneric("get_bayesian_fit", function(object){
+  standardGeneric("get_bayesian_fit")
+})
+
+#' @export
+setMethod("get_bayesian_fit", "ss_backtest_results", function(object){
+  if(object@p_correction_method == "bayesian"){
+    return(object@final_bayesian_fit_list)
+  } else {
+    stop("bayesian_fit not available for non-bayesian models.")
+  }
+})
 
 
 #' @title Accessor for Liquidity Constraint Policy

@@ -172,14 +172,14 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
 
     #Bayesian choice
     if(exists("pd_alpha")){
-      pd_significance_threshold = -(signal_significance_threshold/2 - 1) #Pd threshold = -(P threshold/2 - 1)
-      universe_m_d_ref$top_assets <- ifelse(pd_alpha >= pd_significance_threshold, 1L, 0L)  #If PD > threshold, can asset alpha is positive
+      converted_pd_alpha <- 1 - pd_alpha #Convert to one-sided p-value (P = 1 - pd))
+      universe_m_d_ref$top_assets <- ifelse(converted_pd_alpha <= signal_significance_threshold, 1L, 0L)  #If PD > threshold, can asset alpha is positive
     }
     #Frequentist choice
     else {
       adjusted_p_value <- universe_m_d_ref[,"adjusted_p_value"] #Get frequentist adjusted p-value
-      significance_threshold <- signal_significance_threshold
-      universe_m_d_ref$top_assets <- ifelse(adjusted_p_value <= significance_threshold, 1L, 0L) #If p-value < threshold, can assert alpha is positive
+      alpha <- universe_m_d_ref[, "alpha"] #Get alpha
+      universe_m_d_ref$top_assets <- ifelse(adjusted_p_value <= signal_significance_threshold & alpha > 0, 1L, 0L) #If p-value < threshold, can assert alpha is positive
     }
     #Check if there are eligible signals
     if(all(universe_m_d_ref$top_assets == 0)) stop("No signal was deemed significant.")

@@ -2,8 +2,8 @@
 #'
 #' This function validates and checks various inputs required for signal selection in the context of run_ss_backtest function.
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
-#' @param chosen_signals A vector with user-defined characteristics to be considered.
-#' @param signal_positions A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short".
+#' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
+#' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
 #' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in signals_m_df, containing historical backtested returns.
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
@@ -26,7 +26,7 @@
 #'  \item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
 #'  \item{"BY"}: Benjamini-Yekutieli (2001) procedure.
 #'  }
-#' @param signal_significance_threshold A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+#' @param signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all signals,
 #' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
 #' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
 #' with highest alpha t-stat will be elected.
@@ -84,7 +84,7 @@ check_inputs_ss_backtest <- function(
   #Dates
   initial_sample_size, rebalancing_months, data_availability_cutoff, split_method,
   #Signals
-  signals_m_df, chosen_signals, signal_positions,
+  signals_m_df, chosen_signals_and_positions,
   #Backtests and benchmark returns
   backtest_returns_df, benchmark_returns_df, market_factor_proxy,
   #P-value
@@ -113,7 +113,7 @@ check_inputs_ss_backtest <- function(
   }
 
   ###Check if all chosen_signals are present in signals_m_upd_ref
-  if(any(!chosen_signals %in% colnames(signals_m_df))){
+  if(any(!names(chosen_signals_and_positions) %in% colnames(signals_m_df))){
     stop("signal selection not avaiable in signals_m_df")
   }
 
@@ -177,6 +177,11 @@ check_inputs_ss_backtest <- function(
     stop("theme column in signal_themes_m_df must be character")
   }
 
+  ###Check format in signal_themes_m_df
+  if(grepl("_", signal_themes_m_df$theme)){
+    stop("No underscores allowed in signal_themes_m_df")
+  }
+
   ###Check if dates in signal_themes_m_df and signals_m_df are the same
   signal_dates_m_vector <- as.Date(unique(signals_m_df$dates))
   signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df$dates))
@@ -211,14 +216,10 @@ check_inputs_ss_backtest <- function(
 
   #chosen signals and signal positions
   ###Check if there are repeated signals in chosen_signals
-  if(!identical(chosen_signals, unique(chosen_signals))){
+  if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
     stop("each signal must be chosen only once")
   }
 
-  ###Check if all signals have a position
-  if(!identical(chosen_signals, names(signal_positions))){
-    stop("all chosen signals should have a matching position in signal_positions.")
-  }
 
   ###Check if bayesian fit can be run
   if(p_correction_method == "bayesian"){
@@ -248,34 +249,34 @@ check_inputs_ss_backtest <- function(
         stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
       }
     }
-
+browser()
     #BRMS control
     if(!is.null(brms_control)){
       if(any(!names(brms_control) %in% c("chains", "iter", "warmup", "thin", "seed", "adapt_delta"))){
         stop("brms_control must be a list containing 'chains', 'iter', 'warmup', 'thin', 'seed' and/or 'adapt_delta'.")
       }
       #chains
-      if(!is.null(brms_control$chains) && !is.numeric(brms_control$chains) || brms_control$chains <= 0){
+      if(!is.null(brms_control$chains) && (!is.numeric(brms_control$chains) || brms_control$chains <= 0)){
         stop("chains must be a positive number.")
       }
       #iter
-      if(!is.null(brms_control$iter) && !is.numeric(brms_control$iter) || brms_control$iter <= 0){
+      if(!is.null(brms_control$iter) && (!is.numeric(brms_control$iter) || brms_control$iter <= 0)){
         stop("iter must be a positive number.")
       }
       #warmup
-      if(!is.null(brms_control$warmup) && !is.numeric(brms_control$warmup) || brms_control$warmup <= 0){
+      if(!is.null(brms_control$warmup) && (!is.numeric(brms_control$warmup) || brms_control$warmup <= 0)){
         stop("warmup must be a positive number.")
       }
       #thin
-      if(!is.null(brms_control$thin) && !is.numeric(brms_control$thin) || brms_control$thin <= 0){
+      if(!is.null(brms_control$thin) && (!is.numeric(brms_control$thin) || brms_control$thin <= 0)){
         stop("thin must be a positive number.")
       }
       #adapt_delta
-      if(!is.null(brms_control$adapt_delta) && !is.numeric(brms_control$adapt_delta) || brms_control$adapt_delta <= 0 || brms_control$adapt_delta > 1){
+      if(!is.null(brms_control$adapt_delta) && (!is.numeric(brms_control$adapt_delta) || brms_control$adapt_delta <= 0 || brms_control$adapt_delta > 1)){
         stop("adapt_delta should be between 0 and 1.")
       }
       #warmup and iter
-      if(!is.null(brms_control$warmup) && !is.null(brms_control$iter) && brms_control$warmup >= brms_control$iter){
+      if(!is.null(brms_control$warmup) && (!is.null(brms_control$iter) && brms_control$warmup >= brms_control$iter)){
         stop("warmup must be less than iter.")
       }
     }

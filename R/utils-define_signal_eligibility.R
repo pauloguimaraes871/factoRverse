@@ -22,7 +22,7 @@
 #'  \item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
 #'  \item{"BY"}: Benjamini-Yekutieli (2001) procedure.
 #'  }
-#' @param signal_significance_threshold A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+#' @param signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 #' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
 #' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_d_ref` does not have any eligible signal, the signal
 #' with highest alpha t-stat will be elected.
@@ -241,7 +241,7 @@ define_signal_eligibility <- function(
       mean(x, na.rm = TRUE)/summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[2]}), #Get Treynor
     #Alpha P-value
     p_value = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[7]}), #Get Alpha p-value
+      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[7]/2}), #Get one-sided alpha p-value
 
     row.names = NULL
   )

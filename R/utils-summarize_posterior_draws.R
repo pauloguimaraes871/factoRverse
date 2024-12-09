@@ -25,7 +25,7 @@
 #'   \item Computes and updates additional performance metrics like Appraisal Ratio (AP) and Treynor ratio.
 #' }
 #'
-summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref, signal_themes_m_d_ref, model_spec_theme_level){
+summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL, signal_themes_m_d_ref, model_spec_theme_level){
 
   #Get tidy posterior draws from brm_model
   #####################
@@ -219,6 +219,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref, signa
       #####################
 
       #Add posterior results to signal_universe_m_d_ref
+      if(!is.null(signal_universe_m_d_ref)){
       #####################
       theme_tickers_key <- signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme_tickers) #Redefine key
       signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(theme_tickers_key, by = "tickers") #Add key to signal_universe_m_d_ref
@@ -272,18 +273,31 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref, signa
     signal_universe_m_d_ref <- signal_universe_m_d_ref[, ordered_metrics]
     rownames(signal_universe_m_d_ref) <- NULL
 
-  #Create result object
-  posteriors_results_list <- list(
-    bayesian_model = brm_model,
-    signal_universe_m_d_ref = signal_universe_m_d_ref,
-    posterior_draws_summaries = list(
-      intercept_summary = tidy_posterior_draws_intercept_summary,
-      slope_summary = tidy_posterior_draws_slope_summary,
-      sd_summary = tidy_posterior_draws_sd_summary,
-      epred_summary = tidy_posterior_epred_draws_summary,
-      predicted_summary = tidy_posterior_predicted_draws_summary
+
+    #Create result object
+    posteriors_results_list <- list(
+      bayesian_model = brm_model,
+      signal_universe_m_d_ref = signal_universe_m_d_ref,
+      posterior_draws_summaries = list(
+        intercept_summary = tidy_posterior_draws_intercept_summary,
+        slope_summary = tidy_posterior_draws_slope_summary,
+        sd_summary = tidy_posterior_draws_sd_summary,
+        epred_summary = tidy_posterior_epred_draws_summary,
+        predicted_summary = tidy_posterior_predicted_draws_summary
+      )
     )
-  )
+
+  }  else  {
+    #Create result object in case of signal_universe is NULL
+    posteriors_results_list <- list(
+      tidy_posterior_draws_intercept = tidy_posterior_draws_intercept,
+      tidy_posterior_draws_slope = tidy_posterior_draws_slope,
+      tidy_posterior_draws_sd = tidy_posterior_draws_sd,
+      tidy_posterior_epred_draws = tidy_posterior_epred_draws,
+      tidy_posterior_predicted_draws = tidy_posterior_predicted_draws
+    )
+
+  }
 
   #Return
   return(posteriors_results_list)

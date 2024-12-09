@@ -3,11 +3,12 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
-    chosen_signals = signal_selection_policy$chosen_signals,
-    signal_positions = signal_selection_policy$signal_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions,
     backtest_returns_df = backtest_returns_df
   )
 
@@ -42,7 +43,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
   expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
   expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])
+  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
 
   #Inside Bayesian Adjustment
 
@@ -77,7 +78,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
                                 signal_universe_m_d_ref = expected_result,
                                 signal_themes_m_d_ref = signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
-                                model_spec_theme_level = signal_selection_policy$model_spec_theme_level,
+                                model_spec_theme_level = "random_intercept",
                                 parallel = TRUE,
                                 chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.99, #MCMC parameters
                                 verbose = TRUE
@@ -247,11 +248,12 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
-    chosen_signals = signal_selection_policy$chosen_signals,
-    signal_positions = signal_selection_policy$signal_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions,
     backtest_returns_df = backtest_returns_df
   )
 
@@ -286,7 +288,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
   expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
   expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])
+  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
 
   #Inside Bayesian Adjustment
 
@@ -471,11 +473,12 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
-    chosen_signals = signal_selection_policy$chosen_signals,
-    signal_positions = signal_selection_policy$signal_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions,
     backtest_returns_df = backtest_returns_df
   )
 
@@ -510,7 +513,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
   expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
   expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])
+  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
 
   #Inside Bayesian Adjustment
 
@@ -696,11 +699,12 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
-    chosen_signals = signal_selection_policy$chosen_signals,
-    signal_positions = signal_selection_policy$signal_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions,
     backtest_returns_df = backtest_returns_df
   )
 
@@ -735,7 +739,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
   expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
   expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
   expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])
+  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
 
   #Inside Bayesian Adjustment
 

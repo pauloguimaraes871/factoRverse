@@ -138,21 +138,21 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
     signals_m_df[[signal]] <- generate_signals(n = nrow(signals_m_df))
   }
 
-  signal_positions <- rep("long", length(signal_columns))
-  names(signal_positions) <- signal_columns
+  chosen_signals_and_positions <- rep("long", length(signal_columns))
+  names(chosen_signals_and_positions) <- signal_columns
 
   backtest_returns_df <- simulated_data %>% tidyr::pivot_wider(id_cols = dates, names_from = tickers, values_from = active_return)
 
   correct_names <-   colnames(backtest_returns_df)[-1]
-  correct_names[signal_positions == "short"] <- paste0("low_", names(signal_positions)[signal_positions == "short"])
+  correct_names[chosen_signals_and_positions == "short"] <- paste0("low_", names(chosen_signals_and_positions)[chosen_signals_and_positions])
 
   colnames(backtest_returns_df)[-1] <- correct_names
+
 
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
-    chosen_signals = signal_columns,
-    signal_positions = signal_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions,
     backtest_returns_df = as.data.frame(backtest_returns_df)
   )
 
@@ -309,7 +309,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
   expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
   expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])
+  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
 
 
   future::plan("multisession")

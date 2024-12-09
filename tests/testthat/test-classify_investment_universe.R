@@ -58,7 +58,9 @@ test_that("classify_investment_universe works with no additional rules for signa
 
 })
 
-test_that("classify_investment_universe works with no additional rules for signals (frequentist), respecting group representativeness when there are two competing unsignificant signals", {
+test_that("classify_investment_universe works with no additional rules for signals (frequentist),
+          respecting group representativeness when there are two competing unsignificant signals and
+          when alpha is negative", {
 
   #THEME SB
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -89,7 +91,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   signals_universe_m_d_ref$final_signal <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
 
   expected_results <- signals_universe_m_d_ref
-  expected_results$top_assets <- c(1,0,1,0)
+  expected_results$top_assets <- c(0,0,1,0)
 
   #GET SE BENCHMARKS
   se_benchmarks <- create_se_benchmarks(expected_results, signals_groups_m_d_ref)
@@ -99,7 +101,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   expected_results$theme = signals_groups_m_d_ref$theme
 
 
-  expected_results$is_eligible <- c(1,0,1,1)
+  expected_results$is_eligible <- c(0,0,1,1)
 
   expect_equal(
     classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,

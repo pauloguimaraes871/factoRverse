@@ -3156,9 +3156,20 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
 #' @param ... Additional arguments (currently unused).
 #' @method plot bayesian_model_parameters
 #' @export
-setMethod("plot", "bayesian_model_parameters", function(x, ...) {
-  if (is.null(x@user_priors)) {
-    cat("No user priors to plot.\n")
+setMethod("plot", "ss_backtest_config", function(x, ...) {
+
+  # Access the alpha_test_strategy slot
+  alpha_strategy <- x@alpha_test_strategy
+
+  # Check if it contains a bayesian_alpha_test
+  if(is(alpha_strategy, "bayesian_alpha_test_strategy")){
+    #Check if there is user_priors
+    if (is.null(bayesian_ss_config@alpha_test_strategy@bayesian_model_parameters@user_priors)) {
+      cat("No user priors to plot.\n")
+      return(invisible(NULL))
+    }
+  } else {
+    cat("Plot method only avaiable for bayesian_alpha_test_stategy subclass.\n")
     return(invisible(NULL))
   }
 
@@ -3375,20 +3386,28 @@ setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
 #' Users can select which plot to display by specifying the `plot_id` parameter.
 #' @param x An object of class `ss_backtest_results`.
 #' @param plot_id A character string or numeric value specifying which plot to display.
-#'   - By name: Options are:
-#'     - `"Time-Series Metrics by Ticker"`
-#'     - `"Average Time-Series Metrics by Theme"`
-#'     - `"Compare Metrics Side-by-Side by Theme"`
-#'     - `"Box-Plot by Theme"`
-#'     - `"Box-Plot by Eligibility"`
-#'     - `"Waterfall Plot by Ticker"`
-#'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
-#'   If `NULL` (default), the method lists available plots.
 #' @return Invisibly returns the input object.
 #' @export
 setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
+  # Define colors for plotting
+  deep_navy <- "#000033"
+  black <- "#000000"
+  white <- "#FFFFFF"
+  vibrant_purple <- "#6A0DAD"
+  neon_green <- "#39FF14"
+  neon_orange <- "#FF5F1F"
+  blue_bg <- "#001f3f"
+  neon_yellow <- "#FFDC00"
+  neon_pink <- "#FF007F"
+  cyan <- "#7FDBFF"
+
+  # Ensure Contribution_Type uses "Positive" and "Negative" for consistency
+  pos_color <- neon_green    # Define positive contribution color
+  neg_color <- "red"         # Define negative contribution color
+
   # List of available plots
+  if(x@ss_backtest_workflow$p_correction_method == "bayesian"){
   available_plots <- c(
     "Time-Series Metrics by Ticker",
     "Average Time-Series Metrics by Theme",
@@ -3398,8 +3417,28 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     "Box-Plot by Eligibility",
     "Waterfall Plot by Ticker",
     "Waterfall Plot by Theme",
-    "Eligibility by Time"
+    "Eligibility by Time",
+    "Posterior Individual Alphas",
+    "Posterior Individual Betas",
+    "Posterior Random Effects",
+    "Waterfall Plot of Posterior Variance Components",
+    "Posterior Regression Lines",
+    "Waterfall Plot of Active Return Decomposition by Ticker",
+    "Posterior Individual Alpha Distributions by Theme and Ticker"
   )
+  } else {
+    available_plots <- c(
+      "Time-Series Metrics by Ticker",
+      "Average Time-Series Metrics by Theme",
+      "Compare Metrics Side-by-Side by Tickers",
+      "Compare Metrics Side-by-Side by Theme",
+      "Box-Plot by Theme",
+      "Box-Plot by Eligibility",
+      "Waterfall Plot by Ticker",
+      "Waterfall Plot by Theme",
+      "Eligibility by Time"
+    )
+  }
 
   if (is.null(plot_id)) {
     cat("\nPlease choose a plot to display:\n")
@@ -3435,7 +3474,20 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   signal_universe_m_df <- x@signal_universe_m_df
   final_signal_universe_m_d_ref <- x@final_signal_universe_m_d_ref
   eligible_signals_list <- x@eligible_signals_list
-
+  if(x@p_correction_method == "bayesian"){
+    #Reconstruct signal_themes_m_d_ref
+    signal_themes_m_d_ref <- final_signal_universe_m_d_ref@data %>% dplyr::select(id, tickers, dates, theme)
+    #Get brm_model
+    brm_model <- x@final_bayesian_fit_list$bayesian_model
+    #Get model_spec_theme_level
+    model_spec_theme_level <- results@ss_backtest_workflow$model_spec_theme_level
+    #priors
+    elected_priors <- x@final_bayesian_fit_list$elected_priors
+    #Extract tidy posteriores
+    tidy_posteriors_list <- summarize_posteriors_draws(brm_model = brm_model,
+                                                       signal_themes_m_d_ref = signal_themes_m_d_ref,
+                                                       model_spec_theme_level = model_spec_theme_level)
+  }
 
   # Plot 1: Time-Series Metrics by Ticker
   if (plot_name == "Time-Series Metrics by Ticker") {
@@ -3496,7 +3548,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Plot 7: Waterfall Plot by Ticker
     final_signal_universe_m_d_ref <- final_signal_universe_m_d_ref %>%
       dplyr::mutate(mean_market_factor_proxy = mean(object@selected_market_factor_proxy_upd_ref[,2]),
-                    beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
+                    beta_x_mean_market_factor_proxy = x * mean_market_factor_proxy,
                     residual = mean_active_return - alpha - beta_x_mean_market_factor_proxy)
 
     plot_type <- "waterfall"
@@ -3510,7 +3562,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   } else if (plot_name == "Waterfall Plot by Theme") {
     # Plot 8: Waterfall Plot by Ticker
     final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(object@selected_market_factor_proxy_upd_ref[,2]),
+      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_upd_ref[,2]),
                     beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
                     residual = mean_active_return - alpha - beta_x_mean_market_factor_proxy)
 
@@ -3533,6 +3585,1001 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     calc_stat <- "mean"
 
     plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat)
+
+  }
+
+  ###############
+  #Bayesian Plots
+  ###############
+
+  else if (plot_name == "Posterior Individual Alphas"){
+
+    #Plot 10
+    tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
+    # Prompt the user to select tickers
+    available_tickers <- unique(tidy_posterior_draws_intercept$tickers)
+
+    # Display available tickers with numbers
+    cat("Available tickers:\n")
+    for (i in seq_along(available_tickers)) {
+      cat(i, ":", available_tickers[i], "\n")
+    }
+
+    # Ask user for input
+    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+    # Convert input to numeric and validate
+    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+    }
+
+    # Match the selected numbers to tickers
+    selected_tickers <- available_tickers[selected_numbers]
+
+    # Filter the data based on user selection
+    filtered_data <- tidy_posterior_draws_intercept %>%
+      dplyr::filter(tickers %in% selected_tickers)
+
+    if (nrow(filtered_data) == 0) {
+      stop("No matching tickers found. Please check your input.")
+    }
+
+    #Get theme column
+    theme_ticker_key <- data.frame(tickers = paste0(signal_themes_m_d_ref$theme, "_", signal_themes_m_d_ref$tickers), theme = signal_themes_m_d_ref$theme)
+    filtered_data <- filtered_data %>%
+      dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
+
+    # Extract themes from `elected_priors`
+
+      ##Random Intercept or None
+      if(model_spec_theme_level %in% c("random_intercepts", "none")){
+        prior_data <- elected_priors %>%
+          dplyr::filter(class == "Intercept") %>%
+          dplyr::rowwise() %>%
+          dplyr::mutate(
+            mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+            sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+          ) %>%
+          dplyr::ungroup() %>%
+          dplyr::select(mean, sd)
+
+        prior_data <- data.frame(theme = unique(theme_ticker_key$theme), mean = prior_data$mean, sd = prior_data$sd)
+
+      }
+
+      ##Fixed intercepts or Fixed Intercepts and Slopes
+      if(model_spec_theme_level %in% c("fixed_intercepts", "fixed_intercepts_and_slopes")){
+      prior_data <- elected_priors %>%
+        dplyr::filter(class == "b" & stringr::str_detect(coef, "^theme")) %>%
+        dplyr::mutate(theme = stringr::str_remove(coef, "^theme")) %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(
+          mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+          sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+        ) %>%
+        dplyr::ungroup() %>%
+        dplyr::select(theme, mean, sd)
+      }
+
+    # Generate draws for each theme and convert to long format
+    long_draws_data <- prior_data %>%
+      dplyr::mutate(
+        draws = purrr::map2(mean, sd, ~ rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
+      ) %>%
+      tidyr::unnest(draws) %>%                # Expand the list column into long format
+      dplyr::group_by(theme) %>%              # Group by theme
+      dplyr::mutate(prior_draw = dplyr::row_number()) %>% # Add simulation ID
+      dplyr::ungroup()
+
+    # Insert priors in the filtered data
+    filtered_data <- filtered_data %>%
+      dplyr::left_join(dplyr::select(long_draws_data, theme, draws), by = "theme")
+
+    # Sample the data for performance (adjust the sample size as needed)
+    sampled_data <- filtered_data %>%
+      dplyr::sample_n(min(10000, nrow(filtered_data)))
+
+    # Transform data to long format with both variables
+    long_plot_data <- sampled_data %>%
+      tidyr::pivot_longer(
+        cols = c(posterior_individual_alpha, draws),
+        names_to = "variable",
+        values_to = "value"
+      )
+
+    # Define custom colors for the variables
+    custom_colors <- c(
+      "posterior_individual_alpha" = "#39FF14",  # Neon green
+      "draws" = "#FF5F1F"                        # Neon orange
+    )
+
+    # Create the plot
+    p <- long_plot_data %>%
+      ggplot2::ggplot(ggplot2::aes(x = value, y = tickers, fill = variable)) +
+      ggdist::stat_halfeye(
+        adjust = 0.5,
+        width = 0.6,
+        alpha = 0.7,
+        position = ggplot2::position_identity()
+      ) +
+      ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = "#FFFFFF") + # White dashed line
+      ggplot2::scale_fill_manual(values = custom_colors,
+                                 labels = c("Prior Alpha", "Posterior Alpha")) + # Neon green for posterior, neon orange for draws
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA), # Deep navy background
+        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        panel.grid.major = ggplot2::element_line(color = "#B0B0B0"), # Light gray grid lines
+        panel.grid.minor = ggplot2::element_blank(), # No minor grid lines
+        axis.text = ggplot2::element_text(color = "#FFFFFF"), # White axis text
+        axis.title = ggplot2::element_text(color = "#FFFFFF"), # White axis title
+        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"), # White title
+        plot.subtitle = ggplot2::element_text(color = "#FFFFFF", size = 10, face = "italic"), # White subtitle
+        legend.position = "bottom", # Legend at the bottom
+        legend.text = ggplot2::element_text(color = "#FFFFFF"), # White legend text
+        legend.title = ggplot2::element_text(color = "#FFFFFF") # White legend title
+      ) +
+      ggplot2::labs(
+        title = "Posterior and Prior Distributions per Ticker",
+        subtitle = "Showing posterior and prior distributions of individual alpha",
+        x = "Value",
+        y = "Tickers",
+        fill = "Variable"
+      )
+
+    print(p)
+
+  } else if (plot_name == "Posterior Individual Betas"){
+
+    #Plot 11
+    tidy_posterior_draws_slope <- tidy_posteriors_list$tidy_posterior_draws_slope
+    # Prompt the user to select tickers
+    available_tickers <- unique(tidy_posterior_draws_slope$tickers)
+
+    # Display available tickers with numbers
+    cat("Available tickers:\n")
+    for (i in seq_along(available_tickers)) {
+      cat(i, ":", available_tickers[i], "\n")
+    }
+
+    # Ask user for input
+    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+    # Convert input to numeric and validate
+    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+    }
+
+    # Match the selected numbers to tickers
+    selected_tickers <- available_tickers[selected_numbers]
+
+    # Filter the data based on user selection
+    filtered_data <- tidy_posterior_draws_slope %>%
+      dplyr::filter(tickers %in% selected_tickers)
+
+    if (nrow(filtered_data) == 0) {
+      stop("No matching tickers found. Please check your input.")
+    }
+
+    #Get theme column
+    theme_ticker_key <- data.frame(tickers = paste0(signal_themes_m_d_ref$theme, "_", signal_themes_m_d_ref$tickers), theme = signal_themes_m_d_ref$theme)
+    filtered_data <- filtered_data %>%
+      dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
+
+    # Extract themes from `elected_priors`
+
+    ##Random Intercept, Fixed Intercepts or None
+    if(model_spec_theme_level %in% c("random_intercepts", "fixed_intercepts", "none")){
+      prior_data <- elected_priors %>%
+        dplyr::filter(class == "b" & coef == "market_factor_proxy") %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(
+          mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+          sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+        ) %>%
+        dplyr::ungroup() %>%
+        dplyr::select(mean, sd)
+
+      prior_data <- data.frame(theme = unique(theme_ticker_key$theme), mean = prior_data$mean, sd = prior_data$sd)
+
+    }
+
+    ##Fixed Intercepts and Slopes
+    if(model_spec_theme_level %in% c("fixed_intercepts_and_slopes")){
+      prior_data <- elected_priors %>%
+        dplyr::filter(class == "b" & stringr::str_detect(coef, "^theme.*:market_factor_proxy$")) %>%
+        dplyr::mutate(theme = stringr::str_extract(coef, "(?<=^theme).*?(?=:)")) %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(
+          mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+          sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+        ) %>%
+        dplyr::ungroup() %>%
+        dplyr::select(theme, mean, sd)
+    }
+
+    # Generate draws for each theme and convert to long format
+    long_draws_data <- prior_data %>%
+      dplyr::mutate(
+        draws = purrr::map2(mean, sd, ~ rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
+      ) %>%
+      tidyr::unnest(draws) %>%                # Expand the list column into long format
+      dplyr::group_by(theme) %>%              # Group by theme
+      dplyr::mutate(prior_draw = dplyr::row_number()) %>% # Add simulation ID
+      dplyr::ungroup()
+
+    # Insert priors in the filtered data
+    filtered_data <- filtered_data %>%
+      dplyr::left_join(dplyr::select(long_draws_data, theme, draws), by = "theme")
+
+    # Sample the data for performance (adjust the sample size as needed)
+    sampled_data <- filtered_data %>%
+      dplyr::sample_n(min(10000, nrow(filtered_data)))
+
+    # Transform data to long format with both variables
+    long_plot_data <- sampled_data %>%
+      tidyr::pivot_longer(
+        cols = c(posterior_individual_beta, draws),
+        names_to = "variable",
+        values_to = "value"
+      )
+
+    # Define custom colors for the variables
+    custom_colors <- c(
+      "posterior_individual_beta" = "#39FF14",  # Neon green
+      "draws" = "#FF5F1F"                        # Neon orange
+    )
+
+    # Create the plot
+    p <- long_plot_data %>%
+      ggplot2::ggplot(ggplot2::aes(x = value, y = tickers, fill = variable)) +
+      ggdist::stat_halfeye(
+        adjust = 0.5,
+        width = 0.6,
+        alpha = 0.7,
+        position = ggplot2::position_identity()
+      ) +
+      ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = "#FFFFFF") + # White dashed line
+      ggplot2::scale_fill_manual(values = custom_colors,
+                                 labels = c("Prior Beta", "Posterior Beta")) + # Neon green for posterior, neon orange for draws
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA), # Deep navy background
+        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        panel.grid.major = ggplot2::element_line(color = "#B0B0B0"), # Light gray grid lines
+        panel.grid.minor = ggplot2::element_blank(), # No minor grid lines
+        axis.text = ggplot2::element_text(color = "#FFFFFF"), # White axis text
+        axis.title = ggplot2::element_text(color = "#FFFFFF"), # White axis title
+        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"), # White title
+        plot.subtitle = ggplot2::element_text(color = "#FFFFFF", size = 10, face = "italic"), # White subtitle
+        legend.position = "bottom", # Legend at the bottom
+        legend.text = ggplot2::element_text(color = "#FFFFFF"), # White legend text
+        legend.title = ggplot2::element_text(color = "#FFFFFF") # White legend title
+      ) +
+      ggplot2::labs(
+        title = "Posterior and Prior Distributions per Ticker",
+        subtitle = "Showing posterior and prior distributions of individual beta",
+        x = "Value",
+        y = "Tickers",
+        fill = "Variable"
+      )
+
+    print(p)
+
+  } else if (plot_name == "Posterior Random Effects") {
+    #Plot 12
+
+    #Get tidy_posterior_draws_sw
+    tidy_posterior_draws_sd <-  tidy_posteriors_list$tidy_posterior_draws_sd
+
+    # Transform and plot the data
+    p <- tidy_posterior_draws_sd %>%
+      # Select relevant columns by excluding unwanted ones
+      dplyr::select(-.chain, -.iteration, -.draw, -posterior_cor_r_alpha_beta, -posterior_sigma) %>%
+      # Pivot to longer format
+      tidyr::pivot_longer(
+        cols = dplyr::everything(),
+        names_to = "parameter",
+        values_to = "sd_value"
+      ) %>%
+      # Create the plot
+      ggplot2::ggplot(ggplot2::aes(y = parameter, x = sd_value, fill = parameter)) +
+      ggdist::stat_halfeye(
+        show.legend = FALSE,              # Hide legend if not needed
+        adjust = 0.5,                     # Adjust the bandwidth of the density estimate
+        width = 0.6,                      # Width of the half-eye plot
+        alpha = 0.8                       # Transparency for better visibility
+      ) +
+      ggplot2::geom_vline(
+        xintercept = 0,
+        linetype = "dashed",
+        color = "#FFFFFF",                # White dashed line for consistency
+        size = 1
+      ) +
+      # Customize the theme to match other plots
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),    # Deep navy background
+        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),   # Deep navy panel
+        panel.grid.major = ggplot2::element_line(color = "#B0B0B0"),             # Light gray major grid lines
+        panel.grid.minor = ggplot2::element_blank(),                             # Remove minor grid lines
+        axis.text = ggplot2::element_text(color = "#FFFFFF"),                    # White axis text
+        axis.title = ggplot2::element_text(color = "#FFFFFF"),                   # White axis titles
+        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"),       # White bold title
+        plot.subtitle = ggplot2::element_text(color = "#FFFFFF", size = 10, face = "italic"),  # White italic subtitle
+        legend.position = "bottom",                                             # Position legend at the bottom
+        legend.text = ggplot2::element_text(color = "#FFFFFF"),                # White legend text
+        legend.title = ggplot2::element_text(color = "#FFFFFF")                # White legend title
+      ) +
+      # Add labels
+      ggplot2::labs(
+        title = "Posterior Distributions of Random Effects",
+        subtitle = "Standard Deviations across Parameters",
+        x = "Standard Deviation",
+        y = "Parameter"
+      )
+
+    print(p)
+  } else if (plot_name == "Waterfall Plot of Posterior Variance Components") {
+    #Plot 13
+
+    #Get tidy_posterior_draws_sw
+    tidy_posterior_draws_sd <-  tidy_posteriors_list$tidy_posterior_draws_sd
+
+    #Waterfall plot
+    if(model_spec_theme_level == "random_intercepts"){
+    #For random_intercepts, include var_theme_intercept
+    variance_data <- tidy_posterior_draws_sd %>%
+      dplyr::mutate(
+        # Variance components
+        var_theme_intercept = posterior_r_theme_alpha^2,
+        var_tickers_intercept = posterior_r_tickers_alpha^2,
+        var_tickers_slope = posterior_r_tickers_beta^2,
+        var_sigma = posterior_sigma^2
+      ) %>%
+      dplyr::mutate(
+        cov_tickers_intercept_slope = 2 * posterior_r_tickers_alpha * posterior_r_tickers_beta * posterior_cor_r_alpha_beta
+      ) %>%
+      dplyr::mutate(
+        total_variance = var_theme_intercept +
+          var_tickers_intercept +
+          var_tickers_slope +
+          var_sigma +
+          cov_tickers_intercept_slope
+      )
+
+    #Get decomposition info
+    waterfall_data <- variance_data %>%
+      dplyr::select(
+        .draw,
+        var_theme_intercept,
+        var_tickers_intercept,
+        var_tickers_slope,
+        var_sigma,
+        cov_tickers_intercept_slope,
+        total_variance
+      ) %>%
+      # Calculate mean contributions across draws
+      dplyr::summarise(
+        var_theme_intercept = mean(var_theme_intercept),
+        var_tickers_intercept = mean(var_tickers_intercept),
+        var_tickers_slope = mean(var_tickers_slope),
+        var_sigma = mean(var_sigma),
+        cov_tickers_intercept_slope = mean(cov_tickers_intercept_slope),
+        total_variance = mean(total_variance)
+      ) %>%
+      # Reshape data to long format
+      tidyr::pivot_longer(
+        cols = -total_variance,
+        names_to = "Component",
+        values_to = "Variance"
+      ) %>%
+      dplyr::mutate(
+        # Order components for plotting
+        Component = factor(
+          Component,
+          levels = c(
+            "var_theme_intercept",
+            "var_tickers_intercept",
+            "var_tickers_slope",
+            "cov_tickers_intercept_slope",
+            "var_sigma"
+          ),
+          labels = c(
+            "Theme Intercept Variance",
+            "Tickers Intercept Variance",
+            "Tickers Slope Variance",
+            "Tickers Intercept-Slope Covariance",
+            "Residual Variance"
+          )
+        )
+      )
+
+    # Calculate cumulative variance contributions
+    waterfall_data <- waterfall_data %>%
+      dplyr::mutate(
+        Cumulative = cumsum(Variance) - Variance[1],
+        Start = dplyr::lag(Cumulative, default = 0),
+        End = Cumulative,
+        Contribution_Type = ifelse(Variance >= 0, "Positive", "Negative")
+      )
+
+    # Plot the waterfall
+    p <- ggplot2::ggplot(waterfall_data, ggplot2::aes(
+      x = Component,
+      ymin = Start,
+      ymax = End,
+      fill = Contribution_Type
+    )) +
+      ggplot2::geom_rect(
+        ggplot2::aes(
+          xmin = as.numeric(Component) - 0.4,
+          xmax = as.numeric(Component) + 0.4
+        ),
+        color = black
+      ) +
+      ggplot2::geom_text(
+        ggplot2::aes(
+          x = Component,
+          y = End,
+          label = round(Variance, 4)
+        ),
+        vjust = ifelse(waterfall_data$Variance >= 0, -0.5, 1.5),
+        size = 3,
+        color = white  # Ensure text is visible against the background
+      ) +
+      ggplot2::scale_fill_manual(
+        values = c("Positive" = pos_color, "Negative" = neg_color)
+      ) +
+      ggplot2::labs(
+        title = "Waterfall Plot of Variance Components",
+        x = "Components",
+        y = "Cumulative Variance",
+        fill = "Contribution"  # Add fill legend title for clarity
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank(),
+        axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
+        axis.title = ggplot2::element_text(color = white),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white)
+      )
+
+    print(p)
+
+    } else {
+      ############################
+      #Otherwise, include variance for theme
+      ##########################
+      variance_data <- tidy_posterior_draws_sd %>%
+        dplyr::mutate(
+          # Variance components
+          var_tickers_intercept = posterior_r_tickers_alpha^2,
+          var_tickers_slope = posterior_r_tickers_beta^2,
+          var_sigma = posterior_sigma^2
+        ) %>%
+        dplyr::mutate(
+          cov_tickers_intercept_slope = 2 * posterior_r_tickers_alpha * posterior_r_tickers_beta * posterior_cor_r_alpha_beta
+        ) %>%
+        dplyr::mutate(
+          total_variance =
+            var_tickers_intercept +
+            var_tickers_slope +
+            var_sigma +
+            cov_tickers_intercept_slope
+        )
+
+      #Get decomposition info
+      waterfall_data <- variance_data %>%
+        dplyr::select(
+          .draw,
+          var_tickers_intercept,
+          var_tickers_slope,
+          var_sigma,
+          cov_tickers_intercept_slope,
+          total_variance
+        ) %>%
+        # Calculate mean contributions across draws
+        dplyr::summarise(
+          var_tickers_intercept = mean(var_tickers_intercept),
+          var_tickers_slope = mean(var_tickers_slope),
+          var_sigma = mean(var_sigma),
+          cov_tickers_intercept_slope = mean(cov_tickers_intercept_slope),
+          total_variance = mean(total_variance)
+        ) %>%
+        # Reshape data to long format
+        tidyr::pivot_longer(
+          cols = -total_variance,
+          names_to = "Component",
+          values_to = "Variance"
+        ) %>%
+        dplyr::mutate(
+          # Order components for plotting
+          Component = factor(
+            Component,
+            levels = c(
+              "var_tickers_intercept",
+              "var_tickers_slope",
+              "cov_tickers_intercept_slope",
+              "var_sigma"
+            ),
+            labels = c(
+              "Tickers Intercept Variance",
+              "Tickers Slope Variance",
+              "Tickers Intercept-Slope Covariance",
+              "Residual Variance"
+            )
+          )
+        )
+
+      # Calculate cumulative variance contributions
+      waterfall_data <- waterfall_data %>%
+        dplyr::mutate(
+          Cumulative = cumsum(Variance) - Variance[1],
+          Start = dplyr::lag(Cumulative, default = 0),
+          End = Cumulative,
+          Contribution_Type = ifelse(Variance >= 0, "Positive", "Negative")
+        )
+
+      # Plot the waterfall
+      p <- ggplot2::ggplot(waterfall_data, ggplot2::aes(
+        x = Component,
+        ymin = Start,
+        ymax = End,
+        fill = Contribution_Type
+      )) +
+        ggplot2::geom_rect(
+          ggplot2::aes(
+            xmin = as.numeric(Component) - 0.4,
+            xmax = as.numeric(Component) + 0.4
+          ),
+          color = black
+        ) +
+        ggplot2::geom_text(
+          ggplot2::aes(
+            x = Component,
+            y = End,
+            label = round(Variance, 4)
+          ),
+          vjust = ifelse(waterfall_data$Variance >= 0, -0.5, 1.5),
+          size = 3,
+          color = white  # Ensure text is visible against the background
+        ) +
+        ggplot2::scale_fill_manual(
+          values = c("Positive" = pos_color, "Negative" = neg_color)
+        ) +
+        ggplot2::labs(
+          title = "Waterfall Plot of Variance Components",
+          x = "Components",
+          y = "Cumulative Variance",
+          fill = "Contribution"  # Add fill legend title for clarity
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          panel.grid.minor = ggplot2::element_blank(),
+          axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
+          axis.title = ggplot2::element_text(color = white),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          strip.text = ggplot2::element_text(color = white)
+        )
+
+      print(p)
+    }
+
+  } else if (plot_name == "Posterior Regression Lines"){
+
+    # Get alpha and beta
+    tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
+    tidy_posterior_draws_slope <- tidy_posteriors_list$tidy_posterior_draws_slope
+
+    # Prompt the user to select tickers
+    available_tickers <- unique(tidy_posterior_draws_slope$tickers)
+
+    # Display available tickers with numbers
+    cat("Available tickers:\n")
+    for (i in seq_along(available_tickers)) {
+      cat(i, ":", available_tickers[i], "\n")
+    }
+
+    # Ask user for input
+    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+    # Convert input to numeric and validate
+    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+    }
+
+    # Match the selected numbers to tickers
+    selected_tickers <- available_tickers[selected_numbers]
+    num_selected <- length(selected_tickers)
+
+    #Define colors
+    neon_colors <- c(
+      "#FF10F0",  # Neon Pink
+      "#00FFFF",  # Neon Cyan
+      "#39FF14",  # Neon Green
+      "#FF00FF",  # Neon Magenta
+      "#FF5F1F",  # Neon Orange
+      "#FFFF00",  # Neon Yellow
+      "#00FFF7",  # Neon Light Blue
+      "#FF1493",  # Deep Pink
+      "#ADFF2F",  # Green Yellow
+      "#FF69B4",  # Hot Pink
+      "#7FFF00",  # Chartreuse
+      "#DC143C",  # Crimson
+      "#00CED1",  # Dark Turquoise
+      "#FF4500",  # Orange Red
+      "#00FA9A"   # Medium Spring Green
+    )
+
+    # Join intercept and slope data, filter for selected tickers, and convert tickers to factor
+    tidy_posterior_draws_intercept_and_slope <- dplyr::left_join(
+      tidy_posterior_draws_intercept,
+      tidy_posterior_draws_slope,
+      by = c("tickers", ".draw")
+    ) %>%
+      dplyr::filter(tickers %in% selected_tickers) %>%
+      # **Convert 'tickers' to a factor to ensure distinct colors**
+      dplyr::mutate(tickers = as.factor(tickers))
+
+    # Get market_factor_proxy
+    x_values <- x@selected_market_factor_proxy_upd_ref[,2]
+    x_values <- sort(x_values)
+
+    # Sample a subset of posterior draws to avoid overplotting
+    set.seed(123)  # For reproducibility
+    sampled_draws <- dplyr::group_by(tidy_posterior_draws_intercept_and_slope, tickers) %>%
+      dplyr::sample_n(size = 25, replace = FALSE) %>%
+      dplyr::ungroup()
+
+    # Create a grid of sampled draws and x_values
+    plot_data <- tidyr::crossing(
+      sampled_draws %>% dplyr::select(tickers, posterior_individual_alpha, posterior_individual_beta, .draw),
+      x = x_values
+    ) %>%
+      dplyr::mutate(y = posterior_individual_alpha + posterior_individual_beta * x)
+
+    # Generate the plot
+    if (num_selected > length(neon_colors)) {
+      warning("Number of selected tickers exceeds the number of predefined colors. Colors will be recycled.")
+    }
+
+    regression_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = x, y = y, group = .draw, color = tickers)) +
+      ggplot2::geom_line(alpha = 0.6, size = 1) +  # Increased alpha and line size for better visibility
+      ggplot2::scale_color_manual(values = neon_colors[1:num_selected]) +  # Assign neon colors
+      ggplot2::labs(
+        title = "Posterior Regression Lines by Ticker",
+        subtitle = "Using Posterior Individual Alpha and Beta",
+        x = "Market Factor Proxy",
+        y = "Predicted Outcome",
+        color = "Ticker"
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),  # Dark blue background
+        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank(),
+        axis.text = ggplot2::element_text(color = "#FFFFFF", angle = 45, hjust = 1),  # White axis text
+        axis.title = ggplot2::element_text(color = "#FFFFFF"),  # White axis titles
+        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"),
+        plot.subtitle = ggplot2::element_text(color = "#FFFFFF", size = 10, face = "italic"),
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = "#FFFFFF"),
+        legend.text = ggplot2::element_text(color = "#FFFFFF")
+      )
+
+    # Display the Plot
+    print(regression_plot)
+
+  } else if (plot_name == "Waterfall Plot of Active Return Decomposition by Ticker"){
+
+    # Get alpha and beta
+    tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
+    tidy_posterior_draws_slope <- tidy_posteriors_list$tidy_posterior_draws_slope
+
+    # Prompt the user to select tickers
+    available_tickers <- unique(tidy_posterior_draws_slope$tickers)
+
+    # Display available tickers with numbers
+    cat("Available tickers:\n")
+    for (i in seq_along(available_tickers)) {
+      cat(i, ":", available_tickers[i], "\n")
+    }
+
+    # Ask user for input
+    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+    # Convert input to numeric and validate
+    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+    }
+
+    # Match the selected numbers to tickers
+    selected_tickers <- available_tickers[selected_numbers]
+    num_selected <- length(selected_tickers)
+
+    #Get Expectations
+    tidy_posterior_epred_draws <- tidy_posteriors_list$tidy_posterior_epred_draws %>% dplyr::mutate(tickers = `theme:tickers`)
+
+    #Add Alpha and Beta to Expectations
+    tidy_posterior_epred_draws_complete <- dplyr::left_join(tidy_posterior_epred_draws,
+                                                            #Join with intercept
+                                                            tidy_posterior_draws_intercept, by = c("tickers", ".draw")) %>%
+                                                            #Join with slopes
+                                           dplyr::left_join(tidy_posterior_draws_slope, by = c("tickers", ".draw")) %>%
+                                           #Filter given tickers
+                                           dplyr::filter(tickers %in% selected_tickers)
+
+    #Waterfall plot
+    # Prepare and compute contributions
+    if(model_spec_theme_level == "random_intercept"){
+      waterfall_data <- tidy_posterior_epred_draws_complete %>%
+        dplyr::mutate(
+          # Component contributions
+          `Theme Fixed Effect` = posterior_theme_alpha,
+          `Theme Random Effect` = r_theme,
+          `Ticker Random Intercept` = r_tickers_intercept,
+          `Market Factor Fixed Effect` = posterior_theme_beta * market_factor_proxy,
+          `Ticker Random Slope` = r_tickers_slope * market_factor_proxy
+        ) %>%
+        dplyr::select(
+          .draw, tickers, active_return,
+          `Theme Fixed Effect`,
+          `Theme Random Effect`,
+          `Ticker Random Intercept`,
+          `Market Factor Fixed Effect`,
+          `Ticker Random Slope`
+        ) %>%
+        tidyr::pivot_longer(
+          cols = c(
+            `Theme Fixed Effect`,
+            `Theme Random Effect`,
+            `Ticker Random Intercept`,
+            `Market Factor Fixed Effect`,
+            `Ticker Random Slope`
+          ),
+          names_to = "Component",
+          values_to = "Contribution"
+        ) %>%
+        dplyr::group_by(tickers, Component) %>%
+        dplyr::summarise(
+          Mean_Contribution = mean(Contribution, na.rm = TRUE),
+          .groups = 'drop'
+        ) %>%
+        dplyr::mutate(
+          Component = factor(
+            Component,
+            levels = c(
+              "Theme Fixed Effect",
+              "Theme Random Effect",
+              "Ticker Random Intercept",
+              "Market Factor Fixed Effect",
+              "Ticker Random Slope"
+            )
+          )
+        ) %>%
+        dplyr::arrange(Component) %>%
+        dplyr::group_by(tickers) %>%
+        dplyr::mutate(
+          Start = dplyr::lag(cumsum(Mean_Contribution), default = 0),
+          End = cumsum(Mean_Contribution),
+          Contribution_Type = ifelse(Mean_Contribution >= 0, "Positive", "Negative")
+        ) %>%
+        dplyr::ungroup()
+
+    } else { #This is for other model_spec_theme_level
+      waterfall_data <- tidy_posterior_epred_draws_complete %>%
+        dplyr::mutate(
+          # Component contributions
+          `Theme Fixed Effect` = posterior_theme_alpha,
+          `Ticker Random Intercept` = r_tickers_intercept,
+          `Market Factor Fixed Effect` = posterior_theme_beta * market_factor_proxy,
+          `Ticker Random Slope` = r_tickers_slope * market_factor_proxy
+        ) %>%
+        dplyr::select(
+          .draw, tickers, active_return,
+          `Theme Fixed Effect`,
+          `Ticker Random Intercept`,
+          `Market Factor Fixed Effect`,
+          `Ticker Random Slope`
+        ) %>%
+        tidyr::pivot_longer(
+          cols = c(
+            `Theme Fixed Effect`,
+            `Ticker Random Intercept`,
+            `Market Factor Fixed Effect`,
+            `Ticker Random Slope`
+          ),
+          names_to = "Component",
+          values_to = "Contribution"
+        ) %>%
+        dplyr::group_by(tickers, Component) %>%
+        dplyr::summarise(
+          Mean_Contribution = mean(Contribution, na.rm = TRUE),
+          .groups = 'drop'
+        ) %>%
+        dplyr::mutate(
+          Component = factor(
+            Component,
+            levels = c(
+              "Theme Fixed Effect",
+              "Ticker Random Intercept",
+              "Market Factor Fixed Effect",
+              "Ticker Random Slope"
+            )
+          )
+        ) %>%
+        dplyr::arrange(Component) %>%
+        dplyr::group_by(tickers) %>%
+        dplyr::mutate(
+          Start = dplyr::lag(cumsum(Mean_Contribution), default = 0),
+          End = cumsum(Mean_Contribution),
+          Contribution_Type = ifelse(Mean_Contribution >= 0, "Positive", "Negative")
+        ) %>%
+        dplyr::ungroup()
+    }
+
+      # Create the waterfall plot per ticker
+      p <- ggplot2::ggplot(waterfall_data, ggplot2::aes(
+        x = Component,
+        ymin = Start,
+        ymax = End,
+        fill = Contribution_Type
+      )) +
+        ggplot2::geom_rect(
+          ggplot2::aes(
+            xmin = as.numeric(Component) - 0.4,
+            xmax = as.numeric(Component) + 0.4
+          ),
+          color = "black"
+        ) +
+        ggplot2::geom_text(
+          ggplot2::aes(
+            x = Component,
+            y = End,
+            label = round(Mean_Contribution, 4)
+          ),
+          vjust = ifelse(waterfall_data$Mean_Contribution >= 0, -0.5, 1.5),
+          size = 3,
+          color = "white"
+        ) +
+        ggplot2::scale_fill_manual(
+          values = c("Positive" = "#39FF14", "Negative" = "#FF5F1F")
+        ) +
+        ggplot2::labs(
+          title = "Waterfall Plot of Active Return Decomposition by Ticker",
+          x = "Components",
+          y = "Cumulative Contribution"
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          panel.grid.minor = ggplot2::element_blank(),
+          axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
+          axis.title = ggplot2::element_text(color = white),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          strip.text = ggplot2::element_text(color = white)
+        ) +
+        ggplot2::facet_wrap(~ tickers, scales = "free_y")
+
+
+      print(p)
+
+  } else if (plot_name == "Posterior Individual Alpha Distributions by Theme and Ticker"){
+
+    # Get alpha and beta
+    tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
+    tidy_posterior_draws_slope <- tidy_posteriors_list$tidy_posterior_draws_slope
+
+    # Prompt the user to select tickers
+    available_tickers <- unique(tidy_posterior_draws_slope$tickers)
+
+    # Display available tickers with numbers
+    cat("Available tickers:\n")
+    for (i in seq_along(available_tickers)) {
+      cat(i, ":", available_tickers[i], "\n")
+    }
+
+    # Ask user for input
+    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+    # Convert input to numeric and validate
+    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+    }
+
+    # Match the selected numbers to tickers
+    selected_tickers <- available_tickers[selected_numbers]
+
+    # Prepare the data
+    theme_ticker_key <- data.frame(tickers = paste0(signal_themes_m_d_ref$theme, "_", signal_themes_m_d_ref$tickers), theme = signal_themes_m_d_ref$theme)
+
+    plot_data <- tidy_posterior_draws_intercept %>%
+      dplyr::ungroup() %>%  # Ensure the data is not grouped
+      dplyr::select(tickers, posterior_individual_alpha) %>%
+      dplyr::left_join(theme_ticker_key, by = "tickers") %>%
+      dplyr::filter(tickers %in% selected_tickers)
+
+    # Automatically generate distinct colors for tickers
+    num_tickers <- length(unique(plot_data$tickers))
+    palette <- RColorBrewer::brewer.pal(min(max(num_tickers, 3), 12), "Set3")  # Adjust palette as needed
+    ticker_colors <- setNames(palette, unique(plot_data$tickers))
+
+    # Create the boxplot with consistent aesthetics
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes(
+      x = theme,
+      y = posterior_individual_alpha,
+      fill = tickers
+    )) +
+      ggplot2::geom_boxplot(
+        position = ggplot2::position_dodge(width = 0.8),
+        outlier.shape = NA,
+        color = black,  # Border color for boxes
+        alpha = 0.8      # Transparency for boxes
+      ) +
+      ggplot2::scale_fill_manual(
+        values = ticker_colors
+      ) +
+      ggplot2::labs(
+        title = "Posterior Individual Alpha Distributions by Theme and Ticker",
+        x = "Theme",
+        y = "Posterior Individual Alpha",
+        fill = "Ticker"
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        # Set the overall plot background
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        # Set the panel background
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        # Remove major and minor grid lines
+        panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank(),
+        # Customize axis text
+        axis.text.x = ggplot2::element_text(color = white, angle = 45, hjust = 1),
+        axis.text.y = ggplot2::element_text(color = white),
+        # Customize axis titles
+        axis.title = ggplot2::element_text(color = white, size = 12, face = "bold"),
+        # Customize plot title
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        # Customize legend
+        legend.position = "bottom",
+        legend.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        legend.title = ggplot2::element_text(color = white, face = "bold"),
+        legend.text = ggplot2::element_text(color = white),
+        # Customize plot subtitle if present
+        plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic")
+      )
+
+    print(p)
+
 
   }
 
