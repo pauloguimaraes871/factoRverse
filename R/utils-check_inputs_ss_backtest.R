@@ -127,6 +127,13 @@ check_inputs_ss_backtest <- function(
   }
 
   #backtest_returns_df
+  chosen_signals_corrected_positions <- chosen_signals_and_positions
+  names(chosen_signals_corrected_positions)[which(chosen_signals_corrected_positions == "short")] <- paste0("low_", names(chosen_signals_and_positions)[which(chosen_signals_and_positions == "short")])
+
+  if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_df))){
+    stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_df")
+  }
+
   if(colnames(backtest_returns_df)[1] != "dates"){
     stop("backtest_returns_df must have a 'dates' first column")
   }
@@ -139,8 +146,8 @@ check_inputs_ss_backtest <- function(
     stop("backtest_returns_df must have at least initial_sample_size rows")
   }
 
-  if(any(!backtest_returns_df$dates %in% signals_m_df$dates)){
-    stop("all dates in backtest_returns_df must be present in signals_m_df")
+  if(any(!signals_m_df$dates %in% backtest_returns_df$dates)){
+    stop("all dates in signals_m_df must be present in backtest_returns_df")
   }
 
   if(!all(diff(as.numeric(format(backtest_returns_df$dates, "%Y")) * 12 +
@@ -172,14 +179,19 @@ check_inputs_ss_backtest <- function(
     stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
   }
 
+  ##Check if all signals of signals_m_df are covered and vice-versa
+  if(any(names(chosen_signals_corrected_positions) %in% signal_themes_m_df$tickers)){
+    stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
+  }
+
   ###Check if theme column is character
   if(!is.character(signal_themes_m_df$theme)){
     stop("theme column in signal_themes_m_df must be character")
   }
 
   ###Check format in signal_themes_m_df
-  if(grepl("_", signal_themes_m_df$theme)){
-    stop("No underscores allowed in signal_themes_m_df")
+  if(any(grepl("_", signal_themes_m_df$theme))){
+    stop("No underscores allowed in signal_themes_m_df theme names")
   }
 
   ###Check if dates in signal_themes_m_df and signals_m_df are the same
@@ -249,7 +261,7 @@ check_inputs_ss_backtest <- function(
         stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
       }
     }
-browser()
+
     #BRMS control
     if(!is.null(brms_control)){
       if(any(!names(brms_control) %in% c("chains", "iter", "warmup", "thin", "seed", "adapt_delta"))){
