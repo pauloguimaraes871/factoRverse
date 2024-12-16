@@ -8,7 +8,7 @@ test_that("select_and_correct_signals correctly subsets signals_m_df", {
 
   #Subseted signals
   subsetted_signals <- colnames(select_and_correct_signals(chosen_signals_and_positions,
-                                                           backtest_returns_df = backtest_returns_df,
+                                                           backtest_returns_xts = backtest_returns_xts,
                                                            signals_m_df = signals_m_df)$selected_signals_corrected_positions_m_df)
 
   expect_equal(c("id", "tickers", "dates", "Alpha", "low_Beta", "Gamma"),subsetted_signals)
@@ -24,7 +24,7 @@ test_that("select_and_correct_signals correctly subsets signals_m_df when chosen
   #Subseted signals
   subsetted_signals <- colnames(select_and_correct_signals(
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_df = backtest_returns_df,
+    backtest_returns_xts = backtest_returns_xts,
     signals_m_df = signals_m_df)$selected_signals_corrected_positions_m_df)
 
   expect_equal(c("id", "tickers", "dates", "Alpha", "Gamma"),subsetted_signals)
@@ -40,13 +40,13 @@ test_that("select_and_correct_signals correctly inverts signs of short positions
     #Subseted signals
   low_beta <- select_and_correct_signals(signals_m_df = signals_m_df,
                                          chosen_signals_and_positions = chosen_signals_and_positions,
-                                         backtest_returns_df = backtest_returns_df)$selected_signals_corrected_positions_m_df$low_Beta
+                                         backtest_returns_xts = backtest_returns_xts)$selected_signals_corrected_positions_m_df$low_Beta
 
   expect_equal(signals_m_df$Beta*-1 ,low_beta)
 
 })
 
-test_that("select_and_correct_signals correctly subsets backtest_returns_df", {
+test_that("select_and_correct_signals correctly subsets backtest_returns_xts", {
 
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
@@ -55,21 +55,21 @@ test_that("select_and_correct_signals correctly subsets backtest_returns_df", {
   #Subseted backtests
   subsetted_backtests <- colnames(
     select_and_correct_signals(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
-                               backtest_returns_df = backtest_returns_df)$selected_backtest_returns_corrected_positions_df
+                               backtest_returns_xts = backtest_returns_xts)$selected_backtest_returns_corrected_positions_xts
   )
 
   subsetted_signals <- colnames(
     select_and_correct_signals(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
-                                                          backtest_returns_df = backtest_returns_df)$selected_signals_corrected_positions_m_df
+                                                          backtest_returns_xts = backtest_returns_xts)$selected_signals_corrected_positions_m_df
   )
 
 
-  expect_equal(c("dates", "Alpha", "low_Beta", "Gamma"),subsetted_backtests)
-  expect_equal(subsetted_backtests[-1], subsetted_signals[-c(1:3)])
+  expect_equal(c("Alpha", "low_Beta", "Gamma"),subsetted_backtests)
+  expect_equal(subsetted_backtests, subsetted_signals[-c(1:3)])
 
 })
 
-test_that("select_and_correct_signals correctly subsets backtest_returns_df when chosen_signals are less than all options", {
+test_that("select_and_correct_signals correctly subsets backtest_returns_xts when chosen_signals are less than all options", {
 
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
@@ -78,21 +78,21 @@ test_that("select_and_correct_signals correctly subsets backtest_returns_df when
 #Subseted backtests
   subsetted_backtests <- colnames(
     select_and_correct_signals(chosen_signals_and_positions = chosen_signals_and_positions,
-                               signals_m_df = signals_m_df, backtest_returns_df = backtest_returns_df)$selected_backtest_returns_corrected_positions_df
+                               signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)$selected_backtest_returns_corrected_positions_xts
   )
 
   subsetted_signals<- colnames(
     select_and_correct_signals(chosen_signals_and_positions = chosen_signals_and_positions,
-                               signals_m_df = signals_m_df, backtest_returns_df = backtest_returns_df)$selected_signals_corrected_positions_m_df
+                               signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)$selected_signals_corrected_positions_m_df
   )
 
 
-  expect_equal(c("dates", "Alpha", "Gamma"),subsetted_backtests)
-  expect_equal(subsetted_backtests[-1], subsetted_signals[-c(1:3)])
+  expect_equal(c("Alpha", "Gamma"),subsetted_backtests)
+  expect_equal(subsetted_backtests, subsetted_signals[-c(1:3)])
 
 })
 
-test_that("select_and_correct_signals correctly subsets backtest_returns_df when only one signal in chosen_signals", {
+test_that("select_and_correct_signals correctly subsets backtest_returns_xts when only one signal in chosen_signals", {
 
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
@@ -101,33 +101,33 @@ test_that("select_and_correct_signals correctly subsets backtest_returns_df when
   #Subseted backtests
   subsetted_backtests <- colnames(
     select_and_correct_signals(chosen_signals_and_positions = chosen_signals_and_positions,
-                               signals_m_df = signals_m_df, backtest_returns_df = backtest_returns_df)$selected_backtest_returns_corrected_positions_df
+                               signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)$selected_backtest_returns_corrected_positions_xts
   )
 
   subsetted_signals<- colnames(
     select_and_correct_signals(chosen_signals_and_positions = chosen_signals_and_positions,
-                               signals_m_df = signals_m_df, backtest_returns_df = backtest_returns_df)$selected_signals_corrected_positions_m_df
+                               signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)$selected_signals_corrected_positions_m_df
   )
 
 
-  expect_equal(c("dates", "low_Beta"),subsetted_backtests)
-  expect_equal(subsetted_backtests[-1], subsetted_signals[-c(1:3)])
+  expect_equal(c("low_Beta"),subsetted_backtests)
+  expect_equal(subsetted_backtests, subsetted_signals[-c(1:3)])
 
 })
 
-test_that("select_and_correct_signals correctly chooses short option in backtest_returns_df", {
+test_that("select_and_correct_signals correctly chooses short option in backtest_returns_xts", {
 
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
-  test_backtest_returns_df <- backtest_returns_df
-  test_backtest_returns_df$Beta <- rnorm(n = nrow(test_backtest_returns_df), mean = 0, sd = 1)
+  test_backtest_returns_xts <- backtest_returns_xts
+  test_backtest_returns_xts$Beta <- rnorm(n = nrow(test_backtest_returns_xts), mean = 0, sd = 1)
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
   #Subseted backtests
   subsetted_backtests <- colnames(
     select_and_correct_signals(chosen_signals_and_positions = chosen_signals_and_positions,
-                               signals_m_df = signals_m_df, backtest_returns_df = test_backtest_returns_df)$selected_backtest_returns_corrected_positions_df
+                               signals_m_df = signals_m_df, backtest_returns_xts = test_backtest_returns_xts)$selected_backtest_returns_corrected_positions_xts
   )
 
   expect_false("Beta" %in% subsetted_backtests)
@@ -161,30 +161,30 @@ test_that("select_and_correct_signals correctly subsets signals_m_df when chosen
 })
 
 ##Error check
-test_that("check_inputs_ss_backtest throws an error when trying to choose a signal not present in backtest_returns_df ", {
+test_that("check_inputs_ss_backtest throws an error when trying to choose a signal not present in backtest_returns_xts ", {
 
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
-  backtest_returns_df <- backtest_returns_df[-2]
+  backtest_returns_xts <- backtest_returns_xts[,-1]
 
   expect_error(
     select_and_correct_signals(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
-                               backtest_returns_df = backtest_returns_df),
-    "all chosen signals should have a matching position in backtest_returns_df"
+                               backtest_returns_xts = backtest_returns_xts),
+    "all chosen signals should have a matching position in backtest_returns_xts"
   )
 
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
-  colnames(backtest_returns_df)[3] <- "Beta"
+  colnames(backtest_returns_xts)[3] <- "Beta"
 
 
 
   expect_error(
     select_and_correct_signals(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
-                               backtest_returns_df = backtest_returns_df),
-    "all chosen signals should have a matching position in backtest_returns_df"
+                               backtest_returns_xts = backtest_returns_xts),
+    "all chosen signals should have a matching position in backtest_returns_xts"
   )
 
 

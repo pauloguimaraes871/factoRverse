@@ -31,7 +31,7 @@ setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_xt
 #' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
 #' @export
 setMethod("run_ss_backtest",
-          signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_xts = "data.frame", benchmark_returns_xts = "data.frame",
+          signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_xts = "xts", benchmark_returns_xts = "xts",
                     signal_themes_m_df = "meta_dataframe",
                     chosen_signals_and_positions = "character"),
 
@@ -42,7 +42,7 @@ setMethod("run_ss_backtest",
             ## Initial Preparations
             #######################
             #Assign default values for internal function (to avoid getting vars from global environ)
-            data_availability_cutoff <- 60
+            data_availability_cutoff <- 36
             split_method <- "expanding"
             market_factor_proxy <- "IBOV"
             p_correction_method <- "none"
@@ -54,7 +54,7 @@ setMethod("run_ss_backtest",
             theme_level_slope <- NULL
             brms_control <- list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80, warmup = 1000)
             prior_derivation_control <- list(half_t_df = 30)
-            lmer_control <- list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML")
+            lmer_control <- list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite")
 
             # Input validation
             if (any(!names(chosen_signals_and_positions) %in% colnames(signals_m_df@data)[-c(1:3)])) {
@@ -238,11 +238,13 @@ setMethod("run_ss_backtest",
 #' @param theme_level_slope A character specifying the specification of effects of the slope at the theme level.
 #' @param lmer_control Other additional parameters to be passed to `lme4::lmer` function.
 #' \itemize{
-#' #' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
+#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
 #' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
 #' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
 #'
-#' \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+#' \item{lmer_optimization_objective}: A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+#'
+#' \item{hierarchical_p_value_method}: One of "Satterthwaite", "Kenward-Roger" and "lme4". Default is "Satterthwaite".
 #' }
 #'
 #' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
@@ -379,7 +381,7 @@ run_ss_backtest_internal <- function(
     enable_theme_representativeness = TRUE,
     #Model Structure
     model_structure = "no_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
-    lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML"),
+    lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
     #Bayesian variables
     priors_m_df = NULL, user_priors = NULL,
     brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80),
@@ -452,7 +454,7 @@ run_ss_backtest_internal <- function(
       cat("\n")
       cat(crayon::cyan(paste("Starting signal selection backtest")))
       cat("\n")
-      cat(paste("Factor model: CAPM with", market_factor_proxy, "as proxy for market factor"))
+      cat(paste("Factor model:", model_structure, " CAPM with", market_factor_proxy, "as proxy for market factor"))
       cat("\n")
       cat(crayon::yellow(paste("P-values will be adjusted following the", p_correction_method, "method")))
       cat("\n")

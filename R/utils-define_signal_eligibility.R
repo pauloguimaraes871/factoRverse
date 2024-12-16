@@ -42,6 +42,8 @@
 #' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
 #'
 #' \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+#'
+#' \item{hierarchical_p_value_method}
 #' }
 #'
 #' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:

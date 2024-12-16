@@ -66,24 +66,24 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
       # Dates
       dates = current_date,
       ##Alpha
-      alpha = as.numeric(sapply(capm_model_list, function(x) summary(x)$coefficients[1])*100),
+      alpha = as.numeric(sapply(capm_model_list, function(x) summary(x)$coefficients[1])),
       ##Alpha SE
-      alpha_se = as.numeric(sapply(capm_model_list, function(x) summary(x)$coefficients[3])*100),
+      alpha_se = as.numeric(sapply(capm_model_list, function(x) summary(x)$coefficients[3])),
       ##Exposure to Systematic Risk
       beta = as.numeric(sapply(capm_model_list, function(x) summary(x)$coefficients[2])),
       ##Specific Risk
-      specific_risk = as.numeric(sapply(capm_model_list, function(x) sigma(x))*100),
+      specific_risk = as.numeric(sapply(capm_model_list, function(x) sigma(x))),
       ##Alpha T-Stat
       alpha_t_stat = as.numeric(sapply(capm_model_list, function(x) summary(x)$coefficients[5])),
       ##Treynor Ratio
       treynor_ratio = as.numeric(
-        PerformanceAnalytics::mean.geometric(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, na.rm = TRUE)*100/
+        PerformanceAnalytics::mean.geometric(selected_backtest_returns_corrected_positions_xts_upd_ref/100, na.rm = TRUE)*100/
         sapply(capm_model_list, function(x) summary(x)$coefficients[2])
         ),
       ##Appraisal Ratio
       appraisal_ratio = as.numeric(
-        (sapply(capm_model_list, function(x) summary(x)$coefficients[1])*100)/
-        (sapply(capm_model_list, function(x) sigma(x))*100)
+        (sapply(capm_model_list, function(x) summary(x)$coefficients[1]))/
+        (sapply(capm_model_list, function(x) sigma(x)))
       )
     )
     #################
@@ -127,7 +127,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   ##Return
   performance_summary_list <- list(
     signal_universe_m_d_ref = signal_universe_m_d_ref,
-    hierarchical_frequentist_fit_results_list = hierarchical_frequentist_fit_results_list
+    frequentist_fit_results_list = if(model_structure == "no_pooled") capm_model_list else hierarchical_frequentist_fit_results_list
   )
 
   return(performance_summary_list)

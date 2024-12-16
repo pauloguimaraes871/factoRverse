@@ -713,8 +713,8 @@ setClass("alpha_test_strategy",
              }
 
              if (!is.null(object@lmer_control)) {
-               if (!is.list(object@lmer_control) || any(!names(object@lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective"))) {
-                 return("lmer_control must be a list with 'lmer_optimizer' and/or 'lmer_optimization_objective'.")
+               if (!is.list(object@lmer_control) || any(!names(object@lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective", "hierarchical_p_value_method"))) {
+                 return("lmer_control must be a list with 'lmer_optimizer', 'lmer_optimization_objective' and/or 'hierarchical_p_value_method'.")
                }
                if (!is.null(object@lmer_control$lmer_optimizer)){
                  if (!is.character(object@lmer_control$lmer_optimizer) || !object@lmer_control$lmer_optimizer %in% c("nloptwrap", "bobyqa", "Nelder_Mead", "nlminbwrap")) {

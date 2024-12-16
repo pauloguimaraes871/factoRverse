@@ -35,7 +35,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
   current_date <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref)[length(zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref))]
 
   ###Get baseline benchmark
-  baseline_benchmark_xts_upd_ref <- xts::xts(rowMeans(selected_backtest_returns_corrected_positions_xts_upd_ref),
+  baseline_benchmark_xts_upd_ref <- xts::xts(rowMeans(selected_backtest_returns_corrected_positions_xts_upd_ref, na.rm = TRUE),
                                              order.by = zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref))
 
   ###Get decimals
@@ -70,6 +70,36 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
 
   ##Calculate base metrics using PerformanceAnalytics
   ##########################
+
+    ##Create own functions to deal with NAs properly (removing NAs only from that column)
+    ###Rache NA
+    RachevRatio_na <- function(returns){
+      sapply(returns, function(col){
+        clean_col <- stats::na.omit(col)
+        PerformanceAnalytics::RachevRatio(clean_col)
+      })
+    }
+    ###Modigliani NA
+    Modigliani_na <- function(returns, benchmark){
+      sapply(returns, function(col){
+        na_rows <- which(is.na(col))
+        clean_col <- if(length(na_rows) > 0) col[-na_rows] else col
+        clean_bench <- if(length(na_rows) > 0) benchmark[-na_rows] else benchmark
+        PerformanceAnalytics::Modigliani(Ra = clean_col, Rb = clean_bench)
+      })
+    }
+    ###MSquared NA
+    MSquared_na <- function(returns, benchmark){
+      sapply(returns, function(col){
+        na_rows <- which(is.na(col))
+        clean_col <- if(length(na_rows) > 0) col[-na_rows] else col
+        clean_bench <- if(length(na_rows) > 0) benchmark[-na_rows] else benchmark
+        PerformanceAnalytics::MSquared(Ra = clean_col, Rb = clean_bench)
+      })
+    }
+
+
+   ##Create df
     performance_m_df <- data.frame(
       # ID
       id = paste0(selected_signals, "-", current_date),
@@ -117,7 +147,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
       ),
       ## Expected Shortfall
       exp_short = as.numeric(
-        PerformanceAnalytics::ETL(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
+        PerformanceAnalytics::ETL(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100 * (-1)
       ),
       ## Pain Index (Average Absolute Drawdown)
       pain = as.numeric(
@@ -190,7 +220,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
       ),
       ## Rachev Ratio
       rachev_ratio = as.numeric(
-        PerformanceAnalytics::RachevRatio(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
+        RachevRatio_na(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
       ),
       # Other Metrics
       ## Average Recovery
@@ -205,20 +235,13 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
       hurst = as.numeric(
         PerformanceAnalytics::HurstIndex(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
       ),
-      ## Minimum Track Record (for statistical significance)
-      min_track_record = as.numeric(
-        apply(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, 2, function(x) {
-          tryCatch(
-            PerformanceAnalytics::MinTrackRecord(x, refSR = 0)$num_of_extra_obs_needed,
-            error = function(e) NA
-          )
-        })
-      ),
       ## Probabilistic Sharpe Ratio
       prob_sharpe_ratio = as.numeric(
         apply(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, 2, function(x) {
+          na_rows <- which(is.na(x))
+          clean_x <- if(length(na_rows) > 0) x[-na_rows] else x
           tryCatch(
-            PerformanceAnalytics::ProbSharpeRatio(x, refSR = 0)$sr_prob,
+            PerformanceAnalytics::ProbSharpeRatio(clean_x, refSR = 0)$sr_prob,
             error = function(e) NA
           )
         })
@@ -226,13 +249,13 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
       # Benchmark-Relative Metrics
       ## Modigliani Ratio
       modigliani = as.numeric(
-        PerformanceAnalytics::Modigliani(Ra = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals,
-                                         Rb = baseline_benchmark_xts_upd_ref_decimals)*100
+        Modigliani_na(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals,
+                      baseline_benchmark_xts_upd_ref_decimals)*100
       ),
       ## MSquared Ratio
-      ann_modigliani = as.numeric(
-        PerformanceAnalytics::MSquared(Ra = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals,
-                                       Rb = baseline_benchmark_xts_upd_ref_decimals)*100
+      ann_modigliani =  as.numeric(
+        MSquared_na(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals,
+                    baseline_benchmark_xts_upd_ref_decimals)*100
       )
     )
 

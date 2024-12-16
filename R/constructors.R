@@ -1736,7 +1736,7 @@ create_ss_backtest_config <- function(
     rebalancing_months,
     split_method = "expanding",
     alpha_test_strategy = NULL,
-    config_name
+    config_name = "not_identified"
 ) {
   # Input validation
   if (data_availability_cutoff < 0) {

@@ -223,8 +223,8 @@ check_inputs_ss_backtest <- function(
   if(model_structure == "partial_pooled"){
     #lmer control
     if(!is.null(lmer_control)){
-      if(any(!names(lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective"))){
-        stop("lmer_control should have only 'lmer_optimizer' and 'lmer_optimization_objective' as names.")
+      if(any(!names(lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective", "hierarchical_p_value_method"))){
+        stop("lmer_control should have only 'lmer_optimizer', 'lmer_optimization_objective' or 'hierarchical_p_value_method' as names.")
       }
 
       if(!is.null(lmer_control$lmer_optimizer) && !lmer_control$lmer_optimizer %in% c("Nelder_Mead", "bobyqa", "nlminbwrap", "nloptwrap")){
@@ -234,11 +234,20 @@ check_inputs_ss_backtest <- function(
       if(!is.null(lmer_control$lmer_optimization_objective) && !lmer_control$lmer_optimization_objective %in% c("likelihood", "REML")){
         stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
       }
+
+      if(!is.null(lmer_control$hierarchical_p_value_method) && !lmer_control$hierarchical_p_value_method %in% c("Satterthwaite", "Kenward-Roger", "lme4")){
+        stop("hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
+      }
+
     }
   }
   #p_correction_method
   if(!p_correction_method %in% c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "bayesian", "none")){
     stop("p_correction_method must be one of 'holm', 'hochberg', 'hommel', 'bonferroni', 'BH', 'BY', 'fdr', 'bayesian' or 'none'")
+  }
+
+  if(p_correction_method == "bayesian" && model_structure == "no_pooled"){
+    stop("bayesian p_correction_method is currently only available for partial_pooled model_structure")
   }
 
   #signal_significance_threshold
