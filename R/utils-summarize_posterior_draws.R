@@ -7,12 +7,13 @@
 #' @param signal_universe_m_d_ref A dataframe with tickers, is_eligible and final_signal columns
 #' @param signal_themes_m_d_ref A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
 #' for defining clusters in bayesian hierarchical model. It should contain data only for current date.
+#'
 #' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
 #'   Options include:
-#'   - `"random_intercept"`: Includes random effects for the intercept at the theme level.
-#'   - `"fixed_intercepts"`: Uses fixed intercepts for each theme.
-#'   - `"fixed_intercepts_and_slopes"`: Includes fixed intercepts and slopes for each theme.
-#'   - `"none"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
+#'   - `"random_intercept_fixed_slope"`: Includes random effects for the intercept at the theme level.
+#'   - `"theme_specific_intercept_fixed_slope"`: Uses fixed intercepts for each theme.
+#'   - `"theme_specific_intercept_theme_specific_slope"`: Includes fixed intercepts and slopes for each theme.
+#'   - `"fixed_intercept_fixed_slope"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
 #'
 #' @return The `signal_universe_m_d_ref` data frame is updated in place with posterior summary statistics.
 #' @details The function performs the following operations for each theme:
@@ -276,7 +277,6 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
 
     #Create result object
     posteriors_results_list <- list(
-      bayesian_model = brm_model,
       signal_universe_m_d_ref = signal_universe_m_d_ref,
       posterior_draws_summaries = list(
         intercept_summary = tidy_posterior_draws_intercept_summary,
@@ -288,6 +288,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
     )
 
   }  else  {
+
     #Create result object in case of signal_universe is NULL
     posteriors_results_list <- list(
       tidy_posterior_draws_intercept = tidy_posterior_draws_intercept,

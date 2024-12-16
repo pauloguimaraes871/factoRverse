@@ -4,11 +4,11 @@
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
 #' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
-#' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in signals_m_df, containing historical backtested returns.
+#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
 #' @param rebalancing_months Months (numeric) when signal selection should be implemented.
-#' @param selected_benchmark_returns_df A data frame with a 'dates' column and a column with benchmark returns, named accordingly.
+#' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
 #' @param p_correction_method The method for p-value correction. Possible options are:
 #'\itemize{
 #'  \item{"none"}: No correction.
@@ -32,23 +32,22 @@
 #' with highest alpha t-stat will be elected.
 #' @param priors_m_df A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
 #' and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors.
-#' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
-#'   Options include:
-#'   - `"random_intercept"`: Includes random effects for the intercept at the theme level.
-#'   - `"fixed_intercepts"`: Uses fixed intercepts for each theme.
-#'   - `"fixed_intercepts_and_slopes"`: Includes fixed intercepts and slopes for each theme.
-#'   - `"none"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
-#'
-#' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
+#' @param model_structure A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.
+#' @param theme_level_intercept A character specifying the specification of effects of the intercept at the theme level.
+#' @param theme_level_slope A character specifying the specification of effects of the slope at the theme level.
+#' @param lmer_control Other additional parameters to be passed to `lme4::lmer` function.
 #' \itemize{
-#' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
-#'
-#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the `lme4::lmer` function.
+#' #' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
 #' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
 #' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
 #'
 #' \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 #' }
+#'
+#' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
+#' \itemize{
+#' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
+#'}
 #'
 #' @param brms_control Other additional parameters to be passed to brms::brm function:
 #' \itemize{
@@ -86,13 +85,15 @@ check_inputs_ss_backtest <- function(
   #Signals
   signals_m_df, chosen_signals_and_positions,
   #Backtests and benchmark returns
-  backtest_returns_df, benchmark_returns_df, market_factor_proxy,
+  backtest_returns_xts, benchmark_returns_xts, market_factor_proxy,
   #P-value
   p_correction_method, signal_significance_threshold,
   #Theme Representativeness
   enable_theme_representativeness,
+  #Model Structure
+  model_structure, theme_level_intercept, theme_level_slope, lmer_control,
   #Priors
-  priors_m_df, user_priors, model_spec_theme_level, brms_control, prior_derivation_control,
+  priors_m_df, user_priors,  brms_control, prior_derivation_control,
   #Signal Theme
   signal_themes_m_df,
   #Winsorization
@@ -126,47 +127,61 @@ check_inputs_ss_backtest <- function(
     stop("initial_sample_size must be greater than or equal to data_availability_cutoff")
   }
 
-  #backtest_returns_df
+  #backtest_returns_xts
+  if(!xts::is.xts(backtest_returns_xts)){
+    stop("backtest_returns_xts must be a xts object")
+  }
+  #get dates
+  backtest_returns_dates <- zoo::index(backtest_returns_xts)
+  if(class(backtest_returns_dates) != "Date"){
+    stop("dates in backtest_returns_xts must be of class Date")
+  }
+
   chosen_signals_corrected_positions <- chosen_signals_and_positions
   names(chosen_signals_corrected_positions)[which(chosen_signals_corrected_positions == "short")] <- paste0("low_", names(chosen_signals_and_positions)[which(chosen_signals_and_positions == "short")])
 
-  if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_df))){
-    stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_df")
+  if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_xts))){
+    stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_xts")
   }
 
-  if(colnames(backtest_returns_df)[1] != "dates"){
-    stop("backtest_returns_df must have a 'dates' first column")
+  if(nrow(backtest_returns_xts) < data_availability_cutoff){
+    stop("backtest_returns_xts must have at least data_availability_cutoff rows")
   }
 
-  if(nrow(backtest_returns_df) < data_availability_cutoff){
-    stop("backtest_returns_df must have at least data_availability_cutoff rows")
+  if(nrow(backtest_returns_xts) < initial_sample_size){
+    stop("backtest_returns_xts must have at least initial_sample_size rows")
   }
 
-  if(nrow(backtest_returns_df) < initial_sample_size){
-    stop("backtest_returns_df must have at least initial_sample_size rows")
+  if(any(!signals_m_df$dates %in% backtest_returns_dates)){
+    stop("all dates in signals_m_df must be present in backtest_returns_xts")
   }
 
-  if(any(!signals_m_df$dates %in% backtest_returns_df$dates)){
-    stop("all dates in signals_m_df must be present in backtest_returns_df")
+  if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 +
+              as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
+    stop("backtest_returns_xts must have consecutive dates")
   }
 
-  if(!all(diff(as.numeric(format(backtest_returns_df$dates, "%Y")) * 12 +
-              as.numeric(format(backtest_returns_df$dates, "%m"))) == 1)){
-    stop("backtest_returns_df must have consecutive dates")
+  #benchmark_returns_xts
+  if(!xts::is.xts(benchmark_returns_xts)){
+    stop("benchmark_returns_xts must be a xts object")
+  }
+  #get dates
+  benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
+  if(class(benchmark_returns_dates) != "Date"){
+    stop("dates in benchmark_returns_xts must be of class Date")
   }
 
-  #benchmark_returns_df
-  if(any(benchmark_returns_df$dates != backtest_returns_df$dates)){
-    stop("dates in benchmark_returns_df and backtest_returns_df must be the same")
+  if(any(benchmark_returns_dates != backtest_returns_dates)){
+    stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
   }
 
-  if(any(apply(benchmark_returns_df, 2, function(x) all(is.na(x))))){
-    stop("benchmark_returns_df must not have any NA values")
+  if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
+    stop("benchmark_returns_xts must not have any NA values")
   }
 
-  if(!all(diff(as.numeric(format(benchmark_returns_df$dates, "%Y")) * 12 +
-               as.numeric(format(benchmark_returns_df$dates, "%m"))) == 1)){
-    stop("benchmark_returns_df must have consecutive dates")
+  if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
+               as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
+    stop("benchmark_returns_xts must have consecutive dates")
   }
 
   #signal_themes_m_df
@@ -201,6 +216,26 @@ check_inputs_ss_backtest <- function(
     stop("dates in signal_themes_m_df and signals_m_df must be the same")
   }
 
+  #model_structure
+  if(model_structure %in% c("no_pooled", "partial_pooled")){
+    stop("model_structure must be one of 'no_pooled' or 'partial_pooled'")
+  }
+  if(model_structure == "partial_pooled"){
+    #lmer control
+    if(!is.null(lmer_control)){
+      if(any(!names(lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective"))){
+        stop("lmer_control should have only 'lmer_optimizer' and 'lmer_optimization_objective' as names.")
+      }
+
+      if(!is.null(lmer_control$lmer_optimizer) && !lmer_control$lmer_optimizer %in% c("Nelder_Mead", "bobyqa", "nlminbwrap", "nloptwrap")){
+        stop("lmer_optimizer should be one of 'Nelder_Mead', 'bobyqa', 'nlminbwrap' or 'nloptwrap'")
+      }
+
+      if(!is.null(lmer_control$lmer_optimization_objective) && !lmer_control$lmer_optimization_objective %in% c("likelihood", "REML")){
+        stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
+      }
+    }
+  }
   #p_correction_method
   if(!p_correction_method %in% c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "bayesian", "none")){
     stop("p_correction_method must be one of 'holm', 'hochberg', 'hommel', 'bonferroni', 'BH', 'BY', 'fdr', 'bayesian' or 'none'")
@@ -249,16 +284,8 @@ check_inputs_ss_backtest <- function(
 
     #Prior derivation control
     if(!is.null(prior_derivation_control)){
-      if(any(!names(prior_derivation_control) %in% c("half_t_df", "lmer_optimizer", "lmer_optimization_objective"))){
-        stop("prior_derivation_control should have only 'half_t_df', 'lmer_optimizer' and 'lmer_optimization_objective' as names.")
-      }
-
-      if(!is.null(prior_derivation_control$lmer_optimizer) && !prior_derivation_control$lmer_optimizer %in% c("Nelder_Mead", "bobyqa", "nlminbwrap", "nloptwrap")){
-        stop("lmer_optimizer should be one of 'Nelder_Mead', 'bobyqa', 'nlminbwrap' or 'nloptwrap'")
-      }
-
-      if(!is.null(prior_derivation_control$lmer_optimization_objective) && !prior_derivation_control$lmer_optimization_objective %in% c("likelihood", "REML")){
-        stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
+      if(any(!names(prior_derivation_control) %in% c("half_t_df"))){
+        stop("prior_derivation_control should have only 'half_t_df' as names.")
       }
     }
 
@@ -304,25 +331,30 @@ check_inputs_ss_backtest <- function(
       n_themes <- length(themes)
 
       # Define expected structures based on `model_spec_theme_level`
+      model_spec_theme_level <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+      if(!model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
+        stop("Invalid model specification at theme-level")
+      }
+
       expected_rows <- switch(
         model_spec_theme_level,
-        "random_intercept" = 7,
-        "fixed_intercepts" = n_themes + 5,
-        "fixed_intercepts_and_slopes" = n_themes * 2 + 4,
-        "none" = 6,
-        stop("Invalid model_spec_theme_level.")
+        "random_intercept_fixed_slope" = 7,
+        "theme_specific_intercept_fixed_slope" = n_themes + 5,
+        "theme_specific_intercept_theme_specific_slope" = n_themes * 2 + 4,
+        "fixed_intercept_fixed_slope" = 6,
+        stop("Invalid model specification at themelevel")
       )
 
       # Check number of rows
       if (nrow(user_priors) != expected_rows) {
-        stop(sprintf("Expected %d rows for model_spec_theme_level '%s', but got %d.",
+        stop(sprintf("Expected %d rows for theme-level model specification '%s', but got %d.",
                      expected_rows, model_spec_theme_level, nrow(user_priors)))
       }
 
       # Define validation rules for each model_spec_theme_level
       validate_structure <- switch(
         model_spec_theme_level,
-        "random_intercept" = {
+        "random_intercept_fixed_slope" = {
           required_rows <- data.frame(
             class = c("Intercept", "b", "sd", "sd", "sd", "sigma", "cor"),
             coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "Intercept", "", ""),
@@ -334,7 +366,7 @@ check_inputs_ss_backtest <- function(
                   user_priors$group == row["group"])
           }))
         },
-        "fixed_intercepts" = {
+        "theme_specific_intercept_fixed_slope" = {
           intercept_rows <- data.frame(
             class = "b",
             coef = sprintf("theme%s", themes),
@@ -351,7 +383,7 @@ check_inputs_ss_backtest <- function(
                   user_priors$group == row["group"])
           }))
         },
-        "fixed_intercepts_and_slopes" = {
+        "theme_specific_intercept_theme_specific_slope" = {
           intercept_rows <- data.frame(
             class = "b",
             coef = sprintf("theme%s", themes),
@@ -373,7 +405,7 @@ check_inputs_ss_backtest <- function(
                   user_priors$group == row["group"])
           }))
         },
-        "none" = {
+        "fixed_intercept_fixed_slope" = {
           required_rows <- data.frame(
             class = c("Intercept", "b", "sd", "sd", "sigma", "cor"),
             coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
@@ -388,7 +420,7 @@ check_inputs_ss_backtest <- function(
       )
 
       if (!validate_structure) {
-        stop(sprintf("user_priors structure is invalid for model_spec_theme_level '%s'.", model_spec_theme_level))
+        stop(sprintf("user_priors structure is invalid for theme-level model specification '%s'.", model_spec_theme_level))
       }
 
     }
@@ -409,8 +441,8 @@ check_inputs_ss_backtest <- function(
     stop("market_factor_proxy must be character")
   }
 
-  if(!market_factor_proxy %in% colnames(benchmark_returns_df)){
-    stop("market_factor_proxy must be present in benchmark_returns_df")
+  if(!market_factor_proxy %in% colnames(benchmark_returns_xts)){
+    stop("market_factor_proxy must be present in benchmark_returns_xts")
   }
 
 

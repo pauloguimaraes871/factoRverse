@@ -1,4 +1,4 @@
-test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for model spec 1", {
+test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 1", {
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -73,7 +73,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
                                 selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
                                 signal_universe_m_d_ref = expected_result,
                                 signal_themes_m_d_ref = signal_themes_m_d_ref,
@@ -84,7 +84,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
                                 verbose = TRUE
   )
 
-  brm_model <- results$bayesian_model
+  brm_model <- results$brm_model
 
   #check if brm model was fit correctly
   expect_equal(class(brm_model), "brmsfit")
@@ -243,7 +243,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
 
 })
 
-test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for model spec 2", {
+test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 2", {
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -316,7 +316,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
                                 selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
                                 signal_universe_m_d_ref = expected_result,
                                 signal_themes_m_d_ref = signal_themes_m_d_ref,
@@ -327,7 +327,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
                                 verbose = TRUE
   )
 
-  brm_model <- results$bayesian_model
+  brm_model <- results$brm_model
 
   #check if brm model was fit correctly
   expect_equal(class(brm_model), "brmsfit")
@@ -468,7 +468,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
 
 })
 
-test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for model spec 3", {
+test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 3", {
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -541,7 +541,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
                                 selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
                                 signal_universe_m_d_ref = expected_result,
                                 signal_themes_m_d_ref = signal_themes_m_d_ref,
@@ -552,7 +552,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
                                 verbose = TRUE
   )
 
-  brm_model <- results$bayesian_model
+  brm_model <- results$brm_model
 
   #check if brm model was fit correctly
   expect_equal(class(brm_model), "brmsfit")
@@ -694,7 +694,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
 
 })
 
-test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for model spec 4", {
+test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 4", {
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -764,7 +764,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
                                 selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
                                 signal_universe_m_d_ref = expected_result,
                                 signal_themes_m_d_ref = signal_themes_m_d_ref,
@@ -775,7 +775,7 @@ test_that("fit_bayesian_model adequately fits a bayesian hierarchical model for 
                                 verbose = TRUE
   )
 
-  brm_model <- results$bayesian_model
+  brm_model <- results$brm_model
 
   #check if brm model was fit correctly
   expect_equal(class(brm_model), "brmsfit")

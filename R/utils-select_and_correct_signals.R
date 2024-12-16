@@ -5,7 +5,7 @@
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
 #' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
-#' @param backtest_returns_df A data frame with a 'dates' column and remaining columns named according to signals in signals_m_df, containing historical backtested returns.
+#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #'
 #' @details
 #' The function performs the following operations:
@@ -27,7 +27,7 @@
 #' @importFrom dplyr select
 #' @importFrom stats setNames
 #' @export
-select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, backtest_returns_df = NULL){
+select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, backtest_returns_xts = NULL){
 
   ###Get chosen signals
   #####################
@@ -58,16 +58,16 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
 
   ###Subset backtests
   #######################
-  if(!is.null(backtest_returns_df)){
+  if(!is.null(backtest_returns_xts)){
     ###Check if all signals have a backtest
-    if(!all(chosen_signals_corrected_positions %in% colnames(backtest_returns_df[-1]))){
-      stop("all chosen signals should have a matching position in backtest_returns_df")
+    if(!all(chosen_signals_corrected_positions %in% colnames(backtest_returns_xts))){
+      stop("all chosen signals should have a matching position in backtest_returns_xts")
     }
 
     #signals_backtests
-    selected_backtest_returns_corrected_positions_df <- backtest_returns_df[, c("dates", chosen_signals_corrected_positions)]
+    selected_backtest_returns_corrected_positions_xts <- backtest_returns_xts[, chosen_signals_corrected_positions]
   } else {
-    selected_backtest_returns_corrected_positions_df <- NULL
+    selected_backtest_returns_corrected_positions_xts <- NULL
   }
 
   #######################
@@ -76,7 +76,7 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
   #Returns
   selected_signals_and_backtest_list <- list(
     selected_signals_corrected_positions_m_df = selected_signals_corrected_positions_m_df,
-    selected_backtest_returns_corrected_positions_df = selected_backtest_returns_corrected_positions_df
+    selected_backtest_returns_corrected_positions_xts = selected_backtest_returns_corrected_positions_xts
   )
 
   return(selected_signals_and_backtest_list)

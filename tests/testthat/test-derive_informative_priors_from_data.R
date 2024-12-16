@@ -1,5 +1,11 @@
 test_that("derive_informative_priors_from_data works for model spec 1", {
 
+  # Save the current scipen option
+  original_scipen <- options("scipen")
+
+  # Disable scientific notation by setting a high scipen value
+  options(scipen = 999)
+
   #DGP 1
   ##############################
   set.seed(123)  # For reproducibility
@@ -115,8 +121,8 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
 
   #Get priors for dgp 1
   results_dgp_1 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
-                                                 model_spec_theme_level = "random_intercept",
-                                                 half_t_distribution = 30)
+                                                       model_spec_theme_level = "random_intercept_fixed_slope",
+                                                       half_t_df = 30)
 
   expect_s3_class(results_dgp_1$priors, "brmsprior")
   expect_equal(results_dgp_1$priors$class, c("Intercept", "b", "sd", "sd", "sd", "sigma", "cor"))
@@ -156,8 +162,7 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
 
 
   #Compare LME model
-  lme_model_1 <- lme4::lmer(active_return ~ market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers),
-                        data = simulated_data)
+  lme_model_1 <- lme4::lmer(active_return ~ market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers), data = simulated_data)
   expect_equal(coef(results_dgp_1$model), coef(lme_model_1))
   expect_equal(lme4::fixef(results_dgp_1$model), lme4::fixef(lme_model_1))
   expect_equal(lme4::ranef(results_dgp_1$model), lme4::ranef(lme_model_1))
@@ -278,8 +283,8 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
 
   #Get priors for dgp 2
   results_dgp_2 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
-                                                       model_spec_theme_level = "random_intercept",
-                                                       half_t_distribution = 30)
+                                                       model_spec_theme_level = "random_intercept_fixed_slope",
+                                                       half_t_df = 30)
 
   #Fixed Intercept
   expect_lt(as.numeric(sub("normal\\((-?[0-9.]+),.*", "\\1", results_dgp_1$priors$prior[1])),
@@ -303,11 +308,18 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
   )
 
 
-
+  # Restore the original scipen option
+  options(scipen = original_scipen)
 
 })
 
 test_that("derive_informative_priors_from_data works for model spec 2", {
+
+  # Save the current scipen option
+  original_scipen <- options("scipen")
+
+  # Disable scientific notation by setting a high scipen value
+  options(scipen = 999)
 
   #DGP 1
   ##############################
@@ -421,8 +433,8 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
 
   #Get priors for dgp 1
   results_dgp_1 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
-                                                       model_spec_theme_level = "fixed_intercepts",
-                                                       half_t_distribution = 30)
+                                                       model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+                                                       half_t_df = 30)
 
   expect_s3_class(results_dgp_1$priors, "brmsprior")
   expect_equal(results_dgp_1$priors$class, c(rep("b", length(unique(theme_names))), "b", "sd", "sd", "sigma", "cor"))
@@ -582,8 +594,8 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
 
   #Get priors for dgp 2
   results_dgp_2 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
-                                                       model_spec_theme_level = "fixed_intercepts",
-                                                       half_t_distribution = 30)
+                                                       model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+                                                       half_t_df = 30)
 
   #Fixed Intercepts
   #Defensive
@@ -611,10 +623,18 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
             as.numeric(sub("normal\\((-?[0-9.]+),.*", "\\1", results_dgp_2$priors$prior[5]))
   )
 
+  # Restore the original scipen option
+  options(scipen = original_scipen)
 
 })
 
 test_that("derive_informative_priors_from_data works for model spec 3", {
+
+  # Save the current scipen option
+  original_scipen <- options("scipen")
+
+  # Disable scientific notation by setting a high scipen value
+  options(scipen = 999)
 
   #DGP 1
   ##############################
@@ -730,8 +750,8 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
 
   #Get priors for dgp 1
   results_dgp_1 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
-                                                       model_spec_theme_level = "fixed_intercepts_and_slopes",
-                                                       half_t_distribution = 30, lmer_optimizer = "Nelder_Mead")
+                                                       model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
+                                                       half_t_df = 30, lmer_optimizer = "Nelder_Mead")
 
   expect_s3_class(results_dgp_1$priors, "brmsprior")
   expect_equal(results_dgp_1$priors$class, c(rep("b", length(unique(theme_names))),
@@ -794,9 +814,18 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
   expect_equal(lme4::fixef(results_dgp_1$model), lme4::fixef(lme_model_1))
   expect_equal(lme4::ranef(results_dgp_1$model), lme4::ranef(lme_model_1))
 
+  # Restore the original scipen option
+  options(scipen = original_scipen)
+
 })
 
 test_that("derive_informative_priors_from_data works for model spec 4", {
+
+  # Save the current scipen option
+  original_scipen <- options("scipen")
+
+  # Disable scientific notation by setting a high scipen value
+  options(scipen = 999)
 
   #DGP 1
   ##############################
@@ -907,8 +936,8 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
 
   #Get priors for dgp 1
   results_dgp_1 <- derive_informative_priors_from_data(priors_m_upd_ref = simulated_data,
-                                                       model_spec_theme_level = "none",
-                                                       half_t_distribution = 30, lmer_optimizer = "Nelder_Mead")
+                                                       model_spec_theme_level = "fixed_intercept_fixed_slope",
+                                                       half_t_df = 30, lmer_optimizer = "Nelder_Mead")
 
   expect_s3_class(results_dgp_1$priors, "brmsprior")
   expect_equal(results_dgp_1$priors$class, c("Intercept", "b", "sd", "sd", "sigma", "cor"))
@@ -945,5 +974,8 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
   expect_equal(coef(results_dgp_1$model), coef(lme_model_1))
   expect_equal(lme4::fixef(results_dgp_1$model), lme4::fixef(lme_model_1))
   expect_equal(lme4::ranef(results_dgp_1$model), lme4::ranef(lme_model_1))
+
+  # Restore the original scipen option
+  options(scipen = original_scipen)
 
 })

@@ -3479,8 +3479,11 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     signal_themes_m_d_ref <- final_signal_universe_m_d_ref@data %>% dplyr::select(id, tickers, dates, theme)
     #Get brm_model
     brm_model <- x@final_bayesian_fit_list$bayesian_model
-    #Get model_spec_theme_level
-    model_spec_theme_level <- results@ss_backtest_workflow$model_spec_theme_level
+    #Get theme-level parameters
+    theme_level_intercept <- results@ss_backtest_workflow$theme_level_intercept
+    theme_level_slope <- results@ss_backtest_workflow$theme_level_slope
+    model_spec_theme_level <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+
     #priors
     elected_priors <- x@final_bayesian_fit_list$elected_priors
     #Extract tidy posteriores
@@ -3633,7 +3636,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Extract themes from `elected_priors`
 
       ##Random Intercept or None
-      if(model_spec_theme_level %in% c("random_intercepts", "none")){
+      if(model_spec_theme_level %in% c("random_intercept_fixed_slope", "fixed_intercept_fixed_slope")){
         prior_data <- elected_priors %>%
           dplyr::filter(class == "Intercept") %>%
           dplyr::rowwise() %>%
@@ -3649,7 +3652,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       }
 
       ##Fixed intercepts or Fixed Intercepts and Slopes
-      if(model_spec_theme_level %in% c("fixed_intercepts", "fixed_intercepts_and_slopes")){
+      if(model_spec_theme_level %in% c("theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope")){
       prior_data <- elected_priors %>%
         dplyr::filter(class == "b" & stringr::str_detect(coef, "^theme")) %>%
         dplyr::mutate(theme = stringr::str_remove(coef, "^theme")) %>%
@@ -3771,7 +3774,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Extract themes from `elected_priors`
 
     ##Random Intercept, Fixed Intercepts or None
-    if(model_spec_theme_level %in% c("random_intercepts", "fixed_intercepts", "none")){
+    if(model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope", "fixed_intercept_fixed_slope")){
       prior_data <- elected_priors %>%
         dplyr::filter(class == "b" & coef == "market_factor_proxy") %>%
         dplyr::rowwise() %>%
@@ -3787,7 +3790,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     }
 
     ##Fixed Intercepts and Slopes
-    if(model_spec_theme_level %in% c("fixed_intercepts_and_slopes")){
+    if(model_spec_theme_level %in% c("theme_specific_intercept_theme_specific_slope")){
       prior_data <- elected_priors %>%
         dplyr::filter(class == "b" & stringr::str_detect(coef, "^theme.*:market_factor_proxy$")) %>%
         dplyr::mutate(theme = stringr::str_extract(coef, "(?<=^theme).*?(?=:)")) %>%
@@ -3929,8 +3932,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     tidy_posterior_draws_sd <-  tidy_posteriors_list$tidy_posterior_draws_sd
 
     #Waterfall plot
-    if(model_spec_theme_level == "random_intercepts"){
-    #For random_intercepts, include var_theme_intercept
+    if(model_spec_theme_level == "random_intercept_fixed_slope"){
+    #For random_intercept_fixed_slope, include var_theme_intercept
     variance_data <- tidy_posterior_draws_sd %>%
       dplyr::mutate(
         # Variance components
@@ -4332,7 +4335,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     #Waterfall plot
     # Prepare and compute contributions
-    if(model_spec_theme_level == "random_intercept"){
+    if(model_spec_theme_level == "random_intercept_fixed_slope"){
       waterfall_data <- tidy_posterior_epred_draws_complete %>%
         dplyr::mutate(
           # Component contributions

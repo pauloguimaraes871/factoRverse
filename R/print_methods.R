@@ -996,6 +996,7 @@ setMethod("show", "ss_backtest_config", function(object) {
   cat("------------------------------\n")
   cat("Config Name:", object@config_name, "\n\n")
 
+
   # Display Backtest Parameters
   cat("------------------------------\n")
   cat("Backtest Parameters:\n")
@@ -1033,6 +1034,30 @@ setMethod("show", "alpha_test_strategy", function(object) {
   cat("P Correction Method:", object@p_correction_method, "\n")
   cat("Market Factor Proxy:", object@market_factor_proxy, "\n")
   cat("Enable Theme Representativeness:", object@enable_theme_representativeness, "\n\n")
+
+
+    #Display Model Structure
+  cat("------------------------------\n")
+  cat("Model Structure:\n")
+  cat("------------------------------\n")
+  cat("Model Structure:", object@model_structure, "\n")
+  if(!is.null(object@theme_level_intercept)){
+    cat("Theme-Level Intercept:", object@theme_level_intercept, "\n")
+  }
+  if(!is.null(object@theme_level_slope)){
+    cat("Theme-Level Slope:", object@theme_level_slope, "\n")
+  }
+
+  # Display lmer Control Parameters
+  if (!is.null(object@lmer_control)) {
+    cat("\nlmer Control Parameters:\n")
+    cat("------------------------------\n")
+    for (param_name in names(object@lmer_control)) {
+      cat("  ", param_name, ": ", object@lmer_control[[param_name]], "\n")
+    }
+  } else {
+    cat("\nNo lmer Control Parameters set.\n")
+  }
 
 })
 
@@ -1086,7 +1111,6 @@ setMethod("show", "bayesian_alpha_test_strategy", function(object) {
 #' @method show bayesian_model_parameters
 #' @export
 setMethod("show", "bayesian_model_parameters", function(object) {
-  cat("Model Specification Theme Level:", object@model_spec_theme_level, "\n")
 
   # Display Prior Derivation Control
   if (!is.null(object@prior_derivation_control)) {
@@ -1101,13 +1125,13 @@ setMethod("show", "bayesian_model_parameters", function(object) {
 
   # Display brms Control Parameters
   if (!is.null(object@brms_control)) {
-    cat("\nBrms Control Parameters:\n")
+    cat("\nbrms Control Parameters:\n")
     cat("------------------------------\n")
     for (param_name in names(object@brms_control)) {
       cat("  ", param_name, ": ", object@brms_control[[param_name]], "\n")
     }
   } else {
-    cat("\nNo Brms Control Parameters set.\n")
+    cat("\nNo brms Control Parameters set.\n")
   }
 
   # Display User Priors
@@ -1148,10 +1172,16 @@ setMethod("show", "ss_backtest_results", function(object) {
   cat("  Config Name: ", ss_backtest_workflow$config_name, "\n")
   cat("  Backtest Type: ", ss_backtest_workflow$backtest_type, "\n")
   cat("  Alpha Test Strategy Parameters:\n")
+  cat("    Model Structure: ", ss_backtest_workflow$model_structure, "\n")
+  cat("    Theme-Level Intercept: ", ss_backtest_workflow$theme_level_intercept, "\n")
+  cat("    Theme-Level Slope: ", ss_backtest_workflow$theme_level_slope, "\n")
   cat("    Market Factor Proxy: ", ss_backtest_workflow$market_factor_proxy, "\n")
   cat("    Data Availability Cutoff: ", ss_backtest_workflow$data_availability_cutoff, "\n")
   cat("    Signal Significance Threshold: ", ss_backtest_workflow$signal_significance_threshold, "\n")
   cat("    Enable Theme Representativeness: ", ss_backtest_workflow$enable_theme_representativeness, "\n")
+  cat("    lmer Control Parameters:\n")
+  print(ss_backtest_workflow$lmer_control)
+
   cat("=========================================\n")
 
   # Display P-Value Correction Method
@@ -1161,7 +1191,6 @@ setMethod("show", "ss_backtest_results", function(object) {
     # Display Bayesian Model Parameters
     cat("Bayesian Model Parameters:\n")
     cat("  User Priors: ", ifelse(is.null(ss_backtest_workflow$user_priors), "NULL", "Provided"), "\n")
-    cat("  Model Specification Theme Level: ", ss_backtest_workflow$model_spec_theme_level, "\n")
     cat("  brms Control Parameters:\n")
     print(ss_backtest_workflow$brms_control)
     cat("  Prior Derivation Control Parameters:\n")

@@ -162,7 +162,7 @@
 #'
 #' @export
 bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_returns_corrected_positions_upd_ref, selected_market_factor_proxy_vector_upd_ref, #Data
-                                priors_m_upd_ref = NULL, model_spec_theme_level = "random_intercept", user_priors = NULL, #Priors
+                                priors_m_upd_ref = NULL, model_spec_theme_level, user_priors = NULL, #Priors
                                 lmer_optimization_objective = "REML", half_t_df = 30, lmer_optimizer = "nloptwrap",  #lme4 parameters
                                 signal_themes_m_d_ref,
                                 chains = 4, iter = 2000, warmup = floor(iter/2), thin = 1, seed = NA, adapt_delta = 0.80, #MCMC parameters
@@ -263,7 +263,7 @@ bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_retur
     bayesian_model = posteriors_results_list$bayesian_model,
     posterior_draws_summaries = posteriors_results_list$posterior_draws_summaries,
     elected_priors =  elected_priors_list$priors,
-    frequentist_model = elected_priors_list$model
+    elected_priors_frequentist_model = elected_priors_list$model
   )
 
   return(bayesian_adjustment_results_list)

@@ -642,6 +642,7 @@ setClass(
 #' @description The alpha_test_strategy class is designed to specify parameters of hypothesis testing regarding
 #' CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches.
 #' In the latter, the user can change the hierarchical model specification and how priors are going to be set.
+#' @slot model_structure
 #' @slot signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 #' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
 #' @slot p_correction_method The method for p-value correction. Possible options are:
@@ -665,11 +666,15 @@ setClass(
 #' Should correspond to one of the columns in `benchmark_returns_df`.
 #' @slot bayesian_model_parameters An object of class `bayesian_model_parameters`, containing the
 #' parameters needed to build the hierarhicical bayesian model and specify its priors.
-#' #' @slot enable_theme_representativeness A logical indicating whether, if a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
+#' @slot enable_theme_representativeness A logical indicating whether, if a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
 #' with highest alpha t-stat should be elected.
 
 setClass("alpha_test_strategy",
          slots = list(
+           model_structure = "character",
+           theme_level_intercept = "ANY",
+           theme_level_slope = "ANY",
+           lmer_control = "ANY",
            signal_significance_threshold = "numeric",
            p_correction_method = "character",
            enable_theme_representativeness = "logical",
@@ -681,15 +686,65 @@ setClass("alpha_test_strategy",
            ))) {
              stop("Invalid p_correction_method.")
            }
+           if(object@p_correction_method == "bayesian" && model_structure != "partial_pooled"){
+             stop("Currently, bayesian p_correction method is only available for partial_pooled model_structure")
+           }
            if (object@signal_significance_threshold < 0 || object@signal_significance_threshold > 1) {
              stop("signal_significance_threshold must be between 0 and 1.")
+           }
+           if(!object@model_structure %in% c("partial_pooled", "no_pooled")){
+             stop("Currently, model_structure must be one of partial_pooled or no_pooled")
+           }
+
+           if(object@model_structure == "partial_pooled"){
+             if (!theme_level_intercept %in% c("fixed", "random", "theme_specific")){
+               stop("theme_level_intercept must be 'fixed', 'random' or 'theme_specific'")
+             }
+             if (!theme_level_slope %in% c("fixed", "theme_specific")){
+               stop("Currently, theme_level_slope can only be 'fixed' or 'theme_specific'")
+             }
+             avaiable_combinations <- c(c("random_intercept_fixed_slope"), #old random_intercept
+                                        c("theme_specific_intercept_fixed_slope"), #old fixed_intercepts
+                                        c("theme_specific_intercept_theme_specific_slope"), #old fixed_intercepts_fixed_slopes
+                                        c("fixed_intercept_fixed_slope")) #one none
+             chosen_combination <- paste0(object@theme_level_intercept, "_intercept", object@theme_level_slope, "_slope")
+             if(!chosen_combination %in% avaiable_combinations){
+               stop("Chosen combination of theme_level_intercept and theme_level_slope is currently not supported.")
+             }
+
+             if (!is.null(object@lmer_control)) {
+               if (!is.list(object@lmer_control) || any(!names(object@lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective"))) {
+                 return("lmer_control must be a list with 'lmer_optimizer' and/or 'lmer_optimization_objective'.")
+               }
+               if (!is.null(object@lmer_control$lmer_optimizer)){
+                 if (!is.character(object@lmer_control$lmer_optimizer) || !object@lmer_control$lmer_optimizer %in% c("nloptwrap", "bobyqa", "Nelder_Mead", "nlminbwrap")) {
+                   stop("lmer_optimizer must be one of 'nloptwrap', 'bobyqa', 'Nelder_Mead', or 'nlminbwrap'.")
+                 }
+               }
+               if( !is.null(object@lmer_control$lmer_optimization_objective)){
+                 if(!is.character(object@lmer_control$lmer_optimization_objective) || !object@lmer_control$lmer_optimization_objective %in% c("likelihood", "REML")){
+                   stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'.")
+                 }
+               }
+             }
+           }
+           else {
+             if(any(is.null(object@theme_level_intercept), is.null(object@theme_level_slope))){
+               stop("Theme-level parameters are only avaiable for partial pooled models.")
+             }
+             if(!is.null(lmer_control)){
+               stop("lmer_control is only avaiable for partial pooled models.")
+             }
            }
            TRUE
          },
          prototype = list(
            signal_significance_threshold = 0.05,
            p_correction_method = "none",
-           enable_theme_representativeness = TRUE
+           enable_theme_representativeness = TRUE,
+           model_structure = "no_pooled",
+           theme_level_intercept = NULL,
+           theme_level_slope = NULL
          )
 )
 
@@ -712,12 +767,6 @@ setClass("frequentist_alpha_test_strategy",
 #'
 #' @slot user_priors An object of class `brmsprior` with user-defined priors for the hierarchical Bayesian model.
 #' Should be structured according to the `model_spec_theme_level`.
-#' @slot model_spec_theme_level A character string specifying the desired Bayesian model structure.
-#' Options include:
-#'   - `"random_intercept"`: Random intercepts at the theme level.
-#'   - `"fixed_intercepts"`: Fixed intercepts for each theme.
-#'   - `"fixed_intercepts_and_slopes"`: Fixed intercepts and slopes for each theme.
-#'   - `"none"`: No theme-level intercepts, with random effects at the theme:signal level.
 #' @slot prior_derivation_control A list of additional parameters for deriving priors when `priors_type` is `"informative_exogenous_dataset"`.
 #' Should include:
 #'   - `half_t_df`: Degrees of freedom for the half-t distribution applied to sd priors.
@@ -738,13 +787,11 @@ setClass(
   "bayesian_model_parameters",
   slots = list(
     user_priors = "ANY", # To accommodate brmsprior objects or NULL
-    model_spec_theme_level = "character",
     prior_derivation_control = "ANY",
     brms_control = "ANY"
   ),
   prototype = list(
     user_priors = NULL,
-    model_spec_theme_level = "random_intercept",
     brms_control = list(
       chains = 4,
       iter = 2000,
@@ -755,65 +802,21 @@ setClass(
     )
   ),
   validity = function(object) {
-    # Validate model_spec_theme_level
-    if (!object@model_spec_theme_level %in% c("random_intercept", "fixed_intercepts", "fixed_intercepts_and_slopes", "none")) {
-      stop("Invalid model_spec_theme_level. Must be one of: 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes', or 'none'.")
-    }
 
     # Validate user_priors if not NULL
     if (!is.null(object@user_priors)) {
       if (!inherits(object@user_priors, "brmsprior")) {
         return("user_priors must be a 'brmsprior' object.")
       }
-
-      # Convert user_priors to data frame for easier manipulation
-      priors_df <- as.data.frame(object@user_priors)
-
-      # Warnings for missing typical priors based on model_spec_theme_level
-      if (object@model_spec_theme_level == "random_intercept") {
-        # Check for prior with class 'sd', coef 'Intercept', group 'theme'
-        required_row <- subset(priors_df, class == "sd" & coef == "Intercept" & group == "theme")
-        if (nrow(required_row) == 0) {
-          warning("For model_spec_theme_level 'random_intercept', it is recommended to include a prior with class = 'sd', coef = 'Intercept', and group = 'theme'.")
-        }
-      } else if (object@model_spec_theme_level == "fixed_intercepts") {
-        # Check for priors with class 'b' and coef matching 'theme...'
-        required_rows <- subset(priors_df, class == "b" & grepl("^theme", coef))
-        if (nrow(required_rows) == 0) {
-          warning("For model_spec_theme_level 'fixed_intercepts', it is recommended to include priors with class = 'b' and coef starting with 'theme'.")
-        }
-      } else if (object@model_spec_theme_level == "fixed_intercepts_and_slopes") {
-        # Check for priors with class 'b' and coef matching 'theme...' and 'theme...:market_factor_proxy'
-        required_rows_intercepts <- subset(priors_df, class == "b" & grepl("^theme[^:]*$", coef))
-        required_rows_slopes <- subset(priors_df, class == "b" & grepl("^theme[^:]*:market_factor_proxy$", coef))
-        if (nrow(required_rows_intercepts) == 0) {
-          warning("For model_spec_theme_level 'fixed_intercepts_and_slopes', it is recommended to include priors with class = 'b' and coef starting with 'theme' for intercepts.")
-        }
-        if (nrow(required_rows_slopes) == 0) {
-          warning("For model_spec_theme_level 'fixed_intercepts_and_slopes', it is recommended to include priors with class = 'b' and coef starting with 'theme' and ending with ':market_factor_proxy' for slopes.")
-        }
-      }
     }
-
-
     # Validate prior_derivation_control
     if (!is.null(object@prior_derivation_control)) {
-      if (!is.list(object@prior_derivation_control) || any(!names(object@prior_derivation_control) %in% c("half_t_df", "lmer_optimizer", "lmer_optimization_objective"))) {
-        return("prior_derivation_control must be a list with 'half_t_df', 'lmer_optimizer' and/or 'lmer_optimization_objective'.")
+      if (!is.list(object@prior_derivation_control) || any(!names(object@prior_derivation_control) %in% c("half_t_df"))) {
+        return("prior_derivation_control must be a list with 'half_t_df'.")
       }
       if (!is.null(object@prior_derivation_control$half_t_df)){
         if (!is.numeric(object@prior_derivation_control$half_t_df) || object@prior_derivation_control$half_t_df <= 0) {
           stop("half_t_df must be a positive numeric value.")
-        }
-      }
-      if (!is.null(object@prior_derivation_control$lmer_optimizer)){
-        if (!is.character(object@prior_derivation_control$lmer_optimizer) || !object@prior_derivation_control$lmer_optimizer %in% c("nloptwrap", "bobyqa", "Nelder_Mead", "nlminbwrap")) {
-          stop("lmer_optimizer must be one of 'nloptwrap', 'bobyqa', 'Nelder_Mead', or 'nlminbwrap'.")
-        }
-      }
-      if( !is.null(object@prior_derivation_control$lmer_optimization_objective)){
-        if(!is.character(object@prior_derivation_control$lmer_optimization_objective) || !object@prior_derivation_control$lmer_optimization_objective %in% c("likelihood", "REML")){
-          stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'.")
         }
       }
     }
@@ -887,6 +890,40 @@ setClass("bayesian_alpha_test_strategy",
            if (object@p_correction_method != "bayesian") {
              stop("p_correction_method must be 'bayesian' for bayesian_alpha_test_strategy.")
            }
+
+           # Warnings for missing typical priors based on theme_level parameters
+           theme_level_intercept <- object@theme_level_intercept
+           theme_level_slope <- object@theme_level_slope
+
+           if(!is.null(object@bayesian_model_parameters@user_priors)){
+           #Get user priors
+           prior_df <- as.data.frame(object@bayesian_model_parameters@user_priors)
+
+           if (theme_level_intercept == "random" && theme_level_slope == "fixed") {
+             # Check for prior with class 'sd', coef 'Intercept', group 'theme'
+             required_row <- subset(priors_df, class == "sd" & coef == "Intercept" & group == "theme")
+             if (nrow(required_row) == 0) {
+               warning("For this model specification, it is recommended to include a prior with class = 'sd', coef = 'Intercept', and group = 'theme'.")
+             }
+           } else if (theme_level_intercept == "theme_specific" && theme_level_slope == "fixed") {
+             # Check for priors with class 'b' and coef matching 'theme...'
+             required_rows <- subset(priors_df, class == "b" & grepl("^theme", coef))
+             if (nrow(required_rows) == 0) {
+               warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme'.")
+             }
+           } else if (theme_level_intercept == "theme_specific" && theme_level_slope == "theme_specific") {
+             # Check for priors with class 'b' and coef matching 'theme...' and 'theme...:market_factor_proxy'
+             required_rows_intercepts <- subset(priors_df, class == "b" & grepl("^theme[^:]*$", coef))
+             required_rows_slopes <- subset(priors_df, class == "b" & grepl("^theme[^:]*:market_factor_proxy$", coef))
+             if (nrow(required_rows_intercepts) == 0) {
+               warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme' for intercepts.")
+             }
+             if (nrow(required_rows_slopes) == 0) {
+               warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme' and ending with ':market_factor_proxy' for slopes.")
+             }
+            }
+           }
+
            TRUE
          }
 )

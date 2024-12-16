@@ -1777,12 +1777,17 @@ create_ss_backtest_config <- function(
 #'   Required when `p_correction_method` is `"bayesian"`.
 #' @return An object of class `alpha_test_strategy`, `frequentist_alpha_test_strategy`, or `bayesian_alpha_test_strategy`.
 #' @export
-create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
-                                       p_correction_method = "none",
-                                       market_factor_proxy,
-                                       bayesian_model_parameters = NULL,
-                                       enable_theme_representativeness = TRUE
-                                       ) {
+create_alpha_test_strategy <- function(
+    model_structure = "no_pooled",
+    theme_level_intercept = NULL,
+    theme_level_slope = NULL,
+    signal_significance_threshold = 0.05,
+    p_correction_method = "none",
+    market_factor_proxy,
+    bayesian_model_parameters = NULL,
+    enable_theme_representativeness = TRUE,
+    lmer_control = NULL
+  ) {
 
   # Validate input arguments
   if (!p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY", "bayesian")) {
@@ -1794,19 +1799,46 @@ create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
   if (missing(market_factor_proxy) || !is.character(market_factor_proxy) || length(market_factor_proxy) != 1) {
     stop("market_factor_proxy must be a single character string.")
   }
+  if(!model_structure %in% c("partial_pooled", "no_pooled")){
+    stop("Currently, model_structure must be one of partial_pooled or no_pooled")
+  }
+  if(model_structure == "partial_pooled"){
+    if (is.null(theme_level_intecept) || !theme_level_intercept %in% c("fixed", "random", "theme_specific")){
+      stop("theme_level_intercept must be 'fixed', 'random' or 'theme_specific'")
+    }
+    if (is.null(theme_level_slope) || !theme_level_slope %in% c("fixed", "theme_specific")){
+      stop("Currently, theme_level_slope can only be 'fixed' or 'theme_specific'")
+    }
+    avaiable_combinations <- c(c("random_intercept_fixed_slope"), #old random_intercept
+                               c("theme_specific_intercept_fixed_slope"), #old fixed_intercepts
+                               c("theme_specific_intercept_theme_specific_slope"), #old fixed_intercepts_fixed_slopes
+                               c("fixed_intercept_fixed_slope")) #one none
+    chosen_combination <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+    if(!chosen_combination %in% avaiable_combinations){
+      stop("Chosen combination of theme_level_intercept and theme_level_slope is currently not supported.")
+    }
+  } else {
+    if(any(is.null(theme_level_intercept), is.null(theme_level_slope))){
+      stop("Theme-level parameters are only avaiable for partial pooled models.")
+    }
+  }
 
   # Handle Bayesian subclass creation
   if (p_correction_method == "bayesian") {
+    if(model_structure != "partial_pooled"){
+      stop("Currently, only the 'partial_pooled' model structure is supported for Bayesian alpha testing.")
+    }
     if (!is.null(bayesian_model_parameters) && !inherits(bayesian_model_parameters, "bayesian_model_parameters")) {
       stop("When p_correction_method is 'bayesian', bayesian_model_parameters must be a bayesian_model_parameters object.")
     }
 
     #Check if a bayesian_model_parametesr is being provided
     if(is.null(bayesian_model_parameters)){
+
+
       #If not create a generic one
       bayesian_model_parameters = new("bayesian_model_parameters",
                                       user_priors = NULL,
-                                      model_spec_theme_level = "random_intercept",
                                       prior_derivation_control = NULL,
                                       brms_control = NULL
       )
@@ -1815,9 +1847,13 @@ create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
     return(new("bayesian_alpha_test_strategy",
                signal_significance_threshold = signal_significance_threshold,
                p_correction_method = p_correction_method,
+               model_structure = model_structure,
+               theme_level_intercept = theme_level_intercept,
+               theme_level_slope = theme_level_slope,
                market_factor_proxy = market_factor_proxy, #For a new bayesian class, create an uniformative bayesian_model_parameters
                enable_theme_representativeness = enable_theme_representativeness,
-               bayesian_model_parameters = bayesian_model_parameters
+               bayesian_model_parameters = bayesian_model_parameters,
+               lmer_control = lmer_control
                )
            )
   }
@@ -1826,9 +1862,13 @@ create_alpha_test_strategy <- function(signal_significance_threshold = 0.05,
   if (p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY")) {
     return(new("frequentist_alpha_test_strategy",
                signal_significance_threshold = signal_significance_threshold,
+               model_structure = model_structure,
+               theme_level_intercept = theme_level_intercept,
+               theme_level_slope = theme_level_slope,
                p_correction_method = p_correction_method,
                enable_theme_representativeness = enable_theme_representativeness,
-               market_factor_proxy = market_factor_proxy))
+               market_factor_proxy = market_factor_proxy,
+               lmer_control = lmer_control))
   }
 
   # Default fallback (should not reach here due to prior validation)
@@ -1881,13 +1921,18 @@ setMethod(
   "add_alpha_test_strategy",
   signature(object = "ss_backtest_config", alpha_test_strategy = "missing"),
   function(object, signal_significance_threshold = 0.05, p_correction_method = "none", market_factor_proxy,
-           enable_theme_representativeness = TRUE, bayesian_model_parameters = NULL) {
+           model_structure = "partial_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
+           enable_theme_representativeness = TRUE, bayesian_model_parameters = NULL, lmer_control = NULL) {
 
     alpha_test_strategy <- create_alpha_test_strategy(signal_significance_threshold = signal_significance_threshold,
                                                       p_correction_method = p_correction_method,
                                                       market_factor_proxy = market_factor_proxy,
+                                                      model_structure = model_structure,
+                                                      theme_level_intercept = theme_level_intercept,
+                                                      theme_level_slope = theme_level_slope,
                                                       enable_theme_representativeness = enable_theme_representativeness,
-                                                      bayesian_model_parameters = bayesian_model_parameters
+                                                      bayesian_model_parameters = bayesian_model_parameters,
+                                                      lmer_control = lmer_control
                                                       )
 
     # Set the alpha_test_strategy slot
@@ -1901,15 +1946,12 @@ setMethod(
 #' @title Add Bayesian Model Parameters
 #' @description Generic function to add Bayesian model parameters.
 #' @param object The object to which Bayesian model parameters will be added.
-#' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
-#'   Options: `"random_intercept"`, `"fixed_intercepts"`, `"fixed_intercepts_and_slopes"`, `"none"`.
 #' @param user_priors An optional object of class `brmsprior`.
 #' @param prior_derivation_control An optional list containing prior derivation control parameters.
 #' @param brms_control An optional list of parameters for `brms::brm`.
 #' @return The updated object with the `bayesian_model_parameters` added.
 #' @export
 setGeneric("add_bayesian_model_parameters", function(object,
-                                                     model_spec_theme_level,
                                                      user_priors = NULL,
                                                      prior_derivation_control = NULL,
                                                      brms_control = NULL) {
@@ -1922,17 +1964,9 @@ setMethod(
   "add_bayesian_model_parameters",
   signature(object = "bayesian_alpha_test_strategy"),
   function(object,
-           model_spec_theme_level,
            user_priors = NULL,
            prior_derivation_control = NULL,
            brms_control = NULL) {
-    # Validate `model_spec_theme_level`
-    if (!model_spec_theme_level %in% c("random_intercept",
-                                       "fixed_intercepts",
-                                       "fixed_intercepts_and_slopes",
-                                       "none")) {
-      stop("Invalid 'model_spec_theme_level'. Must be one of: 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes', 'none'.")
-    }
 
     # Ensure only one of `user_priors` or `prior_derivation_control` is provided
     if (!is.null(user_priors) && !is.null(prior_derivation_control)) {
@@ -1947,7 +1981,6 @@ setMethod(
     # Create `bayesian_model_parameters` object
     bayesian_params <- new("bayesian_model_parameters",
                            user_priors = user_priors,
-                           model_spec_theme_level = model_spec_theme_level,
                            prior_derivation_control = prior_derivation_control,
                            brms_control = brms_control)
 
@@ -1963,7 +1996,6 @@ setMethod(
   "add_bayesian_model_parameters",
   signature(object = "ss_backtest_config"),
   function(object,
-           model_spec_theme_level,
            user_priors = NULL,
            prior_derivation_control = NULL,
            brms_control = NULL) {
@@ -1980,7 +2012,6 @@ setMethod(
     # Call the method for 'bayesian_alpha_test_strategy' to add 'bayesian_model_parameters'
     object@alpha_test_strategy <- add_bayesian_model_parameters(
       object@alpha_test_strategy,
-      model_spec_theme_level = model_spec_theme_level,
       user_priors = user_priors,
       prior_derivation_control = prior_derivation_control,
       brms_control = brms_control
@@ -2067,35 +2098,39 @@ setMethod("add_brms_prior",
               stop("Coef should only be specified for class 'b' or 'sd'.")
             }
 
-            # Validate against `model_spec_theme_level`
-            model_spec_theme_level <- object@bayesian_model_parameters@model_spec_theme_level
+            # Validate against model specification
+            theme_level_intercept <- object@theme_level_intercept
+            theme_level_slope <- object@theme_level_slope
+
+            chosen_combination <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+
             invalid_priors <- switch(
-              model_spec_theme_level,
-              "random_intercept" = {
+              chosen_combination,
+              "random_intercept_fixed_slope" = {
                 sapply(seq_along(distribution_choice), function(i) {
                   grepl("^theme", coef[i]) || grepl("^theme.*:market_factor_proxy$", coef[i])
                 })
               },
-              "fixed_intercepts" = {
+              "theme_specific_intercept_fixed_slope" = {
                 sapply(seq_along(distribution_choice), function(i) {
                   class[i] == "Intercept" || grepl("^theme.*:market_factor_proxy$", coef[i])
                 })
               },
-              "fixed_intercepts_and_slopes" = {
+              "theme_specific_intercept_theme_specific_slope" = {
                 sapply(seq_along(distribution_choice), function(i) {
                   class[i] == "Intercept" || coef[i] == "market_factor_proxy"
                 })
               },
-              "none" = {
+              "fixed_intercept_fixed_slope" = {
                 sapply(seq_along(distribution_choice), function(i) {
                   grepl("^theme", coef[i])
                 })
               },
-              stop("Invalid model_spec_theme_level.")
+              stop("Invalid model structure")
             )
 
             if (any(invalid_priors)) {
-              stop(sprintf("Some priors are invalid for model_spec_theme_level '%s'.", model_spec_theme_level))
+              stop(sprintf("Some priors are invalid for the chosen model structure at theme_level: '%s'.", chosen_combination))
             }
 
             # Generate `brmsprior` object

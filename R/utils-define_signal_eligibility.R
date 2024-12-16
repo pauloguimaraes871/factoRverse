@@ -2,8 +2,8 @@
 #'
 #' This function evaluates the eligibility of signals for inclusion in the investment universe based on various performance metrics and statistical adjustments. It performs initial data checks, computes performance metrics, applies statistical adjustments (both frequentist and Bayesian), and classifies signals according to the specified selection policy.
 #'
-#' @param selected_backtest_returns_corrected_positions_upd_ref A data frame containing backtest returns for various signals. The first column should be identifiers for the signals, and the subsequent columns should contain the returns data.
-#' @param selected_market_factor_proxy_upd_ref A data frame containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.
+#' @param selected_backtest_returns_corrected_positions_xts_upd_ref A xts containing backtest returns for various signals.
+#' @param selected_market_factor_proxy_xts_upd_ref A xts containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.
 #' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
 #' @param p_correction_method The method for p-value correction. Possible options are:
 #'\itemize{
@@ -26,30 +26,28 @@
 #' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
 #' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_d_ref` does not have any eligible signal, the signal
 #' with highest alpha t-stat will be elected.
-#' @param priors_m_upd_ref A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
+#' @param priors_m_df_upd_ref A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
 #' and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
 #' Should not be provided if `user_priors_list` is already being provided.
-#' When `priors_m_upd_ref` is provided, a lme4 model is fit to the data using the `lme4` package, and the priors are then estimated from the model.
+#' When `priors_m_df_upd_ref` is provided, a lme4 model is fit to the data using the `lme4` package, and the priors are then estimated from the model.
 #' In such case, ther user can control some aspects of the prior definition process with params: `model_spec_theme_level`, `v` and `lmer_optimizer`
 #'
-#' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
-#'   Options include:
-#'   - `"random_intercept"`: Includes random effects for the intercept at the theme level.
-#'   - `"fixed_intercepts"`: Uses fixed intercepts for each theme.
-#'   - `"fixed_intercepts_and_slopes"`: Includes fixed intercepts and slopes for each theme.
-#'   - `"none"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
-#'
-#' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
+#' @param model_structure A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.
+#' @param theme_level_intercept A character specifying the specification of effects of the intercept at the theme level.
+#' @param theme_level_slope A character specifying the specification of effects of the slope at the theme level.
+#' @param lmer_control Other additional parameters to be passed to `lme4::lmer` function.
 #' \itemize{
-#' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
-#'
-#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the `lme4::lmer` function.
+#' #' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
 #' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
 #' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
 #'
 #' \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 #' }
 #'
+#' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
+#' \itemize{
+#' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
+#'}
 #' @param brms_control Other additional parameters to be passed to brms::brm function:
 #' \itemize{
 #' \item{chains} Integer.
@@ -127,7 +125,7 @@
 #'
 #' #' @details
 #'
-#' When providing `priors_m_upd_ref` to set informative priors, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
+#' When providing `priors_m_df_upd_ref` to set informative priors, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
 #'
 #'   \itemize{
 #'     \item Priors for location parameters (e.g., intercepts, slopes) follow a normal distribution.
@@ -183,18 +181,21 @@
 #' @export
 define_signal_eligibility <- function(
   #Backtests
-  selected_backtest_returns_corrected_positions_upd_ref,
-  selected_market_factor_proxy_upd_ref,
+  selected_backtest_returns_corrected_positions_xts_upd_ref,
+  selected_market_factor_proxy_xts_upd_ref,
   #Data Avaialability
   data_availability_cutoff = 36,
   #P-Values
   p_correction_method = "none", signal_significance_threshold = 0.05,
   #Theme representativeness
   enable_theme_representativeness = TRUE,
+  #Model Structure
+  model_structure = "no_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
+  lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
   #Bayesian method
-  priors_m_upd_ref = NULL, user_priors = NULL, model_spec_theme_level = "random_intercept",
+  priors_m_df_upd_ref = NULL, user_priors = NULL,
   brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
-  prior_derivation_control = list(lmer_optimizer = "nloptwrap", half_t_df = 30, lmer_optimization_objective = "REML"),
+  prior_derivation_control = list(half_t_df = 30),
   #Signal Themes
   signal_themes_m_d_ref,
   #Winsorization
@@ -203,52 +204,42 @@ define_signal_eligibility <- function(
   verbose = TRUE, parallel = TRUE
 ){
 
+
   #Initial Preparations
-  ##################
-  ###Get objects from selected_backtest_returns_corrected_positions_upd_ref
-  selected_signals <- colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1]
-  current_date <- selected_backtest_returns_corrected_positions_upd_ref$dates[length(selected_backtest_returns_corrected_positions_upd_ref$dates)]
-  ###Get selected_market_factor_proxy_vector_upd_ref
-  selected_market_factor_proxy_vector_upd_ref <- selected_market_factor_proxy_upd_ref[,2]
-  ##################
+  ################
+  #Create model_spec_theme_level
+  if(model_structure == "partial_pooled"){
+    model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
+  } else {
+    model_spec_theme_level <- NULL
+  }
 
-  #Create signal_universe_m_d_ref
-  #################################
-  signal_universe_m_d_ref <- data.frame(
-    #ID
-    id = paste0(selected_signals,"-",current_date),
-    #Tickers
-    tickers = selected_signals,
-    #Dates
-    dates = current_date,
-    #Mean Active Return
-    mean_active_return = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x, na.rm = TRUE)),
-    #Tracking Error
-    tracking_error =  selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) sd(x, na.rm = TRUE)),
-    #Information Ratio
-    IR = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x, na.rm = TRUE)/sd(x, na.rm = TRUE)), #Calculate IR
-    #Alpha
-    alpha = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[1]}), #Calculate OLS Capm Alpha
-    #T-STAT
-    alpha_t_stat = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[5]}), #Get Alpha t-stat
-    #Beta
-    beta = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[2]}), #Get Beta
-    #Treynor
-    treynor = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
-      mean(x, na.rm = TRUE)/summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[2]}), #Get Treynor
-    #Alpha P-value
-    p_value = selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x){
-      summary(lm(x ~ selected_market_factor_proxy_vector_upd_ref))$coefficients[7]/2}), #Get one-sided alpha p-value
+  ################
 
-    row.names = NULL
-  )
+  #Summarize Backtest Performance
+  ################
+
+  #Get main stats of backtest
+  performance_summary_list <- summarize_performance(
+    #CAPM Model Specification
+    model_structure = model_structure, model_spec_theme_level = model_spec_theme_level, lmer_control = lmer_control,
+    #Themes
+    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    #Data
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    )
+
+    ###Extract
+    signal_universe_m_d_ref <- performance_summary_list$signal_universe_m_d_ref
+    frequentist_results <- performance_summary_list$hierarchical_frequentist_fit_results_list
+
+
+  ################
 
   #Correct based on backtest length
   ##Check if backtests have enough length to be considered
-  cutted_out_backtests <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(col){
+  cutted_out_backtests <- selected_backtest_returns_corrected_positions_xts_upd_ref[,-1] %>% apply(2, function(col){
     length(which(is.na(col))) >= data_availability_cutoff
   })
 
@@ -269,8 +260,12 @@ define_signal_eligibility <- function(
   #Frequentist version
   ######################
   if(!p_correction_method == "bayesian"){
-    #Frquentist adjustment
-    signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, method = p_correction_method) #Frequentist p-value adjust
+
+    ##Frequentist adjustment
+    p_value_df <- data.frame(p_value = unique(signal_universe_m_d_ref$p_value))
+    p_value_df$adjusted_p_value <- p.adjust(p_value_df$p_value, method = p_correction_method) #Adjust
+    ##Join
+    signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(p_value_df, by = "p_value") #Join p-value adjust
 
     #Elect final signal for signal_universe_m_d_ref
     signal_universe_m_d_ref[, "final_signal"] <- signal_transform(
@@ -295,8 +290,8 @@ define_signal_eligibility <- function(
 
     #Get parameters of prior_derivation_control
     half_t_df <- if(is.null(prior_derivation_control$half_t_df)) 30 else prior_derivation_control$half_t_df
-    lmer_optimizer <- if(is.null(prior_derivation_control$lmer_optimizer)) "nloptwrap" else prior_derivation_control$lmer_optimizer
-    lmer_optimization_objective <- if(is.null(prior_derivation_control$lmer_optimization_objective)) "REML" else prior_derivation_control$lmer_optimization_objective
+    lmer_optimizer <- if(is.null(lmer_control$lmer_optimizer)) "nloptwrap" else lmer_control$lmer_optimizer
+    lmer_optimization_objective <- if(is.null(lmer_control$lmer_optimization_objective)) "REML" else lmer_control$lmer_optimization_objective
 
     #Bayesian adjustment
     bayesian_adjustment_results_list <- bayesian_adjustment(
@@ -350,6 +345,7 @@ define_signal_eligibility <- function(
 
   signal_eligibility_results_list <- list()
   signal_eligibility_results_list$signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::select(-final_signal)
+  signal_eligibility_results_list$frequentist_results <- frequentist_results
   try(signal_eligibility_results_list$bayesian_results <- bayesian_results, silent = TRUE)
 
   return(signal_eligibility_results_list)

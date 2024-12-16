@@ -100,14 +100,14 @@
 #'
 #'
 #' @export
-derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_theme_level = "random_intercept",
+derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_theme_level,
                                                 half_t_df = 30, lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML"){
 
   #Initial checks
   ###Model specification correct
-  if(!model_spec_theme_level %in% c("random_intercept", "fixed_intercepts", "fixed_intercepts_and_slopes", "none")){
-    stop("Invalid model specification.
-           Please choose from 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes' or 'none'.")
+  if(!model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope",
+                                    "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
+    stop("Invalid model specification.")
   }
 
   ###Check if each ticker is uniquely linked to a single theme
@@ -130,24 +130,31 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     stop("optimization_objective should be either 'REML' or 'likelihood'.")
   } else {
     if(lmer_optimization_objective == "REML"){
-      REML <- TRUE
+      lmer_optimization_objective <- TRUE
     } else {
-      REML <- FALSE
+      lmer_optimization_objective <- FALSE
     }
   }
 
+  #Fit frequentist model to derive priors.
+  ###Set all NULL, but selected_backtest_returns_corrected_positions_m_upd_ref to skip data preprocessing
+  lmer_model <- fit_frequentist_hierarchical_model(signal_universe_m_d_ref = NULL,
+                                                  selected_backtest_returns_corrected_positions_m_upd_ref = priors_m_upd_ref,
+                                                  selected_backtest_returns_corrected_positions_upd_ref = NULL,
+                                                  selected_market_factor_proxy_vector_upd_ref = NULL,
+                                                  signal_themes_m_d_ref = NULL,
+                                                  model_spec_theme_level = model_spec_theme_level,
+                                                  lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective
+                                                  )$lmer_model
 
-  if(model_spec_theme_level == "random_intercept"){
-    # Random effects on intercept on theme level
-    lme_model <- lme4::lmer(active_return ~ market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers),
-                            data = priors_m_upd_ref, REML = REML,
-                            control = lme4::lmerControl(optimizer = lmer_optimizer))
+
+  if(model_spec_theme_level == "random_intercept_fixed_slope"){
 
     # Extract fixed effects estimates and standard errors from the model summary
-    fixed_effects <-  summary(lme_model)$coefficients
+    fixed_effects <-  summary(lmer_model)$coefficients
 
     # Extract random effects standard deviations from VarCorr
-    random_effects <- as.data.frame(lme4::VarCorr(lme_model))
+    random_effects <- as.data.frame(lme4::VarCorr(lmer_model))
 
     # Define informative priors
     priors <- c(
@@ -194,7 +201,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
       # Residual Standard Deviation Prior
       brms::set_prior(paste0("student_t(",half_t_df,",0,",
-               round(sigma(lme_model), 4), ")"),
+               round(sigma(lmer_model), 4), ")"),
         class = "sigma"
       )
     )
@@ -209,19 +216,14 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
   }
 
-  if(model_spec_theme_level == "fixed_intercepts"){
-    # Random effects on intercept on theme level
-      lme_model <- lme4::lmer(active_return ~ 0 + theme + market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
-                              data = priors_m_upd_ref, REML = REML,
-                              control = lme4::lmerControl(optimizer = lmer_optimizer))
-
+  if(model_spec_theme_level == "theme_specific_intercept_fixed_slope"){
 
     # Extract fixed effects estimates and standard errors from the model summary
-    fixed_effects <-  summary(lme_model)$coefficients
+    fixed_effects <-  summary(lmer_model)$coefficients
     theme_coefficients <- rownames(fixed_effects)[grepl("^theme", rownames(fixed_effects))]
 
     # Extract random effects standard deviations from VarCorr
-    random_effects <- as.data.frame(lme4::VarCorr(lme_model))
+    random_effects <- as.data.frame(lme4::VarCorr(lmer_model))
 
     # Dynamically construct priors for themes
     priors <- data.frame(
@@ -322,7 +324,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     priors <- rbind(
       priors,
       data.frame(
-        prior = paste0("student_t(",half_t_df,",0,", round(sigma(lme_model), 4), ")"),
+        prior = paste0("student_t(",half_t_df,",0,", round(sigma(lmer_model), 4), ")"),
         class = "sigma",
         coef = "",
         group = "",
@@ -359,19 +361,14 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     class(priors) <- c("brmsprior", class(priors))
   }
 
-  if(model_spec_theme_level == "fixed_intercepts_and_slopes"){
-    # Random effects on intercept on theme level
-    lme_model <- lme4::lmer(active_return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
-                            data = priors_m_upd_ref, REML = REML,
-                            control = lme4::lmerControl(optimizer = lmer_optimizer))
-
+  if(model_spec_theme_level == "theme_specific_intercept_theme_specific_slope"){
 
     # Extract fixed effects estimates and standard errors from the model summary
-    fixed_effects <-  summary(lme_model)$coefficients
+    fixed_effects <-  summary(lmer_model)$coefficients
     theme_coefficients <- rownames(fixed_effects)[grepl("^theme", rownames(fixed_effects))]
 
     # Extract random effects standard deviations from VarCorr
-    random_effects <- as.data.frame(lme4::VarCorr(lme_model))
+    random_effects <- as.data.frame(lme4::VarCorr(lmer_model))
 
     # Dynamically construct priors for themes
     priors <- data.frame(
@@ -452,7 +449,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     priors <- rbind(
       priors,
       data.frame(
-        prior = paste0("student_t(",half_t_df,",0,", round(sigma(lme_model), 4), ")"),
+        prior = paste0("student_t(",half_t_df,",0,", round(sigma(lmer_model), 4), ")"),
         class = "sigma",
         coef = "",
         group = "",
@@ -490,18 +487,13 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
   }
 
-  if(model_spec_theme_level == "none"){
-    # No effects on theme level
-    lme_model <- lme4::lmer(active_return ~ market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
-                            data = priors_m_upd_ref, REML = REML,
-                            control = lme4::lmerControl(optimizer = lmer_optimizer))
-
+  if(model_spec_theme_level == "fixed_intercept_fixed_slope"){
 
     # Extract fixed effects estimates and standard errors from the model summary
-    fixed_effects <-  summary(lme_model)$coefficients
+    fixed_effects <-  summary(lmer_model)$coefficients
 
     # Extract random effects standard deviations from VarCorr
-    random_effects <- as.data.frame(lme4::VarCorr(lme_model))
+    random_effects <- as.data.frame(lme4::VarCorr(lmer_model))
 
     # Define informative priors
     priors <- c(
@@ -538,7 +530,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
       # Residual Standard Deviation Prior
       brms::set_prior(paste0("student_t(",half_t_df,",0,",
-                             round(sigma(lme_model), 4), ")"),
+                             round(sigma(lmer_model), 4), ")"),
                       class = "sigma"
       )
     )
@@ -556,7 +548,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
   #Get final result
   elected_priors_list <- list(
     priors = priors,
-    model = lme_model
+    model = lmer_model
   )
 
   return(elected_priors_list)
