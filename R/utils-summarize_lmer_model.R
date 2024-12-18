@@ -64,7 +64,7 @@ summarize_lmer_model <- function(lmer_model, signal_universe_m_d_ref = NULL, sig
         ####Alpha Effects
         dplyr::rename(alpha_fixed_effect = fixed_effect,
                       alpha_fixed_effect_sd = fixed_effect_sd,
-                      alpha_p_value = fixed_effect_p_values)
+                      alpha_p_value = fixed_effect_p_values) #Two-sided -> one-sided
 
       ###Beta
       beta_fixed_effects_df <- fixed_effects_df %>% dplyr::filter(coef == "market_factor_proxy") %>% #Filter beta
@@ -81,7 +81,7 @@ summarize_lmer_model <- function(lmer_model, signal_universe_m_d_ref = NULL, sig
         ####Alpha Effects
         dplyr::rename(alpha_fixed_effect = fixed_effect,
                       alpha_fixed_effect_sd = fixed_effect_sd,
-                      alpha_p_value = fixed_effect_p_values)
+                      alpha_p_value = fixed_effect_p_values) #Two-sided -> one-sided
 
       ###Beta
       beta_fixed_effects_df <- fixed_effects_df %>% dplyr::filter(stringr::str_detect(coef, ":market_factor_proxy")) %>% #Filter beta
@@ -112,10 +112,11 @@ summarize_lmer_model <- function(lmer_model, signal_universe_m_d_ref = NULL, sig
 
   #################
 
-  ##Get sigma
+  ##Get sigma and geometric return
   #################
     y_sigma <- sigma(lmer_model)
-    y <- lmer_model@frame$return
+    y_mean_geom_df <- lmer_model@frame %>% dplyr::group_by(tickers) %>% dplyr::summarize(mean_geom = PerformanceAnalytics::mean.geometric(return/100)*100)
+    y_mean_geom_df <- dplyr::left_join(dplyr::select(signal_themes_m_d_ref, tickers), y_mean_geom_df, by = "tickers") #Re-order
 
   #################
 
@@ -144,10 +145,10 @@ summarize_lmer_model <- function(lmer_model, signal_universe_m_d_ref = NULL, sig
           specific_risk = y_sigma,
           #Other
           alpha_t_stat = individual_alpha/alpha_se,
-          treynor_ratio = PerformanceAnalytics::mean.geometric(y/100)*100/individual_beta,
+          treynor_ratio = y_mean_geom_df$mean_geom/individual_beta,
           appraisal_ratio = individual_alpha/specific_risk,
           #P-value
-          p_value = alpha_p_value
+          p_value = alpha_p_value/2
           ) %>%
         dplyr::select(-theme, -alpha_p_value , -alpha_fixed_effect, -alpha_fixed_effect_sd, -beta_fixed_effect, -beta_fixed_effect_sd,
                       -theme_alpha_random_effect, -alpha_random_effect, -beta_random_effect)
@@ -174,10 +175,10 @@ summarize_lmer_model <- function(lmer_model, signal_universe_m_d_ref = NULL, sig
           specific_risk = y_sigma,
           #Other
           alpha_t_stat = individual_alpha/alpha_se,
-          treynor_ratio = PerformanceAnalytics::mean.geometric(y/100)*100/individual_beta,
+          treynor_ratio = y_mean_geom_df$mean_geom/individual_beta,
           appraisal_ratio = individual_alpha/specific_risk,
           #P-value
-          p_value = alpha_p_value
+          p_value = alpha_p_value/2
           ) %>%
         dplyr::select(-theme, -alpha_p_value, -alpha_fixed_effect, -alpha_fixed_effect_sd, -beta_fixed_effect, -beta_fixed_effect_sd,
                       -alpha_random_effect, -beta_random_effect)
@@ -205,9 +206,9 @@ summarize_lmer_model <- function(lmer_model, signal_universe_m_d_ref = NULL, sig
             specific_risk = y_sigma,
             #Other
             alpha_t_stat = individual_alpha/alpha_se,
-            treynor_ratio = PerformanceAnalytics::mean.geometric(y/100)*100/individual_beta,
+            treynor_ratio = y_mean_geom_df$mean_geom/individual_beta,
             appraisal_ratio = individual_alpha/specific_risk,
-            p_value = alpha_p_value) %>%
+            p_value = alpha_p_value/2) %>%
           dplyr::select(-theme, -alpha_p_value ,-alpha_fixed_effect, -alpha_fixed_effect_sd, -beta_fixed_effect, -beta_fixed_effect_sd,
                         -alpha_random_effect, -beta_random_effect)
     }
@@ -234,10 +235,10 @@ summarize_lmer_model <- function(lmer_model, signal_universe_m_d_ref = NULL, sig
           specific_risk = y_sigma,
           #Other
           alpha_t_stat = individual_alpha/alpha_se,
-          treynor_ratio = PerformanceAnalytics::mean.geometric(y/100)*100/individual_beta,
+          treynor_ratio = y_mean_geom_df$mean_geom/individual_beta,
           appraisal_ratio = individual_alpha/specific_risk,
           #P-value
-          p_value = alpha_p_value) %>%
+          p_value = alpha_p_value/2) %>%
         dplyr::select(-theme, -alpha_p_value ,-alpha_fixed_effect, -alpha_fixed_effect_sd, -beta_fixed_effect,
                       -alpha_random_effect, -beta_random_effect)
     }

@@ -195,7 +195,7 @@ define_signal_eligibility <- function(
   model_structure = "no_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
   lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
   #Bayesian method
-  priors_m_df_upd_ref = NULL, user_priors = NULL,
+  priors_m_upd_ref = NULL, user_priors = NULL,
   brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
   prior_derivation_control = list(half_t_df = 30),
   #Signal Themes
@@ -229,7 +229,8 @@ define_signal_eligibility <- function(
     signal_themes_m_d_ref = signal_themes_m_d_ref,
     #Data
     selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    verbose = verbose
     )
 
     ###Extract

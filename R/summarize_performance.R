@@ -21,7 +21,8 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
                                   selected_market_factor_proxy_xts_upd_ref,
                                   model_structure, model_spec_theme_level, lmer_control,
                                   signal_themes_m_d_ref,
-                                  active_returns = TRUE
+                                  active_returns = TRUE,
+                                  verbose = TRUE
                                   ){
 
   #Initial Preparations
@@ -39,7 +40,8 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   base_signal_universe_m_d_ref <- create_performance_m_df(
     selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
     selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
-    active_returns = active_returns
+    active_returns = active_returns,
+    verbose = verbose
   )
 
   #################################
@@ -84,7 +86,9 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
       appraisal_ratio = as.numeric(
         (sapply(capm_model_list, function(x) summary(x)$coefficients[1]))/
         (sapply(capm_model_list, function(x) sigma(x)))
-      )
+      ),
+      ##P-value
+      p_value = as.numeric(sapply(capm_model_list, function(x) summary(x)$coefficients[7]))/2
     )
     #################
 
@@ -114,7 +118,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
       model_spec_theme_level = model_spec_theme_level,
       ###Lmer Control
       lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective, hierarchical_p_value_method = hierarchical_p_value_method
-      )
+    )
 
     #################
     pooled_CAPM_metrics_m_d_ref <- hierarchical_frequentist_fit_results_list$pooled_CAPM_metrics_m_d_ref

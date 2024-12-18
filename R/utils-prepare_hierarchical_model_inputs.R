@@ -37,9 +37,9 @@ prepare_hierarchical_model_inputs <- function(selected_backtest_returns_correcte
   if(is.null(selected_backtest_returns_corrected_positions_m_upd_ref)){
     ###Check if selected_backtest_returns_corrected_positions_m_upd_ref can be produced
     if(any(is.null(selected_backtest_returns_corrected_positions_xts_upd_ref), is.null(selected_market_factor_proxy_xts_upd_ref),
-           is.null(signal_themes_m_df))){
+           is.null(signal_themes_m_d_ref))){
       stop("selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref and
-           signal_themes_m_df must be provided when selected_backtest_returns_corrected_positions_m_upd_ref is not given.")
+           signal_themes_m_d_ref must be provided when selected_backtest_returns_corrected_positions_m_upd_ref is not given.")
     }
 
     ##Add market_factor_proxy

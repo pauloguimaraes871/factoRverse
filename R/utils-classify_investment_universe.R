@@ -171,15 +171,20 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
     try(pd_alpha <- universe_m_d_ref[,"pd_alpha"], silent = TRUE) #Get bayesian p-value
 
     #Bayesian choice
+    ###################
     if(exists("pd_alpha")){
       converted_pd_alpha <- 1 - pd_alpha #Convert to one-sided p-value (P = 1 - pd))
-      universe_m_d_ref$top_assets <- ifelse(converted_pd_alpha <= signal_significance_threshold, 1L, 0L)  #If PD > threshold, can asset alpha is positive
+        ###Define top assets
+        universe_m_d_ref$top_assets <- ifelse(converted_pd_alpha <= signal_significance_threshold, 1L, 0L)  #If PD > threshold, can asset alpha is positive
     }
     #Frequentist choice
+    ###################
     else {
       adjusted_p_value <- universe_m_d_ref[,"adjusted_p_value"] #Get frequentist adjusted p-value
-      alpha <- universe_m_d_ref[, "alpha"] #Get alpha
-      universe_m_d_ref$top_assets <- ifelse(adjusted_p_value <= signal_significance_threshold & alpha > 0, 1L, 0L) #If p-value < threshold, can assert alpha is positive
+      try(alpha <- universe_m_d_ref[, "alpha"], silent = TRUE) #Get no-pooled alpha
+      if(!exists("alpha")) alpha <-  universe_m_d_ref[, "individual_alpha"] #Get pooled alpha
+        ###Define top assets
+        universe_m_d_ref$top_assets <- ifelse(adjusted_p_value <= signal_significance_threshold & alpha > 0, 1L, 0L) #If p-value < threshold, can assert alpha is positive
     }
     #Check if there are eligible signals
     if(all(universe_m_d_ref$top_assets == 0)) stop("No signal was deemed significant.")
@@ -246,7 +251,7 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
       universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, max_abs_active_weight_individual_rule_m_d_ref, by = "tickers")
       #Rename
       colnames <- colnames(universe_m_d_ref)
-      colnames(universe_m_d_ref)[which(colnames == selected_benchmark)] <- paste0(selected_benchmark, "_bench_weights")
+      colnames(universe_m_d_ref)[which(colnames %in% selected_benchmark)] <- paste0(selected_benchmark, "_bench_weights")
 
     }
 

@@ -40,6 +40,7 @@ test_that("summarize_performance works for no_pooled model_structure", {
   beta <- vector()
   specific_risk <- vector()
   alpha_t_stat <- vector()
+  p_value <- vector()
   model_list <- list()
   for(j in 1:3){
     model_list[[j]] <- lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref)
@@ -48,6 +49,7 @@ test_that("summarize_performance works for no_pooled model_structure", {
     beta[j] <- coef(summary(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref)))[2,1]
     specific_risk[j] <- sigma(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref))
     alpha_t_stat[j] <- coef(summary(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref)))[1,3]
+    p_value[j] <- coef(summary(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref)))[1,4]/2
   }
   treynor_ratio <- apply(selected_backtest_returns_corrected_positions_xts_upd_ref, 2, function(x){
    PerformanceAnalytics::mean.geometric(x/100)*100
@@ -68,6 +70,7 @@ test_that("summarize_performance works for no_pooled model_structure", {
   expect_equal(result$signal_universe_m_d_ref$alpha_t_stat, alpha_t_stat)
   expect_equal(result$signal_universe_m_d_ref$treynor_ratio, as.numeric(treynor_ratio))
   expect_equal(result$signal_universe_m_d_ref$appraisal_ratio, as.numeric(app_ratio))
+  expect_equal(result$signal_universe_m_d_ref$p_value, as.numeric(p_value))
   expect_equal(result$frequentist_fit_results_list[[1]]$coefficients, model_list[[1]]$coefficients)
   expect_equal(result$frequentist_fit_results_list[[2]]$coefficients, model_list[[2]]$coefficients)
   expect_equal(result$frequentist_fit_results_list[[3]]$coefficients, model_list[[3]]$coefficients)
@@ -119,6 +122,7 @@ test_that("summarize_performance works for no_pooled model_structure and NAs", {
   beta <- vector()
   specific_risk <- vector()
   alpha_t_stat <- vector()
+  p_value <- vector()
   model_list <- list()
 
   alpha[1] <- coef(summary(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[3:4,1] ~ selected_market_factor_proxy_xts_upd_ref[3:4])))[1,1]
@@ -133,6 +137,7 @@ test_that("summarize_performance works for no_pooled model_structure and NAs", {
     beta[j] <- coef(summary(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref)))[2,1]
     specific_risk[j] <- sigma(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref))
     alpha_t_stat[j] <- coef(summary(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref)))[1,3]
+    p_value[j] <- coef(summary(lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref)))[1,4]/2
     model_list[[j]] <- lm(selected_backtest_returns_corrected_positions_xts_upd_ref[,j] ~ selected_market_factor_proxy_xts_upd_ref)
   }
   treynor_ratio <- apply(selected_backtest_returns_corrected_positions_xts_upd_ref, 2, function(x){
@@ -156,9 +161,134 @@ test_that("summarize_performance works for no_pooled model_structure and NAs", {
   expect_equal(result$signal_universe_m_d_ref$alpha_t_stat, alpha_t_stat)
   expect_equal(result$signal_universe_m_d_ref$treynor_ratio, as.numeric(treynor_ratio))
   expect_equal(result$signal_universe_m_d_ref$appraisal_ratio, as.numeric(app_ratio))
+  expect_equal(result$signal_universe_m_d_ref$p_value, as.numeric(p_value))
 
   expect_equal(as.numeric(result$frequentist_fit_results_list[[1]]$coefficients), as.numeric(model_list[[1]]$coefficients))
   expect_equal(result$frequentist_fit_results_list[[2]]$coefficients, model_list[[2]]$coefficients)
   expect_equal(result$frequentist_fit_results_list[[3]]$coefficients, model_list[[3]]$coefficients)
+
+})
+
+test_that("summarize_performance works for pooled model_structure", {
+
+  #Create signals_m_d_ref_test
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  #Get arguments
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+  signal_significance_threshold <- 0.05
+  p_correction_method <- "none"
+  data_availability_cutoff <- 3
+
+  #Select signals based on user choice
+  selected_signals_and_backtest_list <- select_and_correct_signals(
+    chosen_signals_and_positions = chosen_signals_and_positions,
+    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+
+  selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+
+  current_date <- "2001-06-15"
+
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+
+  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+
+  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date),]
+
+
+  #Create base_signal_universe_m_d_ref
+  base_signal_universe_m_d_ref <- create_performance_m_df(
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    active_returns = TRUE
+  )
+
+  #Fit frequentist hierarchical model
+  frequentist_fit_results_list <- fit_frequentist_hierarchical_model(
+    signal_universe_m_d_ref = base_signal_universe_m_d_ref,
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+    lmer_optimizer = "Nelder_Mead", lmer_optimization_objective = TRUE, hierarchical_p_value_method = "Satterthwaite"
+  )
+
+  expected_result <- dplyr::left_join(base_signal_universe_m_d_ref,
+                                      dplyr::select(frequentist_fit_results_list$pooled_CAPM_metrics_m_d_ref, -tickers, -dates), by = "id")
+
+  result <- summarize_performance(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                 selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+                                 model_structure = "pooled", model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+                                 lmer_control = list(lmer_optimizer = "Nelder_Mead", lmer_optimization_objective  = "REML", hierarchical_p_value_method = "Satterthwaite"),
+                                 signal_themes_m_d_ref = signal_themes_m_d_ref
+  )
+
+  expect_equal(result$signal_universe_m_d_ref, expected_result)
+
+})
+
+test_that("summarize_performance works for pooled model_structure and NAs", {
+
+  #Create signals_m_d_ref_test
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  #Get arguments
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+  signal_significance_threshold <- 0.05
+  p_correction_method <- "none"
+  data_availability_cutoff <- 3
+
+
+  #Select signals based on user choice
+  selected_signals_and_backtest_list <- select_and_correct_signals(
+    chosen_signals_and_positions = chosen_signals_and_positions,
+    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+
+  selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_backtest_returns_corrected_positions_xts$Gamma[c(1:4)] <- NA
+  selected_backtest_returns_corrected_positions_xts$Alpha[c(1:2)] <- NA
+
+  selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+
+  current_date <- "2001-06-15"
+
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+
+  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+
+  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date),]
+
+
+  #Create base_signal_universe_m_d_ref
+  base_signal_universe_m_d_ref <- create_performance_m_df(
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    active_returns = TRUE
+  )
+
+  #Fit frequentist hierarchical model
+  frequentist_fit_results_list <- fit_frequentist_hierarchical_model(
+    signal_universe_m_d_ref = base_signal_universe_m_d_ref,
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+    lmer_optimizer = "Nelder_Mead", lmer_optimization_objective = TRUE, hierarchical_p_value_method = "Satterthwaite"
+  )
+
+  expected_result <- dplyr::left_join(base_signal_universe_m_d_ref,
+                                      dplyr::select(frequentist_fit_results_list$pooled_CAPM_metrics_m_d_ref, -tickers, -dates), by = "id")
+
+  result <- summarize_performance(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                  selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+                                  model_structure = "pooled", model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+                                  lmer_control = list(lmer_optimizer = "Nelder_Mead", lmer_optimization_objective  = "REML", hierarchical_p_value_method = "Satterthwaite"),
+                                  signal_themes_m_d_ref = signal_themes_m_d_ref
+  )
+
+  expect_equal(result$signal_universe_m_d_ref, expected_result)
 
 })

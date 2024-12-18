@@ -511,11 +511,11 @@ run_ss_backtest_internal <- function(
         }
 
         #Subset signals, backtest, market factor and priors
-        selected_signals_corrected_positions_m_df_upd_ref <- selected_signals_corrected_positions_m_df[upd_ref,]
+        selected_signals_corrected_positions_m_upd_ref <- selected_signals_corrected_positions_m_df[upd_ref,]
         selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[which(zoo::index(selected_backtest_returns_corrected_positions_xts) <= current_date), ]
         selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[which(zoo::index(selected_market_factor_proxy_xts) <= current_date), ]
-        priors_m_df_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
-        signal_themes_m_df_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
+        priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
+        signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
 
 
         ###Elect signals
@@ -532,10 +532,10 @@ run_ss_backtest_internal <- function(
           #Model Structure
           model_structure = model_structure, theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope, lmer_control = lmer_control,
           #Bayesian method
-          priors_m_df_upd_ref = priors_m_df_upd_ref, user_priors = user_priors,
+          priors_m_upd_ref = priors_m_upd_ref, user_priors = user_priors,
           brms_control = brms_control, prior_derivation_control = prior_derivation_control,
           #Signal Themes
-          signal_themes_m_df_d_ref = signal_themes_m_df_d_ref,
+          signal_themes_m_d_ref = signal_themes_m_d_ref,
           #Winsorization
           lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
           #Verbose & Parallel

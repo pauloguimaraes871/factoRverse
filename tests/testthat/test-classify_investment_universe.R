@@ -25,7 +25,6 @@ test_that("classify_investment_universe works with no additional rules for signa
                                        theme = c("Value", "Momentum", "Value")
   )
 
-
   signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "none")
   signals_universe_m_d_ref$final_signal <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
 
@@ -44,7 +43,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   expected_results$is_eligible <- c(1,1,1)
 
   expect_equal(
-    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
+    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_significance_threshold,
                                  groups_m_d_ref = signals_groups_m_d_ref,
                                  concentration_constraint_policy = list(
                                    benchmark = c("theme_ss", "theme_sb"),
@@ -104,7 +103,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   expected_results$is_eligible <- c(0,0,1,1)
 
   expect_equal(
-    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
+    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_significance_threshold,
                                  groups_m_d_ref = signals_groups_m_d_ref,
                                  concentration_constraint_policy = list(
                                    benchmark = c("theme_ss", "theme_sb"),
@@ -173,7 +172,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   expected_results$is_eligible <- c(1,1,1)
 
   expect_equal(
-    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
+    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_significance_threshold,
                                  groups_m_d_ref = signals_groups_m_d_ref,
                                  concentration_constraint_policy = list(
                                    benchmark = c("theme_sb", "theme_ss"),

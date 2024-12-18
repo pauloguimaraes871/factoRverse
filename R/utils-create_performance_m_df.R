@@ -26,7 +26,7 @@
 #'   baseline_benchmark_xts_upd_ref = benchmark_xts
 #' )
 #' @export
-create_performance_m_df <- function(selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, active_returns){
+create_performance_m_df <- function(selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, active_returns, verbose = TRUE){
 
   #Initial Preparations
   ##################
@@ -66,201 +66,423 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     baseline_benchmark_xts_upd_ref_decimals <- (1 + baseline_benchmark_xts_upd_ref_decimals)/(1 + selected_market_factor_proxy_vector_upd_ref_decimals) - 1
   }
 
+      ###Message
+      if(verbose){
+        # Display the starting message based on the type of returns
+        if(active_returns) {
+          message("Starting to calculate active performance metrics...")
+        } else {
+          message("Starting to calculate raw performance metrics...")
+        }
+
+        # Identify columns where all values are positive
+        positive_columns <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)[
+          apply(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, 2, function(x) all(x > 0))
+        ]
+
+        # Check if there are any columns with all positive returns
+        if(length(positive_columns) > 0){
+          if(active_returns) {
+            message("The following active return columns do not contain negative values: ",
+                    paste(positive_columns, collapse = ", "))
+          } else {
+            message("The following raw return columns do not contain negative values: ",
+                    paste(positive_columns, collapse = ", "))
+          }
+        }
+      }
+
+
   #################
 
   ##Calculate base metrics using PerformanceAnalytics
   ##########################
 
-    ##Create own functions to deal with NAs properly (removing NAs only from that column)
-    ###Rache NA
-    RachevRatio_na <- function(returns){
-      sapply(returns, function(col){
-        clean_col <- stats::na.omit(col)
-        PerformanceAnalytics::RachevRatio(clean_col)
-      })
-    }
-    ###Modigliani NA
-    Modigliani_na <- function(returns, benchmark){
-      sapply(returns, function(col){
-        na_rows <- which(is.na(col))
-        clean_col <- if(length(na_rows) > 0) col[-na_rows] else col
-        clean_bench <- if(length(na_rows) > 0) benchmark[-na_rows] else benchmark
-        PerformanceAnalytics::Modigliani(Ra = clean_col, Rb = clean_bench)
-      })
-    }
-    ###MSquared NA
-    MSquared_na <- function(returns, benchmark){
-      sapply(returns, function(col){
-        na_rows <- which(is.na(col))
-        clean_col <- if(length(na_rows) > 0) col[-na_rows] else col
-        clean_bench <- if(length(na_rows) > 0) benchmark[-na_rows] else benchmark
-        PerformanceAnalytics::MSquared(Ra = clean_col, Rb = clean_bench)
-      })
+    ##Create own function to deal with NAs properly
+    safe_compute <- function(strategy_returns, metric_fun, multiply = 1, benchmark_returns = NULL, ...) {
+      if (!is.null(benchmark_returns)) {
+        # Align based on non-NA strategy returns
+        common_index <- zoo::index(strategy_returns)[!is.na(strategy_returns)]
+        strategy_clean <- strategy_returns[common_index]
+        benchmark_clean <- benchmark_returns[common_index]
+
+        # Check if data exists after alignment
+        if (length(strategy_clean) == 0 || length(benchmark_clean) == 0) {
+          return(NA)
+        }
+
+        # Attempt to compute the metric with benchmark
+        result <- tryCatch(
+          multiply * as.numeric(metric_fun(strategy_clean, benchmark_clean, ...)),
+          error = function(e) NA
+        )
+      } else {
+        # Remove NA values from strategy returns
+        strategy_clean <- strategy_returns[!is.na(strategy_returns)]
+
+        # Check if data exists after removing NAs
+        if (length(strategy_clean) == 0) {
+          return(NA)
+        }
+
+        # Attempt to compute the metric without benchmark
+        result <- tryCatch(
+          multiply * as.numeric(metric_fun(strategy_clean, ...)),
+          error = function(e) NA
+        )
+      }
+
+      return(result)
     }
 
+  ##Build the data.frame with column-wise computations
 
-   ##Create df
-    performance_m_df <- data.frame(
-      # ID
-      id = paste0(selected_signals, "-", current_date),
-      # Tickers
-      tickers = selected_signals,
-      # Dates
-      dates = current_date,
-      # Return Metrics
-      ## Mean Arithmetic Return
-      arith_mean_ret = as.numeric(
-        PerformanceAnalytics::Mean.arithmetic(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, na.rm = TRUE) * 100
-      ),
-      ## Mean Geometric Return
-      geom_mean_ret = as.numeric(
-        PerformanceAnalytics::mean.geometric(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, na.rm = TRUE) * 100
-      ),
-      ## Annualized Return
-      ann_ret = as.numeric(
-        PerformanceAnalytics::Return.annualized(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      # Risk Metrics
-      ## Standard Deviation
-      std_dev = as.numeric(
-        PerformanceAnalytics::StdDev(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      ## Annualized Standard Deviation
-      ann_std_dev = as.numeric(
-        PerformanceAnalytics::StdDev.annualized(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      ## Semi Deviation
-      semi_dev = as.numeric(
-        PerformanceAnalytics::SemiDeviation(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      ## Downside Deviation
-      down_dev = as.numeric(
-        PerformanceAnalytics::DownsideDeviation(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      ## Drawdown Deviation
-      dd_dev = as.numeric(
-        PerformanceAnalytics::DrawdownDeviation(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      ## Downside Frequency
-      down_freq = as.numeric(
-        PerformanceAnalytics::DownsideFrequency(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Expected Shortfall
-      exp_short = as.numeric(
-        PerformanceAnalytics::ETL(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100 * (-1)
-      ),
-      ## Pain Index (Average Absolute Drawdown)
-      pain = as.numeric(
-        PerformanceAnalytics::PainIndex(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      ## Ulcer Index (Average Squared Drawdown)
-      ulcer = as.numeric(
-        PerformanceAnalytics::UlcerIndex(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      ## Maximum Drawdown
-      max_dd = as.numeric(
-        PerformanceAnalytics::maxDrawdown(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) * 100
-      ),
-      ## Skewness
-      skew = as.numeric(
-        PerformanceAnalytics::skewness(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Kurtosis
-      kurt = as.numeric(
-        PerformanceAnalytics::kurtosis(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      # Ratios
-      ## Sharpe Ratio
-      sharpe_ratio = as.numeric(
-        PerformanceAnalytics::SharpeRatio(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, FUN = "StdDev")
-      ),
-      ## Annualized Sharpe Ratio
-      ann_sharpe_ratio = as.numeric(
-        PerformanceAnalytics::SharpeRatio.annualized(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Sharpe Ratio (Semi Deviation)
-      sharpe_ratio_semi_dev = as.numeric(
-        PerformanceAnalytics::SharpeRatio(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, FUN = "SemiSD")
-      ),
-      ## Sortino Ratio
-      sortino_ratio = as.numeric(
-        PerformanceAnalytics::SortinoRatio(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Annualized Burke Ratio
-      ann_burke_ratio = as.numeric(
-        PerformanceAnalytics::BurkeRatio(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, modified = TRUE)
-      ),
-      ## Inverted DRatio
-      inv_d_ratio = as.numeric(
-        1 / PerformanceAnalytics::DRatio(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Sharpe Ratio (Expected Shortfall)
-      sharpe_ratio_exp_short = as.numeric(
-        PerformanceAnalytics::SharpeRatio(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, FUN = "ES")
-      ),
-      ## Annualized Pain Ratio
-      ann_pain_ratio = as.numeric(
-        PerformanceAnalytics::PainRatio(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Annualized Martin Ratio
-      ann_martin_ratio = as.numeric(
-        PerformanceAnalytics::MartinRatio(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Annualized Calmar Ratio
-      ann_calmar_ratio = as.numeric(
-        PerformanceAnalytics::CalmarRatio(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Adjusted Sharpe Ratio
-      ann_adj_sharpe_ratio = as.numeric(
-        PerformanceAnalytics::AdjustedSharpeRatio(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Omega Ratio
-      omega = as.numeric(
-        PerformanceAnalytics::Omega(R = selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, L = 0)
-      ),
-      ## Rachev Ratio
-      rachev_ratio = as.numeric(
-        RachevRatio_na(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      # Other Metrics
-      ## Average Recovery
-      avg_dd_rec = as.numeric(
-        PerformanceAnalytics::AverageRecovery(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Average Drawdown Length
-      avg_dd_length = as.numeric(
-        PerformanceAnalytics::AverageLength(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Hurst Index
-      hurst = as.numeric(
-        PerformanceAnalytics::HurstIndex(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
-      ),
-      ## Probabilistic Sharpe Ratio
-      prob_sharpe_ratio = as.numeric(
-        apply(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, 2, function(x) {
-          na_rows <- which(is.na(x))
-          clean_x <- if(length(na_rows) > 0) x[-na_rows] else x
-          tryCatch(
-            PerformanceAnalytics::ProbSharpeRatio(clean_x, refSR = 0)$sr_prob,
-            error = function(e) NA
-          )
-        })
-      ),
-      # Benchmark-Relative Metrics
-      ## Modigliani Ratio
-      modigliani = as.numeric(
-        Modigliani_na(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals,
-                      baseline_benchmark_xts_upd_ref_decimals)*100
-      ),
-      ## MSquared Ratio
-      ann_modigliani =  as.numeric(
-        MSquared_na(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals,
-                    baseline_benchmark_xts_upd_ref_decimals)*100
+      ### Ensure Alignment of Strategy and Benchmark Data
+      ### This step assumes that both xts objects share the same date index or have overlapping dates.
+      ### Adjust as necessary based on your data structure.
+      common_dates <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) %in% zoo::index(baseline_benchmark_xts_upd_ref_decimals)
+      selected_returns_aligned <- selected_backtest_returns_corrected_positions_xts_upd_ref_decimals[common_dates]
+      benchmark_aligned <- baseline_benchmark_xts_upd_ref_decimals[common_dates]
+
+  ##Construct the performance_m_df Data Frame
+  performance_m_df <- data.frame(
+    # ID
+    id = paste0(selected_signals, "-", current_date),
+
+    # Tickers
+    tickers = selected_signals,
+
+    # Dates
+    dates = current_date,
+
+    # Return Metrics
+    ## Mean Arithmetic Return
+    arith_mean_ret = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::Mean.arithmetic,
+        multiply = 100,
+        na.rm = TRUE
       )
-    )
+    }),
+
+    ## Mean Geometric Return
+    geom_mean_ret = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::mean.geometric,
+        multiply = 100,
+        na.rm = TRUE
+      )
+    }),
+
+    ## Annualized Return
+    ann_ret = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::Return.annualized,
+        multiply = 100
+      )
+    }),
+
+    # Risk Metrics
+    ## Standard Deviation
+    std_dev = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::StdDev,
+        multiply = 100
+      )
+    }),
+
+    ## Annualized Standard Deviation
+    ann_std_dev = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::StdDev.annualized,
+        multiply = 100
+      )
+    }),
+
+    ## Semi Deviation
+    semi_dev = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::SemiDeviation,
+        multiply = 100
+      )
+    }),
+
+    ## Downside Deviation
+    down_dev = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::DownsideDeviation,
+        multiply = 100
+      )
+    }),
+
+    ## Drawdown Deviation
+    dd_dev = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::DrawdownDeviation,
+        multiply = 100
+      )
+    }),
+
+    ## Downside Frequency
+    down_freq = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::DownsideFrequency
+      )
+    }),
+
+    ## Expected Shortfall
+    exp_short = sapply(selected_returns_aligned, function(x) {
+      # Multiply by -100 as per original code
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::ETL,
+        multiply = -100
+      )
+    }),
+
+    ## Pain Index (Average Absolute Drawdown)
+    pain = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::PainIndex,
+        multiply = 100
+      )
+    }),
+
+    ## Ulcer Index (Average Squared Drawdown)
+    ulcer = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::UlcerIndex,
+        multiply = 100
+      )
+    }),
+
+    ## Maximum Drawdown
+    max_dd = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::maxDrawdown,
+        multiply = 100
+      )
+    }),
+
+    ## Skewness
+    skew = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::skewness
+      )
+    }),
+
+    ## Kurtosis
+    kurt = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::kurtosis
+      )
+    }),
+
+    # Ratios
+    ## Sharpe Ratio
+    sharpe_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::SharpeRatio,
+        FUN = "StdDev"
+      )
+    }),
+
+    ## Annualized Sharpe Ratio
+    ann_sharpe_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::SharpeRatio.annualized
+      )
+    }),
+
+    ## Sharpe Ratio (Semi Deviation)
+    sharpe_ratio_semi_dev = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::SharpeRatio,
+        FUN = "SemiSD"
+      )
+    }),
+
+    ## Sortino Ratio
+    sortino_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::SortinoRatio
+      )
+    }),
+
+    ## Annualized Burke Ratio
+    ann_burke_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::BurkeRatio,
+        modified = TRUE
+      )
+    }),
+
+    ## Inverted DRatio
+    inv_d_ratio = sapply(selected_returns_aligned, function(x) {
+      d_ratio <- safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::DRatio
+      )
+      if (is.na(d_ratio) || d_ratio == 0) {
+        return(NA)
+      } else {
+        return(1 / d_ratio)
+      }
+    }),
+
+    ## Sharpe Ratio (Expected Shortfall)
+    sharpe_ratio_exp_short = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::SharpeRatio,
+        FUN = "ES"
+      )
+    }),
+
+    ## Annualized Pain Ratio
+    ann_pain_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::PainRatio
+      )
+    }),
+
+    ## Annualized Martin Ratio
+    ann_martin_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::MartinRatio
+      )
+    }),
+
+    ## Annualized Calmar Ratio
+    ann_calmar_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::CalmarRatio
+      )
+    }),
+
+    ## Adjusted Sharpe Ratio
+    ann_adj_sharpe_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::AdjustedSharpeRatio
+      )
+    }),
+
+    ## Omega Ratio
+    omega = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::Omega,
+        L = 0
+      )
+    }),
+
+    ## Rachev Ratio
+    rachev_ratio = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::RachevRatio
+      )
+    }),
+
+    # Other Metrics
+    ## Average Recovery
+    avg_dd_rec = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::AverageRecovery
+      )
+    }),
+
+    ## Average Drawdown Length
+    avg_dd_length = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::AverageLength
+      )
+    }),
+
+    ## Hurst Index
+    hurst = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::HurstIndex
+      )
+    }),
+
+    ## Minimum Track Record (for statistical significance)
+    min_track_record = sapply(selected_returns_aligned, function(x) {
+      strategy_clean <- x[!is.na(x)]
+      if (length(strategy_clean) == 0) {
+        return(NA)
+      }
+      tryCatch(
+        PerformanceAnalytics::MinTrackRecord(strategy_clean, refSR = 0)$num_of_extra_obs_needed,
+        error = function(e) NA
+      )
+    }),
+
+    ## Probabilistic Sharpe Ratio
+    prob_sharpe_ratio = sapply(selected_returns_aligned, function(x) {
+      strategy_clean <- x[!is.na(x)]
+      if (length(strategy_clean) == 0) {
+        return(NA)
+      }
+      tryCatch(
+        PerformanceAnalytics::ProbSharpeRatio(strategy_clean, refSR = 0)$sr_prob,
+        error = function(e) NA
+      )
+    }),
+
+    # Benchmark-Relative Metrics
+    ## Modigliani Ratio (using single benchmark column)
+    modigliani = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::Modigliani,
+        multiply = 100,
+        benchmark_returns = benchmark_aligned
+      )
+    }),
+
+    ## MSquared Ratio (using single benchmark column)
+    ann_modigliani = sapply(selected_returns_aligned, function(x) {
+      safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::MSquared,
+        multiply = 100,
+        benchmark_returns = benchmark_aligned
+      )
+    })
+  )
+
 
   ##########################
 
+  ###Message
+  if(verbose) message("Performance metrics calculated.")
   return(performance_m_df)
 
 }
