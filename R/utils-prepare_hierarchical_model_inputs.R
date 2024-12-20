@@ -9,7 +9,7 @@
 #'
 #' @param selected_market_factor_proxy_xts_upd_ref A xts containing benchmark returns data.
 #'
-#' @param signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
+#' @param selected_signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
 #'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_xts_upd_ref`.
 #'   - `theme`: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
 #'   - `dates`: Dates corresponding to the backtest data.
@@ -17,7 +17,7 @@
 #'
 #' @param selected_backtest_returns_corrected_positions_m_upd_ref An already processed `selected_backtest_returns_corrected_positions_xts_upd_ref`.
 #' This data.frame is already in long format and contemplates both the `selected_market_factor_proxy_xts_upd_ref` and the
-#' `signal_themes_m_d_ref` theme data.
+#' `selected_signal_themes_m_d_ref` theme data.
 #'
 #' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
 #'   Options include:
@@ -28,7 +28,7 @@
 
 
 prepare_hierarchical_model_inputs <- function(selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, #Data
-                                              signal_themes_m_d_ref, selected_backtest_returns_corrected_positions_m_upd_ref = NULL, model_spec_theme_level){
+                                              selected_signal_themes_m_d_ref, selected_backtest_returns_corrected_positions_m_upd_ref = NULL, model_spec_theme_level){
 
   #Prepare objects
   ######################
@@ -37,9 +37,9 @@ prepare_hierarchical_model_inputs <- function(selected_backtest_returns_correcte
   if(is.null(selected_backtest_returns_corrected_positions_m_upd_ref)){
     ###Check if selected_backtest_returns_corrected_positions_m_upd_ref can be produced
     if(any(is.null(selected_backtest_returns_corrected_positions_xts_upd_ref), is.null(selected_market_factor_proxy_xts_upd_ref),
-           is.null(signal_themes_m_d_ref))){
+           is.null(selected_signal_themes_m_d_ref))){
       stop("selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref and
-           signal_themes_m_d_ref must be provided when selected_backtest_returns_corrected_positions_m_upd_ref is not given.")
+           selected_signal_themes_m_d_ref must be provided when selected_backtest_returns_corrected_positions_m_upd_ref is not given.")
     }
 
     ##Add market_factor_proxy
@@ -59,7 +59,7 @@ prepare_hierarchical_model_inputs <- function(selected_backtest_returns_correcte
     ##Add theme
     selected_backtest_returns_corrected_positions_m_upd_ref <- dplyr::left_join(
       selected_backtest_returns_corrected_positions_m_upd_ref,
-      signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
+      selected_signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
   }
 
   ###Create formula

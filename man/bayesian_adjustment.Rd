@@ -6,10 +6,10 @@
 \usage{
 bayesian_adjustment(
   signal_universe_m_d_ref,
-  selected_backtest_returns_corrected_positions_upd_ref,
-  selected_market_factor_proxy_vector_upd_ref,
+  selected_backtest_returns_corrected_positions_xts_upd_ref,
+  selected_market_factor_proxy_xts_upd_ref,
   priors_m_upd_ref = NULL,
-  model_spec_theme_level = "random_intercept",
+  model_spec_theme_level,
   user_priors = NULL,
   lmer_optimization_objective = "REML",
   half_t_df = 30,
@@ -33,16 +33,6 @@ A dataframe containing information about signals with the following columns:
 \item{is_eligible}{Logical indicator specifying if a signal is eligible for modeling.}
 \item{final_signal}{Finalized signals to be used in the Bayesian adjustment.}
 }}
-
-\item{selected_backtest_returns_corrected_positions_upd_ref}{Data frame.
-Contains backtest returns data for various signals. The structure should be:
-\describe{
-\item{First column}{Identifiers for the signals (e.g., \code{tickers}).}
-\item{Subsequent columns}{Returns data corresponding to each signal.}
-}}
-
-\item{selected_market_factor_proxy_vector_upd_ref}{Numeric vector.
-A vector containing benchmark returns data. This vector will be recycled to match the length of the backtest returns data.}
 
 \item{priors_m_upd_ref}{Data frame.
 A (meta)data frame with the following columns:
@@ -117,6 +107,16 @@ Indicates whether to enable parallel computation using the \code{future} package
 
 \item{verbose}{Logical.
 Indicates whether to print progress messages during the Bayesian model fitting process. If \code{TRUE}, progress messages are printed; otherwise, they are suppressed. Default is \code{TRUE}.}
+
+\item{selected_backtest_returns_corrected_positions_upd_ref}{Data frame.
+Contains backtest returns data for various signals. The structure should be:
+\describe{
+\item{First column}{Identifiers for the signals (e.g., \code{tickers}).}
+\item{Subsequent columns}{Returns data corresponding to each signal.}
+}}
+
+\item{selected_market_factor_proxy_vector_upd_ref}{Numeric vector.
+A vector containing benchmark returns data. This vector will be recycled to match the length of the backtest returns data.}
 }
 \value{
 A named list with the following components:

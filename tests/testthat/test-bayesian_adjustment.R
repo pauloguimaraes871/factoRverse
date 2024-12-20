@@ -2,7 +2,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
 
   #DGP 1
   ##############################
-  # DGP adapted for lme4::lmer(active_return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
+  # DGP adapted for lme4::lmer(return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
   set.seed(123)  # For reproducibility
 
   # Define themes and tickers
@@ -62,7 +62,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
 
   # Generate data
   n_obs_per_ticker <- 100
-  active_return <- numeric(n_obs_per_ticker * n_tickers)
+  return <- numeric(n_obs_per_ticker * n_tickers)
 
   # Predictor: market_factor_proxy
   market_factor_proxy <- rnorm(n_obs_per_ticker * n_tickers, mean = 0, sd = 1)
@@ -73,14 +73,14 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
     times = n_tickers
   )
 
-  # Loop to calculate active_return for each observation
-  for (i in seq_along(active_return)) {
+  # Loop to calculate return for each observation
+  for (i in seq_along(return)) {
     ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
     theme <- theme_ticker_combinations$theme[ticker_idx]
     ticker <- theme_ticker_combinations$ticker[ticker_idx]
 
     # Combine fixed effects, random effects, and residual noise
-    active_return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +  # Fixed intercept with variability
+    return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +  # Fixed intercept with variability
       rnorm(1, mean = theme_slopes_means[theme], sd = theme_slopes_sds[theme]) * market_factor_proxy[i] +  # Fixed slope with variability
       random_intercepts_tickers[ticker_idx] +                                                          # Random intercept for theme:tickers
       random_slopes_tickers[ticker_idx] * market_factor_proxy[i] +                                     # Random slope for theme:tickers
@@ -97,12 +97,12 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
     dates = dates,                          # Monthly dates
     theme = theme_names,                    # Theme names
     tickers = signal_names,                 # Signal names
-    active_return = active_return,          # Response variable
+    return = return,          # Response variable
     market_factor_proxy = market_factor_proxy  # Predictor variable
   )
 
   # Reorder columns as requested
-  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
 
   ##############################
@@ -141,47 +141,47 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   chosen_signals_and_positions <- rep("long", length(signal_columns))
   names(chosen_signals_and_positions) <- signal_columns
 
-  backtest_returns_df <- simulated_data %>% tidyr::pivot_wider(id_cols = dates, names_from = tickers, values_from = active_return)
+  backtest_returns_xts <- simulated_data %>% tidyr::pivot_wider(id_cols = dates, names_from = tickers, values_from = return)
+  backtest_returns_xts <- xts::as.xts(backtest_returns_xts[, -1], order.by = backtest_returns_xts$dates)
 
-  correct_names <-   colnames(backtest_returns_df)[-1]
+  correct_names <-   colnames(backtest_returns_xts)
   correct_names[chosen_signals_and_positions == "short"] <- paste0("low_", names(chosen_signals_and_positions)[chosen_signals_and_positions])
 
-  colnames(backtest_returns_df)[-1] <- correct_names
+  colnames(backtest_returns_xts) <- correct_names
 
 
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
+    signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_df = as.data.frame(backtest_returns_df)
+    backtest_returns_xts = backtest_returns_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_df <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_df
-  selected_market_factor_proxy_df <- data.frame(dates = dates, IBOV = rnorm(num_dates, 0, 1))
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_market_factor_proxy_xts <- xts::as.xts(data.frame(IBOV = rnorm(num_dates, 0, 1)), order.by = dates)
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
 
   #current info
-  current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_upd_ref <-
-    selected_backtest_returns_corrected_positions_df[which(selected_backtest_returns_corrected_positions_df$dates <= current_date), ]
+  current_date <- "1987-11-01"
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:95), ]
 
-  selected_market_factor_proxy_vector_upd_ref <-
-    selected_market_factor_proxy_df[which(selected_market_factor_proxy_df$dates <= current_date), "IBOV"]
+  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:95), "IBOV"]
 
-
-  signal_themes_m_d_ref <- tibble::enframe(theme_ticker_map, name = "theme", value = "tickers") %>%
+  selected_signal_themes_m_d_ref <- tibble::enframe(theme_ticker_map, name = "theme", value = "tickers") %>%
     tidyr::unnest(tickers) %>%
     dplyr::arrange(theme, tickers) %>% as.data.frame()
-  signal_themes_m_d_ref$dates <- current_date
-  signal_themes_m_d_ref$id <- paste0(signal_themes_m_d_ref$tickers,"-",signal_themes_m_d_ref$dates)
+  selected_signal_themes_m_d_ref$dates <- current_date
+  selected_signal_themes_m_d_ref$id <- paste0(selected_signal_themes_m_d_ref$tickers,"-",selected_signal_themes_m_d_ref$dates)
 
-  signal_themes_m_d_ref <- signal_themes_m_d_ref[, c("id", "tickers", "dates", "theme")]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_d_ref[, c("id", "tickers", "dates", "theme")]
 
 
   #Regularizer
   ##############################
-  # DGP adapted for lme4::lmer(active_return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
+  # DGP adapted for lme4::lmer(return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
   set.seed(123)  # For reproducibility
 
   # Define themes and tickers
@@ -218,7 +218,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   names(theme_slopes_sds) <- themes
 
   # Covariance matrix for random effects (intercept and slope) for theme:tickers
-  random_intercept_tickers_sd <- 0.00001    # SD for random intercepts at theme:tickers level
+  random_intercept_tickers_sd <- 0.001    # SD for random intercepts at theme:tickers level
   random_slope_tickers_sd <- 0.003      # SD for random slopes at theme:tickers level
   correlation <- 0.2                    # Correlation between random intercept and slope
   residual_sd <- 0.00450                 # SD for residual error
@@ -246,7 +246,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
 
   # Generate data
   n_obs_per_ticker <- 3000
-  active_return <- numeric(n_obs_per_ticker * n_tickers)
+  return <- numeric(n_obs_per_ticker * n_tickers)
 
   # Predictor: market_factor_proxy
   market_factor_proxy <- rnorm(n_obs_per_ticker * n_tickers, mean = 0, sd = 1)
@@ -257,14 +257,14 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
     times = n_tickers
   )
 
-  # Loop to calculate active_return for each observation
-  for (i in seq_along(active_return)) {
+  # Loop to calculate return for each observation
+  for (i in seq_along(return)) {
     ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
     theme <- theme_ticker_combinations$theme[ticker_idx]
     ticker <- theme_ticker_combinations$ticker[ticker_idx]
 
     # Combine fixed effects, random effects, and residual noise
-    active_return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +  # Fixed intercept with variability
+    return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +  # Fixed intercept with variability
       rnorm(1, mean = theme_slopes_means[theme], sd = theme_slopes_sds[theme]) * market_factor_proxy[i] +  # Fixed slope with variability
       random_intercepts_tickers[ticker_idx] +                                                          # Random intercept for theme:tickers
       random_slopes_tickers[ticker_idx] * market_factor_proxy[i] +                                     # Random slope for theme:tickers
@@ -281,12 +281,12 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
     dates = dates,                          # Monthly dates
     theme = theme_names,                    # Theme names
     tickers = signal_names,                 # Signal names
-    active_return = active_return,          # Response variable
+    return = return,          # Response variable
     market_factor_proxy = market_factor_proxy  # Predictor variable
   )
 
   # Reorder columns as requested
-  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
 
   ##############################
@@ -295,44 +295,36 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   priors_m_upd_ref <- priors_m_df[priors_m_df$dates <= current_date,]
 
   #expected results
-  expected_result <- data.frame(id = paste0(colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],"-",current_date),
-                                tickers = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1], dates = current_date)
-  expected_result$dates <- as.Date(expected_result$dates, format = "%Y-%m-%d")
-  expected_result$mean_active_return <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x))
-  expected_result$tracking_error <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) sd(x))
-  expected_result$IR <- expected_result$mean_active_return/expected_result$tracking_error
-
-  lm_model_summary_list <- purrr::map(lapply(selected_backtest_returns_corrected_positions_upd_ref[,-1], as.vector),
-                                      ~ summary(lm(.x ~ selected_market_factor_proxy_vector_upd_ref)))
-
-  expected_result$alpha <- sapply(lm_model_summary_list, function(x) x$coefficients[1])
-  expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
-  expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
-  expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
+  expected_result <- summarize_performance(
+    model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+    lmer_control = list(lmer_optimizer = "Nelder_Mead", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+  )
 
 
   future::plan("multisession")
   suppressWarnings(
-  result <- bayesian_adjustment(signal_universe_m_d_ref = expected_result,
-                                selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
-                                selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
+  result <- bayesian_adjustment(signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
+                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
                                 priors_m_upd_ref = priors_m_upd_ref, v = 30, lmer_optimizer = "Nelder_Mead", user_priors = NULL,
-                                model_spec_theme_level = "fixed_intercepts",
-                                signal_themes_m_d_ref = signal_themes_m_d_ref,
+                                model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 iter = 2000, warmup = 1000
                                 )
   )
 
-  comparison <- result$posterior_signal_universe_m_d_ref[,c("id", "tickers", "alpha", "alpha_t_stat",
-                                              "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_t_stat")]
+  comparison <- result$posterior_signal_universe_m_d_ref[,c("id", "tickers", "theme_alpha", "individual_alpha", "alpha_t_stat",
+                                                           "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_t_stat")]
 
   comparison_value <- comparison[which(comparison$tickers %in%
                                  theme_signal_combinations$signal[which(theme_signal_combinations$theme == "value")]
                                  ),]
 
   expect_lt(mean(comparison_value$posterior_alpha_t_stat), mean(comparison_value$alpha_t_stat))
-  expect_lt(mean(comparison_value$posterior_individual_alpha), mean(comparison_value$alpha))
+  expect_lt(mean(comparison_value$posterior_individual_alpha), mean(comparison_value$individual_alpha))
 
 
   comparison_growth <- comparison[which(comparison$tickers %in%
@@ -340,7 +332,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   ),]
 
   expect_lt(mean(comparison_growth$posterior_alpha_t_stat), mean(comparison_growth$alpha_t_stat))
-  expect_lt(mean(comparison_growth$posterior_individual_alpha), mean(comparison_growth$alpha))
+  expect_lt(mean(comparison_growth$posterior_individual_alpha), mean(comparison_growth$individual_alpha))
 
 
 
@@ -349,7 +341,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   ),]
 
   expect_lt(mean(comparison_momentum$posterior_alpha_t_stat), mean(comparison_momentum$alpha_t_stat))
-  expect_lt(mean(comparison_momentum$posterior_individual_alpha), mean(comparison_momentum$alpha))
+  expect_lt(mean(comparison_momentum$posterior_individual_alpha), mean(comparison_momentum$individual_alpha))
 
 
   comparison_defensive <- comparison[which(comparison$tickers %in%
@@ -357,7 +349,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   ),]
 
   expect_lt(mean(comparison_defensive$posterior_alpha_t_stat), mean(comparison_defensive$alpha_t_stat))
-  expect_lt(mean(comparison_defensive$posterior_individual_alpha), mean(comparison_defensive$alpha))
+  expect_lt(mean(comparison_defensive$posterior_individual_alpha), mean(comparison_defensive$individual_alpha))
 
 
 
@@ -366,7 +358,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   ),]
 
   expect_gt(mean(comparison_size$posterior_alpha_t_stat), mean(comparison_size$alpha_t_stat))
-  expect_gt(mean(comparison_size$posterior_individual_alpha), mean(comparison_size$alpha))
+  expect_gt(mean(comparison_size$posterior_individual_alpha), mean(comparison_size$individual_alpha))
 
 
 })

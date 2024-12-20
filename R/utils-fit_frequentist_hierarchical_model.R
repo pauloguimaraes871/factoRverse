@@ -13,7 +13,7 @@
 #' @param selected_market_factor_proxy_vector_upd_ref A numeric vector containing benchmark returns data. The vector will be recycled
 #'   to match the length of the backtest returns data.
 #'
-#' @param signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
+#' @param selected_signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
 #'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_upd_ref`.
 #'   - `theme`: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
 #'   - `dates`: Dates corresponding to the backtest data.
@@ -21,7 +21,7 @@
 #'
 #' @param selected_backtest_returns_corrected_positions_m_upd_ref An already processed `selected_backtest_returns_corrected_positions_upd_ref`.
 #' This data.frame is already in long format and contemplates both the `selected_market_factor_proxy_vector_upd_ref` and the
-#' `signal_themes_m_d_ref` theme data.
+#' `selected_signal_themes_m_d_ref` theme data.
 #'
 #' @param model_spec_theme_level A character string specifying the desired model structure.
 #'   Options include:
@@ -56,7 +56,7 @@
 fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
                                                selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, #Data
                                                selected_backtest_returns_corrected_positions_m_upd_ref = NULL,
-                                               signal_themes_m_d_ref, model_spec_theme_level, #Hierarhical Model spec
+                                               selected_signal_themes_m_d_ref, model_spec_theme_level, #Hierarhical Model spec
                                                lmer_optimizer, lmer_optimization_objective, hierarchical_p_value_method){ #lmer parameters
 
   #Check inputs
@@ -77,7 +77,7 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
     selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
     #If selected_backtest_returns_corrected_positions_m_upd_ref is not NULL, it will just give formulas
     selected_backtest_returns_corrected_positions_m_upd_ref = selected_backtest_returns_corrected_positions_m_upd_ref,
-    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_spec_theme_level = model_spec_theme_level
   )
 
@@ -104,7 +104,7 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
       #Data
       signal_universe_m_d_ref = signal_universe_m_d_ref,
       #Theme
-      signal_themes_m_d_ref = signal_themes_m_d_ref, model_spec_theme_level = model_spec_theme_level,
+      selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref, model_spec_theme_level = model_spec_theme_level,
       #How to calc p-value
       hierarchical_p_value_method = hierarchical_p_value_method
       )
@@ -115,7 +115,7 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
   #Final Obj
   frequentist_fit_results_list <- list(
     lmer_model = lmer_model,
-    pooled_CAPM_metrics_m_d_ref = pooled_CAPM_metrics_m_d_ref
+    pooled_CAPM_metrics_m_d_ref = if(is.null(signal_universe_m_d_ref)) NULL else pooled_CAPM_metrics_m_d_ref
   )
 
   return(frequentist_fit_results_list)

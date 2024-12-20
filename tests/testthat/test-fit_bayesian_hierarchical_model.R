@@ -8,42 +8,36 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
+    signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_df = backtest_returns_df
+    backtest_returns_xts = backtest_returns_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_df <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_df
-  selected_market_factor_proxy_df <- benchmark_returns_df[, c("dates", "IBOV")]
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
+
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_upd_ref <-
-    selected_backtest_returns_corrected_positions_df[which(selected_backtest_returns_corrected_positions_df$dates <= current_date), ]
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
 
-  selected_market_factor_proxy_vector_upd_ref <-
-    selected_market_factor_proxy_df[which(selected_market_factor_proxy_df$dates <= current_date), "IBOV"]
+  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
 
-  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
   priors_m_upd_ref <- priors_m_df[priors_m_df$dates <= current_date,]
 
   #expected results
-  expected_result <- data.frame(id = paste0(colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],"-",current_date),
-                                tickers = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1], dates = current_date)
-  expected_result$dates <- as.Date(expected_result$dates, format = "%Y-%m-%d")
-  expected_result$mean_active_return <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x))
-  expected_result$tracking_error <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) sd(x))
-  expected_result$IR <- expected_result$mean_active_return/expected_result$tracking_error
+  expected_result <- summarize_performance(
+    model_structure = "partial_pooled", model_spec_theme_level = "random_intercept_fixed_slope",
+    lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+  )
 
-  lm_model_summary_list <- purrr::map(lapply(selected_backtest_returns_corrected_positions_upd_ref[,-1], as.vector),
-                                      ~ summary(lm(.x ~ selected_market_factor_proxy_vector_upd_ref)))
-
-  expected_result$alpha <- sapply(lm_model_summary_list, function(x) x$coefficients[1])
-  expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
-  expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
-  expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
 
   #Inside Bayesian Adjustment
 
@@ -73,14 +67,14 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
-                                selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
-                                signal_universe_m_d_ref = expected_result,
-                                signal_themes_m_d_ref = signal_themes_m_d_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+                                signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
+                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
-                                model_spec_theme_level = "random_intercept",
+                                model_spec_theme_level = "random_intercept_fixed_slope",
                                 parallel = TRUE,
-                                chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.99, #MCMC parameters
+                                chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.85, #MCMC parameters
                                 verbose = TRUE
   )
 
@@ -90,25 +84,29 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(class(brm_model), "brmsfit")
   expect_equal(brm_model$family$family, "gaussian")
 
-  expect_true(all(brm_model$basis$levels$theme %in% unique(signal_themes_m_d_ref$theme)))
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(signal_themes_m_df$theme), "_" ,unique(signal_themes_m_df$tickers))))
+  expect_true(all(brm_model$basis$levels$theme %in% unique(selected_signal_themes_m_d_ref$theme)))
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_d_ref$theme), "_" ,unique(selected_signal_themes_m_d_ref$tickers))))
 
-  expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("active_return", "~", "market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers)"))
+  expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_upd_ref$market_factor_proxy <- selected_market_factor_proxy_vector_upd_ref
-  selected_backtest_returns_corrected_positions_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_upd_ref,
+  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref <- tibble::rownames_to_column(as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref),
+                                                                                        var = "dates")
+
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
                                                                                id.vars = c("dates", "market_factor_proxy"),
-                                                                               variable.name = "tickers", value.name = "active_return")
+                                                                               variable.name = "tickers", value.name = "return")
 
-  selected_backtest_returns_corrected_positions_upd_ref_long <-
-    selected_backtest_returns_corrected_positions_upd_ref_long[order(selected_backtest_returns_corrected_positions_upd_ref_long$dates),]
-  selected_backtest_returns_corrected_positions_upd_ref_long <- dplyr::left_join(selected_backtest_returns_corrected_positions_upd_ref_long,
-                                                                                 signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
-  selected_backtest_returns_corrected_positions_upd_ref_long$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_upd_ref_long$theme, "_", selected_backtest_returns_corrected_positions_upd_ref_long$tickers)
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <-
+    selected_backtest_returns_corrected_positions_m_upd_ref_long[order(selected_backtest_returns_corrected_positions_m_upd_ref_long$dates),]
 
-  selected_backtest_returns_corrected_positions_upd_ref_long <-
-    selected_backtest_returns_corrected_positions_upd_ref_long[, c("active_return", "market_factor_proxy", "theme", "tickers", "theme:tickers")]
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <- dplyr::left_join(selected_backtest_returns_corrected_positions_m_upd_ref_long,
+                                                                                 selected_signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
+  selected_backtest_returns_corrected_positions_m_upd_ref_long$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_m_upd_ref_long$theme, "_", selected_backtest_returns_corrected_positions_m_upd_ref_long$tickers)
+
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <-
+    selected_backtest_returns_corrected_positions_m_upd_ref_long[, c("return", "market_factor_proxy", "theme", "tickers", "theme:tickers")]
 
   # Copy the data frame
   data_only <- brm_model$data
@@ -116,7 +114,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   attr(data_only, "terms") <- NULL
   attr(data_only, "drop_unused_levels") <- NULL
   attr(data_only, "data_name") <- NULL
-  expect_equal(data_only, selected_backtest_returns_corrected_positions_upd_ref_long)
+  expect_equal(data_only, selected_backtest_returns_corrected_positions_m_upd_ref_long)
 
   # Extract priors set by the user in brm_model
   user_priors_in_model <- subset(brm_model$prior, source == "user")
@@ -127,24 +125,24 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   # Sort the data frames
   user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
 
-  user_priors_in_model_sorted$class[3] <- "cor"
-  user_priors_in_model_sorted$prior[3] <- "lkj(2)"
-  user_priors_in_model_sorted <- user_priors_in_model_sorted[c(2,1,5,6,4,7,3),]
-  rownames(user_priors_in_model_sorted) <- NULL
+  # Correct the class for the LKJ prior
+  user_priors_in_model_sorted$class[user_priors_in_model_sorted$prior == "lkj_corr_cholesky(2)"] <- "cor"
+  user_priors_in_model_sorted$prior[user_priors_in_model_sorted$prior == "lkj_corr_cholesky(2)"] <- "lkj(2)"
 
-
+  user_priors_in_model_sorted_2 <- user_priors_in_model_sorted[c(1,3,5,6,4,7,2),]
+  rownames(user_priors_in_model_sorted_2) <- NULL
   elected_priors_sorted <- elected_priors[, cols_to_compare]
-
   rownames(elected_priors_sorted) <- NULL
 
-  expect_equal(user_priors_in_model_sorted, elected_priors_sorted)
+  expect_equal(user_priors_in_model_sorted_2, elected_priors_sorted)
+
 
   #Check if MCMC parameters are right
-  expect_equal(brm_model$stan_args$control$adapt_delta, 0.99)
+  expect_equal(brm_model$stan_args$control$adapt_delta, 0.85)
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_vector_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_upd_ref) - 2)
+  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
@@ -201,10 +199,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     results$signal_universe_m_d_ref$pd_alpha[c(2,1,3)])
 
   #alpha t stat
-
-
-
-
   expect_equal(c(mean(expected_results$b_Intercept + expected_results$`r_theme[momentum,Intercept]` + expected_results$`r_theme:tickers[momentum_low_Beta,Intercept]`)/
                    sd(expected_results$b_Intercept + expected_results$`r_theme[momentum,Intercept]` + expected_results$`r_theme:tickers[momentum_low_Beta,Intercept]`),
 
@@ -254,41 +248,33 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_df = backtest_returns_df
+    signal_themes_m_df = signal_themes_m_df,
+    backtest_returns_xts = backtest_returns_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_df <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_df
-  selected_market_factor_proxy_df <- benchmark_returns_df[, c("dates", "IBOV")]
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_upd_ref <-
-    selected_backtest_returns_corrected_positions_df[which(selected_backtest_returns_corrected_positions_df$dates <= current_date), ]
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
 
-  selected_market_factor_proxy_vector_upd_ref <-
-    selected_market_factor_proxy_df[which(selected_market_factor_proxy_df$dates <= current_date), "IBOV"]
+  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
 
-  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
   priors_m_upd_ref <- priors_m_df[priors_m_df$dates <= current_date,]
 
   #expected results
-  expected_result <- data.frame(id = paste0(colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],"-",current_date),
-                                tickers = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1], dates = current_date)
-  expected_result$dates <- as.Date(expected_result$dates, format = "%Y-%m-%d")
-  expected_result$mean_active_return <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x))
-  expected_result$tracking_error <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) sd(x))
-  expected_result$IR <- expected_result$mean_active_return/expected_result$tracking_error
-
-  lm_model_summary_list <- purrr::map(lapply(selected_backtest_returns_corrected_positions_upd_ref[,-1], as.vector),
-                                      ~ summary(lm(.x ~ selected_market_factor_proxy_vector_upd_ref)))
-
-  expected_result$alpha <- sapply(lm_model_summary_list, function(x) x$coefficients[1])
-  expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
-  expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
-  expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
+  expected_result <- summarize_performance(
+    model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+    lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+  )
 
   #Inside Bayesian Adjustment
 
@@ -316,12 +302,12 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
-                                selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
-                                signal_universe_m_d_ref = expected_result,
-                                signal_themes_m_d_ref = signal_themes_m_d_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+                                signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
+                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
-                                model_spec_theme_level = "fixed_intercepts",
+                                model_spec_theme_level = "theme_specific_intercept_fixed_slope",
                                 parallel = TRUE,
                                 chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.99, #MCMC parameters
                                 verbose = TRUE
@@ -333,24 +319,27 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(class(brm_model), "brmsfit")
   expect_equal(brm_model$family$family, "gaussian")
 
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(signal_themes_m_df$theme), "_" ,unique(signal_themes_m_df$tickers))))
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_df$theme), "_" ,unique(selected_signal_themes_m_df$tickers))))
 
-  expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("active_return", "~", "0 + theme + market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
+  expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "0 + theme + market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_upd_ref$market_factor_proxy <- selected_market_factor_proxy_vector_upd_ref
-  selected_backtest_returns_corrected_positions_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_upd_ref,
+  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+    tibble::rownames_to_column(var = "dates")
+
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref_long,
                                                                                id.vars = c("dates", "market_factor_proxy"),
-                                                                               variable.name = "tickers", value.name = "active_return")
+                                                                               variable.name = "tickers", value.name = "return")
 
-  selected_backtest_returns_corrected_positions_upd_ref_long <-
-    selected_backtest_returns_corrected_positions_upd_ref_long[order(selected_backtest_returns_corrected_positions_upd_ref_long$dates),]
-  selected_backtest_returns_corrected_positions_upd_ref_long <- dplyr::left_join(selected_backtest_returns_corrected_positions_upd_ref_long,
-                                                                                 signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
-  selected_backtest_returns_corrected_positions_upd_ref_long$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_upd_ref_long$theme, "_", selected_backtest_returns_corrected_positions_upd_ref_long$tickers)
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <-
+    selected_backtest_returns_corrected_positions_m_upd_ref_long[order(selected_backtest_returns_corrected_positions_m_upd_ref_long$dates),]
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <- dplyr::left_join(selected_backtest_returns_corrected_positions_m_upd_ref_long,
+                                                                                   selected_signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
+  selected_backtest_returns_corrected_positions_m_upd_ref_long$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_m_upd_ref_long$theme, "_", selected_backtest_returns_corrected_positions_m_upd_ref_long$tickers)
 
-  selected_backtest_returns_corrected_positions_upd_ref_long <-
-    selected_backtest_returns_corrected_positions_upd_ref_long[, c("active_return", "theme",  "market_factor_proxy", "tickers", "theme:tickers")]
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <-
+    selected_backtest_returns_corrected_positions_m_upd_ref_long[, c("return", "theme",  "market_factor_proxy", "tickers", "theme:tickers")]
 
   # Copy the data frame
   data_only <- brm_model$data
@@ -358,7 +347,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   attr(data_only, "terms") <- NULL
   attr(data_only, "drop_unused_levels") <- NULL
   attr(data_only, "data_name") <- NULL
-  expect_equal(data_only, selected_backtest_returns_corrected_positions_upd_ref_long)
+  expect_equal(data_only, selected_backtest_returns_corrected_positions_m_upd_ref_long)
 
   # Extract priors set by the user in brm_model
   user_priors_in_model <- subset(brm_model$prior, source == "user")
@@ -369,24 +358,23 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   # Sort the data frames
   user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
 
-  user_priors_in_model_sorted$class[4] <- "cor"
-  user_priors_in_model_sorted$prior[4] <- "lkj(2)"
-  user_priors_in_model_sorted <- user_priors_in_model_sorted[c(3,2,1,5,6,7,4),]
-  rownames(user_priors_in_model_sorted) <- NULL
+  user_priors_in_model_sorted$class[1] <- "cor"
+  user_priors_in_model_sorted$prior[1] <- "lkj(2)"
+  user_priors_in_model_sorted2 <- user_priors_in_model_sorted[c(4,3,2,5,6,7,1),]
+  rownames(user_priors_in_model_sorted2) <- NULL
 
 
   elected_priors_sorted <- elected_priors[, cols_to_compare]
-
   rownames(elected_priors_sorted) <- NULL
 
-  expect_equal(user_priors_in_model_sorted, elected_priors_sorted)
+  expect_equal(user_priors_in_model_sorted2, elected_priors_sorted)
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.99)
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_vector_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_upd_ref) - 2)
+  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
@@ -479,41 +467,33 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_df = backtest_returns_df
+    signal_themes_m_df = signal_themes_m_df,
+    backtest_returns_xts = backtest_returns_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_df <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_df
-  selected_market_factor_proxy_df <- benchmark_returns_df[, c("dates", "IBOV")]
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_upd_ref <-
-    selected_backtest_returns_corrected_positions_df[which(selected_backtest_returns_corrected_positions_df$dates <= current_date), ]
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
 
-  selected_market_factor_proxy_vector_upd_ref <-
-    selected_market_factor_proxy_df[which(selected_market_factor_proxy_df$dates <= current_date), "IBOV"]
+  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
 
-  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
   priors_m_upd_ref <- priors_m_df[priors_m_df$dates <= current_date,]
 
   #expected results
-  expected_result <- data.frame(id = paste0(colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],"-",current_date),
-                                tickers = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1], dates = current_date)
-  expected_result$dates <- as.Date(expected_result$dates, format = "%Y-%m-%d")
-  expected_result$mean_active_return <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x))
-  expected_result$tracking_error <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) sd(x))
-  expected_result$IR <- expected_result$mean_active_return/expected_result$tracking_error
-
-  lm_model_summary_list <- purrr::map(lapply(selected_backtest_returns_corrected_positions_upd_ref[,-1], as.vector),
-                                      ~ summary(lm(.x ~ selected_market_factor_proxy_vector_upd_ref)))
-
-  expected_result$alpha <- sapply(lm_model_summary_list, function(x) x$coefficients[1])
-  expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
-  expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
-  expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
+  expected_result <- summarize_performance(
+    model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
+    lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+  )
 
   #Inside Bayesian Adjustment
 
@@ -541,12 +521,12 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
-                                selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
-                                signal_universe_m_d_ref = expected_result,
-                                signal_themes_m_d_ref = signal_themes_m_d_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+                                signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
+                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
-                                model_spec_theme_level = "fixed_intercepts_and_slopes",
+                                model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
                                 parallel = TRUE,
                                 chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.98, #MCMC parameters
                                 verbose = TRUE
@@ -558,24 +538,26 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(class(brm_model), "brmsfit")
   expect_equal(brm_model$family$family, "gaussian")
 
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(signal_themes_m_df$theme), "_" ,unique(signal_themes_m_df$tickers))))
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_df$theme), "_" ,unique(selected_signal_themes_m_df$tickers))))
 
-  expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("active_return", "~", "0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
+  expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_upd_ref$market_factor_proxy <- selected_market_factor_proxy_vector_upd_ref
-  selected_backtest_returns_corrected_positions_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_upd_ref,
+  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+    tibble::rownames_to_column(var = "dates")
+  selected_backtest_returns_corrected_positions_m_upd_ref <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
                                                                                id.vars = c("dates", "market_factor_proxy"),
-                                                                               variable.name = "tickers", value.name = "active_return")
+                                                                               variable.name = "tickers", value.name = "return")
 
-  selected_backtest_returns_corrected_positions_upd_ref_long <-
-    selected_backtest_returns_corrected_positions_upd_ref_long[order(selected_backtest_returns_corrected_positions_upd_ref_long$dates),]
-  selected_backtest_returns_corrected_positions_upd_ref_long <- dplyr::left_join(selected_backtest_returns_corrected_positions_upd_ref_long,
-                                                                                 signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
-  selected_backtest_returns_corrected_positions_upd_ref_long$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_upd_ref_long$theme, "_", selected_backtest_returns_corrected_positions_upd_ref_long$tickers)
+  selected_backtest_returns_corrected_positions_m_upd_ref <-
+    selected_backtest_returns_corrected_positions_m_upd_ref[order(selected_backtest_returns_corrected_positions_m_upd_ref$dates),]
+  selected_backtest_returns_corrected_positions_m_upd_ref <- dplyr::left_join(selected_backtest_returns_corrected_positions_m_upd_ref,
+                                                                              selected_signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
+  selected_backtest_returns_corrected_positions_m_upd_ref$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_m_upd_ref$theme, "_", selected_backtest_returns_corrected_positions_m_upd_ref$tickers)
 
-  selected_backtest_returns_corrected_positions_upd_ref_long <-
-    selected_backtest_returns_corrected_positions_upd_ref_long[, c("active_return", "theme",  "market_factor_proxy", "tickers", "theme:tickers")]
+  selected_backtest_returns_corrected_positions_m_upd_ref <-
+    selected_backtest_returns_corrected_positions_m_upd_ref[, c("return", "theme",  "market_factor_proxy", "tickers", "theme:tickers")]
 
   # Copy the data frame
   data_only <- brm_model$data
@@ -583,7 +565,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   attr(data_only, "terms") <- NULL
   attr(data_only, "drop_unused_levels") <- NULL
   attr(data_only, "data_name") <- NULL
-  expect_equal(data_only, selected_backtest_returns_corrected_positions_upd_ref_long)
+  expect_equal(data_only, selected_backtest_returns_corrected_positions_m_upd_ref)
 
   # Extract priors set by the user in brm_model
   user_priors_in_model <- subset(brm_model$prior, source == "user")
@@ -594,24 +576,23 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   # Sort the data frames
   user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
 
-  user_priors_in_model_sorted$class[5] <- "cor"
-  user_priors_in_model_sorted$prior[5] <- "lkj(2)"
-  user_priors_in_model_sorted <- user_priors_in_model_sorted[c(3,1,4,2,6,7,8,5),]
-  rownames(user_priors_in_model_sorted) <- NULL
+  user_priors_in_model_sorted$class[1] <- "cor"
+  user_priors_in_model_sorted$prior[1] <- "lkj(2)"
+  user_priors_in_model_sorted2 <- user_priors_in_model_sorted[c(4,2,5,3,6,7,8,1),]
+  rownames(user_priors_in_model_sorted2) <- NULL
 
 
   elected_priors_sorted <- elected_priors[, cols_to_compare]
-
   rownames(elected_priors_sorted) <- NULL
 
-  expect_equal(user_priors_in_model_sorted, elected_priors_sorted)
+  expect_equal(user_priors_in_model_sorted2, elected_priors_sorted)
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_vector_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_upd_ref) - 2)
+  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
@@ -704,42 +685,34 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
+    signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_df = backtest_returns_df
+    backtest_returns_xts = backtest_returns_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_df <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_df
-  selected_market_factor_proxy_df <- benchmark_returns_df[, c("dates", "IBOV")]
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_upd_ref <-
-    selected_backtest_returns_corrected_positions_df[which(selected_backtest_returns_corrected_positions_df$dates <= current_date), ]
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
 
-  selected_market_factor_proxy_vector_upd_ref <-
-    selected_market_factor_proxy_df[which(selected_market_factor_proxy_df$dates <= current_date), "IBOV"]
+  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
 
-  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
   priors_m_upd_ref <- priors_m_df[priors_m_df$dates <= current_date,]
 
   #expected results
-  expected_result <- data.frame(id = paste0(colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],"-",current_date),
-                                tickers = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1], dates = current_date)
-  expected_result$dates <- as.Date(expected_result$dates, format = "%Y-%m-%d")
-  expected_result$mean_active_return <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) mean(x))
-  expected_result$tracking_error <- selected_backtest_returns_corrected_positions_upd_ref[,-1] %>% apply(2, function(x) sd(x))
-  expected_result$IR <- expected_result$mean_active_return/expected_result$tracking_error
-
-  lm_model_summary_list <- purrr::map(lapply(selected_backtest_returns_corrected_positions_upd_ref[,-1], as.vector),
-                                      ~ summary(lm(.x ~ selected_market_factor_proxy_vector_upd_ref)))
-
-  expected_result$alpha <- sapply(lm_model_summary_list, function(x) x$coefficients[1])
-  expected_result$alpha_t_stat <- sapply(lm_model_summary_list, function(x) x$coefficients[5])
-  expected_result$beta <- sapply(lm_model_summary_list, function(x) x$coefficients[2])
-  expected_result$treynor <- expected_result$mean_active_return/expected_result$beta
-  expected_result$p_value <- sapply(lm_model_summary_list, function(x) x$coefficients[7])/2
+  expected_result <- summarize_performance(
+    model_structure = "partial_pooled", model_spec_theme_level = "fixed_intercept_fixed_slope",
+    lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+  )
 
   #Inside Bayesian Adjustment
 
@@ -764,12 +737,12 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
-                                selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
-                                signal_universe_m_d_ref = expected_result,
-                                signal_themes_m_d_ref = signal_themes_m_d_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+                                signal_universe_m_d_ref =  expected_result$signal_universe_m_d_ref,
+                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
-                                model_spec_theme_level = "none",
+                                model_spec_theme_level = "fixed_intercept_fixed_slope",
                                 parallel = TRUE,
                                 chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.98, #MCMC parameters
                                 verbose = TRUE
@@ -781,24 +754,27 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(class(brm_model), "brmsfit")
   expect_equal(brm_model$family$family, "gaussian")
 
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(signal_themes_m_df$theme), "_" ,unique(signal_themes_m_df$tickers))))
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_df$theme), "_" ,unique(selected_signal_themes_m_df$tickers))))
 
-  expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("active_return", "~", "market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
+  expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_upd_ref$market_factor_proxy <- selected_market_factor_proxy_vector_upd_ref
-  selected_backtest_returns_corrected_positions_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_upd_ref,
-                                                                               id.vars = c("dates", "market_factor_proxy"),
-                                                                               variable.name = "tickers", value.name = "active_return")
+  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+    tibble::rownames_to_column(var = "dates")
 
-  selected_backtest_returns_corrected_positions_upd_ref_long <-
-    selected_backtest_returns_corrected_positions_upd_ref_long[order(selected_backtest_returns_corrected_positions_upd_ref_long$dates),]
-  selected_backtest_returns_corrected_positions_upd_ref_long <- dplyr::left_join(selected_backtest_returns_corrected_positions_upd_ref_long,
-                                                                                 signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
-  selected_backtest_returns_corrected_positions_upd_ref_long$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_upd_ref_long$theme, "_", selected_backtest_returns_corrected_positions_upd_ref_long$tickers)
+  selected_backtest_returns_corrected_positions_m_upd_ref <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
+                                                                            id.vars = c("dates", "market_factor_proxy"),
+                                                                            variable.name = "tickers", value.name = "return")
 
-  selected_backtest_returns_corrected_positions_upd_ref_long <-
-    selected_backtest_returns_corrected_positions_upd_ref_long[, c("active_return", "market_factor_proxy", "theme", "tickers", "theme:tickers")]
+  selected_backtest_returns_corrected_positions_m_upd_ref <-
+    selected_backtest_returns_corrected_positions_m_upd_ref[order(selected_backtest_returns_corrected_positions_m_upd_ref$dates),]
+
+  selected_backtest_returns_corrected_positions_m_upd_ref <- dplyr::left_join(selected_backtest_returns_corrected_positions_m_upd_ref,
+                                                                              selected_signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
+  selected_backtest_returns_corrected_positions_m_upd_ref$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_m_upd_ref$theme, "_", selected_backtest_returns_corrected_positions_m_upd_ref$tickers)
+
+  selected_backtest_returns_corrected_positions_m_upd_ref <- selected_backtest_returns_corrected_positions_m_upd_ref[, c("return", "market_factor_proxy", "theme", "tickers", "theme:tickers")]
 
   # Copy the data frame
   data_only <- brm_model$data
@@ -806,7 +782,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   attr(data_only, "terms") <- NULL
   attr(data_only, "drop_unused_levels") <- NULL
   attr(data_only, "data_name") <- NULL
-  expect_equal(data_only, selected_backtest_returns_corrected_positions_upd_ref_long)
+  expect_equal(data_only, selected_backtest_returns_corrected_positions_m_upd_ref)
 
   # Extract priors set by the user in brm_model
   user_priors_in_model <- subset(brm_model$prior, source == "user")
@@ -817,24 +793,23 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   # Sort the data frames
   user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
 
-  user_priors_in_model_sorted$class[3] <- "cor"
-  user_priors_in_model_sorted$prior[3] <- "lkj(2)"
-  user_priors_in_model_sorted <- user_priors_in_model_sorted[c(2,1,4,5,6,3),]
-  rownames(user_priors_in_model_sorted) <- NULL
+  user_priors_in_model_sorted$class[2] <- "cor"
+  user_priors_in_model_sorted$prior[2] <- "lkj(2)"
+  user_priors_in_model_sorted2 <- user_priors_in_model_sorted[c(1,3,4,5,6,2),]
+  rownames(user_priors_in_model_sorted2) <- NULL
 
 
   elected_priors_sorted <- elected_priors[, cols_to_compare]
-
   rownames(elected_priors_sorted) <- NULL
 
-  expect_equal(user_priors_in_model_sorted, elected_priors_sorted)
+  expect_equal(user_priors_in_model_sorted2, elected_priors_sorted)
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_vector_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_upd_ref) - 2)
+  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws

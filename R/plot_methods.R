@@ -418,7 +418,7 @@ setMethod(
 
         # Choose a color palette (e.g., "Set3" for distinct colors) or any other palette with enough colors
         num_series <- ncol(df_wide) - 1  # Number of unique time series (columns in df_wide excluding 'dates')
-        color_palette <- RColorBrewer::brewer.pal(min(num_series, 12), "Set3")  # Adjust palette size to number of series
+        color_palette <- suppressWarnings(RColorBrewer::brewer.pal(min(num_series, 12), "Set3"))  # Adjust palette size to number of series
 
         # If more than 12 series, extend the palette by repeating colors (or use a larger palette if available)
         if (num_series > 12) {
@@ -527,7 +527,7 @@ setMethod(
 
         # Generate color palette based on the number of unique categories
         num_categories <- length(unique(df[[clustering_variables]]))
-        base_palette <- RColorBrewer::brewer.pal(min(num_categories, 12), "Set3")
+        base_palette <- supressWarnings(RColorBrewer::brewer.pal(min(num_categories, 12), "Set3"))
         color_palette <- if (num_categories > 12) {
           grDevices::colorRampPalette(base_palette)(num_categories)
         } else {
@@ -3540,7 +3540,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Box-Plot by Eligibility") {
     # Plot 6: Box-Plot by Eligibility
-    final_signal_universe_m_d_ref$eligibility <- ifelse(final_signal_universe_m_d_ref$is_eligible == 1, "elected", "not_elected")
+    final_signal_universe_m_d_ref@data$eligibility <- ifelse(final_signal_universe_m_d_ref@data$is_eligible == 1, "elected", "not_elected")
 
     plot_type <- "boxplot"
     clustering_variables <- "eligibility"
@@ -3549,10 +3549,10 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Waterfall Plot by Ticker") {
     # Plot 7: Waterfall Plot by Ticker
-    final_signal_universe_m_d_ref <- final_signal_universe_m_d_ref %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(object@selected_market_factor_proxy_upd_ref[,2]),
-                    beta_x_mean_market_factor_proxy = x * mean_market_factor_proxy,
-                    residual = mean_active_return - alpha - beta_x_mean_market_factor_proxy)
+    final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
+      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_xts),
+                    beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
+                    residual = specific_risk)
 
     plot_type <- "waterfall"
     clustering_variables <- "tickers"
@@ -3565,9 +3565,9 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   } else if (plot_name == "Waterfall Plot by Theme") {
     # Plot 8: Waterfall Plot by Ticker
     final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_upd_ref[,2]),
+      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_xts),
                     beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
-                    residual = mean_active_return - alpha - beta_x_mean_market_factor_proxy)
+                    residual = specific_risk)
 
     plot_type <- "waterfall"
     clustering_variables <- "theme"
@@ -4532,7 +4532,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     # Automatically generate distinct colors for tickers
     num_tickers <- length(unique(plot_data$tickers))
-    palette <- RColorBrewer::brewer.pal(min(max(num_tickers, 3), 12), "Set3")  # Adjust palette as needed
+    palette <- suppressWarnings(RColorBrewer::brewer.pal(min(max(num_tickers, 3), 12), "Set3"))  # Adjust palette as needed
     ticker_colors <- setNames(palette, unique(plot_data$tickers))
 
     # Create the boxplot with consistent aesthetics

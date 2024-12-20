@@ -5,18 +5,21 @@
 \title{Define Signal Eligibility}
 \usage{
 define_signal_eligibility(
-  selected_backtest_returns_corrected_positions_upd_ref,
-  selected_market_factor_proxy_upd_ref,
+  selected_backtest_returns_corrected_positions_xts_upd_ref,
+  selected_market_factor_proxy_xts_upd_ref,
   data_availability_cutoff = 36,
   p_correction_method = "none",
   signal_significance_threshold = 0.05,
   enable_theme_representativeness = TRUE,
+  model_structure = "no_pooled",
+  theme_level_intercept = NULL,
+  theme_level_slope = NULL,
+  lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML",
+    hierarchical_p_value_method = "Satterthwaite"),
   priors_m_upd_ref = NULL,
   user_priors = NULL,
-  model_spec_theme_level = "random_intercept",
   brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
-  prior_derivation_control = list(lmer_optimizer = "nloptwrap", half_t_df = 30,
-    lmer_optimization_objective = "REML"),
+  prior_derivation_control = list(half_t_df = 30),
   signal_themes_m_d_ref,
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
@@ -25,9 +28,9 @@ define_signal_eligibility(
 )
 }
 \arguments{
-\item{selected_backtest_returns_corrected_positions_upd_ref}{A data frame containing backtest returns for various signals. The first column should be identifiers for the signals, and the subsequent columns should contain the returns data.}
+\item{selected_backtest_returns_corrected_positions_xts_upd_ref}{A xts containing backtest returns for various signals.}
 
-\item{selected_market_factor_proxy_upd_ref}{A data frame containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.}
+\item{selected_market_factor_proxy_xts_upd_ref}{A xts containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.}
 
 \item{data_availability_cutoff}{The minimum number of non-NA observations required for a backtest to be considered.}
 
@@ -49,39 +52,35 @@ For FDR, possible options are:
 \item{"BY"}: Benjamini-Yekutieli (2001) procedure.
 }}
 
-\item{signal_significance_threshold}{A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+\item{signal_significance_threshold}{A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
 
 \item{enable_theme_representativeness}{If TRUE, in case a given theme in \code{signal_themes_m_d_ref} does not have any eligible signal, the signal
 with highest alpha t-stat will be elected.}
 
-\item{priors_m_upd_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
-and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
-Should not be provided if \code{user_priors_list} is already being provided.
-When \code{priors_m_upd_ref} is provided, a lme4 model is fit to the data using the \code{lme4} package, and the priors are then estimated from the model.
-In such case, ther user can control some aspects of the prior definition process with params: \code{model_spec_theme_level}, \code{v} and \code{lmer_optimizer}}
+\item{model_structure}{A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.}
 
-\item{user_priors}{An object of class \code{brmsprior} with user-defined priors for the hierarchical bayesian model. It should be set with \code{model_spec_theme_level} structure in mind.
-brms::set_prior() can be used to define the priors. Should not be provided if \code{priors_m_d_ref} is already being provided.}
+\item{theme_level_intercept}{A character specifying the specification of effects of the intercept at the theme level.}
 
-\item{model_spec_theme_level}{A character string specifying the desired Bayesian model structure.
-Options include:
+\item{theme_level_slope}{A character specifying the specification of effects of the slope at the theme level.}
+
+\item{lmer_control}{Other additional parameters to be passed to \code{lme4::lmer} function.
 \itemize{
-\item \code{"random_intercept"}: Includes random effects for the intercept at the theme level.
-\item \code{"fixed_intercepts"}: Uses fixed intercepts for each theme.
-\item \code{"fixed_intercepts_and_slopes"}: Includes fixed intercepts and slopes for each theme.
-\item \code{"none"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
-}}
-
-\item{prior_derivation_control}{A list of additional parameters to be passed to the \code{lme4::lmer} function:
-\itemize{
-\item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
-
-\item{lmer_optimizer} A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
+#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
 It will be passed to lme4::lmerControl, which will be used in the \code{lme4::lmer} function.
 Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
 
 \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+
+\item{hierarchical_p_value_method}
+}}
+
+\item{user_priors}{An object of class \code{brmsprior} with user-defined priors for the hierarchical bayesian model. It should be set with \code{model_spec_theme_level} structure in mind.
+brms::set_prior() can be used to define the priors. Should not be provided if \code{priors_m_d_ref} is already being provided.}
+
+\item{prior_derivation_control}{A list of additional parameters to be passed to the \code{lme4::lmer} function:
+\itemize{
+\item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
 }}
 
 \item{signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
@@ -95,6 +94,12 @@ for defining clusters in bayesian hierarchical model. It should contain data onl
 
 \item{parallel}{Logical.
 Indicates whether to enable parallel computation using the \code{future} package. Only avaialable for bayesian model. Default is \code{TRUE}.}
+
+\item{priors_m_df_upd_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
+and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
+Should not be provided if \code{user_priors_list} is already being provided.
+When \code{priors_m_df_upd_ref} is provided, a lme4 model is fit to the data using the \code{lme4} package, and the priors are then estimated from the model.
+In such case, ther user can control some aspects of the prior definition process with params: \code{model_spec_theme_level}, \code{v} and \code{lmer_optimizer}}
 }
 \value{
 A data frame containing the updated signal universe with computed performance metrics, adjusted p-values, and final signal classifications. The columns include:
@@ -114,7 +119,7 @@ A data frame containing the updated signal universe with computed performance me
 
 #' @details
 
-When providing \code{priors_m_upd_ref} to set informative priors, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
+When providing \code{priors_m_df_upd_ref} to set informative priors, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
 
 \itemize{
 \item Priors for location parameters (e.g., intercepts, slopes) follow a normal distribution.

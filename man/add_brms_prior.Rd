@@ -2,9 +2,29 @@
 % Please edit documentation in R/constructors.R
 \name{add_brms_prior}
 \alias{add_brms_prior}
+\alias{add_brms_prior,bayesian_alpha_test_strategy-method}
+\alias{add_brms_prior,ss_backtest_config-method}
 \title{Add Prior to Bayesian Alpha Test Strategy}
 \usage{
 add_brms_prior(object, ...)
+
+\S4method{add_brms_prior}{bayesian_alpha_test_strategy}(
+  object,
+  distribution_choice,
+  pars,
+  class,
+  coef = NULL,
+  group = NULL
+)
+
+\S4method{add_brms_prior}{ss_backtest_config}(
+  object,
+  distribution_choice,
+  pars,
+  class,
+  coef = NULL,
+  group = NULL
+)
 }
 \arguments{
 \item{object}{An object of class \code{bayesian_alpha_test_strategy}.}

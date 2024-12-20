@@ -1004,6 +1004,7 @@ setMethod("show", "ss_backtest_config", function(object) {
   cat("Data Availability Cutoff:", object@data_availability_cutoff, "\n")
   cat("Initial Sample Size:", object@initial_sample_size, "\n")
   cat("Rebalancing Months:", object@rebalancing_months, "\n")
+  cat("Active Returns:", object@active_returns, "\n")
   cat("Split Method:", object@split_method, "\n")
 
   # Display Alpha Test Strategy
@@ -1171,16 +1172,24 @@ setMethod("show", "ss_backtest_results", function(object) {
   cat("Backtest Configuration:\n")
   cat("  Config Name: ", ss_backtest_workflow$config_name, "\n")
   cat("  Backtest Type: ", ss_backtest_workflow$backtest_type, "\n")
+  cat("  Active Returns: ", ss_backtest_workflow$active_returns, "\n")
   cat("  Alpha Test Strategy Parameters:\n")
   cat("    Model Structure: ", ss_backtest_workflow$model_structure, "\n")
+  if(!ss_backtest_workflow$model_structure == "no_pooled"){
   cat("    Theme-Level Intercept: ", ss_backtest_workflow$theme_level_intercept, "\n")
   cat("    Theme-Level Slope: ", ss_backtest_workflow$theme_level_slope, "\n")
+  }
   cat("    Market Factor Proxy: ", ss_backtest_workflow$market_factor_proxy, "\n")
   cat("    Data Availability Cutoff: ", ss_backtest_workflow$data_availability_cutoff, "\n")
   cat("    Signal Significance Threshold: ", ss_backtest_workflow$signal_significance_threshold, "\n")
   cat("    Enable Theme Representativeness: ", ss_backtest_workflow$enable_theme_representativeness, "\n")
   cat("    lmer Control Parameters:\n")
-  print(ss_backtest_workflow$lmer_control)
+  if(is.null(ss_backtest_workflow$lmer_control)) {
+    cat("      No lmer Control set\n")
+  } else {
+    print(ss_backtest_workflow$lmer_control)
+  }
+
 
   cat("=========================================\n")
 

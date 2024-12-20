@@ -82,17 +82,17 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
     times = n_tickers
   )
 
-  # Initialize the response variable (active_return)
-  active_return <- numeric(length(market_factor_proxy))
+  # Initialize the response variable (return)
+  return <- numeric(length(market_factor_proxy))
 
-  # Loop to calculate active_return for each observation
-  for (i in seq_along(active_return)) {
+  # Loop to calculate return for each observation
+  for (i in seq_along(return)) {
     ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
     theme <- theme_ticker_combinations$theme[ticker_idx]
     ticker <- theme_ticker_combinations$ticker[ticker_idx]
 
     # Combine fixed effects, random effects, and residual noise
-    active_return[i] <- rnorm(1, mean = fixed_intercept_mean, sd = fixed_intercept_sd) +  # Fixed intercept
+    return[i] <- rnorm(1, mean = fixed_intercept_mean, sd = fixed_intercept_sd) +  # Fixed intercept
       rnorm(1, mean = fixed_slope_mean, sd = fixed_slope_sd) * market_factor_proxy[i] +  # Fixed slope
       random_intercepts_theme[theme] +                                                               # Random intercept for theme
       random_effects_tickers[ticker_idx, 1] +                                                    # Random intercept for theme:tickers
@@ -110,12 +110,12 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
     dates = dates,                          # Monthly dates
     theme = theme_names,                    # Theme names
     tickers = signal_names,                 # Signal names
-    active_return = active_return,          # Response variable
+    return = return,          # Response variable
     market_factor_proxy = market_factor_proxy  # Predictor variable
   )
 
   # Reorder columns as requested
-  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
   ##############################
 
@@ -162,7 +162,7 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
 
 
   #Compare LME model
-  lme_model_1 <- lme4::lmer(active_return ~ market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers), data = simulated_data)
+  lme_model_1 <- lme4::lmer(return ~ market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers), data = simulated_data)
   expect_equal(coef(results_dgp_1$model), coef(lme_model_1))
   expect_equal(lme4::fixef(results_dgp_1$model), lme4::fixef(lme_model_1))
   expect_equal(lme4::ranef(results_dgp_1$model), lme4::ranef(lme_model_1))
@@ -244,17 +244,17 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
     times = n_tickers
   )
 
-  # Initialize the response variable (active_return)
-  active_return <- numeric(length(market_factor_proxy))
+  # Initialize the response variable (return)
+  return <- numeric(length(market_factor_proxy))
 
-  # Loop to calculate active_return for each observation
-  for (i in seq_along(active_return)) {
+  # Loop to calculate return for each observation
+  for (i in seq_along(return)) {
     ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
     theme <- theme_ticker_combinations$theme[ticker_idx]
     ticker <- theme_ticker_combinations$ticker[ticker_idx]
 
     # Combine fixed effects, random effects, and residual noise
-    active_return[i] <- rnorm(1, mean = fixed_intercept_mean, sd = fixed_intercept_sd) +  # Fixed intercept
+    return[i] <- rnorm(1, mean = fixed_intercept_mean, sd = fixed_intercept_sd) +  # Fixed intercept
       rnorm(1, mean = fixed_slope_mean, sd = fixed_slope_sd) * market_factor_proxy[i] +  # Fixed slope
       random_intercepts_theme[theme] +                                                               # Random intercept for theme
       random_effects_tickers[ticker_idx, 1] +                                                    # Random intercept for theme:tickers
@@ -272,12 +272,12 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
     dates = dates,                          # Monthly dates
     theme = theme_names,                    # Theme names
     tickers = signal_names,                 # Signal names
-    active_return = active_return,          # Response variable
+    return = return,          # Response variable
     market_factor_proxy = market_factor_proxy  # Predictor variable
   )
 
   # Reorder columns as requested
-  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
   ##############################
 
@@ -395,17 +395,17 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
     times = n_tickers
   )
 
-  # Initialize the response variable (active_return)
-  active_return <- numeric(length(market_factor_proxy))
+  # Initialize the response variable (return)
+  return <- numeric(length(market_factor_proxy))
 
-  # Loop to calculate active_return for each observation
-  for (i in seq_along(active_return)) {
+  # Loop to calculate return for each observation
+  for (i in seq_along(return)) {
     ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
     theme <- theme_ticker_combinations$theme[ticker_idx]
     ticker <- theme_ticker_combinations$ticker[ticker_idx]
 
     # Combine fixed effects, random effects, and residual noise
-    active_return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +   # Fixed intercept
+    return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +   # Fixed intercept
       rnorm(1, mean = fixed_slope_mean, sd = fixed_slope_sd) * market_factor_proxy[i] +  # Fixed slope
       random_effects_tickers[ticker_idx, 1] +                                                    # Random intercept for theme:tickers
       random_effects_tickers[ticker_idx, 2] * market_factor_proxy[i] +                           # Random slope for theme:tickers
@@ -422,12 +422,12 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
     dates = dates,                          # Monthly dates
     theme = theme_names,                    # Theme names
     tickers = signal_names,                 # Signal names
-    active_return = active_return,          # Response variable
+    return = return,          # Response variable
     market_factor_proxy = market_factor_proxy  # Predictor variable
   )
 
   # Reorder columns as requested
-  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
   ##############################
 
@@ -474,7 +474,7 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
 
 
   #Compare LME model
-  lme_model_1 <- lme4::lmer(active_return ~ 0 + theme + market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
+  lme_model_1 <- lme4::lmer(return ~ 0 + theme + market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
                             data = simulated_data)
 
   expect_equal(coef(results_dgp_1$model), coef(lme_model_1))
@@ -556,17 +556,17 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
     times = n_tickers
   )
 
-  # Initialize the response variable (active_return)
-  active_return <- numeric(length(market_factor_proxy))
+  # Initialize the response variable (return)
+  return <- numeric(length(market_factor_proxy))
 
-  # Loop to calculate active_return for each observation
-  for (i in seq_along(active_return)) {
+  # Loop to calculate return for each observation
+  for (i in seq_along(return)) {
     ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
     theme <- theme_ticker_combinations$theme[ticker_idx]
     ticker <- theme_ticker_combinations$ticker[ticker_idx]
 
     # Combine fixed effects, random effects, and residual noise
-    active_return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +   # Fixed intercept
+    return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +   # Fixed intercept
       rnorm(1, mean = fixed_slope_mean, sd = fixed_slope_sd) * market_factor_proxy[i] +  # Fixed slope
       random_effects_tickers[ticker_idx, 1] +                                                    # Random intercept for theme:tickers
       random_effects_tickers[ticker_idx, 2] * market_factor_proxy[i] +                           # Random slope for theme:tickers
@@ -583,12 +583,12 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
     dates = dates,                          # Monthly dates
     theme = theme_names,                    # Theme names
     tickers = signal_names,                 # Signal names
-    active_return = active_return,          # Response variable
+    return = return,          # Response variable
     market_factor_proxy = market_factor_proxy  # Predictor variable
   )
 
   # Reorder columns as requested
-  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
   ##############################
 
@@ -638,7 +638,7 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
 
   #DGP 1
   ##############################
-  # DGP adapted for lme4::lmer(active_return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
+  # DGP adapted for lme4::lmer(return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
   set.seed(123)  # For reproducibility
 
   # Define themes and tickers
@@ -703,7 +703,7 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
 
   # Generate data
   n_obs_per_ticker <- 3000
-  active_return <- numeric(n_obs_per_ticker * n_tickers)
+  return <- numeric(n_obs_per_ticker * n_tickers)
 
   # Predictor: market_factor_proxy
   market_factor_proxy <- rnorm(n_obs_per_ticker * n_tickers, mean = 0, sd = 1)
@@ -714,14 +714,14 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
     times = n_tickers
   )
 
-  # Loop to calculate active_return for each observation
-  for (i in seq_along(active_return)) {
+  # Loop to calculate return for each observation
+  for (i in seq_along(return)) {
     ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
     theme <- theme_ticker_combinations$theme[ticker_idx]
     ticker <- theme_ticker_combinations$ticker[ticker_idx]
 
     # Combine fixed effects, random effects, and residual noise
-    active_return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +  # Fixed intercept with variability
+    return[i] <- rnorm(1, mean = theme_effects_means[theme], sd = theme_effects_sds[theme]) +  # Fixed intercept with variability
       rnorm(1, mean = theme_slopes_means[theme], sd = theme_slopes_sds[theme]) * market_factor_proxy[i] +  # Fixed slope with variability
       random_intercepts_tickers[ticker_idx] +                                                          # Random intercept for theme:tickers
       random_slopes_tickers[ticker_idx] * market_factor_proxy[i] +                                     # Random slope for theme:tickers
@@ -738,12 +738,12 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
     dates = dates,                          # Monthly dates
     theme = theme_names,                    # Theme names
     tickers = signal_names,                 # Signal names
-    active_return = active_return,          # Response variable
+    return = return,          # Response variable
     market_factor_proxy = market_factor_proxy  # Predictor variable
   )
 
   # Reorder columns as requested
-  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
 
   ##############################
@@ -807,7 +807,7 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
 
 
   #Compare LME model
-  lme_model_1 <- lme4::lmer(active_return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
+  lme_model_1 <- lme4::lmer(return ~ 0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
                             data = simulated_data, control = lme4::lmerControl(optimizer = "Nelder_Mead"))
 
   expect_equal(coef(results_dgp_1$model), coef(lme_model_1))
@@ -829,7 +829,7 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
 
   #DGP 1
   ##############################
-  # Adjusted DGP for lme4::lmer(active_return ~ market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
+  # Adjusted DGP for lme4::lmer(return ~ market_factor_proxy + (1 + market_factor_proxy | theme:tickers))
   set.seed(123)  # For reproducibility
 
   # Define themes and tickers
@@ -891,7 +891,7 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
 
   # Generate data
   n_obs_per_ticker <- 3000
-  active_return <- numeric(n_obs_per_ticker * n_tickers)
+  return <- numeric(n_obs_per_ticker * n_tickers)
 
   # Predictor: market_factor_proxy
   market_factor_proxy <- rnorm(n_obs_per_ticker * n_tickers, mean = 0, sd = 1)
@@ -902,12 +902,12 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
     times = n_tickers
   )
 
-  # Loop to calculate active_return for each observation
-  for (i in seq_along(active_return)) {
+  # Loop to calculate return for each observation
+  for (i in seq_along(return)) {
     ticker_idx <- ((i - 1) %/% n_obs_per_ticker) + 1  # Identify signal index
 
     # Combine fixed effects, random effects, and residual noise
-    active_return[i] <- rnorm(1, mean = fixed_intercept_mean, sd = fixed_intercept_sd) +           # Global fixed intercept
+    return[i] <- rnorm(1, mean = fixed_intercept_mean, sd = fixed_intercept_sd) +           # Global fixed intercept
       rnorm(1, mean = fixed_slope_mean, sd = fixed_slope_sd) * market_factor_proxy[i] +           # Global fixed slope
       random_intercepts_tickers[ticker_idx] +                                                    # Random intercept for theme:tickers
       random_slopes_tickers[ticker_idx] * market_factor_proxy[i] +                               # Random slope for theme:tickers
@@ -924,12 +924,12 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
     dates = dates,                          # Monthly dates
     theme = theme_names,                    # Theme names
     tickers = signal_names,                 # Signal names
-    active_return = active_return,          # Response variable
+    return = return,          # Response variable
     market_factor_proxy = market_factor_proxy  # Predictor variable
   )
 
   # Reorder columns as requested
-  simulated_data <- simulated_data[, c("id", "tickers", "dates", "active_return", "market_factor_proxy", "theme")]
+  simulated_data <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
 
   ##############################
@@ -968,7 +968,7 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
 
 
   #Compare LME model
-  lme_model_1 <- lme4::lmer(active_return ~ market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
+  lme_model_1 <- lme4::lmer(return ~ market_factor_proxy + (1 + market_factor_proxy | theme:tickers),
                             data = simulated_data, control = lme4::lmerControl(optimizer = "Nelder_Mead"))
 
   expect_equal(coef(results_dgp_1$model), coef(lme_model_1))

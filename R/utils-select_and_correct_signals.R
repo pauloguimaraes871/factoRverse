@@ -5,6 +5,7 @@
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
 #' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
+#' @param signal_themes_m_df A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in `signals_m_df`, and a "theme" column providing group membership for each signal.
 #' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #'
 #' @details
@@ -27,7 +28,7 @@
 #' @importFrom dplyr select
 #' @importFrom stats setNames
 #' @export
-select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, backtest_returns_xts = NULL){
+select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, signal_themes_m_df, backtest_returns_xts = NULL){
 
   ###Get chosen signals
   #####################
@@ -56,6 +57,16 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
 
   #####################
 
+  ###Subset signal_themes
+  ########################
+  ###Check if all signals have a theme
+  if(!all(chosen_signals_corrected_positions %in% unique(signal_themes_m_df$tickers))){
+    stop("all chosen signals should have a matching position in signal_themes_m_df")
+  }
+
+
+  selected_signal_themes_m_df <- signal_themes_m_df %>% dplyr::filter(tickers %in% chosen_signals_corrected_positions)
+
   ###Subset backtests
   #######################
   if(!is.null(backtest_returns_xts)){
@@ -76,6 +87,7 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
   #Returns
   selected_signals_and_backtest_list <- list(
     selected_signals_corrected_positions_m_df = selected_signals_corrected_positions_m_df,
+    selected_signal_themes_m_df = selected_signal_themes_m_df,
     selected_backtest_returns_corrected_positions_xts = selected_backtest_returns_corrected_positions_xts
   )
 

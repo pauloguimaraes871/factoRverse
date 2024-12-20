@@ -14,7 +14,7 @@
 #'   - `dates`
 #'   - `top_assets` (indicating which signals are statistically significant)
 #'
-#' @param signal_themes_m_d_ref An optional data frame with signal themes. Must include columns:
+#' @param selected_signal_themes_m_d_ref An optional data frame with signal themes. Must include columns:
 #'   - `tickers`
 #'   - `theme` (the classification theme for each signal)
 #' This parameter is mandatory if one wants to calculate theme-weighted benchmarks.
@@ -24,14 +24,14 @@
 #'   - `tickers`
 #'   - `dates`
 #'   - `individual` (weight assigned to each signal)
-#'   - `theme` (weight assigned to each signal given their theme, if `signal_themes_m_d_ref` is provided)
+#'   - `theme` (weight assigned to each signal given their theme, if `selected_signal_themes_m_d_ref` is provided)
 #'
 #' @details The function calculates weights for signals based on their statistical significance.
-#'   If `signal_themes_m_d_ref` is provided, it also calculates theme-based weights and merges them
+#'   If `selected_signal_themes_m_d_ref` is provided, it also calculates theme-based weights and merges them
 #'   back into the main data frame.
 #'
 #' @export
-create_se_benchmarks <- function(signal_universe_m_d_ref, signal_themes_m_d_ref){
+create_se_benchmarks <- function(signal_universe_m_d_ref, selected_signal_themes_m_d_ref){
 
   #Create benchmark_weights_m_d_ref object for signals
   sb_benchmark_weights_m_d_ref <- signal_universe_m_d_ref %>% dplyr::filter(top_assets == 1) %>% dplyr::select(id, tickers, dates) #Initialize sb_benchmark_weights obj
@@ -43,7 +43,7 @@ create_se_benchmarks <- function(signal_universe_m_d_ref, signal_themes_m_d_ref)
   }
 
   #Check if any tickers does not have a theme
-  if (any(!signal_universe_m_d_ref$tickers %in% signal_themes_m_d_ref$tickers)) {
+  if (any(!signal_universe_m_d_ref$tickers %in% selected_signal_themes_m_d_ref$tickers)) {
     stop("Some tickers do not have a theme assigned")
   }
 
@@ -52,7 +52,7 @@ create_se_benchmarks <- function(signal_universe_m_d_ref, signal_themes_m_d_ref)
 
    ##Theme weights
       benchmark_weights_m_d_ref <- dplyr::left_join(benchmark_weights_m_d_ref,
-                                                    dplyr::select(signal_themes_m_d_ref, -id, -dates), by = "tickers") ##Merge signals and themes
+                                                    dplyr::select(selected_signal_themes_m_d_ref, -id, -dates), by = "tickers") ##Merge signals and themes
       themes <- unique(benchmark_weights_m_d_ref$theme) #get unique classifications
       num_themes <- length(themes) #get number of classifications
 

@@ -43,6 +43,7 @@ setMethod("run_ss_backtest",
             #######################
             #Assign default values for internal function (to avoid getting vars from global environ)
             data_availability_cutoff <- 36
+            active_returns <- TRUE
             split_method <- "expanding"
             market_factor_proxy <- "IBOV"
             p_correction_method <- "none"
@@ -92,6 +93,7 @@ setMethod("run_ss_backtest",
             data_availability_cutoff <- config@data_availability_cutoff
             initial_sample_size <- config@initial_sample_size
             rebalancing_months <- config@rebalancing_months
+            active_returns <- config@active_returns
             split_method <- config@split_method
             config_name <- config@config_name
             alpha_test_strategy <- config@alpha_test_strategy
@@ -131,7 +133,7 @@ setMethod("run_ss_backtest",
             #########################
             ss_backtest_results <- run_ss_backtest_internal(
               initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff, split_method = split_method,
-              signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+              signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, active_returns = active_returns,
               backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, market_factor_proxy = market_factor_proxy,
               p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold, enable_theme_representativeness = enable_theme_representativeness,
               model_structure = model_structure, theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope, lmer_control = lmer_control,
@@ -246,6 +248,10 @@ setMethod("run_ss_backtest",
 #'
 #' \item{hierarchical_p_value_method}: One of "Satterthwaite", "Kenward-Roger" and "lme4". Default is "Satterthwaite".
 #' }
+#'
+#' @param active_returns A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
+#' backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts. This does not
+#' impact calculation of the CAPM model, whether it is frequentist or bayesian, pooled or partial pooled.
 #'
 #' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
 #' \itemize{
@@ -382,6 +388,7 @@ run_ss_backtest_internal <- function(
     #Model Structure
     model_structure = "no_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
     lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
+    active_returns = TRUE,
     #Bayesian variables
     priors_m_df = NULL, user_priors = NULL,
     brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80),
@@ -439,7 +446,7 @@ run_ss_backtest_internal <- function(
       #Theme Representativeness Eligiblity
       enable_theme_representativeness = enable_theme_representativeness,
       #Model Structure
-      model_structure = model_structure, theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope, lmer_control = lmer_control,
+      model_structure = model_structure, theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope, lmer_control = lmer_control, active_returns = active_returns,
       #Priors
       priors_m_df = priors_m_df, user_priors = user_priors,
       brms_control = brms_control, prior_derivation_control = prior_derivation_control,
@@ -454,11 +461,15 @@ run_ss_backtest_internal <- function(
       cat("\n")
       cat(crayon::cyan(paste("Starting signal selection backtest")))
       cat("\n")
+      cat(paste("Performance metrics calculated with", if(active_returns) "active returns" else "raw returns"))
+      cat("\n")
       cat(paste("Factor model:", model_structure, " CAPM with", market_factor_proxy, "as proxy for market factor"))
       cat("\n")
       cat(crayon::yellow(paste("P-values will be adjusted following the", p_correction_method, "method")))
       cat("\n")
       cat(paste("Signal significance threshold set as", signal_significance_threshold))
+      cat("\n")
+      cat(paste("Theme representativeness eligibility is set to", enable_theme_representativeness))
       cat("\n")
     }
 
@@ -469,6 +480,8 @@ run_ss_backtest_internal <- function(
     selected_signals_and_backtest_list <- select_and_correct_signals(
       #signals_m_df
       signals_m_df = signals_m_df,
+      #Signal Themes
+      signal_themes_m_df = signal_themes_m_df,
       #Chosen signals and positions
       chosen_signals_and_positions = chosen_signals_and_positions,
       #Signals backtest
@@ -477,16 +490,18 @@ run_ss_backtest_internal <- function(
 
     ###Selected signals_m_df with corrected positions
     selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+    ###Select signals_themes_m_df
+    selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
     ###Selected signals backtest returns
     selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
 
     ###Check if both are contemplated in signal_themes
-    if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(signal_themes_m_df$tickers))){
-      stop("all selected signals (with corrected positions) should have a theme classification in signal_themes_m_df")
+    if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(selected_signal_themes_m_df$tickers))){
+      stop("all selected signals (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
     }
     if(!is.null(selected_backtest_returns_corrected_positions_xts)){
-      if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% signal_themes_m_df$tickers)){
-        stop("all selected signals in backtests (with corrected positions) should have a theme classification in signal_themes_m_df")
+      if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% selected_signal_themes_m_df$tickers)){
+        stop("all selected signals in backtests (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
       }
     }
 
@@ -515,10 +530,10 @@ run_ss_backtest_internal <- function(
         selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[which(zoo::index(selected_backtest_returns_corrected_positions_xts) <= current_date), ]
         selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[which(zoo::index(selected_market_factor_proxy_xts) <= current_date), ]
         priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
-        signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ]
+        selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
 
-        ###Elect signals
+        ###Elect signals0
         signal_eligibility_results_list <- define_signal_eligibility(
           #Backtests
           selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
@@ -531,11 +546,12 @@ run_ss_backtest_internal <- function(
           enable_theme_representativeness = enable_theme_representativeness,
           #Model Structure
           model_structure = model_structure, theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope, lmer_control = lmer_control,
+          active_returns = active_returns,
           #Bayesian method
           priors_m_upd_ref = priors_m_upd_ref, user_priors = user_priors,
           brms_control = brms_control, prior_derivation_control = prior_derivation_control,
           #Signal Themes
-          signal_themes_m_d_ref = signal_themes_m_d_ref,
+          selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
           #Winsorization
           lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
           #Verbose & Parallel
@@ -571,10 +587,10 @@ run_ss_backtest_internal <- function(
     signal_universe_m_df <- do.call(rbind, signal_universe_m_d_ref_list)
     rownames(signal_universe_m_df) <- NULL #erase rownames
       ##Create m_df
-      signal_universe_m_df <- suppressWarnings(create_meta_dataframe(signal_universe_m_df))
+      signal_universe_m_df <- suppressWarnings(suppressMessages(create_meta_dataframe(signal_universe_m_df)))
 
     #Create final_signal_universe_m_d_ref
-    final_signal_universe_m_d_ref <- create_meta_dataframe(signal_universe_m_d_ref)
+    final_signal_universe_m_d_ref <- suppressWarnings(suppressMessages(create_meta_dataframe(signal_universe_m_d_ref)))
 
   })
 
@@ -591,10 +607,13 @@ run_ss_backtest_internal <- function(
       signal_significance_threshold = signal_significance_threshold,
       market_factor_proxy = market_factor_proxy,
       data_availability_cutoff = data_availability_cutoff,
+      active_returns = active_returns,
+      model_structure = model_structure,
       enable_theme_representativeness = enable_theme_representativeness,
+      theme_level_intercept = theme_level_intercept,
+      theme_level_slope = theme_level_slope,
       #Bayesian
       user_priors = user_priors,
-      model_spec_theme_level = model_spec_theme_level,
       brms_control = brms_control,
       prior_derivation_control = prior_derivation_control,
       #Dates
@@ -609,7 +628,7 @@ run_ss_backtest_internal <- function(
       split_method = split_method,
       #Signals
       chosen_signals_and_positions = chosen_signals_and_positions,
-      selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_upd_ref)[-1],
+      selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_xts_upd_ref)[-1],
       n_signals = length(chosen_signals_and_positions),
       signals_workflow = NULL,
       signals_object_name = "not_identified",
@@ -632,8 +651,9 @@ run_ss_backtest_internal <- function(
     ss_backtest_results <- new("ss_backtest_results",
                                signal_universe_m_df = signal_universe_m_df,
                                final_signal_universe_m_d_ref = final_signal_universe_m_d_ref,
-                               selected_market_factor_proxy_upd_ref = selected_market_factor_proxy_upd_ref,
-                               final_bayesian_fit_list = signal_eligibility_results_list$bayesian_results,
+                               selected_market_factor_proxy_xts = selected_market_factor_proxy_xts,
+                               frequentist_results = signal_eligibility_results_list$frequentist_results,
+                               bayesian_results = signal_eligibility_results_list$bayesian_results,
                                eligible_signals_list = eligible_signals_list,
                                p_correction_method = p_correction_method,
                                ss_backtest_workflow = ss_backtest_workflow,

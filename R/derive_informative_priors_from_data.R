@@ -140,13 +140,12 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
   ###Set all NULL, but selected_backtest_returns_corrected_positions_m_upd_ref to skip data preprocessing
   lmer_model <- fit_frequentist_hierarchical_model(signal_universe_m_d_ref = NULL,
                                                   selected_backtest_returns_corrected_positions_m_upd_ref = priors_m_upd_ref,
-                                                  selected_backtest_returns_corrected_positions_upd_ref = NULL,
-                                                  selected_market_factor_proxy_vector_upd_ref = NULL,
-                                                  signal_themes_m_d_ref = NULL,
+                                                  selected_backtest_returns_corrected_positions_xts_upd_ref = NULL,
+                                                  selected_market_factor_proxy_xts_upd_ref = NULL,
+                                                  selected_signal_themes_m_d_ref = NULL,
                                                   model_spec_theme_level = model_spec_theme_level,
                                                   lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective
                                                   )$lmer_model
-
 
   if(model_spec_theme_level == "random_intercept_fixed_slope"){
 
@@ -155,6 +154,11 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
     # Extract random effects standard deviations from VarCorr
     random_effects <- as.data.frame(lme4::VarCorr(lmer_model))
+    ##Check for 0 sd
+    if(any(random_effects$sdcor == 0)){
+      warning("Some random effects standard deviations are zero. Replacing with 0.01")
+      random_effects$sdcor[random_effects$sdcor == 0] <- 0.01
+    }
 
     # Define informative priors
     priors <- c(
@@ -224,6 +228,11 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
     # Extract random effects standard deviations from VarCorr
     random_effects <- as.data.frame(lme4::VarCorr(lmer_model))
+      ##Check for 0 sd
+      if(any(random_effects$sdcor == 0)){
+        warning("Some random effects standard deviations are zero. Replacing with 0.01")
+        random_effects$sdcor[random_effects$sdcor == 0] <- 0.01
+      }
 
     # Dynamically construct priors for themes
     priors <- data.frame(
@@ -369,6 +378,11 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
     # Extract random effects standard deviations from VarCorr
     random_effects <- as.data.frame(lme4::VarCorr(lmer_model))
+      ##Check for 0 sd
+      if(any(random_effects$sdcor == 0)){
+        warning("Some random effects standard deviations are zero. Replacing with 0.01")
+        random_effects$sdcor[random_effects$sdcor == 0] <- 0.01
+      }
 
     # Dynamically construct priors for themes
     priors <- data.frame(
@@ -494,6 +508,11 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
     # Extract random effects standard deviations from VarCorr
     random_effects <- as.data.frame(lme4::VarCorr(lmer_model))
+      ##Check for 0 sd
+      if(any(random_effects$sdcor == 0)){
+        warning("Some random effects standard deviations are zero. Replacing with 0.01")
+        random_effects$sdcor[random_effects$sdcor == 0] <- 0.01
+      }
 
     # Define informative priors
     priors <- c(

@@ -6,12 +6,12 @@
 \usage{
 \S4method{plot}{meta_dataframe,missing}(
   x,
-  type = "cross_sectional",
+  type = NULL,
   clustering_variables = NULL,
   variable = NULL,
   tickers = "all",
   dates = "all",
-  calc_stat = "mean",
+  calc_stat = NULL,
   custom_filter = NULL,
   filter_values = NULL,
   dep_y = NULL,

@@ -52,7 +52,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
         #For each series
         colnames(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals),
         function(series) {
-          #Apply geometric return differnece formula
+          #Apply geometric return difference formula
           purrr::map2_dbl(
             selected_backtest_returns_corrected_positions_xts_upd_ref_decimals[, series], #.x
             selected_market_factor_proxy_vector_upd_ref_decimals, #.y
@@ -70,26 +70,44 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
       if(verbose){
         # Display the starting message based on the type of returns
         if(active_returns) {
-          message("Starting to calculate active performance metrics...")
+          cat("\nStarting to calculate active performance metrics...\n")
         } else {
-          message("Starting to calculate raw performance metrics...")
+          cat("\nStarting to calculate raw performance metrics...\n")
         }
 
         # Identify columns where all values are positive
         positive_columns <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)[
           apply(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, 2, function(x) all(x > 0))
         ]
+        positive_columns <- positive_columns[which(!is.na(positive_columns))] #Remove NAs
 
         # Check if there are any columns with all positive returns
         if(length(positive_columns) > 0){
           if(active_returns) {
-            message("The following active return columns do not contain negative values: ",
+            warning("The following active return columns only contains positive values, compromising some calculations: ",
                     paste(positive_columns, collapse = ", "))
           } else {
-            message("The following raw return columns do not contain negative values: ",
+            warning("The following raw return columns only contains positive values, compromising some calculations: ",
                     paste(positive_columns, collapse = ", "))
           }
         }
+
+        # Identify columns where all values are NA
+        NA_columns <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)[
+          apply(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, 2, function(x) all(is.na(x)))
+        ]
+        # Check if there are any columns with all positive returns
+        if(length(NA_columns) > 0){
+          if(active_returns) {
+            warning("The following active return columns only contains NA: ",
+                    paste(NA_columns, collapse = ", "))
+          } else {
+            warning("The following raw return columns only contains NA: ",
+                    paste(NA_columns, collapse = ", "))
+          }
+        }
+
+
       }
 
 
@@ -113,7 +131,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
 
         # Attempt to compute the metric with benchmark
         result <- tryCatch(
-          multiply * as.numeric(metric_fun(strategy_clean, benchmark_clean, ...)),
+          multiply * as.numeric(metric_fun(strategy_clean, Rb = benchmark_clean, ...)),
           error = function(e) NA
         )
       } else {
@@ -143,6 +161,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
       common_dates <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) %in% zoo::index(baseline_benchmark_xts_upd_ref_decimals)
       selected_returns_aligned <- selected_backtest_returns_corrected_positions_xts_upd_ref_decimals[common_dates]
       benchmark_aligned <- baseline_benchmark_xts_upd_ref_decimals[common_dates]
+
 
   ##Construct the performance_m_df Data Frame
   performance_m_df <- data.frame(
@@ -480,9 +499,15 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
 
 
   ##########################
+  ##Rename according to active_returns
+  if(active_returns){
+    colnames(performance_m_df)[-c(1:3)] <- paste0("act_", colnames(performance_m_df)[-c(1:3)])
+    colnames(performance_m_df)[c(7, 8, 19, 20, 21, 25, 29, 36)] <-
+      c("track_err", "ann_track_err", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev", "info_ratio_exp_short", "ann_adj_info_ratio", "prob_info_ratio")
+  }
 
   ###Message
-  if(verbose) message("Performance metrics calculated.")
+  if(verbose) cat("\nPerformance metrics calculated.\n")
   return(performance_m_df)
 
 }

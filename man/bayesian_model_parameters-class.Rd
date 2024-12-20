@@ -13,15 +13,6 @@ A class encapsulating parameters necessary to specify the hierarchical Bayesian 
 \item{\code{user_priors}}{An object of class \code{brmsprior} with user-defined priors for the hierarchical Bayesian model.
 Should be structured according to the \code{model_spec_theme_level}.}
 
-\item{\code{model_spec_theme_level}}{A character string specifying the desired Bayesian model structure.
-Options include:
-\itemize{
-\item \code{"random_intercept"}: Random intercepts at the theme level.
-\item \code{"fixed_intercepts"}: Fixed intercepts for each theme.
-\item \code{"fixed_intercepts_and_slopes"}: Fixed intercepts and slopes for each theme.
-\item \code{"none"}: No theme-level intercepts, with random effects at the theme:signal level.
-}}
-
 \item{\code{prior_derivation_control}}{A list of additional parameters for deriving priors when \code{priors_type} is \code{"informative_exogenous_dataset"}.
 Should include:
 \itemize{

@@ -1,3 +1,6 @@
+# Register 'xts' as an S4 class
+setOldClass("xts")
+
 #' Define the `meta_dataframe` S4 Class
 #'
 #' This class represents a ml_backtest_workflow-enhanced data frame. It extends the functionality
@@ -681,12 +684,13 @@ setClass("alpha_test_strategy",
            market_factor_proxy = "character"
          ),
          validity = function(object) {
+
            if (!(object@p_correction_method %in% c(
              "none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY", "bayesian"
            ))) {
              stop("Invalid p_correction_method.")
            }
-           if(object@p_correction_method == "bayesian" && model_structure != "partial_pooled"){
+           if(object@p_correction_method == "bayesian" && object@model_structure != "partial_pooled"){
              stop("Currently, bayesian p_correction method is only available for partial_pooled model_structure")
            }
            if (object@signal_significance_threshold < 0 || object@signal_significance_threshold > 1) {
@@ -697,17 +701,18 @@ setClass("alpha_test_strategy",
            }
 
            if(object@model_structure == "partial_pooled"){
-             if (!theme_level_intercept %in% c("fixed", "random", "theme_specific")){
+             if (!object@theme_level_intercept %in% c("fixed", "random", "theme_specific")){
                stop("theme_level_intercept must be 'fixed', 'random' or 'theme_specific'")
              }
-             if (!theme_level_slope %in% c("fixed", "theme_specific")){
+             if (!object@theme_level_slope %in% c("fixed", "theme_specific")){
                stop("Currently, theme_level_slope can only be 'fixed' or 'theme_specific'")
              }
              avaiable_combinations <- c(c("random_intercept_fixed_slope"), #old random_intercept
                                         c("theme_specific_intercept_fixed_slope"), #old fixed_intercepts
                                         c("theme_specific_intercept_theme_specific_slope"), #old fixed_intercepts_fixed_slopes
                                         c("fixed_intercept_fixed_slope")) #one none
-             chosen_combination <- paste0(object@theme_level_intercept, "_intercept", object@theme_level_slope, "_slope")
+             chosen_combination <- paste0(object@theme_level_intercept, "_intercept_", object@theme_level_slope, "_slope")
+
              if(!chosen_combination %in% avaiable_combinations){
                stop("Chosen combination of theme_level_intercept and theme_level_slope is currently not supported.")
              }
@@ -729,10 +734,10 @@ setClass("alpha_test_strategy",
              }
            }
            else {
-             if(any(is.null(object@theme_level_intercept), is.null(object@theme_level_slope))){
+             if(any(!is.null(object@theme_level_intercept), !is.null(object@theme_level_slope))){
                stop("Theme-level parameters are only avaiable for partial pooled models.")
              }
-             if(!is.null(lmer_control)){
+             if(!is.null(object@lmer_control)){
                stop("lmer_control is only avaiable for partial pooled models.")
              }
            }
@@ -945,6 +950,7 @@ setClass("ss_backtest_config",
            data_availability_cutoff = "numeric",
            initial_sample_size = "numeric",
            rebalancing_months = "numeric",
+           active_returns = "logical",
            split_method = "character",
            alpha_test_strategy = "ANY",
            config_name = "character"
@@ -1275,8 +1281,9 @@ setClass(
   slots = list(
     signal_universe_m_df = "meta_dataframe",
     final_signal_universe_m_d_ref = "meta_dataframe",
-    selected_market_factor_proxy_upd_ref = "data.frame",
-    final_bayesian_fit_list = "ANY",
+    selected_market_factor_proxy_xts = "xts",
+    frequentist_results = "ANY",
+    bayesian_results = "ANY",
     eligible_signals_list = "list",
     p_correction_method = "character",
     ss_backtest_workflow = "list",

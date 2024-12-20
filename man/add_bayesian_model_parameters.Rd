@@ -2,25 +2,43 @@
 % Please edit documentation in R/constructors.R
 \name{add_bayesian_model_parameters}
 \alias{add_bayesian_model_parameters}
+\alias{add_bayesian_model_parameters,bayesian_alpha_test_strategy-method}
+\alias{add_bayesian_model_parameters,ss_backtest_config-method}
 \title{Add Bayesian Model Parameters}
 \usage{
-add_bayesian_model_parameters(object, ...)
+add_bayesian_model_parameters(
+  object,
+  user_priors = NULL,
+  prior_derivation_control = NULL,
+  brms_control = NULL
+)
+
+\S4method{add_bayesian_model_parameters}{bayesian_alpha_test_strategy}(
+  object,
+  user_priors = NULL,
+  prior_derivation_control = NULL,
+  brms_control = NULL
+)
+
+\S4method{add_bayesian_model_parameters}{ss_backtest_config}(
+  object,
+  user_priors = NULL,
+  prior_derivation_control = NULL,
+  brms_control = NULL
+)
 }
 \arguments{
-\item{object}{An object of class \code{bayesian_alpha_test_strategy}.}
-
-\item{model_spec_theme_level}{A character string specifying the desired Bayesian model structure.
-Options: \code{"random_intercept"}, \code{"fixed_intercepts"}, \code{"fixed_intercepts_and_slopes"}, \code{"none"}.}
+\item{object}{The object to which Bayesian model parameters will be added.}
 
 \item{user_priors}{An optional object of class \code{brmsprior}.}
 
-\item{prior_derivation_control}{An optional list containing \code{half_t_df}, \code{lmer_optimizer} and/or \code{lmer_optimization_objective}}
+\item{prior_derivation_control}{An optional list containing prior derivation control parameters.}
 
 \item{brms_control}{An optional list of parameters for \code{brms::brm}.}
 }
 \value{
-An updated \code{bayesian_alpha_test_strategy} object with the \code{bayesian_model_parameters} slot populated.
+The updated object with the \code{bayesian_model_parameters} added.
 }
 \description{
-Adds an object of class \code{bayesian_model_parameters} to a \code{bayesian_alpha_test_strategy} object.
+Generic function to add Bayesian model parameters.
 }

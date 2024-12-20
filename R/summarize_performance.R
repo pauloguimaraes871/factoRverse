@@ -1,8 +1,10 @@
+#' @title Summarize Performance Metrics of Backtests
+#'
 #' @param selected_backtest_returns_corrected_positions_xts_upd_ref A xts containing the backtest returns data for various signals.
 #'
 #' @param selected_market_factor_proxy_xts_upd_ref A xts containing benchmark returns data.
 #'
-#' @param signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
+#' @param selected_signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
 #'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_xts_upd_ref`.
 #'   - `theme`: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
 #'   - `dates`: Dates corresponding to the backtest data.
@@ -20,7 +22,7 @@
 summarize_performance <- function(selected_backtest_returns_corrected_positions_xts_upd_ref,
                                   selected_market_factor_proxy_xts_upd_ref,
                                   model_structure, model_spec_theme_level, lmer_control,
-                                  signal_themes_m_d_ref,
+                                  selected_signal_themes_m_d_ref,
                                   active_returns = TRUE,
                                   verbose = TRUE
                                   ){
@@ -98,12 +100,12 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   }
 
   ###Pooled Structure
-  if(model_structure == "pooled"){
+  if(model_structure == "partial_pooled"){
 
     #Get parameters of lmer_control
     lmer_optimizer <- if(is.null(lmer_control$lmer_optimizer)) "nloptwrap" else lmer_control$lmer_optimizer
     lmer_optimization_objective <- if(is.null(lmer_control$lmer_optimization_objective)) "REML" else lmer_control$lmer_optimization_objective
-    lmer_optimization_objective <- if(lmer_control$lmer_optimization_objective == "REML") TRUE else FALSE
+    lmer_optimization_objective <- if(lmer_optimization_objective == "REML") TRUE else FALSE
     hierarchical_p_value_method <- if(is.null(lmer_control$hierarchical_p_value_method)) "Satterthwaite" else lmer_control$hierarchical_p_value_method
 
     ##Get unique hierarchical CAPM model
@@ -114,7 +116,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
       selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
       selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
       ###Signal Themes
-      signal_themes_m_d_ref = signal_themes_m_d_ref,
+      selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
       model_spec_theme_level = model_spec_theme_level,
       ###Lmer Control
       lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective, hierarchical_p_value_method = hierarchical_p_value_method
@@ -131,7 +133,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   ##Return
   performance_summary_list <- list(
     signal_universe_m_d_ref = signal_universe_m_d_ref,
-    frequentist_fit_results_list = if(model_structure == "no_pooled") capm_model_list else hierarchical_frequentist_fit_results_list
+    frequentist_fit_results_list = if(model_structure == "no_pooled") capm_model_list else lmer_model
   )
 
   return(performance_summary_list)

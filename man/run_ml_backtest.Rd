@@ -2,37 +2,29 @@
 % Please edit documentation in R/run_ml_backtest.R
 \name{run_ml_backtest}
 \alias{run_ml_backtest}
-\alias{run_ml_backtest,meta_dataframe,meta_dataframe,character,ml_backtest_config,logical,logical-method}
-\alias{run_ml_backtest,meta_dataframe,meta_dataframe,character,ml_metabacktest_config,logical,logical-method}
+\alias{run_ml_backtest,meta_dataframe,meta_dataframe,character,ml_backtest_config-method}
+\alias{run_ml_backtest,meta_dataframe,meta_dataframe,character,ml_metabacktest_config-method}
 \alias{run_ml_backtest_internal}
 \title{Run Machine Learning Backtest}
 \usage{
-run_ml_backtest(
+run_ml_backtest(features_m_df, target_m_df, target_fwd_name, config, ...)
+
+\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,character,ml_backtest_config}(
   features_m_df,
   target_m_df,
   target_fwd_name,
   config,
-  verbose,
-  parallel,
-  ...
+  verbose = TRUE,
+  parallel = TRUE
 )
 
-\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,character,ml_backtest_config,logical,logical}(
+\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,character,ml_metabacktest_config}(
   features_m_df,
   target_m_df,
   target_fwd_name,
   config,
-  verbose,
-  parallel
-)
-
-\S4method{run_ml_backtest}{meta_dataframe,meta_dataframe,character,ml_metabacktest_config,logical,logical}(
-  features_m_df,
-  target_m_df,
-  target_fwd_name,
-  config,
-  verbose,
-  parallel,
+  verbose = TRUE,
+  parallel = TRUE,
   winsorize_predictions = TRUE,
   winsorization_probs = c(0.025, 0.975),
   normalize_predictions = TRUE,
@@ -74,11 +66,11 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{config}{A \code{ml_metabacktest_config} object containing a meta learner configuration and multiple individual configurations.}
 
+\item{...}{Additional arguments (not used in this method).}
+
 \item{verbose}{Logical, indicating whether to print progress messages (default is TRUE).}
 
 \item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
-
-\item{...}{Additional arguments (not used in this method).}
 
 \item{winsorize_predictions}{Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.}
 
@@ -176,24 +168,20 @@ for elastic net regularization, supporting both Lasso and Ridge regression.
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
   target_fwd_name = character,
-  config = ml_backtest_config,
-  verbose = logical,
-  parallel = logical
+  config = ml_backtest_config
 )}: Runs a backtest with a single configuration.
 
 \item \code{run_ml_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
   target_fwd_name = character,
-  config = ml_metabacktest_config,
-  verbose = logical,
-  parallel = logical
+  config = ml_metabacktest_config
 )}: Run Machine Learning Meta-Backtest
 
 }}
 \section{Functions}{
 \itemize{
-\item \code{run_ml_backtest_internal()}: Run Signal Selection Backtest
+\item \code{run_ml_backtest_internal()}: Run ML Backtest
 Perform out-of-sample testing for ML Algorithms with walk-forward time series validation
 
 This function performs walk-forward validation for time series data using

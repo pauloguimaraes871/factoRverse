@@ -6,19 +6,17 @@
 \usage{
 select_and_correct_signals(
   signals_m_df,
-  chosen_signals,
-  signal_positions,
-  backtest_returns_df = NULL
+  chosen_signals_and_positions,
+  backtest_returns_xts = NULL
 )
 }
 \arguments{
 \item{signals_m_df}{A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.}
 
-\item{chosen_signals}{A vector with user-defined characteristics to be considered.}
+\item{chosen_signals_and_positions}{A named vector indicating signals and their corresponding positions (long or short).
+For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").}
 
-\item{signal_positions}{A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short".}
-
-\item{backtest_returns_df}{A data frame with a 'dates' column and remaining columns named according to signals in signals_m_df, containing historical backtested returns.}
+\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 }
 \value{
 A list with two components:

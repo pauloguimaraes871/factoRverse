@@ -12,7 +12,9 @@ In the latter, the user can change the hierarchical model specification and how 
 \section{Slots}{
 
 \describe{
-\item{\code{signal_significance_threshold}}{A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+\item{\code{model_structure}}{A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.}
+
+\item{\code{signal_significance_threshold}}{A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
 
 \item{\code{p_correction_method}}{The method for p-value correction. Possible options are:
@@ -38,5 +40,8 @@ Should correspond to one of the columns in \code{benchmark_returns_df}.}
 
 \item{\code{bayesian_model_parameters}}{An object of class \code{bayesian_model_parameters}, containing the
 parameters needed to build the hierarhicical bayesian model and specify its priors.}
+
+\item{\code{enable_theme_representativeness}}{A logical indicating whether, if a given theme in \code{signal_themes_m_df} does not have any eligible signal, the signal
+with highest alpha t-stat should be elected.}
 }}
 

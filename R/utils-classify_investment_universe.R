@@ -186,8 +186,9 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
         ###Define top assets
         universe_m_d_ref$top_assets <- ifelse(adjusted_p_value <= signal_significance_threshold & alpha > 0, 1L, 0L) #If p-value < threshold, can assert alpha is positive
     }
+
     #Check if there are eligible signals
-    if(all(universe_m_d_ref$top_assets == 0)) stop("No signal was deemed significant.")
+    if(all(na.omit(universe_m_d_ref$top_assets) == 0)) stop("No signal was deemed significant.")
 
     #Print
     if(verbose){
@@ -195,7 +196,7 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
           paste(universe_m_d_ref$tickers[which(universe_m_d_ref$top_assets == 1)], collapse = ", "), "\n")
     }
     #Create benchmark_weights
-    benchmark_weights_m_d_ref <- create_se_benchmarks(signal_universe_m_d_ref = universe_m_d_ref, signal_themes_m_d_ref = groups_m_d_ref)
+    benchmark_weights_m_d_ref <- create_se_benchmarks(signal_universe_m_d_ref = universe_m_d_ref, selected_signal_themes_m_d_ref = groups_m_d_ref)
 
   }
   ###Only Top Assets Rule for Stocks

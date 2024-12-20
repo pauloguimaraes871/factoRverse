@@ -129,14 +129,14 @@ test_that("classify_investment_universe works with no additional rules for signa
                                          mean_active_return = rnorm(3, 0, 1),
                                          tracking_error = runif(3, 0, 1),
                                          IR = rnorm(3,0,1),
-                                         alpha = rnorm(3,0,1),
+                                         theme_alpha = rnorm(3,0,1),
+                                         individual_alpha = rnorm(3,0,1),
+                                         alpha_se = rnorm(3,0,1),
                                          alpha_t_stat = rnorm(3,0,1),
                                          beta = rnorm(3,0,1),
+                                         specific_risk = rnorm(3,0,1),
                                          treynor = rnorm(3,0,1),
                                          p_value = c(0.05,0.20,0.03),
-                                         posterior_mean_active_return = rnorm(3, 0, 1),
-                                         posterior_tracking_error = runif(3, 0, 1),
-                                         posterior_IR = rnorm(3,0,1),
                                          posterior_theme_alpha = rnorm(3,0,1),
                                          posterior_individual_alpha = rnorm(3,0,1),
                                          posterior_alpha_t_stat = rnorm(3,0,1),
@@ -172,7 +172,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   expected_results$is_eligible <- c(1,1,1)
 
   expect_equal(
-    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_significance_threshold,
+    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = 0.05,
                                  groups_m_d_ref = signals_groups_m_d_ref,
                                  concentration_constraint_policy = list(
                                    benchmark = c("theme_sb", "theme_ss"),
@@ -182,10 +182,6 @@ test_that("classify_investment_universe works with no additional rules for signa
 
     expected_results
   )
-
-
-
-
 
 })
 

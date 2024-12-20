@@ -57,7 +57,7 @@
 #'
 #'  @param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 #'
-#' @param signal_themes_m_d_ref Data frame.
+#' @param selected_signal_themes_m_d_ref Data frame.
 #'   A (meta)data frame containing metadata about signals with the following columns:
 #'   \describe{
 #'     \item{id}{Identifier for each observation.}
@@ -105,7 +105,7 @@
 #'       \item If neither `user_priors_list` or `priors_m_upd_ref` are provided, it employs default uninformative priors as defined by the `brms` package.
 #'     }
 #'   \item **Fit Bayesian Hierarchical Model**:
-#'     Fits a Bayesian hierarchical model to each theme in `signal_themes_m_d_ref` using the `fit_bayesian_model` function. This process leverages parallel processing for efficiency. Progress messages are displayed if `verbose` is `TRUE`.
+#'     Fits a Bayesian hierarchical model to each theme in `selected_signal_themes_m_d_ref` using the `fit_bayesian_model` function. This process leverages parallel processing for efficiency. Progress messages are displayed if `verbose` is `TRUE`.
 #'   \item **Extract and Summarize Posteriors**:
 #'     Extracts posterior draws from the fitted models and summarizes them using the `summarize_posterior_draws` function. The summary includes metrics such as alphas, betas, sigmas, active returns, tracking errors, information ratios, appraisal ratios, and Treynor ratios.
 #' }
@@ -141,7 +141,7 @@
 #'   model_spec_theme_level = "random_intercept",
 #'   v = 30,
 #'   lmer_optimizer = "nloptwrap",
-#'   signal_themes_m_d_ref = signal_themes_df,
+#'   selected_signal_themes_m_d_ref = signal_themes_df,
 #'   user_priors_list = NULL,
 #'   chains = 4,
 #'   iter = 2000,
@@ -161,10 +161,10 @@
 #' }
 #'
 #' @export
-bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_returns_corrected_positions_upd_ref, selected_market_factor_proxy_vector_upd_ref, #Data
+bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, #Data
                                 priors_m_upd_ref = NULL, model_spec_theme_level, user_priors = NULL, #Priors
                                 lmer_optimization_objective = "REML", half_t_df = 30, lmer_optimizer = "nloptwrap",  #lme4 parameters
-                                signal_themes_m_d_ref,
+                                selected_signal_themes_m_d_ref,
                                 chains = 4, iter = 2000, warmup = floor(iter/2), thin = 1, seed = NA, adapt_delta = 0.80, #MCMC parameters
                                 parallel = TRUE, verbose = TRUE){
 
@@ -190,10 +190,12 @@ bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_retur
   }
 
   ##Model Spec Theme Level
-  if(model_spec_theme_level %in% c("random_intercept", "fixed_intercepts", "fixed_intercepts_and_slopes", "none")){
+  if(model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope",
+                                   "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
     message("Model specification for theme-level is: ", model_spec_theme_level)
   } else {
-    stop("model_spec_theme_level must be one of 'random_intercept', 'fixed_intercepts', 'fixed_intercepts_and_slopes' or 'none'")
+    stop("model_spec_theme_level must be one of 'random_intercept_fixed_slope', 'theme_specific_intercept_fixed_slope',
+         'theme_specific_intercept_theme_specific_slope' or 'fixed_intercept_fixed_slope'")
   }
   ########################
 
@@ -224,7 +226,7 @@ bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_retur
   #Fit bayesian hierarchical model
   #############################################
   ##Get themes
-  signals_themes <- data.frame(theme = unique(signal_themes_m_d_ref$theme)) #Get themes from signals in signal_universe
+  signals_themes <- data.frame(theme = unique(selected_signal_themes_m_d_ref$theme)) #Get themes from signals in signal_universe
 
   ##Fit to all themes in parallel
   ###give message
@@ -236,13 +238,13 @@ bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_retur
   }
 
   ###Fit
-  posteriors_results_list <- fit_bayesian_model(
+  posteriors_results_list <- fit_bayesian_hierarchical_model(
                                #Data
                                signal_universe_m_d_ref = signal_universe_m_d_ref,
-                               selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
-                               selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
+                               selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                               selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
                                #Groups
-                               signal_themes_m_d_ref = signal_themes_m_d_ref,
+                               selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                #Priors
                                elected_priors = elected_priors_list$priors, model_spec_theme_level = model_spec_theme_level,
                                #MCMC Parameters
@@ -260,7 +262,7 @@ bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_retur
 
   bayesian_adjustment_results_list <- list(
     posterior_signal_universe_m_d_ref = posteriors_results_list$signal_universe_m_d_ref,
-    bayesian_model = posteriors_results_list$bayesian_model,
+    brm_model = posteriors_results_list$brm_model,
     posterior_draws_summaries = posteriors_results_list$posterior_draws_summaries,
     elected_priors =  elected_priors_list$priors,
     elected_priors_frequentist_model = elected_priors_list$model

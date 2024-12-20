@@ -14,7 +14,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when all signals are
                                         p_value = c(0.05,0.02,0.03)
   )
 
-  signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+  selected_signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
                                        tickers = c("Alpha", "low_Beta", "Gamma"),
                                        dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
                                        theme = c("Value", "Momentum", "Value")
@@ -29,7 +29,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when all signals are
   expected_results$theme_sb <- c(0.25, 0.50, 0.25)
 
   expect_equal(dplyr::select(expected_results, id, tickers, dates, theme_ss, theme_sb),
-               create_se_benchmarks(signal_universe_m_d_ref, signal_themes_m_d_ref = signal_themes_m_d_ref),
+               create_se_benchmarks(signal_universe_m_d_ref, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref),
                tolerance = 1e-3)
 
 
@@ -51,7 +51,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when one signal is n
                                         p_value = c(0.05,0.02,0.03)
   )
 
-  signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+  selected_signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
                                        tickers = c("Alpha", "low_Beta", "Gamma"),
                                        dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
                                        theme = c("Value", "Momentum", "Value")
@@ -66,7 +66,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when one signal is n
   expected_results$theme_sb <- c(0.50, 0.50, 0)
 
   expect_equal(dplyr::select(expected_results, id, tickers, dates, theme_ss, theme_sb),
-               create_se_benchmarks(signal_universe_m_d_ref, signal_themes_m_d_ref = signal_themes_m_d_ref),
+               create_se_benchmarks(signal_universe_m_d_ref, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref),
                tolerance = 1e-3)
 
 
@@ -91,7 +91,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when one theme has n
   signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, "none")
   signal_universe_m_d_ref$final_signal <- signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01)
   signal_universe_m_d_ref$top_assets <- c(1,0,1)
-  signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+  selected_signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
                                       tickers = c("Alpha", "low_Beta", "Gamma"),
                                       dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
                                       theme = c("value", "momentum", "value")
@@ -102,7 +102,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when one theme has n
   expected_results$theme_ss <- c(0.25,0.50,0.25)
   expected_results$theme_sb <- c(0.50, 0, 0.50)
 
-  expect_equal(create_se_benchmarks(signal_universe_m_d_ref, signal_themes_m_d_ref = signal_themes_m_d_ref),
+  expect_equal(create_se_benchmarks(signal_universe_m_d_ref, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref),
                dplyr::select(expected_results, id, tickers, dates, theme_ss, theme_sb),
                tolerance = 1e-3)
 

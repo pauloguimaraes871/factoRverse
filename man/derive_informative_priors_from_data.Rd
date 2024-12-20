@@ -6,7 +6,7 @@
 \usage{
 derive_informative_priors_from_data(
   priors_m_upd_ref,
-  model_spec_theme_level = "random_intercept",
+  model_spec_theme_level,
   half_t_df = 30,
   lmer_optimizer = "nloptwrap",
   lmer_optimization_objective = "REML"

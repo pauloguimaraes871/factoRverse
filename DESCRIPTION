@@ -27,8 +27,10 @@ Imports:
     glmnet,
     janitor,
     keras,
+    lmerTest,
     lubridate,
     magrittr,
+    methods,
     moments,
     ParBayesianOptimization,
     PerformanceAnalytics,
@@ -39,5 +41,6 @@ Imports:
     stats,
     stringr,
     tictoc,
-    lmerTest
+    xts
+    
     

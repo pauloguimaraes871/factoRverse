@@ -11,12 +11,13 @@ test_that("fit_frequentist_hierarchical_model works for random_intercept_fixed_s
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
-    chosen_signals_and_positions = chosen_signals_and_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions, signal_themes_m_df = signal_themes_m_df,
     signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
   selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
   selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
@@ -24,7 +25,7 @@ test_that("fit_frequentist_hierarchical_model works for random_intercept_fixed_s
 
   selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
 
-  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date),]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
 
   #Create base_signal_universe_m_d_ref
@@ -72,7 +73,7 @@ test_that("fit_frequentist_hierarchical_model works for random_intercept_fixed_s
     signal_universe_m_d_ref = base_signal_universe_m_d_ref,
     selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
     selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
-    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_spec_theme_level = "random_intercept_fixed_slope",
     lmer_optimizer = "nloptwrap", lmer_optimization_objective = FALSE, hierarchical_p_value_method = "Satterthwaite"
  ))
@@ -95,12 +96,13 @@ test_that("fit_frequentist_hierarchical_model works for theme_specific_intercept
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
-    chosen_signals_and_positions = chosen_signals_and_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions, signal_themes_m_df = signal_themes_m_df,
     signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
   selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
   selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
@@ -108,7 +110,7 @@ test_that("fit_frequentist_hierarchical_model works for theme_specific_intercept
 
   selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
 
-  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date),]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
 
   #Create base_signal_universe_m_d_ref
@@ -156,7 +158,7 @@ test_that("fit_frequentist_hierarchical_model works for theme_specific_intercept
     signal_universe_m_d_ref = base_signal_universe_m_d_ref,
     selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
     selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
-    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_spec_theme_level = "theme_specific_intercept_fixed_slope",
     lmer_optimizer = "nloptwrap", lmer_optimization_objective = TRUE, hierarchical_p_value_method = "Kenward-Roger"
   ))
@@ -179,12 +181,13 @@ test_that("fit_frequentist_hierarchical_model works for theme_specific_intercept
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
-    chosen_signals_and_positions = chosen_signals_and_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions, signal_themes_m_df = signal_themes_m_df,
     signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
   selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
   selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
@@ -192,7 +195,7 @@ test_that("fit_frequentist_hierarchical_model works for theme_specific_intercept
 
   selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
 
-  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date),]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
 
   #Create base_signal_universe_m_d_ref
@@ -240,7 +243,7 @@ test_that("fit_frequentist_hierarchical_model works for theme_specific_intercept
     signal_universe_m_d_ref = base_signal_universe_m_d_ref,
     selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
     selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
-    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
     lmer_optimizer = "nloptwrap", lmer_optimization_objective = TRUE, hierarchical_p_value_method = "Kenward-Roger"
   ))
@@ -263,12 +266,13 @@ test_that("fit_frequentist_hierarchical_model works for fixed_intercept_fixed_sl
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
-    chosen_signals_and_positions = chosen_signals_and_positions,
+    chosen_signals_and_positions = chosen_signals_and_positions, signal_themes_m_df = signal_themes_m_df,
     signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
   selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
   selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
@@ -276,7 +280,7 @@ test_that("fit_frequentist_hierarchical_model works for fixed_intercept_fixed_sl
 
   selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
 
-  signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date),]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
 
   #Create base_signal_universe_m_d_ref
@@ -324,7 +328,7 @@ test_that("fit_frequentist_hierarchical_model works for fixed_intercept_fixed_sl
     signal_universe_m_d_ref = base_signal_universe_m_d_ref,
     selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
     selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
-    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_spec_theme_level = "fixed_intercept_fixed_slope",
     lmer_optimizer = "Nelder_Mead", lmer_optimization_objective = TRUE, hierarchical_p_value_method = "Kenward-Roger"
   ))

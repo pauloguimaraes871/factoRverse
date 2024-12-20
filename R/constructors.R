@@ -1292,7 +1292,7 @@ setMethod("create_ml_metabacktest_config",
           }
 )
 
-#' @describeIn add_ml_backtest_config Add one or more ml_backtest_config objects to an ml_metabacktest_config
+#' Add one or more ml_backtest_config objects to an ml_metabacktest_config
 #'
 #' @param object An `ml_metabacktest_config` object.
 #' @param ... One or more `ml_backtest_config` objects to add.
@@ -1320,7 +1320,7 @@ setMethod("add_ml_backtest_config", "ml_metabacktest_config", function(object, .
 
 
 
-#' @describeIn remove_ml_backtest_config Remove an ml_backtest_config by name from an ml_metabacktest_config
+#' Remove an ml_backtest_config by name from an ml_metabacktest_config
 #'
 #' @param object An `ml_metabacktest_config` object.
 #' @param config_name A character string specifying the name of the `ml_backtest_config` to remove.
@@ -1715,6 +1715,7 @@ setMethod(
 #' @param data_availability_cutoff A numeric indicating the minimum number of non-NA observations required for a backtest.
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @param rebalancing_months A numeric indicating the number of months for rebalancing.
+#' @param active_returns Logical, whether to calculate active returns when calculating performance metrics, except for CAPM (default is TRUE).
 #' @param split_method A character string specifying the splitting method, either "expanding" (default) or "rolling".
 #' @param enable_theme_representativeness Logical, whether to enable theme representativeness (default is TRUE).
 #' @param alpha_test_strategy An `alpha_test_strategy` object defining the alpha test configuration.
@@ -1734,6 +1735,7 @@ create_ss_backtest_config <- function(
     data_availability_cutoff,
     initial_sample_size,
     rebalancing_months,
+    active_returns = TRUE,
     split_method = "expanding",
     alpha_test_strategy = NULL,
     config_name = "not_identified"
@@ -1757,6 +1759,7 @@ create_ss_backtest_config <- function(
      data_availability_cutoff = data_availability_cutoff,
       initial_sample_size = initial_sample_size,
       rebalancing_months = rebalancing_months,
+      active_returns = active_returns,
       split_method = split_method,
       alpha_test_strategy = alpha_test_strategy,
       config_name = config_name)
@@ -1803,7 +1806,7 @@ create_alpha_test_strategy <- function(
     stop("Currently, model_structure must be one of partial_pooled or no_pooled")
   }
   if(model_structure == "partial_pooled"){
-    if (is.null(theme_level_intecept) || !theme_level_intercept %in% c("fixed", "random", "theme_specific")){
+    if (is.null(theme_level_intercept) || !theme_level_intercept %in% c("fixed", "random", "theme_specific")){
       stop("theme_level_intercept must be 'fixed', 'random' or 'theme_specific'")
     }
     if (is.null(theme_level_slope) || !theme_level_slope %in% c("fixed", "theme_specific")){
@@ -1813,12 +1816,13 @@ create_alpha_test_strategy <- function(
                                c("theme_specific_intercept_fixed_slope"), #old fixed_intercepts
                                c("theme_specific_intercept_theme_specific_slope"), #old fixed_intercepts_fixed_slopes
                                c("fixed_intercept_fixed_slope")) #one none
-    chosen_combination <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+    chosen_combination <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
+
     if(!chosen_combination %in% avaiable_combinations){
       stop("Chosen combination of theme_level_intercept and theme_level_slope is currently not supported.")
     }
   } else {
-    if(any(is.null(theme_level_intercept), is.null(theme_level_slope))){
+    if(any(!is.null(theme_level_intercept), !is.null(theme_level_slope))){
       stop("Theme-level parameters are only avaiable for partial pooled models.")
     }
   }

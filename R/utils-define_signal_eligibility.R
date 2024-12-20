@@ -24,7 +24,7 @@
 #'  }
 #' @param signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 #' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
-#' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_d_ref` does not have any eligible signal, the signal
+#' @param enable_theme_representativeness If TRUE, in case a given theme in `selected_signal_themes_m_d_ref` does not have any eligible signal, the signal
 #' with highest alpha t-stat will be elected.
 #' @param priors_m_df_upd_ref A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
 #' and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
@@ -45,6 +45,10 @@
 #'
 #' \item{hierarchical_p_value_method}
 #' }
+#'
+#' @param active_returns A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
+#' backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts. This does not
+#' impact calculation of the CAPM model, whether it is frequentist or bayesian, pooled or partial pooled.
 #'
 #' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
 #' \itemize{
@@ -74,7 +78,7 @@
 #' @param parallel Logical.
 #'   Indicates whether to enable parallel computation using the `future` package. Only avaialable for bayesian model. Default is `TRUE`.
 #'
-#' @param signal_themes_m_d_ref A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
+#' @param selected_signal_themes_m_d_ref A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
 #' for defining clusters in bayesian hierarchical model. It should contain data only for current date.
 #'
 #' @param user_priors An object of class `brmsprior` with user-defined priors for the hierarchical bayesian model. It should be set with `model_spec_theme_level` structure in mind.
@@ -124,6 +128,7 @@
 #'   \item{\code{adjusted_p_value}}{The p-value adjusted for multiple comparisons, if applicable.}
 #'   \item{\code{final_signal}}{The final signal classification after applying transformations and adjustments.}
 #' }
+#'
 #'
 #' #' @details
 #'
@@ -194,12 +199,13 @@ define_signal_eligibility <- function(
   #Model Structure
   model_structure = "no_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
   lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
+  active_returns = TRUE,
   #Bayesian method
   priors_m_upd_ref = NULL, user_priors = NULL,
   brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
   prior_derivation_control = list(half_t_df = 30),
   #Signal Themes
-  signal_themes_m_d_ref,
+  selected_signal_themes_m_d_ref,
   #Winsorization
   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
   #Verbose & Parallel
@@ -226,7 +232,8 @@ define_signal_eligibility <- function(
     #CAPM Model Specification
     model_structure = model_structure, model_spec_theme_level = model_spec_theme_level, lmer_control = lmer_control,
     #Themes
-    signal_themes_m_d_ref = signal_themes_m_d_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    active_returns = active_returns,
     #Data
     selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
     selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
@@ -235,14 +242,14 @@ define_signal_eligibility <- function(
 
     ###Extract
     signal_universe_m_d_ref <- performance_summary_list$signal_universe_m_d_ref
-    frequentist_results <- performance_summary_list$hierarchical_frequentist_fit_results_list
+    frequentist_results <- performance_summary_list$frequentist_fit_results_list
 
 
   ################
 
   #Correct based on backtest length
   ##Check if backtests have enough length to be considered
-  cutted_out_backtests <- selected_backtest_returns_corrected_positions_xts_upd_ref[,-1] %>% apply(2, function(col){
+  cutted_out_backtests <- selected_backtest_returns_corrected_positions_xts_upd_ref %>% apply(2, function(col){
     length(which(is.na(col))) >= data_availability_cutoff
   })
 
@@ -300,8 +307,8 @@ define_signal_eligibility <- function(
     bayesian_adjustment_results_list <- bayesian_adjustment(
       #Signals and benchmark
       signal_universe_m_d_ref = signal_universe_m_d_ref,
-      selected_backtest_returns_corrected_positions_upd_ref = selected_backtest_returns_corrected_positions_upd_ref,
-      selected_market_factor_proxy_vector_upd_ref = selected_market_factor_proxy_vector_upd_ref,
+      selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+      selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
       #Priors
       priors_m_upd_ref = priors_m_upd_ref,
       user_priors = user_priors,
@@ -311,7 +318,7 @@ define_signal_eligibility <- function(
       #brms control
       chains = chains, iter = iter, warmup = warmup, thin = thin, seed = seed, adapt_delta = adapt_delta,
       #Groups
-      signal_themes_m_d_ref = signal_themes_m_d_ref,
+      selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
       parallel = parallel, verbose = verbose
     )
 
@@ -337,7 +344,7 @@ define_signal_eligibility <- function(
   signal_universe_m_d_ref <- classify_investment_universe(
     signals_m_d_ref = signal_universe_m_d_ref, #Signal Universe
     signal_significance_threshold = signal_significance_threshold, #Signal Significance Threshold
-    groups_m_d_ref = signal_themes_m_d_ref, #Groups to select
+    groups_m_d_ref = selected_signal_themes_m_d_ref, #Groups to select
     #Build concentration constraint policy for signals
     concentration_constraint_policy =  list(
       benchmark = c("theme_ss", "theme_sb"), #Reference benchmark

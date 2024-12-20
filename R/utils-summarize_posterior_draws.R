@@ -5,7 +5,7 @@
 #'
 #' @param brm_model A bayesian model fit with `brms::brm`.
 #' @param signal_universe_m_d_ref A dataframe with tickers, is_eligible and final_signal columns
-#' @param signal_themes_m_d_ref A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
+#' @param selected_signal_themes_m_d_ref A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
 #' for defining clusters in bayesian hierarchical model. It should contain data only for current date.
 #'
 #' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
@@ -26,17 +26,20 @@
 #'   \item Computes and updates additional performance metrics like Appraisal Ratio (AP) and Treynor ratio.
 #' }
 #'
-summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL, signal_themes_m_d_ref, model_spec_theme_level){
+summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL, selected_signal_themes_m_d_ref, model_spec_theme_level){
+
+  #Get frequentist metrics
+  frequentist_metrics <- colnames(signal_universe_m_d_ref)[-c(1:3)]
 
   #Get tidy posterior draws from brm_model
   #####################
   vars <- tidybayes::get_variables(brm_model) #Get all variables in model
-  theme_tickers_key <- signal_themes_m_d_ref %>% dplyr::mutate(tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme) #Create key
+  theme_tickers_key <- selected_signal_themes_m_d_ref %>% dplyr::mutate(tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme) #Create key
 
     ##Alpha (Beta_0)
     ################
       ###Random Effects at Theme Level
-      if(model_spec_theme_level == "random_intercept"){
+      if(model_spec_theme_level == "random_intercept_fixed_slope"){
         tidy_posterior_draws_intercept <- brm_model %>%
           tidybayes::spread_draws(b_Intercept, r_theme[theme, theme_term], `r_theme:tickers`[tickers, tickers_term]) %>%
           dplyr::filter(stringr::str_detect(tickers, theme) & theme_term == "Intercept" & tickers_term == "Intercept") %>% # Keep only rows where tickers contain the theme
@@ -51,7 +54,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
 
       ###Fixed Intercepts for Each Theme
       ###Select variables starting with 'b_' and not containing 'market_factor_proxy'
-      if(model_spec_theme_level %in% c("fixed_intercepts", "fixed_intercepts_and_slopes")){
+      if(model_spec_theme_level %in% c("theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope")){
         b_variables <- vars[grepl("^b_", vars) & !grepl("market_factor_proxy", vars)] #Select variables starting with 'b_' and not containing 'market_factor_proxy'
 
         tidy_posterior_draws_intercept <- brm_model %>%
@@ -72,7 +75,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
       }
 
       ###No effects on theme level
-      if(model_spec_theme_level == "none"){
+      if(model_spec_theme_level == "fixed_intercept_fixed_slope"){
         tidy_posterior_draws_intercept <- brm_model %>%
           tidybayes::spread_draws(b_Intercept, `r_theme:tickers`[tickers, tickers_term]) %>%
           dplyr::left_join(theme_tickers_key, by = "tickers") %>% #Join with theme_tickers_key to get theme_tickers
@@ -101,7 +104,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
     ##Slope (Beta_1)
     ################
       ###Fixed Slopes for Each Theme
-      if(model_spec_theme_level %in% c("fixed_intercepts_and_slopes")){
+      if(model_spec_theme_level %in% c("theme_specific_intercept_theme_specific_slope")){
         b_variables <- vars[grepl("^b_", vars) & grepl("market_factor_proxy", vars)] #Select variables starting with 'b_' and containing 'market_factor_proxy'
 
         tidy_posterior_draws_slope <- brm_model %>%
@@ -122,7 +125,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
       }
 
       ###No effects on theme level
-      if(model_spec_theme_level %in% c("random_intercept", "fixed_intercepts", "none")){
+      if(model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope", "fixed_intercept_fixed_slope")){
       tidy_posterior_draws_slope <- brm_model %>%
         tidybayes::spread_draws(b_market_factor_proxy, `r_theme:tickers`[tickers, tickers_term]) %>%
         dplyr::filter(tickers_term == "market_factor_proxy") %>% # Keep only rows where tickers contain the theme
@@ -149,7 +152,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
     ##Sigma
     ################
       ##Random Effects at Theme Level
-      if(model_spec_theme_level == "random_intercept"){
+      if(model_spec_theme_level == "random_intercept_fixed_slope"){
       tidy_posterior_draws_sd <- brm_model %>%
         tidybayes::spread_draws(
           sd_theme__Intercept, #sigma(u_0j)
@@ -167,7 +170,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
       }
 
       ##No Random Effects at Theme Level
-      if(model_spec_theme_level %in% c("fixed_intercepts", "fixed_intercepts_and_slopes", "none")){
+      if(model_spec_theme_level %in% c("theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
         tidy_posterior_draws_sd <- brm_model %>%
           tidybayes::spread_draws(
             `sd_theme:tickers__Intercept`, #sigma(v_0k(j))
@@ -222,7 +225,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
       #Add posterior results to signal_universe_m_d_ref
       if(!is.null(signal_universe_m_d_ref)){
       #####################
-      theme_tickers_key <- signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme_tickers) #Redefine key
+      theme_tickers_key <- selected_signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme_tickers) #Redefine key
       signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(theme_tickers_key, by = "tickers") #Add key to signal_universe_m_d_ref
 
       ##Intercept Metrics
@@ -233,10 +236,11 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
           posterior_theme_alpha = median(posterior_theme_alpha), #Median of alpha at theme level
           pd_alpha = mean(posterior_individual_alpha > 0), #Probability of direction for alpha at individual level
           posterior_alpha_t_stat = mean(posterior_individual_alpha)/sd(posterior_individual_alpha), #T-stat of alpha at individual level
-          posterior_individual_alpha = median(posterior_individual_alpha), #Median of alpha at individual level
+          posterior_alpha_se = sd(posterior_individual_alpha), #Standard error of alpha at individual level
+          posterior_individual_alpha = median(posterior_individual_alpha) #Median of alpha at individual level
         )
-      ##Add to signal_universe
-      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_intercept_metrics, by = c("theme_tickers" = "tickers"))
+        ###Add to signal_universe
+        signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_intercept_metrics, by = c("theme_tickers" = "tickers"))
 
       ##Slope Metrics
       posterior_slope_metrics <- tidy_posterior_draws_slope %>%
@@ -245,34 +249,36 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
           posterior_theme_beta = median(posterior_theme_beta), #Median of beta at theme level
           posterior_individual_beta = median(posterior_individual_beta) #Median of beta at individual level
         )
-      ##Add to signal_universe
-      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_slope_metrics, by = c("theme_tickers" = "tickers"))
+        ###Add to signal_universe
+        signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_slope_metrics, by = c("theme_tickers" = "tickers"))
 
-      ##Performance Metrics
+      ##Add specific risk
+      signal_universe_m_d_ref[, "posterior_specific_risk"] <- median(tidy_posterior_draws_sd$posterior_sigma)
+
+      ##Get other metrics
       posterior_performance_metrics <- tidy_posterior_predicted_draws %>%
         dplyr::group_by(tickers) %>%
         dplyr::summarise(
-          posterior_mean_active_return = mean(.prediction), #Mean Active Return
-          posterior_tracking_error = sd(.prediction), #SD of Active Return
-          posterior_IR = mean(.prediction)/sd(.prediction) #IR
+          posterior_geom_mean_ret = PerformanceAnalytics::mean.geometric(.prediction/100)*100 #Mean Geometric Return
         )
-      ##Add to signal_universe
-      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_performance_metrics, by = c("tickers"))
 
-      ##Add treynor
-      signal_universe_m_d_ref[, "posterior_treynor"] <- signal_universe_m_d_ref$posterior_mean_active_return/signal_universe_m_d_ref$posterior_individual_beta
+        ###Add to signal_universe
+        signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(posterior_performance_metrics, by = c("tickers")) %>%
+          dplyr::mutate(posterior_treynor_ratio = posterior_geom_mean_ret/posterior_individual_beta, #Posterior Treynor Ratio
+                        posterior_appraisal_ratio = posterior_individual_alpha/posterior_specific_risk #Posterior Appraisal Ratio
+          )
 
 
       #####################
 
       #Re-order
       ##New metrics
-      ordered_metrics <- c("id", "tickers", "dates", "mean_active_return", "tracking_error", "IR", "alpha", "alpha_t_stat", "beta", "treynor", "p_value",
-                           "posterior_mean_active_return", "posterior_tracking_error", "posterior_IR", "posterior_theme_alpha", "posterior_individual_alpha",
-                           "posterior_alpha_t_stat", "posterior_theme_beta", "posterior_individual_beta", "posterior_treynor", "pd_theme_alpha", "pd_alpha")
+      ordered_metrics <- c("id", "tickers", "dates", frequentist_metrics,
+                           "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
+                           "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha")
 
-    signal_universe_m_d_ref <- signal_universe_m_d_ref[, ordered_metrics]
-    rownames(signal_universe_m_d_ref) <- NULL
+      signal_universe_m_d_ref <- signal_universe_m_d_ref[, ordered_metrics]
+      rownames(signal_universe_m_d_ref) <- NULL
 
 
     #Create result object

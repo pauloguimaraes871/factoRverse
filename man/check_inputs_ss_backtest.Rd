@@ -10,17 +10,19 @@ check_inputs_ss_backtest(
   data_availability_cutoff,
   split_method,
   signals_m_df,
-  chosen_signals,
-  signal_positions,
-  backtest_returns_df,
-  benchmark_returns_df,
+  chosen_signals_and_positions,
+  backtest_returns_xts,
+  benchmark_returns_xts,
   market_factor_proxy,
   p_correction_method,
   signal_significance_threshold,
   enable_theme_representativeness,
+  model_structure,
+  theme_level_intercept,
+  theme_level_slope,
+  lmer_control,
   priors_m_df,
   user_priors,
-  model_spec_theme_level,
   brms_control,
   prior_derivation_control,
   signal_themes_m_df,
@@ -37,11 +39,12 @@ check_inputs_ss_backtest(
 
 \item{signals_m_df}{A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.}
 
-\item{chosen_signals}{A vector with user-defined characteristics to be considered.}
+\item{chosen_signals_and_positions}{A named vector indicating signals and their corresponding positions (long or short).
+For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").}
 
-\item{signal_positions}{A named vector with same length and names as chosen_signals describing whether positions should be taken "long" or "short".}
+\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
-\item{backtest_returns_df}{A data frame with a 'dates' column and remaining columns named according to signals in signals_m_df, containing historical backtested returns.}
+\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
 
 \item{p_correction_method}{The method for p-value correction. Possible options are:
 \itemize{
@@ -61,33 +64,33 @@ For FDR, possible options are:
 \item{"BY"}: Benjamini-Yekutieli (2001) procedure.
 }}
 
-\item{signal_significance_threshold}{A decimal indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+\item{signal_significance_threshold}{A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all signals,
 provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
 
 \item{enable_theme_representativeness}{If TRUE, in case a given theme in \code{signal_themes_m_df} does not have any eligible signal, the signal
 with highest alpha t-stat will be elected.}
 
-\item{priors_m_df}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
-and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors.}
+\item{model_structure}{A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.}
 
-\item{model_spec_theme_level}{A character string specifying the desired Bayesian model structure.
-Options include:
+\item{theme_level_intercept}{A character specifying the specification of effects of the intercept at the theme level.}
+
+\item{theme_level_slope}{A character specifying the specification of effects of the slope at the theme level.}
+
+\item{lmer_control}{Other additional parameters to be passed to \code{lme4::lmer} function.
 \itemize{
-\item \code{"random_intercept"}: Includes random effects for the intercept at the theme level.
-\item \code{"fixed_intercepts"}: Uses fixed intercepts for each theme.
-\item \code{"fixed_intercepts_and_slopes"}: Includes fixed intercepts and slopes for each theme.
-\item \code{"none"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
-}}
-
-\item{prior_derivation_control}{A list of additional parameters to be passed to the \code{lme4::lmer} function:
-\itemize{
-\item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
-
-\item{lmer_optimizer} A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
+#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
 It will be passed to lme4::lmerControl, which will be used in the \code{lme4::lmer} function.
 Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
 
 \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+}}
+
+\item{priors_m_df}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
+and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors.}
+
+\item{prior_derivation_control}{A list of additional parameters to be passed to the \code{lme4::lmer} function:
+\itemize{
+\item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
 }}
 
 \item{signal_themes_m_df}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
@@ -96,8 +99,6 @@ for defining clusters in bayesian hierarchical model.}
 \item{lower_quantile_winsorization}{Numeric value for lower winsorization.}
 
 \item{upper_quantile_winsorization}{Numeric value for upper winsorization.}
-
-\item{selected_benchmark_returns_df}{A data frame with a 'dates' column and a column with benchmark returns, named accordingly.}
 
 \item{parallel}{Logical.
 Indicates whether to enable parallel computation using the \code{future} package. Only avaialable for bayesian model. Default is \code{TRUE}.}

@@ -44,6 +44,9 @@
 #' \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 #' }
 #'
+#' @param active_returns A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
+#' backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts.
+#'
 #' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
 #' \itemize{
 #' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
@@ -85,7 +88,7 @@ check_inputs_ss_backtest <- function(
   #Signals
   signals_m_df, chosen_signals_and_positions,
   #Backtests and benchmark returns
-  backtest_returns_xts, benchmark_returns_xts, market_factor_proxy,
+  backtest_returns_xts, benchmark_returns_xts, market_factor_proxy, active_returns,
   #P-value
   p_correction_method, signal_significance_threshold,
   #Theme Representativeness
@@ -195,7 +198,7 @@ check_inputs_ss_backtest <- function(
   }
 
   ##Check if all signals of signals_m_df are covered and vice-versa
-  if(any(names(chosen_signals_corrected_positions) %in% signal_themes_m_df$tickers)){
+  if(any(!names(chosen_signals_corrected_positions) %in% signal_themes_m_df$tickers)){
     stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
   }
 
@@ -217,7 +220,7 @@ check_inputs_ss_backtest <- function(
   }
 
   #model_structure
-  if(model_structure %in% c("no_pooled", "partial_pooled")){
+  if(!model_structure %in% c("no_pooled", "partial_pooled")){
     stop("model_structure must be one of 'no_pooled' or 'partial_pooled'")
   }
   if(model_structure == "partial_pooled"){
@@ -238,7 +241,9 @@ check_inputs_ss_backtest <- function(
       if(!is.null(lmer_control$hierarchical_p_value_method) && !lmer_control$hierarchical_p_value_method %in% c("Satterthwaite", "Kenward-Roger", "lme4")){
         stop("hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
       }
-
+      if(any(is.null(theme_level_intercept), is.null(theme_level_slope))){
+        stop("For 'partial_pooled' model structure, 'theme_level_intercept' and 'theme_level_slope' must be provided.")
+      }
     }
   }
   #p_correction_method
@@ -454,7 +459,10 @@ check_inputs_ss_backtest <- function(
     stop("market_factor_proxy must be present in benchmark_returns_xts")
   }
 
-
+  #active_returns
+  if(!is.logical(active_returns)){
+    stop("active_returns must be logical")
+  }
 
 }
 

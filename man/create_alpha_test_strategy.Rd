@@ -5,10 +5,15 @@
 \title{Create an alpha_test_strategy object}
 \usage{
 create_alpha_test_strategy(
+  model_structure = "no_pooled",
+  theme_level_intercept = NULL,
+  theme_level_slope = NULL,
   signal_significance_threshold = 0.05,
   p_correction_method = "none",
   market_factor_proxy,
-  bayesian_model_parameters = NULL
+  bayesian_model_parameters = NULL,
+  enable_theme_representativeness = TRUE,
+  lmer_control = NULL
 )
 }
 \arguments{

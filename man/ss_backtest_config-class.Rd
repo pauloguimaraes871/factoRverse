@@ -14,18 +14,11 @@ default uninformative priors.
 \section{Slots}{
 
 \describe{
-\item{\code{chosen_signals}}{A vector of user-defined characteristics to be considered.}
-
-\item{\code{signal_positions}}{A named vector with the same length and names as \code{chosen_signals}, describing whether positions should be taken "long" or "short".}
-
 \item{\code{data_availability_cutoff}}{The minimum number of non-NA observations required for a backtest to be considered.}
 
 \item{\code{initial_sample_size}}{A numeric indicating the minimum number of observations required to begin the backtest.}
 
 \item{\code{split_method}}{The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").}
-
-\item{\code{enable_theme_representativeness}}{A logical indicating whether, if a given theme in \code{signal_themes_m_df} does not have any eligible signal, the signal
-with highest alpha t-stat should be elected.}
 
 \item{\code{alpha_test_strategy}}{An \code{alpha_test_strategy} object with the configuration for the alpha test.}
 }}

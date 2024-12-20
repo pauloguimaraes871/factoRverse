@@ -1528,31 +1528,200 @@ methods::setMethod("summary", "ss_backtest_results", function(object, summary_id
 
   } else if (table_name == "Top_Signals") {
     # Top signals by avg_ir, including alpha_t_stat
-    top_signals <- final_signal_universe_df %>%
-      dplyr::group_by(tickers) %>%
-      dplyr::summarise(
-        avg_ir = mean(IR, na.rm = TRUE),
-        avg_alpha = mean(alpha, na.rm = TRUE),
-        alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
-        .groups = 'drop'
-      ) %>%
-      dplyr::arrange(dplyr::desc(avg_ir)) %>%
-      dplyr::slice_head(n = 5)
-    display_table(top_signals, "Top Signals by Average Information Ratio (IR)")
+    if(object@ss_backtest_workflow$active_returns){
+      if(object@ss_backtest_workflow$p_correction_method == "bayesian"){
+        #Bayesian
+        top_signals <- final_signal_universe_df %>%
+          dplyr::group_by(tickers) %>%
+          dplyr::summarise(
+            avg_ir = mean(info_ratio, na.rm = TRUE),
+            avg_alpha = mean(individual_alpha, na.rm = TRUE),
+            alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+            avg_posterior_alpha = mean(posterior_individual_alpha, na.rm = TRUE),
+            avg_alpha_t_stat = mean(posterior_alpha_t_stat, na.rm = TRUE),
+            .groups = 'drop'
+          ) %>%
+          dplyr::arrange(dplyr::desc(avg_ir)) %>%
+          dplyr::slice_head(n = 5)
+        display_table(top_signals, "Top Signals by Average Information Ratio")
+      } else {
+        #Frequentist
+        if(object@ss_backtest_workflow$model_structure == "no_pooled"){
+          ###No Pooled
+          top_signals <- final_signal_universe_df %>%
+            dplyr::group_by(tickers) %>%
+            dplyr::summarise(
+              avg_ir = mean(info_ratio, na.rm = TRUE),
+              avg_alpha = mean(alpha, na.rm = TRUE),
+              alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+              .groups = 'drop'
+            ) %>%
+            dplyr::arrange(dplyr::desc(avg_ir)) %>%
+            dplyr::slice_head(n = 5)
+          display_table(top_signals, "Top Signals by Average Information Ratio")
+        } else {
+          ###Partial Pooled
+          top_signals <- final_signal_universe_df %>%
+            dplyr::group_by(tickers) %>%
+            dplyr::summarise(
+              avg_ir = mean(info_ratio, na.rm = TRUE),
+              avg_alpha = mean(individual_alpha, na.rm = TRUE),
+              alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+              .groups = 'drop'
+            ) %>%
+            dplyr::arrange(dplyr::desc(avg_ir)) %>%
+            dplyr::slice_head(n = 5)
+          display_table(top_signals, "Top Signals by Average Information Ratio")
+        }
+
+      }
+
+    } else {
+      if(object@ss_backtest_workflow$p_correction_method == "bayesian"){
+        #Bayesian
+        top_signals <- final_signal_universe_df %>%
+          dplyr::group_by(tickers) %>%
+          dplyr::summarise(
+            avg_sharpe = mean(sharpe_ratio, na.rm = TRUE),
+            avg_alpha = mean(individual_alpha, na.rm = TRUE),
+            alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+            avg_posterior_alpha = mean(posterior_individual_alpha, na.rm = TRUE),
+            avg_alpha_t_stat = mean(posterior_alpha_t_stat, na.rm = TRUE),
+            .groups = 'drop'
+          ) %>%
+          dplyr::arrange(dplyr::desc(avg_sharpe)) %>%
+          dplyr::slice_head(n = 5)
+        display_table(top_signals, "Top Signals by Average Sharpe Ratio")
+      } else {
+        #Frequentist
+        if(object@ss_backtest_workflow$model_structure == "no_pooled"){
+          ###No Pooled
+          top_signals <- final_signal_universe_df %>%
+            dplyr::group_by(tickers) %>%
+            dplyr::summarise(
+              avg_sharpe = mean(sharpe_ratio, na.rm = TRUE),
+              avg_alpha = mean(alpha, na.rm = TRUE),
+              alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+              .groups = 'drop'
+            ) %>%
+            dplyr::arrange(dplyr::desc(avg_sharpe)) %>%
+            dplyr::slice_head(n = 5)
+          display_table(top_signals, "Top Signals by Average Sharpe Ratio")
+        } else {
+          ###Partial Pooled
+          top_signals <- final_signal_universe_df %>%
+            dplyr::group_by(tickers) %>%
+            dplyr::summarise(
+              avg_sharpe = mean(sharpe_ratio, na.rm = TRUE),
+              avg_alpha = mean(individual_alpha, na.rm = TRUE),
+              alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+              .groups = 'drop'
+            ) %>%
+            dplyr::arrange(dplyr::desc(avg_sharpe)) %>%
+            dplyr::slice_head(n = 5)
+          display_table(top_signals, "Top Signals by Average Sharpe Ratio")
+        }
+      }
+    }
 
   } else if (table_name == "Top_Themes") {
-    # Top themes by avg_ir, including alpha_t_stat
-    top_themes <- final_signal_universe_df %>%
-      dplyr::group_by(theme) %>%
-      dplyr::summarise(
-        avg_ir = mean(IR, na.rm = TRUE),
-        avg_alpha = mean(alpha, na.rm = TRUE),
-        alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
-        .groups = 'drop'
-      ) %>%
-      dplyr::arrange(dplyr::desc(avg_ir)) %>%
-      dplyr::slice_head(n = 5)
-    display_table(top_themes, "Top Themes by Average Information Ratio (IR)")
+
+    # Top signals by avg_ir, including alpha_t_stat
+    if(object@ss_backtest_workflow$active_returns){
+      if(object@ss_backtest_workflow$p_correction_method == "bayesian"){
+        #Bayesian
+        top_signals <- final_signal_universe_df %>%
+          dplyr::group_by(theme) %>%
+          dplyr::summarise(
+            avg_ir = mean(info_ratio, na.rm = TRUE),
+            avg_alpha = mean(individual_alpha, na.rm = TRUE),
+            alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+            avg_posterior_alpha = mean(posterior_individual_alpha, na.rm = TRUE),
+            avg_alpha_t_stat = mean(posterior_alpha_t_stat, na.rm = TRUE),
+            .groups = 'drop'
+          ) %>%
+          dplyr::arrange(dplyr::desc(avg_ir)) %>%
+          dplyr::slice_head(n = 5)
+        display_table(top_signals, "Top Themes by Average Information Ratio")
+      } else {
+        #Frequentist
+        if(object@ss_backtest_workflow$model_structure == "no_pooled"){
+          ###No Pooled
+          top_signals <- final_signal_universe_df %>%
+            dplyr::group_by(theme) %>%
+            dplyr::summarise(
+              avg_ir = mean(info_ratio, na.rm = TRUE),
+              avg_alpha = mean(alpha, na.rm = TRUE),
+              alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+              .groups = 'drop'
+            ) %>%
+            dplyr::arrange(dplyr::desc(avg_ir)) %>%
+            dplyr::slice_head(n = 5)
+          display_table(top_signals, "Top Themes by Average Information Ratio")
+        } else {
+          ###Partial Pooled
+          top_signals <- final_signal_universe_df %>%
+            dplyr::group_by(theme) %>%
+            dplyr::summarise(
+              avg_ir = mean(info_ratio, na.rm = TRUE),
+              avg_alpha = mean(individual_alpha, na.rm = TRUE),
+              alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+              .groups = 'drop'
+            ) %>%
+            dplyr::arrange(dplyr::desc(avg_ir)) %>%
+            dplyr::slice_head(n = 5)
+          display_table(top_signals, "Top Themes by Average Information Ratio")
+        }
+
+      }
+
+    } else {
+      if(object@ss_backtest_workflow$p_correction_method == "bayesian"){
+        #Bayesian
+        top_signals <- final_signal_universe_df %>%
+          dplyr::group_by(theme) %>%
+          dplyr::summarise(
+            avg_sharpe = mean(sharpe_ratio, na.rm = TRUE),
+            avg_alpha = mean(individual_alpha, na.rm = TRUE),
+            alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+            avg_posterior_alpha = mean(posterior_individual_alpha, na.rm = TRUE),
+            avg_alpha_t_stat = mean(posterior_alpha_t_stat, na.rm = TRUE),
+            .groups = 'drop'
+          ) %>%
+          dplyr::arrange(dplyr::desc(avg_sharpe)) %>%
+          dplyr::slice_head(n = 5)
+        display_table(top_signals, "Top Themes by Average Sharpe Ratio")
+      } else {
+        #Frequentist
+        if(object@ss_backtest_workflow$model_structure == "no_pooled"){
+          ###No Pooled
+          top_signals <- final_signal_universe_df %>%
+            dplyr::group_by(theme) %>%
+            dplyr::summarise(
+              avg_sharpe = mean(sharpe_ratio, na.rm = TRUE),
+              avg_alpha = mean(alpha, na.rm = TRUE),
+              alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+              .groups = 'drop'
+            ) %>%
+            dplyr::arrange(dplyr::desc(avg_sharpe)) %>%
+            dplyr::slice_head(n = 5)
+          display_table(top_signals, "Top Themes by Average Sharpe Ratio")
+        } else {
+          ###Partial Pooled
+          top_signals <- final_signal_universe_df %>%
+            dplyr::group_by(theme) %>%
+            dplyr::summarise(
+              avg_sharpe = mean(sharpe_ratio, na.rm = TRUE),
+              avg_alpha = mean(individual_alpha, na.rm = TRUE),
+              alpha_t_stat = mean(alpha_t_stat, na.rm = TRUE),
+              .groups = 'drop'
+            ) %>%
+            dplyr::arrange(dplyr::desc(avg_sharpe)) %>%
+            dplyr::slice_head(n = 5)
+          display_table(top_signals, "Top Themes by Average Sharpe Ratio")
+        }
+      }
+    }
   } else {
     stop("Unknown table name.")
   }
