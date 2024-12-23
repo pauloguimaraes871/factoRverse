@@ -2,7 +2,7 @@
 % Please edit documentation in R/run_sb_backtest.R
 \name{run_base_sb_backtests}
 \alias{run_base_sb_backtests}
-\title{Run Base Machine Learning Backtests}
+\title{Run Base Signal Blending Backtests}
 \usage{
 run_base_sb_backtests(
   features_m_df,
@@ -30,7 +30,7 @@ run_base_sb_backtests(
 A list of \code{sb_backtest_results} objects, one for each base learner configuration.
 }
 \description{
-Runs machine learning backtests for base learners using the provided configurations.
+Runs signal blending backtests for base learners using the provided configurations.
 This helper function is used within \code{run_sb_backtest} but can be utilized independently if needed.
 }
 \examples{

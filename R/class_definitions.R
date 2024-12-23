@@ -40,7 +40,7 @@ setOldClass("xts")
 setClass("meta_dataframe",
          slots = c(
            data = "data.frame",        # Slot for the data frame
-           workflow = "list",          # Slot for storing sb_backtest_workflow about the data manipulation workflow
+           workflow = "ANY",          # Slot for storing sb_backtest_workflow about the data manipulation workflow
            signals = "character",      # Slot for storing column names
            unique_dates = "numeric",   # Slot for storing count of unique dates
            unique_tickers = "numeric", # Slot for storing count of unique tickers
@@ -49,11 +49,72 @@ setClass("meta_dataframe",
          ), validity = function(object){
 
            #Check for presence of low
-           if(any(grepl("low_", signals))){
+           if(any(grepl("low_", object@signals))){
              return("Column names cannot contain 'low_'")
            }
 
          })
+
+
+#' Define the signal_universe_meta_dataframe S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
+#'
+#' @slot universe_name A \code{character} string describing the universe name.
+#' @slot ss_backtest_workflow A \code{list} storing the sb_backtest_workflow that generated the signal_universe_meta_dataframe object.
+#'
+#'
+#' @export
+setClass(
+  "signal_universe_m_df",
+  slots = c(
+    ss_backtest_workflow = "ANY",
+    sb_backtest_workflow = "ANY"
+  ),
+  contains = "meta_dataframe",
+  validity = function(object) {
+
+    #Check for valid column names
+    valid_performance_metrics_names <- c(
+      "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
+      "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
+      "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
+      "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
+      "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
+      "prob_sharpe_ratio", "modigliani", "ann_modigliani",
+      "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
+      "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
+      "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
+      "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
+      "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
+      "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
+      "act_modigliani", "act_ann_modigliani",
+      "alpha", "theme_alpha", "individual_alpha", "alpha_se", "beta", "theme_beta", "individual_beta", "specific_risk",
+      "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
+      "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
+      "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
+    )
+
+    # Check if columns adhere to expectations
+    colnames <- colnames(object@data)
+
+    if(any(!colnames %in% c("id", "tickers", "dates", valid_performance_metrics_names, "adjusted_p_value", "top_assets", "is_eligible",
+                            "theme", "theme_ss_bench_weights", "theme_sb_bench_weights"))){
+      return("Column names do not adhere to expected signal_universe_m_df object")
+    }
+
+    if(any(!c("top_assets", "is_eligible", "adjusted_p_value") %in% colnames)){
+      return("signal_universe_m_df object must contain top_assets, is_eligible and adjusted_p_value columns.")
+    }
+
+    if(any(!c("theme_ss_bench_weights", "theme_sb_bench_weights", "theme") %in% colnames)){
+      return("signal_universe_m_df object must contain theme_ss_bench_weights, theme_sb_bench_weights and theme columns.")
+    }
+
+    # If all checks pass
+    TRUE
+  }
+)
 
 
 #' Define the `hyper_grid_domain` S4 Class

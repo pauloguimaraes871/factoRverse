@@ -89,7 +89,19 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 #' @exportMethod create_meta_dataframe
 setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
 
-          function(data, meta_dataframe_name = "not_identified") {
+          function(data, meta_dataframe_name = "not_identified", workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, ...) {
+
+            #Check for type argument
+            type <- list(...)
+            if(length(type) > 0){
+              #Check if it is correct
+              if(!type %in% c("generic", "signal_universe", "stock_universe")){
+                stop("type argument must be one of 'generic', 'signal_universe', or 'stock_universe'")
+              }
+            } else {
+              type <- "generic"
+            }
+
             if (!is.data.frame(data)) {
               stop("Input must be a data.frame")
             }
@@ -122,7 +134,7 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             remaining_columns <- setdiff(names(data), required_columns)
             na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
             if (any(na_remaining)) {
-              message("The following columns contain NA values: ",
+              warning("The following columns contain NA values: ",
                       paste(remaining_columns[na_remaining], collapse = ", "))
             }
 
@@ -136,7 +148,7 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             full_dates <- seq(min(unique_dates), max(unique_dates), by = "month")
             missing_dates <- setdiff(full_dates, unique_dates)
 
-            if (length(missing_dates) > 0) {
+            if (length(missing_dates) > 0 && type == "generic") {
               warning("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
             }
 
@@ -157,16 +169,40 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             total_observations_count <- nrow(data)
 
             # Initialize workflow slot as an empty list
-            # Store metadata and column names
-            new("meta_dataframe",
-                data = data,
-                workflow = list(),
-                signals = names(data)[-c(1:3)],
-                unique_dates = unique_dates_count,
-                unique_tickers = unique_tickers_count,
-                n_obs = total_observations_count,
-                meta_dataframe_name = meta_dataframe_name
-                )
+            if(type == "generic"){
+              # Store metadata and column names
+              return(
+                new("meta_dataframe",
+                  data = data,
+                  workflow = workflow,
+                  signals = names(data)[-c(1:3)],
+                  unique_dates = unique_dates_count,
+                  unique_tickers = unique_tickers_count,
+                  n_obs = total_observations_count,
+                  meta_dataframe_name = meta_dataframe_name)
+              )
+            }
+            if(type == "signal_universe"){
+
+              #Check for workflow
+              if(is.null(ss_backtest_workflow)){
+                stop("ss_backtest_workflow argument must be provided for signal_universe type")
+              }
+
+              # Store metadata and column names
+              return(
+              new("signal_universe_m_df",
+                  data = data,
+                  workflow = NULL,
+                  signals = names(data)[-c(1:3)],
+                  unique_dates = unique_dates_count,
+                  unique_tickers = unique_tickers_count,
+                  n_obs = total_observations_count,
+                  meta_dataframe_name = meta_dataframe_name,
+                  ss_backtest_workflow = ss_backtest_workflow,
+                  sb_backtest_workflow = sb_backtest_workflow)
+              )
+            }
           }
 )
 

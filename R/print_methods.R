@@ -41,6 +41,134 @@ setMethod("show", "meta_dataframe", function(object) {
   invisible(object)
 })
 
+#' Show Method for signal_universe_m_df Class
+#'
+#' This method extends the parent \code{meta_dataframe} show method by displaying
+#' additional elements from \code{ss_backtest_workflow} and \code{sb_backtest_workflow}.
+#' It focuses on the key fields you specified:
+#'   \itemize{
+#'     \item \strong{ss_backtest_workflow}: active_returns, model_structure, market_factor_proxy,
+#'           backtest_type, p_correction_method, theme_level_intercept (can be NULL),
+#'           theme_level_slope (can be NULL), signals_object_name, signal_themes_object_name,
+#'           priors_object_name, backtest_returns_object_name, rebalancing_months
+#'     \item \strong{sb_backtest_workflow}: sb_algorithm, custom_objective, backtest_type,
+#'           keras_architecture_parameters, tuning_method, chosen_eval_metric, huber_delta, quantile_tau
+#'     \item Note: \code{sb_backtest_workflow} can be \code{NULL}.
+#'   }
+#'
+#' @param object An instance of the \code{signal_universe_m_df} class.
+#'
+#' @return Returns the object invisibly.
+#' @export
+setMethod("show", "signal_universe_m_df", function(object) {
+  # 1) Initial Info
+  # Print a summary of the sb_backtest_workflow
+  cat("Signal Universe Summary:\n")
+  cat("=================================\n")
+  cat("Object name: ", object@meta_dataframe_name, " \n\n")
+  cat(" Performance Metrics:\n")
+  cat(paste(setdiff(object@signals, c("top_assets", "theme_ss_bench_weights", "theme_sb_bench_weights", "theme", "is_eligible")), collapse = ", "))
+  cat("  \nNumber of performance metrics:", ncol(object@data)-3-5, "\n")
+  cat(" \nDates:\n")
+  print(unique(as.Date(object@data$dates)))
+  cat("  Number of unique dates:", object@unique_dates, "\n")
+  cat(" \nTickers (Signals):\n", unique(object@data$tickers), "\n")
+  cat("  Number of unique tickers:", object@unique_tickers, "\n")
+  cat("\nTotal Observations (n_obs):", object@n_obs, "\n")
+  cat("  \nWorkflow:\n")
+  if(length(object@workflow) == 0){
+    cat("  No workflow set.\n")
+  } else {
+    print(object@workflow)
+  }
+
+  cat("=================================\n")
+
+
+  # 2) Summarize ss_backtest_workflow
+  ss_wf <- object@ss_backtest_workflow
+  if (!is.null(ss_wf)) {
+    cat("\n=========================\n")
+    cat("Signal Selection Backtest Summary\n")
+    cat("=========================\n")
+
+    # Safely extract each element; if missing, use NA or "NULL"
+    cat("\n Performance Metrics and CAPM Details:")
+    cat("   \n Return Type:", if(ss_wf[["active_returns"]]) "Active" else "Raw")
+    cat("   \n Model Structure:", ss_wf[["model_structure"]])
+    cat("   \n Market Factor Proxy:", ss_wf[["market_factor_proxy"]] )
+    cat("   \n P-Value Correction Method:", ss_wf[["p_correction_method"]])
+    if(ss_wf[["enable_theme_representativeness"]]){
+    cat("   \n Theme Representativeness Enable")
+    }
+    cat("   \n P-Value Correction Method:", ss_wf[["p_correction_method"]])
+
+    if(!is.null(ss_wf[["theme_level_intercept"]])){
+    cat("   \n Theme Level Intercept:", ss_wf[["theme_level_intercept"]])
+    cat("   \n Theme Level Slope:", ss_wf[["theme_level_slope"]])
+    }
+    cat("\n\n------------------------\n")
+
+    cat("\n Object Names:")
+    cat("   \n signals_object_name:", ss_wf[["signals_object_name"]] %||% "NULL")
+    cat("   \n signal_themes_object_name:", ss_wf[["signal_themes_object_name"]] %||% "NULL")
+    cat("   \n priors_object_name:", ss_wf[["priors_object_name"]] %||% "NULL")
+    cat("   \n backtest_returns_object_name:", ss_wf[["backtest_returns_object_name"]] %||% "NULL")
+
+    cat("\n\n------------------------\n")
+
+    cat("\n Training Information :")
+    cat("   \n Rebalancing Months:", paste(ss_wf[["rebalancing_months"]] %||% "NULL", collapse = ", "))
+    cat("   \n Initial Sample Size:", paste(ss_wf[["initial_sample_size"]] %||% "NULL", collapse = ", "))
+    cat("   \n Data Availability Cutoff:", paste(ss_wf[["data_availability_cutoff"]] %||% "NULL", collapse = ", "))
+    cat("\n")
+  }
+
+  # 3) Summarize sb_backtest_workflow
+  sb_wf <- object@sb_backtest_workflow
+  if (!is.null(sb_wf)) {
+    cat("\n=========================\n")
+    cat("Signal Building Backtest Summary\n")
+    cat("=========================\n")
+
+    cat("\n ML Architecture and Tuning Details:")
+    cat("   \n sb_algorithm:", sb_wf[["sb_algorithm"]] %||% "NULL")
+    cat("   \n custom_objective:", sb_wf[["custom_objective"]] %||% "NULL")
+    cat("   \n backtest_type:", sb_wf[["backtest_type"]] %||% "NULL")
+
+    cat("\n   \n keras_architecture_parameters:\n")
+    # If keras_architecture_parameters is itself an S4 object with a show() or print() method, dispatch to it:
+    if (!is.null(sb_wf[["keras_architecture_parameters"]])) {
+      print(sb_wf[["keras_architecture_parameters"]])
+    } else {
+      cat("NULL\n")
+    }
+    cat("\n------------------------\n")
+
+    cat("\n Tuning:")
+    cat("   \n tuning_method:", sb_wf[["tuning_method"]] %||% "NULL")
+    cat("   \n chosen_eval_metric:", sb_wf[["chosen_eval_metric"]] %||% "NULL")
+    cat("   \n huber_delta:", sb_wf[["huber_delta"]] %||% "NULL")
+    cat("   \n quantile_tau:", sb_wf[["quantile_tau"]] %||% "NULL")
+    cat("\n")
+  } else {
+    cat("\nNo sb_backtest_workflow available.\n")
+  }
+
+  # Print the first few rows of the data
+  cat("\nFirst few rows of the data:\n")
+  print(head(object@data))
+
+  # Return invisibly
+  invisible(object)
+})
+
+# A small helper for safely extracting list elements or returning a default if not found.
+`%||%` <- function(x, default) {
+  if (!is.null(x)) x else default
+}
+
+
 #' Print method for hyper_grid_domain
 #'
 #' This method prints the contents of a `hyper_grid_domain` object in a user-friendly format.

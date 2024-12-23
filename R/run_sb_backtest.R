@@ -509,7 +509,7 @@ run_sb_backtest_internal <- function(
   #Splits
   validation_sample_size = 0, rebalancing_months, split_method = "expanding",
   #Signal Selection
-  eligible_signals_list,
+  eligible_signals_list, signal_universe_m_df,
   #Choice of SB algorithm
   sb_algorithm = "ols",
   #Loss/Eval Functions and Related
@@ -532,7 +532,8 @@ run_sb_backtest_internal <- function(
     ##Check Parameters: This function will test whether inputs match format and current functionalities
     check_inputs_sb_backtest(
       features_m_df = features_m_df, target_m_df = target_m_df, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-      validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, eligible_signals_list = eligible_signals_list,
+      validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
+      eligible_signals_list = eligible_signals_list, signal_universe_m_df = signal_universe_m_df,
       sb_algorithm = sb_algorithm, custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
       hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
       init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
@@ -662,7 +663,7 @@ run_sb_backtest_internal <- function(
       #Check if it's a rebalancing month
       if((lubridate::month(current_date) %in% rebalancing_months) || d == (training_sample_size + validation_sample_size)){
         #Print refitting message
-        if(verbose == TRUE){
+        if(verbose){
           cat("\n")
           cat(crayon::yellow(paste("Starting model rebalancing at:", current_date)))
           cat("\n")
@@ -670,6 +671,7 @@ run_sb_backtest_internal <- function(
 
         ###Select and correct signals
         ##################
+
           ####Get current_eligible_signals
           most_recent_eligible_signals_date <- eligible_signals_dates[which(eligible_signals_dates <= current_date)] %>% max()
           current_eligible_signals <- as.vector(eligible_signals_list[[as.character(most_recent_eligible_signals_date)]])$tickers #Get most recent eligible signals
@@ -680,6 +682,16 @@ run_sb_backtest_internal <- function(
 
           ####Select and correct signals
           selected_features_corrected_positions_m_df <- select_and_correct_signals(signals_m_df = features_m_df, chosen_signals_and_positions = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
+
+          #Print message
+          if(verbose){
+            cat("\n")
+            cat("Selecting and correcting signals:")
+            cat("\n")
+            cat(chosen_signals_and_positions)
+            cat("\n")
+          }
+
         ##################
 
         ###Time Series Splits
@@ -782,92 +794,23 @@ run_sb_backtest_internal <- function(
         #Refitting
         ###################
 
+        ###Set objects
+          ####Refit new model using data from d - target_fwd
+          features_m_refit <- ts_splits$refit$features_m_refit #Subset
+          target_m_refit <- ts_splits$refit$target_m_refit #Subset
+          full_data_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
 
-        #Refit new model using data from d - target_fwd
-        features_m_refit <- ts_splits$refit$features_m_refit #Subset
-        target_m_refit <- ts_splits$refit$target_m_refit #Subset
-        full_data_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
+
 
 
         #(RE)Fit
-        refit_model <- switch(sb_algorithm,
-                              ols = stats::lm(paste(target_fwd_name,'~.'), data = full_data_m_refit_clean),
-
-                              glmnet::glmnet(features_m_refit[,-c(1:3)], target_m_refit, #Features and target
-                                             #Hyperparameters
-                                             alpha = optimal_hyper["alpha"],
-                                             lambda.min.ratio = optimal_hyper["lambda.min.ratio"],
-                                             verbose = FALSE
-                              ),
-
-                              rf = ranger::ranger(paste(target_fwd_name,'~.'), data = janitor::clean_names(full_data_m_refit_clean), #Features and target
-                                                  #Hyperparameters
-                                                  mtry = optimal_hyper["mtry"] * (ncol(full_data_m_refit_clean) - 1),
-                                                  num.trees = optimal_hyper["num.trees"],
-                                                  max.depth = optimal_hyper["max.depth"],
-                                                  min.bucket = optimal_hyper["min.bucket"],
-                                                  verbose = FALSE
-                              ),
-
-                              xgb = xgboost::xgb.train(data = xgboost::xgb.DMatrix(data = as.matrix(features_m_refit[,-c(1:3)]), #Features and target
-                                                                                   label = target_m_refit),
-                                                       objective = custom_objective_translated,
-                                                       huber_slope = huber_delta,
-                                                       #quantile_alpha = quantile_tau,
-                                                       #Hyperparameters
-                                                       min_child_weight = optimal_hyper["min_child_weight"],
-                                                       max_depth = round(optimal_hyper["max_depth"],0),
-                                                       subsample = optimal_hyper["subsample"],
-                                                       colsample_bytree = optimal_hyper["colsample_bytree"],
-                                                       eta = optimal_hyper["eta"],
-                                                       alpha = optimal_hyper["alpha"],
-                                                       gamma = optimal_hyper["gamma"],
-                                                       nrounds = if(is.null(early_stop)){
-                                                         c(optimal_hyper["nrounds"])
-                                                       } else {
-                                                         c(optimal_hyper["best_iteration"])
-                                                       },
-                                                       verbose = FALSE
-                              ),
-
-                              nn = fit_keras_model(features_matrix_train_clean = features_m_refit[,-c(1:3)], #Feature
-                                                   target_vector_train = target_m_refit, #Target
-                                                   custom_objective = custom_objective_translated, #No need for switch
-                                                   huber_slope = huber_delta, #Huber loss
-                                                   chosen_eval_metric_translated = chosen_eval_metric_translated, #Is this really necessary?
-
-                                                   #Keras Parameters
-                                                   #Architecture
-                                                   keras_architecture_parameters = keras_architecture_parameters,
-
-                                                   #Hyperparameters
-                                                   #Training
-                                                   number_of_epochs = if(is.null(early_stop)){
-                                                     c(optimal_hyper["number_of_epochs"])
-                                                   } else {
-                                                     c(optimal_hyper["best_iteration"])
-                                                   },
-                                                   size_of_batch = optimal_hyper["size_of_batch"],
-                                                   lr = optimal_hyper["lr"],
-
-                                                   #Regularization
-                                                   regularizer_l1 = optimal_hyper["regularizer_l1"],
-                                                   regularizer_l2 = optimal_hyper["regularizer_l2"],
-                                                   droprate = optimal_hyper["droprate"],
 
 
-                                                   verbose = FALSE
-                              )$model_nn, #This is a wrapper for keras
 
-                              ew = set_portfolio_weights(universe_m_d_ref = features_m_refit, #Universe of signals
-
-                                                         )
-
-        )
 
         #Create S4 Object
-        refit_ml_model <- new("refit_ml_model",
-                              model = refit_model,
+        refit_sb_model <- new("sb_model",
+                              model = sb_model,
                               model_class = class(refit_model),
                               sb_algorithm = sb_algorithm,
                               best_hyperparameters = if(sb_algorithm == "ols") NULL else optimal_hyper,

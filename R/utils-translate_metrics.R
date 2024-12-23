@@ -2,7 +2,7 @@
 #'
 #' This function adapts the chosen evaluation metric based on the provided parameters.
 #'
-#' @param ml_algorithm Character string specifying the machine learning algorithm.
+#' @param sb_algorithm Character string specifying the machine learning algorithm.
 #' @param chosen_eval_metric Character string specifying the chosen evaluation metric.
 #' @param custom_objective Character string specifying the custom objective function.
 #' @param early_stop Numeric or null, indicating whether early stopping is enabled.
@@ -14,7 +14,7 @@
 #' @details
 #' - If \code{chosen_eval_metric} is \code{NULL}, it selects an appropriate metric based on \code{custom_objective}.
 #' - Provides commentary if the selected evaluation metric is not supported for early stopping.
-#' - Adjusts \code{custom_objective} based on the specified \code{ml_algorithm}.
+#' - Adjusts \code{custom_objective} based on the specified \code{sb_algorithm}.
 #'
 #' @examples
 #' translate_metrics("xgb", NULL, "squared_error", early_stop = FALSE, verbose = TRUE)
@@ -22,7 +22,7 @@
 #' @export
 #' @importFrom crayon yellow
 #' @import keras
-translate_metrics <- function(ml_algorithm, chosen_eval_metric, custom_objective, early_stop, huber_delta, verbose){
+translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective, early_stop, huber_delta, verbose){
 
   #Adapt chosen_eval_metric if needed
   if(is.null(chosen_eval_metric)){
@@ -44,12 +44,12 @@ translate_metrics <- function(ml_algorithm, chosen_eval_metric, custom_objective
 
 
   #Translate custom_objective and chosen_eval_metric for early stop
-  if(ml_algorithm %in% c("ols","glmnet","rf")){
+  if(sb_algorithm %in% c("ols","glmnet","rf")){
     custom_objective_translated <- NULL
     chosen_eval_metric_translated <- NULL
   } else {}
 
-  if(ml_algorithm == "xgb"){
+  if(sb_algorithm == "xgb"){
     custom_objective_translated <- switch(custom_objective,
                                           squared_error = "reg:squarederror",
                                           absolute_error = "reg:absoluteerror",
@@ -71,7 +71,7 @@ translate_metrics <- function(ml_algorithm, chosen_eval_metric, custom_objective
     )
 
   } else {}
-  if(ml_algorithm == "nn"){
+  if(sb_algorithm == "nn"){
     custom_objective_translated <- switch(custom_objective,
                                           squared_error = "mean_squared_error",
                                           absolute_error = "mean_absolute_error",
@@ -100,7 +100,7 @@ translate_metrics <- function(ml_algorithm, chosen_eval_metric, custom_objective
 
   #Commentary about early_stop and using a eval metric not supported
   if(verbose == TRUE){
-    if(all(!is.null(early_stop), ml_algorithm %in% c("xgb", "nn"), !chosen_eval_metric %in% c("rmse", "mae", "mphe", "mape"))){
+    if(all(!is.null(early_stop), sb_algorithm %in% c("xgb", "nn"), !chosen_eval_metric %in% c("rmse", "mae", "mphe", "mape"))){
       cat(crayon::yellow(
         "This eval_metric is not supported by early stop. Applying rmse as criteria for early_stop instead."))
       cat("\n")
@@ -108,7 +108,7 @@ translate_metrics <- function(ml_algorithm, chosen_eval_metric, custom_objective
     } else {}
 
     #Commentary about pseudo_huber_error in nn
-    if(all(ml_algorithm == "nn", #If Neural Network AND
+    if(all(sb_algorithm == "nn", #If Neural Network AND
            custom_objective == "pseudo_huber_error")){#pseudo_huber_error
       cat(crayon::yellow(
         "Internal keras operations do not handle pseudo huber metric, applying huber metric instead."))

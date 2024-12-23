@@ -39,6 +39,8 @@ run_sb_backtest_internal(
   validation_sample_size = 0,
   rebalancing_months,
   split_method = "expanding",
+  eligible_signals_list,
+  signal_universe_m_df,
   sb_algorithm = "ols",
   custom_objective = "squared_error",
   chosen_eval_metric = NULL,
@@ -151,7 +153,7 @@ using walk-forward time series validation.
 It supports many algorithms and can handle different configurations for objective functions and tuning strategies through S4 objects.
 The function divides the data into training, validation, and testing samples, and iteratively refits the model at specified rebalancing dates.
 
-Runs machine learning backtests for base learners and a meta learner using the provided configurations.
+Runs signal blending backtests for base learners and a meta learner using the provided configurations.
 Users can provide their own base learner results or have the function compute them internally.
 }
 \details{
@@ -176,7 +178,7 @@ for elastic net regularization, supporting both Lasso and Ridge regression.
   target_m_df = meta_dataframe,
   target_fwd_name = character,
   config = sb_metabacktest_config
-)}: Run Machine Learning Meta-Backtest
+)}: Run Signal Blending Meta-Backtest
 
 }}
 \section{Functions}{

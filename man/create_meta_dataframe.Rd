@@ -8,7 +8,12 @@
 \usage{
 create_meta_dataframe(data, meta_dataframe_name = "not_identified", ...)
 
-\S4method{create_meta_dataframe}{data.frame}(data, meta_dataframe_name = "not_identified")
+\S4method{create_meta_dataframe}{data.frame}(
+  data,
+  meta_dataframe_name = "not_identified",
+  workflow = NULL,
+  ...
+)
 
 \S4method{create_meta_dataframe}{list}(
   data,

@@ -7,7 +7,7 @@
 select_and_correct_signals(
   signals_m_df,
   chosen_signals_and_positions,
-  signal_themes_m_df,
+  signal_themes_m_df = NULL,
   backtest_returns_xts = NULL
 )
 }

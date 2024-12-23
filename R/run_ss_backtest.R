@@ -179,6 +179,10 @@ setMethod("run_ss_backtest",
             ss_backtest_results@signal_universe_m_df@workflow <- list(paste0("signal_universe_m_df result of ", ss_backtest_results@backtest_identifier))
             ss_backtest_results@final_signal_universe_m_d_ref@workflow <- list(paste0("final_signal_universe_m_d_ref result of ", ss_backtest_results@backtest_identifier))
 
+            ###Names for signal_universe_m_df
+            ss_backtest_results@signal_universe_m_df@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
+            ss_backtest_results@final_signal_universe_m_d_ref@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
+
 
             ###Call
             ss_backtest_results@ss_backtest_workflow$call <- sys.call(-2)
@@ -589,11 +593,6 @@ run_ss_backtest_internal <- function(
     #Turn signal_universe_m_d_ref_list into a signle meta_dataframe
     signal_universe_m_df <- do.call(rbind, signal_universe_m_d_ref_list)
     rownames(signal_universe_m_df) <- NULL #erase rownames
-      ##Create m_df
-      signal_universe_m_df <- suppressWarnings(suppressMessages(create_meta_dataframe(signal_universe_m_df)))
-
-    #Create final_signal_universe_m_d_ref
-    final_signal_universe_m_d_ref <- suppressWarnings(suppressMessages(create_meta_dataframe(signal_universe_m_d_ref)))
 
   #End timer
   })
@@ -630,7 +629,7 @@ run_ss_backtest_internal <- function(
       split_method = split_method,
       #Signals
       chosen_signals_and_positions = chosen_signals_and_positions,
-      selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_xts_upd_ref)[-1],
+      selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_xts_upd_ref),
       n_signals = length(chosen_signals_and_positions),
       signals_workflow = NULL,
       signals_object_name = "not_identified",
@@ -646,6 +645,28 @@ run_ss_backtest_internal <- function(
       timestamps = c(initialization = Sys.time()),
       #Call
       call = match.call()
+    )
+
+    ##Create signal_universe_m_df
+    signal_universe_m_df <- withCallingHandlers(
+      {
+        create_meta_dataframe(signal_universe_m_df, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
+      },
+      warning = function(w) {
+        warning("Signal universe creation warning: ", conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+
+    #Create final_signal_universe_m_d_ref
+    final_signal_universe_m_d_ref <- withCallingHandlers(
+      {
+        create_meta_dataframe(signal_universe_m_d_ref, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
+      },
+      warning = function(w) {
+        warning("Final signal universe creation warning: ", conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
     )
 
     #Get final object

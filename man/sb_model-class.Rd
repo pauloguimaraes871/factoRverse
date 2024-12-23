@@ -16,6 +16,16 @@ feature data, target variable, and the fitted model object.
 \item{\code{best_hyperparameters}}{The chosen hyperparameters relevant to the specified machine learning algorithm. Applicable only for machine-learning algorithms.}
 
 \item{\code{model}}{The fitted model object, which varies based on the algorithm used.}
+
+\item{\code{model_class}}{A character string specifying the class of the model object.}
+
+\item{\code{eligible_signals}}{A vector of eligible signals used to fit the model.}
+
+\item{\code{custom_objective}}{A custom objective function used to fit the model.}
+
+\item{\code{huber_delta}}{A numeric value specifying the delta parameter for the Huber loss function. Applicable only for machine-learning algorithms.}
+
+\item{\code{keras_architecture_parameters}}{A list of parameters used to define the architecture of a neural network model. Applicable only for the "nn" algorithm.}
 }}
 
 \section{Methods}{

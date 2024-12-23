@@ -46,10 +46,9 @@
 check_inputs_sb_backtest <- function(
     features_m_df, target_m_df, training_sample_size, target_fwd_name,
     validation_sample_size, rebalancing_months, split_method, eligible_signals_list,
-    sb_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
-    hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points, early_stop,
-    keras_architecture_parameters,
-    show_plots, verbose = FALSE, parallel
+    signal_universe_m_df, sb_algorithm, custom_objective, chosen_eval_metric, huber_delta,
+    quantile_tau, hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
+    early_stop, keras_architecture_parameters, show_plots, verbose = FALSE, parallel
 ){
 
   ###Initial Checks###
@@ -140,6 +139,20 @@ check_inputs_sb_backtest <- function(
         stop("target_m_df and features_m_df should have more dates than the prediction horizon")
       }
 
+  #Check structure of signal_universe_m_df
+    if(!is.null(signal_universe_m_df)){
+      if(!(is_coercible_to_meta_dataframe(signal_universe_m_df))){
+        stop("signal_universe_m_df should be coercible to meta_dataframe object")
+      }
+
+
+
+
+
+
+
+
+    }
 
 
   #Check structure of rebalancing_months
@@ -192,6 +205,8 @@ check_inputs_sb_backtest <- function(
   }
 
 
+
+
   #####################################################################################
 
   #Check for eligible signals
@@ -221,6 +236,22 @@ check_inputs_sb_backtest <- function(
         collapse = ", "
       )
     )
+  }
+
+  #Check if they are present in signal_universe_m_df
+  if(!is.null(signal_universe_m_d_ref)){
+  eligible_signals_from_signal_universe_m_df <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers) %>% unique()
+  check_signal_presence <- lapply(eligible_signals_list, function(x){
+    any(!x %in% eligible_signals_from_signal_universe_m_df)
+  })
+  if (any(unlist(check_signal_presence))) {
+    stop("There is a signal mismatch between eligible_signals and signal_universe_m_df")
+  }
+
+  signal_universe_m_df_dates <- as.vector(unique(dplyr::select(signal_universe_m_df, dates)))$dates %>% as.Date()
+  if(any(signal_universe_m_df_dates != eligible_signals_dates)){
+    stop("dates in signal_universe_m_df and in eligible_signals_list must match.")
+  }
   }
 
   #Validation Schema
@@ -406,14 +437,14 @@ check_inputs_sb_backtest <- function(
         "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
         "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
         "act_modigliani", "act_ann_modigliani",
-        "alpha", "theme_alpha", "individual_alpha", "alpha_se", "theme_beta", "individual_beta", "specific_risk",
+        "alpha", "theme_alpha", "individual_alpha", "alpha_se", "beta", "theme_beta", "individual_beta", "specific_risk",
         "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
         "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
         "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
       )
       if (grepl("^max_|^min_", object@custom_objective) && substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
         return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
-                 To see complete list of valid heuristic performance metrics, use ''.")
+                 To see complete list of valid heuristic performance metrics, run 'display_valid_custom_objectives()'.")
       }
     } else {
       if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
