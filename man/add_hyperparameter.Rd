@@ -6,8 +6,8 @@
 \alias{add_hyperparameter,grid_search_strategy-method}
 \alias{add_hyperparameter,random_search_strategy-method}
 \alias{add_hyperparameter,bayesian_opt_strategy-method}
-\alias{add_hyperparameter,ml_backtest_config-method}
-\title{Add a Hyperparameter to a \code{hyper_grid_domain}, whether inside a \code{ml_backtest_config}, a \code{tuning_strategy} or on its own.}
+\alias{add_hyperparameter,sb_backtest_config-method}
+\title{Add a Hyperparameter to a \code{hyper_grid_domain}, whether inside a \code{sb_backtest_config}, a \code{tuning_strategy} or on its own.}
 \usage{
 add_hyperparameter(object, hyperparameter, ...)
 
@@ -19,7 +19,7 @@ add_hyperparameter(object, hyperparameter, ...)
 
 \S4method{add_hyperparameter}{bayesian_opt_strategy}(object, hyperparameter, bounds, ...)
 
-\S4method{add_hyperparameter}{ml_backtest_config}(
+\S4method{add_hyperparameter}{sb_backtest_config}(
   object,
   hyperparameter,
   grid = NULL,
@@ -59,7 +59,7 @@ This generic function adds a new hyperparameter to an existing \code{hyper_grid_
 
 \item \code{add_hyperparameter(bayesian_opt_strategy)}: Add hyperparameter to \code{bayesian_opt_strategy} object
 
-\item \code{add_hyperparameter(ml_backtest_config)}: Add Hyperparameter to \code{ml_backtest_config} object
+\item \code{add_hyperparameter(sb_backtest_config)}: Add Hyperparameter to \code{sb_backtest_config} object
 
 }}
 \examples{
@@ -117,7 +117,7 @@ bayesian_opt_obj <- add_hyperparameter(
 # Creating a hyper_grid_domain object for a xgb model
 hyper_grid_xgb_random <- create_hyper_grid_domain(
  tuning_method = "random_search",
- ml_algorithm = "xgb"
+ sb_algorithm = "xgb"
  )
 
  hyper_grid_xgb_random <- add_hyperparameter(

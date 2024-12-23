@@ -12,8 +12,6 @@ In the latter, the user can change the hierarchical model specification and how 
 \section{Slots}{
 
 \describe{
-\item{\code{model_structure}}{A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.}
-
 \item{\code{signal_significance_threshold}}{A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
 

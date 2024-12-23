@@ -106,6 +106,11 @@ check_inputs_ss_backtest <- function(
   #Structure
   #########################
 
+  #chosen_signals_and_positions
+  if(length(chosen_signals_and_positions) == 1){
+    stop("More than one signal must be provided in order to run a ss_backtest")
+  }
+
   #signals_m_df
   ###Coercible
   if(!(is_coercible_to_meta_dataframe(signals_m_df))){
@@ -131,61 +136,67 @@ check_inputs_ss_backtest <- function(
   }
 
   #backtest_returns_xts
-  if(!xts::is.xts(backtest_returns_xts)){
-    stop("backtest_returns_xts must be a xts object")
-  }
-  #get dates
-  backtest_returns_dates <- zoo::index(backtest_returns_xts)
-  if(class(backtest_returns_dates) != "Date"){
-    stop("dates in backtest_returns_xts must be of class Date")
-  }
+    if(!xts::is.xts(backtest_returns_xts)){
+      stop("backtest_returns_xts must be a xts object")
+    }
+    #get dates
+    backtest_returns_dates <- zoo::index(backtest_returns_xts)
 
-  chosen_signals_corrected_positions <- chosen_signals_and_positions
-  names(chosen_signals_corrected_positions)[which(chosen_signals_corrected_positions == "short")] <- paste0("low_", names(chosen_signals_and_positions)[which(chosen_signals_and_positions == "short")])
+    if(class(backtest_returns_dates) != "Date"){
+      stop("dates in backtest_returns_xts must be of class Date")
+    }
 
-  if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_xts))){
-    stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_xts")
-  }
+    chosen_signals_corrected_positions <- chosen_signals_and_positions
+    names(chosen_signals_corrected_positions)[which(chosen_signals_corrected_positions == "short")] <- paste0("low_", names(chosen_signals_and_positions)[which(chosen_signals_and_positions == "short")])
 
-  if(nrow(backtest_returns_xts) < data_availability_cutoff){
-    stop("backtest_returns_xts must have at least data_availability_cutoff rows")
-  }
+    if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_xts))){
+      stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_xts")
+    }
 
-  if(nrow(backtest_returns_xts) < initial_sample_size){
-    stop("backtest_returns_xts must have at least initial_sample_size rows")
-  }
+    if(nrow(backtest_returns_xts) < data_availability_cutoff){
+      stop("backtest_returns_xts must have at least data_availability_cutoff rows")
+    }
 
-  if(any(!signals_m_df$dates %in% backtest_returns_dates)){
-    stop("all dates in signals_m_df must be present in backtest_returns_xts")
-  }
+    if(nrow(backtest_returns_xts) < initial_sample_size){
+      stop("backtest_returns_xts must have at least initial_sample_size rows")
+    }
 
-  if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 +
-              as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
-    stop("backtest_returns_xts must have consecutive dates")
-  }
+    if(any(!signals_m_df$dates %in% backtest_returns_dates)){
+      stop("all dates in signals_m_df must be present in backtest_returns_xts")
+    }
+
+    if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 +
+                as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
+      stop("backtest_returns_xts must have consecutive dates")
+    }
+
 
   #benchmark_returns_xts
-  if(!xts::is.xts(benchmark_returns_xts)){
-    stop("benchmark_returns_xts must be a xts object")
-  }
-  #get dates
-  benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
-  if(class(benchmark_returns_dates) != "Date"){
-    stop("dates in benchmark_returns_xts must be of class Date")
-  }
+    if(!xts::is.xts(benchmark_returns_xts)){
+      stop("benchmark_returns_xts must be a xts object")
+    }
+    #get dates
+    benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
+    if(class(benchmark_returns_dates) != "Date"){
+      stop("dates in benchmark_returns_xts must be of class Date")
+    }
 
-  if(any(benchmark_returns_dates != backtest_returns_dates)){
-    stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
-  }
+    if(any(benchmark_returns_dates != backtest_returns_dates)){
+      stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+    }
 
-  if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
-    stop("benchmark_returns_xts must not have any NA values")
-  }
+    if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
+      stop("benchmark_returns_xts must not have any NA values")
+    }
 
-  if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
-               as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
-    stop("benchmark_returns_xts must have consecutive dates")
-  }
+    if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
+                 as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
+      stop("benchmark_returns_xts must have consecutive dates")
+    }
+
+    if(!market_factor_proxy %in% colnames(benchmark_returns_xts)){
+      stop("market_factor_proxy must be present in benchmark_returns_xts")
+    }
 
   #signal_themes_m_df
   ###Check if signal_themes_m_df contemplates theme column
@@ -455,9 +466,6 @@ check_inputs_ss_backtest <- function(
     stop("market_factor_proxy must be character")
   }
 
-  if(!market_factor_proxy %in% colnames(benchmark_returns_xts)){
-    stop("market_factor_proxy must be present in benchmark_returns_xts")
-  }
 
   #active_returns
   if(!is.logical(active_returns)){

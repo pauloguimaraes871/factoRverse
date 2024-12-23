@@ -21,7 +21,7 @@ early stopping criteria, and the hyperparameter grid domain.
 # Create a base tuning_strategy object
 base_obj <- create_tuning_strategy(
   tuning_method = "grid_search",
-  ml_algorithm = "rf",
+  sb_algorithm = "rf",
   validation_sample_size = 1000,
   split_method = "expanding"
 )

@@ -3,13 +3,13 @@ setOldClass("xts")
 
 #' Define the `meta_dataframe` S4 Class
 #'
-#' This class represents a ml_backtest_workflow-enhanced data frame. It extends the functionality
-#' of a standard data frame by including additional ml_backtest_workflow slots. The class is designed
+#' This class represents a sb_backtest_workflow-enhanced data frame. It extends the functionality
+#' of a standard data frame by including additional sb_backtest_workflow slots. The class is designed
 #' to ensure that the input data frame adheres to specific structural requirements, including
 #' unique identifiers, valid date formats, and unique column names.
 #'
 #' @slot data A \code{data.frame} containing the actual data.
-#' @slot workflow A \code{list} for storing ml_backtest_workflow about the data manipulation workflow.
+#' @slot workflow A \code{list} for storing sb_backtest_workflow about the data manipulation workflow.
 #' @slot signals A \code{character} vector containing the names of columns that represent signals.
 #' @slot unique_dates A \code{numeric} value representing the count of unique dates in the data.
 #' @slot unique_tickers A \code{numeric} value representing the count of unique tickers in the data.
@@ -17,8 +17,8 @@ setOldClass("xts")
 #'
 #' @details
 #' The \code{meta_dataframe} class ensures that the data frame is structured correctly with the required columns,
-#' and includes ml_backtest_workflow about the data. The \code{signals} slot holds the names of columns representing various signals.
-#' The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the ml_backtest_workflow related to the number of unique dates,
+#' and includes sb_backtest_workflow about the data. The \code{signals} slot holds the names of columns representing various signals.
+#' The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the sb_backtest_workflow related to the number of unique dates,
 #' tickers, and total observations respectively.
 #'
 #' @examples
@@ -40,13 +40,20 @@ setOldClass("xts")
 setClass("meta_dataframe",
          slots = c(
            data = "data.frame",        # Slot for the data frame
-           workflow = "list",          # Slot for storing ml_backtest_workflow about the data manipulation workflow
+           workflow = "list",          # Slot for storing sb_backtest_workflow about the data manipulation workflow
            signals = "character",      # Slot for storing column names
            unique_dates = "numeric",   # Slot for storing count of unique dates
            unique_tickers = "numeric", # Slot for storing count of unique tickers
            n_obs = "numeric",          #  Slot for storing total number of observations
            meta_dataframe_name = "character"
-         ))
+         ), validity = function(object){
+
+           #Check for presence of low
+           if(any(grepl("low_", signals))){
+             return("Column names cannot contain 'low_'")
+           }
+
+         })
 
 
 #' Define the `hyper_grid_domain` S4 Class
@@ -271,11 +278,15 @@ setClass(
   )
 )
 
-#' @title ml_backtest_config Class
-#' @description The ml_backtest_config class is designed to define an end-to-end machine learning experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
-#' @slot ml_algorithm Character string specifying the machine learning algorithm to be used. Should be one of
+#' @title sb_backtest_config Class
+#' @description The sb_backtest_config class is designed to define an end-to-end signal-blending (heuristic or machine learning)
+#' experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
+#' @slot sb_algorithm Character string specifying the signal-blending algorithm to be used. Should be one of
+#' ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mto (Mean-Tracking Error Optimization),
 #' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
 #' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
+#' @slot ss_backtest_config An object of class `ss_backtest_config`, specifying the single strategy backtest configuration.
+#' @slot ss_backtest_results An object of class `ss_backtest_results`, containing the results of the single strategy backtest.
 #' @slot training_sample_size Number of observations to include in each training sample.
 #' @slot rebalancing_months Months (numeric) when model should be rebalanced (refit).
 #' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
@@ -295,10 +306,12 @@ setClass(
 #' @slot config_name A character string to identify the configuration.
 #' @export
 setClass(
-  "ml_backtest_config",
+  "sb_backtest_config",
   slots = list(
-    ml_algorithm = "character",
+    sb_algorithm = "character",
     tuning_strategy = "ANY",
+    ss_backtest_config = "ANY",
+    ss_backtest_results = "ANY",
     split_method = "character",
     training_sample_size = "numeric",
     rebalancing_months = "numeric",
@@ -309,29 +322,66 @@ setClass(
     config_name = "character"
   ),
   prototype = list(
-    ml_algorithm = "ols",
+    sb_algorithm = "ols",
     split_method = "expanding",
     custom_objective = "squared_error",
     quantile_tau = 0.5,
     huber_delta = 1
   ),
   validity = function(object) {
-    valid_ml_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn")
-    if(!(object@ml_algorithm %in% valid_ml_algorithms)) {
-      return("Invalid ml_algorithm. Choose from ols, glmnet, rf, xgb, or nn.")
+
+    #Check for ss_backtest_config OR ss_backtest_results
+    if(!is.null(object@ss_backtest_config) && !is.null(object@ss_backtest_results)) {
+      return("Only one of a ss_backtest_config or a ss_backtest_results object should be provided.")
     }
-    if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
-      return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
+
+    #Check for valid sb_algorithm
+    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto")
+    if(!(object@sb_algorithm %in% valid_sb_algorithms)) {
+      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'mto', 'ols', 'glmnet', 'rf', 'xgb', or 'nn'.")
     }
-    if (!(object@ml_algorithm %in% c("xgb", "nn")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
-      return("Invalid custom_objective. Custom objectives are only allowed for 'xgb' or 'nn' algorithms.")
+
+    #Check for custom objective
+    if(!object@sb_algorithm %in% c("sw", "mto")){
+      valid_heuristic_sb_metrics <- c(
+        "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
+        "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
+        "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
+        "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
+        "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
+        "prob_sharpe_ratio", "modigliani", "ann_modigliani",
+        "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
+        "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
+        "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
+        "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
+        "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
+        "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
+        "act_modigliani", "act_ann_modigliani",
+        "alpha", "theme_alpha", "individual_alpha", "alpha_se", "theme_beta", "individual_beta", "specific_risk",
+        "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
+        "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
+        "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
+      )
+      if (grepl("^max_|^min_", object@custom_objective) && substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
+        return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
+               To see complete list of valid heuristic performance metrics, use ''.")
+      }
+    } else {
+      if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
+        return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
+      }
     }
-    if (!(object@ml_algorithm %in% c("xgb", "nn")) && !is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@early_stop)) {
+    if (!(object@sb_algorithm %in% c("xgb", "nn", "sw", "mto")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
+      return("Invalid custom_objective. Custom objectives are only allowed for 'sw', 'mto', 'xgb' or 'nn' algorithms.")
+    }
+    if (!(object@sb_algorithm %in% c("xgb", "nn")) && !is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@early_stop)) {
       return("Invalid early_stop. Early stop is only allowed for 'xgb' or 'nn' algorithms.")
     }
-    if(object@ml_algorithm != "ols" && is.null(object@tuning_strategy)){
-      message("when ml_algorithm is not ols, a tuning_strategy must be set")
+    #Check for tuning strategy
+    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "mto", "ols") && is.null(object@tuning_strategy)){
+      message("when sb_algorithm is not 'ew', 'sw', 'rp', 'mto' or 'ols', a tuning_strategy must be set")
     }
+    #ETC
     if((object@training_sample_size < 0)){
       stop("training_sample_size should be positive.")
     }
@@ -346,8 +396,8 @@ setClass(
       if(!is_keras_architecture_parameters(object@keras_architecture_parameters)){
         return("Invalid keras_architecture_parameters Should be of class keras_architecture_parameters")
       }
-      if(object@ml_algorithm != "nn"){
-        return("keras_architecture_parameters is only needed when ml_algorithm is nn")
+      if(object@sb_algorithm != "nn"){
+        return("keras_architecture_parameters is only needed when sb_algorithm is nn")
       }
     }
     if (!is.null(object@quantile_tau) && (object@quantile_tau <= 0 || object@quantile_tau >= 1)) {
@@ -363,23 +413,23 @@ setClass(
       if(!is_tuning_strategy(object@tuning_strategy)){
         return("Invalid tuning_strategy. Should be of class tuning_strategy")
       }
-      if(object@ml_algorithm == "ols"){
-        return("ols does not support hyperparameter tuning")
+      if(object@sb_algorithm %in% c("ew", "sw", "rp", "mto", "ols")){
+        return("ew, sw, rp, mto and ols do not support hyperparameter tuning")
       }
 
-        # Check hyperparameters validity based on ml_algorithm
+        # Check hyperparameters validity based on sb_algorithm
         hyperparameters_names <- names(object@tuning_strategy@hyper_grid_domain@hyperparameter_list)
 
         # GLMNET
         expected_hyperparameters_glmnet <- c("alpha", "lambda.min.ratio")
-        if (object@ml_algorithm == "glmnet" && any(!hyperparameters_names %in% expected_hyperparameters_glmnet)) {
-          stop("hyperparameters do not match ml_algorithm choice for 'glmnet'")
+        if (object@sb_algorithm == "glmnet" && any(!hyperparameters_names %in% expected_hyperparameters_glmnet)) {
+          stop("hyperparameters do not match sb_algorithm choice for 'glmnet'")
         }
         hyperparameters_missing <- expected_hyperparameters_glmnet[which(!expected_hyperparameters_glmnet %in% hyperparameters_names)]
-        if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "glmnet"){
+        if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "glmnet"){
           cat("\n")
           message(paste("The following hyperparameter(s) must still be configured for the",
-                        object@ml_algorithm, "algorithm:",
+                        object@sb_algorithm, "algorithm:",
                         paste(hyperparameters_missing, collapse = ", ")))
           cat("\n")
         }
@@ -387,14 +437,14 @@ setClass(
 
         # RF
         expected_hyperparameters_rf <- c("mtry", "num.trees", "max.depth", "min.bucket")
-        if (object@ml_algorithm == "rf" && any(!hyperparameters_names %in% expected_hyperparameters_rf)) {
-          stop("hyperparameters do not match ml_algorithm choice for 'rf'")
+        if (object@sb_algorithm == "rf" && any(!hyperparameters_names %in% expected_hyperparameters_rf)) {
+          stop("hyperparameters do not match sb_algorithm choice for 'rf'")
         }
         hyperparameters_missing <- expected_hyperparameters_rf[which(!expected_hyperparameters_rf %in% hyperparameters_names)]
-        if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "rf"){
+        if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "rf"){
           cat("\n")
           message(paste("The following hyperparameter(s) must still be configured for the",
-                        object@ml_algorithm, "algorithm:",
+                        object@sb_algorithm, "algorithm:",
                         paste(hyperparameters_missing, collapse = ", ")))
           cat("\n")
         }
@@ -402,14 +452,14 @@ setClass(
 
         # XGB
         expected_hyperparameters_xgb <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
-        if (object@ml_algorithm == "xgb" && any(!hyperparameters_names %in% expected_hyperparameters_xgb)) {
-          stop("hyperparameters do not match ml_algorithm choice for 'xgb'")
+        if (object@sb_algorithm == "xgb" && any(!hyperparameters_names %in% expected_hyperparameters_xgb)) {
+          stop("hyperparameters do not match sb_algorithm choice for 'xgb'")
         }
         hyperparameters_missing <- expected_hyperparameters_xgb[which(!expected_hyperparameters_xgb %in% hyperparameters_names)]
-        if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "xgb"){
+        if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "xgb"){
           cat("\n")
           message(paste("The following hyperparameter(s) must still be configured for the",
-                        object@ml_algorithm, "algorithm:",
+                        object@sb_algorithm, "algorithm:",
                         paste(hyperparameters_missing, collapse = ", ")))
           cat("\n")
         }
@@ -417,14 +467,14 @@ setClass(
 
         # NN
         expected_hyperparameters_nn <- c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs")
-        if (object@ml_algorithm == "nn" && any(!hyperparameters_names %in% expected_hyperparameters_nn)) {
-          stop("hyperparameters do not match ml_algorithm choice for 'nn'")
+        if (object@sb_algorithm == "nn" && any(!hyperparameters_names %in% expected_hyperparameters_nn)) {
+          stop("hyperparameters do not match sb_algorithm choice for 'nn'")
         }
         hyperparameters_missing <- expected_hyperparameters_nn[which(!expected_hyperparameters_nn %in% hyperparameters_names)]
-        if(length(hyperparameters_missing) != 0 && object@ml_algorithm == "nn"){
+        if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "nn"){
           cat("\n")
           message(paste("The following hyperparameter(s) must still be configured for the",
-                        object@ml_algorithm, "algorithm:",
+                        object@sb_algorithm, "algorithm:",
                         paste(hyperparameters_missing, collapse = ", ")))
           cat("\n")
         }
@@ -432,7 +482,7 @@ setClass(
     }
 
 
-    # Validate hyperparameters based on ml_algorithm
+    # Validate hyperparameters based on sb_algorithm
     if(!is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@hyper_grid_domain@hyperparameter_list)){
 
     #Hyperparameters
@@ -451,7 +501,7 @@ setClass(
         }
 
         #GLMET Logic
-        if (object@ml_algorithm == "glmnet") {
+        if (object@sb_algorithm == "glmnet") {
           if(tuning_method != "random_search"){
             if (hyperparameter == "alpha" && (any(value < 0) || any(value > 1))) {
               stop("alpha should be set in interval [0, 1]")
@@ -482,7 +532,7 @@ setClass(
         }
 
         #RF Logic
-        if (object@ml_algorithm == "rf") {
+        if (object@sb_algorithm == "rf") {
           if(tuning_method != "random_search"){
             if (hyperparameter == "num.trees" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
               stop("num.trees should be a positive integer without decimals")
@@ -528,7 +578,7 @@ setClass(
         }
 
         #XGB Logic
-        if (object@ml_algorithm == "xgb") {
+        if (object@sb_algorithm == "xgb") {
           if(tuning_method != "random_search"){
             if (hyperparameter == "eta" && (any(value < 0) || any(value >= 1))) {
               stop("eta should be set in interval [0, 1)")
@@ -586,7 +636,7 @@ setClass(
 
 
         #NN Logic
-        if (object@ml_algorithm == "nn") {
+        if (object@sb_algorithm == "nn") {
           if(tuning_method != "random_search"){
             if (hyperparameter == "droprate" && (any(value < 0) || any(value >= 1))) {
               stop("droprate should be set in interval [0, 1)")
@@ -968,90 +1018,90 @@ setClass("ss_backtest_config",
              stop("initial_sample_size should be greater than or equal to data_availability_cutoff")
            }
           }
-         )
+      )
 
 
 
-#' @title ml_metabacktest_config Class
-#' @description The ml_metabacktest_config class is designed to store and manage a collection of ml_backtest_config objects.
-#' @slot meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner
-#' @slot base_ml_backtest_configs A list of `ml_backtest_config` objects whose oos predictions will be fed to the meta learner.
-#' @slot base_ml_backtest_results A list of `ml_backtest_result` objects whose oos predictions will be fed to the meta learner.
+#' @title sb_metabacktest_config Class
+#' @description The sb_metabacktest_config class is designed to store and manage a collection of sb_backtest_config objects.
+#' @slot meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner
+#' @slot base_sb_backtest_configs A list of `sb_backtest_config` objects whose oos predictions will be fed to the meta learner.
+#' @slot base_sb_backtest_results A list of `sb_backtest_result` objects whose oos predictions will be fed to the meta learner.
 #' @slot config_name A character string with the name of the configuration
 #' @export
 setClass(
-  "ml_metabacktest_config",
+  "sb_metabacktest_config",
   slots = list(
-    meta_ml_backtest_config = "ml_backtest_config",
-    base_ml_backtest_configs = "ANY",
-    base_ml_backtest_results = "ANY",
+    meta_sb_backtest_config = "sb_backtest_config",
+    base_sb_backtest_configs = "ANY",
+    base_sb_backtest_results = "ANY",
     config_name = "character"
   ),
   validity = function(object) {
 
-  if(object@meta_ml_backtest_config@ml_algorithm != "ols" && is.null(object@meta_ml_backtest_config@tuning_strategy)){
-    stop("tuning_strategy in meta_ml_backtest_config can't be NULL (except for OLS).")
+  if(!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") && is.null(object@meta_sb_backtest_config@tuning_strategy)){
+    stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for OLS and heuristic sb algorithms).")
   }
 
 
-  if(!is.null(object@base_ml_backtest_configs) & !is.null(object@base_ml_backtest_results)){
-    stop("base_ml_backtest_configs and base_ml_backtest_results can't be set at the same time.")
+  if(!is.null(object@base_sb_backtest_configs) & !is.null(object@base_sb_backtest_results)){
+    stop("base_sb_backtest_configs and base_sb_backtest_results can't be set at the same time.")
   }
 
 
-  if(!is.null(object@base_ml_backtest_configs)){
+  if(!is.null(object@base_sb_backtest_configs)){
 
-    if (!all(sapply(object@base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
-      stop("All elements in 'base_ml_backtest_configs' must be of class 'ml_backtest_config'.")
+    if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+      stop("All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
     }
 
     # Initialize an empty character vector to collect error messages
     errors <- character()
 
-    # Check that all elements are ml_backtest_config objects
-    if (!all(sapply(object@base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
-      errors <- c(errors, "All elements in 'base_ml_backtest_configs' must be of class 'ml_backtest_config'.")
+    # Check that all elements are sb_backtest_config objects
+    if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+      errors <- c(errors, "All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
     }
 
-    # Check for identical objects in base_ml_backtest_configs
-    num_configs <- length(object@base_ml_backtest_configs)
+    # Check for identical objects in base_sb_backtest_configs
+    num_configs <- length(object@base_sb_backtest_configs)
     for (i in 1:(num_configs - 1)) {
       for (j in (i + 1):num_configs) {
-        if (identical(object@base_ml_backtest_configs[[i]], object@base_ml_backtest_configs[[j]])) {
-          return("Duplicate objects found in 'base_ml_backtest_configs'. Each configuration must be unique.")
+        if (identical(object@base_sb_backtest_configs[[i]], object@base_sb_backtest_configs[[j]])) {
+          return("Duplicate objects found in 'base_sb_backtest_configs'. Each configuration must be unique.")
         }
       }
     }
 
-    # Check for duplicate names in base_ml_backtest_configs
-    config_names <- names(object@base_ml_backtest_configs)
+    # Check for duplicate names in base_sb_backtest_configs
+    config_names <- names(object@base_sb_backtest_configs)
     if (any(duplicated(config_names))) {
-      return("Duplicate names found in 'base_ml_backtest_configs'. Each configuration must have a unique name.")
+      return("Duplicate names found in 'base_sb_backtest_configs'. Each configuration must have a unique name.")
     }
 
     # Check that training_sample_size + validation_sample_size matches across all configurations
-    sample_sizes <- sapply(object@base_ml_backtest_configs, function(x){
-      x@training_sample_size + if(x@ml_algorithm != "ols") x@tuning_strategy@validation_sample_size else 0
+    sample_sizes <- sapply(object@base_sb_backtest_configs, function(x){
+      x@training_sample_size + if(!x@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")) x@tuning_strategy@validation_sample_size else 0
     })
     if (length(unique(sample_sizes)) > 1) {
-      errors <- c(errors, "Training sample size + validation sample size must match across all 'ml_backtest_config' elements.")
+      errors <- c(errors, "Training sample size + validation sample size must match across all 'sb_backtest_config' elements.")
     }
 
     # Check that rebalancing months match
-    rebalancing_months <- sapply(object@base_ml_backtest_configs, function(x) x@rebalancing_months)
+    rebalancing_months <- sapply(object@base_sb_backtest_configs, function(x) x@rebalancing_months)
     if (length(unique(rebalancing_months)) > 1){
-      errors <- c(errors, "Rebalancing months must match across all 'ml_backtest_config' elements.")
+      errors <- c(errors, "Rebalancing months must match across all 'sb_backtest_config' elements.")
     }
 
-    # Loop over each ml_backtest_config in the list
-    for (i in seq_along(object@base_ml_backtest_configs)) {
-      config <- object@base_ml_backtest_configs[[i]]
+    # Loop over each sb_backtest_config in the list
+    for (i in seq_along(object@base_sb_backtest_configs)) {
+      config <- object@base_sb_backtest_configs[[i]]
 
-      # Get ml_algorithm
-      ml_algorithm <- config@ml_algorithm
+      # Get sb_algorithm
+      sb_algorithm <- config@sb_algorithm
 
       # If ml_algo is ols, skip hyperparameter checks
-      if (ml_algorithm == "ols") {
+      if (sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")) {
         next
       }
       # Get hyperparameters_list names
@@ -1059,7 +1109,7 @@ setClass(
       hyperparameters_names <- names(hyperparameters_list)
 
       # Expected hyperparameters for each algorithm
-      expected_hyperparameters <- switch(ml_algorithm,
+      expected_hyperparameters <- switch(sb_algorithm,
                                          "glmnet" = c("alpha", "lambda.min.ratio"),
                                          "rf" = c("mtry", "num.trees", "max.depth", "min.bucket"),
                                          "xgb" = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
@@ -1068,9 +1118,9 @@ setClass(
                                          character(0) # default for unrecognized algorithms
       )
 
-      # If ml_algorithm is not recognized, record an error
+      # If sb_algorithm is not recognized, record an error
       if (length(expected_hyperparameters) == 0) {
-        errors <- c(errors, paste0("Unknown ml_algorithm '", ml_algorithm, "' in config ", i, "."))
+        errors <- c(errors, paste0("Unknown sb_algorithm '", sb_algorithm, "' in config ", i, "."))
         next
       }
 
@@ -1078,33 +1128,28 @@ setClass(
       # Check for missing hyperparameters
       missing_hyperparameters <- setdiff(expected_hyperparameters, hyperparameters_names)
       if (length(missing_hyperparameters) > 0) {
-        errors <- c(errors, paste0("In config ", i, ", missing hyperparameters for algorithm '", ml_algorithm, "': ",
+        errors <- c(errors, paste0("In config ", i, ", missing hyperparameters for algorithm '", sb_algorithm, "': ",
                                    paste(missing_hyperparameters, collapse = ", "), "."))
       }
 
       # Check for unexpected hyperparameters
       extra_hyperparameters <- setdiff(hyperparameters_names, expected_hyperparameters)
       if (length(extra_hyperparameters) > 0) {
-        errors <- c(errors, paste0("In config ", i, ", unexpected hyperparameters for algorithm '", ml_algorithm, "': ",
+        errors <- c(errors, paste0("In config ", i, ", unexpected hyperparameters for algorithm '", sb_algorithm, "': ",
                                    paste(extra_hyperparameters, collapse = ", "), "."))
       }
     }
-
 
     # If any errors were collected, return them
     if (length(errors) > 0) {
       return(paste(errors, collapse = "\n"))
     }
 
-
-
-
-
     }
 
-    if(!is.null(object@base_ml_backtest_results)){
-      if (!all(sapply(object@base_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
-        stop("All elements in 'base_ml_backtest_results' must be of class 'ml_backtest_results'.")
+    if(!is.null(object@base_sb_backtest_results)){
+      if (!all(sapply(object@base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
+        stop("All elements in 'base_sb_backtest_results' must be of class 'sb_backtest_results'.")
       }
     }
 
@@ -1113,14 +1158,19 @@ setClass(
 )
 
 
-#' Define the `refit_ml_model` S4 Class
+#' Define the `sb_model` S4 Class
 #'
-#' This class represents a refitted machine learning model. It encapsulates the algorithm used, hyperparameters,
+#' This class represents a (re)fitted sb model. It encapsulates the algorithm used, hyperparameters, custom objective,
 #' feature data, target variable, and the fitted model object.
 #'
-#' @slot ml_algorithm A character string specifying the machine learning algorithm used (e.g., "ols", "glmnet", "rf", "xgb", "nn").
-#' @slot best_hyperparameters The chosen hyperparameters relevant to the specified machine learning algorithm.
+#' @slot sb_algorithm A character string specifying the machine learning algorithm used (e.g., "ols", "glmnet", "rf", "xgb", "nn", "ew", "rp" or "sw").
+#' @slot best_hyperparameters The chosen hyperparameters relevant to the specified machine learning algorithm. Applicable only for machine-learning algorithms.
 #' @slot model The fitted model object, which varies based on the algorithm used.
+#' @slot model_class A character string specifying the class of the model object.
+#' @slot eligible_signals A vector of eligible signals used to fit the model.
+#' @slot custom_objective A custom objective function used to fit the model.
+#' @slot huber_delta A numeric value specifying the delta parameter for the Huber loss function. Applicable only for machine-learning algorithms.
+#' @slot keras_architecture_parameters A list of parameters used to define the architecture of a neural network model. Applicable only for the "nn" algorithm.
 #'
 #' @section Methods:
 #' \describe{
@@ -1130,11 +1180,12 @@ setClass(
 #'
 #' @export
 setClass(
-  "refit_ml_model",
+  "sb_model",
   slots = list(
     model = "ANY",
+    eligible_signals_list = "character",
     model_class = "character",
-    ml_algorithm = "character",
+    sb_algorithm = "character",
     best_hyperparameters = "ANY",
     custom_objective = "ANY",
     huber_delta = "numeric",
@@ -1154,13 +1205,13 @@ setClass(
 #' @slot oos_error_list A list of out-of-sample errors indexed by testing dates.
 #' @slot oos_y_list A list containing the actual target values for the out-of-sample period, indexed by testing dates.
 #' @slot oos_testing_eval_metrics A list of evaluation metrics for the out-of-sample testing samples.
-#' @slot final_model The final refitted machine learning model with best hyperparameters found after tuning. Possibly a object of refit_ml_model S4 class.
+#' @slot final_model The final refitted machine learning model with best hyperparameters found after tuning. Possibly a object of sb_model S4 class.
 #' @slot chosen_eval_metric_validation A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.
 #' @slot best_hyperparameters A data frame containing the best hyperparameters selected during tuning for each rebalancing period.
 #' @slot validation_eval_metrics_hyper_choice All evaluation metrics calculated for the set of best hyperparameters.
-#' @slot ml_backtest_workflow A list containing ml_backtest_workflow about the walk-forward validation process. It includes:
+#' @slot sb_backtest_workflow A list containing sb_backtest_workflow about the walk-forward validation process. It includes:
 #' \itemize{
-#'   \item \strong{ml_algorithm}: A character string specifying the machine learning algorithm used.
+#'   \item \strong{sb_algorithm}: A character string specifying the machine learning algorithm used.
 #'   \item \strong{custom_objective}: A character string indicating the custom loss function applied (e.g., "squared_error").
 #'   \item \strong{dates_covered}: A vector of dates representing the time period covered by the analysis.
 #'   \item \strong{n_dates}: An integer indicating the total number of dates in the covered period.
@@ -1200,31 +1251,31 @@ setClass(
 #' }
 #'
 #'
-#' @return An S4 object of class `ml_backtest_results` containing all the specified results and ml_backtest_workflow.
+#' @return An S4 object of class `sb_backtest_results` containing all the specified results and sb_backtest_workflow.
 #'
 #'
 #'@export
 setClass(
-  "ml_backtest_results",
+  "sb_backtest_results",
   slots = list(
     oos_prediction_list = "list",
     oos_error_list = "list",
     oos_y_list = "list",
     oos_testing_eval_metrics = "data.frame",
-    final_model = "refit_ml_model",
+    final_model = "sb_model",
     chosen_eval_metric_validation = "ANY",
     best_hyperparameters = "ANY",
     validation_eval_metrics_hyper_choice = "ANY",
-    ml_backtest_workflow = "list",
+    sb_backtest_workflow = "list",
     backtest_identifier = "character"
   )
 )
 
-#' @title ml_metabacktest_results Class
-#' @description An S4 class designed to store and manage a collection of `ml_backtest_results` objects,
+#' @title sb_metabacktest_results Class
+#' @description An S4 class designed to store and manage a collection of `sb_backtest_results` objects,
 #' along with consolidated and time series evaluation metrics for machine learning models.
 #'
-#' @slot ml_backtest_results A list of `ml_backtest_results` objects.
+#' @slot sb_backtest_results A list of `sb_backtest_results` objects.
 #' @slot consolidated_oos_testing_metrics A data frame containing consolidated out-of-sample testing evaluation metrics for each algorithm.
 #' @slot mean_validation_metrics A data frame containing the mean validation metrics for each algorithm.
 #' @slot time_series_oos_testing_metrics A list of data frames for each evaluation metric over time (out-of-sample testing).
@@ -1232,10 +1283,10 @@ setClass(
 #'
 #' @export
 setClass(
-  "ml_metabacktest_results",
+  "sb_metabacktest_results",
   slots = list(
-    meta_ml_backtest_results_list = "list",
-    base_ml_backtest_results_list = "list",
+    meta_sb_backtest_results_list = "list",
+    base_sb_backtest_results_list = "list",
     base_learners_oos_predictions_meta_dataframe = "meta_dataframe",
     consolidated_oos_testing_metrics = "list",
     mean_validation_metrics = "data.frame",
@@ -1244,12 +1295,12 @@ setClass(
     backtest_identifier = "character"
   ),
   validity = function(object) {
-    if (!all(sapply(object@meta_ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
-      return("All elements in 'meta_ml_backtest_results_list' must be of class 'ml_backtest_results'.")
+    if (!all(sapply(object@meta_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
+      return("All elements in 'meta_sb_backtest_results_list' must be of class 'sb_backtest_results'.")
     }
 
-    if (!all(sapply(object@base_ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
-      return("All elements in 'base_ml_backtest_results_list' must be of class 'ml_backtest_results'.")
+    if (!all(sapply(object@base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
+      return("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'.")
     }
 
     if (!all(sapply(object@consolidated_oos_testing_metrics, function(x) is(x, "data.frame")))){
@@ -1358,29 +1409,29 @@ setMethod(
 ###############################################
 
 
-# refit_ml_model acessors -------------------------------------------------
+# sb_model acessors -------------------------------------------------
 
 
-#' Accessor Methods for refit_ml_model
+#' Accessor Methods for sb_model
 #'
-#' These methods are used to access components of a `refit_ml_model` object.
+#' These methods are used to access components of a `sb_model` object.
 #'
-#' @param object An object of class `refit_ml_model`.
-#' @return The respective slot of the `refit_ml_model` object.
-#' @name refit_ml_model_accessors
+#' @param object An object of class `sb_model`.
+#' @return The respective slot of the `sb_model` object.
+#' @name sb_model_accessors
 #' @export
-setGeneric("get_ml_algorithm", function(object) standardGeneric("get_ml_algorithm"))
+setGeneric("get_sb_algorithm", function(object) standardGeneric("get_sb_algorithm"))
 
 #' @export
-setMethod("get_ml_algorithm", "refit_ml_model", function(object) {
-  return(object@ml_algorithm)
+setMethod("get_sb_algorithm", "sb_model", function(object) {
+  return(object@sb_algorithm)
 })
 
 #' @export
 setGeneric("get_best_hyperparameters", function(object) standardGeneric("get_best_hyperparameters"))
 
 #' @export
-setMethod("get_best_hyperparameters", "refit_ml_model", function(object) {
+setMethod("get_best_hyperparameters", "sb_model", function(object) {
   return(object@best_hyperparameters)
 })
 
@@ -1388,7 +1439,7 @@ setMethod("get_best_hyperparameters", "refit_ml_model", function(object) {
 setGeneric("get_model", function(object) standardGeneric("get_model"))
 
 #' @export
-setMethod("get_model", "refit_ml_model", function(object) {
+setMethod("get_model", "sb_model", function(object) {
   return(object@model)
 })
 
@@ -1396,20 +1447,20 @@ setMethod("get_model", "refit_ml_model", function(object) {
 
 
 
-# ml_backtest_results acessors --------------------------------------------
+# sb_backtest_results acessors --------------------------------------------
 
-#' Accessor Methods for ml_backtest_results
+#' Accessor Methods for sb_backtest_results
 #'
-#' These methods are used to access various components of an `ml_backtest_results` object.
+#' These methods are used to access various components of an `sb_backtest_results` object.
 #'
-#' @param object An object of class `ml_backtest_results`.
-#' @return The respective slot of the `ml_backtest_results` object.
-#' @name ml_backtest_results_accessors
+#' @param object An object of class `sb_backtest_results`.
+#' @return The respective slot of the `sb_backtest_results` object.
+#' @name sb_backtest_results_accessors
 #' @export
 setGeneric("get_oos_prediction_list", function(object) standardGeneric("get_oos_prediction_list"))
 
 #' @export
-setMethod("get_oos_prediction_list", "ml_backtest_results", function(object) {
+setMethod("get_oos_prediction_list", "sb_backtest_results", function(object) {
   return(object@oos_prediction_list)
 })
 
@@ -1417,7 +1468,7 @@ setMethod("get_oos_prediction_list", "ml_backtest_results", function(object) {
 setGeneric("get_oos_error_list", function(object) standardGeneric("get_oos_error_list"))
 
 #' @export
-setMethod("get_oos_error_list", "ml_backtest_results", function(object) {
+setMethod("get_oos_error_list", "sb_backtest_results", function(object) {
   return(object@oos_error_list)
 })
 
@@ -1425,7 +1476,7 @@ setMethod("get_oos_error_list", "ml_backtest_results", function(object) {
 setGeneric("get_oos_y_list", function(object) standardGeneric("get_oos_y_list"))
 
 #' @export
-setMethod("get_oos_y_list", "ml_backtest_results", function(object) {
+setMethod("get_oos_y_list", "sb_backtest_results", function(object) {
   return(object@oos_y_list)
 })
 
@@ -1433,7 +1484,7 @@ setMethod("get_oos_y_list", "ml_backtest_results", function(object) {
 setGeneric("get_oos_testing_eval_metrics", function(object) standardGeneric("get_oos_testing_eval_metrics"))
 
 #' @export
-setMethod("get_oos_testing_eval_metrics", "ml_backtest_results", function(object) {
+setMethod("get_oos_testing_eval_metrics", "sb_backtest_results", function(object) {
   return(object@oos_testing_eval_metrics)
 })
 
@@ -1441,7 +1492,7 @@ setMethod("get_oos_testing_eval_metrics", "ml_backtest_results", function(object
 setGeneric("get_final_model", function(object) standardGeneric("get_final_model"))
 
 #' @export
-setMethod("get_final_model", "ml_backtest_results", function(object) {
+setMethod("get_final_model", "sb_backtest_results", function(object) {
     return(object@final_model)
 })
 
@@ -1449,8 +1500,8 @@ setMethod("get_final_model", "ml_backtest_results", function(object) {
 setGeneric("get_tickers", function(object) standardGeneric("get_tickers"))
 
 #' @export
-setMethod("get_tickers", "ml_backtest_results", function(object) {
-  return(object@ml_backtest_workflow$tickers)
+setMethod("get_tickers", "sb_backtest_results", function(object) {
+  return(object@sb_backtest_workflow$tickers)
 })
 
 #' @export
@@ -1463,12 +1514,12 @@ setMethod("get_tickers", "meta_dataframe", function(object) {
 setGeneric("get_dates", function(object, ...) standardGeneric("get_dates"))
 
 #' @export
-setMethod("get_dates", "ml_backtest_results", function(object, sample_type = "complete") {
+setMethod("get_dates", "sb_backtest_results", function(object, sample_type = "complete") {
 
   if(!sample_type %in% c("complete", "testing")) stop("sample_type must be one of `complete` or `testing`")
 
-  if(sample_type == "complete") return(object@ml_backtest_workflow$dates_covered)
-  if(sample_type == "testing") return(object@ml_backtest_workflow$dates_testing_sample)
+  if(sample_type == "complete") return(object@sb_backtest_workflow$dates_covered)
+  if(sample_type == "testing") return(object@sb_backtest_workflow$dates_testing_sample)
 
 })
 
@@ -1482,12 +1533,12 @@ setMethod("get_dates", "meta_dataframe", function(object) {
 setGeneric("get_chosen_eval_metric_validation", function(object) standardGeneric("get_chosen_eval_metric_validation"))
 
 #' @export
-setMethod("get_chosen_eval_metric_validation", "ml_backtest_results", function(object) {
+setMethod("get_chosen_eval_metric_validation", "sb_backtest_results", function(object) {
   return(object@chosen_eval_metric_validation)
 })
 
 #' @export
-setMethod("get_best_hyperparameters", "ml_backtest_results", function(object) {
+setMethod("get_best_hyperparameters", "sb_backtest_results", function(object) {
   return(object@best_hyperparameters)
 })
 
@@ -1495,18 +1546,18 @@ setMethod("get_best_hyperparameters", "ml_backtest_results", function(object) {
 setGeneric("get_validation_eval_metrics_hyper_choice", function(object) standardGeneric("get_validation_eval_metrics_hyper_choice"))
 
 #' @export
-setMethod("get_validation_eval_metrics_hyper_choice", "ml_backtest_results", function(object) {
+setMethod("get_validation_eval_metrics_hyper_choice", "sb_backtest_results", function(object) {
   return(object@validation_eval_metrics_hyper_choice)
 })
 
 #' @export
-setMethod("get_workflow", "ml_backtest_results", function(object) {
-  return(object@ml_backtest_workflow)
+setMethod("get_workflow", "sb_backtest_results", function(object) {
+  return(object@sb_backtest_workflow)
 })
 
 
 #' @export
-setMethod("as.list", "ml_backtest_results", function(x) {
+setMethod("as.list", "sb_backtest_results", function(x) {
   # Get the names of all slots
   slot_names <- slotNames(x)
 
@@ -1534,47 +1585,47 @@ setMethod("as.list", "ml_backtest_results", function(x) {
 ##########################
 
 
-# get ml_backtest_config
+# get sb_backtest_config
 #' @title Get ML Backtest Config Object
-#' @description Accessor function to retrieve the ml_backtest_config object from a ml_metabacktest_config object or a ml_backtest_results object
+#' @description Accessor function to retrieve the sb_backtest_config object from a sb_metabacktest_config object or a sb_backtest_results object
 #'
-#' @param object A `ml_metabacktest_config` or a `ml_backtest_results` object.
+#' @param object A `sb_metabacktest_config` or a `sb_backtest_results` object.
 #'
-#' @return The `ml_backtest_configs` slot of the `ml_metabacktest_config` object or a `ml_backtest_config` derived from a `ml_backtest_results` object.
+#' @return The `sb_backtest_configs` slot of the `sb_metabacktest_config` object or a `sb_backtest_config` derived from a `sb_backtest_results` object.
 #' @export
-setGeneric("get_ml_backtest_config", function(object) standardGeneric("get_ml_backtest_config"))
+setGeneric("get_sb_backtest_config", function(object) standardGeneric("get_sb_backtest_config"))
 
-#' @rdname get_ml_backtest_config
+#' @rdname get_sb_backtest_config
 #' @export
-setMethod("get_ml_backtest_config", "ml_metabacktest_config", function(object) {
-  return(object@ml_backtest_configs)
+setMethod("get_sb_backtest_config", "sb_metabacktest_config", function(object) {
+  return(object@sb_backtest_configs)
 })
 
-#' @rdname get_ml_backtest_config
+#' @rdname get_sb_backtest_config
 #' @export
-setMethod("get_ml_backtest_config", "ml_backtest_results", function(object) {
+setMethod("get_sb_backtest_config", "sb_backtest_results", function(object) {
 
-  ml_backtest_workflow <- object@ml_backtest_workflow
+  sb_backtest_workflow <- object@sb_backtest_workflow
 
   #Fabricate tuning strategy
   tuning_strategy <- get_tuning_strategy(object)
 
   #Create Backtest Config
-  ml_backtest_config <- create_ml_backtest_config(
-    ml_algorithm = ml_backtest_workflow$ml_algorithm,
-    training_sample_size = ml_backtest_workflow$training_sample_size,
-    rebalancing_months = ml_backtest_workflow$rebalancing_months,
-    split_method = ml_backtest_workflow$split_method,
+  sb_backtest_config <- create_sb_backtest_config(
+    sb_algorithm = sb_backtest_workflow$sb_algorithm,
+    training_sample_size = sb_backtest_workflow$training_sample_size,
+    rebalancing_months = sb_backtest_workflow$rebalancing_months,
+    split_method = sb_backtest_workflow$split_method,
     tuning_strategy = tuning_strategy,
-    custom_objective = ml_backtest_workflow$custom_objective,
-    quantile_tau = ml_backtest_workflow$quantile_tau,
-    huber_delta = ml_backtest_workflow$huber_delta
+    custom_objective = sb_backtest_workflow$custom_objective,
+    quantile_tau = sb_backtest_workflow$quantile_tau,
+    huber_delta = sb_backtest_workflow$huber_delta
   )
 
   #Add keras_architecture_parameters if ml algo is nn
-  if(ml_backtest_workflow$ml_algorithm == "nn") {
-    keras_architecture_parameters <- ml_backtest_workflow$keras_architecture_parameters
-    ml_backtest_config <- add_keras_architecture(ml_backtest_config,
+  if(sb_backtest_workflow$sb_algorithm == "nn") {
+    keras_architecture_parameters <- sb_backtest_workflow$keras_architecture_parameters
+    sb_backtest_config <- add_keras_architecture(sb_backtest_config,
                                                  nn_optimizer = keras_architecture_parameters$nn_optimizer,
                                                  units = keras_architecture_parameters$units,
                                                  activation = keras_architecture_parameters$activation,
@@ -1582,7 +1633,7 @@ setMethod("get_ml_backtest_config", "ml_backtest_results", function(object) {
                                                  )
   }
 
-  return(ml_backtest_config)
+  return(sb_backtest_config)
 
 })
 
@@ -1591,11 +1642,11 @@ setMethod("get_ml_backtest_config", "ml_backtest_results", function(object) {
 # get tuning strategy -----------------------------------------------------
 
 #' @title Get Hyperparameter Tuning Strategy
-#' @description Accessor function to retrieve the hyperparameter tuning strategy from an ml_backtest_config object.
+#' @description Accessor function to retrieve the hyperparameter tuning strategy from an sb_backtest_config object.
 #'
-#' @param object An ml_backtest_config object.
+#' @param object An sb_backtest_config object.
 #'
-#' @return The `tuning_strategy` slot of the `ml_backtest_config` object.
+#' @return The `tuning_strategy` slot of the `sb_backtest_config` object.
 #' @export
 setGeneric("get_tuning_strategy", function(object) {
   standardGeneric("get_tuning_strategy")
@@ -1603,39 +1654,39 @@ setGeneric("get_tuning_strategy", function(object) {
 
 #' @rdname get_tuning_strategy
 #' @export
-setMethod("get_tuning_strategy", "ml_backtest_config", function(object) {
+setMethod("get_tuning_strategy", "sb_backtest_config", function(object) {
   return(object@tuning_strategy)
 })
 
 
 #' @rdname get_tuning_strategy
 #' @export
-setMethod("get_tuning_strategy", "ml_metabacktest_config", function(object) {
-  return(lapply(object@ml_backtest_configs, function(config) get_tuning_strategy(config)))
+setMethod("get_tuning_strategy", "sb_metabacktest_config", function(object) {
+  return(lapply(object@sb_backtest_configs, function(config) get_tuning_strategy(config)))
 })
 
 #' @rdname get_tuning_strategy
 #' @export
-setMethod("get_tuning_strategy", "ml_backtest_results", function(object){
+setMethod("get_tuning_strategy", "sb_backtest_results", function(object){
 
   #WF
-  ml_backtest_workflow <- object@ml_backtest_workflow
+  sb_backtest_workflow <- object@sb_backtest_workflow
 
-  if(ml_backtest_workflow$ml_algorithm == "ols") return(NULL)
+  if(sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")) return(NULL)
 
   #Hyper Grid Domain
   hyper_grid_domain <- get_hyper_grid_domain(object)
 
-  if(ml_backtest_workflow$ml_algorithm != "ols"){
-    tuning_strategy <- create_tuning_strategy(tuning_method = ml_backtest_workflow$tuning_method,
-                                              validation_sample_size = ml_backtest_workflow$validation_sample_size,
-                                              chosen_eval_metric = ml_backtest_workflow$chosen_eval_metric,
+  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")){
+    tuning_strategy <- create_tuning_strategy(tuning_method = sb_backtest_workflow$tuning_method,
+                                              validation_sample_size = sb_backtest_workflow$validation_sample_size,
+                                              chosen_eval_metric = sb_backtest_workflow$chosen_eval_metric,
                                               hyper_grid_domain = hyper_grid_domain,
-                                              early_stop = ml_backtest_workflow$early_stop,
-                                              n_iter =  if(ml_backtest_workflow$tuning_method != "grid_search") ml_backtest_workflow$n_iter else NULL,
-                                              acq = if(ml_backtest_workflow$tuning_method == "bayesian_opt") ml_backtest_workflow$acq else NULL,
-                                              init_points = if(ml_backtest_workflow$tuning_method == "bayesian_opt") ml_backtest_workflow$init_points else NULL,
-                                              k_iter = if(ml_backtest_workflow$tuning_method == "bayesian_opt") ml_backtest_workflow$k_iter else NULL
+                                              early_stop = sb_backtest_workflow$early_stop,
+                                              n_iter =  if(sb_backtest_workflow$tuning_method != "grid_search") sb_backtest_workflow$n_iter else NULL,
+                                              acq = if(sb_backtest_workflow$tuning_method == "bayesian_opt") sb_backtest_workflow$acq else NULL,
+                                              init_points = if(sb_backtest_workflow$tuning_method == "bayesian_opt") sb_backtest_workflow$init_points else NULL,
+                                              k_iter = if(sb_backtest_workflow$tuning_method == "bayesian_opt") sb_backtest_workflow$k_iter else NULL
                                               )
   }
 
@@ -1651,7 +1702,7 @@ setMethod("get_tuning_strategy", "ml_backtest_results", function(object){
 #' @title Get Hyperparameter Grid Domain
 #' @description Accessor function to retrieve the hyperparameter grid domain.
 #'
-#' @param object An ml_backtest_config or tuning_strategy object
+#' @param object An sb_backtest_config or tuning_strategy object
 #'
 #' @return The `hyper_grid_domain` object stored in the `tuning_strategy`.
 setGeneric("get_hyper_grid_domain", function(object) {
@@ -1659,7 +1710,7 @@ setGeneric("get_hyper_grid_domain", function(object) {
 })
 
 #' @rdname get_hyper_grid_domain
-setMethod("get_hyper_grid_domain", "ml_backtest_config", function(object) {
+setMethod("get_hyper_grid_domain", "sb_backtest_config", function(object) {
   if(is.null(object@tuning_strategy)){
     stop("tuning_strategy not avaiable.")
   } else {
@@ -1673,10 +1724,10 @@ setMethod("get_hyper_grid_domain", "tuning_strategy", function(object) {
 
 #' @rdname get_hyper_grid_domain
 #' @export
-setMethod("get_hyper_grid_domain", "ml_metabacktest_config", function(object) {
-  return(lapply(object@ml_backtest_configs, function(config) {
+setMethod("get_hyper_grid_domain", "sb_metabacktest_config", function(object) {
+  return(lapply(object@sb_backtest_configs, function(config) {
     if(is.null(config@tuning_strategy)) {
-      stop("tuning_strategy not available for one of the ml_backtest_config objects.")
+      stop("tuning_strategy not available for one of the sb_backtest_config objects.")
     } else {
       return(config@tuning_strategy@hyper_grid_domain@hyperparameter_list)
     }
@@ -1685,9 +1736,9 @@ setMethod("get_hyper_grid_domain", "ml_metabacktest_config", function(object) {
 
 #' @rdname get_hyper_grid_domain
 #' @export
-setMethod("get_hyper_grid_domain", "ml_backtest_results", function(object){
+setMethod("get_hyper_grid_domain", "sb_backtest_results", function(object){
 
-  hyper_grid_domain <- new("hyper_grid_domain", hyperparameter_list = object@ml_backtest_workflow$hyper_grid_domain_list)
+  hyper_grid_domain <- new("hyper_grid_domain", hyperparameter_list = object@sb_backtest_workflow$hyper_grid_domain_list)
   return(hyper_grid_domain)
 })
 
@@ -1698,15 +1749,15 @@ setMethod("get_hyper_grid_domain", "ml_backtest_results", function(object){
 #' @title Get Keras Architecture Parameters
 #' @description Accessor function to retrieve the keras architecture parameters.
 #'
-#' @param object A ml_backtest_config, a ml_metabacktest_config or a ml_backtest_results object.
+#' @param object A sb_backtest_config, a sb_metabacktest_config or a sb_backtest_results object.
 #'
 #' @return A `keras_architecture_parameters` S4 class.
 setGeneric("get_keras_architecture_parameters", function(object) standardGeneric("get_keras_architecture_parameters"))
 
 #' @rdname get_keras_architecture_parameters
-setMethod("get_keras_architecture_parameters", "ml_backtest_config", function(object) {
+setMethod("get_keras_architecture_parameters", "sb_backtest_config", function(object) {
 
-  if(object@ml_algorithm != "nn"){
+  if(object@sb_algorithm != "nn"){
     stop("keras_architecture_parameters not available for non-neural network algorithms.")
   }
 
@@ -1718,24 +1769,24 @@ setMethod("get_keras_architecture_parameters", "ml_backtest_config", function(ob
 })
 
 #' @rdname get_keras_architecture_parameters
-setMethod("get_keras_architecture_parameters", "ml_metabacktest_config", function(object) {
-  return(lapply(object@ml_metabacktest_configs[sapply(object@ml_metabacktest_configs, function(config) config@ml_algorithm == "nn")],
+setMethod("get_keras_architecture_parameters", "sb_metabacktest_config", function(object) {
+  return(lapply(object@sb_metabacktest_configs[sapply(object@sb_metabacktest_configs, function(config) config@sb_algorithm == "nn")],
                 function(nn_config) get_keras_architeture_parameters(nn_config)
   ))
 })
 
 #' @rdname get_keras_architecture_parameters
-setMethod("get_keras_architecture_parameters", "ml_backtest_results", function(object) {
+setMethod("get_keras_architecture_parameters", "sb_backtest_results", function(object) {
 
-  if(object@ml_backtest_workflow$ml_algorithm != "nn"){
+  if(object@sb_backtest_workflow$sb_algorithm != "nn"){
     stop("keras_architecture_parameters not available for non-neural network algorithms.")
   } else {
 
   keras_architecture_parameters <- create_keras_architecture(
-    nn_optimizer = object@ml_backtest_workflow$keras_architecture_parameters$nn_optimizer,
-    units = object@ml_backtest_workflow$keras_architecture_parameters$units,
-    activation = object@ml_backtest_workflow$keras_architecture_parameters$activation,
-    batch_norm_option = object@ml_backtest_workflow$keras_architecture_parameters$batch_norm_option
+    nn_optimizer = object@sb_backtest_workflow$keras_architecture_parameters$nn_optimizer,
+    units = object@sb_backtest_workflow$keras_architecture_parameters$units,
+    activation = object@sb_backtest_workflow$keras_architecture_parameters$activation,
+    batch_norm_option = object@sb_backtest_workflow$keras_architecture_parameters$batch_norm_option
   )
 
   }
@@ -1745,9 +1796,9 @@ setMethod("get_keras_architecture_parameters", "ml_backtest_results", function(o
 })
 
 #' @rdname get_keras_architecture_parameters
-setMethod("get_keras_architecture_parameters", "refit_ml_model", function(object) {
+setMethod("get_keras_architecture_parameters", "sb_model", function(object) {
 
-  if(object@ml_algorithm != "nn"){
+  if(object@sb_algorithm != "nn"){
     stop("keras_architecture_parameters not available for non-neural network algorithms.")
   } else {
   keras_architecture_parameters <- create_keras_architecture(
@@ -1807,7 +1858,7 @@ setMethod("get_brms_prior", "ss_backtest_results", function(object){
   if(!object@p_correction_method == "bayesian"){
     stop("brms prior not available for non-bayesian models.")
   }
-  return(object@final_bayesian_fit_list$elected_priors)
+  return(object@bayesian_results$elected_priors)
 
 })
 
@@ -1880,7 +1931,7 @@ setMethod("get_signal_universe", "ss_backtest_results", function(object){
 
 
 #' @title Get bayesian_fit
-#' @description Accessor function to retrieve bayesian_fit_list
+#' @description Accessor function to retrieve bayesian_results
 #'
 #' @param object A `ss_backtest_results` object.
 #'
@@ -1892,9 +1943,9 @@ setGeneric("get_bayesian_fit", function(object){
 #' @export
 setMethod("get_bayesian_fit", "ss_backtest_results", function(object){
   if(object@p_correction_method == "bayesian"){
-    return(object@final_bayesian_fit_list)
+    return(object@bayesian_results)
   } else {
-    stop("bayesian_fit not available for non-bayesian models.")
+    stop("bayesian_results not available for non-bayesian models.")
   }
 })
 

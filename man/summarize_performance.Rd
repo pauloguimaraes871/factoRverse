@@ -10,7 +10,7 @@ summarize_performance(
   model_structure,
   model_spec_theme_level,
   lmer_control,
-  signal_themes_m_d_ref,
+  selected_signal_themes_m_d_ref,
   active_returns = TRUE,
   verbose = TRUE
 )
@@ -29,7 +29,7 @@ Options include:
 \item \code{"fixed_intercept_fixed_slope"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
 }}
 
-\item{signal_themes_m_d_ref}{A data frame containing metadata about signals. This data frame should include:
+\item{selected_signal_themes_m_d_ref}{A data frame containing metadata about signals. This data frame should include:
 \itemize{
 \item \code{tickers}: Signal identifiers matching those in \code{selected_backtest_returns_corrected_positions_xts_upd_ref}.
 \item \code{theme}: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.

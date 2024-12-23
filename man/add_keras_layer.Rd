@@ -3,17 +3,17 @@
 \name{add_keras_layer}
 \alias{add_keras_layer}
 \alias{add_keras_layer,keras_architecture_parameters-method}
-\alias{add_keras_layer,ml_backtest_config-method}
+\alias{add_keras_layer,sb_backtest_config-method}
 \title{Add Layer to Keras Architecture}
 \usage{
 add_keras_layer(object, units, activation, batch_norm_option)
 
 \S4method{add_keras_layer}{keras_architecture_parameters}(object, units, activation, batch_norm_option)
 
-\S4method{add_keras_layer}{ml_backtest_config}(object, units, activation, batch_norm_option)
+\S4method{add_keras_layer}{sb_backtest_config}(object, units, activation, batch_norm_option)
 }
 \arguments{
-\item{object}{An object of class \code{ml_backtest_config}}
+\item{object}{An object of class \code{sb_backtest_config}}
 
 \item{units}{A numeric value for the number of units in the new layer.}
 
@@ -31,6 +31,6 @@ Method to add a new layer to the Keras architecture.
 \itemize{
 \item \code{add_keras_layer(keras_architecture_parameters)}: Add a keras layer to an object of class \code{keras_architecture_parameters}
 
-\item \code{add_keras_layer(ml_backtest_config)}: Add a keras layer to an object of class \code{ml_backtest_config}
+\item \code{add_keras_layer(sb_backtest_config)}: Add a keras layer to an object of class \code{sb_backtest_config}
 
 }}

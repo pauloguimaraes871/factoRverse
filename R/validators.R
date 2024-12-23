@@ -146,7 +146,7 @@ is_portfolio_policies <- function(x) {
 #'
 #' The `hyperparameters` function returns a character vector of expected hyperparameters for a given machine learning algorithm or configuration.
 #'
-#' @param object An `ml_algorithm` character string or an `ml_backtest_config` object.
+#' @param object An `sb_algorithm` character string or an `sb_backtest_config` object.
 #' @return A character vector containing the names of the expected hyperparameters for the specified algorithm.
 #' @export
 setGeneric("hyperparameters", function(object) standardGeneric("hyperparameters"))
@@ -169,9 +169,9 @@ setGeneric("hyperparameters", function(object) standardGeneric("hyperparameters"
 #' @export
 setMethod("hyperparameters", signature(object = "character"),
           function(object) {
-            ml_algorithm <- object
+            sb_algorithm <- object
             expected_hyperparameters <- switch(
-              ml_algorithm,
+              sb_algorithm,
               "glmnet" = c("alpha", "lambda.min.ratio"),
               "rf" = c("mtry", "num.trees", "max.depth", "min.bucket"),
               "xgb" = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
@@ -183,22 +183,22 @@ setMethod("hyperparameters", signature(object = "character"),
             return(expected_hyperparameters)
           })
 
-#' @describeIn hyperparameters Get expected hyperparameters from an `ml_backtest_config` object.
+#' @describeIn hyperparameters Get expected hyperparameters from an `sb_backtest_config` object.
 #'
-#' @param object An `ml_backtest_config` object.
+#' @param object An `sb_backtest_config` object.
 #'
 #' @return A character vector of expected hyperparameters for the algorithm specified in the configuration.
 #' If the algorithm is "ols" or not recognized, it returns an empty character vector.
 #'
 #' @examples
-#' # Assuming you have an ml_backtest_config object named config
+#' # Assuming you have an sb_backtest_config object named config
 #' hyperparameters(config)
 #'
 #' @export
-setMethod("hyperparameters", signature(object = "ml_backtest_config"),
+setMethod("hyperparameters", signature(object = "sb_backtest_config"),
           function(object) {
-            ml_algorithm <- object@ml_algorithm
-            expected_hyperparameters <- hyperparameters(ml_algorithm)
+            sb_algorithm <- object@sb_algorithm
+            expected_hyperparameters <- hyperparameters(sb_algorithm)
             return(expected_hyperparameters)
           })
 

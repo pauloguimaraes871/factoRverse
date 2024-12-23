@@ -8,6 +8,7 @@ create_ss_backtest_config(
   data_availability_cutoff,
   initial_sample_size,
   rebalancing_months,
+  active_returns = TRUE,
   split_method = "expanding",
   alpha_test_strategy = NULL,
   config_name = "not_identified"
@@ -19,6 +20,8 @@ create_ss_backtest_config(
 \item{initial_sample_size}{A numeric indicating the minimum number of observations required to begin the backtest.}
 
 \item{rebalancing_months}{A numeric indicating the number of months for rebalancing.}
+
+\item{active_returns}{Logical, whether to calculate active returns when calculating performance metrics, except for CAPM (default is TRUE).}
 
 \item{split_method}{A character string specifying the splitting method, either "expanding" (default) or "rolling".}
 

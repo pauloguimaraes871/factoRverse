@@ -16,11 +16,12 @@ define_signal_eligibility(
   theme_level_slope = NULL,
   lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML",
     hierarchical_p_value_method = "Satterthwaite"),
+  active_returns = TRUE,
   priors_m_upd_ref = NULL,
   user_priors = NULL,
   brms_control = list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.99),
   prior_derivation_control = list(half_t_df = 30),
-  signal_themes_m_d_ref,
+  selected_signal_themes_m_d_ref,
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
   verbose = TRUE,
@@ -55,7 +56,7 @@ For FDR, possible options are:
 \item{signal_significance_threshold}{A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
 
-\item{enable_theme_representativeness}{If TRUE, in case a given theme in \code{signal_themes_m_d_ref} does not have any eligible signal, the signal
+\item{enable_theme_representativeness}{If TRUE, in case a given theme in \code{selected_signal_themes_m_d_ref} does not have any eligible signal, the signal
 with highest alpha t-stat will be elected.}
 
 \item{model_structure}{A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.}
@@ -75,6 +76,10 @@ Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
 \item{hierarchical_p_value_method}
 }}
 
+\item{active_returns}{A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
+backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts. This does not
+impact calculation of the CAPM model, whether it is frequentist or bayesian, pooled or partial pooled.}
+
 \item{user_priors}{An object of class \code{brmsprior} with user-defined priors for the hierarchical bayesian model. It should be set with \code{model_spec_theme_level} structure in mind.
 brms::set_prior() can be used to define the priors. Should not be provided if \code{priors_m_d_ref} is already being provided.}
 
@@ -83,7 +88,7 @@ brms::set_prior() can be used to define the priors. Should not be provided if \c
 \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
 }}
 
-\item{signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
+\item{selected_signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
 for defining clusters in bayesian hierarchical model. It should contain data only for current date.}
 
 \item{lower_quantile_winsorization}{Numeric value for lower winsorization.}

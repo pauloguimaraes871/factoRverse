@@ -363,31 +363,118 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
   }
 }
 
+#' Add a `ss_backtest_config` or a `ss_backtest_results` to an existing `sb_backtest_config`.
+#'
+#' This generic function adds an existing `ss_backtest_config` or a `ss_backtest_results`
+#' to an `sb_backtest_config` object or creates a new `ss_backtest_config` if none is provided (i.e., when ss_backtest_obj is `missing`).
+#'
+#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
+#' @param ss_backtest_object An object of class `ss_backtest_config`, `ss_backtest_results` or `missing`.
+#' If `NULL`, additional parameters must be provided to create a new `ss_backtest_config`.
+#' @param ... Additional arguments required to create a new `ss_backtest_config`, only needed when ss_backtest_obj is `missing`.
+#' @return An updated `sb_backtest_config` object with the specified or newly created ss_backtest_obj.
+#' @export
+setGeneric("add_ss_backtest_obj", function(object, ss_backtest_obj, ...) {
+  standardGeneric("add_ss_backtest_obj")
+})
 
-#' Add a `tuning_strategy` to an existing `ml_backtest_config`.
+#' @describeIn add_ss_backtest_obj Add an existing ss_backtest_obj to the `sb_backtest_config`.
 #'
-#' This generic function adds an existing `tuning_strategy` to an `ml_backtest_config` object or creates a new `tuning_strategy` if none is provided (i.e., when `tuning_strategy` is `NULL`).
+#' This method adds a pre-existing `ss_backtest_config` to the `sb_backtest_config`.
+#' It replaces any existing ss_backtest_obj in `sb_backtest_config`.
 #'
-#' @param object A `ml_backtest_config` object to which a tuning strategy will be added.
-#' @param tuning_strategy An object of class `tuning_strategy` or `NULL`. If `NULL`, additional parameters must be provided to create a new `tuning_strategy`.
-#' @param ... Additional arguments required to create a new `tuning_strategy`, only needed when `tuning_strategy` is `NULL`.
-#' @return An updated `ml_backtest_config` object with the specified or newly created `tuning_strategy`.
+#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
+#' @param ss_backtest_obj  An object of class `ss_backtest_config`.
+#' @return The updated `sb_backtest_config` object with the provided `ss_backtest_obj`.
+#' @export
+setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "ss_backtest_config"),
+          function(object, ss_backtest_obj) {
+
+            #Place ss_backtest_object
+            object@ss_backtest_config <- ss_backtest_obj
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
+
+#' @describeIn add_ss_backtest_obj Add an existing ss_backtest_obj to the `sb_backtest_config`.
+#'
+#' This method adds a pre-existing `ss_backtest_results` to the `sb_backtest_config`.
+#' It replaces any existing ss_backtest_obj in `sb_backtest_config`.
+#'
+#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
+#' @param ss_backtest_obj  An object of class `sb_backtest_config`.
+#' @return The updated `sb_backtest_config` object with the provided `ss_backtest_obj`.
+#' @export
+setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "ss_backtest_results"),
+          function(object, ss_backtest_obj) {
+
+            #Place ss_backtest_results
+            object@ss_backtest_results <- ss_backtest_obj
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
+
+#' @describeIn add_ss_backtest_obj Add an existing ss_backtest_obj to the `sb_backtest_config`.
+#'
+#' This method creates a `ss_backtest_config` to add to the `sb_backtest_config`.
+#'
+#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
+#' @param
+#' @return The updated `sb_backtest_config` object with the created `ss_backtest_config`.
+#' @export
+setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "missing"),
+          function(object, data_availability_cutoff, initial_sample_size, rebalancing_months, active_returns = TRUE, split_method = "expanding",
+                   alpha_test_strategy = NULL, config_name = "not_identified") {
+
+            #create ss_backtest_config
+            ss_backtest_config <- create_ss_backtest_config(data_availability_cutoff = data_availability_cutoff,
+                                                            initial_sample_size = initial_sample_size,
+                                                            rebalancing_months = rebalancing_months,
+                                                            active_returns = active_returns,
+                                                            split_method = split_method,
+                                                            alpha_test_strategy = alpha_test_strategy,
+                                                            config_name = config_name)
+
+            #Include
+            object@ss_backtest_config <- ss_backtest_config
+
+            # Validate the object explicitly
+            validObject(object)
+
+            return(object)
+          })
+
+
+#' Add a `tuning_strategy` to an existing `sb_backtest_config`.
+#'
+#' This generic function adds an existing `tuning_strategy` object or creates a new one if none is provided
+#'  (i.e., when tuning_strategy is `NULL`).
+#'
+#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
+#' @param tuning_strategy An object of class `tuning_strategy`, or `NULL`.
+#' If `NULL`, additional parameters must be provided to create a new `tuning_strategy`.
+#' @param ... Additional arguments required to create a new `tuning_strategy`, only needed when tuning_strategy is `NULL`.
+#' @return An updated `sb_backtest_config` object with the specified or newly created `tuning_strategy`.
 #' @export
 setGeneric("add_tuning_strategy", function(object, tuning_strategy, ...) {
   standardGeneric("add_tuning_strategy")
 })
 
-
-
-#' @describeIn add_tuning_strategy Add an existing `tuning_strategy` to the `ml_backtest_config`.
+#' @describeIn add_tuning_strategy Add an existing `tuning_strategy` to the `sb_backtest_config`.
 #'
-#' This method adds a pre-existing `tuning_strategy` to the `ml_backtest_config`. It replaces any existing tuning strategy in the experiment.
+#' This method adds a pre-existing `tuning_strategy` to the `sb_backtest_config`. It replaces any existing tuning strategy in the experiment.
 #'
-#' @param object A `ml_backtest_config` object.
-#' @param tuning_strategy An object of class `tuning_strategy` to be added to the `ml_backtest_config`.
-#' @return The updated `ml_backtest_config` object with the provided `tuning_strategy`.
+#' @param object A `sb_backtest_config` object.
+#' @param tuning_strategy An object of class `tuning_strategy` to be added to the `sb_backtest_config`.
+#' @return The updated `sb_backtest_config` object with the provided `tuning_strategy`.
 #' @export
-setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning_strategy = "tuning_strategy"),
+setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning_strategy = "tuning_strategy"),
           function(object, tuning_strategy) {
 
             #Adjust validation sample size
@@ -395,7 +482,7 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
               tuning_strategy@validation_sample_size <- round(tuning_strategy@validation_sample_size * object@training_sample_size)
             }
 
-            if(object@ml_algorithm != "ols"){
+            if(object@sb_algorithm != "ols"){
               object@tuning_strategy <- tuning_strategy
             } else {
               stop("OLS does not require tuning.")
@@ -414,11 +501,11 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
 
 
 
-#' @describeIn add_tuning_strategy Create and add a new `tuning_strategy` to the `ml_backtest_config`.
+#' @describeIn add_tuning_strategy Create and add a new `tuning_strategy` to the `sb_backtest_config`.
 #'
-#' This method is used when `tuning_strategy` is `NULL`. It creates a new tuning strategy based on the provided parameters and adds it to the `ml_backtest_config`.
+#' This method is used when `tuning_strategy` is `NULL`. It creates a new tuning strategy based on the provided parameters and adds it to the `sb_backtest_config`.
 #'
-#' @param object A `ml_backtest_config` object.
+#' @param object A `sb_backtest_config` object.
 #' @param tuning_strategy `NULL`, indicating that a new `tuning_strategy` should be created.
 #' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
 #' @param validation_sample_size Numeric value representing the size of the validation sample.
@@ -428,9 +515,9 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
 #' @param acq Character string specifying the acquisition function for Bayesian optimization (for 'bayesian_opt' only).
 #' @param init_points Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).
 #' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
-#' @return An updated `ml_backtest_config` object with a newly created `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
+#' @return An updated `sb_backtest_config` object with a newly created `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
 #' @export
-setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning_strategy = "missing"),
+setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning_strategy = "missing"),
           function(object, tuning_strategy = NULL, tuning_method, validation_sample_size, chosen_eval_metric = NULL, hyper_grid_domain = NULL, early_stop = NULL,
                    n_iter = NULL, acq = "ucb", init_points = NULL, k_iter = NULL) {
 
@@ -456,14 +543,14 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
               message("Validation sample size is bigger than training sample size.")
             }
 
-            if(object@ml_algorithm != "ols"){
+            if(!object@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
 
               # Create a new tuning_strategy object
               object@tuning_strategy <- create_tuning_strategy(tuning_method = tuning_method, validation_sample_size = validation_sample_size,
                                                                chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
                                                                init_points = init_points, k_iter = k_iter)
             } else {
-              stop("OLS does not require tuning.")
+              stop("OLS, SW, EW, RP and MTO do not require tuning.")
             }
 
 
@@ -476,7 +563,7 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
 
 
 
-#' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `ml_backtest_config`, a `tuning_strategy` or on its own.
+#' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `sb_backtest_config`, a `tuning_strategy` or on its own.
 #'
 #' This generic function adds a new hyperparameter to an existing `hyper_grid_domain` object. The function is overloaded to handle different types of hyperparameters for different machine learning algorithms.
 #'
@@ -546,7 +633,7 @@ setMethod("add_tuning_strategy", signature(object = "ml_backtest_config", tuning
 #' # Creating a hyper_grid_domain object for a xgb model
 #' hyper_grid_xgb_random <- create_hyper_grid_domain(
 #'  tuning_method = "random_search",
-#'  ml_algorithm = "xgb"
+#'  sb_algorithm = "xgb"
 #'  )
 #'
 #'  hyper_grid_xgb_random <- add_hyperparameter(
@@ -779,7 +866,7 @@ setMethod("add_hyperparameter",
             return(object)
           })
 
-#' @describeIn add_hyperparameter Add Hyperparameter to `ml_backtest_config` object
+#' @describeIn add_hyperparameter Add Hyperparameter to `sb_backtest_config` object
 #' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added.
 #' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
 #' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
@@ -787,7 +874,7 @@ setMethod("add_hyperparameter",
 #' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
 #' @export
 setMethod("add_hyperparameter",
-          signature(object = "ml_backtest_config"),
+          signature(object = "sb_backtest_config"),
           function(object, hyperparameter, grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
 
             #Extract object
@@ -811,10 +898,10 @@ setMethod("add_hyperparameter",
 
 #' Add a `hyper_grid_domain` Object
 #'
-#' This function adds a `hyper_grid_domain` S4 class to a `tuning_strategy` or a `ml_backtest_config`.
+#' This function adds a `hyper_grid_domain` S4 class to a `tuning_strategy` or a `sb_backtest_config`.
 #' It allows users to add a `hyper_grid_domain` already built or extracted from other objects.
 #'
-#' @param object An object of class `tuning_strategy` or a `ml_backtest_config`.
+#' @param object An object of class `tuning_strategy` or a `sb_backtest_config`.
 #' @param hyper_grid_domain An object of class `hyper_grid_domain`.
 #'
 #' @return The appropriate object with the added `hyper_grid_domain`.
@@ -843,12 +930,12 @@ setMethod("add_hyper_grid_domain",
           })
 
 
-#' @describeIn add_hyper_grid_domain Add `hyper_grid_domain` to `ml_backtest_config` object
-#' @param object An object of class `ml_backtest_config`.
+#' @describeIn add_hyper_grid_domain Add `hyper_grid_domain` to `sb_backtest_config` object
+#' @param object An object of class `sb_backtest_config`.
 #' @param hyper_grid_domain An object of class `hyper_grid_domain`.
 #' @export
 setMethod("add_hyper_grid_domain",
-          signature(object = "ml_backtest_config", hyper_grid_domain = "hyper_grid_domain"),
+          signature(object = "sb_backtest_config", hyper_grid_domain = "hyper_grid_domain"),
           function(object, hyper_grid_domain) {
 
             #Add hyper_grid_domain
@@ -910,7 +997,7 @@ create_keras_architecture <- function(nn_optimizer, units = NULL, activation = N
 #' @title Add Layer to Keras Architecture
 #' @description Method to add a new layer to the Keras architecture.
 #'
-#' @param object An object of class `keras_architecture_parameters` or `ml_backtest_config`
+#' @param object An object of class `keras_architecture_parameters` or `sb_backtest_config`
 #' @param units A numeric value for the number of units in the new layer.
 #' @param activation A character string specifying the activation function for the new layer (e.g., "relu").
 #' @param batch_norm_option A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
@@ -964,11 +1051,11 @@ setMethod(
 )
 
 
-#' @describeIn add_keras_layer Add a keras layer to an object of class `ml_backtest_config`
-#' @param object An object of class `ml_backtest_config`
+#' @describeIn add_keras_layer Add a keras layer to an object of class `sb_backtest_config`
+#' @param object An object of class `sb_backtest_config`
 #' @export
 setMethod(
-  "add_keras_layer", "ml_backtest_config", function(object, units, activation, batch_norm_option) {
+  "add_keras_layer", "sb_backtest_config", function(object, units, activation, batch_norm_option) {
 
     object <- add_keras_layer(object@keras_architecture_parameters, units = units, activation = activation, batch_norm_option)
 
@@ -977,12 +1064,12 @@ setMethod(
 )
 
 #' @title Add Keras Architecture
-#' @description Method to add a `keras_architecture_parameters` to a `ml_backtest_config`.
+#' @description Method to add a `keras_architecture_parameters` to a `sb_backtest_config`.
 #'
 #' This function allows you to either directly add a pre-existing `keras_architecture_parameters` object or create one dynamically by passing additional arguments.
 #' When `keras_architecture_parameters` is not provided, a new one will be created using the values for `nn_optimizer`, `units`, `activation`, and `batch_norm_option` passed via the `...` argument.
 #'
-#' @param object An object of class `ml_backtest_config`.
+#' @param object An object of class `sb_backtest_config`.
 #' @param keras_architecture_parameters An object of class `keras_architecture_parameters`, or `NULL` if a new architecture is to be created.
 #' @param ... Additional arguments used to create a new `keras_architecture_parameters` when `keras_architecture_parameters` is `NULL`. These arguments must include:
 #'   \itemize{
@@ -992,7 +1079,7 @@ setMethod(
 #'     \item \strong{batch_norm_option}: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
 #'   }
 #'
-#' @return An updated object of class `ml_backtest_config` with the `keras_architecture_parameters` added.
+#' @return An updated object of class `sb_backtest_config` with the `keras_architecture_parameters` added.
 #' @export
 setGeneric("add_keras_architecture", function(object, keras_architecture_parameters, ...) {
   standardGeneric("add_keras_architecture")
@@ -1000,15 +1087,15 @@ setGeneric("add_keras_architecture", function(object, keras_architecture_paramet
 
 #' @describeIn add_keras_architecture Add existing `keras_architecture_parameters` object
 #'
-#' This method allows you to add an already existing `keras_architecture_parameters` object to an `ml_backtest_config`.
+#' This method allows you to add an already existing `keras_architecture_parameters` object to an `sb_backtest_config`.
 #'
-#' @param object An object of class `ml_backtest_config`.
+#' @param object An object of class `sb_backtest_config`.
 #' @param keras_architecture_parameters An existing object of class `keras_architecture_parameters`.
-#' @return An updated `ml_backtest_config` object with the provided `keras_architecture_parameters`.
+#' @return An updated `sb_backtest_config` object with the provided `keras_architecture_parameters`.
 #' @export
 setMethod(
   "add_keras_architecture",
-  signature(object = "ml_backtest_config", keras_architecture_parameters = "keras_architecture_parameters"),
+  signature(object = "sb_backtest_config", keras_architecture_parameters = "keras_architecture_parameters"),
   function(object, keras_architecture_parameters) {
 
     object@keras_architecture_parameters <- keras_architecture_parameters
@@ -1030,7 +1117,7 @@ setMethod(
 #'     \item \strong{batch_norm_option}: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
 #'   }
 #'
-#' @param object An object of class `ml_backtest_config`.
+#' @param object An object of class `sb_backtest_config`.
 #' @param keras_architecture_parameters Should be `NULL` to dynamically create a new architecture.
 #' @param ... Additional parameters used to create the `keras_architecture_parameters`, including:
 #'   \itemize{
@@ -1039,11 +1126,11 @@ setMethod(
 #'     \item \strong{activation}: A character string specifying the activation function for the new layer (e.g., "relu").
 #'     \item \strong{batch_norm_option}: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
 #'   }
-#' @return An updated `ml_backtest_config` object with the newly created `keras_architecture_parameters`.
+#' @return An updated `sb_backtest_config` object with the newly created `keras_architecture_parameters`.
 #' @export
 setMethod(
   "add_keras_architecture",
-  signature(object = "ml_backtest_config", keras_architecture_parameters = "missing"),
+  signature(object = "sb_backtest_config", keras_architecture_parameters = "missing"),
   function(object, keras_architecture_parameters = NULL, ...) {
 
     #Extract args to build keras
@@ -1066,23 +1153,26 @@ setMethod(
 )
 
 
-#' @title Create ml_backtest_config Object
-#' @description Constructs an ml_backtest_config object.
+#' @title Create sb_backtest_config Object
+#' @description Constructs an sb_backtest_config object.
 #'
-#' @param ml_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').
+#' @param sb_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').
 #' @param training_sample_size Number of observations to include in each training sample.
 #' @param rebalancing_months Months (numeric) when model should be rebalanced (refit).
 #' @param split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @param tuning_strategy An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.
+#' @param ss_backtest_config An object of class `ss_backtest_config`, specifying the single strategy backtest configuration.
+#' @param ss_backtest_results An object of class `ss_backtest_results`, containing the results of the single strategy backtest.
 #' @param custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
 #' @param keras_architecture_parameters List or NULL, providing parameters specific to keras-based neural networks.
 #' @param quantile_tau Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
 #' @param huber_delta Numeric value greater than 0, specifying the delta parameter for Huber loss function.
 #' @param config_name Name of the backtest configuration.
 #'
-#' @return An ml_backtest_config object.
+#' @return An sb_backtest_config object.
 #' @export
-create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
+create_sb_backtest_config <- function(sb_algorithm = "ols", tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
+                                      ss_backtest_config = NULL, ss_backtest_results = NULL,
                                       custom_objective = "squared_error", keras_architecture_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
                                       config_name = "not_identified") {
 
@@ -1094,12 +1184,14 @@ create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NU
     message("changing huber_delta impacts both chosen_eval_metric and custom_objective. ")
   }
 
-  # Create the ml_backtest_config object
-  new("ml_backtest_config",
-      ml_algorithm = ml_algorithm,
+  # Create the sb_backtest_config object
+  new("sb_backtest_config",
+      sb_algorithm = sb_algorithm,
       training_sample_size = training_sample_size,
       rebalancing_months = rebalancing_months,
       split_method = split_method,
+      ss_backtest_config = ss_backtest_config,
+      ss_backtest_results = ss_backtest_results,
       tuning_strategy = tuning_strategy,
       custom_objective = custom_objective,
       keras_architecture_parameters = keras_architecture_parameters,
@@ -1110,124 +1202,115 @@ create_ml_backtest_config <- function(ml_algorithm = "ols", tuning_strategy = NU
 }
 
 
-#' Create ML Meta Backtest Configuration
+#' Create SB Meta Backtest Configuration
 #'
-#' The `create_ml_metabacktest_config` function creates an `ml_metabacktest_config` object by combining a `ml_backtest_config` for the meta-learner
-#' and a group of `ml_backtest_config` objects for the base learners. Those can be passed with our without a tuning strategy set. In this latter case, by passing
-#' a list of `tuning_strategy` objects, the function will generate all possible combinations of configurations and strategies for running multiple machine learning backtests,
+#' The `create_sb_metabacktest_config` function creates an `sb_metabacktest_config` object by combining a `sb_backtest_config` for the meta-learner
+#' and a group of `sb_backtest_config` objects for the base learners.
+#' Those can be passed with our without a `ss_backtest_config` set. In this latter case, by passing
+#' a list of `ss_backtest_config` objects, the function will generate all possible combinations of configurations for running multiple backtests,
 #' possibly in parallel.
-#' Alternatively, the user can provide a list of `ml_backtest_results` directly to be used by the function.
+#' Alternatively, the user can provide a list of `sb_backtest_results` directly to be used by the function.
 #'
-#' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
-#' @param base_ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` set to `NULL`.
-#' @param base_ml_backtest_results A list of `ml_backtest_results` objects.
-#' @param tuning_strategies A list of `tuning_strategy` objects (optional).
+#' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
+#' @param base_sb_backtest_configs A list of `sb_backtest_config` objects with `tuning_strategy` set to `NULL`.
+#' @param base_sb_backtest_results A list of `sb_backtest_results` objects.
+#' @param ss_backtest_configs A list of `ss_backtest_config` objects (optional).
+#' @param ss_backtest_results A list of `ss_backtest_results` objects (optional)
 #' @param config_name Name of the backtest configuration.
 #' @param ... Additional arguments (not used).
 #'
-#' @return A `ml_metabacktest_config` object containing all viable combinations of configs and strategies.
+#' @return A `sb_metabacktest_config` object containing all viable combinations of configs.
 #'
 #' @examples
 #' # Example usage:
-#' # Assuming you have ml_backtest_config objects config1, config2
-#' # and tuning_strategy objects strategy1, strategy2
+#' # Assuming you have sb_backtest_config objects sb_config1, sb_config2
+#' # and ss_backtest_config objects ss_config1, ss_config2
 #'
-#' # First method: Combine configs and strategies
-#' meta_config <- create_ml_metabacktest_config(
-#'     meta_ml_backtest_config = ml_backtest_config,
-#'     base_ml_backtest_configs = list(config1, config2),
-#'     tuning_strategies = list(strategy1, strategy2)
+#' # First method: Combine sb_configs and ss_configs
+#' meta_config <- create_sb_metabacktest_config(
+#'     meta_sb_backtest_config = sb_backtest_config,
+#'     base_sb_backtest_configs = list(sb_config1, sb_config2),
+#'     ss_backtest_configs = list(ss_config1, ss_config2)
 #' )
 #'
-#' # Second method: Configs already have tuning_strategy set
-#' meta_config <- create_ml_metabacktest_config(
-#'     meta_ml_backtest_config = ml_backtest_config,
-#'     base_ml_backtest_configs = list(config1, config2)
+#' # Second method: Configs already have ss_backtest_config set
+#' meta_config <- create_sb_metabacktest_config(
+#'     meta_sb_backtest_config = sb_backtest_config,
+#'     base_sb_backtest_configs = list(config1, config2)
 #' )
 #'
-#' @seealso \code{\link{ml_backtest_config}}, \code{\link{tuning_strategy}}, \code{\link{ml_metabacktest_config}}
+#' @seealso \code{\link{sb_backtest_config}}, \code{\link{ss_backtest_config}}, \code{\link{sb_metabacktest_config}}
 #'
 #' @export
-setGeneric("create_ml_metabacktest_config", function(meta_ml_backtest_config, base_ml_backtest_configs, tuning_strategies, base_ml_backtest_results, ...) standardGeneric("create_ml_metabacktest_config"))
+setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, base_sb_backtest_configs, base_sb_backtest_results,
+                                                     ss_backtest_configs, ss_backtest_results, ...) standardGeneric("create_sb_metabacktest_config"))
 
 
-
-
-#' @describeIn create_ml_metabacktest_config Combine configs and strategies
+#' @describeIn create_sb_metabacktest_config Combine ss_backtest_configs and ss_backtest_configs
 #'
-#' This method accepts one or multiple `ml_backtest_config` and one or multiple `tuning_strategy` objects.
-#' It combines all possible configurations between the configs and strategies by using the `add_tuning_strategy` method.
+#' This method accepts one or multiple `sb_backtest_config` and one or multiple `ss_backtest_config` objects.
+#' It combines all possible configurations between the configs and strategies by using the `add_ss_backtest` method.
 #'
-#' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
-#' @param base_ml_backtest_configs A list of `ml_backtest_config` objects.
+#' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
+#' @param base_sb_backtest_configs A list of `sb_backtest_config` objects.
 #' @param config_name Name of the backtest configuration.
-#' @param tuning_strategies A list of `tuning_strategy` objects.
+#' @param ss_backtest_configs A list of `ss_backtest_config` objects.
 #' @param ... Additional arguments (not used).
 #'
-#' @return An `ml_metabacktest_config` object containing all combinations of configs and strategies.
+#' @return An `sb_metabacktest_config` object containing all combinations of sb_configs and ss_configs
 #'
 #' @examples
-#' # Assuming you have ml_backtest_config objects config1, config2 (with tuning_strategy = NULL)
+#' # Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
 #' # and tuning_strategy objects strategy1, strategy2
-#' meta_config <- create_ml_metabacktest_config(
-#'     configs = list(config1, config2),
-#'     strategies = list(strategy1, strategy2)
+#' meta_config <- create_sb_metabacktest_config(
+#'     sb_configs = list(sb_config1, sb_config2),
+#'     ss_configs = list(ss_config1, ss_config2)
 #' )
 #'
 #' @export
-setMethod("create_ml_metabacktest_config",
-          signature(meta_ml_backtest_config = "ml_backtest_config", base_ml_backtest_configs = "list", tuning_strategies = "list", base_ml_backtest_results = "missing"),
-          function(meta_ml_backtest_config, base_ml_backtest_configs, tuning_strategies, config_name = "not_identified", ...) {
+setMethod("create_sb_metabacktest_config",
+          signature(meta_sb_backtest_config = "sb_backtest_config", base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+                    ss_backtest_configs = "list", ss_backtest_results = "missing"),
+          function(meta_sb_backtest_config, base_sb_backtest_configs, ss_backtest_configs, config_name = "not_identified", ...) {
 
-            # Check that all base_ml_backtest_configs are ml_backtest_config objects
-            if (!all(sapply(base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
-              stop("All elements in 'base_ml_backtest_configs' must be 'ml_backtest_config' objects.")
+            # Check that all base_sb_backtest_configs are sb_backtest_config objects
+            if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+              stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
             }
 
-            # Check that all tuning_strategies are tuning_strategy objects
-            if (!all(sapply(tuning_strategies, function(x) is(x, "tuning_strategy")))) {
-              stop("All elements in 'tuning_strategies' must be 'tuning_strategy' objects.")
+            # Check that all ss_backtest_config are ss_backtest_config objects
+            if (!all(sapply(ss_backtest_configs, function(x) is(x, "ss_backtest_config")))) {
+              stop("All elements in 'ss_backtest_configs' must be 'ss_backtest_config' objects.")
             }
 
-            # Prepare to capture the original call argument names
-            call_args <- match.call()
-            config_names <- as.character(call_args$base_ml_backtest_configs[-1])  # Remove 'list' call
-            strategy_names <- as.character(call_args$tuning_strategies[-1])  # Remove 'list' call
+            # Get config names
+            sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
+            ss_config_names <- as.character(sapply(ss_backtest_configs, function(x) x@config_name))
 
             combined_configs <- list()
 
 
-            # Iterate through each configuration and strategy, applying only valid combinations
-            for (i in seq_along(base_ml_backtest_configs)) {
-              config <- base_ml_backtest_configs[[i]]
+            # Iterate through each sb and ss configurations:
+            for (i in seq_along(base_sb_backtest_configs)) {
+              sb_config <- base_sb_backtest_configs[[i]]
 
-              for (j in seq_along(tuning_strategies)) {
-                strategy <- tuning_strategies[[j]]
+              for (j in seq_along(ss_backtest_configs)) {
+                ss_config <- ss_backtest_configs[[j]]
 
-                # Attempt to add the tuning strategy to the config
-                new_config <- tryCatch({
-                  add_tuning_strategy(config, strategy)
-                }, error = function(e) {
-                  NULL  # Return NULL to indicate an invalid combination
-                })
+                # Add the ss_backtest_config
+                new_config <- add_ss_backtest_obj(sb_config, ss_config)
 
-                # If combination is successful, add it to combined_configs
-                if (!is.null(new_config)) {
-                  combined_name <- paste0(config_names[i], "_", strategy_names[j])
+                # Add it to combined_configs
+                  combined_name <- paste0(sb_config_names[i], "_", ss_config_names[j])
                   combined_configs[[combined_name]] <- new_config
 
-                }
               }
             }
 
-            # Check if any combinations were successful
-            if (length(combined_configs) == 0) {
-              stop("No valid combinations were created. Please check your configurations and strategies.")
-            }
-
-           # Create the ml_metabacktest_config object
-            meta_config <- new("ml_metabacktest_config", meta_ml_backtest_config = meta_ml_backtest_config, base_ml_backtest_configs = combined_configs,
-                               base_ml_backtest_results = NULL, config_name = config_name)
+           # Create the sb_metabacktest_config object
+            meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config,
+                               base_sb_backtest_configs = combined_configs,
+                               base_sb_backtest_results = NULL, config_name = config_name)
 
             # State the number of valid configurations produced
             cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
@@ -1236,80 +1319,158 @@ setMethod("create_ml_metabacktest_config",
           }
 )
 
-#' @describeIn create_ml_metabacktest_config Create meta config from configs with tuning_strategy
+#' @describeIn create_sb_metabacktest_config Combine ss_backtest_configs and ss_backtest_results
 #'
-#' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
-#' @param base_ml_backtest_configs A list of `ml_backtest_config` objects with `tuning_strategy` not `NULL`.
+#' This method accepts one or multiple `sb_backtest_config` and one or multiple `ss_backtest_config` objects.
+#' It combines all possible configurations between the configs and strategies by using the `add_ss_backtest` method.
+#'
+#' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
+#' @param base_sb_backtest_configs A list of `sb_backtest_config` objects.
+#' @param config_name Name of the backtest configuration.
+#' @param ss_backtest_results A list of `ss_backtest_results` objects.
 #' @param ... Additional arguments (not used).
 #'
-#' @return An `ml_metabacktest_config` object containing the provided `ml_backtest_config` objects.
+#' @return An `sb_metabacktest_config` object containing all combinations of sb_configs and ss_configs
+#'
+#' @examples
+#' # Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
+#' # and tuning_strategy objects strategy1, strategy2
+#' meta_config <- create_sb_metabacktest_config(
+#'     sb_configs = list(sb_config1, sb_config2),
+#'     ss_configs = list(ss_config1, ss_config2)
+#' )
+#'
 #' @export
-setMethod("create_ml_metabacktest_config",
-          signature(meta_ml_backtest_config = 'ml_backtest_config', base_ml_backtest_configs = "list", tuning_strategies = "missing", base_ml_backtest_results = "missing"),
-          function(meta_ml_backtest_config, base_ml_backtest_configs, config_name = "not_identified", ...) {
+setMethod("create_sb_metabacktest_config",
+          signature(meta_sb_backtest_config = "sb_backtest_config", base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+                    ss_backtest_configs = "missing", ss_backtest_results = "list"),
+          function(meta_sb_backtest_config, base_sb_backtest_configs, ss_backtest_results, config_name = "not_identified", ...) {
 
-            # Check that all configs are ml_backtest_config objects
-            if (!all(sapply(base_ml_backtest_configs, function(x) is(x, "ml_backtest_config")))) {
-              stop("All elements in 'base_ml_backtest_configs' must be 'ml_backtest_config' objects.")
+            # Check that all base_sb_backtest_configs are sb_backtest_config objects
+            if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+              stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
             }
 
-            # Check that tuning_strategy is not NULL for non-'ols' algorithms
-            invalid_configs <- sapply(base_ml_backtest_configs, function(x) {
-              is.null(x@tuning_strategy) && x@ml_algorithm != "ols"
-            })
-            if (any(invalid_configs)) {
-              stop("All 'ml_backtest_config' objects must have 'tuning_strategy' not NULL, except for those with 'ml_algorithm' equal to 'ols'.")
+            # Check that all ss_backtest_config are ss_backtest_results objects
+            if (!all(sapply(ss_backtest_results, function(x) is(x, "ss_backtest_results")))) {
+              stop("All elements in 'ss_backtest_results' must be 'ss_backtest_results' objects.")
             }
 
-            # Create the ml_metabacktest_config object
-            meta_config <- new("ml_metabacktest_config", meta_ml_backtest_config = meta_ml_backtest_config, base_ml_backtest_configs = base_ml_backtest_configs,
-                               base_ml_backtest_results = NULL, config_name = config_name)
+            # Get config names
+            sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
+            ss_results_names <- as.character(sapply(ss_backtest_results, function(x) x@backtest_identifier))
+
+            combined_configs <- list()
+
+
+            # Iterate through each sb and ss configurations:
+            for (i in seq_along(base_sb_backtest_configs)) {
+              sb_config <- base_sb_backtest_configs[[i]]
+
+              for (j in seq_along(ss_backtest_results)) {
+                ss_results <- ss_backtest_results[[j]]
+
+                # Add the ss_backtest_results
+                new_config <- add_ss_backtest_obj(sb_config, ss_results)
+
+                # Add it to combined_configs
+                combined_name <- paste0(sb_config_names[i], "_", ss_results_names[j])
+                combined_configs[[combined_name]] <- new_config
+
+              }
+            }
+
+            # Create the sb_metabacktest_config object
+            meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config,
+                               base_sb_backtest_configs = combined_configs,
+                               base_sb_backtest_results = NULL, config_name = config_name)
+
+            # State the number of valid configurations produced
+            cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
+
             return(meta_config)
           }
 )
 
-#' @describeIn create_ml_metabacktest_config Create meta config from configs with tuning_strategy
+
+#' @describeIn create_sb_metabacktest_config Create meta config from sb_backtest_configs
 #'
-#' @param meta_ml_backtest_config A `ml_backtest_config` with the configuration for the meta learner.
-#' @param base_ml_backtest_results A list of `ml_backtest_results` objects.
+#' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
+#' @param base_sb_backtest_configs A list of `sb_backtest_config` objects with `ss_backtest_config` or `ss_backtest_result` not `NULL`.
 #' @param ... Additional arguments (not used).
 #'
-#' @return An `ml_metabacktest_config` object containing the provided `ml_backtest_config` objects.
+#' @return A `sb_metabacktest_config` object containing the provided `sb_backtest_config` objects.
 #' @export
-setMethod("create_ml_metabacktest_config",
-          signature(meta_ml_backtest_config = 'ml_backtest_config', base_ml_backtest_configs = "missing", tuning_strategies = "missing", base_ml_backtest_results = "list"),
-          function(meta_ml_backtest_config, base_ml_backtest_results, config_name = "not_identified", ...) {
+setMethod("create_sb_metabacktest_config",
+          signature(meta_sb_backtest_config = 'sb_backtest_config', base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+                    ss_backtest_configs = "missing", ss_backtest_results = "missing"),
+          function(meta_sb_backtest_config, base_sb_backtest_configs, config_name = "not_identified", ...) {
 
-            # Check that all configs are ml_backtest_config objects
-            if (!all(sapply(base_ml_backtest_results, function(x) is(x, "ml_backtest_results")))) {
-              stop("All elements in 'base_ml_backtest_results' must be 'ml_backtest_results' objects.")
+            # Check that all configs are sb_backtest_config objects
+            if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+              stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
             }
 
-            # Create the ml_metabacktest_config object
-            meta_config <- new("ml_metabacktest_config", meta_ml_backtest_config = meta_ml_backtest_config, base_ml_backtest_configs = NULL,
-                               base_ml_backtest_results = base_ml_backtest_results, config_name = config_name)
+            # Check that ss_backtest_config or ss_backtest_results is not NULL
+            if(any(sapply(base_sb_backtest_configs, function(x) is.null(x@ss_backtest_config) && is.null(x@ss_backtest_results)))) {
+              stop("All 'sb_backtest_config' objects must have 'ss_backtest_config' or 'ss_backtest_results' not NULL.")
+            }
+
+            # Create the sb_metabacktest_config object
+            meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = base_sb_backtest_configs,
+                               base_sb_backtest_results = NULL, config_name = config_name)
             return(meta_config)
           }
 )
 
-#' Add one or more ml_backtest_config objects to an ml_metabacktest_config
+#' @describeIn create_sb_metabacktest_config Create meta config from ss_backtest_results
 #'
-#' @param object An `ml_metabacktest_config` object.
-#' @param ... One or more `ml_backtest_config` objects to add.
+#' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
+#' @param base_sb_backtest_results A list of `sb_backtest_results` objects.
+#' @param ... Additional arguments (not used).
 #'
-#' @return An updated `ml_metabacktest_config` object with added configurations.
+#' @return An `sb_metabacktest_config` object containing the provided `sb_backtest_config` objects.
 #' @export
-setGeneric("add_ml_backtest_config", function(object, ...) standardGeneric("add_ml_backtest_config"))
+setMethod("create_sb_metabacktest_config",
+          signature(meta_sb_backtest_config = 'sb_backtest_config', base_sb_backtest_configs = "missing", base_sb_backtest_results = "list",
+                    ss_backtest_configs = "missing", ss_backtest_results = "missing"),
+          function(meta_sb_backtest_config, base_sb_backtest_results, config_name = "not_identified", ...) {
 
-setMethod("add_ml_backtest_config", "ml_metabacktest_config", function(object, ...) {
+            # Check that all configs are sb_backtest_config objects
+            if (!all(sapply(base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
+              stop("All elements in 'base_sb_backtest_results' must be 'sb_backtest_results' objects.")
+            }
 
-  # Check that all new_configs are complete ml_backtest_config objects
+            # Create the sb_metabacktest_config object
+            meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = NULL,
+                               base_sb_backtest_results = base_sb_backtest_results, config_name = config_name)
+            return(meta_config)
+          }
+)
+
+#' Add one or more sb_backtest_config objects to an sb_metabacktest_config
+#'
+#' @param object An `sb_metabacktest_config` object.
+#' @param ... One or more `sb_backtest_config` objects to add.
+#'
+#' @return An updated `sb_metabacktest_config` object with added configurations.
+#' @export
+setGeneric("add_sb_backtest_config", function(object, ...) standardGeneric("add_sb_backtest_config"))
+
+setMethod("add_sb_backtest_config", "sb_metabacktest_config", function(object, ...) {
+
+  # Check that all new_configs are complete sb_backtest_config objects
   if(!all(sapply(new_configs, function(x) !is.null(x@tuning_strategy)))) {
-    stop("All elements in '...' must be complete (with tuning_strategy) 'ml_backtest_config' objects.")
+    stop("All elements in '...' must be complete (with tuning_strategy) 'sb_backtest_config' objects.")
   }
 
-  # Combine the current base_ml_backtest_configs with the new configurations
-  object@base_ml_backtest_configs <- c(object@base_ml_backtest_configs, new_configs)
+  # Check that all new_configs are complete sb_backtest_config objects
+  if(!all(sapply(new_configs, function(x) is.null(x@ss_backtest_config && is.null(x@ss_backtest_results))))) {
+    stop("All elements in '...' must be complete (with ss_backtest_config or ss_backtest_results) 'sb_backtest_config' objects.")
+  }
+
+  # Combine the current base_sb_backtest_configs with the new configurations
+  object@base_sb_backtest_configs <- c(object@base_sb_backtest_configs, new_configs)
 
   # Validate the object explicitly
   validObject(object)
@@ -1320,29 +1481,29 @@ setMethod("add_ml_backtest_config", "ml_metabacktest_config", function(object, .
 
 
 
-#' Remove an ml_backtest_config by name from an ml_metabacktest_config
+#' Remove an sb_backtest_config by name from an sb_metabacktest_config
 #'
-#' @param object An `ml_metabacktest_config` object.
-#' @param config_name A character string specifying the name of the `ml_backtest_config` to remove.
+#' @param object An `sb_metabacktest_config` object.
+#' @param config_name A character string specifying the name of the `sb_backtest_config` to remove.
 #'
-#' @return An updated `ml_metabacktest_config` object with the specified configuration removed.
+#' @return An updated `sb_metabacktest_config` object with the specified configuration removed.
 #' @export
-setGeneric("remove_ml_backtest_config", function(object, config_name) standardGeneric("remove_ml_backtest_config"))
+setGeneric("remove_sb_backtest_config", function(object, config_name) standardGeneric("remove_sb_backtest_config"))
 
-setMethod("remove_ml_backtest_config", "ml_metabacktest_config", function(object, config_name) {
+setMethod("remove_sb_backtest_config", "sb_metabacktest_config", function(object, config_name) {
   # Check that config_name is provided and is a character string
   if (missing(config_name) || !is.character(config_name) || length(config_name) != 1) {
     stop("'config_name' must be a single character string specifying the configuration to remove.")
   }
 
   # Check if the specified config_name exists in the list
-  if (!(config_name %in% sapply(object@base_ml_backtest_configs, function(x) x@config_name))) {
+  if (!(config_name %in% sapply(object@base_sb_backtest_configs, function(x) x@config_name))) {
     stop(paste("No configuration found with the name:", config_name))
   }
 
   # Remove the specified configuration
-  remove_index <- which(config_name %in% sapply(object@base_ml_backtest_configs, function(x) x@config_name))
-  object@base_ml_backtest_configs <- object@base_ml_backtest_configs[-remove_index]
+  remove_index <- which(config_name %in% sapply(object@base_sb_backtest_configs, function(x) x@config_name))
+  object@base_sb_backtest_configs <- object@base_sb_backtest_configs[-remove_index]
 
   # Validate the object explicitly
   validObject(object)
@@ -1352,60 +1513,60 @@ setMethod("remove_ml_backtest_config", "ml_metabacktest_config", function(object
 })
 
 
-#' @title Create an ml_metabacktest_results Object
-#' @description Constructs an `ml_metabacktest_results` object from a list of `ml_backtest_results` objects for base learners a single
-#' `ml_backtest_results` object for the meta learner.
+#' @title Create an sb_metabacktest_results Object
+#' @description Constructs an `sb_metabacktest_results` object from a list of `sb_backtest_results` objects for base learners a single
+#' `sb_backtest_results` object for the meta learner.
 #' It computes consolidated and time series evaluation metrics for machine learning backtests.
 #'
-#' @param meta_ml_backtest_results_list A list containing `ml_backtest_results` objects for the meta learner and for the two heuristic ensembles.
-#' @param base_ml_backtest_results_list A named list of `ml_backtest_results` objects for the base learners.
-#' @return An object of class `ml_metabacktest_results`.
+#' @param meta_sb_backtest_results_list A list containing `sb_backtest_results` objects for the meta learner and for the two heuristic ensembles.
+#' @param base_sb_backtest_results_list A named list of `sb_backtest_results` objects for the base learners.
+#' @return An object of class `sb_metabacktest_results`.
 #'
 #' @export
 setGeneric(
-  name = "create_ml_metabacktest_results",
-  def = function(meta_ml_backtest_results, base_ml_backtest_results) {
-    standardGeneric("create_ml_metabacktest_results")
+  name = "create_sb_metabacktest_results",
+  def = function(meta_sb_backtest_results, base_sb_backtest_results) {
+    standardGeneric("create_sb_metabacktest_results")
   }
 )
 
-#' @title Create an ml_metabacktest_results Object
-#' @description Constructs an `ml_metabacktest_results` object from a list of `ml_backtest_results` objects for base learners a single
-#' `ml_backtest_results` object for the meta learner.
+#' @title Create an sb_metabacktest_results Object
+#' @description Constructs an `sb_metabacktest_results` object from a list of `sb_backtest_results` objects for base learners a single
+#' `sb_backtest_results` object for the meta learner.
 #' It computes consolidated and time series evaluation metrics for machine learning backtests.
 #'
-#' @param meta_ml_backtest_results_list A list containing `ml_backtest_results` objects for the meta learner and for the two heuristic ensembles.
-#' @param base_ml_backtest_results_list A named list of `ml_backtest_results` objects for the base learners.
-#' @return An object of class `ml_metabacktest_results`.
+#' @param meta_sb_backtest_results_list A list containing `sb_backtest_results` objects for the meta learner and for the two heuristic ensembles.
+#' @param base_sb_backtest_results_list A named list of `sb_backtest_results` objects for the base learners.
+#' @return An object of class `sb_metabacktest_results`.
 #'
 setGeneric(
-  name = "create_ml_metabacktest_results",
-  def = function(meta_ml_backtest_results_list, base_ml_backtest_results_list, ...) {
-    standardGeneric("create_ml_metabacktest_results")
+  name = "create_sb_metabacktest_results",
+  def = function(meta_sb_backtest_results_list, base_sb_backtest_results_list, ...) {
+    standardGeneric("create_sb_metabacktest_results")
   }
 )
 
-#' @rdname create_ml_metabacktest_results
-#' @aliases create_ml_metabacktest_results,list-method
+#' @rdname create_sb_metabacktest_results
+#' @aliases create_sb_metabacktest_results,list-method
 setMethod(
-  f = "create_ml_metabacktest_results",
-  signature = signature(meta_ml_backtest_results_list = "list", base_ml_backtest_results_list = "list"),
-  definition = function(meta_ml_backtest_results_list, base_ml_backtest_results_list, oos_predictions_m_df) {
+  f = "create_sb_metabacktest_results",
+  signature = signature(meta_sb_backtest_results_list = "list", base_sb_backtest_results_list = "list"),
+  definition = function(meta_sb_backtest_results_list, base_sb_backtest_results_list, oos_predictions_m_df) {
 
   #Initial Checks
   ##################
 
-    # Check that the meta_ml_backtest_results input is a list of 'ml_backtest_results' object
-    if (!all(sapply(meta_ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
-      stop("All elements in 'meta_ml_backtest_results_list' must be of class 'ml_backtest_results'")
+    # Check that the meta_sb_backtest_results input is a list of 'sb_backtest_results' object
+    if (!all(sapply(meta_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
+      stop("All elements in 'meta_sb_backtest_results_list' must be of class 'sb_backtest_results'")
     }
-    if(length(meta_ml_backtest_results_list) != 3){
-      stop("The 'meta_ml_backtest_results_list' list must contain exactly 3 elements: one for the meta learner and two for the heuristic ensembles.")
+    if(length(meta_sb_backtest_results_list) != 3){
+      stop("The 'meta_sb_backtest_results_list' list must contain exactly 3 elements: one for the meta learner and two for the heuristic ensembles.")
     }
 
-    # Check that the base_ml_backtest_results input is a list of 'ml_backtest_results' objects
-    if (!all(sapply(base_ml_backtest_results_list, function(x) is(x, "ml_backtest_results")))) {
-      stop("All elements in 'base_ml_backtest_results_list' must be of class 'ml_backtest_results'")
+    # Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
+    if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
+      stop("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'")
     }
 
   ##################
@@ -1414,20 +1575,20 @@ setMethod(
   ###################
 
     #Get ML Workflow from meta learner
-    meta_learner_ml_backtest_workflow <- meta_ml_backtest_results_list[[1]]@ml_backtest_workflow
+    meta_learner_sb_backtest_workflow <- meta_sb_backtest_results_list[[1]]@sb_backtest_workflow
 
     # Get the names of the list elements
-    base_ml_names <- names(base_ml_backtest_results_list)
-    meta_ml_names <- names(meta_ml_backtest_results_list)
+    base_sb_names <- names(base_sb_backtest_results_list)
+    meta_sb_names <- names(meta_sb_backtest_results_list)
 
     #Consolidate all results
-    all_ml_backtest_results <- c(base_ml_backtest_results_list, meta_ml_backtest_results_list)
-    all_ml_names <- c(base_ml_names, meta_ml_names)
+    all_sb_backtest_results <- c(base_sb_backtest_results_list, meta_sb_backtest_results_list)
+    all_sb_names <- c(base_sb_names, meta_sb_names)
 
     #Common testing dates range
     common_testing_dates_range <- as.Date(Reduce(
       intersect,
-      sapply(all_ml_backtest_results, function(x) x@ml_backtest_workflow$dates_testing_sample)
+      sapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow$dates_testing_sample)
     ))
 
     # Initialize lists to collect metrics
@@ -1449,21 +1610,21 @@ setMethod(
   ##########################
 
     #Loop through all results
-    for (i in seq_along(all_ml_backtest_results)) {
+    for (i in seq_along(all_sb_backtest_results)) {
       #if(i == 3) browser()
-      ml_backtest_result <- all_ml_backtest_results[[i]]
-      ml_name <- all_ml_names[i]  # Use the name of the list element
-      chosen_eval_metric <- ml_backtest_result@ml_backtest_workflow$chosen_eval_metric
+      sb_backtest_result <- all_sb_backtest_results[[i]]
+      sb_name <- all_sb_names[i]  # Use the name of the list element
+      chosen_eval_metric <- sb_backtest_result@sb_backtest_workflow$chosen_eval_metric
 
       ## Out-of-Sample Testing Evaluation Metrics ##
-      oos_testing_eval_metrics <- ml_backtest_result@oos_testing_eval_metrics
+      oos_testing_eval_metrics <- sb_backtest_result@oos_testing_eval_metrics
 
       # Exclude 'consolidated' row for time series data
       oos_metrics_time_series <- oos_testing_eval_metrics[rownames(oos_testing_eval_metrics) != "consolidated", , drop = FALSE]
 
       # Add Date and Backtest columns for time series data
       oos_metrics_time_series$Date <- rownames(oos_metrics_time_series)
-      oos_metrics_time_series$Backtest <- ml_name  # Use ml_name instead of ml_algorithm
+      oos_metrics_time_series$Backtest <- sb_name  # Use sb_name instead of sb_algorithm
 
       # Reshape to long format for time series data
       oos_metrics_long <- as.data.frame(tidyr::pivot_longer(
@@ -1482,16 +1643,16 @@ setMethod(
         oos_testing_eval_metrics[which(rownames(oos_testing_eval_metrics) %in% common_testing_dates_range), , drop = FALSE]
 
 
-      # Combine ml_name, chosen_eval_metric, and oos_metrics using cbind
+      # Combine sb_name, chosen_eval_metric, and oos_metrics using cbind
           ##Consolidated
           oos_metrics_df <- cbind(
             data.frame(
-              Backtest = ml_name,
+              Backtest = sb_name,
               chosen_eval_metric = chosen_eval_metric,
               testing_dates_range = paste0(
-                min(as.Date(ml_backtest_result@ml_backtest_workflow$dates_testing_sample)),
+                min(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample)),
                 "-",
-                max(as.Date(ml_backtest_result@ml_backtest_workflow$dates_testing_sample))),
+                max(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample))),
               check.names = FALSE,
               stringsAsFactors = FALSE
             ),
@@ -1500,7 +1661,7 @@ setMethod(
           ##Common dates
           oos_metrics_common_dates_df <- cbind(
             data.frame(
-              Backtest = ml_name,
+              Backtest = sb_name,
               chosen_eval_metric = chosen_eval_metric,
               testing_dates_range = paste0(
                 min(as.Date(common_testing_dates_range)),
@@ -1532,7 +1693,7 @@ setMethod(
       ##########################
 
       ## Validation Evaluation Metrics (if available) ##
-      validation_metrics <- ml_backtest_result@validation_eval_metrics_hyper_choice
+      validation_metrics <- sb_backtest_result@validation_eval_metrics_hyper_choice
 
       if (!is.null(validation_metrics) && nrow(validation_metrics) > 0) {
         # Exclude 'average' row for time series data
@@ -1540,7 +1701,7 @@ setMethod(
 
         # Add Date and Algorithm columns for time series data
         validation_metrics_time_series$Date <- rownames(validation_metrics_time_series)
-        validation_metrics_time_series$Backtest <- ml_name
+        validation_metrics_time_series$Backtest <- sb_name
 
         # Reshape to long format
         validation_metrics_long <- as.data.frame(tidyr::pivot_longer(
@@ -1561,10 +1722,10 @@ setMethod(
           validation_metrics_average <- as.data.frame(t(colMeans(validation_metrics, na.rm = TRUE)))
         }
 
-        # Combine ml_name, chosen_eval_metric, and validation_metrics_average using cbind
+        # Combine sb_name, chosen_eval_metric, and validation_metrics_average using cbind
         validation_metrics_df <- cbind(
           data.frame(
-            Backtest = ml_name,
+            Backtest = sb_name,
             chosen_eval_metric = chosen_eval_metric,
             check.names = FALSE,
             stringsAsFactors = FALSE
@@ -1692,17 +1853,17 @@ setMethod(
 
   ###########################
 
-   # Create the 'ml_metabacktest_results' object
-    new_object <- new("ml_metabacktest_results",
-                      meta_ml_backtest_results_list = meta_ml_backtest_results_list,
-                      base_ml_backtest_results_list = base_ml_backtest_results_list,
+   # Create the 'sb_metabacktest_results' object
+    new_object <- new("sb_metabacktest_results",
+                      meta_sb_backtest_results_list = meta_sb_backtest_results_list,
+                      base_sb_backtest_results_list = base_sb_backtest_results_list,
                       base_learners_oos_predictions_meta_dataframe = oos_predictions_m_df,
                       consolidated_oos_testing_metrics = list(full_periods_oos_testing_metrics = full_periods_oos_testing_metrics,
                                                              common_dates_oos_testing_metrics = common_dates_oos_testing_metrics),
                       mean_validation_metrics = mean_validation_metrics,
                       time_series_oos_testing_metrics = time_series_oos_testing_metrics,
                       time_series_validation_metrics = time_series_validation_metrics,
-                      backtest_identifier = meta_learner_ml_backtest_workflow$backtest_identifier
+                      backtest_identifier = meta_learner_sb_backtest_workflow$backtest_identifier
                       )
 
     return(new_object)
@@ -1967,10 +2128,7 @@ setGeneric("add_bayesian_model_parameters", function(object,
 setMethod(
   "add_bayesian_model_parameters",
   signature(object = "bayesian_alpha_test_strategy"),
-  function(object,
-           user_priors = NULL,
-           prior_derivation_control = NULL,
-           brms_control = NULL) {
+  function(object, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
 
     # Ensure only one of `user_priors` or `prior_derivation_control` is provided
     if (!is.null(user_priors) && !is.null(prior_derivation_control)) {

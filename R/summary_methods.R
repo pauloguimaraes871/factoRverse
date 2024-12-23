@@ -316,35 +316,35 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 
 
 
-#' Summary Method for ml_metabacktest_config Class
+#' Summary Method for sb_metabacktest_config Class
 #'
-#' Produces an interactive table summarizing the counts of configurations by `ml_algorithm` and other parameters using the `DT` package.
+#' Produces an interactive table summarizing the counts of configurations by `sb_algorithm` and other parameters using the `DT` package.
 #' Neural networks (`nn`) are grouped by the number of hidden layers, resulting in rows like `nn_1`, `nn_2`, etc.
 #' The table supports horizontal and vertical scrolling with the first column frozen and includes visual enhancements using specified colors.
 #' Underscores in column headers are replaced with spaces.
 #'
-#' @param object An `ml_metabacktest_config` object.
+#' @param object An `sb_metabacktest_config` object.
 #' @param ... Additional arguments (not used).
 #' @return Invisibly returns a `DT` table object. This function is called for its side effect of displaying the table.
 #' @examples
-#' # Assuming you have an ml_metabacktest_config object named meta_config
+#' # Assuming you have an sb_metabacktest_config object named meta_config
 #' summary(meta_config)
 #'
 #' @export
-setMethod("summary", "ml_metabacktest_config",
+setMethod("summary", "sb_metabacktest_config",
           function(object, ...) {
 
-            cat("Summary of 'ml_metabacktest_config' object\n")
+            cat("Summary of 'sb_metabacktest_config' object\n")
             cat("Config Name: ", object@config_name, "\n")
 
             cat("\n------------------------------\n")
             cat(crayon::cyan("Meta Learner Backtest Configuration:\n"))
-            config <- object@meta_ml_backtest_config
+            config <- object@meta_sb_backtest_config
             cat(sprintf("  config_name: %s\n", config@config_name))
-            cat(sprintf("  ml_algorithm: %s\n", config@ml_algorithm))
+            cat(sprintf("  sb_algorithm: %s\n", config@sb_algorithm))
 
             # For neural networks, display number of layers
-            if (config@ml_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
+            if (config@sb_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
               n_layers <- length(config@keras_architecture_parameters@units)
               cat(sprintf("  n_layers: %s\n", n_layers))
             }
@@ -356,7 +356,7 @@ setMethod("summary", "ml_metabacktest_config",
             cat(sprintf("  Quantile Tau: %s\n", config@quantile_tau))
 
             if (!is.null(config@tuning_strategy)) {
-              cat("  Meta ML Config Tuning Strategy:\n")
+              cat("  Meta SB Config Tuning Strategy:\n")
               cat(sprintf("    Tuning Method: %s\n", config@tuning_strategy@tuning_method))
               cat(sprintf("    Validation Sample Size: %s\n", config@tuning_strategy@validation_sample_size))
               cat(sprintf("    Chosen Eval Metric: %s\n", config@tuning_strategy@chosen_eval_metric))
@@ -369,32 +369,32 @@ setMethod("summary", "ml_metabacktest_config",
             cat("------------------------------\n")
 
 
-            n_configs <- length(object@base_ml_backtest_configs)
-            cat(sprintf("Number of Base ML backtest configurations: %d\n\n", n_configs))
-            training_sample_size <- unique(sapply(object@base_ml_backtest_configs, function(x) x@training_sample_size))
+            n_configs <- length(object@base_sb_backtest_configs)
+            cat(sprintf("Number of Base SB backtest configurations: %d\n\n", n_configs))
+            training_sample_size <- unique(sapply(object@base_sb_backtest_configs, function(x) x@training_sample_size))
             cat(paste("Training sample size:", paste(training_sample_size, collapse = ","), "\n"))
             cat(paste("Training sample size (OLS):", paste(training_sample_size, collapse = ","), "\n"))
-            rebalancing_months <- unique(sapply(object@base_ml_backtest_configs, function(x) x@rebalancing_months))
+            rebalancing_months <- unique(sapply(object@base_sb_backtest_configs, function(x) x@rebalancing_months))
             cat(paste("Rebalancing months:", paste(rebalancing_months, collapse = ", "), "\n"))
 
             if (n_configs > 0) {
-              # Collect unique ml_algorithms, handling 'nn' separately
-              ml_algorithms <- unique(sapply(object@base_ml_backtest_configs, function(x) {
-                if (x@ml_algorithm == "nn") {
+              # Collect unique sb_algorithms, handling 'nn' separately
+              sb_algorithms <- unique(sapply(object@base_sb_backtest_configs, function(x) {
+                if (x@sb_algorithm == "nn") {
                   # Get number of hidden layers
                   num_hidden_layers <- length(x@keras_architecture_parameters@units)
                   return(paste0("nn_", num_hidden_layers))
                 } else {
-                  return(x@ml_algorithm)
+                  return(x@sb_algorithm)
                 }
               }))
 
               # Collect possible options
-              tuning_methods <- unique(unlist(sapply(object@base_ml_backtest_configs, function(x) {
+              tuning_methods <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
                 if (!is.null(x@tuning_strategy)) x@tuning_strategy@tuning_method else NA
               })))
-              custom_objectives <- unique(sapply(object@base_ml_backtest_configs, function(x) x@custom_objective))
-              chosen_eval_metrics <- unique(unlist(sapply(object@base_ml_backtest_configs, function(x) {
+              custom_objectives <- unique(sapply(object@base_sb_backtest_configs, function(x) x@custom_objective))
+              chosen_eval_metrics <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
                 if (!is.null(x@tuning_strategy)) x@tuning_strategy@chosen_eval_metric else NA
               })))
 
@@ -406,16 +406,16 @@ setMethod("summary", "ml_metabacktest_config",
               count_col_names <- c(tuning_methods, custom_objectives, chosen_eval_metrics)
               quant_param_names <- c("huber_delta", "quantile_tau", "validation_sample_size")
               total_count_col <- "Algo_Count"
-              col_names <- c("ml_algorithm", count_col_names, quant_param_names, total_count_col)
+              col_names <- c("sb_algorithm", count_col_names, quant_param_names, total_count_col)
 
               # Create display names by replacing underscores with spaces
               display_col_names <- gsub("_", " ", col_names)
 
               # Initialize data frame
-              summary_df <- data.frame(matrix("", nrow = length(ml_algorithms) + 1, ncol = length(col_names)),
+              summary_df <- data.frame(matrix("", nrow = length(sb_algorithms) + 1, ncol = length(col_names)),
                                        stringsAsFactors = FALSE)
               names(summary_df) <- col_names
-              summary_df$ml_algorithm <- c(ml_algorithms, "Total")
+              summary_df$sb_algorithm <- c(sb_algorithms, "Total")
 
               # Function to get range or single value
               get_range_or_value <- function(values) {
@@ -430,20 +430,20 @@ setMethod("summary", "ml_metabacktest_config",
               }
 
               # Populate counts and quantitative parameters
-              total_counts <- numeric(length(ml_algorithms))
-              for (i in seq_along(ml_algorithms)) {
-                algo <- ml_algorithms[i]
-                # Filter configs based on ml_algorithm and, for 'nn', the number of hidden layers
-                configs <- object@base_ml_backtest_configs[sapply(object@base_ml_backtest_configs, function(x) {
-                  if (x@ml_algorithm == "nn") {
+              total_counts <- numeric(length(sb_algorithms))
+              for (i in seq_along(sb_algorithms)) {
+                algo <- sb_algorithms[i]
+                # Filter configs based on sb_algorithm and, for 'nn', the number of hidden layers
+                configs <- object@base_sb_backtest_configs[sapply(object@base_sb_backtest_configs, function(x) {
+                  if (x@sb_algorithm == "nn") {
                     num_hidden_layers <- length(x@keras_architecture_parameters@units)
                     paste0("nn_", num_hidden_layers) == algo
                   } else {
-                    x@ml_algorithm == algo
+                    x@sb_algorithm == algo
                   }
                 })]
 
-                # Total count per ml_algorithm
+                # Total count per sb_algorithm
                 total_counts[i] <- length(configs)
                 summary_df[i, total_count_col] <- total_counts[i]
 
@@ -489,29 +489,29 @@ setMethod("summary", "ml_metabacktest_config",
               # Calculate totals for counts
               count_columns <- count_col_names
               for (col_name in count_columns) {
-                counts <- as.numeric(summary_df[1:length(ml_algorithms), col_name])
+                counts <- as.numeric(summary_df[1:length(sb_algorithms), col_name])
                 counts[is.na(counts)] <- 0
                 total <- sum(counts)
-                summary_df[length(ml_algorithms) + 1, col_name] <- total
+                summary_df[length(sb_algorithms) + 1, col_name] <- total
               }
 
               # Total count for Total row
-              summary_df[length(ml_algorithms) + 1, total_count_col] <- sum(total_counts)
+              summary_df[length(sb_algorithms) + 1, total_count_col] <- sum(total_counts)
 
               # For quantitative parameters in total row, display overall range or value
               # huber_delta
-              all_huber_deltas <- sapply(object@base_ml_backtest_configs, function(x) x@huber_delta)
-              summary_df[length(ml_algorithms) + 1, "huber_delta"] <- get_range_or_value(all_huber_deltas)
+              all_huber_deltas <- sapply(object@base_sb_backtest_configs, function(x) x@huber_delta)
+              summary_df[length(sb_algorithms) + 1, "huber_delta"] <- get_range_or_value(all_huber_deltas)
 
               # quantile_tau
-              all_quantile_taus <- sapply(object@base_ml_backtest_configs, function(x) x@quantile_tau)
-              summary_df[length(ml_algorithms) + 1, "quantile_tau"] <- get_range_or_value(all_quantile_taus)
+              all_quantile_taus <- sapply(object@base_sb_backtest_configs, function(x) x@quantile_tau)
+              summary_df[length(sb_algorithms) + 1, "quantile_tau"] <- get_range_or_value(all_quantile_taus)
 
               # validation_sample_size
-              all_val_sample_sizes <- sapply(object@base_ml_backtest_configs, function(x) {
+              all_val_sample_sizes <- sapply(object@base_sb_backtest_configs, function(x) {
                 if (!is.null(x@tuning_strategy)) x@tuning_strategy@validation_sample_size else NA
               })
-              summary_df[length(ml_algorithms) + 1, "validation_sample_size"] <- get_range_or_value(all_val_sample_sizes)
+              summary_df[length(sb_algorithms) + 1, "validation_sample_size"] <- get_range_or_value(all_val_sample_sizes)
 
               # Replace empty strings with NA
               summary_df[summary_df == ""] <- NA
@@ -528,7 +528,7 @@ setMethod("summary", "ml_metabacktest_config",
               }
 
               # Create cluster indices
-              col_index <- 2  # ml_algorithm is at index 1
+              col_index <- 2  # sb_algorithm is at index 1
               cluster_indices <- list()
 
               # Tuning Methods
@@ -613,21 +613,21 @@ setMethod("summary", "ml_metabacktest_config",
                 class = 'cell-border stripe',
                 caption = htmltools::tags$caption(
                   style = 'caption-side: top; text-align: center; color: #FFFFFF; background-color: #000000; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;',
-                  'Summary of Base ML Backtesting Configurations'
+                  'Summary of Base SB Backtesting Configurations'
                 )
               )
 
               # Apply formatting
               dt_table <- dt_table %>%
                 DT::formatStyle(
-                  columns = 'ml_algorithm',
+                  columns = 'sb_algorithm',
                   fontWeight = 'bold',
                   backgroundColor = '#000033',  # Deep Navy
                   color = '#FFFFFF'
                 ) %>%
                 DT::formatStyle(
                   columns = names(summary_df),
-                  valueColumns = 'ml_algorithm',
+                  valueColumns = 'sb_algorithm',
                   backgroundColor = DT::styleEqual("Total", "#000000"),  # Black for 'Total' row
                   color = DT::styleEqual("Total", "#FFFFFF")
                 )
@@ -687,13 +687,13 @@ setMethod("summary", "ml_metabacktest_config",
 
 
 
-#' @title Summary Method for ml_backtest_results Class
-#' @description Provides a detailed summary of an `ml_backtest_results` object.
+#' @title Summary Method for sb_backtest_results Class
+#' @description Provides a detailed summary of an `sb_backtest_results` object.
 #' Users can select which summary table to display by specifying the `summary_id` parameter,
 #' either by name or by number.
 #' The summary includes interactive tables styled using the `DT` package.
 #'
-#' @param object An object of class `ml_backtest_results`.
+#' @param object An object of class `sb_backtest_results`.
 #' @param summary_id A character string or numeric value specifying which table to display.
 #'   - By name: Options are:
 #'     - `"OOS_Predictions"`
@@ -706,7 +706,7 @@ setMethod("summary", "ml_metabacktest_config",
 #' @return Invisibly returns the input `object`.
 #' @importFrom methods setMethod
 #' @export
-setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) {
+setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) {
 
   # Define colors for styling
   deep_navy <- "#000033"   # Deep Navy for data rows
@@ -724,12 +724,12 @@ setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) 
 
   # Display Main Information always
   cat("Backtest Identifier:", object@backtest_identifier, "\n")
-  cat("ML Algorithm:", object@ml_backtest_workflow$ml_algorithm, "\n")
+  cat("SB Algorithm:", object@sb_backtest_workflow$sb_algorithm, "\n")
   cat("Final Model Object Class:", object@final_model@model_class, "\n")
-  cat("Custom Objective:", object@ml_backtest_workflow$custom_objective, "\n")
-  cat("Chosen Evaluation Metric:", object@ml_backtest_workflow$chosen_eval_metric, "\n")
-  cat("Testing Sample Dates:", format(as.Date(object@ml_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")
-  cat("Rebalancing Dates:", format(as.Date(object@ml_backtest_workflow$rebalance_dates), "%d-%m-%Y"), "\n")
+  cat("Custom Objective:", object@sb_backtest_workflow$custom_objective, "\n")
+  cat("Chosen Evaluation Metric:", object@sb_backtest_workflow$chosen_eval_metric, "\n")
+  cat("Testing Sample Dates:", format(as.Date(object@sb_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")
+  cat("Rebalancing Dates:", format(as.Date(object@sb_backtest_workflow$rebalance_dates), "%d-%m-%Y"), "\n")
 
 
   if (is.null(summary_id)) {
@@ -913,15 +913,15 @@ setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) 
       }
 
       # Create concatenation of hyperparameters to define groups
-      ml_algorithm <- object@ml_backtest_workflow$ml_algorithm
+      sb_algorithm <- object@sb_backtest_workflow$sb_algorithm
 
-      if (ml_algorithm == "glmnet") {
+      if (sb_algorithm == "glmnet") {
         chosen_eval_metric_validation_df$concatenation <- paste(
           chosen_eval_metric_validation_df$alpha,
           chosen_eval_metric_validation_df$lambda.min.ratio,
           sep = "_"
         )
-      } else if (ml_algorithm == "rf") {
+      } else if (sb_algorithm == "rf") {
         chosen_eval_metric_validation_df$concatenation <- paste(
           chosen_eval_metric_validation_df$mtry,
           chosen_eval_metric_validation_df$num.trees,
@@ -929,7 +929,7 @@ setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) 
           chosen_eval_metric_validation_df$min.bucket,
           sep = "_"
         )
-      } else if (ml_algorithm == "xgb") {
+      } else if (sb_algorithm == "xgb") {
         chosen_eval_metric_validation_df$concatenation <- paste(
           chosen_eval_metric_validation_df$min_child_weight,
           chosen_eval_metric_validation_df$max_depth,
@@ -941,7 +941,7 @@ setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) 
           chosen_eval_metric_validation_df$nrounds,
           sep = "_"
         )
-      } else if (ml_algorithm == "nn") {
+      } else if (sb_algorithm == "nn") {
         chosen_eval_metric_validation_df$concatenation <- paste(
           chosen_eval_metric_validation_df$regularizer_l1,
           chosen_eval_metric_validation_df$regularizer_l2,
@@ -982,13 +982,13 @@ setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) 
 
 
 
-#' @title Summary Method for ml_metabacktest_results Class
-#' @description Provides a detailed summary of an `ml_metabacktest_results` object.
+#' @title Summary Method for sb_metabacktest_results Class
+#' @description Provides a detailed summary of an `sb_metabacktest_results` object.
 #' Users can select which summary table to display by specifying the `summary_id` parameter,
 #' either by name or by number.
 #' The summary includes interactive tables styled using the `DT` package.
 #'
-#' @param object An object of class `ml_metabacktest_results`.
+#' @param object An object of class `sb_metabacktest_results`.
 #' @param summary_id A character string or numeric value specifying which table to display.
 #'   - By name: Options are:
 #'     - `"Consolidated_OOS_Testing_Metrics"`
@@ -1001,7 +1001,7 @@ setMethod("summary", "ml_backtest_results", function(object, summary_id = NULL) 
 #' @return Invisibly returns the input `object`.
 #' @importFrom methods setMethod
 #' @export
-setMethod("summary", "ml_metabacktest_results", function(object, summary_id = NULL) {
+setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NULL) {
 
   # Define colors for styling
   deep_navy <- "#000033"   # Deep Navy for data rows
@@ -1020,10 +1020,10 @@ setMethod("summary", "ml_metabacktest_results", function(object, summary_id = NU
   # Display Main Information always
   cat("Backtest Identifier:", object@backtest_identifier, "\n")
   cat("\nBase Learners Algorithms:\n")
-  base_learner_algorithms <- sapply(object@base_ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm)
+  base_learner_algorithms <- sapply(object@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$sb_algorithm)
   cat(paste0("- ", base_learner_algorithms), sep = "\n")
   cat("\nMeta Learners Algorithms:\n")
-  meta_learner_algorithms <- sapply(object@meta_ml_backtest_results_list, function(x) x@ml_backtest_workflow$ml_algorithm)
+  meta_learner_algorithms <- sapply(object@meta_sb_backtest_results_list, function(x) x@sb_backtest_workflow$sb_algorithm)
   cat(paste0("- ", meta_learner_algorithms), sep = "\n")
 
   if (is.null(summary_id)) {

@@ -3,17 +3,17 @@
 \name{hyperparameters}
 \alias{hyperparameters}
 \alias{hyperparameters,character-method}
-\alias{hyperparameters,ml_backtest_config-method}
+\alias{hyperparameters,sb_backtest_config-method}
 \title{Get Expected Hyperparameters for a Machine Learning Algorithm or Configuration}
 \usage{
 hyperparameters(object)
 
 \S4method{hyperparameters}{character}(object)
 
-\S4method{hyperparameters}{ml_backtest_config}(object)
+\S4method{hyperparameters}{sb_backtest_config}(object)
 }
 \arguments{
-\item{object}{An \code{ml_backtest_config} object.}
+\item{object}{An \code{sb_backtest_config} object.}
 }
 \value{
 A character vector containing the names of the expected hyperparameters for the specified algorithm.
@@ -31,7 +31,7 @@ The \code{hyperparameters} function returns a character vector of expected hyper
 \itemize{
 \item \code{hyperparameters(character)}: Get expected hyperparameters for a given machine learning algorithm.
 
-\item \code{hyperparameters(ml_backtest_config)}: Get expected hyperparameters from an \code{ml_backtest_config} object.
+\item \code{hyperparameters(sb_backtest_config)}: Get expected hyperparameters from an \code{sb_backtest_config} object.
 
 }}
 \examples{
@@ -40,7 +40,7 @@ hyperparameters("glmnet")
 # Get hyperparameters for random forest
 hyperparameters("rf")
 
-# Assuming you have an ml_backtest_config object named config
+# Assuming you have an sb_backtest_config object named config
 hyperparameters(config)
 
 }

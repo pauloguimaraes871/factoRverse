@@ -1,0 +1,779 @@
+#' Perform validation checks on inputs for SB workflow
+#'
+#' This function validates and checks various inputs required for a signal blending workflow.
+#'
+#' @param features_m_df A data frame or matrix containing features data.
+#' @param target_m_df A data frame or matrix containing target variable data.
+#' @param training_sample_size Numeric, size of the training sample.
+#' @param target_fwd_name Character, name of the forward looking target.
+#' @param validation_sample_size Numeric, size of the validation sample.
+#' @param rebalancing_months Numeric, number of months for rebalancing.
+#' @param split_method Character, method of data splitting (currently only "expanding" is supported).
+#' @param eligible_signals_list List, list of eligible signals for blending.
+#' @param sb_algorithm Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto").
+#' @param custom_objective Character, custom objective function for loss.
+#' @param chosen_eval_metric Character, chosen evaluation metric ("rmse", "mae", "cp", "rss", "mphe", "mpe", "hr", "mape").
+#' @param huber_delta Numeric, delta parameter for Huber loss (for "pseudo_huber_error" custom objective).
+#' @param quantile_tau Numeric, tau parameter for quantile loss (for "quantile_error" custom objective).
+#' @param hyper_grid_domain_list List, domain list of hyperparameters for tuning.
+#' @param tuning_method Character, method of hyperparameter tuning ("random_search", "grid_search", "bayesian_opt").
+#' @param n_iter number of iterations for tuning.
+#' @param k_iter number of iterations for k-fold cross-validation.
+#' @param acq Character, acquisition function for Bayesian optimization ("ucb", "ei", "poi").
+#' @param init_points Numeric, number of initial points for Bayesian optimization.
+#' @param early_stop Numeric, number of epochs for early stopping (for "xgb" and "nn" algorithms).
+#' @param keras_architecture_parameters List, containing units (numeric), n_layers (numeric between 1 and 5), activation_function and nn_optimizer ("Adam" or "RMSProp")
+#' @param show_plots Logical, whether to show diagnostic plots.
+#' @param verbose Logical, whether to print verbose output.
+#' @param parallel Logical, whether to use parallel computation.
+#'
+#' @return NULL. This function is used for validation and does not return a value; it stops on errors.
+#'
+#' @details
+#' This function performs comprehensive validation checks on various inputs required for a signal blending workflow.
+#' It validates data formats, correctness of hyperparameters, consistency of dates, and other specific requirements for
+#' different signal blending algorithms.
+#'
+#'
+#' @export
+#'
+#' @references
+#' For more information on signal blending algorithms and their usage, refer to appropriate documentation.
+#'
+#' @keywords internal validation machine-learning
+#'
+#'
+check_inputs_sb_backtest <- function(
+    features_m_df, target_m_df, training_sample_size, target_fwd_name,
+    validation_sample_size, rebalancing_months, split_method, eligible_signals_list,
+    sb_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
+    hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points, early_stop,
+    keras_architecture_parameters,
+    show_plots, verbose = FALSE, parallel
+){
+
+  ###Initial Checks###
+  ################
+
+  #Structures
+  ############################################################################################
+
+  #Check for correct format in features_m_df
+      if(!(is_coercible_to_meta_dataframe(features_m_df))){
+        stop("features_m_df should be coercible to meta_dataframe object")
+      }
+
+     if(!all(sapply(features_m_df[,-c(1:3)], function(x) is.numeric(x) && all(!is.na(x))))){
+        stop("features_m_df should contain only numeric columns with non-NAs.")
+      }
+
+      if(all(!is.factor(features_m_df$dates),
+            any(!lubridate::is.Date(features_m_df$dates)) ||
+            any(is.na(as.Date(features_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+        stop("dates in features_m_df must be a date object with format %Y-%m-%d.")
+      }
+
+  #Check for correct format in target_m_df
+      if(!(is_coercible_to_meta_dataframe(target_m_df))){
+        stop("target_m_df should be coercible to meta_dataframe object")
+      }
+
+      if(!all(sapply(target_m_df[,-c(1:3)], function(x) any(is.numeric(x) | is.na(x))))){
+        stop("target_m_df should contain only numeric columns (NAs allowed at ending dates).")
+      }
+
+      target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
+      assumed_target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
+
+      if(any(!grepl(target_fwd_name_right_pattern, colnames(target_m_df[,-c(1:3)])))){
+        stop("target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.")
+      }
+
+      if(all(!is.factor(target_m_df$dates),
+             any(!lubridate::is.Date(target_m_df$dates)) ||
+             any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+        stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
+      }
+
+      #Get dates allowed to be NA
+      dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df$dates)[(length(unique(target_m_df$dates)) - assumed_target_fwd + 1):length(unique(target_m_df$dates))]
+      if(length(dates_allowed_to_be_NA_in_target_m_df) > assumed_target_fwd){
+        stop("number of dates in target_m_df with NAs should be at most equal to prediction horizon")
+      }
+      if(any(is.na(target_m_df[-which(target_m_df$dates %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
+         stop("target_m_df can't have NAs until the last target_fwd periods")
+      }
+
+      #Get dates with effective NAs
+      dates_allowed_to_be_NA_but_are_not_na <- target_m_df %>%
+        dplyr::filter(dates %in% dates_allowed_to_be_NA_in_target_m_df, !is.na(!!rlang::sym(target_fwd_name))) %>%
+        dplyr::pull(dates) %>%
+        unique()
+
+      dates_allowed_to_be_NA_and_really_are_na <- as.Date(setdiff(dates_allowed_to_be_NA_in_target_m_df, dates_allowed_to_be_NA_but_are_not_na))
+
+      if(all(length(dates_allowed_to_be_NA_and_really_are_na) != 0, verbose)){
+        message("The following dates from features_m_df contemplate NA rows in target_m_df: ", paste(dates_allowed_to_be_NA_and_really_are_na, collapse = " "))
+      }
+
+
+
+
+  #Check structure between target_m_df and feature_m_df
+      if(nrow(target_m_df) != nrow(features_m_df)){
+        stop("features_m_df and target_m_df must possess same number of rows.")
+      }
+
+      if(any(target_m_df$id != features_m_df$id)){
+        stop("id in features_m_df and in target_m_df must match.")
+      }
+
+      if(any(target_m_df$tickers != features_m_df$tickers)){
+        stop("tickers in features_m_df and in target_m_df must match.")
+      }
+
+      if(any(target_m_df$dates != features_m_df$dates)){
+        stop("dates in features_m_df and in target_m_df must match.")
+      }
+
+      if(nrow(target_m_df) < assumed_target_fwd || nrow(features_m_df) < assumed_target_fwd){
+        stop("target_m_df and features_m_df should have more dates than the prediction horizon")
+      }
+
+
+
+  #Check structure of rebalancing_months
+    if(!is.numeric(rebalancing_months)){
+      stop("rebalancing_months should be numeric.")
+    }
+
+    if(rebalancing_months < 0 || rebalancing_months > 12){
+      stop("rebalancing_months should be between 1 and 12.")
+    }
+
+  #Check structure of target_fwd_name
+    if(!(is.character(target_fwd_name))){
+      stop("target_fwd_name should be character.")
+    }
+
+    if(!grepl(target_fwd_name_right_pattern, target_fwd_name)){
+      stop("target_fwd_name is not in the right pattern")
+    }
+
+    #Check structure of training_sample_size and validation_sample_size
+    if(!(is.numeric(training_sample_size))){
+      stop("training_sample_size should be numeric.")
+    }
+
+      if((training_sample_size < 0)){
+        stop("training_sample_size should be positive.")
+      }
+
+    if(!(is.numeric(validation_sample_size))){
+      stop("validation_sample_size should be numeric.")
+    }
+
+    if((validation_sample_size < 0)){
+       stop("validation_sample_size should be positive.")
+    }
+
+    if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") & validation_sample_size != 0){
+      stop("ols and heuristic sb algorithms do not support validation split.")
+    }
+
+    dates_m_vector <- unique(as.Date(features_m_df$dates, format = "%Y-%m-%d"))
+    if(length(dates_m_vector) < (training_sample_size + validation_sample_size)){
+      stop("training_sample_size + validation_sample_size should be less than the number of unique dates in features_m_df.")
+    }
+
+  #Check structure of split_method
+  if(split_method != "expanding"){
+    stop("split_method should be expanding.")
+  }
+
+
+  #####################################################################################
+
+  #Check for eligible signals
+  eligible_signals_dates <- as.Date(names(eligible_signals_list))
+  first_rebalance_date <- as.Date(min(dates_m_vector[(training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size - 1)]))
+
+  #First date of eligible_signals should be before first backtesting date
+  if(first_rebalance_date < min(eligible_signals_dates)){
+    stop("First date of eligible_signals should be before first backtesting date.")
+  }
+
+  #Get signals
+   original_signals_list <- sapply(eligible_signals_list, function(x){
+     stringr::str_remove_all(x[[1]], pattern = "low_")
+  })
+
+  #Check if they are present in features_m_df
+  check_signal_presence <- lapply(original_signals_list, function(x){
+     any(!x %in% colnames(features_m_df))
+   })
+
+  if (any(unlist(check_signal_presence))) {
+    stop(
+      "There is a signal mismatch between eligible_signals and features_m_df at date(s): ",
+      paste(
+        names(check_signal_presence)[which(unlist(check_signal_presence))],
+        collapse = ", "
+      )
+    )
+  }
+
+  #Validation Schema
+  #Check for correct choice in chosen_eval_metric
+    if(!is.null(chosen_eval_metric)){
+      if(!chosen_eval_metric %in% c("rmse", "mae", "cp", "rss", "mphe", "mpe", "hr", "mape")){
+        stop("chosen_eval_metric choice not supported.")
+      } else {}
+    } else {}
+
+  #Check for correct format of custom_eval/loss parameters
+  if(quantile_tau <= 0 || quantile_tau >= 1){
+    stop("quantile_tau should be > 0 and less than 1.")
+  } else {}
+
+  if(!is.numeric(huber_delta)){
+    stop("huber_delta should be numeric.")
+  } else {}
+
+
+
+  #Check for correct hyperparameters names in hyper_grid_domain_list
+      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") & !is.null(hyper_grid_domain_list)){
+        stop("ols and heuristic sb algorithms do not support hyperparameters.")
+      }
+
+
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") & is.null(hyper_grid_domain_list)){
+        stop("hyper_grid_domain must be set when sb_algorithm is different from ols.")
+      }
+
+
+      #GLMNET
+      if(sb_algorithm == "glmnet" && !all(names(hyper_grid_domain_list) == c("alpha", "lambda.min.ratio"))){
+        stop("hyperparameters do not match sb_algorithm choice")
+      } else {}
+
+      #RF
+      if(sb_algorithm == "rf" && !all(names(hyper_grid_domain_list) == c("mtry", "num.trees", "max.depth", "min.bucket"))){
+        stop("hyperparameters do not match sb_algorithm choice")
+      } else {}
+
+      #XGB
+      if(sb_algorithm == "xgb" && !all(names(hyper_grid_domain_list) == c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
+                                                                          "eta", "alpha", "gamma", "nrounds"))){
+        stop("hyperparameters do not match sb_algorithm choice")
+      } else {}
+
+      #NN
+      if(sb_algorithm == "nn" && !all(names(hyper_grid_domain_list) == c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"))){
+        stop("hyperparameters do not match sb_algorithm choice")
+      } else {}
+
+
+
+  #Check for valid format in tuning method
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
+    stop("tuning_method should be one of random_search, grid_search or bayesian_opt.")
+  } else {}
+
+  #Check for correct format in case tuning method is grid_search
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") && tuning_method == c("grid_search")){
+    if(any(
+      #Check if hyper_grid_domain_list is a list
+      !(class(hyper_grid_domain_list) == "list"),
+      #Check if hyper_grid_domain_list is a list of vectors
+      !all(sapply(hyper_grid_domain_list, function(x) is.vector(x))),
+      #Check if hyper_grid_domain_list contains numeric values
+      !all(sapply(hyper_grid_domain_list, function(x) is.numeric(x)))
+    )
+    ){
+      stop("hyper_grid_domain_list not in correct format for grid_search tuning.")
+    } else {}
+  } else {}
+
+  if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto"), tuning_method == "grid_search",!is.null(n_iter))){
+    warning("When tuning_method is grid_search, hyperparameters are combined exhaustively. Ignoring any user set n_iter value")
+  }
+
+  #Check for correct format in case tuning method is random_search
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")&& tuning_method == c("random_search")){
+
+
+  tryCatch({
+    if(any(
+      #Check if hyper_grid_domain_list is a list
+      !(class(hyper_grid_domain_list) == "list"),
+      #Check if hyper_grid_domain_list is a list of lists
+      !all(sapply(hyper_grid_domain_list, function(x) is.list(x))),
+      #Check if every element contains data for distribution choice and pars
+      !all(sapply(hyper_grid_domain_list, function(x) names(x) %in% c("distribution_choice", "pars", "value"))),
+      #Check if distribution choices match allowed choices
+      !all(sapply(hyper_grid_domain_list, function(x) all(x$distribution_choice %in% c("normal", "uniform", "lognormal", "constant")))),
+      #Check if pars are numeric and not NA
+      !all(sapply(hyper_grid_domain_list, function(x) all(is.numeric(x$pars) | is.numeric(x$value), !is.na(x$pars) | !is.na(x$value)))),
+      #Check if pars are named
+      !all(sapply(hyper_grid_domain_list, function(x) ifelse(x$distribution_choice != "constant", all(!is.null(names(x$pars))), any(names(x) %in% c("value"))))),
+      #Check if pars match each possible distribution choice
+      !all(sapply(hyper_grid_domain_list, function(x) ifelse(x$distribution_choice == "uniform", all(names(x$pars) == c("min", "max")),
+                                                             ifelse(x$distribution_choice == "normal", all(names(x$pars) == c("mean", "sd")),
+                                                                    ifelse(x$distribution_choice == "lognormal", all(names(x$pars) == c("meanlog", "sdlog")),
+                                                                           is.numeric(x$value))))))
+    )
+    ){
+      stop("hyper_grid_domain_list not in correct format for random_search tuning.")
+    }
+
+  }, error = function(e){
+    stop("hyper_grid_domain_list not in correct format for random_search tuning.")
+  })
+
+
+    if(!is.numeric(n_iter)){
+      stop("n_iter must be numeric.")
+    }
+
+  } else {}
+
+
+
+  #Check for correct format in case tuning method is Bayesian Optimization
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") && tuning_method == c("bayesian_opt")){
+    if(any(
+      #Check if hyper_grid_domain_list is a list
+      !is.list(hyper_grid_domain_list),
+      #Check if hyper_grid_domain_list elements have length of 2 (boundaries)
+      !all(sapply(hyper_grid_domain_list, function(x) length(x) == 2)),
+      #Check if hyper_grid_domain_list elements are vectors
+      !all(sapply(hyper_grid_domain_list, function(x) is.vector(x))),
+      #Check if hyper_grid_domain_list contains numeric values
+      !all(sapply(hyper_grid_domain_list, function(x) is.numeric(x)))
+    )
+    ){
+      stop("hyper_grid_domain_list not in correct format for bayesian_opt tuning.")
+    } else {}
+
+    if(!acq %in% c("ucb", "ei", "poi")){
+      stop("acq should be one of ucb, ei or poi")
+    } else {}
+    if(any(!is.numeric(init_points), !is.numeric(n_iter), !is.numeric(k_iter))){
+      stop("n_iter, k_iter and init_points must be numeric.")
+    } else {}
+    if(init_points <= length(hyper_grid_domain_list)){
+      stop("init_points must be greater than number of hyperparameters")
+    }
+    if(n_iter < k_iter){
+      stop("n_iter must be greater than k_iter")
+    }
+
+
+
+
+
+  } else {}
+
+
+
+  #SB algorithms
+  ################
+    #Check for correct choice in sb_algorithm
+        if(!sb_algorithm %in% c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto")){
+          stop("sb_algorithm choice not supported.")
+        } else {}
+
+    #Check for correct choice in custom_objective
+    if(all(!sb_algorithm %in% c("xgb", "nn", "sw", "mto") && custom_objective != "squared_error")){
+      stop("Custom objective functions are only allowed for xgb, nn, sw or mto sb_algorithm choices")
+    }
+
+    #Check for custom objective
+    if(!object@sb_algorithm %in% c("sw", "mto")){
+      valid_heuristic_sb_metrics <- c(
+        "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
+        "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
+        "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
+        "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
+        "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
+        "prob_sharpe_ratio", "modigliani", "ann_modigliani",
+        "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
+        "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
+        "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
+        "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
+        "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
+        "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
+        "act_modigliani", "act_ann_modigliani",
+        "alpha", "theme_alpha", "individual_alpha", "alpha_se", "theme_beta", "individual_beta", "specific_risk",
+        "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
+        "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
+        "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
+      )
+      if (grepl("^max_|^min_", object@custom_objective) && substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
+        return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
+                 To see complete list of valid heuristic performance metrics, use ''.")
+      }
+    } else {
+      if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
+        return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
+      }
+    }
+
+
+  #Check for correct choice in early_stop
+  if(all(!is.null(early_stop), !sb_algorithm %in% c("xgb", "nn"))){
+    stop("Early stop only allowed for xgb or nn sb_algorithm choices")
+  }
+
+  if(sb_algorithm == "nn"){
+
+    if(is.data.frame(keras_architecture_parameters) || !is.list(keras_architecture_parameters) ||
+       !all(names(keras_architecture_parameters) == c("units", "n_layers", "activation", "nn_optimizer", "batch_norm_option"))){
+      stop("keras_architecture_parameters should be a list with units, n_layers, activation, nn_optimizer and batch_norm_option elements")
+    }
+
+    if(!all(is.numeric(keras_architecture_parameters$units))){
+      stop("units should be numeric")
+    }
+
+    if(!keras_architecture_parameters$n_layers %in% c(1,2,3,4,5) || length(keras_architecture_parameters$n_layers) > 1){
+      stop("n_layers should be an integer between 1 and 5.")
+    }
+
+    if(!all(keras_architecture_parameters$activation %in% c("relu", "sigmoid", "softmax", "softplus", "tanh", "leaky_relu"))){
+      stop("activation should be one of relu, sigmoid, softmax, softplus, tanh or leaky_relu.")
+    }
+
+    if(length(keras_architecture_parameters$units) != keras_architecture_parameters$n_layers ||
+       length(keras_architecture_parameters$activation) != keras_architecture_parameters$n_layers ||
+       length(keras_architecture_parameters$batch_norm_option) != keras_architecture_parameters$n_layers
+    ){
+      stop("length of units, activation and batch_norm_option should match n_layers")
+    }
+
+    if(!keras_architecture_parameters$nn_optimizer %in% c("Adam", "RMSProp")){
+      stop("nn_optimizer should be Adam or RMSProp.")
+    }
+
+
+    if(!all(is.logical(keras_architecture_parameters$batch_norm_option))){
+      stop("batch_norm_option should be logical")
+    }
+
+    if(parallel == TRUE){
+      warning("keras models have some limitations regarding parallel computations. Use with care.")
+    }
+
+
+
+  }
+
+  ################
+
+
+  #Hyper domain
+  ##################
+      #Check for correct domains in hyper_grid_domain_list
+
+      #GLMNET
+      ###############
+      if(sb_algorithm == "glmnet"){
+        #alpha
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$alpha$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$alpha$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$alpha$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$alpha
+        }
+        #Check domain
+        if(!all(0 <= hyper_domain, hyper_domain <= 1)){
+          stop("alpha should be set in interval [0,1]")
+        } else {}
+        ##########
+
+        #lambda.min.ratio
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$lambda.min.ratio$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$lambda.min.ratio$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$lambda.min.ratio$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$lambda.min.ratio
+        }
+        #Check domain
+        if(!all(0 <= hyper_domain, hyper_domain < 1)){
+          stop("lambda.min.ratio should be set in interval [0,1)")
+        } else {}
+        ##########
+      }
+      ###############
+
+      #RF
+      ###############
+      if(sb_algorithm == "rf"){
+        #num.trees
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$num.trees$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$num.trees$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$num.trees$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$num.trees
+        }
+        #Check domain
+        if(tuning_method == "grid_search"){
+          if(!all(hyper_domain == floor(hyper_domain))){
+            stop("num.trees should have no decimals")
+          }
+        } else {
+          if(!all(is.integer(hyper_domain))){
+            stop("num.trees should be integer")
+          } else {}
+        }
+
+        if(!all(hyper_domain > 0)){
+          stop("num.trees should be positive")
+        } else {}
+        ##########
+
+        #mtry
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$mtry$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$mtry$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$mtry$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$mtry
+        }
+        #Check domain
+        if(!all(0 <= hyper_domain, hyper_domain <= 1)){
+          stop("mtry should be set in interval [0,1]")
+        } else {}
+        ##########
+
+        #max.depth
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$max.depth$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$max.depth$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$max.depth$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$max.depth
+        }
+        #Check domain
+        if(tuning_method == "grid_search"){
+          if(!all(hyper_domain == floor(hyper_domain))){
+            stop("max.depth should have no decimals")
+          }
+        } else {
+          if(!all(is.integer(hyper_domain))){
+            stop("max.depth should be integer")
+          } else {}
+        }
+        if(!all(hyper_domain > 0)){
+          stop("max.depth should be positive")
+        } else {}
+        ##########
+
+      }
+      ###############
+
+      #XGB
+      ###############
+      if(sb_algorithm == "xgb"){
+        #eta
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$eta$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$eta$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$eta$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$eta
+        }
+        #Check domain
+        if(!all(0 <= hyper_domain, hyper_domain <= 1)){
+          stop("eta should be set in interval [0,1]")
+        } else {}
+        ##########
+
+        #max_depth
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$max_depth$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$max_depth$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$max_depth$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$max_depth
+        }
+        #Check domain
+        if(tuning_method == "grid_search"){
+          if(!all(hyper_domain == floor(hyper_domain))){
+            stop("max_depth should have no decimals")
+          }
+        } else {
+          if(!all(is.integer(hyper_domain))){
+            stop("max_depth should be integer")
+          } else {}
+        }
+        if(!all(hyper_domain > 0)){
+          stop("max_depth should be positive")
+        } else {}
+        ##########
+
+        #colsample_bytree
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$colsample_bytree$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$colsample_bytree$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$colsample_bytree$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$colsample_bytree
+        }
+        #Check domain
+        if(!all(0 <= hyper_domain, hyper_domain <= 1)){
+          stop("colsample_bytree should be set in interval [0,1]")
+        } else {}
+        ##########
+
+        #subsample
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$subsample$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$subsample$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$subsample$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$subsample
+        }
+        #Check domain
+        if(!all(0 <= hyper_domain, hyper_domain <= 1)){
+          stop("subsample should be set in interval [0,1]")
+        } else {}
+        ##########
+
+      }
+      ###############
+
+      #NN
+      ###############
+
+      if(sb_algorithm == "nn"){
+        #droprate
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$droprate$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$droprate$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$droprate$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$droprate
+        }
+        #Check domain
+        if(!all(0 <= hyper_domain, hyper_domain < 1)){
+          stop("droprate should be set in interval [0,1)")
+        } else {}
+        ##########
+
+        #number_of_epochs
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$number_of_epochs$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$number_of_epochs$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$number_of_epochs$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$number_of_epochs
+        }
+        #Check domain
+        if(tuning_method == "grid_search"){
+          if(!all(hyper_domain == floor(hyper_domain))){
+            stop("number_of_epochs should have no decimals")
+          }
+        } else {
+          if(!all(is.integer(hyper_domain))){
+            stop("number_of_epochs should be integer")
+          } else {}
+        }
+        if(!all(hyper_domain > 0)){
+          stop("number_of_epochs should be positive")
+        } else {}
+        ##########
+
+        #size_of_batch
+        ##########
+        if(tuning_method == "random_search"){
+          if(hyper_grid_domain_list$size_of_batch$distribution_choice == "constant"){
+            hyper_domain <- hyper_grid_domain_list$size_of_batch$value
+          } else {
+            #in case of random
+            hyper_domain <- range(hyper_grid_domain_list$size_of_batch$pars)
+          }
+        } else {
+          #bayesian opt or grid search
+          hyper_domain <- hyper_grid_domain_list$size_of_batch
+        }
+        #Check domain
+        if(tuning_method == "grid_search"){
+          if(!all(hyper_domain == floor(hyper_domain))){
+            stop("size_of_batch should have no decimals")
+          }
+        } else {
+          if(!all(is.integer(hyper_domain))){
+            stop("size_of_batch should be integer")
+          } else {}
+        }
+        if(!all(hyper_domain > 0)){
+          stop("size_of_batch should be positive")
+        } else {}
+        ##########
+
+
+      }
+      ###############
+
+}

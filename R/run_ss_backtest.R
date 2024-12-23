@@ -458,19 +458,22 @@ run_ss_backtest_internal <- function(
 
     #Initial Prints
     if(verbose){
-      cat("\n")
-      cat(crayon::cyan(paste("Starting signal selection backtest")))
-      cat("\n")
-      cat(paste("Performance metrics calculated with", if(active_returns) "active returns" else "raw returns"))
-      cat("\n")
-      cat(paste("Factor model:", model_structure, " CAPM with", market_factor_proxy, "as proxy for market factor"))
-      cat("\n")
-      cat(crayon::yellow(paste("P-values will be adjusted following the", p_correction_method, "method")))
-      cat("\n")
-      cat(paste("Signal significance threshold set as", signal_significance_threshold))
-      cat("\n")
-      cat(paste("Theme representativeness eligibility is set to", enable_theme_representativeness))
-      cat("\n")
+
+        #Text otherwise
+        cat("\n")
+        cat(crayon::cyan(paste("Starting signal selection backtest")))
+        cat("\n")
+        cat(paste("Performance metrics calculated with", if(active_returns) "active returns" else "raw returns"))
+        cat("\n")
+        cat(paste("Factor model:", model_structure, " CAPM with", market_factor_proxy, "as proxy for market factor"))
+        cat("\n")
+        cat(crayon::yellow(paste("P-values will be adjusted following the", p_correction_method, "method")))
+        cat("\n")
+        cat(paste("Signal significance threshold set as", signal_significance_threshold))
+        cat("\n")
+        cat(paste("Theme representativeness eligibility is set to", enable_theme_representativeness))
+        cat("\n")
+
     }
 
     #################
@@ -499,17 +502,17 @@ run_ss_backtest_internal <- function(
     if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(selected_signal_themes_m_df$tickers))){
       stop("all selected signals (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
     }
-    if(!is.null(selected_backtest_returns_corrected_positions_xts)){
-      if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% selected_signal_themes_m_df$tickers)){
+    if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% selected_signal_themes_m_df$tickers)){
         stop("all selected signals in backtests (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
-      }
     }
 
     ###Select market factor proxy from benchmark returns xts
-    selected_market_factor_proxy_xts <- benchmark_returns_xts[, market_factor_proxy]
+     selected_market_factor_proxy_xts <- benchmark_returns_xts[, market_factor_proxy]
+
     ########################
 
     ##Start Backtest##
+     ##Apply backtest only if multiple signals are being provided
     #################
     for(d in initial_sample_size:(initial_sample_size + backtest_length - 1)){
       #Extract date and references
@@ -592,9 +595,8 @@ run_ss_backtest_internal <- function(
     #Create final_signal_universe_m_d_ref
     final_signal_universe_m_d_ref <- suppressWarnings(suppressMessages(create_meta_dataframe(signal_universe_m_d_ref)))
 
-  })
-
   #End timer
+  })
   print(elapsed_time)
 
     #Get workflow
@@ -645,7 +647,6 @@ run_ss_backtest_internal <- function(
       #Call
       call = match.call()
     )
-
 
     #Get final object
     ss_backtest_results <- new("ss_backtest_results",

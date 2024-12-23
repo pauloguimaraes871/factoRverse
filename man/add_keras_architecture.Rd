@@ -2,18 +2,18 @@
 % Please edit documentation in R/constructors.R
 \name{add_keras_architecture}
 \alias{add_keras_architecture}
-\alias{add_keras_architecture,ml_backtest_config,keras_architecture_parameters-method}
-\alias{add_keras_architecture,ml_backtest_config,missing-method}
+\alias{add_keras_architecture,sb_backtest_config,keras_architecture_parameters-method}
+\alias{add_keras_architecture,sb_backtest_config,missing-method}
 \title{Add Keras Architecture}
 \usage{
 add_keras_architecture(object, keras_architecture_parameters, ...)
 
-\S4method{add_keras_architecture}{ml_backtest_config,keras_architecture_parameters}(object, keras_architecture_parameters)
+\S4method{add_keras_architecture}{sb_backtest_config,keras_architecture_parameters}(object, keras_architecture_parameters)
 
-\S4method{add_keras_architecture}{ml_backtest_config,missing}(object, keras_architecture_parameters = NULL, ...)
+\S4method{add_keras_architecture}{sb_backtest_config,missing}(object, keras_architecture_parameters = NULL, ...)
 }
 \arguments{
-\item{object}{An object of class \code{ml_backtest_config}.}
+\item{object}{An object of class \code{sb_backtest_config}.}
 
 \item{keras_architecture_parameters}{Should be \code{NULL} to dynamically create a new architecture.}
 
@@ -26,14 +26,14 @@ add_keras_architecture(object, keras_architecture_parameters, ...)
 }}
 }
 \value{
-An updated object of class \code{ml_backtest_config} with the \code{keras_architecture_parameters} added.
+An updated object of class \code{sb_backtest_config} with the \code{keras_architecture_parameters} added.
 
-An updated \code{ml_backtest_config} object with the provided \code{keras_architecture_parameters}.
+An updated \code{sb_backtest_config} object with the provided \code{keras_architecture_parameters}.
 
-An updated \code{ml_backtest_config} object with the newly created \code{keras_architecture_parameters}.
+An updated \code{sb_backtest_config} object with the newly created \code{keras_architecture_parameters}.
 }
 \description{
-Method to add a \code{keras_architecture_parameters} to a \code{ml_backtest_config}.
+Method to add a \code{keras_architecture_parameters} to a \code{sb_backtest_config}.
 
 This function allows you to either directly add a pre-existing \code{keras_architecture_parameters} object or create one dynamically by passing additional arguments.
 When \code{keras_architecture_parameters} is not provided, a new one will be created using the values for \code{nn_optimizer}, \code{units}, \code{activation}, and \code{batch_norm_option} passed via the \code{...} argument.
@@ -41,14 +41,14 @@ When \code{keras_architecture_parameters} is not provided, a new one will be cre
 \section{Functions}{
 \itemize{
 \item \code{add_keras_architecture(
-  object = ml_backtest_config,
+  object = sb_backtest_config,
   keras_architecture_parameters = keras_architecture_parameters
 )}: Add existing \code{keras_architecture_parameters} object
 
-This method allows you to add an already existing \code{keras_architecture_parameters} object to an \code{ml_backtest_config}.
+This method allows you to add an already existing \code{keras_architecture_parameters} object to an \code{sb_backtest_config}.
 
 \item \code{add_keras_architecture(
-  object = ml_backtest_config,
+  object = sb_backtest_config,
   keras_architecture_parameters = missing
 )}: Dynamically create and add \code{keras_architecture_parameters} object
 

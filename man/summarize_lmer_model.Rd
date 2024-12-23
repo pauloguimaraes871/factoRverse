@@ -7,7 +7,7 @@
 summarize_lmer_model(
   lmer_model,
   signal_universe_m_d_ref = NULL,
-  signal_themes_m_d_ref,
+  selected_signal_themes_m_d_ref,
   model_spec_theme_level,
   hierarchical_p_value_method
 )
@@ -15,7 +15,7 @@ summarize_lmer_model(
 \arguments{
 \item{signal_universe_m_d_ref}{A dataframe with tickers, is_eligible and final_signal columns}
 
-\item{signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
+\item{selected_signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
 for defining clusters in bayesian hierarchical model. It should contain data only for current date.}
 
 \item{model_spec_theme_level}{A character string specifying the desired model structure.

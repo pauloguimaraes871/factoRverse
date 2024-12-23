@@ -14,7 +14,7 @@ bayesian_adjustment(
   lmer_optimization_objective = "REML",
   half_t_df = 30,
   lmer_optimizer = "nloptwrap",
-  signal_themes_m_d_ref,
+  selected_signal_themes_m_d_ref,
   chains = 4,
   iter = 2000,
   warmup = floor(iter/2),
@@ -74,7 +74,7 @@ Default is \code{"nloptwrap"}.
 
 @param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.}
 
-\item{signal_themes_m_d_ref}{Data frame.
+\item{selected_signal_themes_m_d_ref}{Data frame.
 A (meta)data frame containing metadata about signals with the following columns:
 \describe{
 \item{id}{Identifier for each observation.}
@@ -149,7 +149,7 @@ This function performs Bayesian p-value adjustment through the following steps:
 \item If neither \code{user_priors_list} or \code{priors_m_upd_ref} are provided, it employs default uninformative priors as defined by the \code{brms} package.
 }
 \item \strong{Fit Bayesian Hierarchical Model}:
-Fits a Bayesian hierarchical model to each theme in \code{signal_themes_m_d_ref} using the \code{fit_bayesian_model} function. This process leverages parallel processing for efficiency. Progress messages are displayed if \code{verbose} is \code{TRUE}.
+Fits a Bayesian hierarchical model to each theme in \code{selected_signal_themes_m_d_ref} using the \code{fit_bayesian_model} function. This process leverages parallel processing for efficiency. Progress messages are displayed if \code{verbose} is \code{TRUE}.
 \item \strong{Extract and Summarize Posteriors}:
 Extracts posterior draws from the fitted models and summarizes them using the \code{summarize_posterior_draws} function. The summary includes metrics such as alphas, betas, sigmas, active returns, tracking errors, information ratios, appraisal ratios, and Treynor ratios.
 }
@@ -168,7 +168,7 @@ results <- bayesian_adjustment(
   model_spec_theme_level = "random_intercept",
   v = 30,
   lmer_optimizer = "nloptwrap",
-  signal_themes_m_d_ref = signal_themes_df,
+  selected_signal_themes_m_d_ref = signal_themes_df,
   user_priors_list = NULL,
   chains = 4,
   iter = 2000,

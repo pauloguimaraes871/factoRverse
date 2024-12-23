@@ -28,7 +28,7 @@
 #' @importFrom dplyr select
 #' @importFrom stats setNames
 #' @export
-select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, signal_themes_m_df, backtest_returns_xts = NULL){
+select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, signal_themes_m_df = NULL, backtest_returns_xts = NULL){
 
   ###Get chosen signals
   #####################
@@ -59,6 +59,7 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
 
   ###Subset signal_themes
   ########################
+  if(!is.null(signal_themes_m_df)){
   ###Check if all signals have a theme
   if(!all(chosen_signals_corrected_positions %in% unique(signal_themes_m_df$tickers))){
     stop("all chosen signals should have a matching position in signal_themes_m_df")
@@ -66,6 +67,9 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
 
 
   selected_signal_themes_m_df <- signal_themes_m_df %>% dplyr::filter(tickers %in% chosen_signals_corrected_positions)
+  } else {
+    selected_signal_themes_m_df <- NULL
+  }
 
   ###Subset backtests
   #######################

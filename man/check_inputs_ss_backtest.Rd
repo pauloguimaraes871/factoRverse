@@ -14,6 +14,7 @@ check_inputs_ss_backtest(
   backtest_returns_xts,
   benchmark_returns_xts,
   market_factor_proxy,
+  active_returns,
   p_correction_method,
   signal_significance_threshold,
   enable_theme_representativeness,
@@ -45,6 +46,9 @@ For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "sh
 \item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
 \item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
+
+\item{active_returns}{A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
+backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts.}
 
 \item{p_correction_method}{The method for p-value correction. Possible options are:
 \itemize{

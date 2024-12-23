@@ -2,24 +2,24 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_keras_architecture_parameters}
 \alias{get_keras_architecture_parameters}
-\alias{get_keras_architecture_parameters,ml_backtest_config-method}
-\alias{get_keras_architecture_parameters,ml_metabacktest_config-method}
-\alias{get_keras_architecture_parameters,ml_backtest_results-method}
-\alias{get_keras_architecture_parameters,refit_ml_model-method}
+\alias{get_keras_architecture_parameters,sb_backtest_config-method}
+\alias{get_keras_architecture_parameters,sb_metabacktest_config-method}
+\alias{get_keras_architecture_parameters,sb_backtest_results-method}
+\alias{get_keras_architecture_parameters,sb_model-method}
 \title{Get Keras Architecture Parameters}
 \usage{
 get_keras_architecture_parameters(object)
 
-\S4method{get_keras_architecture_parameters}{ml_backtest_config}(object)
+\S4method{get_keras_architecture_parameters}{sb_backtest_config}(object)
 
-\S4method{get_keras_architecture_parameters}{ml_metabacktest_config}(object)
+\S4method{get_keras_architecture_parameters}{sb_metabacktest_config}(object)
 
-\S4method{get_keras_architecture_parameters}{ml_backtest_results}(object)
+\S4method{get_keras_architecture_parameters}{sb_backtest_results}(object)
 
-\S4method{get_keras_architecture_parameters}{refit_ml_model}(object)
+\S4method{get_keras_architecture_parameters}{sb_model}(object)
 }
 \arguments{
-\item{object}{A ml_backtest_config, a ml_metabacktest_config or a ml_backtest_results object.}
+\item{object}{A sb_backtest_config, a sb_metabacktest_config or a sb_backtest_results object.}
 }
 \value{
 A \code{keras_architecture_parameters} S4 class.

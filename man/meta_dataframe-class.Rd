@@ -5,15 +5,15 @@
 \alias{meta_dataframe-class}
 \title{Define the \code{meta_dataframe} S4 Class}
 \description{
-This class represents a ml_backtest_workflow-enhanced data frame. It extends the functionality
-of a standard data frame by including additional ml_backtest_workflow slots. The class is designed
+This class represents a sb_backtest_workflow-enhanced data frame. It extends the functionality
+of a standard data frame by including additional sb_backtest_workflow slots. The class is designed
 to ensure that the input data frame adheres to specific structural requirements, including
 unique identifiers, valid date formats, and unique column names.
 }
 \details{
 The \code{meta_dataframe} class ensures that the data frame is structured correctly with the required columns,
-and includes ml_backtest_workflow about the data. The \code{signals} slot holds the names of columns representing various signals.
-The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the ml_backtest_workflow related to the number of unique dates,
+and includes sb_backtest_workflow about the data. The \code{signals} slot holds the names of columns representing various signals.
+The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the sb_backtest_workflow related to the number of unique dates,
 tickers, and total observations respectively.
 }
 \section{Slots}{
@@ -21,7 +21,7 @@ tickers, and total observations respectively.
 \describe{
 \item{\code{data}}{A \code{data.frame} containing the actual data.}
 
-\item{\code{workflow}}{A \code{list} for storing ml_backtest_workflow about the data manipulation workflow.}
+\item{\code{workflow}}{A \code{list} for storing sb_backtest_workflow about the data manipulation workflow.}
 
 \item{\code{signals}}{A \code{character} vector containing the names of columns that represent signals.}
 

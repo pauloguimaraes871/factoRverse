@@ -13,5 +13,5 @@ get_bayesian_fit(object)
 A list of eligible signals.
 }
 \description{
-Accessor function to retrieve bayesian_fit_list
+Accessor function to retrieve bayesian_results
 }

@@ -2,21 +2,21 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_hyper_grid_domain}
 \alias{get_hyper_grid_domain}
-\alias{get_hyper_grid_domain,ml_backtest_config-method}
-\alias{get_hyper_grid_domain,ml_metabacktest_config-method}
-\alias{get_hyper_grid_domain,ml_backtest_results-method}
+\alias{get_hyper_grid_domain,sb_backtest_config-method}
+\alias{get_hyper_grid_domain,sb_metabacktest_config-method}
+\alias{get_hyper_grid_domain,sb_backtest_results-method}
 \title{Get Hyperparameter Grid Domain}
 \usage{
 get_hyper_grid_domain(object)
 
-\S4method{get_hyper_grid_domain}{ml_backtest_config}(object)
+\S4method{get_hyper_grid_domain}{sb_backtest_config}(object)
 
-\S4method{get_hyper_grid_domain}{ml_metabacktest_config}(object)
+\S4method{get_hyper_grid_domain}{sb_metabacktest_config}(object)
 
-\S4method{get_hyper_grid_domain}{ml_backtest_results}(object)
+\S4method{get_hyper_grid_domain}{sb_backtest_results}(object)
 }
 \arguments{
-\item{object}{An ml_backtest_config or tuning_strategy object}
+\item{object}{An sb_backtest_config or tuning_strategy object}
 }
 \value{
 The \code{hyper_grid_domain} object stored in the \code{tuning_strategy}.

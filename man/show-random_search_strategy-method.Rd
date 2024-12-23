@@ -21,7 +21,7 @@ and the number of iterations (\code{n_iter}) along with hyperparameter distribut
 # Create a random_search_strategy object
 random_search_obj <- create_tuning_strategy(
   tuning_method = "random_search",
-  ml_algorithm = "rf",
+  sb_algorithm = "rf",
   validation_sample_size = 1000,
   n_iter = 20
 )

@@ -22,7 +22,7 @@ initial points, and hyperparameter bounds.
 # Create a bayesian_opt_strategy object
 bayesian_opt_obj <- create_tuning_strategy(
   tuning_method = "bayesian_opt",
-  ml_algorithm = "xgb",
+  sb_algorithm = "xgb",
   validation_sample_size = 1000,
   n_iter = 50,
   acq = "ei",

@@ -1739,27 +1739,27 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 
 
 
-#' @title Plot Method for `ml_backtest_config`
+#' @title Plot Method for `sb_backtest_config`
 #' @description Calls the appropriate plot method for `tuning_strategy`.
-#' @param x An object of class `ml_backtest_config`.
+#' @param x An object of class `sb_backtest_config`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
 #' @return A `ggplot` object visualizing the hyperparameter histograms with possible limits.
 #' @export
-setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x, y){
+setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y){
 
-  if(x@ml_algorithm != "ols"){
+  if(x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
     plot(x@tuning_strategy)
   } else {
-    message("Plot method not avaiable for `ols` ml_algorithm.")
+    message("Plot method not avaiable for `ols`, `sw`, `ew`, `rp` or `mto` sb_algorithm.")
   }
 
 })
 
 
-#' @title Plot Method for `ml_metabacktest_config`
+#' @title Plot Method for `sb_metabacktest_config`
 #' @description Allows the user to plot either the base learners or the meta learner configurations.
-#' If `base_ml_backtest_results` is provided, it extracts the configurations using `get_ml_backtest_config`.
-#' @param x An object of class `ml_metabacktest_config`.
+#' If `base_sb_backtest_results` is provided, it extracts the configurations using `get_sb_backtest_config`.
+#' @param x An object of class `sb_metabacktest_config`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
 #' @param which A character string specifying which configurations to plot.
 #'   - `"base"`: Plots the base learners (default).
@@ -1769,7 +1769,7 @@ setMethod("plot", signature(x = "ml_backtest_config", y = "missing"), function(x
 #' @param ... Additional arguments (currently unused).
 #' @return A combined `ggplot` object visualizing the hyperparameter histograms for the selected configurations.
 #' @export
-setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), function(x, y, which = NULL, ...) {
+setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), function(x, y, which = NULL, ...) {
 
   # If 'which' is not provided, prompt the user
   if (is.null(which)) {
@@ -1796,26 +1796,26 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
   # Plot base learners if requested
   if (which %in% c("base", "both")) {
     # Determine whether to use configs or results
-    if (!is.null(x@base_ml_backtest_configs)) {
-      base_configs <- x@base_ml_backtest_configs
-    } else if (!is.null(x@base_ml_backtest_results)) {
-      # Use get_ml_backtest_config to extract configs from results
-      base_configs <- lapply(x@base_ml_backtest_results, get_ml_backtest_config)
+    if (!is.null(x@base_sb_backtest_configs)) {
+      base_configs <- x@base_sb_backtest_configs
+    } else if (!is.null(x@base_sb_backtest_results)) {
+      # Use get_sb_backtest_config to extract configs from results
+      base_configs <- lapply(x@base_sb_backtest_results, get_sb_backtest_config)
     } else {
-      stop("No base_ml_backtest_configs or base_ml_backtest_results found in the object.")
+      stop("No base_sb_backtest_configs or base_sb_backtest_results found in the object.")
     }
 
-    # Loop through each ml_backtest_config in the base_configs
+    # Loop through each sb_backtest_config in the base_configs
     for (config in base_configs) {
       # Check if the algorithm is not OLS
-      if (config@ml_algorithm != "ols") {
-        # Create the plot using the existing plot method for ml_backtest_config
+      if (config@sb_algorithm != "ols") {
+        # Create the plot using the existing plot method for sb_backtest_config
         p <- plot(config)  # Call the existing plot method
 
         # Store the plot in the list and add a centered subtitle
         plot_list[[length(plot_list) + 1]] <- p +
-          ggplot2::ggtitle(paste("Algorithm:", config@ml_algorithm,
-                                 if(config@ml_algorithm == "nn") paste("with", length(config@keras_architecture_parameters@units), "layers"),
+          ggplot2::ggtitle(paste("Algorithm:", config@sb_algorithm,
+                                 if(config@sb_algorithm == "nn") paste("with", length(config@keras_architecture_parameters@units), "layers"),
                                  "  | Custom Obj:", config@custom_objective,
                                  "\nTuning Strategy:", config@tuning_strategy@tuning_method,
                                  "  |  Chosen Eval Metric:", config@tuning_strategy@chosen_eval_metric,
@@ -1827,23 +1827,23 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
             panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
           )
       } else {
-        message("Skipping plotting for `ols` ml_algorithm in one of the configs.")
+        message("Skipping plotting for `ols` sb_algorithm in one of the configs.")
       }
     }
   }
 
   # Plot meta learner if requested
   if (which %in% c("meta", "both")) {
-    meta_config <- x@meta_ml_backtest_config
+    meta_config <- x@meta_sb_backtest_config
     # Check if the algorithm is not OLS
-    if (meta_config@ml_algorithm != "ols") {
-      # Create the plot using the existing plot method for ml_backtest_config
+    if (meta_config@sb_algorithm != "ols") {
+      # Create the plot using the existing plot method for sb_backtest_config
       p <- plot(meta_config)  # Call the existing plot method
 
       # Store the plot in the list and add a centered subtitle
       plot_list[[length(plot_list) + 1]] <- p +
-        ggplot2::ggtitle(paste("Meta Learner - Algorithm:", meta_config@ml_algorithm,
-                               if(meta_config@ml_algorithm == "nn") paste("with", length(meta_config@keras_architecture_parameters@units), "layers"),
+        ggplot2::ggtitle(paste("Meta Learner - Algorithm:", meta_config@sb_algorithm,
+                               if(meta_config@sb_algorithm == "nn") paste("with", length(meta_config@keras_architecture_parameters@units), "layers"),
                                "  | Custom Obj:", meta_config@custom_objective,
                                "\nTuning Strategy:", meta_config@tuning_strategy@tuning_method,
                                "  |  Chosen Eval Metric:", meta_config@tuning_strategy@chosen_eval_metric,
@@ -1855,7 +1855,7 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
           panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
         )
     } else {
-      message("Skipping plotting for `ols` ml_algorithm in the meta learner config.")
+      message("Skipping plotting for `ols` sb_algorithm in the meta learner config.")
     }
   }
 
@@ -1863,9 +1863,9 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
   if (length(plot_list) > 0) {
     # Create an empty plot for the main title with the blue background
     title_text <- switch(which,
-                         "base" = "ML Metabacktest Base Learner Tuning Strategies",
-                         "meta" = "ML Metabacktest Meta Learner Tuning Strategy",
-                         "both" = "ML Metabacktest Tuning Strategies"
+                         "base" = "SB Metabacktest Base Learner Tuning Strategies",
+                         "meta" = "SB Metabacktest Meta Learner Tuning Strategy",
+                         "both" = "SB Metabacktest Tuning Strategies"
     )
 
     title_plot <- ggplot2::ggplot() +
@@ -1898,7 +1898,7 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
 
 
 
-# Define the plot method for ml_backtest_results
+# Define the plot method for sb_backtest_results
 ################################
 #' Plot Machine Learning Walk-Forward Validation Results
 #'
@@ -1906,7 +1906,7 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
 #' Users can select which plot to display by specifying the `plot_id` parameter,
 #' either by name or by number.
 #'
-#' @param x An object of class \code{ml_backtest_results} containing the results of the walk-forward validation.
+#' @param x An object of class \code{sb_backtest_results} containing the results of the walk-forward validation.
 #' @param plot_id A character string or numeric value specifying which plot to display.
 #'   - By name: Options are:
 #'     - `"Chosen Evaluation Metric Over Time"`
@@ -1921,7 +1921,7 @@ setMethod("plot", signature(x = "ml_metabacktest_config", y = "missing"), functi
 #'
 #' @return Invisibly returns the input \code{x}.
 #' @export
-setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
+setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
 
   # List of available plots
   available_plots <- c(
@@ -1933,7 +1933,7 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
     "Average Validation vs Consolidated OOS Testing Metrics"
   )
 
-  if(x@ml_backtest_workflow$ml_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
+  if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
     plot_id <- 5
     message("'All Evaluation Metrics Over Time' is the only available plot for OLS, EW Ensemble, and Optimal Ensemble. Plotting 'All Evaluation Metrics Over Time'...")
   }
@@ -1972,10 +1972,10 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
   oos_testing_eval_metrics <- x@oos_testing_eval_metrics
   validation_eval_metrics_hyper_choice <- x@validation_eval_metrics_hyper_choice
   hyper_choice_df <- x@best_hyperparameters
-  chosen_eval_metric <- x@ml_backtest_workflow$chosen_eval_metric
+  chosen_eval_metric <- x@sb_backtest_workflow$chosen_eval_metric
   chosen_eval_metric_validation <- x@chosen_eval_metric_validation
-  ml_algorithm <- x@ml_backtest_workflow$ml_algorithm
-  rebalance_dates <- x@ml_backtest_workflow$rebalance_dates
+  sb_algorithm <- x@sb_backtest_workflow$sb_algorithm
+  rebalance_dates <- x@sb_backtest_workflow$rebalance_dates
 
   # Define color palette
   neon_blue <- "#00BFFF"
@@ -2029,7 +2029,7 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
   oos_testing_eval_metrics <- oos_testing_eval_metrics %>% dplyr::mutate(dates = rownames(oos_testing_eval_metrics))
   oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") # Coerce to dates
 
-  if (!ml_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")) {
+  if (!sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")) {
     # Some treatments to validation_eval_metrics_hyper_choice
     # Change colnames
     colnames(validation_eval_metrics_hyper_choice) <- paste("validation_", colnames(validation_eval_metrics_hyper_choice), sep = "")
@@ -2237,13 +2237,13 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
     }
 
     # Concatenation based on algorithm
-    if (ml_algorithm == "glmnet") {
+    if (sb_algorithm == "glmnet") {
       chosen_eval_metric_validation_df$concatenation <- paste(
         chosen_eval_metric_validation_df$alpha,
         chosen_eval_metric_validation_df$lambda.min.ratio,
         sep = "_"
       )
-    } else if (ml_algorithm == "rf") {
+    } else if (sb_algorithm == "rf") {
       chosen_eval_metric_validation_df$concatenation <- paste(
         chosen_eval_metric_validation_df$mtry,
         chosen_eval_metric_validation_df$num.trees,
@@ -2251,13 +2251,13 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
         chosen_eval_metric_validation_df$min.bucket,
         sep = "_"
       )
-    } else if (ml_algorithm == "xgb") {
+    } else if (sb_algorithm == "xgb") {
       chosen_eval_metric_validation_df$concatenation <- paste(
         chosen_eval_metric_validation_df$eta,
         chosen_eval_metric_validation_df$gamma,
         sep = "_"
       )
-    } else if (ml_algorithm == "nn") {
+    } else if (sb_algorithm == "nn") {
       chosen_eval_metric_validation_df$concatenation <- paste(
         chosen_eval_metric_validation_df$lr,
         chosen_eval_metric_validation_df$droprate,
@@ -2297,7 +2297,7 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
     chosen_eval_metric_validation_last_tuning <- chosen_eval_metric_validation_df[start_row:total_rows, ]
 
     # Generate Hyperparameters vs Error plot based on algorithm
-    if (ml_algorithm == "glmnet") {
+    if (sb_algorithm == "glmnet") {
       # Ensure there are enough colors
       num_alphas <- length(unique(chosen_eval_metric_validation_last_tuning$alpha))
       fill_colors <- extended_neon_palette[1:num_alphas]
@@ -2357,7 +2357,7 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
     }
 
     # RF case
-    if (ml_algorithm == "rf") {
+    if (sb_algorithm == "rf") {
       # Ensure there are enough colors
       num_mtrys <- length(unique(chosen_eval_metric_validation_last_tuning$mtry))
       fill_colors <- extended_neon_palette[1:num_mtrys]
@@ -2417,7 +2417,7 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
     }
 
     # XGB case
-    if (ml_algorithm == "xgb") {
+    if (sb_algorithm == "xgb") {
       # Ensure there are enough colors
       num_etas <- length(unique(chosen_eval_metric_validation_last_tuning$eta))
       fill_colors <- extended_neon_palette[1:num_etas]
@@ -2477,7 +2477,7 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
     }
 
     # NN case
-    if (ml_algorithm == "nn") {
+    if (sb_algorithm == "nn") {
       # Ensure there are enough colors
       num_lrs <- length(unique(chosen_eval_metric_validation_last_tuning$lr))
       fill_colors <- extended_neon_palette[1:num_lrs]
@@ -2694,13 +2694,13 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
 
 
 
-#' @title Plot Method for ml_metabacktest_results Class
+#' @title Plot Method for sb_metabacktest_results Class
 #' @description Generates various plots to visualize the performance and metrics of meta-learning backtest results.
 #' Users can select which plot to display by specifying the `plot_id` parameter,
 #' either by name or by number.
 #' The plots include comparisons between base learners and meta learners over time.
 #'
-#' @param x An object of class \code{ml_metabacktest_results} containing the results of the meta-learning backtests.
+#' @param x An object of class \code{sb_metabacktest_results} containing the results of the meta-learning backtests.
 #' @param plot_id A character string or numeric value specifying which plot to display.
 #'   - By name: Options are:
 #'     - `"Consolidated OOS Testing Metrics Comparison"`
@@ -2712,7 +2712,7 @@ setMethod("plot", "ml_backtest_results", function(x, plot_id = NULL) {
 #'   If `NULL` (default), the method lists available plots.
 #' @return Invisibly returns the input \code{x}.
 #' @export
-setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
+setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
   # List of available plots
   available_plots <- c(
@@ -2775,13 +2775,13 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
     neon_hot_pink, neon_lime_green, neon_bright_orange
   )
 
-  # Extract data from the ml_metabacktest_results object
+  # Extract data from the sb_metabacktest_results object
   consolidated_metrics <- x@consolidated_oos_testing_metrics
   time_series_oos_testing_metrics <- x@time_series_oos_testing_metrics
   mean_validation_metrics <- x@mean_validation_metrics
   time_series_validation_metrics <- x@time_series_validation_metrics
-  base_learners <- x@base_ml_backtest_results_list
-  meta_learners <- x@meta_ml_backtest_results_list
+  base_learners <- x@base_sb_backtest_results_list
+  meta_learners <- x@meta_sb_backtest_results_list
 
   # Initialize plots list
   plots_list <- list()
@@ -3095,7 +3095,7 @@ setMethod("plot", "ml_metabacktest_results", function(x, plot_id = NULL) {
 
     # Add a column indicating whether the model is a base learner or meta learner
     base_learner_ids <- sapply(base_learners, function(bl) bl@backtest_identifier)
-    meta_learner_ids <- sapply(meta_learners, function(ml) ml@backtest_identifier)
+    meta_learner_ids <- sapply(meta_learners, function(sb) sb@backtest_identifier)
     plot_data$ModelType <- ifelse(
       plot_data$Backtest %in% base_learner_ids, "Base Learner",
       ifelse(plot_data$Backtest %in% meta_learner_ids, "Meta Learner", "Unknown")
@@ -3423,7 +3423,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     "Posterior Random Effects",
     "Waterfall Plot of Posterior Variance Components",
     "Posterior Regression Lines",
-    "Waterfall Plot of Active Return Decomposition by Ticker",
+    "Waterfall Plot of Return Decomposition by Ticker",
     "Posterior Individual Alpha Distributions by Theme and Ticker"
   )
   } else {
@@ -3475,20 +3475,20 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   final_signal_universe_m_d_ref <- x@final_signal_universe_m_d_ref
   eligible_signals_list <- x@eligible_signals_list
   if(x@p_correction_method == "bayesian"){
-    #Reconstruct signal_themes_m_d_ref
-    signal_themes_m_d_ref <- final_signal_universe_m_d_ref@data %>% dplyr::select(id, tickers, dates, theme)
+    #Reconstruct selected_signal_themes_m_d_ref
+    selected_signal_themes_m_d_ref <- final_signal_universe_m_d_ref@data %>% dplyr::select(id, tickers, dates, theme)
     #Get brm_model
-    brm_model <- x@final_bayesian_fit_list$bayesian_model
+    brm_model <- x@bayesian_results$brm_model
     #Get theme-level parameters
     theme_level_intercept <- results@ss_backtest_workflow$theme_level_intercept
     theme_level_slope <- results@ss_backtest_workflow$theme_level_slope
-    model_spec_theme_level <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+    model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
 
     #priors
-    elected_priors <- x@final_bayesian_fit_list$elected_priors
+    elected_priors <- x@bayesian_results$elected_priors
     #Extract tidy posteriores
     tidy_posteriors_list <- summarize_posteriors_draws(brm_model = brm_model,
-                                                       signal_themes_m_d_ref = signal_themes_m_d_ref,
+                                                       selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                                        model_spec_theme_level = model_spec_theme_level)
   }
 
@@ -3629,7 +3629,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     }
 
     #Get theme column
-    theme_ticker_key <- data.frame(tickers = paste0(signal_themes_m_d_ref$theme, "_", signal_themes_m_d_ref$tickers), theme = signal_themes_m_d_ref$theme)
+    theme_ticker_key <- data.frame(tickers = paste0(selected_signal_themes_m_d_ref$theme, "_", selected_signal_themes_m_d_ref$tickers), theme = selected_signal_themes_m_d_ref$theme)
     filtered_data <- filtered_data %>%
       dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
 
@@ -3767,7 +3767,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     }
 
     #Get theme column
-    theme_ticker_key <- data.frame(tickers = paste0(signal_themes_m_d_ref$theme, "_", signal_themes_m_d_ref$tickers), theme = signal_themes_m_d_ref$theme)
+    theme_ticker_key <- data.frame(tickers = paste0(selected_signal_themes_m_d_ref$theme, "_", selected_signal_themes_m_d_ref$tickers), theme = selected_signal_themes_m_d_ref$theme)
     filtered_data <- filtered_data %>%
       dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
 
@@ -4244,7 +4244,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       dplyr::mutate(tickers = as.factor(tickers))
 
     # Get market_factor_proxy
-    x_values <- x@selected_market_factor_proxy_upd_ref[,2]
+    x_values <- x@selected_market_factor_proxy_xts %>% as.vector()
     x_values <- sort(x_values)
 
     # Sample a subset of posterior draws to avoid overplotting
@@ -4252,7 +4252,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     sampled_draws <- dplyr::group_by(tidy_posterior_draws_intercept_and_slope, tickers) %>%
       dplyr::sample_n(size = 25, replace = FALSE) %>%
       dplyr::ungroup()
-
+    browser()
     # Create a grid of sampled draws and x_values
     plot_data <- tidyr::crossing(
       sampled_draws %>% dplyr::select(tickers, posterior_individual_alpha, posterior_individual_beta, .draw),
@@ -4293,7 +4293,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Display the Plot
     print(regression_plot)
 
-  } else if (plot_name == "Waterfall Plot of Active Return Decomposition by Ticker"){
+  } else if (plot_name == "Waterfall Plot of Return Decomposition by Ticker"){
 
     # Get alpha and beta
     tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
@@ -4346,7 +4346,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
           `Ticker Random Slope` = r_tickers_slope * market_factor_proxy
         ) %>%
         dplyr::select(
-          .draw, tickers, active_return,
+          .draw, tickers, return,
           `Theme Fixed Effect`,
           `Theme Random Effect`,
           `Ticker Random Intercept`,
@@ -4400,7 +4400,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
           `Ticker Random Slope` = r_tickers_slope * market_factor_proxy
         ) %>%
         dplyr::select(
-          .draw, tickers, active_return,
+          .draw, tickers, return,
           `Theme Fixed Effect`,
           `Ticker Random Intercept`,
           `Market Factor Fixed Effect`,
@@ -4470,7 +4470,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
           values = c("Positive" = "#39FF14", "Negative" = "#FF5F1F")
         ) +
         ggplot2::labs(
-          title = "Waterfall Plot of Active Return Decomposition by Ticker",
+          title = "Waterfall Plot of Return Decomposition by Ticker",
           x = "Components",
           y = "Cumulative Contribution"
         ) +
@@ -4522,7 +4522,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     selected_tickers <- available_tickers[selected_numbers]
 
     # Prepare the data
-    theme_ticker_key <- data.frame(tickers = paste0(signal_themes_m_d_ref$theme, "_", signal_themes_m_d_ref$tickers), theme = signal_themes_m_d_ref$theme)
+    theme_ticker_key <- data.frame(tickers = paste0(selected_signal_themes_m_d_ref$theme, "_", selected_signal_themes_m_d_ref$tickers), theme = selected_signal_themes_m_d_ref$theme)
 
     plot_data <- tidy_posterior_draws_intercept %>%
       dplyr::ungroup() %>%  # Ensure the data is not grouped

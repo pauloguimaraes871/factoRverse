@@ -2,15 +2,15 @@
 % Please edit documentation in R/constructors.R
 \name{add_tuning_strategy}
 \alias{add_tuning_strategy}
-\alias{add_tuning_strategy,ml_backtest_config,tuning_strategy-method}
-\alias{add_tuning_strategy,ml_backtest_config,missing-method}
-\title{Add a \code{tuning_strategy} to an existing \code{ml_backtest_config}.}
+\alias{add_tuning_strategy,sb_backtest_config,tuning_strategy-method}
+\alias{add_tuning_strategy,sb_backtest_config,missing-method}
+\title{Add a \code{tuning_strategy} to an existing \code{sb_backtest_config}.}
 \usage{
 add_tuning_strategy(object, tuning_strategy, ...)
 
-\S4method{add_tuning_strategy}{ml_backtest_config,tuning_strategy}(object, tuning_strategy)
+\S4method{add_tuning_strategy}{sb_backtest_config,tuning_strategy}(object, tuning_strategy)
 
-\S4method{add_tuning_strategy}{ml_backtest_config,missing}(
+\S4method{add_tuning_strategy}{sb_backtest_config,missing}(
   object,
   tuning_strategy = NULL,
   tuning_method,
@@ -25,11 +25,11 @@ add_tuning_strategy(object, tuning_strategy, ...)
 )
 }
 \arguments{
-\item{object}{A \code{ml_backtest_config} object.}
+\item{object}{A \code{sb_backtest_config} object.}
 
 \item{tuning_strategy}{\code{NULL}, indicating that a new \code{tuning_strategy} should be created.}
 
-\item{...}{Additional arguments required to create a new \code{tuning_strategy}, only needed when \code{tuning_strategy} is \code{NULL}.}
+\item{...}{Additional arguments required to create a new \code{tuning_strategy}, only needed when tuning_strategy is \code{NULL}.}
 
 \item{tuning_method}{Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.}
 
@@ -48,26 +48,27 @@ add_tuning_strategy(object, tuning_strategy, ...)
 \item{k_iter}{Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).}
 }
 \value{
-An updated \code{ml_backtest_config} object with the specified or newly created \code{tuning_strategy}.
+An updated \code{sb_backtest_config} object with the specified or newly created \code{tuning_strategy}.
 
-The updated \code{ml_backtest_config} object with the provided \code{tuning_strategy}.
+The updated \code{sb_backtest_config} object with the provided \code{tuning_strategy}.
 
-An updated \code{ml_backtest_config} object with a newly created \code{grid_search_strategy}, \code{random_search_strategy}, or \code{bayesian_opt_strategy}, depending on the selected \code{tuning_method}.
+An updated \code{sb_backtest_config} object with a newly created \code{grid_search_strategy}, \code{random_search_strategy}, or \code{bayesian_opt_strategy}, depending on the selected \code{tuning_method}.
 }
 \description{
-This generic function adds an existing \code{tuning_strategy} to an \code{ml_backtest_config} object or creates a new \code{tuning_strategy} if none is provided (i.e., when \code{tuning_strategy} is \code{NULL}).
+This generic function adds an existing \code{tuning_strategy} object or creates a new one if none is provided
+(i.e., when tuning_strategy is \code{NULL}).
 }
 \section{Functions}{
 \itemize{
 \item \code{add_tuning_strategy(
-  object = ml_backtest_config,
+  object = sb_backtest_config,
   tuning_strategy = tuning_strategy
-)}: Add an existing \code{tuning_strategy} to the \code{ml_backtest_config}.
+)}: Add an existing \code{tuning_strategy} to the \code{sb_backtest_config}.
 
-This method adds a pre-existing \code{tuning_strategy} to the \code{ml_backtest_config}. It replaces any existing tuning strategy in the experiment.
+This method adds a pre-existing \code{tuning_strategy} to the \code{sb_backtest_config}. It replaces any existing tuning strategy in the experiment.
 
-\item \code{add_tuning_strategy(object = ml_backtest_config, tuning_strategy = missing)}: Create and add a new \code{tuning_strategy} to the \code{ml_backtest_config}.
+\item \code{add_tuning_strategy(object = sb_backtest_config, tuning_strategy = missing)}: Create and add a new \code{tuning_strategy} to the \code{sb_backtest_config}.
 
-This method is used when \code{tuning_strategy} is \code{NULL}. It creates a new tuning strategy based on the provided parameters and adds it to the \code{ml_backtest_config}.
+This method is used when \code{tuning_strategy} is \code{NULL}. It creates a new tuning strategy based on the provided parameters and adds it to the \code{sb_backtest_config}.
 
 }}

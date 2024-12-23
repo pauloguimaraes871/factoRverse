@@ -4,7 +4,7 @@
 \alias{create_se_benchmarks}
 \title{Create Signal Engineering Benchmarks}
 \usage{
-create_se_benchmarks(signal_universe_m_d_ref, signal_themes_m_d_ref)
+create_se_benchmarks(signal_universe_m_d_ref, selected_signal_themes_m_d_ref)
 }
 \arguments{
 \item{signal_universe_m_d_ref}{A data frame containing the signal universe. Must include columns:
@@ -15,7 +15,7 @@ create_se_benchmarks(signal_universe_m_d_ref, signal_themes_m_d_ref)
 \item \code{top_assets} (indicating which signals are statistically significant)
 }}
 
-\item{signal_themes_m_d_ref}{An optional data frame with signal themes. Must include columns:
+\item{selected_signal_themes_m_d_ref}{An optional data frame with signal themes. Must include columns:
 \itemize{
 \item \code{tickers}
 \item \code{theme} (the classification theme for each signal)
@@ -29,7 +29,7 @@ A list with two data frames, each with benchmark weights following Signal-Select
 \item \code{tickers}
 \item \code{dates}
 \item \code{individual} (weight assigned to each signal)
-\item \code{theme} (weight assigned to each signal given their theme, if \code{signal_themes_m_d_ref} is provided)
+\item \code{theme} (weight assigned to each signal given their theme, if \code{selected_signal_themes_m_d_ref} is provided)
 }
 }
 \description{
@@ -43,6 +43,6 @@ It is used to evaluate the performance of the signal blending process.
 }
 \details{
 The function calculates weights for signals based on their statistical significance.
-If \code{signal_themes_m_d_ref} is provided, it also calculates theme-based weights and merges them
+If \code{selected_signal_themes_m_d_ref} is provided, it also calculates theme-based weights and merges them
 back into the main data frame.
 }

@@ -7,6 +7,7 @@
 select_and_correct_signals(
   signals_m_df,
   chosen_signals_and_positions,
+  signal_themes_m_df,
   backtest_returns_xts = NULL
 )
 }
@@ -15,6 +16,8 @@ select_and_correct_signals(
 
 \item{chosen_signals_and_positions}{A named vector indicating signals and their corresponding positions (long or short).
 For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").}
+
+\item{signal_themes_m_df}{A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in \code{signals_m_df}, and a "theme" column providing group membership for each signal.}
 
 \item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 }

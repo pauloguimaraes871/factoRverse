@@ -9,7 +9,7 @@ fit_frequentist_hierarchical_model(
   selected_backtest_returns_corrected_positions_xts_upd_ref,
   selected_market_factor_proxy_xts_upd_ref,
   selected_backtest_returns_corrected_positions_m_upd_ref = NULL,
-  signal_themes_m_d_ref,
+  selected_signal_themes_m_d_ref,
   model_spec_theme_level,
   lmer_optimizer,
   lmer_optimization_objective,
@@ -21,9 +21,9 @@ fit_frequentist_hierarchical_model(
 
 \item{selected_backtest_returns_corrected_positions_m_upd_ref}{An already processed \code{selected_backtest_returns_corrected_positions_upd_ref}.
 This data.frame is already in long format and contemplates both the \code{selected_market_factor_proxy_vector_upd_ref} and the
-\code{signal_themes_m_d_ref} theme data.}
+\code{selected_signal_themes_m_d_ref} theme data.}
 
-\item{signal_themes_m_d_ref}{A data frame containing metadata about signals. This data frame should include:
+\item{selected_signal_themes_m_d_ref}{A data frame containing metadata about signals. This data frame should include:
 \itemize{
 \item \code{tickers}: Signal identifiers matching those in \code{selected_backtest_returns_corrected_positions_upd_ref}.
 \item \code{theme}: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.

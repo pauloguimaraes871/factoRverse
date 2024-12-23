@@ -3,17 +3,17 @@
 \name{add_hyper_grid_domain}
 \alias{add_hyper_grid_domain}
 \alias{add_hyper_grid_domain,tuning_strategy,hyper_grid_domain-method}
-\alias{add_hyper_grid_domain,ml_backtest_config,hyper_grid_domain-method}
+\alias{add_hyper_grid_domain,sb_backtest_config,hyper_grid_domain-method}
 \title{Add a \code{hyper_grid_domain} Object}
 \usage{
 add_hyper_grid_domain(object, hyper_grid_domain)
 
 \S4method{add_hyper_grid_domain}{tuning_strategy,hyper_grid_domain}(object, hyper_grid_domain)
 
-\S4method{add_hyper_grid_domain}{ml_backtest_config,hyper_grid_domain}(object, hyper_grid_domain)
+\S4method{add_hyper_grid_domain}{sb_backtest_config,hyper_grid_domain}(object, hyper_grid_domain)
 }
 \arguments{
-\item{object}{An object of class \code{ml_backtest_config}.}
+\item{object}{An object of class \code{sb_backtest_config}.}
 
 \item{hyper_grid_domain}{An object of class \code{hyper_grid_domain}.}
 }
@@ -21,7 +21,7 @@ add_hyper_grid_domain(object, hyper_grid_domain)
 The appropriate object with the added \code{hyper_grid_domain}.
 }
 \description{
-This function adds a \code{hyper_grid_domain} S4 class to a \code{tuning_strategy} or a \code{ml_backtest_config}.
+This function adds a \code{hyper_grid_domain} S4 class to a \code{tuning_strategy} or a \code{sb_backtest_config}.
 It allows users to add a \code{hyper_grid_domain} already built or extracted from other objects.
 }
 \section{Functions}{
@@ -32,8 +32,8 @@ It allows users to add a \code{hyper_grid_domain} already built or extracted fro
 )}: Add \code{hyper_grid_domain} to \code{tuning_strategy} object
 
 \item \code{add_hyper_grid_domain(
-  object = ml_backtest_config,
+  object = sb_backtest_config,
   hyper_grid_domain = hyper_grid_domain
-)}: Add \code{hyper_grid_domain} to \code{ml_backtest_config} object
+)}: Add \code{hyper_grid_domain} to \code{sb_backtest_config} object
 
 }}

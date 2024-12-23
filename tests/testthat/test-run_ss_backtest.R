@@ -918,7 +918,6 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
   selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
   selected_market_factor_proxy_xts <- benchmark_returns_xts[, market_factor_proxy]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
-  priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date),]
 
   #Second Rebalancing Month
   ##########################
@@ -927,6 +926,8 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
   selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
   selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:9), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
+  priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date),]
+
 
   model_spec_theme_level <- "theme_specific_intercept_theme_specific_slope"
   summarize_performance_results <- summarize_performance(
@@ -1027,3 +1028,5 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
                signal_universe_m_d_ref_2[,c(1:11, 15:19, 21:27)])
 
 })
+
+
