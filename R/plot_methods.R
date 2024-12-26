@@ -3473,7 +3473,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   # Define the data sources
   signal_universe_m_df <- x@signal_universe_m_df
   final_signal_universe_m_d_ref <- x@final_signal_universe_m_d_ref
-  eligible_signals_list <- x@eligible_signals_list
+
   if(x@p_correction_method == "bayesian"){
     #Reconstruct selected_signal_themes_m_d_ref
     selected_signal_themes_m_d_ref <- final_signal_universe_m_d_ref@data %>% dplyr::select(id, tickers, dates, theme)
@@ -3768,8 +3768,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     #Get theme column
     theme_ticker_key <- data.frame(tickers = paste0(selected_signal_themes_m_d_ref$theme, "_", selected_signal_themes_m_d_ref$tickers), theme = selected_signal_themes_m_d_ref$theme)
-    filtered_data <- filtered_data %>%
-      dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
+    filtered_data <- filtered_data %>% dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
 
     # Extract themes from `elected_priors`
 

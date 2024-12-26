@@ -9,7 +9,6 @@
 #' @param validation_sample_size Numeric, size of the validation sample.
 #' @param rebalancing_months Numeric, number of months for rebalancing.
 #' @param split_method Character, method of data splitting (currently only "expanding" is supported).
-#' @param eligible_signals_list List, list of eligible signals for blending.
 #' @param sb_algorithm Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto").
 #' @param custom_objective Character, custom objective function for loss.
 #' @param chosen_eval_metric Character, chosen evaluation metric ("rmse", "mae", "cp", "rss", "mphe", "mpe", "hr", "mape").
@@ -23,6 +22,9 @@
 #' @param init_points Numeric, number of initial points for Bayesian optimization.
 #' @param early_stop Numeric, number of epochs for early stopping (for "xgb" and "nn" algorithms).
 #' @param keras_architecture_parameters List, containing units (numeric), n_layers (numeric between 1 and 5), activation_function and nn_optimizer ("Adam" or "RMSProp")
+#' @param signal_universe_m_d_ref A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.
+#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
+#' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
 #' @param show_plots Logical, whether to show diagnostic plots.
 #' @param verbose Logical, whether to print verbose output.
 #' @param parallel Logical, whether to use parallel computation.
@@ -44,11 +46,18 @@
 #'
 #'
 check_inputs_sb_backtest <- function(
+    #Data
     features_m_df, target_m_df, training_sample_size, target_fwd_name,
-    validation_sample_size, rebalancing_months, split_method, eligible_signals_list,
-    signal_universe_m_df, sb_algorithm, custom_objective, chosen_eval_metric, huber_delta,
-    quantile_tau, hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
-    early_stop, keras_architecture_parameters, show_plots, verbose = FALSE, parallel
+    #Time
+    validation_sample_size, rebalancing_months, split_method,
+    #SB heuristic
+    signal_universe_m_df, backtest_returns_xts, benchmark_returns_xts, market_factor_proxy, active_returns,
+    #SB algorithm
+    sb_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
+    #Tuning
+    hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
+    #Etc
+    early_stop, keras_architecture_parameters, show_plots, parallel, verbose = TRUE
 ){
 
   ###Initial Checks###
@@ -145,14 +154,72 @@ check_inputs_sb_backtest <- function(
         stop("signal_universe_m_df should be coercible to meta_dataframe object")
       }
 
-
-
-
-
-
-
-
+      ##Check for NAs in heuristic sb metric
+      heuristic_sb_metric <- signal_universe_m_df %>% dplyr::pull(stringr::str_remove_all(custom_objective_translated, "max_") %>% stringr::str_remove_all("min_"))
+      if(any(is.na(heuristic_sb_metric))){
+        stop("Heuristic Signal Blending Metric contains NAs")
+      }
     }
+
+  #backtest_returns_xts
+    if(!xts::is.xts(backtest_returns_xts)){
+      stop("backtest_returns_xts must be a xts object")
+    }
+      #get dates
+      backtest_returns_dates <- zoo::index(backtest_returns_xts)
+
+      if(class(backtest_returns_dates) != "Date"){
+        stop("dates in backtest_returns_xts must be of class Date")
+      }
+
+      signals <- signal_universe_m_df %>% dplyr::pull(tickers) %>% unique()
+
+      if(any(!names(signals) %in% colnames(backtest_returns_xts))){
+        stop("all signals in signal_universe_m_df must be present in backtest_returns_xts")
+      }
+
+    if(nrow(backtest_returns_xts) < (training_sample_size + validation_sample_size)){
+      stop("backtest_returns_xts must have at least training_sample_size + validation_sample_size rows")
+    }
+
+    if(any(!signal_universe_m_df$dates %in% backtest_returns_dates)){
+      stop("all dates in signal_universe_m_df must be present in backtest_returns_xts")
+    }
+
+    if(any(!features_m_df$dates %in% backtest_returns_dates)){
+      stop("all dates in features_m_df must be present in backtest_returns_xts")
+    }
+
+    if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 + as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
+      stop("backtest_returns_xts must have consecutive dates")
+    }
+
+  #benchmark_returns_xts
+    if(!xts::is.xts(benchmark_returns_xts)){
+      stop("benchmark_returns_xts must be a xts object")
+    }
+      #get dates
+      benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
+      if(class(benchmark_returns_dates) != "Date"){
+        stop("dates in benchmark_returns_xts must be of class Date")
+      }
+
+      if(any(benchmark_returns_dates != backtest_returns_dates)){
+        stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+      }
+
+    if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
+      stop("benchmark_returns_xts must not have any NA values")
+    }
+
+    if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
+                 as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
+      stop("benchmark_returns_xts must have consecutive dates")
+    }
+
+    if(!market_factor_proxy %in% colnames(benchmark_returns_xts)){
+      stop("market_factor_proxy must be present in benchmark_returns_xts")
+  }
 
 
   #Check structure of rebalancing_months
@@ -210,49 +277,24 @@ check_inputs_sb_backtest <- function(
   #####################################################################################
 
   #Check for eligible signals
-  eligible_signals_dates <- as.Date(names(eligible_signals_list))
+  signal_universe_m_df_dates <- signal_universe_m_df %>% dplyr::pull(dates) %>% unique()
   first_rebalance_date <- as.Date(min(dates_m_vector[(training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size - 1)]))
 
   #First date of eligible_signals should be before first backtesting date
-  if(first_rebalance_date < min(eligible_signals_dates)){
-    stop("First date of eligible_signals should be before first backtesting date.")
+  if(first_rebalance_date < min(signal_universe_m_df_dates)){
+    stop("First date of signal_universe_m_df should be before first backtesting date.")
   }
 
-  #Get signals
-   original_signals_list <- sapply(eligible_signals_list, function(x){
-     stringr::str_remove_all(x[[1]], pattern = "low_")
-  })
+  #Get elected signals
+  eligible_signals <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers) %>% stringr::str_remove_all(pattern = "low_") %>% unique()
+  check_signal_presence <- eligible_signals %in% colnames(features_m_df)
 
-  #Check if they are present in features_m_df
-  check_signal_presence <- lapply(original_signals_list, function(x){
-     any(!x %in% colnames(features_m_df))
-   })
-
-  if (any(unlist(check_signal_presence))) {
-    stop(
-      "There is a signal mismatch between eligible_signals and features_m_df at date(s): ",
-      paste(
-        names(check_signal_presence)[which(unlist(check_signal_presence))],
-        collapse = ", "
-      )
+  if (any(check_signal_presence)) {
+    stop("There is a signal mismatch between eligible_signals and features_m_df: ",
+      paste(eligible_signals[check_signal_presence], collapse = ", ")
     )
   }
 
-  #Check if they are present in signal_universe_m_df
-  if(!is.null(signal_universe_m_d_ref)){
-  eligible_signals_from_signal_universe_m_df <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers) %>% unique()
-  check_signal_presence <- lapply(eligible_signals_list, function(x){
-    any(!x %in% eligible_signals_from_signal_universe_m_df)
-  })
-  if (any(unlist(check_signal_presence))) {
-    stop("There is a signal mismatch between eligible_signals and signal_universe_m_df")
-  }
-
-  signal_universe_m_df_dates <- as.vector(unique(dplyr::select(signal_universe_m_df, dates)))$dates %>% as.Date()
-  if(any(signal_universe_m_df_dates != eligible_signals_dates)){
-    stop("dates in signal_universe_m_df and in eligible_signals_list must match.")
-  }
-  }
 
   #Validation Schema
   #Check for correct choice in chosen_eval_metric

@@ -406,7 +406,7 @@ run_ss_backtest_internal <- function(
 
   #Create structures to get results
   signal_universe_m_d_ref_list <- list()
-  eligible_signals_list <- list()
+
 
 
   #Measure time to run and run gc
@@ -577,13 +577,10 @@ run_ss_backtest_internal <- function(
 
       ###Get results
       signal_universe_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <-  signal_universe_m_d_ref
-      eligible_signals_list[[d - initial_sample_size + 1]] <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
+
 
 
       } #End rebalancing month
-
-    #When there is no rebalancing, just repeat eligible signals from last month
-    eligible_signals_list[[d - initial_sample_size + 1]] <- signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(tickers)
     } #End loop
 
     #Assign dates to names of objects
@@ -613,6 +610,7 @@ run_ss_backtest_internal <- function(
       enable_theme_representativeness = enable_theme_representativeness,
       theme_level_intercept = theme_level_intercept,
       theme_level_slope = theme_level_slope,
+      lmer_control = lmer_control,
       #Bayesian
       user_priors = user_priors,
       brms_control = brms_control,
@@ -676,7 +674,6 @@ run_ss_backtest_internal <- function(
                                selected_market_factor_proxy_xts = selected_market_factor_proxy_xts,
                                frequentist_results = signal_eligibility_results_list$frequentist_results,
                                bayesian_results = signal_eligibility_results_list$bayesian_results,
-                               eligible_signals_list = eligible_signals_list,
                                p_correction_method = p_correction_method,
                                ss_backtest_workflow = ss_backtest_workflow,
                                backtest_identifier = "not_identified"

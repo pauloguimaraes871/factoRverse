@@ -339,15 +339,129 @@ setClass(
   )
 )
 
+
+#' Define the `cov_est_method` S4 Class
+#'
+#' S4 class to represent a set of configurations for estimating the covariance matrix.
+#'
+#' @slot cov_estimation_method A character string representing the covariance estimation method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.
+#' @slot cov_matrix_sample_size Number of periods to subset return sample when estimating the covariance matrix. A high number will provide
+#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
+#' to dimensionality curse.
+#' @slot active_returns logical. If TRUE, the covariance matrix will be estimated using active returns.
+#'  If FALSE, the covariance matrix will be estimated using raw returns.
+#'
+#' @return An S4 object of class `cov_est_method`.
+#'
+#' @export
+setClass("cov_est_method",
+         slots = list(
+           cov_estimation_method = "character",
+           cov_matrix_sample_size = "numeric",
+           active_returns = "logical",
+         ),
+         prototype = list(
+           estimation_method = "sample",
+           sample_size = 36,
+           active_returns = TRUE
+         ),
+         validity = function(object){
+           if(!object@cov_estimation_method %in% c("sample", "ewma", "cc", "pca1", "pca2", "shrink_id", "shrink_cc")){
+             stop("Invalid cov_estimation_method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.")
+           }
+         }
+)
+
+#' Define the `mvo_parameters` S4 Class
+#'
+#' S4 class to represent a set of configurations for mean-variance optimization.
+#'
+#' @slot opt_method A character indicating the optimization method. The only current available method is 'random'. In this case, n_random_portfolios are
+#' generated under the constraints defined in the mvo_parameters object and the one that satisfies the
+#' @slot random_ports_method A character string representing the method that will be passed to PortfolioAnalytics::random_portfolios to generate random portfolios. Options are
+#' 'sample', 'simplex or 'grid'.
+#' @slot n_random_ports Number of random portfolios to generate. Only needed when opt_method is 'random'.
+#' @slot opt_objective A character indicating the optimization objective. Possible options are 'return', 'risk' or 'sharpe'.
+#'
+#' @return An S4 object of class `port_backtest_config`.
+#'
+#' @export
+setClass("mvo_parameters",
+         slots = list(
+           opt_method = "character",
+           random_ports_method = "character",
+           n_random_ports = "numeric",
+           opt_objective = "character"
+         ),
+         prototype = list(
+           opt_method = "random",
+           random_ports_method = "sample",
+           n_random_ports = 1000,
+           opt_objective = "sharpe"
+         )
+)
+
+#' Define the `rp_parameters` S4 Class
+#'
+#' S4 class to represent a set of configurations for risk-parity portfolios.
+#'
+#' @slot rp_method A character indicating the method to compute the risk-parity vanilla solution. It is passed to riskParityPortfolio::riskParityPortfolio function as method_init.
+#' Default is "cyclical-spinu"
+#'
+#' @return An S4 object of class `port_backtest_config`.
+#'
+#' @export
+setClass("rp_parameters",
+         slots = list(
+           rp_method = "character"
+         ),
+         prototype = list(
+           rp_method = "cyclical-spinu"
+         )
+)
+
+
+
+#' @title Signal Portfolio Parameters
+#' @description Class to encapsulate parameters for constructing signal portfolios (portfolio-blending). Only needed when
+#' sb_algorithm is 'rp' or 'mvo'.
+#'
+#' @slot cov_est_method An object of class `cov_est_method` representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
+#' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for 'rp' and 'mvo'.
+#' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
+#' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
+#' @slot concentration_constraint_policy The policy to handle concentration constraints.
+#'  It contains up to to four elements:
+#' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
+#' For signal portfolios, possible options are theme_ss or theme_sb.
+#' For stock portfolios, there must be a correspondence in `benchmark_weights_m_df`
+#' - `max_abs_active_individual_weight`: The maximum absolute individual active weights.
+#' - `max_abs_active_group_weight`: The maximum absolute theme active weight used for creating group constraints.
+#'
+#' @export
+setClass(
+  "signal_port_parameters",
+  slots = list(
+    cov_est_method = "cov_est_method",
+    mvo_parameters = "mvo_parameters",
+    rp_parameters = "rp_parameters",
+    concentration_constraint_policy = "list"
+  )
+)
+
+
+
 #' @title sb_backtest_config Class
 #' @description The sb_backtest_config class is designed to define an end-to-end signal-blending (heuristic or machine learning)
 #' experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
 #' @slot sb_algorithm Character string specifying the signal-blending algorithm to be used. Should be one of
 #' ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mto (Mean-Tracking Error Optimization),
 #' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
+#' @slot target_fwd_name Name of the target variable in `target_m_df`.
 #' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
 #' @slot ss_backtest_config An object of class `ss_backtest_config`, specifying the single strategy backtest configuration.
 #' @slot ss_backtest_results An object of class `ss_backtest_results`, containing the results of the single strategy backtest.
+#' @slot port_backtest_config An object of class `port_backtest_config`, containing instructions to create SB portfolios for heuristic algorithms.
 #' @slot training_sample_size Number of observations to include in each training sample.
 #' @slot rebalancing_months Months (numeric) when model should be rebalanced (refit).
 #' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
@@ -362,6 +476,7 @@ setClass(
 #'   \item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
 #'   \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
 #' }
+#' @slot signal_port_parameters An object of class `signal_port_parameters`, specifying the parameters for constructing signal portfolios (portfolio-blending).
 #' @slot quantile_tau A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
 #' @slot huber_delta A single positive numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
 #' @slot config_name A character string to identify the configuration.
@@ -370,6 +485,7 @@ setClass(
   "sb_backtest_config",
   slots = list(
     sb_algorithm = "character",
+    target_fwd_name = "character",
     tuning_strategy = "ANY",
     ss_backtest_config = "ANY",
     ss_backtest_results = "ANY",
@@ -378,6 +494,7 @@ setClass(
     rebalancing_months = "numeric",
     custom_objective = "character",
     keras_architecture_parameters = "ANY",
+    signal_port_parameters = "ANY",
     quantile_tau = "numeric",
     huber_delta = "numeric",
     config_name = "character"
@@ -395,6 +512,18 @@ setClass(
     if(!is.null(object@ss_backtest_config) && !is.null(object@ss_backtest_results)) {
       return("Only one of a ss_backtest_config or a ss_backtest_results object should be provided.")
     }
+      ##SS Backtest Config Class
+      if(!is.null(object@ss_backtest_config)){
+        if(!inherits(object@ss_backtest_config, "ss_backtest_config")) {
+          return("ss_backtest_config must be of class 'ss_backtest_config'.")
+        }
+      }
+      ##SS Backtest Results Class
+      if(!is.null(object@ss_backtest_results)){
+        if(!inherits(object@ss_backtest_results, "ss_backtest_results")) {
+          return("ss_backtest_results must be of class 'ss_backtest_results'.")
+        }
+      }
 
     #Check for valid sb_algorithm
     valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto")
@@ -452,15 +581,26 @@ setClass(
     if (object@rebalancing_months < 0 || object@rebalancing_months > 12){
       stop("rebalancing_months should be between 1 and 12.")
     }
-
+    ##Keras
     if(!is.null(object@keras_architecture_parameters)){
       if(!is_keras_architecture_parameters(object@keras_architecture_parameters)){
-        return("Invalid keras_architecture_parameters Should be of class keras_architecture_parameters")
+        return("Invalid keras_architecture_parameters. Should be of class keras_architecture_parameters")
       }
       if(object@sb_algorithm != "nn"){
         return("keras_architecture_parameters is only needed when sb_algorithm is nn")
       }
     }
+    ##Heuristic Portfolio
+    if(!is.null(object@signal_port_parameters)){
+      if(!inherits(object@signal_port_parameters, "signal_port_parameters")){
+        return("Invalid signal_port_parameters Should be of class signal_port_parameters")
+      }
+      if(!object@sb_algorithm %in% c("rp", "mvo")){
+        return("signal_port_parameters is only needed when sb_algorithm is rp or mvo")
+      }
+    }
+
+
     if (!is.null(object@quantile_tau) && (object@quantile_tau <= 0 || object@quantile_tau >= 1)) {
       return("quantile_tau must be between 0 and 1.")
     }
@@ -1063,7 +1203,7 @@ setClass("ss_backtest_config",
            rebalancing_months = "numeric",
            active_returns = "logical",
            split_method = "character",
-           alpha_test_strategy = "ANY",
+           alpha_test_strategy = "alpha_test_strategy",
            config_name = "character"
          ), prototype = list(
            split_method = "expanding"
@@ -1404,29 +1544,111 @@ setClass(
 )
 
 
-#' Define the `portfolio_policies` S4 Class
+
+
+#' Class for Port Backtest Config
 #'
-#' S4 class to represent a set of portfolio policies, including liquidity, turnover, concentration and signal selection constraints.
+#' An S4 class specifying parameters for backtesting stock-level portfolios.
 #'
-#' @slot liquidity_constraint_policy A list that contains liquidity constraint policies.
-#'   It must include a character element named `liquidity_floor_rule` and one or more rules,
-#'   each represented as a list with `liquidity_classification` and `liquidity_cap`.
-#' @slot signal_selection_policy A list describing signal selection policy.
-#' @slot turnover_constraint_policy A list describing turnover constraint policy.
-#' @slot concentration_constraint_policy A list describing concentration constraint policy.
-#' @slot liquidity_floor_cutoffs A list for liquidity floor cutoffs.
-setClass("portfolio_policies",
-         slots = list(
-           liquidity_constraint_policy = "list",
-           signal_selection_policy = "list",
-           turnover_constraint_policy = "list",
-           concentration_constraint_policy = "list",
-           liquidity_floor_cutoffs = "list"
-         )
+#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'. For signal portfolios,
+#' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
+#' @slot cov_est_method An object of class `cov_est_method` representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
+#' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for 'rp' and 'mvo'.
+#' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
+#' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
+#' @slot concentration_constraint_policy The policy to handle concentration constraints. This is the only constraint that is applicable to either signal or stock portfolios.
+#'  It contains up to to four elements:
+#' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
+#' For signal portfolios, possible options are theme_ss or theme_sb.
+#' For stock portfolios, there must be a correspondence in `benchmark_weights_m_df`
+#' - `max_abs_active_individual_weight`: The maximum absolute individual active weights.
+#' - `max_abs_active_group_weight`: The maximum absolute sector/theme active weight used for creating group constraints in `generate_sector_constraints`.
+#' If a given sector has no eligible stock, the one with the greatest signal will be automatically promoted. In case of signal portfolios, during ss_backtest, signals with highest alpha_t_values are promoted if
+#' enable_theme_representativeness is TRUE.
+#' Note that, in the context of stocks, a `benchmark_weights_m_d_ref` data frame must also be supplied.
+#' @slot liquidity_constraint_policy The policy to handle liquidity constraints. It is only relevant for stocks. Possible elements are:
+#' - `liquidity_floor_rule`: A character indicating the liquidity classification (e.g., micro_caps, small_caps) used to filter stocks. Stocks with less liquidity than specified in `liquidity_floor_rule` will be considered ineligible.
+#'   In the case of the `generate_box_constraints` function, `liquidity_constraint_policy` can also contain:
+#' - `liquidity_cap_rule` lists: One or many lists used to create upper bounds for weights based on a liquidity classification. Each list must contain:
+#'   - `liquidity_classification`: A character indicating the classification for the cap.
+#'   - `liquidity_cap`: A numeric value indicating the cap (upper bound) for stocks with that liquidity classification.
+#'   Many liquidity caps might be created, and in this case, each `liquidity_cap_rule` must be identified with a number (e.g., liquidity_cap_rule_1, liquidity_cap_rule_2, and so on).
+#' @slot turnover_constraint_policy The policy to handle turnover constraints. It is only relevant for stocks. Its elements are used to build buffer zones and apply turnover constraints.
+#' - Each element will constitute a `buffer_zone`, being a list with three elements:
+#'   - `liquidity_classification` element: A liquidity classification (e.g., "micro_caps", "small_caps") for that buffer zone.
+#'   - `top_stock_quantile_buffer`: A numeric value indicating a buffer value that relaxes `top_stocks_quantile` for stocks with the specified liquidity classification.
+#'   - `turnover_cap`: A numeric value specifying the turnover cap.
+#'   Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the `liquidity_floor_rule`.
+#' @slot liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
+#' A list of named vectors containing cutoff values to classify stocks according to liquidity.
+#' Each element must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
+#' and the vector must provide named numeric values that indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
+#' Classification should be in ascending order (from least liquid to most liquid) for all metrics.
+#' If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
+#' Stocks with liquidity lower than micro_caps will receive nano_caps classification.
+#' @slot main_liquidity_metric A character string indicating which of the variables in `liquidity_m_df` should be ultimately used.
+#' @slot config_name A character string representing the name of the configuration.
+#'
+#' @export
+setClass(
+  "port_backtest_config",
+  slots = list(
+    final_signal = "ANY",
+    cov_est_method = "ANY",
+    port_construction_method = "character",
+    mvo_parameters = "ANY",
+    rp_parameters = "ANY",
+    sb_backtest_config = "ANY",
+    sb_backtest_results = "ANY",
+    main_liquidity_metric = "character",
+    liquidity_floor_cutoffs = "list",
+    liquidity_constraint_policy = "list",
+    turnover_constraint_policy = "list",
+    concentration_constraint_policy = "list",
+    config_name = "character"
+  ),
+  validity = function(object){
+    if(!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo")){
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'")
+    }
+
+    if(!is.null(sb_backtest_config)){
+      if(!inherits(sb_backtest_config, "sb_backtest_config")){
+        stop("sb_backtest_config must be an object of class sb_backtest_config.")
+      }
+    }
+    if(!is.null(sb_backtest_results)){
+      if(!inherits(sb_backtest_results, "sb_backtest_results")){
+        stop("sb_backtest_results must be an object of class sb_backtest_results")
+      }
+    }
+   # if(is.null(sb_backtest_results) & is.null(sb_backtest_config) & is.null(final_signal)){
+   #   stop("final_signal must be provided if sb_backtest_results and sb_backtest_config are not provided.")
+   # }
+
+
+    TRUE
+  }
 )
 
 
+
+
 #################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #####################################
 #########Accesor Methods############
@@ -1508,7 +1730,7 @@ setMethod("get_model", "sb_model", function(object) {
 
 
 
-# sb_backtest_results acessors --------------------------------------------
+# sb_backtest_results and ss_backtest_results acessors --------------------------------------------
 
 #' Accessor Methods for sb_backtest_results
 #'
@@ -1558,6 +1780,13 @@ setMethod("get_final_model", "sb_backtest_results", function(object) {
 })
 
 #' @export
+setMethod("get_final_model", "ss_backtest_results", function(object) {
+  models_list <- list(frequentist = object@frequentist_results,
+                      bayesian = object@bayesian_results)
+  return(models_list)
+})
+
+#' @export
 setGeneric("get_tickers", function(object) standardGeneric("get_tickers"))
 
 #' @export
@@ -1575,12 +1804,24 @@ setMethod("get_tickers", "meta_dataframe", function(object) {
 setGeneric("get_dates", function(object, ...) standardGeneric("get_dates"))
 
 #' @export
-setMethod("get_dates", "sb_backtest_results", function(object, sample_type = "complete") {
+setMethod("get_dates", "sb_backtest_results", function(object, type = "complete") {
 
-  if(!sample_type %in% c("complete", "testing")) stop("sample_type must be one of `complete` or `testing`")
+  if(!type %in% c("complete", "testing", "rebalance")) stop("sample_type must be one of `complete`, `testing` or `rebalance`")
 
-  if(sample_type == "complete") return(object@sb_backtest_workflow$dates_covered)
-  if(sample_type == "testing") return(object@sb_backtest_workflow$dates_testing_sample)
+  if(type == "complete") return(object@sb_backtest_workflow$dates_covered)
+  if(type == "testing") return(object@sb_backtest_workflow$dates_testing_sample)
+  if(type == "rebalance") return(object@sb_backtest_workflow$rebalance_dates)
+
+})
+
+#' @export
+setMethod("get_dates", "ss_backtest_results", function(object, type = "complete") {
+
+  if(!type %in% c("complete", "backtest", "rebalance")) stop("sample_type must be one of `complete`, `backtest` or `rebalance`")
+
+  if(type == "complete") return(object@sb_backtest_workflow$dates_covered)
+  if(type == "backtest") return(object@sb_backtest_workflow$dates_backtest)
+  if(type == "rebalance") return(object@sb_backtest_workflow$rebalance_dates)
 
 })
 
@@ -1604,6 +1845,11 @@ setMethod("get_best_hyperparameters", "sb_backtest_results", function(object) {
 })
 
 #' @export
+setMethod("get_selected_market_factor_proxy", "ss_backtest_results", function(object) {
+  return(object@selected_market_factor_proxy_xts)
+})
+
+#' @export
 setGeneric("get_validation_eval_metrics_hyper_choice", function(object) standardGeneric("get_validation_eval_metrics_hyper_choice"))
 
 #' @export
@@ -1616,6 +1862,10 @@ setMethod("get_workflow", "sb_backtest_results", function(object) {
   return(object@sb_backtest_workflow)
 })
 
+#' @export
+setMethod("get_workflow", "ss_backtest_results", function(object) {
+  return(object@ss_backtest_workflow)
+})
 
 #' @export
 setMethod("as.list", "sb_backtest_results", function(x) {
@@ -1641,13 +1891,35 @@ setMethod("as.list", "sb_backtest_results", function(x) {
   return(slot_list)
 })
 
+#' @export
+setMethod("as.list", "ss_backtest_results", function(x) {
+  # Get the names of all slots
+  slot_names <- slotNames(x)
 
+  # Create a list to hold the extracted slots, ignoring NULL slots
+  slot_list <- lapply(slot_names, function(slot) {
+    value <- slot(x, slot)  # Extract the slot using the slot name
+    if (!is.null(value)) {
+      return(value)  # Return the value only if it's not NULL
+    }
+    return(NULL)  # Return NULL if the slot is NULL
+  })
+
+  # Filter out NULL entries
+  non_null_indices <- which(!sapply(slot_list, is.null))
+  slot_list <- slot_list[non_null_indices]
+
+  # Set names for the list elements based on non-NULL slots
+  names(slot_list) <- slot_names[non_null_indices]
+
+  return(slot_list)
+})
 
 ##########################
 
 
 # get sb_backtest_config
-#' @title Get ML Backtest Config Object
+#' @title Get SB Backtest Config Object
 #' @description Accessor function to retrieve the sb_backtest_config object from a sb_metabacktest_config object or a sb_backtest_results object
 #'
 #' @param object A `sb_metabacktest_config` or a `sb_backtest_results` object.
@@ -1674,6 +1946,7 @@ setMethod("get_sb_backtest_config", "sb_backtest_results", function(object) {
   #Create Backtest Config
   sb_backtest_config <- create_sb_backtest_config(
     sb_algorithm = sb_backtest_workflow$sb_algorithm,
+    target_fwd_name = sb_backtest_workflow$target_fwd_name,
     training_sample_size = sb_backtest_workflow$training_sample_size,
     rebalancing_months = sb_backtest_workflow$rebalancing_months,
     split_method = sb_backtest_workflow$split_method,
@@ -1697,6 +1970,23 @@ setMethod("get_sb_backtest_config", "sb_backtest_results", function(object) {
   return(sb_backtest_config)
 
 })
+
+# get ss_backtest_config
+#' @title Get SS Backtest Config Object
+#' @description Accessor function to retrieve the ss_backtest_config object from a ss_backtest_results object or a sb_backtest_results object
+#'
+#' @param object A `ss_backtest_results` or a `sb_backtest_results` object.
+#'
+#' @return A `ss_backtest_config` derived from a `sb_backtest_config` `ss_backtest_results` or object.
+#' @export
+setGeneric("get_ss_backtest_config", function(object) standardGeneric("get_ss_backtest_config"))
+
+#' @rdname get_ss_backtest_config
+#' @export
+setMethod("get_ss_backtest_config", "sb_backtest_config", function(object) {
+  return(object@ss_backtest_config)
+})
+
 
 
 
@@ -1904,6 +2194,83 @@ setMethod("as.list", "keras_architecture_parameters", function(x) {
 })
 
 
+# get alpha_test_strategy -----------------------------------------------------
+
+#' @title Get Alpha Test Strategy
+#' @description Accessor function to retrieve the alpha test strategy from `ss_backtest_config`, `ss_backtest_results`   object.
+#'
+#' @param object An ss_backtest_config object.
+#'
+#' @return The `alpha_test_strategy` slot of the `ss_backtest_config` object.
+#' @export
+setGeneric("get_alpha_test_strategy", function(object) {
+  standardGeneric("get_alpha_test_strategy")
+})
+
+#' @rdname get_alpha_test_strategy
+#' @export
+setMethod("get_alpha_test_strategy", "ss_backtest_config", function(object){
+  alpha_test_strategy <- object@alpha_test_strategy
+
+  if(!is.null(alpha_test_strategy)){
+    return(alpha_test_strategy)
+  } else {
+    stop("alpha_test_strategy not available.")
+  }
+
+})
+
+#' @rdname get_alpha_test_strategy
+#' @export
+setMethod("get_alpha_test_strategy", "ss_backtest_results", function(object){
+
+  #WF
+  ss_backtest_workflow <- object@ss_backtest_workflow
+
+  #Fabricate bayesian results
+  if(ss_backtest_workflow$p_correction_method == "bayesian"){
+    bayesian_model_parameters <- new("bayesian_model_parameters",
+                                     user_priors = ss_backtest_workflow$user_priors,
+                                     prior_derivation_control = ss_backtest_workflow$prior_derivation_control,
+                                     brms_control = ss_backtest_workflow$brms_control
+                                     )
+  } else {
+    bayesian_model_parameters <- NULL
+  }
+
+  alpha_test_strategy <- create_alpha_test_strategy(
+    model_structure = ss_backtest_workflow$model_structure,
+    theme_level_intercept = ss_backtest_workflow$theme_level_intercept,
+    theme_level_slope = ss_backtest_workflow$theme_level_slope,
+    signal_significance_threshold = ss_backtest_workflow$signal_significance_threshold,
+    p_correction_method = ss_backtest_workflow$p_correction_method,
+    market_factor_proxy = ss_backtest_workflow$market_factor_proxy,
+    bayesian_model_parameters = bayesian_model_parameters,
+    enable_theme_representativeness = ss_backtest_workflow$enable_theme_representativeness,
+    lmer_control = ss_backtest_workflow$lmer_control
+  )
+
+
+  return(alpha_test_strategy)
+
+})
+
+#' @rdname get_alpha_test_strategy
+#' @export
+setMethod("get_alpha_test_strategy", "sb_backtest_config", function(object) {
+
+  ss_object <- if(!is.null(object@ss_backtest_config)) object@ss_backtest_config else object@ss_backtest_results
+  alpha_test_strategy <- get_alpha_test_strategy(ss_object)
+
+  return(alpha_test_strategy)
+})
+
+
+
+###########################
+
+
+
 #' @title Get brms priors
 #' @description Accessor function to retrieve brms priors.
 #'
@@ -1937,27 +2304,7 @@ setMethod("get_brms_prior", "ss_backtest_config", function(object){
 })
 
 
-#' @title Get alpha test strategy
-#' @description Accessor function to retrieve alpha_test_strategy
-#'
-#' @param object A `ss_backtest_config` object.
-#'
-#' @return A `alpha_test_strategy` S4 class.
-setGeneric("get_alpha_test_strategy", function(object){
-  standardGeneric("get_alpha_test_strategy")
-})
 
-#' @export
-setMethod("get_alpha_test_strategy", "ss_backtest_config", function(object){
-  alpha_test_strategy <- object@alpha_test_strategy
-
-  if(!is.null(alpha_test_strategy)){
-    return(alpha_test_strategy)
-  } else {
-    stop("alpha_test_strategy not available.")
-  }
-
-})
 
 
 #' @title Get eligible signals
@@ -1972,7 +2319,12 @@ setGeneric("get_eligible_signals", function(object){
 
 #' @export
 setMethod("get_eligible_signals", "ss_backtest_results", function(object){
-  return(object@eligible_signals_list)
+  eligible_signals_df <- object@signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>%
+    dplyr::group_by(dates) %>% dplyr::summarise(ticker_list = list(tickers), .groups = "drop")
+
+  eligible_signals_list <- stats::setNames(eligible_signals_df$ticker_list, as.character(eligible_signals_df$dates))
+
+  return(eligible_signals_list)
 })
 
 #' @title Get signal_universe
@@ -2012,73 +2364,73 @@ setMethod("get_bayesian_fit", "ss_backtest_results", function(object){
 
 
 #' @title Accessor for Liquidity Constraint Policy
-#' @description Retrieves the liquidity constraint policy from a `portfolio_policies` object.
-#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @description Retrieves the liquidity constraint policy from a `port_backtest_config` object.
+#' @param port_backtest_config_obj A `port_backtest_config` object.
 #' @return The liquidity constraint policy list.
 #' @export
-setGeneric("get_liquidity_constraint_policy", function(portfolio_policies_obj) {
+setGeneric("get_liquidity_constraint_policy", function(port_backtest_config_obj) {
   standardGeneric("get_liquidity_constraint_policy")
 })
 
 #' @export
-setMethod("get_liquidity_constraint_policy", "portfolio_policies", function(portfolio_policies_obj) {
-  return(portfolio_policies_obj@liquidity_constraint_policy)
+setMethod("get_liquidity_constraint_policy", "port_backtest_config", function(port_backtest_config_obj) {
+  return(port_backtest_config_obj@liquidity_constraint_policy)
 })
 
 #' @title Accessor for Signal Selection Policy
-#' @description Retrieves the signal selection policy from a `portfolio_policies` object.
-#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @description Retrieves the signal selection policy from a `port_backtest_config` object.
+#' @param port_backtest_config_obj A `port_backtest_config` object.
 #' @return The signal selection policy list.
 #' @export
-setGeneric("get_signal_selection_policy", function(portfolio_policies_obj) {
+setGeneric("get_signal_selection_policy", function(port_backtest_config_obj) {
   standardGeneric("get_signal_selection_policy")
 })
 
 #' @export
-setMethod("get_signal_selection_policy", "portfolio_policies", function(portfolio_policies_obj) {
-  return(portfolio_policies_obj@signal_selection_policy)
+setMethod("get_signal_selection_policy", "port_backtest_config", function(port_backtest_config_obj) {
+  return(port_backtest_config_obj@signal_selection_policy)
 })
 
 #' @title Accessor for Turnover Constraint Policy
-#' @description Retrieves the turnover constraint policy from a `portfolio_policies` object.
-#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @description Retrieves the turnover constraint policy from a `port_backtest_config` object.
+#' @param port_backtest_config_obj A `port_backtest_config` object.
 #' @return The turnover constraint policy list.
 #' @export
-setGeneric("get_turnover_constraint_policy", function(portfolio_policies_obj) {
+setGeneric("get_turnover_constraint_policy", function(port_backtest_config_obj) {
   standardGeneric("get_turnover_constraint_policy")
 })
 
 #' @export
-setMethod("get_turnover_constraint_policy", "portfolio_policies", function(portfolio_policies_obj) {
-  return(portfolio_policies_obj@turnover_constraint_policy)
+setMethod("get_turnover_constraint_policy", "port_backtest_config", function(port_backtest_config_obj) {
+  return(port_backtest_config_obj@turnover_constraint_policy)
 })
 
 #' @title Accessor for Concentration Constraint Policy
-#' @description Retrieves the concentration constraint policy from a `portfolio_policies` object.
-#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @description Retrieves the concentration constraint policy from a `port_backtest_config` object.
+#' @param port_backtest_config_obj A `port_backtest_config` object.
 #' @return The concentration constraint policy list.
 #' @export
-setGeneric("get_concentration_constraint_policy", function(portfolio_policies_obj) {
+setGeneric("get_concentration_constraint_policy", function(port_backtest_config_obj) {
   standardGeneric("get_concentration_constraint_policy")
 })
 
 #' @export
-setMethod("get_concentration_constraint_policy", "portfolio_policies", function(portfolio_policies_obj) {
-  return(portfolio_policies_obj@concentration_constraint_policy)
+setMethod("get_concentration_constraint_policy", "port_backtest_config", function(port_backtest_config_obj) {
+  return(port_backtest_config_obj@concentration_constraint_policy)
 })
 
 #' @title Accessor for Liquidity Floor Cutoffs
-#' @description Retrieves the liquidity floor cutoffs from a `portfolio_policies` object.
-#' @param portfolio_policies_obj A `portfolio_policies` object.
+#' @description Retrieves the liquidity floor cutoffs from a `port_backtest_config` object.
+#' @param port_backtest_config_obj A `port_backtest_config` object.
 #' @return The liquidity floor cutoffs list.
 #' @export
-setGeneric("get_liquidity_floor_cutoffs", function(portfolio_policies_obj) {
+setGeneric("get_liquidity_floor_cutoffs", function(port_backtest_config_obj) {
   standardGeneric("get_liquidity_floor_cutoffs")
 })
 
 #' @export
-setMethod("get_liquidity_floor_cutoffs", "portfolio_policies", function(portfolio_policies_obj) {
-  return(portfolio_policies_obj@liquidity_floor_cutoffs)
+setMethod("get_liquidity_floor_cutoffs", "port_backtest_config", function(port_backtest_config_obj) {
+  return(port_backtest_config_obj@liquidity_floor_cutoffs)
 })
 
 

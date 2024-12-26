@@ -8,7 +8,6 @@
 #' @param features_m_df A meta_dataframe containing features.
 #' @param target_m_df A meta_dataframe containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
 #' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.
-#' @param target_fwd_name Name of the target variable in `target_m_df`.
 #' @param config An object specifying the backtest configuration. Can be an `sb_backtest_config` or `sb_metabacktest_config` object.
 #' @param verbose Logical vector, indicating whether to print progress messages (default is TRUE).
 #' @param parallel Logical vector, indicating whether to run  hyperparameter tuning in parallel (default is TRUE).
@@ -471,6 +470,10 @@ setMethod("run_sb_backtest",
 #' keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"),
 #'                                      nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)
 #' )
+#' @param signal_universe_m_d_ref A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.
+#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_universe_m_df`,
+#' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
+
 #' @param huber_delta A single numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
 #' @param quantile_tau A single numeric value indicating target quantile when calculating quantile loss.
 #' @param verbose Logical, indicating whether to print progress messages (default is TRUE).
@@ -504,12 +507,14 @@ setMethod("run_sb_backtest",
 #' @seealso
 #' \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 run_sb_backtest_internal <- function(
-    #Basic Objects Inputs
+  #Basic Objects Inputs
   features_m_df, target_m_df, training_sample_size, target_fwd_name,
   #Splits
   validation_sample_size = 0, rebalancing_months, split_method = "expanding",
-  #Signal Selection
-  eligible_signals_list, signal_universe_m_df,
+  #Heuristic SB
+  signal_universe_m_df, #SW
+  backtest_returns_xts = NULL, benchmark_returns_xts = NULL, market_factor_proxy = NULL, covariance_matrix_sample_size = 36, covariance_estimation_method = "sample", active_returns = TRUE, #RP/MTO
+  n_random_portfolios = 1000, rp_method, mto_port_objective = "Sharpe", max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL, #MTO
   #Choice of SB algorithm
   sb_algorithm = "ols",
   #Loss/Eval Functions and Related
@@ -519,7 +524,9 @@ run_sb_backtest_internal <- function(
   #Keras architecture Parameters
   keras_architecture_parameters = NULL,
   #Misc
-  verbose = FALSE, parallel = TRUE
+  verbose = FALSE, parallel = TRUE,
+  #Winsorization
+  upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05
 ){
 
   #Measure time to run and run gc
@@ -533,11 +540,10 @@ run_sb_backtest_internal <- function(
     check_inputs_sb_backtest(
       features_m_df = features_m_df, target_m_df = target_m_df, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
       validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-      eligible_signals_list = eligible_signals_list, signal_universe_m_df = signal_universe_m_df,
-      sb_algorithm = sb_algorithm, custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
+      signal_universe_m_df = signal_universe_m_df, backtest_returns_xts = backtest_returns_xts,  sb_algorithm = sb_algorithm,
+      custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
       hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
-      init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-      verbose = verbose, parallel = parallel
+      init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel
     )
 
     ################
@@ -556,14 +562,14 @@ run_sb_backtest_internal <- function(
     chosen_eval_metric <- adjusted_metrics$chosen_eval_metric
 
     #Prints for initial setup
-    if(verbose == TRUE){
+    if(verbose){
       cat(crayon::green(paste("Predictive ML algo:", sb_algorithm)))
       cat("\n")
       cat(paste("Custom objective:", custom_objective, "\n"))
       cat(paste("Eval Metric:", chosen_eval_metric, "\n"))
       cat(paste("Training sample size:", training_sample_size, "\n"))
       cat(paste("Validation sample size:", validation_sample_size, "\n"))
-    } else {}
+    }
 
     ##################
 
@@ -593,7 +599,7 @@ run_sb_backtest_internal <- function(
     rebalance_dates <- rebalance_dates[order(rebalance_dates)] #Re-order
 
     #Eligible signals dates
-    eligible_signals_dates <- as.Date(names(eligible_signals_list))
+    eligible_signals_dates <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(dates) %>% unique() %>% dplyr::pull()
 
     #Number of rebalancing months
     n_rebalance_months <- length(rebalance_dates)
@@ -627,7 +633,7 @@ run_sb_backtest_internal <- function(
       hyper_choice_df$best_lam <- if(sb_algorithm == "glmnet") NA
       hyper_choice_df$best_iteration <- if(!is.null(early_stop)) NA
 
-    } else {}
+    }
 
     #Time expanding test
     #Store test eval
@@ -674,23 +680,30 @@ run_sb_backtest_internal <- function(
 
           ####Get current_eligible_signals
           most_recent_eligible_signals_date <- eligible_signals_dates[which(eligible_signals_dates <= current_date)] %>% max()
-          current_eligible_signals <- as.vector(eligible_signals_list[[as.character(most_recent_eligible_signals_date)]])$tickers #Get most recent eligible signals
+          most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == most_recent_eligible_signals_date)
+          current_eligible_signals <- most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
           ####Reconstruct chosen_signals_and_positions
           chosen_signals_and_positions <- ifelse(stringr::str_detect(current_eligible_signals, pattern = "low_"), "short", "long")
           names(chosen_signals_and_positions) <- stringr::str_remove_all(current_eligible_signals, pattern = "low_")
 
           ####Select and correct signals
-          selected_features_corrected_positions_m_df <- select_and_correct_signals(signals_m_df = features_m_df, chosen_signals_and_positions = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
+          selected_features_corrected_positions_m_df <- select_and_correct_signals(
+            signals_m_df = features_m_df, #Extract eligible signals from features_m_df and then correct them (multiply short signal by -1)
+            chosen_signals_and_positions = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
 
           #Print message
           if(verbose){
             cat("\n")
             cat("Selecting and correcting signals:")
             cat("\n")
-            cat(chosen_signals_and_positions)
+            cat("Most recent signal universe:\n")
+            print(most_recent_signal_universe_m_d_ref)
             cat("\n")
+            cat("Eligible signals and positions:\n")
+            print(chosen_signals_and_positions)
           }
+
 
         ##################
 
@@ -708,7 +721,7 @@ run_sb_backtest_internal <- function(
         )
 
           ####No tuning warning
-          if(verbose == TRUE & sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
+          if(verbose & sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
             cat(sb_algorithm, " chosen as sb_algorithm. Data will be split only in training and test sets")
           }
 
@@ -801,9 +814,8 @@ run_sb_backtest_internal <- function(
           full_data_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
 
 
+        #(RE)Fit SB Model
 
-
-        #(RE)Fit
 
 
 

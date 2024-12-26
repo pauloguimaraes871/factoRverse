@@ -468,6 +468,11 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
           function(object, data_availability_cutoff, initial_sample_size, rebalancing_months, active_returns = TRUE, split_method = "expanding",
                    alpha_test_strategy = NULL, config_name = "not_identified") {
 
+            #Create an empty alpha_test_strategy
+            if(is.null(alpha_test_strategy)){
+              alpha_test_strategy <- create_alpha_test_strategy()
+            }
+
             #create ss_backtest_config
             ss_backtest_config <- create_ss_backtest_config(data_availability_cutoff = data_availability_cutoff,
                                                             initial_sample_size = initial_sample_size,
@@ -1099,6 +1104,7 @@ setMethod(
   }
 )
 
+
 #' @title Add Keras Architecture
 #' @description Method to add a `keras_architecture_parameters` to a `sb_backtest_config`.
 #'
@@ -1106,8 +1112,8 @@ setMethod(
 #' When `keras_architecture_parameters` is not provided, a new one will be created using the values for `nn_optimizer`, `units`, `activation`, and `batch_norm_option` passed via the `...` argument.
 #'
 #' @param object An object of class `sb_backtest_config`.
-#' @param keras_architecture_parameters An object of class `keras_architecture_parameters`, or `NULL` if a new architecture is to be created.
-#' @param ... Additional arguments used to create a new `keras_architecture_parameters` when `keras_architecture_parameters` is `NULL`. These arguments must include:
+#' @param keras_architecture_parameters An object of class `keras_architecture_parameters` or missing if a new architecture is to be created.
+#' @param ... Additional arguments used to create a new `keras_architecture_parameters` when `keras_architecture_parameters` is missing. These arguments must include:
 #'   \itemize{
 #'     \item \strong{nn_optimizer}: A character string specifying the optimizer to use (e.g., "adam").
 #'     \item \strong{units}: A numeric value for the number of units in the new layer.
@@ -1140,8 +1146,6 @@ setMethod(
   }
 )
 
-
-
 #' @describeIn add_keras_architecture Dynamically create and add `keras_architecture_parameters` object
 #'
 #' This method creates a new `keras_architecture_parameters` object dynamically when `keras_architecture_parameters` is not provided.
@@ -1154,7 +1158,7 @@ setMethod(
 #'   }
 #'
 #' @param object An object of class `sb_backtest_config`.
-#' @param keras_architecture_parameters Should be `NULL` to dynamically create a new architecture.
+#' @param keras_architecture_parameters Should be missing to dynamically create a new architecture.
 #' @param ... Additional parameters used to create the `keras_architecture_parameters`, including:
 #'   \itemize{
 #'     \item \strong{nn_optimizer}: A character string specifying the optimizer to use (e.g., "adam").
@@ -1188,11 +1192,143 @@ setMethod(
   }
 )
 
+#' @title Create Covariance Estimation Method
+#' @description Constructor for creating an instance of `cov_est_method`.
+#'
+#' @param cov_estimation_method A character string representing the covariance estimation method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.
+#' @param cov_matrix_sample_size Number of periods to subset return sample when estimating the covariance matrix. A high number will provide
+#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
+#' to dimensionality curse.
+#' @param active_returns logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
+create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE) {
+
+  cov_est_method <- new("cov_est_method",
+                        cov_estimation_method = cov_estimation_method,
+                        cov_matrix_sample_size = cov_matrix_sample_size,
+                        active_returns = active_returns
+                        )
+
+}
+
+#' @title Add a cov_est_method to a `sb_backtest_config` or `port_backtest_config` object.
+#'
+#' This function allows either directly add a pre-existing `cov_est_method` object or create one dynamically by passing additional arguments.
+#' When `cov_est_method` is not provided, a new one will be created using the values for `cov_estimation_method`, `cov_matrix_sample_size`, `active_returns`, passed via the `...` argument.
+#'
+#' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
+#' @param cov_est_method An object of class `cov_est_method`, or missing if a new object is to be created.
+#' @param ... Additional arguments used to create a new `cov_est_method` when `cov_est_method` is missing. These arguments must include:
+#'   \itemize{
+#'     \item \strong{cov_estimation_method}: A character string representing the covariance estimation method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.
+#'     \item \strong{cov_matrix_sample_size}: Number of periods to subset return sample when estimating the covariance matrix. A high number will provide
+#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
+#' to dimensionality curse.
+#'     \item \strong{active_returns}: logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
+#'   }
+#'
+#' @return An updated object of class `sb_backtest_config` with the `cov_est_method` added.
+#' @export
+setGeneric("add_cov_est_method", function(object, cov_est_method, ...) {
+  standardGeneric("add_cov_est_method")
+})
+
+#' @describeIn add_cov_est_method Add existing `cov_est_method` object to a `sb_backtest_config` object.
+#'
+#' This method allows to add an already existing `cov_est_method` object to an `sb_backtest_config`.
+#'
+#' @param object An object of class `sb_backtest_config`.
+#' @param cov_est_method An existing object of class `cov_est_method`.
+#' @export
+setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "cov_est_method"),
+          function(object, cov_est_method, ...) {
+
+            object@signal_port_parameters@cov_est_method <- cov_est_method
+
+            return(object)
+          }
+)
+
+#' @describeIn add_cov_est_method Create a `cov_est_method` object to a `sb_backtest_config` object.
+#'
+#' This method allows to dynamically create a `cov_est_method` object and add to `sb_backtest_config`.
+#'
+#' @param object An object of class `sb_backtest_config`.
+#' @param cov_est_method An existing object of class `cov_est_method`.
+#' @export
+setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "missing"),
+          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, ...) {
+
+            object@signal_port_parameters@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
+                                                                                  cov_matrix_sample_size = cov_matrix_sample_size,
+                                                                                  active_returns = active_returns
+                                                                                  )
+
+            return(object)
+          }
+)
+
+#' @describeIn add_cov_est_method Create a `cov_est_method` object to a `port_backtest_config` object.
+#'
+#' This method allows to dynamically create a `cov_est_method` object and add to `port_backtest_config`.
+#'
+#' @param object An object of class `port_backtest_config`.
+#' @param cov_est_method An existing object of class `cov_est_method`.
+#' @export
+setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
+          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, ...) {
+
+            object@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
+                                                           cov_matrix_sample_size = cov_matrix_sample_size,
+                                                           active_returns = active_returns
+            )
+
+            return(object)
+          }
+)
+
+#' @describeIn add_cov_est_method Add existing `cov_est_method` object to a `port_backtest_config` object.
+#'
+#' This method allows to add an already existing `cov_est_method` object to an `port_backtest_config`.
+#'
+#' @param object An object of class `port_backtest_config`.
+#' @param cov_est_method An existing object of class `cov_est_method`.
+#' @export
+setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "cov_est_method"),
+          function(object, cov_est_method, ...) {
+
+            object@cov_est_method <- cov_est_method
+
+            return(object)
+          }
+)
+
+
+
+
+#' @title Create MVO Parameters
+#' @description Constructor for creating an instance of `mvo_parameters`.
+#'
+#' @param cov_estimation_method A character string representing the covariance estimation method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.
+#' @param cov_matrix_sample_size Number of periods to subset return sample when estimating the covariance matrix. A high number will provide
+#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
+#' to dimensionality curse.
+#' @param active_returns logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
+create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE) {
+
+  cov_est_method <- new("cov_est_method",
+                        cov_estimation_method = cov_estimation_method,
+                        cov_matrix_sample_size = cov_matrix_sample_size,
+                        active_returns = active_returns
+  )
+
+}
+
 
 #' @title Create sb_backtest_config Object
 #' @description Constructs an sb_backtest_config object.
 #'
-#' @param sb_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').
+#' @param sb_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn', 'sw', 'ew', etc.).
+#' @param target_fwd_name Name of the target variable in `target_m_df`.
 #' @param training_sample_size Number of observations to include in each training sample.
 #' @param rebalancing_months Months (numeric) when model should be rebalanced (refit).
 #' @param split_method Character string indicating the data splitting method ('expanding' or 'rolling').
@@ -1200,16 +1336,17 @@ setMethod(
 #' @param ss_backtest_config An object of class `ss_backtest_config`, specifying the single strategy backtest configuration.
 #' @param ss_backtest_results An object of class `ss_backtest_results`, containing the results of the single strategy backtest.
 #' @param custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
-#' @param keras_architecture_parameters List or NULL, providing parameters specific to keras-based neural networks.
+#' @param keras_architecture_parameters An object of class `keras_architecture_parameters` providing parameters specific to keras-based neural networks.
+#' @param signal_port_parameters An object of class `signal_port_parameters`, specifying the parameters for constructing signal portfolios (portfolio-blending).
 #' @param quantile_tau Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
 #' @param huber_delta Numeric value greater than 0, specifying the delta parameter for Huber loss function.
 #' @param config_name Name of the backtest configuration.
 #'
 #' @return An sb_backtest_config object.
 #' @export
-create_sb_backtest_config <- function(sb_algorithm = "ols", tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
+create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
                                       ss_backtest_config = NULL, ss_backtest_results = NULL,
-                                      custom_objective = "squared_error", keras_architecture_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
+                                      custom_objective = "squared_error", keras_architecture_parameters = NULL, signal_port_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
                                       config_name = "not_identified") {
 
   ##Give custom warning related to quantile tau and huber delta
@@ -1217,12 +1354,23 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", tuning_strategy = NU
     message("changing quantile_tau impacts both chosen_eval_metric and custom_objective.")
   }
   if (!is.null(huber_delta) && huber_delta != 1) {
-    message("changing huber_delta impacts both chosen_eval_metric and custom_objective. ")
+    message("changing huber_delta impacts both chosen_eval_metric and custom_objective.")
+  }
+
+  #Create default parameters for signal_port_parameters depending on sb_algo
+  if(sb_algorithm %in% c("mto", "rp") && is.null(signal_port_parameters)){
+    cov_est_method <- create_cov_est_method(cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE)
+    mvo_parameters <- create_mvo_parameters(opt_method = "random", random_ports_method = "sample", n_random_ports = 1000, opt_objective = "sharpe")
+    rp_parameters <- create_rp_parameters(rp_method = "cyclical-spinu")
+    concentration_constraint_policy <- list()
+
+    signal_port_parameters <- create_signal_port_parameters(cov_est_method = cov_est_method, mvo_parameters = mvo_parameters, rp_parameters = rp_parameters, concentration_constraint_policy = concentration_constraint_policy)
   }
 
   # Create the sb_backtest_config object
   new("sb_backtest_config",
       sb_algorithm = sb_algorithm,
+      target_fwd_name = target_fwd_name,
       training_sample_size = training_sample_size,
       rebalancing_months = rebalancing_months,
       split_method = split_method,
@@ -1231,11 +1379,13 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", tuning_strategy = NU
       tuning_strategy = tuning_strategy,
       custom_objective = custom_objective,
       keras_architecture_parameters = keras_architecture_parameters,
+      signal_port_parameters = signal_port_parameters,
       quantile_tau = quantile_tau,
       huber_delta = huber_delta,
       config_name = config_name
   )
 }
+
 
 
 #' Create SB Meta Backtest Configuration
@@ -2035,8 +2185,6 @@ create_alpha_test_strategy <- function(
 
     #Check if a bayesian_model_parametesr is being provided
     if(is.null(bayesian_model_parameters)){
-
-
       #If not create a generic one
       bayesian_model_parameters = new("bayesian_model_parameters",
                                       user_priors = NULL,
@@ -2152,10 +2300,7 @@ setMethod(
 #' @param brms_control An optional list of parameters for `brms::brm`.
 #' @return The updated object with the `bayesian_model_parameters` added.
 #' @export
-setGeneric("add_bayesian_model_parameters", function(object,
-                                                     user_priors = NULL,
-                                                     prior_derivation_control = NULL,
-                                                     brms_control = NULL) {
+setGeneric("add_bayesian_model_parameters", function(object, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
   standardGeneric("add_bayesian_model_parameters")
 })
 
@@ -2194,9 +2339,7 @@ setMethod(
   "add_bayesian_model_parameters",
   signature(object = "ss_backtest_config"),
   function(object,
-           user_priors = NULL,
-           prior_derivation_control = NULL,
-           brms_control = NULL) {
+           user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
     # Check if `alpha_test_strategy` is set
     if (is.null(object@alpha_test_strategy)) {
       stop("The 'alpha_test_strategy' slot is not set in the ss_backtest_config object.")
@@ -2390,43 +2533,28 @@ setMethod(
 
 
 
-#' @title Create Portfolio Policies
-#' @description Constructs a `portfolio_policies` object.
-#' portfolio <- create_portfolio_policies()
-create_portfolio_policies <- function() {
-
-  # Create the S4 object
-  new("portfolio_policies",
-      liquidity_constraint_policy = list(),
-      signal_selection_policy = list(),
-      turnover_constraint_policy = list(),
-      concentration_constraint_policy = list(),
-      liquidity_floor_cutoffs = list())
-}
-
-
 #' @title Add Liquidity Constraint Policy
-#' @description Adds a liquidity constraint policy to a `portfolio_policies` object.
+#' @description Adds a liquidity constraint policy to a `port_backtest_config` object.
 #'
-#' @param portfolio_policies_obj A `portfolio_policies` object to which the liquidity constraint policy will be added.
+#' @param port_backtest_config_obj A `port_backtest_config` object to which the liquidity constraint policy will be added.
 #' @param liquidity_floor_rule A character string representing the liquidity floor rule (optional).
 #' @param liquidity_cap_rules A named numeric vector where names represent liquidity classifications and values represent liquidity caps (optional).
 #'
-#' @return The updated `portfolio_policies` object with the added liquidity constraint policy.
+#' @return The updated `port_backtest_config` object with the added liquidity constraint policy.
 #'
 #' @examples
-#' portfolio <- create_portfolio_policies()
+#' portfolio <- create_port_backtest_config()
 #' portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "micro_caps")
 #' portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_cap_rules = c(micro_caps = 0.01))
 #' portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "small_caps") # This should update the liquidity_floor_rule
 #'
 #' @export
-setGeneric("add_liquidity_constraint_policy", function(portfolio_policies_obj, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL) {
+setGeneric("add_liquidity_constraint_policy", function(port_backtest_config_obj, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL) {
   standardGeneric("add_liquidity_constraint_policy")
 })
 
 #' @export
-setMethod("add_liquidity_constraint_policy", "portfolio_policies", function(portfolio_policies_obj, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL) {
+setMethod("add_liquidity_constraint_policy", "port_backtest_config", function(port_backtest_config_obj, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL) {
   # Allowed classes
   allowed_classes <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
 
@@ -2457,11 +2585,11 @@ setMethod("add_liquidity_constraint_policy", "portfolio_policies", function(port
   if (!is.null(liquidity_floor_rule)) {
     new_liquidity_constraint_policy$liquidity_floor_rule <- liquidity_floor_rule
   } else {
-    new_liquidity_constraint_policy$liquidity_floor_rule <- portfolio_policies_obj@liquidity_constraint_policy$liquidity_floor_rule  # Keep the existing rule if it exists
+    new_liquidity_constraint_policy$liquidity_floor_rule <- port_backtest_config_obj@liquidity_constraint_policy$liquidity_floor_rule  # Keep the existing rule if it exists
   }
 
   # Add liquidity_cap_rules
-  existing_rules <- portfolio_policies_obj@liquidity_constraint_policy
+  existing_rules <- port_backtest_config_obj@liquidity_constraint_policy
   existing_liquidity_floor_cap_rules <- existing_rules[!(names(existing_rules) %in% "liquidity_floor_rule")]
 
   if (!is.null(liquidity_cap_rules)) {
@@ -2495,21 +2623,21 @@ setMethod("add_liquidity_constraint_policy", "portfolio_policies", function(port
 
 
   # Create the S4 object
-  new_portfolio_policies_obj <- new("portfolio_policies",
+  new_port_backtest_config_obj <- new("port_backtest_config",
                                     liquidity_constraint_policy = new_liquidity_constraint_policy,
-                                    signal_selection_policy = portfolio_policies_obj@signal_selection_policy,
-                                    turnover_constraint_policy = portfolio_policies_obj@turnover_constraint_policy,
-                                    concentration_constraint_policy = portfolio_policies_obj@concentration_constraint_policy,
-                                    liquidity_floor_cutoffs = portfolio_policies_obj@liquidity_floor_cutoffs)
+                                    signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
+                                    turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
+                                    concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
+                                    liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
 
-  return(new_portfolio_policies_obj)
+  return(new_port_backtest_config_obj)
 })
 
 
 #' @title Add Turnover Constraint Policy
-#' @description Adds a turnover constraint policy to a `portfolio_policies` object.
+#' @description Adds a turnover constraint policy to a `port_backtest_config` object.
 #'
-#' @param portfolio_policies_obj A `portfolio_policies` object to which the liquidity constraint policy will be added.
+#' @param port_backtest_config_obj A `port_backtest_config` object to which the liquidity constraint policy will be added.
 #' @param turnover_rule A list with the following structure, specifying the turnover rule:
 #' #' \itemize{
 #'   \item \strong{liquidity_classification:} One of "micro_caps", "small_caps", "mid_caps", "large_caps" or "mega_caps"
@@ -2517,19 +2645,19 @@ setMethod("add_liquidity_constraint_policy", "portfolio_policies", function(port
 #'   \item \strong{top_stock_quantile_buffer:} A number indicating the minimum signal quantile
 #'   }
 #'
-#' @return The updated `portfolio_policies` object with the added liquidity constraint policy.
+#' @return The updated `port_backtest_config` object with the added liquidity constraint policy.
 #'
 #' @examples
-#' portfolio <- create_portfolio_policies()
+#' portfolio <- create_port_backtest_config()
 #' portfolio <- add_turnover_constraint_policy(portfolio, turnover_rule = list(liquidity_classification = "micro_caps", turnover_cap = 0.01, top_stock_quantile_buffer = 0.66))
 #'
 #' @export
-setGeneric("add_turnover_constraint_policy", function(portfolio_policies_obj, turnover_rules) {
+setGeneric("add_turnover_constraint_policy", function(port_backtest_config_obj, turnover_rules) {
   standardGeneric("add_turnover_constraint_policy")
 })
 
 #' @export
-setMethod("add_turnover_constraint_policy", "portfolio_policies", function(portfolio_policies_obj, turnover_rules) {
+setMethod("add_turnover_constraint_policy", "port_backtest_config", function(port_backtest_config_obj, turnover_rules) {
 
   # Allowed classes
   allowed_classes <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
@@ -2573,7 +2701,7 @@ setMethod("add_turnover_constraint_policy", "portfolio_policies", function(portf
 
   # Add turnover_cap_rules
   ##Get existing rules
-  existing_rules <- portfolio_policies_obj@turnover_constraint_policy
+  existing_rules <- port_backtest_config_obj@turnover_constraint_policy
   existing_rules_names <- sapply(existing_rules, function(x) x$liquidity_classification)
 
   #Combine old and new rules
@@ -2621,39 +2749,39 @@ setMethod("add_turnover_constraint_policy", "portfolio_policies", function(portf
 
 
     # Create the S4 object
-    new_portfolio_policies_obj <- new("portfolio_policies",
-                                      liquidity_constraint_policy = portfolio_policies_obj@liquidity_constraint_policy,
-                                      signal_selection_policy = portfolio_policies_obj@signal_selection_policy,
+    new_port_backtest_config_obj <- new("port_backtest_config",
+                                      liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
+                                      signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
                                       turnover_constraint_policy = final_rules,
-                                      concentration_constraint_policy = portfolio_policies_obj@concentration_constraint_policy,
-                                      liquidity_floor_cutoffs = portfolio_policies_obj@liquidity_floor_cutoffs)
+                                      concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
+                                      liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
 
-    return(new_portfolio_policies_obj)
+    return(new_port_backtest_config_obj)
   })
 
 
 #' @title Add Concentration Constraint Policy
-#' @description Adds a concentration constraint policy to a `portfolio_policies` object.
+#' @description Adds a concentration constraint policy to a `port_backtest_config` object.
 #'
-#' @param portfolio_policies_obj A `portfolio_policies` object to which the concentration constraint policy will be added.
+#' @param port_backtest_config_obj A `port_backtest_config` object to which the concentration constraint policy will be added.
 #' @param benchmark A character string representing benchmark based on which concentration policy will be applied.
 #' @param max_abs_active_individual_weight A number indicating the absolute weight differential from benchmark weights.
 #' @param max_abs_active_group_weight A named vector indicating absolute group (sector) weight differentials in relation to the benchmark.
 #'
-#' @return The updated `portfolio_policies` object with the added liquidity constraint policy.
+#' @return The updated `port_backtest_config` object with the added liquidity constraint policy.
 #'
 #' @examples
-#' portfolio <- create_portfolio_policies()
+#' portfolio <- create_port_backtest_config()
 #' portfolio <- add_concentration_constraint_policy(portfolio, benchmark = "IBOV", max_abs_active_individual_weight = 0.05, max_abs_active_group_weight = c(Sector = 0.1, Subsector = 0.5))
 #'
 #' @export
-setGeneric("add_concentration_constraint_policy", function(portfolio_policies_obj, benchmark = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL) {
+setGeneric("add_concentration_constraint_policy", function(port_backtest_config_obj, benchmark = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL) {
   standardGeneric("add_concentration_constraint_policy")
 })
 
 #' @export
-setMethod("add_concentration_constraint_policy",  "portfolio_policies",
-          function(portfolio_policies_obj, benchmark = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL) {
+setMethod("add_concentration_constraint_policy",  "port_backtest_config",
+          function(port_backtest_config_obj, benchmark = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL) {
 
   #Validate arguments
   ##Benchmark
@@ -2686,8 +2814,8 @@ setMethod("add_concentration_constraint_policy",  "portfolio_policies",
   if(!is.null(benchmark)){
     new_concentration_constraint_policy$benchmark <- benchmark
   } else {
-    if(!is.null(portfolio_policies_obj@benchmark)){
-      new_concentration_constraint_policy$benchmark <- portfolio_policies_obj@benchmark
+    if(!is.null(port_backtest_config_obj@benchmark)){
+      new_concentration_constraint_policy$benchmark <- port_backtest_config_obj@benchmark
     } else {
       new_concentration_constraint_policy$benchmark <- NULL
     }
@@ -2697,8 +2825,8 @@ setMethod("add_concentration_constraint_policy",  "portfolio_policies",
   if(!is.null(max_abs_active_individual_weight)){
     new_concentration_constraint_policy$max_abs_active_individual_weight <- max_abs_active_individual_weight
   } else {
-    if(!is.null(portfolio_policies_obj@max_abs_active_individual_weight)){
-      new_concentration_constraint_policy$max_abs_active_individual_weight <- portfolio_policies_obj@max_abs_active_individual_weight
+    if(!is.null(port_backtest_config_obj@max_abs_active_individual_weight)){
+      new_concentration_constraint_policy$max_abs_active_individual_weight <- port_backtest_config_obj@max_abs_active_individual_weight
     } else {
       new_concentration_constraint_policy$max_abs_active_individual_weight <- NULL
     }
@@ -2708,32 +2836,111 @@ setMethod("add_concentration_constraint_policy",  "portfolio_policies",
   if(!is.null(max_abs_active_group_weight)){
     new_concentration_constraint_policy$max_abs_active_group_weight <- max_abs_active_group_weight
   } else {
-    if(!is.null(portfolio_policies_obj@max_abs_active_group_weight)){
-      new_concentration_constraint_policy$max_abs_active_group_weight <- portfolio_policies_obj@max_abs_active_group_weight
+    if(!is.null(port_backtest_config_obj@max_abs_active_group_weight)){
+      new_concentration_constraint_policy$max_abs_active_group_weight <- port_backtest_config_obj@max_abs_active_group_weight
     } else {
       new_concentration_constraint_policy$max_abs_active_group_weight <- NULL
     }
   }
 
   # Create the S4 object
-  new_portfolio_policies_obj <- new("portfolio_policies",
-                                    liquidity_constraint_policy = portfolio_policies_obj@liquidity_constraint_policy,
-                                    signal_selection_policy = portfolio_policies_obj@signal_selection_policy,
-                                    turnover_constraint_policy = portfolio_policies_obj@turnover_constraint_policy,
+  new_port_backtest_config_obj <- new("port_backtest_config",
+                                    liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
+                                    signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
+                                    turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
                                     concentration_constraint_policy = new_concentration_constraint_policy,
-                                    liquidity_floor_cutoffs = portfolio_policies_obj@liquidity_floor_cutoffs)
+                                    liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
 
-  return(new_portfolio_policies_obj)
+  return(new_port_backtest_config_obj)
 
 })
+
+#RONALDO
+##
+
+#' @export
+setMethod("add_concentration_constraint_policy",  "port_backtest_config",
+          function(port_backtest_config_obj, benchmark = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL) {
+
+            #Validate arguments
+            ##Benchmark
+            if(!is.null(benchmark)){
+              if(!is.character(benchmark)){
+                stop("benchmark should be a character")
+              }
+            }
+
+            ##Max Absolute Active Individual Weight
+            if(!is.null(max_abs_active_individual_weight)){
+              if(!is.numeric(max_abs_active_individual_weight)){
+                stop("max_abs_active_individual_weight should be numeric")
+              }
+            }
+
+            ##Max Absolute Active Group Weight
+            if(!is.null(max_abs_active_group_weight)){
+              if(!all(is.numeric(max_abs_active_group_weight))){
+                stop("max_abs_active_group_weight should be a numeric vector")
+              }
+              if(is.null(names(max_abs_active_group_weight))){
+                stop("max_abs_active_group_weight should include names")
+              }
+            }
+
+            new_concentration_constraint_policy <- list()
+
+            #Set benchmark
+            if(!is.null(benchmark)){
+              new_concentration_constraint_policy$benchmark <- benchmark
+            } else {
+              if(!is.null(port_backtest_config_obj@benchmark)){
+                new_concentration_constraint_policy$benchmark <- port_backtest_config_obj@benchmark
+              } else {
+                new_concentration_constraint_policy$benchmark <- NULL
+              }
+            }
+
+            #Set max_abs_active_individual_weight
+            if(!is.null(max_abs_active_individual_weight)){
+              new_concentration_constraint_policy$max_abs_active_individual_weight <- max_abs_active_individual_weight
+            } else {
+              if(!is.null(port_backtest_config_obj@max_abs_active_individual_weight)){
+                new_concentration_constraint_policy$max_abs_active_individual_weight <- port_backtest_config_obj@max_abs_active_individual_weight
+              } else {
+                new_concentration_constraint_policy$max_abs_active_individual_weight <- NULL
+              }
+            }
+
+            #Set max_abs_active_group_weight
+            if(!is.null(max_abs_active_group_weight)){
+              new_concentration_constraint_policy$max_abs_active_group_weight <- max_abs_active_group_weight
+            } else {
+              if(!is.null(port_backtest_config_obj@max_abs_active_group_weight)){
+                new_concentration_constraint_policy$max_abs_active_group_weight <- port_backtest_config_obj@max_abs_active_group_weight
+              } else {
+                new_concentration_constraint_policy$max_abs_active_group_weight <- NULL
+              }
+            }
+
+            # Create the S4 object
+            new_port_backtest_config_obj <- new("port_backtest_config",
+                                                liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
+                                                signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
+                                                turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
+                                                concentration_constraint_policy = new_concentration_constraint_policy,
+                                                liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
+
+            return(new_port_backtest_config_obj)
+
+          })
 
 
 
 
 #' @title Add Signal Selection Policy
-#' @description Adds a signal selection policy to a `portfolio_policies` object.
+#' @description Adds a signal selection policy to a `port_backtest_config` object.
 #'
-#' @param portfolio_policies_obj A `portfolio_policies` object to which the signal selection policy will be added.
+#' @param port_backtest_config_obj A `port_backtest_config` object to which the signal selection policy will be added.
 #' @param signal_blending_method A method for blending signals.
 #' @param sb_benchmark_weighting A weighting strategy for the benchmark.
 #' @param max_abs_active_individual_weight A number indicating the absolute weight differential from benchmark weights.
@@ -2747,14 +2954,14 @@ setMethod("add_concentration_constraint_policy",  "portfolio_policies",
 #' @param priors_type Type of priors to use.
 #' @param data_availability_cutoff A cutoff for data availability.
 #'
-#' @return The updated `portfolio_policies` object with the added signal selection policy.
+#' @return The updated `port_backtest_config` object with the added signal selection policy.
 #'
 #' @examples
-#' portfolio <- create_portfolio_policies()
+#' portfolio <- create_port_backtest_config()
 #' portfolio <- add_signal_selection_policy(portfolio, signal_blending_method = "method1", ...)
 #'
 #' @export
-setGeneric("add_signal_selection_policy", function(portfolio_policies_obj,
+setGeneric("add_signal_selection_policy", function(port_backtest_config_obj,
                                                    #Signal Selection
                                                    chosen_signals = NULL, signal_positions = NULL,
                                                    #How to blend signals?
@@ -2769,7 +2976,7 @@ setGeneric("add_signal_selection_policy", function(portfolio_policies_obj,
 })
 
 #' @export
-setMethod("add_signal_selection_policy", "portfolio_policies", function(portfolio_policies_obj,
+setMethod("add_signal_selection_policy", "port_backtest_config", function(port_backtest_config_obj,
                                                                         #Signal Selection
                                                                         chosen_signals = NULL, signal_positions = NULL,
                                                                         #How to blend signals?
@@ -2803,7 +3010,7 @@ setMethod("add_signal_selection_policy", "portfolio_policies", function(portfoli
       ## check for appropriate signal_blending_method
       if(length(chosen_signals) > 1){
         #If more than one signal is chosen, signal_blending_method can't be NULL
-        if(any(!is.null(signal_blending_method), !is.null(portfolio_policies_obj@signal_selection_policy))){
+        if(any(!is.null(signal_blending_method), !is.null(port_backtest_config_obj@signal_selection_policy))){
           #Either the new signal_blending_method or the old one must be different from NULL
         }
       }
@@ -2909,36 +3116,36 @@ setMethod("add_signal_selection_policy", "portfolio_policies", function(portfoli
 
   # Construct new_signal_selection_policy list
   new_signal_selection_policy <- list(
-    chosen_signals = if (!is.null(chosen_signals)) chosen_signals else portfolio_policies_obj@signal_selection_policy$chosen_signals,
-    signal_positions = if (!is.null(signal_positions)) signal_positions else portfolio_policies_obj@signal_selection_policy$signal_positions,
-    signal_blending_method = if (!is.null(signal_blending_method)) signal_blending_method else portfolio_policies_obj@signal_selection_policy$signal_blending_method,
-    chosen_sb_metric = if (!is.null(chosen_sb_metric)) chosen_sb_metric else portfolio_policies_obj@signal_selection_policy$chosen_sb_metric,
+    chosen_signals = if (!is.null(chosen_signals)) chosen_signals else port_backtest_config_obj@signal_selection_policy$chosen_signals,
+    signal_positions = if (!is.null(signal_positions)) signal_positions else port_backtest_config_obj@signal_selection_policy$signal_positions,
+    signal_blending_method = if (!is.null(signal_blending_method)) signal_blending_method else port_backtest_config_obj@signal_selection_policy$signal_blending_method,
+    chosen_sb_metric = if (!is.null(chosen_sb_metric)) chosen_sb_metric else port_backtest_config_obj@signal_selection_policy$chosen_sb_metric,
     sb_benchmark_weighting_method = if (!missing(sb_benchmark_weighting_method) && !is.null(sb_benchmark_weighting_method)) {
       sb_benchmark_weighting_method
-    } else if (!is.null(portfolio_policies_obj@signal_selection_policy$sb_benchmark_weighting_method)) {
-      portfolio_policies_obj@signal_selection_policy$sb_benchmark_weighting_method
+    } else if (!is.null(port_backtest_config_obj@signal_selection_policy$sb_benchmark_weighting_method)) {
+      port_backtest_config_obj@signal_selection_policy$sb_benchmark_weighting_method
     } else {
       "theme_sb"
     },
-    max_abs_active_individual_weight = if (!is.null(max_abs_active_individual_weight)) max_abs_active_individual_weight else portfolio_policies_obj@signal_selection_policy$max_abs_active_individual_weight,
-    max_abs_active_group_weight = if (!is.null(max_abs_active_group_weight)) max_abs_active_group_weight else portfolio_policies_obj@signal_selection_policy$max_abs_active_group_weight,
+    max_abs_active_individual_weight = if (!is.null(max_abs_active_individual_weight)) max_abs_active_individual_weight else port_backtest_config_obj@signal_selection_policy$max_abs_active_individual_weight,
+    max_abs_active_group_weight = if (!is.null(max_abs_active_group_weight)) max_abs_active_group_weight else port_backtest_config_obj@signal_selection_policy$max_abs_active_group_weight,
     p_correction_method = if (!missing(p_correction_method) && p_correction_method != "none") {
       p_correction_method
-    } else if (!is.null(portfolio_policies_obj@signal_selection_policy$p_correction_method)) {
-      portfolio_policies_obj@signal_selection_policy$p_correction_method
+    } else if (!is.null(port_backtest_config_obj@signal_selection_policy$p_correction_method)) {
+      port_backtest_config_obj@signal_selection_policy$p_correction_method
     } else {
       "none"
     },
-    signal_significance_threshold = if (!is.null(signal_significance_threshold)) signal_significance_threshold else portfolio_policies_obj@signal_selection_policy$signal_significance_threshold,
-    data_availability_cutoff = if (!is.null(data_availability_cutoff)) data_availability_cutoff else portfolio_policies_obj@signal_selection_policy$data_availability_cutoff,
+    signal_significance_threshold = if (!is.null(signal_significance_threshold)) signal_significance_threshold else port_backtest_config_obj@signal_selection_policy$signal_significance_threshold,
+    data_availability_cutoff = if (!is.null(data_availability_cutoff)) data_availability_cutoff else port_backtest_config_obj@signal_selection_policy$data_availability_cutoff,
       priors_type = if (!is.null(p_correction_method) && p_correction_method == "bayesian" && is.null(priors_type)) {
     "uninformative"
   } else if (!is.null(priors_type)) {
     priors_type
   } else {
-    portfolio_policies_obj@signal_selection_policy$priors_type
+    port_backtest_config_obj@signal_selection_policy$priors_type
   },
-    priors_informative_data = if (!is.null(priors_informative_data)) priors_informative_data else portfolio_policies_obj@signal_selection_policy$priors_informative_data
+    priors_informative_data = if (!is.null(priors_informative_data)) priors_informative_data else port_backtest_config_obj@signal_selection_policy$priors_informative_data
   )
 
   # Final consistency checks
@@ -2979,32 +3186,32 @@ setMethod("add_signal_selection_policy", "portfolio_policies", function(portfoli
     stop("priors_informative_data can't be NULL if p_correction_method is bayesian and priors_type is not uninformative or user")
   }
 
-  # Create the updated portfolio_policies object
-  new_portfolio_policies_obj <- new("portfolio_policies",
-                                    liquidity_constraint_policy = portfolio_policies_obj@liquidity_constraint_policy,
+  # Create the updated port_backtest_config object
+  new_port_backtest_config_obj <- new("port_backtest_config",
+                                    liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
                                     signal_selection_policy = new_signal_selection_policy,
-                                    turnover_constraint_policy = portfolio_policies_obj@turnover_constraint_policy,
-                                    concentration_constraint_policy = portfolio_policies_obj@concentration_constraint_policy,
-                                    liquidity_floor_cutoffs = portfolio_policies_obj@liquidity_floor_cutoffs)
+                                    turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
+                                    concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
+                                    liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
 
-  return(new_portfolio_policies_obj)
+  return(new_port_backtest_config_obj)
 })
 
 
 #' @title Add Liquidity Floor Cutoffs
-#' @description Add liquidity floor cutoffs to the portfolio_policies object.
-#' @param portfolio_policies_obj An S4 object of class `portfolio_policies`.
+#' @description Add liquidity floor cutoffs to the port_backtest_config object.
+#' @param port_backtest_config_obj An S4 object of class `port_backtest_config`.
 #' @param liquidity_metric A character string representing the liquidity metric.
 #' @param cutoffs A numeric vector of length 5 representing the cutoff values for
 #' micro_caps, small_caps, mid_caps, large_caps, and mega_caps.
-#' @return An updated `portfolio_policies` object.
+#' @return An updated `port_backtest_config` object.
 #' @export
-setGeneric("add_liquidity_floor_cutoffs", function(portfolio_policies_obj, liquidity_metric, cutoffs) {
+setGeneric("add_liquidity_floor_cutoffs", function(port_backtest_config_obj, liquidity_metric, cutoffs) {
   standardGeneric("add_liquidity_floor_cutoffs")
 })
 
 #' @export
-setMethod("add_liquidity_floor_cutoffs", "portfolio_policies", function(portfolio_policies_obj,
+setMethod("add_liquidity_floor_cutoffs", "port_backtest_config", function(port_backtest_config_obj,
                                                                         liquidity_metric,
                                                                         cutoffs) {
   # Validate inputs
@@ -3022,8 +3229,8 @@ setMethod("add_liquidity_floor_cutoffs", "portfolio_policies", function(portfoli
   }
 
   # Initialize liquidity_floor_cutoffs if it doesn't exist
-  if (is.null(portfolio_policies_obj@liquidity_floor_cutoffs)) {
-    portfolio_policies_obj@liquidity_floor_cutoffs <- list(
+  if (is.null(port_backtest_config_obj@liquidity_floor_cutoffs)) {
+    port_backtest_config_obj@liquidity_floor_cutoffs <- list(
       micro_caps = numeric(),
       small_caps = numeric(),
       mid_caps = numeric(),
@@ -3033,14 +3240,14 @@ setMethod("add_liquidity_floor_cutoffs", "portfolio_policies", function(portfoli
   }
 
   # Update each market capitalization class with the new liquidity metric cutoffs
-  portfolio_policies_obj@liquidity_floor_cutoffs$micro_caps[liquidity_metric] <- cutoffs[1]
-  portfolio_policies_obj@liquidity_floor_cutoffs$small_caps[liquidity_metric] <- cutoffs[2]
-  portfolio_policies_obj@liquidity_floor_cutoffs$mid_caps[liquidity_metric] <- cutoffs[3]
-  portfolio_policies_obj@liquidity_floor_cutoffs$large_caps[liquidity_metric] <- cutoffs[4]
-  portfolio_policies_obj@liquidity_floor_cutoffs$mega_caps[liquidity_metric] <- cutoffs[5]
+  port_backtest_config_obj@liquidity_floor_cutoffs$micro_caps[liquidity_metric] <- cutoffs[1]
+  port_backtest_config_obj@liquidity_floor_cutoffs$small_caps[liquidity_metric] <- cutoffs[2]
+  port_backtest_config_obj@liquidity_floor_cutoffs$mid_caps[liquidity_metric] <- cutoffs[3]
+  port_backtest_config_obj@liquidity_floor_cutoffs$large_caps[liquidity_metric] <- cutoffs[4]
+  port_backtest_config_obj@liquidity_floor_cutoffs$mega_caps[liquidity_metric] <- cutoffs[5]
 
   # Return the updated portfolio policies object
-  return(portfolio_policies_obj)
+  return(port_backtest_config_obj)
 })
 
 

@@ -47,7 +47,13 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
   if(sb_algorithm %in% c("ols","glmnet","rf")){
     custom_objective_translated <- NULL
     chosen_eval_metric_translated <- NULL
-  } else {}
+  }
+
+  if(sb_algorithm %in% c("sw", "mto")){
+    custom_objective_translated <- custom_objective
+    chosen_eval_metric_translated <- NULL
+  }
+
 
   if(sb_algorithm == "xgb"){
     custom_objective_translated <- switch(custom_objective,
@@ -70,7 +76,7 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
                                             "rmse"
     )
 
-  } else {}
+  }
   if(sb_algorithm == "nn"){
     custom_objective_translated <- switch(custom_objective,
                                           squared_error = "mean_squared_error",
@@ -94,12 +100,11 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
 
 
 
-  } else {}
-
+  }
 
 
   #Commentary about early_stop and using a eval metric not supported
-  if(verbose == TRUE){
+  if(verbose){
     if(all(!is.null(early_stop), sb_algorithm %in% c("xgb", "nn"), !chosen_eval_metric %in% c("rmse", "mae", "mphe", "mape"))){
       cat(crayon::yellow(
         "This eval_metric is not supported by early stop. Applying rmse as criteria for early_stop instead."))
@@ -123,6 +128,7 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
 
 
 
-  return(list(chosen_eval_metric = chosen_eval_metric, custom_objective_translated = custom_objective_translated, chosen_eval_metric_translated = chosen_eval_metric_translated))
+  return(list(chosen_eval_metric = chosen_eval_metric, custom_objective_translated = custom_objective_translated,
+              chosen_eval_metric_translated = chosen_eval_metric_translated))
 
 }
