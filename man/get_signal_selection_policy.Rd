@@ -4,14 +4,14 @@
 \alias{get_signal_selection_policy}
 \title{Accessor for Signal Selection Policy}
 \usage{
-get_signal_selection_policy(portfolio_policies_obj)
+get_signal_selection_policy(port_backtest_config_obj)
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object.}
+\item{port_backtest_config_obj}{A \code{port_backtest_config} object.}
 }
 \value{
 The signal selection policy list.
 }
 \description{
-Retrieves the signal selection policy from a \code{portfolio_policies} object.
+Retrieves the signal selection policy from a \code{port_backtest_config} object.
 }

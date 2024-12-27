@@ -15,7 +15,7 @@
 #' @param liquidity_m_d_ref An optional data frame or matrix containing liquidity metrics for the signals, used for capitalization weighting and scaling. Defaults to \code{NULL}.
 #' @param cap_weighting_metric An optional character string specifying the metric to use for capitalization weighting or scaling. Defaults to \code{NULL}.
 #' @param groups_m_d_ref An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.
-#' @param covariance_estimation_method An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.
+#' @param cov_estimation_method An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.
 #' @param liquidity_constraint_policy An optional list specifying the policy for liquidity constraints. Defaults to \code{NULL}.
 #' @param turnover_constraint_policy An optional list specifying the policy for turnover constraints. Defaults to \code{NULL}.
 #' @param benchmark_weights_m_d_ref An optional data frame or matrix specifying the benchmark weights for setting sector constraints. Defaults to \code{NULL}.
@@ -32,8 +32,8 @@
 set_portfolio_weights <- function(universe_m_d_ref, portfolio_construction_method,
                                   liquidity_m_d_ref = NULL, cap_weighting_metric = NULL, #Cap-Weight and Cap-Scaled
                                   groups_m_d_ref = NULL, #Used for filling returns for covariance matrix estimation and/or setting group constraints
-                                  returns_upd_ref = NULL, covariance_matrix_sample_size = NULL, #Returns to estimate cov matrix
-                                  covariance_estimation_method = NULL, #How to estimate covariance matrix?
+                                  returns_xts_upd_ref = NULL, active_returns, selected_benchmark_xts_upd_ref, #Returns to estimate cov matrix
+                                  cov_estimation_method = NULL, cov_matrix_sample_size = NULL, #How to estimate covariance matrix?
                                   liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL, #Policies
                                   n_random_portfolios = 2000, rp_method = "sample", mto_port_objective = "IR",
                                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975
@@ -44,42 +44,42 @@ set_portfolio_weights <- function(universe_m_d_ref, portfolio_construction_metho
     portfolio_construction_method,
 
     #Equal-Weighted Portfolio
-    EW = create_equal_weighted_portfolio(
+    ew = create_equal_weighted_portfolio(
       universe_m_d_ref = universe_m_d_ref #Signal Universe
     ),
 
     #Signal-Weighted Portfolio
-    SW = create_signal_weighted_portfolio(
+    sw = create_signal_weighted_portfolio(
       universe_m_d_ref = universe_m_d_ref #Signal Universe
     ),
 
     #Cap-Weighted Portfolio
-    CW = create_cap_weighted_portfolio(
+    cw = create_cap_weighted_portfolio(
       universe_m_d_ref = universe_m_d_ref,
       liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = cap_weighting_metric, #How to set cap scores
       lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Winsorize cap scores
     ),
 
     #Cap-Scaled Portfolio
-    CS = create_cap_scaled_portfolio(
+    cs = create_cap_scaled_portfolio(
       universe_m_d_ref = universe_m_d_ref, #Signal Universe
       liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = cap_weighting_metric, #How to set cap scores
       lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Winsorize cap scores
     ),
 
     #Risk-Parity Portfolio
-    RP = create_risk_parity_portfolio(
+    rp = create_risk_parity_portfolio(
       universe_m_d_ref = universe_m_d_ref, #Signal Universe
-      returns_upd_ref = returns_upd_ref, groups_m_d_ref = groups_m_d_ref, #Daily Returns
-      covariance_matrix_sample_size = covariance_matrix_sample_size, covariance_estimation_method = covariance_estimation_method #How to estimate cov?
+      returns_xts_upd_ref = returns_xts_upd_ref, groups_m_d_ref = groups_m_d_ref, #Daily Returns
+      cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns, selected_benchmark_xts_upd_ref #How to estimate cov?
     ),
 
     #Mean-Tracking Error Optimization
-    MTO = create_mto_portfolio(
+    mvo = create_mvo_portfolio(
       universe_m_d_ref = universe_m_d_ref, #Signal Universe
-      returns_upd_ref = returns_upd_ref,
-      covariance_matrix_sample_size = covariance_matrix_sample_size,
-      covariance_estimation_method = covariance_estimation_method,
+      returns_xts_upd_ref = returns_xts_upd_ref,
+      cov_matrix_sample_size = cov_matrix_sample_size,
+      cov_estimation_method = cov_estimation_method,
       liquidity_constraint_policy = liquidity_constraint_policy, #Liquidity constraints
       turnover_constraint_policy = turnover_constraint_policy, #Turnover constraints
       concentration_constraint_policy = concentration_constraint_policy, #Concentration constraints

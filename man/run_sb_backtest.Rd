@@ -39,8 +39,17 @@ run_sb_backtest_internal(
   validation_sample_size = 0,
   rebalancing_months,
   split_method = "expanding",
-  eligible_signals_list,
   signal_universe_m_df,
+  backtest_returns_xts = NULL,
+  selected_market_factor_proxy_xts = NULL,
+  covariance_matrix_sample_size = 36,
+  covariance_estimation_method = "sample",
+  active_returns = TRUE,
+  rp_method = "cyclical-spinu",
+  n_random_ports = 2000,
+  random_ports_method = "sample",
+  opt_objective = "sharpe",
+  concentration_constraint_policy,
   sb_algorithm = "ols",
   custom_objective = "squared_error",
   chosen_eval_metric = NULL,
@@ -55,7 +64,9 @@ run_sb_backtest_internal(
   early_stop = NULL,
   keras_architecture_parameters = NULL,
   verbose = FALSE,
-  parallel = TRUE
+  parallel = TRUE,
+  upper_quantile_winsorization = 0.95,
+  lower_quantile_winsorization = 0.05
 )
 }
 \arguments{
@@ -90,6 +101,8 @@ Alternatively, if \code{'all'}, all features are passed through. If \code{'none'
 \item{rebalancing_months}{Months (numeric) when model should be rebalanced.}
 
 \item{split_method}{Choice of split method (expanding or rolling).}
+
+\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_universe_m_df},}
 
 \item{sb_algorithm}{Choice of sb_algorithm: ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
 
@@ -139,6 +152,10 @@ If running in parallel, set iters.k to a multiple of the number of cores. Must b
 }
 \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
 }}
+
+\item{signal_universe_m_d_ref}{A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.}
+
+\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
 }
 \value{
 An object of class \code{sb_backtest_results} or \code{sb_metabacktest_results} with various outputs including model predictions, errors, and validation metrics.

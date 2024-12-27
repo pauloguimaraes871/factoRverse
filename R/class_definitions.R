@@ -1,5 +1,13 @@
+#-----------------------------------------------------------------------
+# External Objects
+#-----------------------------------------------------------------------
+
 # Register 'xts' as an S4 class
 setOldClass("xts")
+
+#-----------------------------------------------------------------------
+# meta_dataframe
+#-----------------------------------------------------------------------
 
 #' Define the `meta_dataframe` S4 Class
 #'
@@ -116,6 +124,10 @@ setClass(
   }
 )
 
+#-----------------------------------------------------------------------
+# hyperparams
+#-----------------------------------------------------------------------
+
 
 #' Define the `hyper_grid_domain` S4 Class
 #'
@@ -146,6 +158,10 @@ setClass(
   }
 
   })
+
+#-----------------------------------------------------------------------
+# tuning_strat
+#-----------------------------------------------------------------------
 
 #' @title Base class for hyperparameter tuning strategies
 #' @description This class defines the common slots and structure for hyperparameter tuning strategies such as grid search, random search, and Bayesian optimization.
@@ -317,6 +333,9 @@ setClass(
   }
 )
 
+#-----------------------------------------------------------------------
+# keras
+#-----------------------------------------------------------------------
 
 #' @title Keras Architecture Parameters
 #' @description Class to encapsulate parameters for constructing a Keras neural network architecture.
@@ -340,6 +359,10 @@ setClass(
 )
 
 
+#-----------------------------------------------------------------------
+# cov_est_method
+#-----------------------------------------------------------------------
+
 #' Define the `cov_est_method` S4 Class
 #'
 #' S4 class to represent a set of configurations for estimating the covariance matrix.
@@ -358,11 +381,11 @@ setClass("cov_est_method",
          slots = list(
            cov_estimation_method = "character",
            cov_matrix_sample_size = "numeric",
-           active_returns = "logical",
+           active_returns = "logical"
          ),
          prototype = list(
-           estimation_method = "sample",
-           sample_size = 36,
+           cov_estimation_method = "sample",
+           cov_matrix_sample_size = 36,
            active_returns = TRUE
          ),
          validity = function(object){
@@ -372,12 +395,17 @@ setClass("cov_est_method",
          }
 )
 
+#-----------------------------------------------------------------------
+# mvo_parameters
+#-----------------------------------------------------------------------
+
+
 #' Define the `mvo_parameters` S4 Class
 #'
 #' S4 class to represent a set of configurations for mean-variance optimization.
 #'
 #' @slot opt_method A character indicating the optimization method. The only current available method is 'random'. In this case, n_random_portfolios are
-#' generated under the constraints defined in the mvo_parameters object and the one that satisfies the
+#' generated under the constraints defined in the mvo_parameters object and the one that optimizes the opt_objective will be selected.
 #' @slot random_ports_method A character string representing the method that will be passed to PortfolioAnalytics::random_portfolios to generate random portfolios. Options are
 #' 'sample', 'simplex or 'grid'.
 #' @slot n_random_ports Number of random portfolios to generate. Only needed when opt_method is 'random'.
@@ -398,8 +426,28 @@ setClass("mvo_parameters",
            random_ports_method = "sample",
            n_random_ports = 1000,
            opt_objective = "sharpe"
-         )
+         ),
+         validity = function(object){
+           if (!object@opt_method %in% c("random")) {
+                stop("Currently, 'opt_method' must be 'random'.")
+              }
+              if (!object@random_ports_method %in% c("sample", "simplex", "grid")) {
+                stop("random_ports_method must be one of 'sample', 'simplex', 'grid'.")
+              }
+              if (object@n_random_ports < 1) {
+                stop("n_random_ports must be at least 1.")
+              }
+              if (!object@opt_objective %in% c("return", "risk", "sharpe")) {
+                stop("opt_objective must be one of 'return', 'risk', 'sharpe'.")
+              }
+              TRUE
+         }
 )
+
+#-----------------------------------------------------------------------
+# rp_parameters
+#-----------------------------------------------------------------------
+
 
 #' Define the `rp_parameters` S4 Class
 #'
@@ -421,6 +469,51 @@ setClass("rp_parameters",
 )
 
 
+#-----------------------------------------------------------------------
+# concnetration_constraint_policy
+#-----------------------------------------------------------------------
+
+#' @title Concentration Constraint Policy
+#' @description An S4 class to represent a concentration constraint policy
+#' in portfolio construction.
+#'
+#' @slot benchmark A character vector indicating which benchmark(s) to use.
+#' For stocks, must be a column in benchmarks_m_df.
+#' For signals, must be theme_ss or theme_sb
+#' @slot max_abs_active_individual_weight A numeric value indicating the
+#'   maximum absolute active weight for individual assets.
+#' @slot max_abs_active_group_weight A **named** numeric vector indicating
+#'   maximum absolute group weights in relation to the benchmark.
+#'   Names should match columns in a groups_m_df.
+#'
+#' @export
+setClass(
+  "concentration_constraint_policy",
+  slots = c(
+    benchmark = "character",
+    max_abs_active_individual_weight = "numeric",
+    max_abs_active_group_weight = "ANY"
+  ),
+  prototype = list(
+    benchmark = character(0),
+    max_abs_active_individual_weight = NA_real_,
+    max_abs_active_group_weight = numeric(0)  # e.g., named numeric(0)
+  ),
+  validity = function(object){
+    # Check that max_abs_active_group_weight is named if it's non-empty
+    if (length(object@max_abs_active_group_weight) > 0 &&
+        is.null(names(object@max_abs_active_group_weight))) {
+      return("max_abs_active_group_weight must have names")
+    }
+    TRUE
+  }
+)
+
+
+#-----------------------------------------------------------------------
+# signal_port_parameters
+#-----------------------------------------------------------------------
+
 
 #' @title Signal Portfolio Parameters
 #' @description Class to encapsulate parameters for constructing signal portfolios (portfolio-blending). Only needed when
@@ -431,7 +524,7 @@ setClass("rp_parameters",
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
 #' @slot concentration_constraint_policy The policy to handle concentration constraints.
-#'  It contains up to to four elements:
+#'  It contains up to to three elements:
 #' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
 #' For signal portfolios, possible options are theme_ss or theme_sb.
 #' For stock portfolios, there must be a correspondence in `benchmark_weights_m_df`
@@ -443,454 +536,34 @@ setClass(
   "signal_port_parameters",
   slots = list(
     cov_est_method = "cov_est_method",
-    mvo_parameters = "mvo_parameters",
-    rp_parameters = "rp_parameters",
-    concentration_constraint_policy = "list"
-  )
-)
-
-
-
-#' @title sb_backtest_config Class
-#' @description The sb_backtest_config class is designed to define an end-to-end signal-blending (heuristic or machine learning)
-#' experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
-#' @slot sb_algorithm Character string specifying the signal-blending algorithm to be used. Should be one of
-#' ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mto (Mean-Tracking Error Optimization),
-#' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
-#' @slot target_fwd_name Name of the target variable in `target_m_df`.
-#' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
-#' @slot ss_backtest_config An object of class `ss_backtest_config`, specifying the single strategy backtest configuration.
-#' @slot ss_backtest_results An object of class `ss_backtest_results`, containing the results of the single strategy backtest.
-#' @slot port_backtest_config An object of class `port_backtest_config`, containing instructions to create SB portfolios for heuristic algorithms.
-#' @slot training_sample_size Number of observations to include in each training sample.
-#' @slot rebalancing_months Months (numeric) when model should be rebalanced (refit).
-#' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
-#' @slot custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
-#' Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.
-#' @slot keras_architecture_parameters An object of class `keras_architecture_parameters` or NULL, providing parameters specific to keras-based neural networks.
-#' It includes:
-#' \itemize{
-#'   \item \strong{units}: A numeric vector specifying the number of neurons in each layer.
-#'   \item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
-#'   \item \strong{activation}: A character vector listing the activation functions for each layer (e.g., "relu", "sigmoid", "tanh").
-#'   \item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
-#'   \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
-#' }
-#' @slot signal_port_parameters An object of class `signal_port_parameters`, specifying the parameters for constructing signal portfolios (portfolio-blending).
-#' @slot quantile_tau A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
-#' @slot huber_delta A single positive numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
-#' @slot config_name A character string to identify the configuration.
-#' @export
-setClass(
-  "sb_backtest_config",
-  slots = list(
-    sb_algorithm = "character",
-    target_fwd_name = "character",
-    tuning_strategy = "ANY",
-    ss_backtest_config = "ANY",
-    ss_backtest_results = "ANY",
-    split_method = "character",
-    training_sample_size = "numeric",
-    rebalancing_months = "numeric",
-    custom_objective = "character",
-    keras_architecture_parameters = "ANY",
-    signal_port_parameters = "ANY",
-    quantile_tau = "numeric",
-    huber_delta = "numeric",
-    config_name = "character"
+    mvo_parameters = "ANY",
+    rp_parameters = "ANY",
+    concentration_constraint_policy = "ANY"
   ),
-  prototype = list(
-    sb_algorithm = "ols",
-    split_method = "expanding",
-    custom_objective = "squared_error",
-    quantile_tau = 0.5,
-    huber_delta = 1
-  ),
-  validity = function(object) {
-
-    #Check for ss_backtest_config OR ss_backtest_results
-    if(!is.null(object@ss_backtest_config) && !is.null(object@ss_backtest_results)) {
-      return("Only one of a ss_backtest_config or a ss_backtest_results object should be provided.")
-    }
-      ##SS Backtest Config Class
-      if(!is.null(object@ss_backtest_config)){
-        if(!inherits(object@ss_backtest_config, "ss_backtest_config")) {
-          return("ss_backtest_config must be of class 'ss_backtest_config'.")
-        }
-      }
-      ##SS Backtest Results Class
-      if(!is.null(object@ss_backtest_results)){
-        if(!inherits(object@ss_backtest_results, "ss_backtest_results")) {
-          return("ss_backtest_results must be of class 'ss_backtest_results'.")
-        }
-      }
-
-    #Check for valid sb_algorithm
-    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto")
-    if(!(object@sb_algorithm %in% valid_sb_algorithms)) {
-      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'mto', 'ols', 'glmnet', 'rf', 'xgb', or 'nn'.")
-    }
-
-    #Check for custom objective
-    if(!object@sb_algorithm %in% c("sw", "mto")){
-      valid_heuristic_sb_metrics <- c(
-        "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
-        "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
-        "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
-        "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
-        "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
-        "prob_sharpe_ratio", "modigliani", "ann_modigliani",
-        "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
-        "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
-        "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
-        "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
-        "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
-        "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
-        "act_modigliani", "act_ann_modigliani",
-        "alpha", "theme_alpha", "individual_alpha", "alpha_se", "theme_beta", "individual_beta", "specific_risk",
-        "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
-        "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
-        "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
-      )
-      if (grepl("^max_|^min_", object@custom_objective) && substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
-        return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
-               To see complete list of valid heuristic performance metrics, use ''.")
-      }
-    } else {
-      if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
-        return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
+  validity = function(object){
+    if (!is.null(mvo_parameters)) {
+      if (!inherits(mvo_parameters, "mvo_parameters")) {
+        stop("mvo_parameters must be of class 'mvo_parameters'")
       }
     }
-    if (!(object@sb_algorithm %in% c("xgb", "nn", "sw", "mto")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
-      return("Invalid custom_objective. Custom objectives are only allowed for 'sw', 'mto', 'xgb' or 'nn' algorithms.")
-    }
-    if (!(object@sb_algorithm %in% c("xgb", "nn")) && !is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@early_stop)) {
-      return("Invalid early_stop. Early stop is only allowed for 'xgb' or 'nn' algorithms.")
-    }
-    #Check for tuning strategy
-    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "mto", "ols") && is.null(object@tuning_strategy)){
-      message("when sb_algorithm is not 'ew', 'sw', 'rp', 'mto' or 'ols', a tuning_strategy must be set")
-    }
-    #ETC
-    if((object@training_sample_size < 0)){
-      stop("training_sample_size should be positive.")
-    }
-    if (object@split_method != "expanding") {
-      return("split_method should be expanding.")
-    }
-    if (object@rebalancing_months < 0 || object@rebalancing_months > 12){
-      stop("rebalancing_months should be between 1 and 12.")
-    }
-    ##Keras
-    if(!is.null(object@keras_architecture_parameters)){
-      if(!is_keras_architecture_parameters(object@keras_architecture_parameters)){
-        return("Invalid keras_architecture_parameters. Should be of class keras_architecture_parameters")
-      }
-      if(object@sb_algorithm != "nn"){
-        return("keras_architecture_parameters is only needed when sb_algorithm is nn")
+    if (!is.null(rp_parameters)) {
+      if (!inherits(rp_parameters, "rp_parameters")) {
+        stop("rp_parameters must be of class 'rp_parameters'")
       }
     }
-    ##Heuristic Portfolio
-    if(!is.null(object@signal_port_parameters)){
-      if(!inherits(object@signal_port_parameters, "signal_port_parameters")){
-        return("Invalid signal_port_parameters Should be of class signal_port_parameters")
-      }
-      if(!object@sb_algorithm %in% c("rp", "mvo")){
-        return("signal_port_parameters is only needed when sb_algorithm is rp or mvo")
+    if (!is.null(concentration_constraint_policy)) {
+      if (!inherits(concentration_constraint_policy, "concentration_constraint_policy")) {
+        stop("concentration_constraint_policy must be of class 'concentration_constraint_policy'")
       }
     }
-
-
-    if (!is.null(object@quantile_tau) && (object@quantile_tau <= 0 || object@quantile_tau >= 1)) {
-      return("quantile_tau must be between 0 and 1.")
-    }
-    if (!is.null(object@huber_delta) && object@huber_delta <= 0) {
-      return("huber_delta must be greater than 0.")
-    }
-
-
-    #Check if hypers are correctly set
-    if(!is.null(object@tuning_strategy)){
-      if(!is_tuning_strategy(object@tuning_strategy)){
-        return("Invalid tuning_strategy. Should be of class tuning_strategy")
-      }
-      if(object@sb_algorithm %in% c("ew", "sw", "rp", "mto", "ols")){
-        return("ew, sw, rp, mto and ols do not support hyperparameter tuning")
-      }
-
-        # Check hyperparameters validity based on sb_algorithm
-        hyperparameters_names <- names(object@tuning_strategy@hyper_grid_domain@hyperparameter_list)
-
-        # GLMNET
-        expected_hyperparameters_glmnet <- c("alpha", "lambda.min.ratio")
-        if (object@sb_algorithm == "glmnet" && any(!hyperparameters_names %in% expected_hyperparameters_glmnet)) {
-          stop("hyperparameters do not match sb_algorithm choice for 'glmnet'")
-        }
-        hyperparameters_missing <- expected_hyperparameters_glmnet[which(!expected_hyperparameters_glmnet %in% hyperparameters_names)]
-        if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "glmnet"){
-          cat("\n")
-          message(paste("The following hyperparameter(s) must still be configured for the",
-                        object@sb_algorithm, "algorithm:",
-                        paste(hyperparameters_missing, collapse = ", ")))
-          cat("\n")
-        }
-
-
-        # RF
-        expected_hyperparameters_rf <- c("mtry", "num.trees", "max.depth", "min.bucket")
-        if (object@sb_algorithm == "rf" && any(!hyperparameters_names %in% expected_hyperparameters_rf)) {
-          stop("hyperparameters do not match sb_algorithm choice for 'rf'")
-        }
-        hyperparameters_missing <- expected_hyperparameters_rf[which(!expected_hyperparameters_rf %in% hyperparameters_names)]
-        if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "rf"){
-          cat("\n")
-          message(paste("The following hyperparameter(s) must still be configured for the",
-                        object@sb_algorithm, "algorithm:",
-                        paste(hyperparameters_missing, collapse = ", ")))
-          cat("\n")
-        }
-
-
-        # XGB
-        expected_hyperparameters_xgb <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
-        if (object@sb_algorithm == "xgb" && any(!hyperparameters_names %in% expected_hyperparameters_xgb)) {
-          stop("hyperparameters do not match sb_algorithm choice for 'xgb'")
-        }
-        hyperparameters_missing <- expected_hyperparameters_xgb[which(!expected_hyperparameters_xgb %in% hyperparameters_names)]
-        if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "xgb"){
-          cat("\n")
-          message(paste("The following hyperparameter(s) must still be configured for the",
-                        object@sb_algorithm, "algorithm:",
-                        paste(hyperparameters_missing, collapse = ", ")))
-          cat("\n")
-        }
-
-
-        # NN
-        expected_hyperparameters_nn <- c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs")
-        if (object@sb_algorithm == "nn" && any(!hyperparameters_names %in% expected_hyperparameters_nn)) {
-          stop("hyperparameters do not match sb_algorithm choice for 'nn'")
-        }
-        hyperparameters_missing <- expected_hyperparameters_nn[which(!expected_hyperparameters_nn %in% hyperparameters_names)]
-        if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "nn"){
-          cat("\n")
-          message(paste("The following hyperparameter(s) must still be configured for the",
-                        object@sb_algorithm, "algorithm:",
-                        paste(hyperparameters_missing, collapse = ", ")))
-          cat("\n")
-        }
-
-    }
-
-
-    # Validate hyperparameters based on sb_algorithm
-    if(!is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@hyper_grid_domain@hyperparameter_list)){
-
-    #Hyperparameters
-    hyperparameter_list <- object@tuning_strategy@hyper_grid_domain@hyperparameter_list
-    tuning_method <- object@tuning_strategy@tuning_method
-
-    if (length(hyperparameter_list) > 0) {
-      for (hyperparameter in names(hyperparameter_list)) {
-        #Extract value for grid_searcho or bayesian_opt
-        value <- hyperparameter_list[[hyperparameter]]
-
-        #Extract distribution and parameters for random_search
-        if(tuning_method == "random_search"){
-        distribution_choice <- object@tuning_strategy@hyper_grid_domain@hyperparameter_list[[hyperparameter]]$distribution_choice  #Distribution Choice
-        pars <- object@tuning_strategy@hyper_grid_domain@hyperparameter_list[[hyperparameter]]$pars  #Pars
-        }
-
-        #GLMET Logic
-        if (object@sb_algorithm == "glmnet") {
-          if(tuning_method != "random_search"){
-            if (hyperparameter == "alpha" && (any(value < 0) || any(value > 1))) {
-              stop("alpha should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "lambda.min.ratio" && (any(value < 0) || any(value >= 1))) {
-              stop("lambda.min.ratio should be set in interval [0, 1)")
-            }
-          } else {
-            if (hyperparameter == "alpha"){
-              if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for alpha")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for alpha")
-              if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for alpha")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for alpha")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for alpha")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for alpha")
-              if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("alpha should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "lambda.min.ratio"){
-              if(distribution_choice == "uniform" && pars["max"] >= 1) warning("max above upper range for lambda.min.ratio")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for lambda.min.ratio")
-              if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 >= 1)) warning("mean + sd/2 above upper range for lambda.min.ratio")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for lambda.min.ratio")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 >= 1)) warning("meanlog + sdlog/2 above upper range for lambda.min.ratio")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for lambda.min.ratio")
-              if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value >= 1)))stop("lambda.min.ratio should be set in interval [0, 1)")
-            }
-          }
-        }
-
-        #RF Logic
-        if (object@sb_algorithm == "rf") {
-          if(tuning_method != "random_search"){
-            if (hyperparameter == "num.trees" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
-              stop("num.trees should be a positive integer without decimals")
-            }
-            if (hyperparameter == "num.trees" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
-              stop("num.trees should be a positive integer without decimals")
-            }
-            if (hyperparameter == "mtry" && (any(value < 0) || any(value > 1))) {
-              stop("mtry should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "max.depth" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
-              stop("max.depth should be a positive integer without decimals")
-            }
-            if (hyperparameter == "max.depth" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
-              stop("max.depth should be a positive integer without decimals")
-            }
-
-          } else {
-            if (hyperparameter == "num.trees"){
-              if(distribution_choice != "constant" && any(!is.integer(pars))) stop("pars should be set as integers for num.trees")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for num.trees")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for num.trees")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for num.trees")
-              if(distribution_choice == "constant" && (any(value$value < 0))) stop("num.trees should be positive")
-            }
-            if (hyperparameter == "mtry"){
-              if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for mtry")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for mtry")
-              if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for mtry")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for mtry")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for mtry")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for mtry")
-              if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("mtry should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "max.depth"){
-              if(distribution_choice != "constant" && any(!is.integer(pars))) stop("pars should be set as integers for max.depth")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for max.depth")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for max.depth")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for max.depth")
-              if(distribution_choice == "constant" && (any(value$value < 0))) stop("max.depth should be positive")
-            }
-          }
-        }
-
-        #XGB Logic
-        if (object@sb_algorithm == "xgb") {
-          if(tuning_method != "random_search"){
-            if (hyperparameter == "eta" && (any(value < 0) || any(value >= 1))) {
-              stop("eta should be set in interval [0, 1)")
-            }
-            if (hyperparameter == "colsample_bytree" && (any(value < 0) || any(value > 1))) {
-              stop("colsample_bytree should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "subsample" && (any(value < 0) || any(value > 1))) {
-              stop("subsample should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "max_depth" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
-              stop("max_depth should be a positive integer without decimals")
-            }
-            if (hyperparameter == "max_depth" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
-              stop("max_depth should be a positive integer without decimals")
-            }
-
-          } else {
-            if (hyperparameter == "eta"){
-              if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for eta")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for eta")
-              if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for eta")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for eta")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for eta")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for eta")
-              if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("eta should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "colsample_bytree"){
-              if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for colsample_bytree")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for colsample_bytree")
-              if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for colsample_bytree")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for colsample_bytree")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for colsample_bytree")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for colsample_bytree")
-              if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("colsample_bytree should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "subsample"){
-              if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for subsample")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for subsample")
-              if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for subsample")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for subsample")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for subsample")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for subsample")
-              if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("subsample should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "max_depth"){
-              if(distribution_choice != "constant" && any(!is.integer(pars))) warning("pars should be set as integers for max_depth")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for max_depth")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for max_depth")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for max_depth")
-              if(distribution_choice == "constant" && (any(value$value < 0))) stop("max_depth should be positive")
-            }
-          }
-        }
-
-
-        #NN Logic
-        if (object@sb_algorithm == "nn") {
-          if(tuning_method != "random_search"){
-            if (hyperparameter == "droprate" && (any(value < 0) || any(value >= 1))) {
-              stop("droprate should be set in interval [0, 1)")
-            }
-            if (hyperparameter == "number_of_epochs" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
-              stop("number_of_epochs should be a positive integer without decimals")
-            }
-            if (hyperparameter == "number_of_epochs" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
-              stop("number_of_epochs should be a positive integer without decimals")
-            }
-            if (hyperparameter == "size_of_batch" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
-              stop("size_of_batch should be a positive integer without decimals")
-            }
-            if (hyperparameter == "size_of_batch" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
-              stop("size_of_batch should be a positive integer without decimals")
-            }
-          } else {
-            if (hyperparameter == "droprate"){
-              if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for droprate")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for droprate")
-              if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for droprate")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for droprate")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for droprate")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for droprate")
-              if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("droprate should be set in interval [0, 1]")
-            }
-            if (hyperparameter == "number_of_epochs"){
-              if(distribution_choice != "constant" && any(!is.integer(pars))) stop("pars should be set as integers for number_of_epochs")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for number_of_epochs")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for number_of_epochs")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for number_of_epochs")
-              if(distribution_choice == "constant" && (any(value$value < 0))) stop("number_of_epochs should be positive")
-            }
-            if (hyperparameter == "size_of_batch"){
-              if(distribution_choice != "constant" && any(!is.integer(pars))) stop("pars should be set as integers for size_of_batch")
-              if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for size_of_batch")
-              if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for size_of_batch")
-              if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for size_of_batch")
-              if(distribution_choice == "constant" && (any(value$value < 0))) stop("size_of_batch should be positive")
-            }
-          }
-        }
-      }
-      #Check if init_points > number of hypers
-      if(tuning_method == "bayesian_opt" && length(hyperparameter_list) >= object@tuning_strategy@init_points){
-        stop("init_points should be greater than the number of hyperparameters")
-      }
-
-    }
-   }
-    return(TRUE)
   }
 )
+
+
+
+#-----------------------------------------------------------------------
+# alpha_test
+#-----------------------------------------------------------------------
 
 #' @title alpha_test_strategy Class
 #' @description The alpha_test_strategy class is designed to specify parameters of hypothesis testing regarding
@@ -1016,7 +689,9 @@ setClass("frequentist_alpha_test_strategy",
          }
 )
 
-
+#-----------------------------------------------------------------------
+# bayesian_model_params
+#-----------------------------------------------------------------------
 
 #' @title bayesian_model_parameters Class
 #' @description A class encapsulating parameters necessary to specify the hierarchical Bayesian model and its priors.
@@ -1184,6 +859,9 @@ setClass("bayesian_alpha_test_strategy",
          }
 )
 
+#-----------------------------------------------------------------------
+# ss_backtest_config
+#-----------------------------------------------------------------------
 
 #' @title ss_backtest_config Class
 #' @description The ss_backtest_config class is designed to define an end-to-end signal selection experiment based on
@@ -1203,7 +881,7 @@ setClass("ss_backtest_config",
            rebalancing_months = "numeric",
            active_returns = "logical",
            split_method = "character",
-           alpha_test_strategy = "alpha_test_strategy",
+           alpha_test_strategy = "ANY",
            config_name = "character"
          ), prototype = list(
            split_method = "expanding"
@@ -1218,9 +896,494 @@ setClass("ss_backtest_config",
            if(object@initial_sample_size < object@data_availability_cutoff){
              stop("initial_sample_size should be greater than or equal to data_availability_cutoff")
            }
-          }
+           if (!is.null(object@alpha_test_strategy)){
+             if (!inherits(object@alpha_test_strategy, "alpha_test_strategy")) {
+             stop("alpha_test_strategy must be an object of class alpha_test_strategy")
+           }
+           }
+         }
       )
 
+#-----------------------------------------------------------------------
+# ss_backtest_results
+#-----------------------------------------------------------------------
+
+
+#' S4 Class for Signal Selection Backtest Results
+#'
+#' This S4 class encapsulates the results and parameters from performing a signal selection backtest.
+#' It includes information about eligible signals, signal universes, Bayesian fits, and the backtest workflow.
+#'
+#' @slot signal_universe_m_df A meta dataframe containing the signal universes at each rebalancing period.
+#' @slot final_signal_universe_m_d_ref A meta dataframe containing the last signal universe.
+#' @slot final_bayesian_fit_list A list of Bayesian model fit results for each rebalancing period.
+#' @slot eligible_signals_list A list of eligible signals for each backtest period.
+#' @slot p_correction_method A character string indicating the p-value correction method used.
+#' @slot ss_backtest_workflow A list describing the signal selection backtest workflow, including parameters and metadata.
+#' @slot backtest_identifier A character string representing the backtest identifier.
+#'
+#' @return An S4 object of class `ss_backtest_results`.
+#'
+#' @export
+setClass(
+  "ss_backtest_results",
+  slots = list(
+    signal_universe_m_df = "meta_dataframe",
+    final_signal_universe_m_d_ref = "meta_dataframe",
+    selected_market_factor_proxy_xts = "xts",
+    frequentist_results = "ANY",
+    bayesian_results = "ANY",
+    eligible_signals_list = "list",
+    p_correction_method = "character",
+    ss_backtest_workflow = "list",
+    backtest_identifier = "character"
+  )
+)
+
+#-----------------------------------------------------------------------
+# sb_backtest-config
+#-----------------------------------------------------------------------
+
+#' @title sb_backtest_config Class
+#' @description The sb_backtest_config class is designed to define an end-to-end signal-blending (heuristic or machine learning)
+#' experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
+#' @slot sb_algorithm Character string specifying the signal-blending algorithm to be used. Should be one of
+#' ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mto (Mean-Tracking Error Optimization),
+#' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
+#' @slot target_fwd_name Name of the target variable in `target_m_df`.
+#' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
+#' @slot ss_backtest_config An object of class `ss_backtest_config`, specifying the single strategy backtest configuration.
+#' @slot ss_backtest_results An object of class `ss_backtest_results`, containing the results of the single strategy backtest.
+#' @slot port_backtest_config An object of class `port_backtest_config`, containing instructions to create SB portfolios for heuristic algorithms.
+#' @slot training_sample_size Number of observations to include in each training sample.
+#' @slot rebalancing_months Months (numeric) when model should be rebalanced (refit).
+#' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
+#' @slot custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
+#' Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.
+#' @slot keras_architecture_parameters An object of class `keras_architecture_parameters` or NULL, providing parameters specific to keras-based neural networks.
+#' It includes:
+#' \itemize{
+#'   \item \strong{units}: A numeric vector specifying the number of neurons in each layer.
+#'   \item \strong{n_layers}: An integer indicating the total number of layers in the neural network.
+#'   \item \strong{activation}: A character vector listing the activation functions for each layer (e.g., "relu", "sigmoid", "tanh").
+#'   \item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
+#'   \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
+#' }
+#' @slot signal_port_parameters An object of class `signal_port_parameters`, specifying the parameters for constructing signal portfolios (portfolio-blending).
+#' @slot quantile_tau A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
+#' @slot huber_delta A single positive numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
+#' @slot config_name A character string to identify the configuration.
+#' @export
+setClass(
+  "sb_backtest_config",
+  slots = list(
+    sb_algorithm = "character",
+    target_fwd_name = "character",
+    tuning_strategy = "ANY",
+    ss_backtest_config = "ANY",
+    ss_backtest_results = "ANY",
+    split_method = "character",
+    training_sample_size = "numeric",
+    rebalancing_months = "numeric",
+    custom_objective = "character",
+    keras_architecture_parameters = "ANY",
+    signal_port_parameters = "ANY",
+    quantile_tau = "numeric",
+    huber_delta = "numeric",
+    config_name = "character"
+  ),
+  prototype = list(
+    sb_algorithm = "ols",
+    split_method = "expanding",
+    custom_objective = "squared_error",
+    quantile_tau = 0.5,
+    huber_delta = 1
+  ),
+  validity = function(object) {
+
+    #Check for ss_backtest_config OR ss_backtest_results
+    if(!is.null(object@ss_backtest_config) && !is.null(object@ss_backtest_results)) {
+      return("Only one of a ss_backtest_config or a ss_backtest_results object should be provided.")
+    }
+    ##SS Backtest Config Class
+    if(!is.null(object@ss_backtest_config)){
+      if(!inherits(object@ss_backtest_config, "ss_backtest_config")) {
+        return("ss_backtest_config must be of class 'ss_backtest_config'.")
+      }
+    }
+    ##SS Backtest Results Class
+    if(!is.null(object@ss_backtest_results)){
+      if(!inherits(object@ss_backtest_results, "ss_backtest_results")) {
+        return("ss_backtest_results must be of class 'ss_backtest_results'.")
+      }
+    }
+
+    #Check for valid sb_algorithm
+    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto")
+    if(!(object@sb_algorithm %in% valid_sb_algorithms)) {
+      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'mto', 'ols', 'glmnet', 'rf', 'xgb', or 'nn'.")
+    }
+
+    #Check for custom objective
+    if(!object@sb_algorithm %in% c("sw", "mto")){
+      valid_heuristic_sb_metrics <- c(
+        "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
+        "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
+        "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
+        "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
+        "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
+        "prob_sharpe_ratio", "modigliani", "ann_modigliani",
+        "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
+        "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
+        "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
+        "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
+        "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
+        "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
+        "act_modigliani", "act_ann_modigliani",
+        "alpha", "theme_alpha", "individual_alpha", "alpha_se", "theme_beta", "individual_beta", "specific_risk",
+        "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
+        "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
+        "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
+      )
+      if (grepl("^max_|^min_", object@custom_objective) && substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
+        return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
+               To see complete list of valid heuristic performance metrics, use ''.")
+      }
+    } else {
+      if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
+        return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
+      }
+    }
+    if (!(object@sb_algorithm %in% c("xgb", "nn", "sw", "mto")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
+      return("Invalid custom_objective. Custom objectives are only allowed for 'sw', 'mto', 'xgb' or 'nn' algorithms.")
+    }
+    if (!(object@sb_algorithm %in% c("xgb", "nn")) && !is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@early_stop)) {
+      return("Invalid early_stop. Early stop is only allowed for 'xgb' or 'nn' algorithms.")
+    }
+    #Check for tuning strategy
+    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "mto", "ols") && is.null(object@tuning_strategy)){
+      message("when sb_algorithm is not 'ew', 'sw', 'rp', 'mto' or 'ols', a tuning_strategy must be set")
+    }
+    #ETC
+    if((object@training_sample_size < 0)){
+      stop("training_sample_size should be positive.")
+    }
+    if (object@split_method != "expanding") {
+      return("split_method should be expanding.")
+    }
+    if (object@rebalancing_months < 0 || object@rebalancing_months > 12){
+      stop("rebalancing_months should be between 1 and 12.")
+    }
+    ##Keras
+    if(!is.null(object@keras_architecture_parameters)){
+      if(!is_keras_architecture_parameters(object@keras_architecture_parameters)){
+        return("Invalid keras_architecture_parameters. Should be of class keras_architecture_parameters")
+      }
+      if(object@sb_algorithm != "nn"){
+        return("keras_architecture_parameters is only needed when sb_algorithm is nn")
+      }
+    }
+    ##Heuristic Portfolio
+    if(!is.null(object@signal_port_parameters)){
+      if(!inherits(object@signal_port_parameters, "signal_port_parameters")){
+        return("Invalid signal_port_parameters Should be of class signal_port_parameters")
+      }
+      if(!object@sb_algorithm %in% c("rp", "mvo")){
+        return("signal_port_parameters is only needed when sb_algorithm is rp or mvo")
+      }
+    }
+
+
+    if (!is.null(object@quantile_tau) && (object@quantile_tau <= 0 || object@quantile_tau >= 1)) {
+      return("quantile_tau must be between 0 and 1.")
+    }
+    if (!is.null(object@huber_delta) && object@huber_delta <= 0) {
+      return("huber_delta must be greater than 0.")
+    }
+
+
+    #Check if hypers are correctly set
+    if(!is.null(object@tuning_strategy)){
+      if(!is_tuning_strategy(object@tuning_strategy)){
+        return("Invalid tuning_strategy. Should be of class tuning_strategy")
+      }
+      if(object@sb_algorithm %in% c("ew", "sw", "rp", "mto", "ols")){
+        return("ew, sw, rp, mto and ols do not support hyperparameter tuning")
+      }
+
+      # Check hyperparameters validity based on sb_algorithm
+      hyperparameters_names <- names(object@tuning_strategy@hyper_grid_domain@hyperparameter_list)
+
+      # GLMNET
+      expected_hyperparameters_glmnet <- c("alpha", "lambda.min.ratio")
+      if (object@sb_algorithm == "glmnet" && any(!hyperparameters_names %in% expected_hyperparameters_glmnet)) {
+        stop("hyperparameters do not match sb_algorithm choice for 'glmnet'")
+      }
+      hyperparameters_missing <- expected_hyperparameters_glmnet[which(!expected_hyperparameters_glmnet %in% hyperparameters_names)]
+      if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "glmnet"){
+        cat("\n")
+        message(paste("The following hyperparameter(s) must still be configured for the",
+                      object@sb_algorithm, "algorithm:",
+                      paste(hyperparameters_missing, collapse = ", ")))
+        cat("\n")
+      }
+
+
+      # RF
+      expected_hyperparameters_rf <- c("mtry", "num.trees", "max.depth", "min.bucket")
+      if (object@sb_algorithm == "rf" && any(!hyperparameters_names %in% expected_hyperparameters_rf)) {
+        stop("hyperparameters do not match sb_algorithm choice for 'rf'")
+      }
+      hyperparameters_missing <- expected_hyperparameters_rf[which(!expected_hyperparameters_rf %in% hyperparameters_names)]
+      if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "rf"){
+        cat("\n")
+        message(paste("The following hyperparameter(s) must still be configured for the",
+                      object@sb_algorithm, "algorithm:",
+                      paste(hyperparameters_missing, collapse = ", ")))
+        cat("\n")
+      }
+
+
+      # XGB
+      expected_hyperparameters_xgb <- c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds")
+      if (object@sb_algorithm == "xgb" && any(!hyperparameters_names %in% expected_hyperparameters_xgb)) {
+        stop("hyperparameters do not match sb_algorithm choice for 'xgb'")
+      }
+      hyperparameters_missing <- expected_hyperparameters_xgb[which(!expected_hyperparameters_xgb %in% hyperparameters_names)]
+      if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "xgb"){
+        cat("\n")
+        message(paste("The following hyperparameter(s) must still be configured for the",
+                      object@sb_algorithm, "algorithm:",
+                      paste(hyperparameters_missing, collapse = ", ")))
+        cat("\n")
+      }
+
+
+      # NN
+      expected_hyperparameters_nn <- c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs")
+      if (object@sb_algorithm == "nn" && any(!hyperparameters_names %in% expected_hyperparameters_nn)) {
+        stop("hyperparameters do not match sb_algorithm choice for 'nn'")
+      }
+      hyperparameters_missing <- expected_hyperparameters_nn[which(!expected_hyperparameters_nn %in% hyperparameters_names)]
+      if(length(hyperparameters_missing) != 0 && object@sb_algorithm == "nn"){
+        cat("\n")
+        message(paste("The following hyperparameter(s) must still be configured for the",
+                      object@sb_algorithm, "algorithm:",
+                      paste(hyperparameters_missing, collapse = ", ")))
+        cat("\n")
+      }
+
+    }
+
+
+    # Validate hyperparameters based on sb_algorithm
+    if(!is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@hyper_grid_domain@hyperparameter_list)){
+
+      #Hyperparameters
+      hyperparameter_list <- object@tuning_strategy@hyper_grid_domain@hyperparameter_list
+      tuning_method <- object@tuning_strategy@tuning_method
+
+      if (length(hyperparameter_list) > 0) {
+        for (hyperparameter in names(hyperparameter_list)) {
+          #Extract value for grid_searcho or bayesian_opt
+          value <- hyperparameter_list[[hyperparameter]]
+
+          #Extract distribution and parameters for random_search
+          if(tuning_method == "random_search"){
+            distribution_choice <- object@tuning_strategy@hyper_grid_domain@hyperparameter_list[[hyperparameter]]$distribution_choice  #Distribution Choice
+            pars <- object@tuning_strategy@hyper_grid_domain@hyperparameter_list[[hyperparameter]]$pars  #Pars
+          }
+
+          #GLMET Logic
+          if (object@sb_algorithm == "glmnet") {
+            if(tuning_method != "random_search"){
+              if (hyperparameter == "alpha" && (any(value < 0) || any(value > 1))) {
+                stop("alpha should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "lambda.min.ratio" && (any(value < 0) || any(value >= 1))) {
+                stop("lambda.min.ratio should be set in interval [0, 1)")
+              }
+            } else {
+              if (hyperparameter == "alpha"){
+                if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for alpha")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for alpha")
+                if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for alpha")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for alpha")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for alpha")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for alpha")
+                if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("alpha should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "lambda.min.ratio"){
+                if(distribution_choice == "uniform" && pars["max"] >= 1) warning("max above upper range for lambda.min.ratio")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for lambda.min.ratio")
+                if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 >= 1)) warning("mean + sd/2 above upper range for lambda.min.ratio")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for lambda.min.ratio")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 >= 1)) warning("meanlog + sdlog/2 above upper range for lambda.min.ratio")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for lambda.min.ratio")
+                if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value >= 1)))stop("lambda.min.ratio should be set in interval [0, 1)")
+              }
+            }
+          }
+
+          #RF Logic
+          if (object@sb_algorithm == "rf") {
+            if(tuning_method != "random_search"){
+              if (hyperparameter == "num.trees" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
+                stop("num.trees should be a positive integer without decimals")
+              }
+              if (hyperparameter == "num.trees" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
+                stop("num.trees should be a positive integer without decimals")
+              }
+              if (hyperparameter == "mtry" && (any(value < 0) || any(value > 1))) {
+                stop("mtry should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "max.depth" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
+                stop("max.depth should be a positive integer without decimals")
+              }
+              if (hyperparameter == "max.depth" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
+                stop("max.depth should be a positive integer without decimals")
+              }
+
+            } else {
+              if (hyperparameter == "num.trees"){
+                if(distribution_choice != "constant" && any(!is.integer(pars))) stop("pars should be set as integers for num.trees")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for num.trees")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for num.trees")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for num.trees")
+                if(distribution_choice == "constant" && (any(value$value < 0))) stop("num.trees should be positive")
+              }
+              if (hyperparameter == "mtry"){
+                if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for mtry")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for mtry")
+                if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for mtry")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for mtry")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for mtry")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for mtry")
+                if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("mtry should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "max.depth"){
+                if(distribution_choice != "constant" && any(!is.integer(pars))) stop("pars should be set as integers for max.depth")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for max.depth")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for max.depth")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for max.depth")
+                if(distribution_choice == "constant" && (any(value$value < 0))) stop("max.depth should be positive")
+              }
+            }
+          }
+
+          #XGB Logic
+          if (object@sb_algorithm == "xgb") {
+            if(tuning_method != "random_search"){
+              if (hyperparameter == "eta" && (any(value < 0) || any(value >= 1))) {
+                stop("eta should be set in interval [0, 1)")
+              }
+              if (hyperparameter == "colsample_bytree" && (any(value < 0) || any(value > 1))) {
+                stop("colsample_bytree should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "subsample" && (any(value < 0) || any(value > 1))) {
+                stop("subsample should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "max_depth" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
+                stop("max_depth should be a positive integer without decimals")
+              }
+              if (hyperparameter == "max_depth" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
+                stop("max_depth should be a positive integer without decimals")
+              }
+
+            } else {
+              if (hyperparameter == "eta"){
+                if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for eta")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for eta")
+                if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for eta")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for eta")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for eta")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for eta")
+                if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("eta should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "colsample_bytree"){
+                if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for colsample_bytree")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for colsample_bytree")
+                if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for colsample_bytree")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for colsample_bytree")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for colsample_bytree")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for colsample_bytree")
+                if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("colsample_bytree should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "subsample"){
+                if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for subsample")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for subsample")
+                if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for subsample")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for subsample")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for subsample")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for subsample")
+                if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("subsample should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "max_depth"){
+                if(distribution_choice != "constant" && any(!is.integer(pars))) warning("pars should be set as integers for max_depth")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for max_depth")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for max_depth")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for max_depth")
+                if(distribution_choice == "constant" && (any(value$value < 0))) stop("max_depth should be positive")
+              }
+            }
+          }
+
+
+          #NN Logic
+          if (object@sb_algorithm == "nn") {
+            if(tuning_method != "random_search"){
+              if (hyperparameter == "droprate" && (any(value < 0) || any(value >= 1))) {
+                stop("droprate should be set in interval [0, 1)")
+              }
+              if (hyperparameter == "number_of_epochs" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
+                stop("number_of_epochs should be a positive integer without decimals")
+              }
+              if (hyperparameter == "number_of_epochs" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
+                stop("number_of_epochs should be a positive integer without decimals")
+              }
+              if (hyperparameter == "size_of_batch" && tuning_method == "grid_search" && (any(value <= 0) || any(!(value == floor(value))))) {
+                stop("size_of_batch should be a positive integer without decimals")
+              }
+              if (hyperparameter == "size_of_batch" && tuning_method == "bayesian_opt" && (any(value <= 0) || any(!is.integer(value)))) {
+                stop("size_of_batch should be a positive integer without decimals")
+              }
+            } else {
+              if (hyperparameter == "droprate"){
+                if(distribution_choice == "uniform" && pars["max"] > 1) warning("max above upper range for droprate")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for droprate")
+                if(distribution_choice == "normal" && (pars["mean"] + pars["sd"]/2 > 1)) warning("mean + sd/2 above upper range for droprate")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for droprate")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] + pars["sdlog"]/2 > 1)) warning("meanlog + sdlog/2 above upper range for droprate")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for droprate")
+                if(distribution_choice == "constant" && (any(value$value < 0) || any(value$value > 1))) stop("droprate should be set in interval [0, 1]")
+              }
+              if (hyperparameter == "number_of_epochs"){
+                if(distribution_choice != "constant" && any(!is.integer(pars))) stop("pars should be set as integers for number_of_epochs")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for number_of_epochs")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for number_of_epochs")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for number_of_epochs")
+                if(distribution_choice == "constant" && (any(value$value < 0))) stop("number_of_epochs should be positive")
+              }
+              if (hyperparameter == "size_of_batch"){
+                if(distribution_choice != "constant" && any(!is.integer(pars))) stop("pars should be set as integers for size_of_batch")
+                if(distribution_choice == "uniform" && pars["min"] < 0) warning("min below lower range for size_of_batch")
+                if(distribution_choice == "normal" && (pars["mean"] - pars["sd"]/2 < 0)) warning("mean - sd/2 below lower range for size_of_batch")
+                if(distribution_choice == "lognormal" && (pars["meanlog"] - pars["sdlog"]/2 < 0)) warning("meanlog - sdlog/2 below lower range for size_of_batch")
+                if(distribution_choice == "constant" && (any(value$value < 0))) stop("size_of_batch should be positive")
+              }
+            }
+          }
+        }
+        #Check if init_points > number of hypers
+        if(tuning_method == "bayesian_opt" && length(hyperparameter_list) >= object@tuning_strategy@init_points){
+          stop("init_points should be greater than the number of hyperparameters")
+        }
+
+      }
+    }
+    return(TRUE)
+  }
+)
 
 
 #' @title sb_metabacktest_config Class
@@ -1358,6 +1521,9 @@ setClass(
   }
 )
 
+#-----------------------------------------------------------------------
+# sb_model
+#-----------------------------------------------------------------------
 
 #' Define the `sb_model` S4 Class
 #'
@@ -1395,6 +1561,9 @@ setClass(
 )
 
 
+#-----------------------------------------------------------------------
+# sb_backtest_results
+#-----------------------------------------------------------------------
 
 #' S4 Class for Time Series Walk-Forward Validation Results of Machine-Learning Models
 #'
@@ -1512,39 +1681,9 @@ setClass(
   }
 )
 
-#' S4 Class for Signal Selection Backtest Results
-#'
-#' This S4 class encapsulates the results and parameters from performing a signal selection backtest.
-#' It includes information about eligible signals, signal universes, Bayesian fits, and the backtest workflow.
-#'
-#' @slot signal_universe_m_df A meta dataframe containing the signal universes at each rebalancing period.
-#' @slot final_signal_universe_m_d_ref A meta dataframe containing the last signal universe.
-#' @slot final_bayesian_fit_list A list of Bayesian model fit results for each rebalancing period.
-#' @slot eligible_signals_list A list of eligible signals for each backtest period.
-#' @slot p_correction_method A character string indicating the p-value correction method used.
-#' @slot ss_backtest_workflow A list describing the signal selection backtest workflow, including parameters and metadata.
-#' @slot backtest_identifier A character string representing the backtest identifier.
-#'
-#' @return An S4 object of class `ss_backtest_results`.
-#'
-#' @export
-setClass(
-  "ss_backtest_results",
-  slots = list(
-    signal_universe_m_df = "meta_dataframe",
-    final_signal_universe_m_d_ref = "meta_dataframe",
-    selected_market_factor_proxy_xts = "xts",
-    frequentist_results = "ANY",
-    bayesian_results = "ANY",
-    eligible_signals_list = "list",
-    p_correction_method = "character",
-    ss_backtest_workflow = "list",
-    backtest_identifier = "character"
-  )
-)
-
-
-
+#-----------------------------------------------------------------------
+# port_backtest_results
+#-----------------------------------------------------------------------
 
 #' Class for Port Backtest Config
 #'
@@ -1594,17 +1733,17 @@ setClass(
   "port_backtest_config",
   slots = list(
     final_signal = "ANY",
-    cov_est_method = "ANY",
+    cov_est_method = "cov_est_method",
     port_construction_method = "character",
-    mvo_parameters = "ANY",
-    rp_parameters = "ANY",
+    mvo_parameters = "mvo_parameters",
+    rp_parameters = "rp_parameters",
     sb_backtest_config = "ANY",
     sb_backtest_results = "ANY",
     main_liquidity_metric = "character",
     liquidity_floor_cutoffs = "list",
     liquidity_constraint_policy = "list",
     turnover_constraint_policy = "list",
-    concentration_constraint_policy = "list",
+    concentration_constraint_policy = "ANY",
     config_name = "character"
   ),
   validity = function(object){
@@ -1684,13 +1823,31 @@ setMethod("get_workflow", "meta_dataframe", function(object) {
 })
 
 #' @export
+setGeneric("get_tickers", function(object) standardGeneric("get_tickers"))
+
+#' @export
+setMethod("get_tickers", "meta_dataframe", function(object) {
+  stocks <- unique(object@data$stocks)
+  return(stocks)
+})
+
+#' @export
+setGeneric("get_dates", function(object, ...) standardGeneric("get_dates"))
+
+#' @export
+setMethod("get_dates", "meta_dataframe", function(object) {
+  dates <- unique(object@data$dates)[order(unique(object@data$dates))]
+  return(dates)
+})
+
+
+#' @export
 setMethod(
   "as.data.frame", "meta_dataframe", function(x) {
     as.data.frame(x@data)
   }
 )
 ###############################################
-
 
 # sb_model acessors -------------------------------------------------
 
@@ -1727,8 +1884,6 @@ setMethod("get_model", "sb_model", function(object) {
 })
 
 #############################################
-
-
 
 # sb_backtest_results and ss_backtest_results acessors --------------------------------------------
 
@@ -1780,28 +1935,10 @@ setMethod("get_final_model", "sb_backtest_results", function(object) {
 })
 
 #' @export
-setMethod("get_final_model", "ss_backtest_results", function(object) {
-  models_list <- list(frequentist = object@frequentist_results,
-                      bayesian = object@bayesian_results)
-  return(models_list)
-})
-
-#' @export
-setGeneric("get_tickers", function(object) standardGeneric("get_tickers"))
-
-#' @export
 setMethod("get_tickers", "sb_backtest_results", function(object) {
   return(object@sb_backtest_workflow$tickers)
 })
 
-#' @export
-setMethod("get_tickers", "meta_dataframe", function(object) {
-  stocks <- unique(object@data$stocks)
-  return(stocks)
-})
-
-#' @export
-setGeneric("get_dates", function(object, ...) standardGeneric("get_dates"))
 
 #' @export
 setMethod("get_dates", "sb_backtest_results", function(object, type = "complete") {
@@ -1812,23 +1949,6 @@ setMethod("get_dates", "sb_backtest_results", function(object, type = "complete"
   if(type == "testing") return(object@sb_backtest_workflow$dates_testing_sample)
   if(type == "rebalance") return(object@sb_backtest_workflow$rebalance_dates)
 
-})
-
-#' @export
-setMethod("get_dates", "ss_backtest_results", function(object, type = "complete") {
-
-  if(!type %in% c("complete", "backtest", "rebalance")) stop("sample_type must be one of `complete`, `backtest` or `rebalance`")
-
-  if(type == "complete") return(object@sb_backtest_workflow$dates_covered)
-  if(type == "backtest") return(object@sb_backtest_workflow$dates_backtest)
-  if(type == "rebalance") return(object@sb_backtest_workflow$rebalance_dates)
-
-})
-
-#' @export
-setMethod("get_dates", "meta_dataframe", function(object) {
-  dates <- unique(object@data$dates)[order(unique(object@data$dates))]
-  return(dates)
 })
 
 #' @export
@@ -1845,11 +1965,6 @@ setMethod("get_best_hyperparameters", "sb_backtest_results", function(object) {
 })
 
 #' @export
-setMethod("get_selected_market_factor_proxy", "ss_backtest_results", function(object) {
-  return(object@selected_market_factor_proxy_xts)
-})
-
-#' @export
 setGeneric("get_validation_eval_metrics_hyper_choice", function(object) standardGeneric("get_validation_eval_metrics_hyper_choice"))
 
 #' @export
@@ -1860,11 +1975,6 @@ setMethod("get_validation_eval_metrics_hyper_choice", "sb_backtest_results", fun
 #' @export
 setMethod("get_workflow", "sb_backtest_results", function(object) {
   return(object@sb_backtest_workflow)
-})
-
-#' @export
-setMethod("get_workflow", "ss_backtest_results", function(object) {
-  return(object@ss_backtest_workflow)
 })
 
 #' @export
@@ -1890,6 +2000,89 @@ setMethod("as.list", "sb_backtest_results", function(x) {
 
   return(slot_list)
 })
+
+#' Accessor Methods for ss_backtest_results
+#'
+#' These methods are used to access various components of an `ss_backtest_results` object.
+#'
+#' @param object An object of class `ss_backtest_results`.
+#' @return The respective slot of the `ss_backtest_results` object.
+#' @name ss_backtest_results_accessors
+#' @export
+setMethod("get_final_model", "ss_backtest_results", function(object) {
+  models_list <- list(frequentist = object@frequentist_results,
+                      bayesian = object@bayesian_results)
+  return(models_list)
+})
+
+
+#' @export
+setGeneric("get_eligible_signals", function(object){
+  standardGeneric("get_eligible_signals")
+})
+
+#' @export
+setMethod("get_eligible_signals", "ss_backtest_results", function(object){
+  eligible_signals_df <- object@signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>%
+    dplyr::group_by(dates) %>% dplyr::summarise(ticker_list = list(tickers), .groups = "drop")
+
+  eligible_signals_list <- stats::setNames(eligible_signals_df$ticker_list, as.character(eligible_signals_df$dates))
+
+  return(eligible_signals_list)
+})
+
+#' @export
+setGeneric("get_signal_universe", function(object){
+  standardGeneric("get_signal_universe")
+})
+
+#' @export
+setMethod("get_signal_universe", "ss_backtest_results", function(object){
+  return(object@signal_universe_m_df)
+})
+
+
+#' @export
+setGeneric("get_bayesian_fit", function(object){
+  standardGeneric("get_bayesian_fit")
+})
+
+#' @export
+setMethod("get_bayesian_fit", "ss_backtest_results", function(object){
+  if(object@p_correction_method == "bayesian"){
+    return(object@bayesian_results)
+  } else {
+    stop("bayesian_results not available for non-bayesian models.")
+  }
+})
+
+#' @export
+setMethod("get_dates", "ss_backtest_results", function(object, type = "complete") {
+
+  if(!type %in% c("complete", "backtest", "rebalance")) stop("sample_type must be one of `complete`, `backtest` or `rebalance`")
+
+  if(type == "complete") return(object@sb_backtest_workflow$dates_covered)
+  if(type == "backtest") return(object@sb_backtest_workflow$dates_backtest)
+  if(type == "rebalance") return(object@sb_backtest_workflow$rebalance_dates)
+
+})
+
+#' @export
+setGeneric("get_selected_market_factor_proxy", function(object){
+  standardGeneric("get_selected_market_factor_proxy")
+})
+
+#' @export
+setMethod("get_selected_market_factor_proxy", "ss_backtest_results", function(object) {
+  return(object@selected_market_factor_proxy_xts)
+})
+
+#' @export
+setMethod("get_workflow", "ss_backtest_results", function(object) {
+  return(object@ss_backtest_workflow)
+})
+
+
 
 #' @export
 setMethod("as.list", "ss_backtest_results", function(x) {
@@ -1917,6 +2110,7 @@ setMethod("as.list", "ss_backtest_results", function(x) {
 
 ##########################
 
+# configs acessors -------------------------------------------------
 
 # get sb_backtest_config
 #' @title Get SB Backtest Config Object
@@ -1987,8 +2181,7 @@ setMethod("get_ss_backtest_config", "sb_backtest_config", function(object) {
   return(object@ss_backtest_config)
 })
 
-
-
+##########################
 
 # get tuning strategy -----------------------------------------------------
 
@@ -2047,7 +2240,6 @@ setMethod("get_tuning_strategy", "sb_backtest_results", function(object){
 
 ###########################
 
-
 # get hyper grid domain -----------------------------------------------------
 
 #' @title Get Hyperparameter Grid Domain
@@ -2096,6 +2288,8 @@ setMethod("get_hyper_grid_domain", "sb_backtest_results", function(object){
 
 
 ################################
+
+# get keras architecture -----------------------------------------------------
 
 #' @title Get Keras Architecture Parameters
 #' @description Accessor function to retrieve the keras architecture parameters.
@@ -2193,6 +2387,7 @@ setMethod("as.list", "keras_architecture_parameters", function(x) {
   )
 })
 
+################################
 
 # get alpha_test_strategy -----------------------------------------------------
 
@@ -2269,8 +2464,7 @@ setMethod("get_alpha_test_strategy", "sb_backtest_config", function(object) {
 
 ###########################
 
-
-
+# get priors -----------------------------------------------------
 #' @title Get brms priors
 #' @description Accessor function to retrieve brms priors.
 #'
@@ -2302,65 +2496,135 @@ setMethod("get_brms_prior", "ss_backtest_config", function(object){
   }
 
 })
+###########################
 
-
-
-
-
-#' @title Get eligible signals
-#' @description Accessor function to retrieve eligible signals
+# get bayesian_model_params -----------------------------------------------------
+#' @title Get Bayesian Model Parameters
+#' @description Extracts the \code{bayesian_model_parameters} from an object (e.g. a
+#'   \code{bayesian_alpha_test_strategy} or an \code{ss_backtest_config} holding a Bayesian strategy).
 #'
-#' @param object A `ss_backtest_results` object.
+#' @param object An S4 object, typically \code{bayesian_alpha_test_strategy} or \code{ss_backtest_config}.
 #'
-#' @return A list of eligible signals.
-setGeneric("get_eligible_signals", function(object){
-  standardGeneric("get_eligible_signals")
-})
-
+#' @return An object of class \code{bayesian_model_parameters}.
 #' @export
-setMethod("get_eligible_signals", "ss_backtest_results", function(object){
-  eligible_signals_df <- object@signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>%
-    dplyr::group_by(dates) %>% dplyr::summarise(ticker_list = list(tickers), .groups = "drop")
-
-  eligible_signals_list <- stats::setNames(eligible_signals_df$ticker_list, as.character(eligible_signals_df$dates))
-
-  return(eligible_signals_list)
+setGeneric("get_bayesian_model_parameters", function(object) {
+  standardGeneric("get_bayesian_model_parameters")
 })
 
-#' @title Get signal_universe
-#' @description Accessor function to retrieve signal universe
-#'
-#' @param object A `ss_backtest_results` object.
-#'
-#' @return A list of eligible signals.
-setGeneric("get_signal_universe", function(object){
-  standardGeneric("get_signal_universe")
-})
-
+#' @describeIn get_bayesian_model_parameters
+#'   Extract parameters from a \code{bayesian_alpha_test_strategy}.
 #' @export
-setMethod("get_signal_universe", "ss_backtest_results", function(object){
-  return(object@signal_universe_m_df)
-})
+setMethod("get_bayesian_model_parameters", "bayesian_alpha_test_strategy",
+          function(object) {
+            return(object@bayesian_model_parameters)
+          }
+)
 
-
-#' @title Get bayesian_fit
-#' @description Accessor function to retrieve bayesian_results
-#'
-#' @param object A `ss_backtest_results` object.
-#'
-#' @return A list of eligible signals.
-setGeneric("get_bayesian_fit", function(object){
-  standardGeneric("get_bayesian_fit")
-})
-
+#' @describeIn get_bayesian_model_parameters
+#'   Extract parameters from an \code{ss_backtest_config}, if it has a Bayesian alpha test strategy.
 #' @export
-setMethod("get_bayesian_fit", "ss_backtest_results", function(object){
-  if(object@p_correction_method == "bayesian"){
-    return(object@bayesian_results)
-  } else {
-    stop("bayesian_results not available for non-bayesian models.")
-  }
+setMethod("get_bayesian_model_parameters", "ss_backtest_config",
+          function(object) {
+            alpha_strat <- object@alpha_test_strategy
+
+            # Check if we actually have a bayesian_alpha_test_strategy
+            if (!is(alpha_strat, "bayesian_alpha_test_strategy")) {
+              # Option 1: Return NULL
+              # return(NULL)
+
+              # Option 2: Throw an error
+              stop("This ss_backtest_config does not hold a bayesian_alpha_test_strategy.")
+            }
+
+            return(alpha_strat@bayesian_model_parameters)
+          }
+)
+
+
+
+###########################
+
+# get concentration_constraint policy  -----------------------------------------------------
+#' @title Get the Concentration Constraint Policy
+#' @description Accessor method to extract the `concentration_constraint_policy` from an object.
+#'
+#' @param object An object of class \code{port_backtest_config} or \code{sb_backtest_config}.
+#'
+#' @return An S4 object of class \code{concentration_constraint_policy}.
+#' @export
+setGeneric("get_concentration_constraint_policy", function(object) {
+  standardGeneric("get_concentration_constraint_policy")
 })
+
+#' @describeIn get_concentration_constraint_policy
+#'   Extract the concentration policy from \code{port_backtest_config}.
+#' @export
+setMethod("get_concentration_constraint_policy",
+          signature(object = "port_backtest_config"),
+          function(object) {
+            return(object@concentration_constraint_policy)
+          }
+)
+
+#' @describeIn get_concentration_constraint_policy
+#'   Extract the concentration policy from \code{sb_backtest_config},
+#'   which stores it inside \code{object@signal_port_parameters}.
+#' @export
+setMethod("get_concentration_constraint_policy",
+          signature(object = "sb_backtest_config"),
+          function(object) {
+            return(object@signal_port_parameters@concentration_constraint_policy)
+          }
+)
+
+#' Turn a concentration_constraint_policy into a list
+#'
+#' @param x An S4 object of class \code{concentration_constraint_policy}.
+#'
+#' @return A named list containing:
+#'   \itemize{
+#'     \item \code{benchmark}
+#'     \item \code{max_abs_active_individual_weight}
+#'     \item \code{max_abs_active_group_weight}
+#'   }
+#'
+#' @export
+setMethod("as.list", "concentration_constraint_policy", function(x) {
+  list(
+    benchmark = x@benchmark,
+    max_abs_active_individual_weight = x@max_abs_active_individual_weight,
+    max_abs_active_group_weight = x@max_abs_active_group_weight
+  )
+})
+###########################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #' @title Accessor for Liquidity Constraint Policy
@@ -2405,19 +2669,7 @@ setMethod("get_turnover_constraint_policy", "port_backtest_config", function(por
   return(port_backtest_config_obj@turnover_constraint_policy)
 })
 
-#' @title Accessor for Concentration Constraint Policy
-#' @description Retrieves the concentration constraint policy from a `port_backtest_config` object.
-#' @param port_backtest_config_obj A `port_backtest_config` object.
-#' @return The concentration constraint policy list.
-#' @export
-setGeneric("get_concentration_constraint_policy", function(port_backtest_config_obj) {
-  standardGeneric("get_concentration_constraint_policy")
-})
 
-#' @export
-setMethod("get_concentration_constraint_policy", "port_backtest_config", function(port_backtest_config_obj) {
-  return(port_backtest_config_obj@concentration_constraint_policy)
-})
 
 #' @title Accessor for Liquidity Floor Cutoffs
 #' @description Retrieves the liquidity floor cutoffs from a `port_backtest_config` object.
@@ -2432,6 +2684,18 @@ setGeneric("get_liquidity_floor_cutoffs", function(port_backtest_config_obj) {
 setMethod("get_liquidity_floor_cutoffs", "port_backtest_config", function(port_backtest_config_obj) {
   return(port_backtest_config_obj@liquidity_floor_cutoffs)
 })
+
+
+
+
+
+###########################
+
+
+
+
+
+
 
 
 

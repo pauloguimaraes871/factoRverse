@@ -2,32 +2,78 @@
 % Please edit documentation in R/constructors.R
 \name{add_concentration_constraint_policy}
 \alias{add_concentration_constraint_policy}
+\alias{add_concentration_constraint_policy,port_backtest_config,concentration_constraint_policy-method}
+\alias{add_concentration_constraint_policy,port_backtest_config,missing-method}
+\alias{add_concentration_constraint_policy,sb_backtest_config,concentration_constraint_policy-method}
+\alias{add_concentration_constraint_policy,sb_backtest_config,missing-method}
 \title{Add Concentration Constraint Policy}
 \usage{
-add_concentration_constraint_policy(
-  portfolio_policies_obj,
-  benchmark = NULL,
-  max_abs_active_individual_weight = NULL,
-  max_abs_active_group_weight = NULL
+add_concentration_constraint_policy(object, policy, ...)
+
+\S4method{add_concentration_constraint_policy}{port_backtest_config,concentration_constraint_policy}(object, policy, ...)
+
+\S4method{add_concentration_constraint_policy}{port_backtest_config,missing}(
+  object,
+  policy,
+  benchmark = character(0),
+  max_abs_active_individual_weight = NA_real_,
+  max_abs_active_group_weight = numeric(0),
+  ...
+)
+
+\S4method{add_concentration_constraint_policy}{sb_backtest_config,concentration_constraint_policy}(object, policy, ...)
+
+\S4method{add_concentration_constraint_policy}{sb_backtest_config,missing}(
+  object,
+  policy,
+  benchmark = character(0),
+  max_abs_active_individual_weight = NA_real_,
+  max_abs_active_group_weight = numeric(0),
+  ...
 )
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object to which the concentration constraint policy will be added.}
+\item{object}{An object of class \code{port_backtest_config} or \code{sb_backtest_config}.}
 
-\item{benchmark}{A character string representing benchmark based on which concentration policy will be applied.}
+\item{policy}{A \code{concentration_constraint_policy} object, or missing if a new one is to be created.}
 
-\item{max_abs_active_individual_weight}{A number indicating the absolute weight differential from benchmark weights.}
-
-\item{max_abs_active_group_weight}{A named vector indicating absolute group (sector) weight differentials in relation to the benchmark.}
+\item{...}{Additional arguments used to create a new \code{concentration_constraint_policy}
+if \code{policy} is missing. These typically include:
+\itemize{
+\item \strong{benchmark} (character)
+\item \strong{max_abs_active_individual_weight} (numeric)
+\item \strong{max_abs_active_group_weight} (named numeric)
+}}
 }
 \value{
-The updated \code{portfolio_policies} object with the added liquidity constraint policy.
+The updated \code{object} with the concentration policy added.
 }
 \description{
-Adds a concentration constraint policy to a \code{portfolio_policies} object.
+Either add an existing \code{concentration_constraint_policy} to an object
+(e.g., \code{port_backtest_config} or \code{sb_backtest_config}), or create one dynamically
+when \code{policy} is missing.
 }
-\examples{
-portfolio <- create_portfolio_policies()
-portfolio <- add_concentration_constraint_policy(portfolio, benchmark = "IBOV", max_abs_active_individual_weight = 0.05, max_abs_active_group_weight = c(Sector = 0.1, Subsector = 0.5))
+\section{Functions}{
+\itemize{
+\item \code{add_concentration_constraint_policy(
+  object = port_backtest_config,
+  policy = concentration_constraint_policy
+)}: Add an existing \code{concentration_constraint_policy} to a \code{port_backtest_config}.
 
-}
+\item \code{add_concentration_constraint_policy(
+  object = port_backtest_config,
+  policy = missing
+)}: Dynamically create a \code{concentration_constraint_policy} and add it to a \code{port_backtest_config}.
+
+\item \code{add_concentration_constraint_policy(
+  object = sb_backtest_config,
+  policy = concentration_constraint_policy
+)}: Add an existing \code{concentration_constraint_policy} to a \code{sb_backtest_config}.
+This method will store it inside \code{object@signal_port_parameters}.
+
+\item \code{add_concentration_constraint_policy(
+  object = sb_backtest_config,
+  policy = missing
+)}: Dynamically create a \code{concentration_constraint_policy} for \code{sb_backtest_config}.
+
+}}

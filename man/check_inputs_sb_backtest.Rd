@@ -12,8 +12,17 @@ check_inputs_sb_backtest(
   validation_sample_size,
   rebalancing_months,
   split_method,
-  eligible_signals_list,
   signal_universe_m_df,
+  backtest_returns_xts,
+  selected_market_factor_proxy_xts,
+  covariance_matrix_sample_size,
+  covariance_estimation_method,
+  active_returns,
+  rp_method,
+  n_random_ports,
+  random_ports_method,
+  opt_objective,
+  concentration_constraint_policy,
   sb_algorithm,
   custom_objective,
   chosen_eval_metric,
@@ -27,9 +36,8 @@ check_inputs_sb_backtest(
   init_points,
   early_stop,
   keras_architecture_parameters,
-  show_plots,
-  verbose = FALSE,
-  parallel
+  parallel,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -47,7 +55,7 @@ check_inputs_sb_backtest(
 
 \item{split_method}{Character, method of data splitting (currently only "expanding" is supported).}
 
-\item{eligible_signals_list}{List, list of eligible signals for blending.}
+\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
 \item{sb_algorithm}{Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto").}
 
@@ -75,11 +83,15 @@ check_inputs_sb_backtest(
 
 \item{keras_architecture_parameters}{List, containing units (numeric), n_layers (numeric between 1 and 5), activation_function and nn_optimizer ("Adam" or "RMSProp")}
 
-\item{show_plots}{Logical, whether to show diagnostic plots.}
+\item{parallel}{Logical, whether to use parallel computation.}
 
 \item{verbose}{Logical, whether to print verbose output.}
 
-\item{parallel}{Logical, whether to use parallel computation.}
+\item{signal_universe_m_d_ref}{A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.}
+
+\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
+
+\item{show_plots}{Logical, whether to show diagnostic plots.}
 }
 \value{
 NULL. This function is used for validation and does not return a value; it stops on errors.

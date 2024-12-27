@@ -1,3 +1,8 @@
+
+#-----------------------------------------------------------------------
+# meta_dataframe
+#-----------------------------------------------------------------------
+
 #' Create a meta_dataframe Object
 #'
 #' This generic function creates an object of class \code{meta_dataframe} from a provided \code{data.frame} or a structured \code{list}.
@@ -333,70 +338,66 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 
 )
 
-#' @title Hyperparameter Tuning Strategy Constructor
-#' @description A constructor function to create a tuning_strategy object, based on the specified tuning method.
-#' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
-#' @param validation_sample_size Numeric value representing the size of the validation sample.
-#' @param chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
-#' @param early_stop ANY, optional argument for halting criteria.
-#' @param n_iter Numeric, number of iterations for 'random_search' or 'bayesian_opt'.
-#' @param acq Character string for the acquisition function (for 'bayesian_opt' only).
-#' @param init_points Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).
-#' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
-#' @return An object of class `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
+
+
+#-----------------------------------------------------------------------
+# ss_backtest
+#-----------------------------------------------------------------------
+
+#' @title Create an ss_backtest_config Object
+#' @description This function constructs an object of class `ss_backtest_config`, ensuring the proper initialization
+#' and validation of its slots.
+#' @param data_availability_cutoff A numeric indicating the minimum number of non-NA observations required for a backtest.
+#' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
+#' @param rebalancing_months A numeric indicating the number of months for rebalancing.
+#' @param active_returns Logical, whether to calculate active returns when calculating performance metrics, except for CAPM (default is TRUE).
+#' @param split_method A character string specifying the splitting method, either "expanding" (default) or "rolling".
+#' @param enable_theme_representativeness Logical, whether to enable theme representativeness (default is TRUE).
+#' @param alpha_test_strategy An `alpha_test_strategy` object defining the alpha test configuration.
+#' @param config_name A character string naming the configuration.
+#' @return An object of class `ss_backtest_config`.
+#' @examples
+#' # Example usage:
+#' config <- create_ss_backtest_config(
+#'   data_availability_cutoff = 100,
+#'   initial_sample_size = 200,
+#'   rebalancing_months = 6,
+#'   alpha_test_strategy = alpha_test_strategy_obj,
+#'   config_name = "ExampleConfig"
+#' )
 #' @export
-create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
-                                   n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
-
-  # Check if hyper_grid_domain is provided; if not, create an empty one
-  if(!tuning_method %in% c("grid_search", "random_search", "bayesian_opt")){
-    stop("tuning_method must be one of grid_search, random_search or bayesian_opt")
+create_ss_backtest_config <- function(
+    data_availability_cutoff,
+    initial_sample_size,
+    rebalancing_months,
+    active_returns = TRUE,
+    split_method = "expanding",
+    alpha_test_strategy = NULL,
+    config_name = "not_identified"
+) {
+  # Input validation
+  if (data_availability_cutoff < 0) {
+    stop("data_availability_cutoff cannot be negative.")
   }
-  if (is.null(hyper_grid_domain)) {
-    hyper_grid_domain <-  new("hyper_grid_domain", hyperparameter_list = list())
+  if (initial_sample_size < 0) {
+    stop("initial_sample_size cannot be negative.")
+  }
+  if (initial_sample_size < data_availability_cutoff) {
+    stop("initial_sample_size must be greater than or equal to data_availability_cutoff.")
+  }
+  if (!split_method %in% c("expanding", "rolling")) {
+    stop("split_method must be either 'expanding' or 'rolling'.")
   }
 
-  # Check the value of tuning_method and create the appropriate subclass
-  if (tuning_method == "grid_search") {
-    # Create a grid_search_strategy object
-    return(new("grid_search_strategy",
-               tuning_method = "grid_search",
-               validation_sample_size = validation_sample_size,
-               chosen_eval_metric = chosen_eval_metric,
-               hyper_grid_domain = hyper_grid_domain,
-               early_stop = early_stop))
-
-  } else if (tuning_method == "random_search") {
-    # Create a random_search_strategy object
-    if (is.null(n_iter)) {
-      stop("n_iter must be provided for random_search.")
-    }
-    return(new("random_search_strategy",
-               tuning_method = "random_search",
-               validation_sample_size = validation_sample_size,
-               chosen_eval_metric = chosen_eval_metric,
-               hyper_grid_domain = hyper_grid_domain,
-               early_stop = early_stop,
-               n_iter = n_iter))
-
-  } else if (tuning_method == "bayesian_opt") {
-    # Create a bayesian_opt_strategy object
-    if (is.null(n_iter) || is.null(acq) || is.null(init_points) || is.null(k_iter)) {
-      stop("n_iter, acq, init_points, and k_iter must be provided for bayesian_opt.")
-    }
-    return(new("bayesian_opt_strategy",
-               tuning_method = "bayesian_opt",
-               validation_sample_size = validation_sample_size,
-               chosen_eval_metric = chosen_eval_metric,
-               hyper_grid_domain = hyper_grid_domain,
-               early_stop = early_stop,
-               n_iter = n_iter,
-               acq = acq,
-               init_points = init_points,
-               k_iter = k_iter))
-  } else {
-    stop("Invalid tuning_method. Choose from 'grid_search', 'random_search', or 'bayesian_opt'.")
-  }
+  # Create and return the object
+  new("ss_backtest_config",
+      data_availability_cutoff = data_availability_cutoff,
+      initial_sample_size = initial_sample_size,
+      rebalancing_months = rebalancing_months,
+      active_returns = active_returns,
+      split_method = split_method,
+      alpha_test_strategy = alpha_test_strategy,
+      config_name = config_name)
 }
 
 #' Add a `ss_backtest_config` or a `ss_backtest_results` to an existing `sb_backtest_config`.
@@ -491,6 +492,565 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
             return(object)
           })
 
+
+#-----------------------------------------------------------------------
+# alpha_test_strategy
+#-----------------------------------------------------------------------
+
+#' @title Create an alpha_test_strategy object
+#' @description A constructor function to create instances of alpha_test_strategy or its subclasses
+#' (frequentist_alpha_test_strategy and bayesian_alpha_test_strategy).
+#' @param signal_significance_threshold A numeric value indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria.
+#'   Must be between 0 and 1. Defaults to 0.05.
+#' @param p_correction_method A character string specifying the p-value correction method.
+#'   Options include `"none"`, `"bonferroni"`, `"holm"`, `"hochberg"`, `"hommel"`, `"BH"`, `"fdr"`, `"BY"`, and `"bayesian"`.
+#' @param market_factor_proxy A character string indicating the market factor proxy to be used in the CAPM model.
+#' @param bayesian_model_parameters (Optional) An object of class `bayesian_model_parameters`.
+#'   Required when `p_correction_method` is `"bayesian"`.
+#' @return An object of class `alpha_test_strategy`, `frequentist_alpha_test_strategy`, or `bayesian_alpha_test_strategy`.
+#' @export
+create_alpha_test_strategy <- function(
+    model_structure = "no_pooled",
+    theme_level_intercept = NULL,
+    theme_level_slope = NULL,
+    signal_significance_threshold = 0.05,
+    p_correction_method = "none",
+    market_factor_proxy,
+    bayesian_model_parameters = NULL,
+    enable_theme_representativeness = TRUE,
+    lmer_control = NULL
+) {
+
+  # Validate input arguments
+  if (!p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY", "bayesian")) {
+    stop("Invalid p_correction_method. Must be one of: 'none', 'bonferroni', 'holm', 'hochberg', 'hommel', 'BH', 'fdr', 'BY', 'bayesian'.")
+  }
+  if (signal_significance_threshold < 0 || signal_significance_threshold > 1) {
+    stop("signal_significance_threshold must be between 0 and 1.")
+  }
+  if (missing(market_factor_proxy) || !is.character(market_factor_proxy) || length(market_factor_proxy) != 1) {
+    stop("market_factor_proxy must be a single character string.")
+  }
+  if(!model_structure %in% c("partial_pooled", "no_pooled")){
+    stop("Currently, model_structure must be one of partial_pooled or no_pooled")
+  }
+  if(model_structure == "partial_pooled"){
+    if (is.null(theme_level_intercept) || !theme_level_intercept %in% c("fixed", "random", "theme_specific")){
+      stop("theme_level_intercept must be 'fixed', 'random' or 'theme_specific'")
+    }
+    if (is.null(theme_level_slope) || !theme_level_slope %in% c("fixed", "theme_specific")){
+      stop("Currently, theme_level_slope can only be 'fixed' or 'theme_specific'")
+    }
+    avaiable_combinations <- c(c("random_intercept_fixed_slope"), #old random_intercept
+                               c("theme_specific_intercept_fixed_slope"), #old fixed_intercepts
+                               c("theme_specific_intercept_theme_specific_slope"), #old fixed_intercepts_fixed_slopes
+                               c("fixed_intercept_fixed_slope")) #one none
+    chosen_combination <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
+
+    if(!chosen_combination %in% avaiable_combinations){
+      stop("Chosen combination of theme_level_intercept and theme_level_slope is currently not supported.")
+    }
+  } else {
+    if(any(!is.null(theme_level_intercept), !is.null(theme_level_slope))){
+      stop("Theme-level parameters are only avaiable for partial pooled models.")
+    }
+  }
+
+  # Handle Bayesian subclass creation
+  if (p_correction_method == "bayesian") {
+    if(model_structure != "partial_pooled"){
+      stop("Currently, only the 'partial_pooled' model structure is supported for Bayesian alpha testing.")
+    }
+    if (!is.null(bayesian_model_parameters) && !inherits(bayesian_model_parameters, "bayesian_model_parameters")) {
+      stop("When p_correction_method is 'bayesian', bayesian_model_parameters must be a bayesian_model_parameters object.")
+    }
+
+    #Check if a bayesian_model_parametesr is being provided
+    if(is.null(bayesian_model_parameters)){
+      #If not create a generic one
+      bayesian_model_parameters = new("bayesian_model_parameters",
+                                      user_priors = NULL,
+                                      prior_derivation_control = NULL,
+                                      brms_control = NULL
+      )
+    }
+
+    return(new("bayesian_alpha_test_strategy",
+               signal_significance_threshold = signal_significance_threshold,
+               p_correction_method = p_correction_method,
+               model_structure = model_structure,
+               theme_level_intercept = theme_level_intercept,
+               theme_level_slope = theme_level_slope,
+               market_factor_proxy = market_factor_proxy, #For a new bayesian class, create an uniformative bayesian_model_parameters
+               enable_theme_representativeness = enable_theme_representativeness,
+               bayesian_model_parameters = bayesian_model_parameters,
+               lmer_control = lmer_control
+    )
+    )
+  }
+
+  # Handle Frequentist subclass creation
+  if (p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY")) {
+    return(new("frequentist_alpha_test_strategy",
+               signal_significance_threshold = signal_significance_threshold,
+               model_structure = model_structure,
+               theme_level_intercept = theme_level_intercept,
+               theme_level_slope = theme_level_slope,
+               p_correction_method = p_correction_method,
+               enable_theme_representativeness = enable_theme_representativeness,
+               market_factor_proxy = market_factor_proxy,
+               lmer_control = lmer_control))
+  }
+
+  # Default fallback (should not reach here due to prior validation)
+  stop("Unexpected error in create_alpha_test_strategy. Check input parameters.")
+}
+
+
+#' @title Add Alpha Test Strategy to ss_backtest_config
+#' @description This method allows you to add an `alpha_test_strategy` object to an `ss_backtest_config` object.
+#' @param object An `ss_backtest_config` object.
+#' @param alpha_test_strategy An `alpha_test_strategy` object to be added.
+#' @return The updated `ss_backtest_config` object with the specified `alpha_test_strategy` added.
+#' @examples
+#' # Example usage
+#' alpha_strategy <- new("frequentist_alpha_test_strategy",
+#'                        signal_significance_threshold = 0.05,
+#'                        p_correction_method = "holm",
+#'                        market_factor_proxy = "S&P500")
+#' config <- create_ss_backtest_config(
+#'   data_availability_cutoff = 100,
+#'   initial_sample_size = 200,
+#'   rebalancing_months = 6,
+#'   alpha_test_strategy = NULL,
+#'   config_name = "ExampleConfig"
+#' )
+#' config <- add_alpha_test_strategy(config, alpha_strategy)
+#' @export
+setGeneric("add_alpha_test_strategy", function(object, alpha_test_strategy, ...) {
+  standardGeneric("add_alpha_test_strategy")
+})
+
+#' @rdname add_alpha_test_strategy
+#' @export
+setMethod(
+  "add_alpha_test_strategy",
+  signature(object = "ss_backtest_config", alpha_test_strategy = "alpha_test_strategy"),
+  function(object, alpha_test_strategy) {
+
+    # Set the alpha_test_strategy slot
+    object@alpha_test_strategy <- alpha_test_strategy
+
+    # Return the updated object
+    return(object)
+  }
+)
+
+#' @rdname add_alpha_test_strategy
+#' @export
+setMethod(
+  "add_alpha_test_strategy",
+  signature(object = "ss_backtest_config", alpha_test_strategy = "missing"),
+  function(object, signal_significance_threshold = 0.05, p_correction_method = "none", market_factor_proxy,
+           model_structure = "partial_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
+           enable_theme_representativeness = TRUE, bayesian_model_parameters = NULL, lmer_control = NULL) {
+
+    alpha_test_strategy <- create_alpha_test_strategy(signal_significance_threshold = signal_significance_threshold,
+                                                      p_correction_method = p_correction_method,
+                                                      market_factor_proxy = market_factor_proxy,
+                                                      model_structure = model_structure,
+                                                      theme_level_intercept = theme_level_intercept,
+                                                      theme_level_slope = theme_level_slope,
+                                                      enable_theme_representativeness = enable_theme_representativeness,
+                                                      bayesian_model_parameters = bayesian_model_parameters,
+                                                      lmer_control = lmer_control
+    )
+
+    # Set the alpha_test_strategy slot
+    object@alpha_test_strategy <- alpha_test_strategy
+
+    # Return the updated object
+    return(object)
+  }
+)
+
+#-----------------------------------------------------------------------
+# bayesian_model_parameters
+#-----------------------------------------------------------------------
+
+#' @title Create Bayesian Model Parameters
+#' @description Constructor for an S4 object of class \code{bayesian_model_parameters}.
+#'
+#' @param user_priors An object of class \code{brmsprior}, or \code{NULL}.
+#'   Structured according to the \code{model_spec_theme_level}.
+#' @param prior_derivation_control A list of additional parameters for deriving priors when \code{priors_type} is
+#'   \code{"informative_exogenous_dataset"}. Must be a list with the following elements:
+#'   \itemize{
+#'     \item \code{half_t_df}: Degrees of freedom for the half-t distribution applied to sd priors.
+#'     \item \code{lmer_optimizer}: Optimizer to be used in \code{lme4::lmer} for deriving priors.
+#'     \item \code{lmer_optimization_objective}: Criteria to be optimized in \code{lme4::lmer} for deriving priors,
+#'           e.g. \code{"likelihood"} or \code{"REML"}.
+#'   }
+#' @param brms_control A list of parameters to be passed to \code{brms::brm} for MCMC sampling, including:
+#'   \itemize{
+#'     \item \code{chains}: Number of Markov chains (default is 4).
+#'     \item \code{iter}: Number of iterations per chain (default is 2000).
+#'     \item \code{warmup}: Number of warmup iterations per chain (default is \code{floor(iter / 2)}).
+#'     \item \code{thin}: Thinning interval (default is 1).
+#'     \item \code{seed}: Seed for reproducibility (default is \code{NA}).
+#'     \item \code{adapt_delta}: Target acceptance probability for HMC (default is 0.80).
+#'   }
+#'
+#' @return An S4 object of class \code{bayesian_model_parameters}.
+#' @export
+#'
+#' @examples
+#' # Create a minimal bayesian_model_parameters object with defaults:
+#' bayes_params <- create_bayesian_model_parameters()
+#'
+#' # Create one with custom brms_control:
+#' bayes_params_custom <- create_bayesian_model_parameters(
+#'   brms_control = list(chains = 2, iter = 1500, adapt_delta = 0.9)
+#' )
+create_bayesian_model_parameters <- function(
+    user_priors = NULL,
+    prior_derivation_control = NULL,
+    brms_control = list(
+      chains = 4,
+      iter = 2000,
+      warmup = 1000,
+      thin = 1,
+      seed = NA,
+      adapt_delta = 0.80
+    )
+) {
+
+  # Build an S4 object with the supplied arguments.
+  bayes_obj <- methods::new(
+    "bayesian_model_parameters",
+    user_priors = user_priors,
+    prior_derivation_control = prior_derivation_control,
+    brms_control = brms_control
+  )
+
+  # Trigger validation checks (as defined in the class).
+  methods::validObject(bayes_obj)
+
+  return(bayes_obj)
+}
+
+
+#' @title Add Bayesian Model Parameters
+#' @description Generic function to add Bayesian model parameters.
+#' @param object The object to which Bayesian model parameters will be added.
+#' @param user_priors An optional object of class `brmsprior`.
+#' @param prior_derivation_control An optional list containing prior derivation control parameters.
+#' @param brms_control An optional list of parameters for `brms::brm`.
+#' @return The updated object with the `bayesian_model_parameters` added.
+#' @export
+setGeneric("add_bayesian_model_parameters", function(object, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
+  standardGeneric("add_bayesian_model_parameters")
+})
+
+#' @rdname add_bayesian_model_parameters
+#' @export
+setMethod(
+  "add_bayesian_model_parameters",
+  signature(object = "bayesian_alpha_test_strategy"),
+  function(object, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
+
+    # Ensure only one of `user_priors` or `prior_derivation_control` is provided
+    if (!is.null(user_priors) && !is.null(prior_derivation_control)) {
+      stop("Only one of 'user_priors' or 'prior_derivation_control' can be provided, not both.")
+    }
+
+    # Check `user_priors` argument
+    if (!is.null(user_priors) && !inherits(user_priors, "brmsprior")) {
+      stop("When provided, 'user_priors' must be an object of class 'brmsprior'.")
+    }
+
+    # Create `bayesian_model_parameters` object
+    bayesian_params <- new("bayesian_model_parameters",
+                           user_priors = user_priors,
+                           prior_derivation_control = prior_derivation_control,
+                           brms_control = brms_control)
+
+    # Add `bayesian_model_parameters` to `bayesian_alpha_test_strategy`
+    object@bayesian_model_parameters <- bayesian_params
+    return(object)
+  }
+)
+
+#' @rdname add_bayesian_model_parameters
+#' @export
+setMethod(
+  "add_bayesian_model_parameters",
+  signature(object = "ss_backtest_config"),
+  function(object,
+           user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
+    # Check if `alpha_test_strategy` is set
+    if (is.null(object@alpha_test_strategy)) {
+      stop("The 'alpha_test_strategy' slot is not set in the ss_backtest_config object.")
+    }
+
+    # Ensure the `alpha_test_strategy` is of class `bayesian_alpha_test_strategy`
+    if (!is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
+      stop("The 'alpha_test_strategy' in the ss_backtest_config object is not of class 'bayesian_alpha_test_strategy'.")
+    }
+
+    # Call the method for 'bayesian_alpha_test_strategy' to add 'bayesian_model_parameters'
+    object@alpha_test_strategy <- add_bayesian_model_parameters(
+      object@alpha_test_strategy,
+      user_priors = user_priors,
+      prior_derivation_control = prior_derivation_control,
+      brms_control = brms_control
+    )
+
+    # Return the updated 'ss_backtest_config' object
+    return(object)
+  }
+)
+
+
+#' @title Add Prior to Bayesian Alpha Test Strategy
+#' @description Adds a prior to a `bayesian_alpha_test_strategy` object based on provided parameters.
+#' @param object An object of class `bayesian_alpha_test_strategy`.
+#' @param distribution_choice A vector of strings representing the distribution of the prior. See details for valid options.
+#' @param pars A list of named numeric vectors. The names should match the expected parameter names for the chosen distribution.
+#' @param class A vector of character strings representing the class of the prior. Should be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.
+#' @param coef A vector of character strings representing the coefficient name. Only applicable when `class` is 'b' or 'sd'.
+#' @param group A vector of character strings representing the group name. Only applicable when `class` is 'b' or 'sd'.
+#' @return An updated `bayesian_alpha_test_strategy` object with the added prior.
+#' @export
+setGeneric("add_brms_prior", function(object, ...) standardGeneric("add_brms_prior"))
+
+#' @rdname add_brms_prior
+#' @export
+setMethod("add_brms_prior",
+          signature(object = "bayesian_alpha_test_strategy"),
+          function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
+
+            # Ensure lengths match
+            n <- length(distribution_choice)
+            if (!all(lengths(list(distribution_choice, pars, class)) == n)) {
+              stop("All arguments must have the same length.")
+            }
+            if (!is.null(coef) && length(coef) != n) {
+              stop("`coef` must be NULL or have the same length as `distribution_choice`.")
+            }
+            if (!is.null(group) && length(group) != n) {
+              stop("`group` must be NULL or have the same length as `distribution_choice`.")
+            }
+
+            # Replace NA values with empty strings for `coef` and `group`
+            if (is.null(coef)) {
+              coef <- rep("", n)
+            } else {
+              coef[is.na(coef)] <- ""
+            }
+            if (is.null(group)) {
+              group <- rep("", n)
+            } else {
+              group[is.na(group)] <- ""
+            }
+
+            # Validate `class`
+            if (!all(class %in% c("Intercept", "b", "sd", "sigma", "cor"))) {
+              stop("Invalid `class` values. Must be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.")
+            }
+
+            # Validate `pars` against `distribution_choice`
+            valid_distributions <- list(
+              normal = c("mean", "sd"),
+              student_t = c("df", "mean", "sd"),
+              cauchy = c("location", "scale"),
+              lognormal = c("meanlog", "sdlog"),
+              inv_gamma = c("shape", "scale"),
+              lkj = c("eta")
+            )
+            mapply(function(dist, params) {
+              if (!dist %in% names(valid_distributions)) {
+                stop(sprintf("Invalid distribution: '%s'.", dist))
+              }
+              missing_params <- setdiff(valid_distributions[[dist]], names(params))
+              if (length(missing_params) > 0) {
+                stop(sprintf("Missing parameters for '%s': %s.", dist, paste(missing_params, collapse = ", ")))
+              }
+              TRUE
+            }, distribution_choice, pars, SIMPLIFY = FALSE)
+
+            # Corrected validation for group and coef restrictions
+            if (any(!(class %in% c("b", "sd")) & group != "")) {
+              stop("Group should only be specified for class 'b' or 'sd'.")
+            }
+            if (any(!(class %in% c("b", "sd")) & coef != "")) {
+              stop("Coef should only be specified for class 'b' or 'sd'.")
+            }
+
+            # Validate against model specification
+            theme_level_intercept <- object@theme_level_intercept
+            theme_level_slope <- object@theme_level_slope
+
+            chosen_combination <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+
+            invalid_priors <- switch(
+              chosen_combination,
+              "random_intercept_fixed_slope" = {
+                sapply(seq_along(distribution_choice), function(i) {
+                  grepl("^theme", coef[i]) || grepl("^theme.*:market_factor_proxy$", coef[i])
+                })
+              },
+              "theme_specific_intercept_fixed_slope" = {
+                sapply(seq_along(distribution_choice), function(i) {
+                  class[i] == "Intercept" || grepl("^theme.*:market_factor_proxy$", coef[i])
+                })
+              },
+              "theme_specific_intercept_theme_specific_slope" = {
+                sapply(seq_along(distribution_choice), function(i) {
+                  class[i] == "Intercept" || coef[i] == "market_factor_proxy"
+                })
+              },
+              "fixed_intercept_fixed_slope" = {
+                sapply(seq_along(distribution_choice), function(i) {
+                  grepl("^theme", coef[i])
+                })
+              },
+              stop("Invalid model structure")
+            )
+
+            if (any(invalid_priors)) {
+              stop(sprintf("Some priors are invalid for the chosen model structure at theme_level: '%s'.", chosen_combination))
+            }
+
+            # Generate `brmsprior` object
+            new_priors <- lapply(seq_along(distribution_choice), function(i) {
+              brms::set_prior(
+                paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
+                class = class[i],
+                coef = coef[i],
+                group = group[i]
+              )
+            })
+
+            # Combine with existing `user_priors`
+            if (is.null(object@bayesian_model_parameters@user_priors)) {
+              object@bayesian_model_parameters@user_priors <- do.call(rbind, new_priors)
+            } else {
+              object@bayesian_model_parameters@user_priors <- rbind(
+                object@bayesian_model_parameters@user_priors,
+                do.call(rbind, new_priors)
+              )
+            }
+
+            validObject(object@bayesian_model_parameters)
+            return(object)
+          })
+
+#' @rdname add_brms_prior
+#' @export
+#' @rdname add_brms_prior
+#' @export
+setMethod(
+  "add_brms_prior",
+  signature(object = "ss_backtest_config"),
+  function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
+    # Check if `alpha_test_strategy` is set
+    if (is.null(object@alpha_test_strategy)) {
+      stop("The 'alpha_test_strategy' slot is not set in the ss_backtest_config object.")
+    }
+
+    # Ensure the `alpha_test_strategy` is of class `bayesian_alpha_test_strategy`
+    if (!is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
+      stop("The 'alpha_test_strategy' in the ss_backtest_config object is not of class 'bayesian_alpha_test_strategy'.")
+    }
+
+    # Delegate the call to the 'alpha_test_strategy' object's method
+    object@alpha_test_strategy <- add_brms_prior(
+      object@alpha_test_strategy,
+      distribution_choice = distribution_choice,
+      pars = pars,
+      class = class,
+      coef = coef,
+      group = group
+    )
+
+    # Return the updated 'ss_backtest_config' object
+    return(object)
+  }
+)
+
+
+
+
+#-----------------------------------------------------------------------
+# tuning_strategy
+#-----------------------------------------------------------------------
+
+#' @title Hyperparameter Tuning Strategy Constructor
+#' @description A constructor function to create a tuning_strategy object, based on the specified tuning method.
+#' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
+#' @param validation_sample_size Numeric value representing the size of the validation sample.
+#' @param chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
+#' @param early_stop ANY, optional argument for halting criteria.
+#' @param n_iter Numeric, number of iterations for 'random_search' or 'bayesian_opt'.
+#' @param acq Character string for the acquisition function (for 'bayesian_opt' only).
+#' @param init_points Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).
+#' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
+#' @return An object of class `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
+#' @export
+create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
+                                   n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
+
+  # Check if hyper_grid_domain is provided; if not, create an empty one
+  if(!tuning_method %in% c("grid_search", "random_search", "bayesian_opt")){
+    stop("tuning_method must be one of grid_search, random_search or bayesian_opt")
+  }
+  if (is.null(hyper_grid_domain)) {
+    hyper_grid_domain <-  new("hyper_grid_domain", hyperparameter_list = list())
+  }
+
+  # Check the value of tuning_method and create the appropriate subclass
+  if (tuning_method == "grid_search") {
+    # Create a grid_search_strategy object
+    return(new("grid_search_strategy",
+               tuning_method = "grid_search",
+               validation_sample_size = validation_sample_size,
+               chosen_eval_metric = chosen_eval_metric,
+               hyper_grid_domain = hyper_grid_domain,
+               early_stop = early_stop))
+
+  } else if (tuning_method == "random_search") {
+    # Create a random_search_strategy object
+    if (is.null(n_iter)) {
+      stop("n_iter must be provided for random_search.")
+    }
+    return(new("random_search_strategy",
+               tuning_method = "random_search",
+               validation_sample_size = validation_sample_size,
+               chosen_eval_metric = chosen_eval_metric,
+               hyper_grid_domain = hyper_grid_domain,
+               early_stop = early_stop,
+               n_iter = n_iter))
+
+  } else if (tuning_method == "bayesian_opt") {
+    # Create a bayesian_opt_strategy object
+    if (is.null(n_iter) || is.null(acq) || is.null(init_points) || is.null(k_iter)) {
+      stop("n_iter, acq, init_points, and k_iter must be provided for bayesian_opt.")
+    }
+    return(new("bayesian_opt_strategy",
+               tuning_method = "bayesian_opt",
+               validation_sample_size = validation_sample_size,
+               chosen_eval_metric = chosen_eval_metric,
+               hyper_grid_domain = hyper_grid_domain,
+               early_stop = early_stop,
+               n_iter = n_iter,
+               acq = acq,
+               init_points = init_points,
+               k_iter = k_iter))
+  } else {
+    stop("Invalid tuning_method. Choose from 'grid_search', 'random_search', or 'bayesian_opt'.")
+  }
+}
 
 #' Add a `tuning_strategy` to an existing `sb_backtest_config`.
 #'
@@ -602,6 +1162,9 @@ setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning
           }
 )
 
+#-----------------------------------------------------------------------
+# hyperparameters
+#-----------------------------------------------------------------------
 
 
 #' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `sb_backtest_config`, a `tuning_strategy` or on its own.
@@ -989,6 +1552,10 @@ setMethod("add_hyper_grid_domain",
           })
 
 
+#-----------------------------------------------------------------------
+# keras_architecture
+#-----------------------------------------------------------------------
+
 #' @title Create Keras Architecture
 #' @description Constructor for creating an instance of `keras_architecture_parameters`.
 #'
@@ -1192,6 +1759,10 @@ setMethod(
   }
 )
 
+#-----------------------------------------------------------------------
+# cov_est_method
+#-----------------------------------------------------------------------
+
 #' @title Create Covariance Estimation Method
 #' @description Constructor for creating an instance of `cov_est_method`.
 #'
@@ -1267,24 +1838,7 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
           }
 )
 
-#' @describeIn add_cov_est_method Create a `cov_est_method` object to a `port_backtest_config` object.
-#'
-#' This method allows to dynamically create a `cov_est_method` object and add to `port_backtest_config`.
-#'
-#' @param object An object of class `port_backtest_config`.
-#' @param cov_est_method An existing object of class `cov_est_method`.
-#' @export
-setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
-          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, ...) {
 
-            object@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
-                                                           cov_matrix_sample_size = cov_matrix_sample_size,
-                                                           active_returns = active_returns
-            )
-
-            return(object)
-          }
-)
 
 #' @describeIn add_cov_est_method Add existing `cov_est_method` object to a `port_backtest_config` object.
 #'
@@ -1302,26 +1856,293 @@ setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_e
           }
 )
 
+#' @describeIn add_cov_est_method Create a `cov_est_method` object to a `port_backtest_config` object.
+#'
+#' This method allows to dynamically create a `cov_est_method` object and add to `port_backtest_config`.
+#'
+#' @param object An object of class `port_backtest_config`.
+#' @param cov_est_method An existing object of class `cov_est_method`.
+#' @export
+setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
+          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = TRUE, ...) {
+
+            object@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
+                                                           cov_matrix_sample_size = cov_matrix_sample_size,
+                                                           active_returns = active_returns
+            )
+
+            return(object)
+          }
+)
 
 
+#-----------------------------------------------------------------------
+# mvo_parameters
+#-----------------------------------------------------------------------
 
 #' @title Create MVO Parameters
-#' @description Constructor for creating an instance of `mvo_parameters`.
+#' @description Constructor function for creating an instance of `mvo_parameters`.
 #'
-#' @param cov_estimation_method A character string representing the covariance estimation method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.
-#' @param cov_matrix_sample_size Number of periods to subset return sample when estimating the covariance matrix. A high number will provide
-#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
-#' to dimensionality curse.
-#' @param active_returns logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
-create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE) {
+#' @param opt_method A character indicating the optimization method.
+#'   The only current available method is 'random'. In this case, \code{n_random_ports} are
+#'   generated under the constraints defined in the `mvo_parameters` object and the one that
+#'   optimizes the \code{opt_objective} will be selected.
+#' @param random_ports_method A character string representing the method that will be
+#'   passed to \code{PortfolioAnalytics::random_portfolios} to generate random portfolios.
+#'   Options are 'sample', 'simplex' or 'grid'.
+#' @param n_random_ports Number of random portfolios to generate. Only needed when
+#'   \code{opt_method} is 'random'.
+#' @param opt_objective A character indicating the optimization objective. Possible options
+#'   are 'return', 'risk' or 'sharpe'.
+#'
+#' @return An S4 object of class `mvo_parameters`.
+#' @export
+#'
+#' @examples
+#' # Create an `mvo_parameters` object with default values:
+#' mvo_params_default <- create_mvo_parameters()
+#'
+#' # Create an `mvo_parameters` object with custom values:
+#' mvo_params_custom <- create_mvo_parameters(
+#'   opt_method = "random",
+#'   random_ports_method = "grid",
+#'   n_random_ports = 500,
+#'   opt_objective = "risk"
+#' )
+create_mvo_parameters <- function(opt_method = "random",
+                                  random_ports_method = "sample",
+                                  n_random_ports = 1000,
+                                  opt_objective = "sharpe") {
 
-  cov_est_method <- new("cov_est_method",
-                        cov_estimation_method = cov_estimation_method,
-                        cov_matrix_sample_size = cov_matrix_sample_size,
-                        active_returns = active_returns
-  )
-
+  mvo_params <- methods::new("mvo_parameters",
+                             opt_method = opt_method,
+                             random_ports_method = random_ports_method,
+                             n_random_ports = n_random_ports,
+                             opt_objective = opt_objective)
+  return(mvo_params)
 }
+
+
+#' @title Add mvo_parameters to a backtest config
+#'
+#' @description
+#' This function allows either directly adding a pre-existing `mvo_parameters` object
+#' or creating one dynamically by passing additional arguments.
+#'
+#' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
+#' @param mvo_params An object of class `mvo_parameters`, or missing if a new object is to be created.
+#' @param ... Additional arguments used to create a new `mvo_parameters` object when `mvo_params` is missing.
+#'   These arguments must include:
+#'   \itemize{
+#'     \item \strong{opt_method}: A character indicating the optimization method.
+#'           The only current available method is 'random'.
+#'     \item \strong{random_ports_method}: A character string representing the method to generate random portfolios.
+#'           Options are 'sample', 'simplex' or 'grid'.
+#'     \item \strong{n_random_ports}: Number of random portfolios to generate.
+#'           Only needed when `opt_method` is 'random'.
+#'     \item \strong{opt_objective}: A character indicating the optimization objective.
+#'           Possible options are 'return', 'risk' or 'sharpe'.
+#'   }
+#'
+#' @return An updated object of class `sb_backtest_config` or `port_backtest_config` with
+#'   the `mvo_parameters` added.
+#' @export
+setGeneric("add_mvo_parameters", function(object, mvo_params, ...) {
+  standardGeneric("add_mvo_parameters")
+})
+
+
+#' @describeIn add_mvo_parameters Add existing `mvo_parameters` object to a `sb_backtest_config` object.
+#' @export
+setMethod("add_mvo_parameters",
+          signature(object = "sb_backtest_config", mvo_params = "mvo_parameters"),
+          function(object, mvo_params, ...) {
+
+            # Suppose you store mvo_parameters within signal_port_parameters:
+            object@signal_port_parameters@mvo_parameters <- mvo_params
+
+            return(object)
+          }
+)
+
+#' @describeIn add_mvo_parameters Dynamically create a `mvo_parameters` object and add it to a `sb_backtest_config` object.
+#' @export
+setMethod("add_mvo_parameters",
+          signature(object = "sb_backtest_config", mvo_params = "missing"),
+          function(object,
+                   mvo_params,
+                   opt_method = "random",
+                   random_ports_method = "sample",
+                   n_random_ports = 1000,
+                   opt_objective = "sharpe",
+                   ...) {
+
+            object@signal_port_parameters@mvo_parameters <- create_mvo_parameters(
+              opt_method = opt_method,
+              random_ports_method = random_ports_method,
+              n_random_ports = n_random_ports,
+              opt_objective = opt_objective
+            )
+
+            return(object)
+          }
+)
+
+
+
+#' @describeIn add_mvo_parameters Add existing `mvo_parameters` object to a `port_backtest_config` object.
+#' @export
+setMethod("add_mvo_parameters",
+          signature(object = "port_backtest_config", mvo_params = "mvo_parameters"),
+          function(object, mvo_params, ...) {
+
+            object@mvo_parameters <- mvo_params
+
+            return(object)
+          }
+)
+
+#' @describeIn add_mvo_parameters Dynamically create a `mvo_parameters` object and add it to a `port_backtest_config` object.
+#' @export
+setMethod("add_mvo_parameters",
+          signature(object = "port_backtest_config", mvo_params = "missing"),
+          function(object,
+                   mvo_params,
+                   opt_method = "random",
+                   random_ports_method = "sample",
+                   n_random_ports = 1000,
+                   opt_objective = "sharpe",
+                   ...) {
+
+            object@mvo_parameters <- create_mvo_parameters(
+              opt_method = opt_method,
+              random_ports_method = random_ports_method,
+              n_random_ports = n_random_ports,
+              opt_objective = opt_objective
+            )
+
+            return(object)
+          }
+)
+
+
+
+
+
+#-----------------------------------------------------------------------
+# rp_parameters
+#-----------------------------------------------------------------------
+
+#' @title Create RP (Risk Parity) Parameters
+#' @description Constructor function for creating an instance of `rp_parameters`.
+#'
+#' @param rp_method A character indicating the method to compute the risk-parity vanilla solution.
+#'   It is passed to \code{riskParityPortfolio::riskParityPortfolio()} function as \code{method_init}.
+#'   Default is \code{"cyclical-spinu"}.
+#'
+#' @return An S4 object of class `rp_parameters`.
+#' @export
+#'
+#' @examples
+#' # Create an `rp_parameters` object with default values:
+#' rp_params_default <- create_rp_parameters()
+#'
+#' # Create an `rp_parameters` object with custom values:
+#' rp_params_custom <- create_rp_parameters(rp_method = "gauss-seidel")
+create_rp_parameters <- function(rp_method = "cyclical-spinu") {
+  rp_params <- methods::new("rp_parameters",
+                            rp_method = rp_method)
+  return(rp_params)
+}
+
+#' @title Add rp_parameters to a backtest config
+#'
+#' @description
+#' This function allows either directly adding a pre-existing `rp_parameters` object
+#' or creating one dynamically by passing additional arguments.
+#'
+#' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
+#' @param rp_params An object of class `rp_parameters`, or missing if a new object is to be created.
+#' @param ... Additional arguments used to create a new `rp_parameters` object when `rp_params` is missing.
+#'   These arguments must include:
+#'   \itemize{
+#'     \item \strong{rp_method}: A character indicating the method to compute the risk-parity solution.
+#'   }
+#'
+#' @return An updated object of class `sb_backtest_config` or `port_backtest_config` with
+#'   the `rp_parameters` added.
+#' @export
+setGeneric("add_rp_parameters", function(object, rp_params, ...) {
+  standardGeneric("add_rp_parameters")
+})
+
+
+#' @describeIn add_rp_parameters Add an existing `rp_parameters` object to a `sb_backtest_config` object.
+#' @export
+setMethod("add_rp_parameters",
+          signature(object = "sb_backtest_config", rp_params = "rp_parameters"),
+          function(object, rp_params, ...) {
+
+            # Suppose you store rp_parameters within signal_port_parameters:
+            object@signal_port_parameters@rp_parameters <- rp_params
+
+            return(object)
+          }
+)
+
+#' @describeIn add_rp_parameters Dynamically create a `rp_parameters` object and add it to a `sb_backtest_config` object.
+#' @export
+setMethod("add_rp_parameters",
+          signature(object = "sb_backtest_config", rp_params = "missing"),
+          function(object,
+                   rp_params,
+                   rp_method = "cyclical-spinu",
+                   ...) {
+
+            object@signal_port_parameters@rp_parameters <- create_rp_parameters(
+              rp_method = rp_method
+            )
+
+            return(object)
+          }
+)
+
+#' @describeIn add_rp_parameters Add an existing `rp_parameters` object to a `port_backtest_config` object.
+#' @export
+setMethod("add_rp_parameters",
+          signature(object = "port_backtest_config", rp_params = "rp_parameters"),
+          function(object, rp_params, ...) {
+
+            object@rp_parameters <- rp_params
+
+            return(object)
+          }
+)
+
+#' @describeIn add_rp_parameters Dynamically create a `rp_parameters` object and add it to a `port_backtest_config` object.
+#' @export
+setMethod("add_rp_parameters",
+          signature(object = "port_backtest_config", rp_params = "missing"),
+          function(object,
+                   rp_params,
+                   rp_method = "cyclical-spinu",
+                   ...) {
+
+            object@rp_parameters <- create_rp_parameters(
+              rp_method = rp_method
+            )
+
+            return(object)
+          }
+)
+
+
+
+
+
+#-----------------------------------------------------------------------
+# sb_backtest
+#-----------------------------------------------------------------------
 
 
 #' @title Create sb_backtest_config Object
@@ -1358,13 +2179,17 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   }
 
   #Create default parameters for signal_port_parameters depending on sb_algo
-  if(sb_algorithm %in% c("mto", "rp") && is.null(signal_port_parameters)){
+  if(sb_algorithm %in% c("mvo", "rp") && is.null(signal_port_parameters)){
     cov_est_method <- create_cov_est_method(cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE)
-    mvo_parameters <- create_mvo_parameters(opt_method = "random", random_ports_method = "sample", n_random_ports = 1000, opt_objective = "sharpe")
-    rp_parameters <- create_rp_parameters(rp_method = "cyclical-spinu")
-    concentration_constraint_policy <- list()
+    mvo_parameters <- if(sb_algorithm == "mvo") create_mvo_parameters(opt_method = "random", random_ports_method = "sample", n_random_ports = 1000, opt_objective = "sharpe") else NULL
+    rp_parameters <- if(sb_algorithm == "rp") create_rp_parameters(rp_method = "cyclical-spinu") else NULL
 
-    signal_port_parameters <- create_signal_port_parameters(cov_est_method = cov_est_method, mvo_parameters = mvo_parameters, rp_parameters = rp_parameters, concentration_constraint_policy = concentration_constraint_policy)
+
+    signal_port_parameters <- new("signal_port_parameters",
+                                  cov_est_method = cov_est_method,
+                                  mvo_parameters = mvo_parameters,
+                                  rp_parameters = rp_parameters,
+                                  concentration_constraint_policy = NULL)
   }
 
   # Create the sb_backtest_config object
@@ -2056,481 +2881,9 @@ setMethod(
   }
 )
 
-#' @title Create an ss_backtest_config Object
-#' @description This function constructs an object of class `ss_backtest_config`, ensuring the proper initialization
-#' and validation of its slots.
-#' @param data_availability_cutoff A numeric indicating the minimum number of non-NA observations required for a backtest.
-#' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
-#' @param rebalancing_months A numeric indicating the number of months for rebalancing.
-#' @param active_returns Logical, whether to calculate active returns when calculating performance metrics, except for CAPM (default is TRUE).
-#' @param split_method A character string specifying the splitting method, either "expanding" (default) or "rolling".
-#' @param enable_theme_representativeness Logical, whether to enable theme representativeness (default is TRUE).
-#' @param alpha_test_strategy An `alpha_test_strategy` object defining the alpha test configuration.
-#' @param config_name A character string naming the configuration.
-#' @return An object of class `ss_backtest_config`.
-#' @examples
-#' # Example usage:
-#' config <- create_ss_backtest_config(
-#'   data_availability_cutoff = 100,
-#'   initial_sample_size = 200,
-#'   rebalancing_months = 6,
-#'   alpha_test_strategy = alpha_test_strategy_obj,
-#'   config_name = "ExampleConfig"
-#' )
-#' @export
-create_ss_backtest_config <- function(
-    data_availability_cutoff,
-    initial_sample_size,
-    rebalancing_months,
-    active_returns = TRUE,
-    split_method = "expanding",
-    alpha_test_strategy = NULL,
-    config_name = "not_identified"
-) {
-  # Input validation
-  if (data_availability_cutoff < 0) {
-    stop("data_availability_cutoff cannot be negative.")
-  }
-  if (initial_sample_size < 0) {
-    stop("initial_sample_size cannot be negative.")
-  }
-  if (initial_sample_size < data_availability_cutoff) {
-    stop("initial_sample_size must be greater than or equal to data_availability_cutoff.")
-  }
-  if (!split_method %in% c("expanding", "rolling")) {
-    stop("split_method must be either 'expanding' or 'rolling'.")
-  }
-
-  # Create and return the object
-  new("ss_backtest_config",
-     data_availability_cutoff = data_availability_cutoff,
-      initial_sample_size = initial_sample_size,
-      rebalancing_months = rebalancing_months,
-      active_returns = active_returns,
-      split_method = split_method,
-      alpha_test_strategy = alpha_test_strategy,
-      config_name = config_name)
-}
-
-
-
-
-#' @title Create an alpha_test_strategy object
-#' @description A constructor function to create instances of alpha_test_strategy or its subclasses
-#' (frequentist_alpha_test_strategy and bayesian_alpha_test_strategy).
-#' @param signal_significance_threshold A numeric value indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria.
-#'   Must be between 0 and 1. Defaults to 0.05.
-#' @param p_correction_method A character string specifying the p-value correction method.
-#'   Options include `"none"`, `"bonferroni"`, `"holm"`, `"hochberg"`, `"hommel"`, `"BH"`, `"fdr"`, `"BY"`, and `"bayesian"`.
-#' @param market_factor_proxy A character string indicating the market factor proxy to be used in the CAPM model.
-#' @param bayesian_model_parameters (Optional) An object of class `bayesian_model_parameters`.
-#'   Required when `p_correction_method` is `"bayesian"`.
-#' @return An object of class `alpha_test_strategy`, `frequentist_alpha_test_strategy`, or `bayesian_alpha_test_strategy`.
-#' @export
-create_alpha_test_strategy <- function(
-    model_structure = "no_pooled",
-    theme_level_intercept = NULL,
-    theme_level_slope = NULL,
-    signal_significance_threshold = 0.05,
-    p_correction_method = "none",
-    market_factor_proxy,
-    bayesian_model_parameters = NULL,
-    enable_theme_representativeness = TRUE,
-    lmer_control = NULL
-  ) {
-
-  # Validate input arguments
-  if (!p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY", "bayesian")) {
-    stop("Invalid p_correction_method. Must be one of: 'none', 'bonferroni', 'holm', 'hochberg', 'hommel', 'BH', 'fdr', 'BY', 'bayesian'.")
-  }
-  if (signal_significance_threshold < 0 || signal_significance_threshold > 1) {
-    stop("signal_significance_threshold must be between 0 and 1.")
-  }
-  if (missing(market_factor_proxy) || !is.character(market_factor_proxy) || length(market_factor_proxy) != 1) {
-    stop("market_factor_proxy must be a single character string.")
-  }
-  if(!model_structure %in% c("partial_pooled", "no_pooled")){
-    stop("Currently, model_structure must be one of partial_pooled or no_pooled")
-  }
-  if(model_structure == "partial_pooled"){
-    if (is.null(theme_level_intercept) || !theme_level_intercept %in% c("fixed", "random", "theme_specific")){
-      stop("theme_level_intercept must be 'fixed', 'random' or 'theme_specific'")
-    }
-    if (is.null(theme_level_slope) || !theme_level_slope %in% c("fixed", "theme_specific")){
-      stop("Currently, theme_level_slope can only be 'fixed' or 'theme_specific'")
-    }
-    avaiable_combinations <- c(c("random_intercept_fixed_slope"), #old random_intercept
-                               c("theme_specific_intercept_fixed_slope"), #old fixed_intercepts
-                               c("theme_specific_intercept_theme_specific_slope"), #old fixed_intercepts_fixed_slopes
-                               c("fixed_intercept_fixed_slope")) #one none
-    chosen_combination <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
-
-    if(!chosen_combination %in% avaiable_combinations){
-      stop("Chosen combination of theme_level_intercept and theme_level_slope is currently not supported.")
-    }
-  } else {
-    if(any(!is.null(theme_level_intercept), !is.null(theme_level_slope))){
-      stop("Theme-level parameters are only avaiable for partial pooled models.")
-    }
-  }
-
-  # Handle Bayesian subclass creation
-  if (p_correction_method == "bayesian") {
-    if(model_structure != "partial_pooled"){
-      stop("Currently, only the 'partial_pooled' model structure is supported for Bayesian alpha testing.")
-    }
-    if (!is.null(bayesian_model_parameters) && !inherits(bayesian_model_parameters, "bayesian_model_parameters")) {
-      stop("When p_correction_method is 'bayesian', bayesian_model_parameters must be a bayesian_model_parameters object.")
-    }
-
-    #Check if a bayesian_model_parametesr is being provided
-    if(is.null(bayesian_model_parameters)){
-      #If not create a generic one
-      bayesian_model_parameters = new("bayesian_model_parameters",
-                                      user_priors = NULL,
-                                      prior_derivation_control = NULL,
-                                      brms_control = NULL
-      )
-    }
-
-    return(new("bayesian_alpha_test_strategy",
-               signal_significance_threshold = signal_significance_threshold,
-               p_correction_method = p_correction_method,
-               model_structure = model_structure,
-               theme_level_intercept = theme_level_intercept,
-               theme_level_slope = theme_level_slope,
-               market_factor_proxy = market_factor_proxy, #For a new bayesian class, create an uniformative bayesian_model_parameters
-               enable_theme_representativeness = enable_theme_representativeness,
-               bayesian_model_parameters = bayesian_model_parameters,
-               lmer_control = lmer_control
-               )
-           )
-  }
-
-  # Handle Frequentist subclass creation
-  if (p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY")) {
-    return(new("frequentist_alpha_test_strategy",
-               signal_significance_threshold = signal_significance_threshold,
-               model_structure = model_structure,
-               theme_level_intercept = theme_level_intercept,
-               theme_level_slope = theme_level_slope,
-               p_correction_method = p_correction_method,
-               enable_theme_representativeness = enable_theme_representativeness,
-               market_factor_proxy = market_factor_proxy,
-               lmer_control = lmer_control))
-  }
-
-  # Default fallback (should not reach here due to prior validation)
-  stop("Unexpected error in create_alpha_test_strategy. Check input parameters.")
-}
-
-
-#' @title Add Alpha Test Strategy to ss_backtest_config
-#' @description This method allows you to add an `alpha_test_strategy` object to an `ss_backtest_config` object.
-#' @param object An `ss_backtest_config` object.
-#' @param alpha_test_strategy An `alpha_test_strategy` object to be added.
-#' @return The updated `ss_backtest_config` object with the specified `alpha_test_strategy` added.
-#' @examples
-#' # Example usage
-#' alpha_strategy <- new("frequentist_alpha_test_strategy",
-#'                        signal_significance_threshold = 0.05,
-#'                        p_correction_method = "holm",
-#'                        market_factor_proxy = "S&P500")
-#' config <- create_ss_backtest_config(
-#'   data_availability_cutoff = 100,
-#'   initial_sample_size = 200,
-#'   rebalancing_months = 6,
-#'   alpha_test_strategy = NULL,
-#'   config_name = "ExampleConfig"
-#' )
-#' config <- add_alpha_test_strategy(config, alpha_strategy)
-#' @export
-setGeneric("add_alpha_test_strategy", function(object, alpha_test_strategy, ...) {
-  standardGeneric("add_alpha_test_strategy")
-})
-
-#' @rdname add_alpha_test_strategy
-#' @export
-setMethod(
-  "add_alpha_test_strategy",
-  signature(object = "ss_backtest_config", alpha_test_strategy = "alpha_test_strategy"),
-  function(object, alpha_test_strategy) {
-
-    # Set the alpha_test_strategy slot
-    object@alpha_test_strategy <- alpha_test_strategy
-
-    # Return the updated object
-    return(object)
-  }
-)
-
-#' @rdname add_alpha_test_strategy
-#' @export
-setMethod(
-  "add_alpha_test_strategy",
-  signature(object = "ss_backtest_config", alpha_test_strategy = "missing"),
-  function(object, signal_significance_threshold = 0.05, p_correction_method = "none", market_factor_proxy,
-           model_structure = "partial_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
-           enable_theme_representativeness = TRUE, bayesian_model_parameters = NULL, lmer_control = NULL) {
-
-    alpha_test_strategy <- create_alpha_test_strategy(signal_significance_threshold = signal_significance_threshold,
-                                                      p_correction_method = p_correction_method,
-                                                      market_factor_proxy = market_factor_proxy,
-                                                      model_structure = model_structure,
-                                                      theme_level_intercept = theme_level_intercept,
-                                                      theme_level_slope = theme_level_slope,
-                                                      enable_theme_representativeness = enable_theme_representativeness,
-                                                      bayesian_model_parameters = bayesian_model_parameters,
-                                                      lmer_control = lmer_control
-                                                      )
-
-    # Set the alpha_test_strategy slot
-    object@alpha_test_strategy <- alpha_test_strategy
-
-    # Return the updated object
-    return(object)
-  }
-)
-
-#' @title Add Bayesian Model Parameters
-#' @description Generic function to add Bayesian model parameters.
-#' @param object The object to which Bayesian model parameters will be added.
-#' @param user_priors An optional object of class `brmsprior`.
-#' @param prior_derivation_control An optional list containing prior derivation control parameters.
-#' @param brms_control An optional list of parameters for `brms::brm`.
-#' @return The updated object with the `bayesian_model_parameters` added.
-#' @export
-setGeneric("add_bayesian_model_parameters", function(object, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
-  standardGeneric("add_bayesian_model_parameters")
-})
-
-#' @rdname add_bayesian_model_parameters
-#' @export
-setMethod(
-  "add_bayesian_model_parameters",
-  signature(object = "bayesian_alpha_test_strategy"),
-  function(object, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
-
-    # Ensure only one of `user_priors` or `prior_derivation_control` is provided
-    if (!is.null(user_priors) && !is.null(prior_derivation_control)) {
-      stop("Only one of 'user_priors' or 'prior_derivation_control' can be provided, not both.")
-    }
-
-    # Check `user_priors` argument
-    if (!is.null(user_priors) && !inherits(user_priors, "brmsprior")) {
-      stop("When provided, 'user_priors' must be an object of class 'brmsprior'.")
-    }
-
-    # Create `bayesian_model_parameters` object
-    bayesian_params <- new("bayesian_model_parameters",
-                           user_priors = user_priors,
-                           prior_derivation_control = prior_derivation_control,
-                           brms_control = brms_control)
-
-    # Add `bayesian_model_parameters` to `bayesian_alpha_test_strategy`
-    object@bayesian_model_parameters <- bayesian_params
-    return(object)
-  }
-)
-
-#' @rdname add_bayesian_model_parameters
-#' @export
-setMethod(
-  "add_bayesian_model_parameters",
-  signature(object = "ss_backtest_config"),
-  function(object,
-           user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
-    # Check if `alpha_test_strategy` is set
-    if (is.null(object@alpha_test_strategy)) {
-      stop("The 'alpha_test_strategy' slot is not set in the ss_backtest_config object.")
-    }
-
-    # Ensure the `alpha_test_strategy` is of class `bayesian_alpha_test_strategy`
-    if (!is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
-      stop("The 'alpha_test_strategy' in the ss_backtest_config object is not of class 'bayesian_alpha_test_strategy'.")
-    }
-
-    # Call the method for 'bayesian_alpha_test_strategy' to add 'bayesian_model_parameters'
-    object@alpha_test_strategy <- add_bayesian_model_parameters(
-      object@alpha_test_strategy,
-      user_priors = user_priors,
-      prior_derivation_control = prior_derivation_control,
-      brms_control = brms_control
-    )
-
-    # Return the updated 'ss_backtest_config' object
-    return(object)
-  }
-)
-
-
-#' @title Add Prior to Bayesian Alpha Test Strategy
-#' @description Adds a prior to a `bayesian_alpha_test_strategy` object based on provided parameters.
-#' @param object An object of class `bayesian_alpha_test_strategy`.
-#' @param distribution_choice A vector of strings representing the distribution of the prior. See details for valid options.
-#' @param pars A list of named numeric vectors. The names should match the expected parameter names for the chosen distribution.
-#' @param class A vector of character strings representing the class of the prior. Should be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.
-#' @param coef A vector of character strings representing the coefficient name. Only applicable when `class` is 'b' or 'sd'.
-#' @param group A vector of character strings representing the group name. Only applicable when `class` is 'b' or 'sd'.
-#' @return An updated `bayesian_alpha_test_strategy` object with the added prior.
-#' @export
-setGeneric("add_brms_prior", function(object, ...) standardGeneric("add_brms_prior"))
-
-#' @rdname add_brms_prior
-#' @export
-setMethod("add_brms_prior",
-          signature(object = "bayesian_alpha_test_strategy"),
-          function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
-
-            # Ensure lengths match
-            n <- length(distribution_choice)
-            if (!all(lengths(list(distribution_choice, pars, class)) == n)) {
-              stop("All arguments must have the same length.")
-            }
-            if (!is.null(coef) && length(coef) != n) {
-              stop("`coef` must be NULL or have the same length as `distribution_choice`.")
-            }
-            if (!is.null(group) && length(group) != n) {
-              stop("`group` must be NULL or have the same length as `distribution_choice`.")
-            }
-
-            # Replace NA values with empty strings for `coef` and `group`
-            if (is.null(coef)) {
-              coef <- rep("", n)
-            } else {
-              coef[is.na(coef)] <- ""
-            }
-            if (is.null(group)) {
-              group <- rep("", n)
-            } else {
-              group[is.na(group)] <- ""
-            }
-
-            # Validate `class`
-            if (!all(class %in% c("Intercept", "b", "sd", "sigma", "cor"))) {
-              stop("Invalid `class` values. Must be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.")
-            }
-
-            # Validate `pars` against `distribution_choice`
-            valid_distributions <- list(
-              normal = c("mean", "sd"),
-              student_t = c("df", "mean", "sd"),
-              cauchy = c("location", "scale"),
-              lognormal = c("meanlog", "sdlog"),
-              inv_gamma = c("shape", "scale"),
-              lkj = c("eta")
-            )
-            mapply(function(dist, params) {
-              if (!dist %in% names(valid_distributions)) {
-                stop(sprintf("Invalid distribution: '%s'.", dist))
-              }
-              missing_params <- setdiff(valid_distributions[[dist]], names(params))
-              if (length(missing_params) > 0) {
-                stop(sprintf("Missing parameters for '%s': %s.", dist, paste(missing_params, collapse = ", ")))
-              }
-              TRUE
-            }, distribution_choice, pars, SIMPLIFY = FALSE)
-
-            # Corrected validation for group and coef restrictions
-            if (any(!(class %in% c("b", "sd")) & group != "")) {
-              stop("Group should only be specified for class 'b' or 'sd'.")
-            }
-            if (any(!(class %in% c("b", "sd")) & coef != "")) {
-              stop("Coef should only be specified for class 'b' or 'sd'.")
-            }
-
-            # Validate against model specification
-            theme_level_intercept <- object@theme_level_intercept
-            theme_level_slope <- object@theme_level_slope
-
-            chosen_combination <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
-
-            invalid_priors <- switch(
-              chosen_combination,
-              "random_intercept_fixed_slope" = {
-                sapply(seq_along(distribution_choice), function(i) {
-                  grepl("^theme", coef[i]) || grepl("^theme.*:market_factor_proxy$", coef[i])
-                })
-              },
-              "theme_specific_intercept_fixed_slope" = {
-                sapply(seq_along(distribution_choice), function(i) {
-                  class[i] == "Intercept" || grepl("^theme.*:market_factor_proxy$", coef[i])
-                })
-              },
-              "theme_specific_intercept_theme_specific_slope" = {
-                sapply(seq_along(distribution_choice), function(i) {
-                  class[i] == "Intercept" || coef[i] == "market_factor_proxy"
-                })
-              },
-              "fixed_intercept_fixed_slope" = {
-                sapply(seq_along(distribution_choice), function(i) {
-                  grepl("^theme", coef[i])
-                })
-              },
-              stop("Invalid model structure")
-            )
-
-            if (any(invalid_priors)) {
-              stop(sprintf("Some priors are invalid for the chosen model structure at theme_level: '%s'.", chosen_combination))
-            }
-
-            # Generate `brmsprior` object
-            new_priors <- lapply(seq_along(distribution_choice), function(i) {
-              brms::set_prior(
-                paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
-                class = class[i],
-                coef = coef[i],
-                group = group[i]
-              )
-            })
-
-            # Combine with existing `user_priors`
-            if (is.null(object@bayesian_model_parameters@user_priors)) {
-              object@bayesian_model_parameters@user_priors <- do.call(rbind, new_priors)
-            } else {
-              object@bayesian_model_parameters@user_priors <- rbind(
-                object@bayesian_model_parameters@user_priors,
-                do.call(rbind, new_priors)
-              )
-            }
-
-            validObject(object@bayesian_model_parameters)
-            return(object)
-          })
-
-#' @rdname add_brms_prior
-#' @export
-#' @rdname add_brms_prior
-#' @export
-setMethod(
-  "add_brms_prior",
-  signature(object = "ss_backtest_config"),
-  function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
-    # Check if `alpha_test_strategy` is set
-    if (is.null(object@alpha_test_strategy)) {
-      stop("The 'alpha_test_strategy' slot is not set in the ss_backtest_config object.")
-    }
-
-    # Ensure the `alpha_test_strategy` is of class `bayesian_alpha_test_strategy`
-    if (!is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
-      stop("The 'alpha_test_strategy' in the ss_backtest_config object is not of class 'bayesian_alpha_test_strategy'.")
-    }
-
-    # Delegate the call to the 'alpha_test_strategy' object's method
-    object@alpha_test_strategy <- add_brms_prior(
-      object@alpha_test_strategy,
-      distribution_choice = distribution_choice,
-      pars = pars,
-      class = class,
-      coef = coef,
-      group = group
-    )
-
-    # Return the updated 'ss_backtest_config' object
-    return(object)
-  }
-)
-
+#-----------------------------------------------------------------------
+# liquidity_constraint_policy
+#-----------------------------------------------------------------------
 
 
 #' @title Add Liquidity Constraint Policy
@@ -2633,6 +2986,10 @@ setMethod("add_liquidity_constraint_policy", "port_backtest_config", function(po
   return(new_port_backtest_config_obj)
 })
 
+
+#-----------------------------------------------------------------------
+# turnover_constraint_policy
+#-----------------------------------------------------------------------
 
 #' @title Add Turnover Constraint Policy
 #' @description Adds a turnover constraint policy to a `port_backtest_config` object.
@@ -2760,179 +3117,177 @@ setMethod("add_turnover_constraint_policy", "port_backtest_config", function(por
   })
 
 
-#' @title Add Concentration Constraint Policy
-#' @description Adds a concentration constraint policy to a `port_backtest_config` object.
+
+#-----------------------------------------------------------------------
+# concentration_constraint_policy
+#-----------------------------------------------------------------------
+
+#' @title Create Concentration Constraint Policy
+#' @description Constructor for a `concentration_constraint_policy` object.
 #'
-#' @param port_backtest_config_obj A `port_backtest_config` object to which the concentration constraint policy will be added.
-#' @param benchmark A character string representing benchmark based on which concentration policy will be applied.
-#' @param max_abs_active_individual_weight A number indicating the absolute weight differential from benchmark weights.
-#' @param max_abs_active_group_weight A named vector indicating absolute group (sector) weight differentials in relation to the benchmark.
+#' @param benchmark A character vector (can be empty if no benchmark specified).
+#' @param max_abs_active_individual_weight A numeric indicating the max
+#'   absolute active weight for individual assets.
+#' @param max_abs_active_group_weight A named numeric vector for group constraints.
 #'
-#' @return The updated `port_backtest_config` object with the added liquidity constraint policy.
-#'
-#' @examples
-#' portfolio <- create_port_backtest_config()
-#' portfolio <- add_concentration_constraint_policy(portfolio, benchmark = "IBOV", max_abs_active_individual_weight = 0.05, max_abs_active_group_weight = c(Sector = 0.1, Subsector = 0.5))
-#'
+#' @return An S4 object of class `concentration_constraint_policy`.
 #' @export
-setGeneric("add_concentration_constraint_policy", function(port_backtest_config_obj, benchmark = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL) {
+create_concentration_constraint_policy <- function(
+    benchmark = character(0),
+    max_abs_active_individual_weight = NA_real_,
+    max_abs_active_group_weight = numeric(0)
+) {
+  obj <- new(
+    "concentration_constraint_policy",
+    benchmark = benchmark,
+    max_abs_active_individual_weight = max_abs_active_individual_weight,
+    max_abs_active_group_weight = max_abs_active_group_weight
+  )
+  validObject(obj)
+  obj
+}
+
+
+#' @title Add Concentration Constraint Policy
+#' @description Either add an existing \code{concentration_constraint_policy} to an object
+#' (e.g., \code{port_backtest_config} or \code{sb_backtest_config}), or create one dynamically
+#' when \code{policy} is missing.
+#'
+#' @param object An object of class \code{port_backtest_config} or \code{sb_backtest_config}.
+#' @param policy A \code{concentration_constraint_policy} object, or missing if a new one is to be created.
+#' @param ... Additional arguments used to create a new \code{concentration_constraint_policy}
+#'   if \code{policy} is missing. These typically include:
+#'   \itemize{
+#'     \item \strong{benchmark} (character)
+#'     \item \strong{max_abs_active_individual_weight} (numeric)
+#'     \item \strong{max_abs_active_group_weight} (named numeric)
+#'   }
+#'
+#' @return The updated \code{object} with the concentration policy added.
+#' @export
+setGeneric("add_concentration_constraint_policy", function(object, policy, ...) {
   standardGeneric("add_concentration_constraint_policy")
 })
 
+#' @describeIn add_concentration_constraint_policy
+#'   Add an existing \code{concentration_constraint_policy} to a \code{port_backtest_config}.
 #' @export
-setMethod("add_concentration_constraint_policy",  "port_backtest_config",
-          function(port_backtest_config_obj, benchmark = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL) {
+setMethod("add_concentration_constraint_policy",
+          signature(object = "port_backtest_config", policy = "concentration_constraint_policy"),
+          function(object, policy, ...) {
 
-  #Validate arguments
-  ##Benchmark
-  if(!is.null(benchmark)){
-    if(!is.character(benchmark)){
-      stop("benchmark should be a character")
-    }
-  }
-
-  ##Max Absolute Active Individual Weight
-  if(!is.null(max_abs_active_individual_weight)){
-    if(!is.numeric(max_abs_active_individual_weight)){
-      stop("max_abs_active_individual_weight should be numeric")
-    }
-  }
-
-  ##Max Absolute Active Group Weight
-  if(!is.null(max_abs_active_group_weight)){
-    if(!all(is.numeric(max_abs_active_group_weight))){
-      stop("max_abs_active_group_weight should be a numeric vector")
-    }
-    if(is.null(names(max_abs_active_group_weight))){
-      stop("max_abs_active_group_weight should include names")
-    }
-  }
-
-  new_concentration_constraint_policy <- list()
-
-  #Set benchmark
-  if(!is.null(benchmark)){
-    new_concentration_constraint_policy$benchmark <- benchmark
-  } else {
-    if(!is.null(port_backtest_config_obj@benchmark)){
-      new_concentration_constraint_policy$benchmark <- port_backtest_config_obj@benchmark
-    } else {
-      new_concentration_constraint_policy$benchmark <- NULL
-    }
-  }
-
-  #Set max_abs_active_individual_weight
-  if(!is.null(max_abs_active_individual_weight)){
-    new_concentration_constraint_policy$max_abs_active_individual_weight <- max_abs_active_individual_weight
-  } else {
-    if(!is.null(port_backtest_config_obj@max_abs_active_individual_weight)){
-      new_concentration_constraint_policy$max_abs_active_individual_weight <- port_backtest_config_obj@max_abs_active_individual_weight
-    } else {
-      new_concentration_constraint_policy$max_abs_active_individual_weight <- NULL
-    }
-  }
-
-  #Set max_abs_active_group_weight
-  if(!is.null(max_abs_active_group_weight)){
-    new_concentration_constraint_policy$max_abs_active_group_weight <- max_abs_active_group_weight
-  } else {
-    if(!is.null(port_backtest_config_obj@max_abs_active_group_weight)){
-      new_concentration_constraint_policy$max_abs_active_group_weight <- port_backtest_config_obj@max_abs_active_group_weight
-    } else {
-      new_concentration_constraint_policy$max_abs_active_group_weight <- NULL
-    }
-  }
-
-  # Create the S4 object
-  new_port_backtest_config_obj <- new("port_backtest_config",
-                                    liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
-                                    signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
-                                    turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
-                                    concentration_constraint_policy = new_concentration_constraint_policy,
-                                    liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
-
-  return(new_port_backtest_config_obj)
-
-})
-
-#RONALDO
-##
-
+            object@concentration_constraint_policy <- policy
+            methods::validObject(object)  # optional validity check
+            return(object)
+          }
+)
+#' @describeIn add_concentration_constraint_policy
+#'   Dynamically create a \code{concentration_constraint_policy} and add it to a \code{port_backtest_config}.
 #' @export
-setMethod("add_concentration_constraint_policy",  "port_backtest_config",
-          function(port_backtest_config_obj, benchmark = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL) {
+setMethod("add_concentration_constraint_policy",
+          signature(object = "port_backtest_config", policy = "missing"),
+          function(object,
+                   policy,
+                   benchmark = character(0),
+                   max_abs_active_individual_weight = NA_real_,
+                   max_abs_active_group_weight = numeric(0),
+                   ...) {
 
-            #Validate arguments
-            ##Benchmark
-            if(!is.null(benchmark)){
-              if(!is.character(benchmark)){
-                stop("benchmark should be a character")
-              }
+            # Build a new policy on the fly
+            new_policy <- create_concentration_constraint_policy(
+              benchmark = benchmark,
+              max_abs_active_individual_weight = max_abs_active_individual_weight,
+              max_abs_active_group_weight = max_abs_active_group_weight
+            )
+
+            object@concentration_constraint_policy <- new_policy
+            methods::validObject(object)
+            return(object)
+          }
+)
+
+
+
+#' @describeIn add_concentration_constraint_policy
+#'   Add an existing \code{concentration_constraint_policy} to a \code{sb_backtest_config}.
+#'   This method will store it inside \code{object@signal_port_parameters}.
+#' @export
+setMethod("add_concentration_constraint_policy",
+          signature(object = "sb_backtest_config", policy = "concentration_constraint_policy"),
+          function(object, policy, ...) {
+
+            # Ensure signal_port_parameters is defined
+            if (!methods::is(object@signal_port_parameters, "signal_port_parameters")) {
+              object@signal_port_parameters <- methods::new("signal_port_parameters")
             }
 
-            ##Max Absolute Active Individual Weight
-            if(!is.null(max_abs_active_individual_weight)){
-              if(!is.numeric(max_abs_active_individual_weight)){
-                stop("max_abs_active_individual_weight should be numeric")
-              }
+            #No group constraints for signal port
+            if(length(policy@max_abs_active_group_weight) > 0){
+              stop("Group constraints are not supported for signal port")
             }
 
-            ##Max Absolute Active Group Weight
-            if(!is.null(max_abs_active_group_weight)){
-              if(!all(is.numeric(max_abs_active_group_weight))){
-                stop("max_abs_active_group_weight should be a numeric vector")
-              }
-              if(is.null(names(max_abs_active_group_weight))){
-                stop("max_abs_active_group_weight should include names")
-              }
+            object@signal_port_parameters@concentration_constraint_policy <- policy
+            methods::validObject(object)
+            return(object)
+          }
+)
+
+#' @describeIn add_concentration_constraint_policy
+#'   Dynamically create a \code{concentration_constraint_policy} for \code{sb_backtest_config}.
+#' @export
+setMethod("add_concentration_constraint_policy",
+          signature(object = "sb_backtest_config", policy = "missing"),
+          function(object,
+                   policy,
+                   benchmark = character(0),
+                   max_abs_active_individual_weight = NA_real_,
+                   max_abs_active_group_weight = numeric(0),
+                   ...) {
+
+            # Build a new policy
+            new_policy <- create_concentration_constraint_policy(
+              benchmark = benchmark,
+              max_abs_active_individual_weight = max_abs_active_individual_weight,
+              max_abs_active_group_weight = max_abs_active_group_weight
+            )
+
+            # Ensure signal_port_parameters is defined
+            if (!methods::is(object@signal_port_parameters, "signal_port_parameters")) {
+              object@signal_port_parameters <- methods::new("signal_port_parameters")
             }
 
-            new_concentration_constraint_policy <- list()
-
-            #Set benchmark
-            if(!is.null(benchmark)){
-              new_concentration_constraint_policy$benchmark <- benchmark
-            } else {
-              if(!is.null(port_backtest_config_obj@benchmark)){
-                new_concentration_constraint_policy$benchmark <- port_backtest_config_obj@benchmark
-              } else {
-                new_concentration_constraint_policy$benchmark <- NULL
-              }
+            #No group constraints for signal port
+            if(length(max_abs_active_group_weight) > 0){
+              stop("Group constraints are not supported for signal port")
             }
 
-            #Set max_abs_active_individual_weight
-            if(!is.null(max_abs_active_individual_weight)){
-              new_concentration_constraint_policy$max_abs_active_individual_weight <- max_abs_active_individual_weight
-            } else {
-              if(!is.null(port_backtest_config_obj@max_abs_active_individual_weight)){
-                new_concentration_constraint_policy$max_abs_active_individual_weight <- port_backtest_config_obj@max_abs_active_individual_weight
-              } else {
-                new_concentration_constraint_policy$max_abs_active_individual_weight <- NULL
-              }
-            }
+            # Assign
+            object@signal_port_parameters@concentration_constraint_policy <- new_policy
+            methods::validObject(object)
+            return(object)
+          }
+)
 
-            #Set max_abs_active_group_weight
-            if(!is.null(max_abs_active_group_weight)){
-              new_concentration_constraint_policy$max_abs_active_group_weight <- max_abs_active_group_weight
-            } else {
-              if(!is.null(port_backtest_config_obj@max_abs_active_group_weight)){
-                new_concentration_constraint_policy$max_abs_active_group_weight <- port_backtest_config_obj@max_abs_active_group_weight
-              } else {
-                new_concentration_constraint_policy$max_abs_active_group_weight <- NULL
-              }
-            }
 
-            # Create the S4 object
-            new_port_backtest_config_obj <- new("port_backtest_config",
-                                                liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
-                                                signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
-                                                turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
-                                                concentration_constraint_policy = new_concentration_constraint_policy,
-                                                liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
 
-            return(new_port_backtest_config_obj)
 
-          })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

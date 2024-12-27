@@ -51,13 +51,15 @@ check_inputs_sb_backtest <- function(
     #Time
     validation_sample_size, rebalancing_months, split_method,
     #SB heuristic
-    signal_universe_m_df, backtest_returns_xts, benchmark_returns_xts, market_factor_proxy, active_returns,
+    signal_universe_m_df, backtest_returns_xts, selected_market_factor_proxy_xts,
+    covariance_matrix_sample_size, covariance_estimation_method, active_returns,
+    rp_method, n_random_ports, random_ports_method, opt_objective, concentration_constraint_policy,
     #SB algorithm
     sb_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
     #Tuning
     hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
     #Etc
-    early_stop, keras_architecture_parameters, show_plots, parallel, verbose = TRUE
+    early_stop, keras_architecture_parameters, parallel, verbose = TRUE
 ){
 
   ###Initial Checks###
@@ -194,32 +196,33 @@ check_inputs_sb_backtest <- function(
       stop("backtest_returns_xts must have consecutive dates")
     }
 
-  #benchmark_returns_xts
-    if(!xts::is.xts(benchmark_returns_xts)){
-      stop("benchmark_returns_xts must be a xts object")
+    if(length(backtest_returns_dates) <= covariance_matrix_sample_size){
+      stop("backtest_returns_xts must have more dates than covariance_matrix_sample_size")
+    }
+
+  #selected_market_factor_proxy_xts
+    if(!xts::is.xts(selected_market_factor_proxy_xts)){
+      stop("selected_market_factor_proxy_xts must be a xts object")
     }
       #get dates
-      benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
-      if(class(benchmark_returns_dates) != "Date"){
-        stop("dates in benchmark_returns_xts must be of class Date")
+      selected_market_factor_proxy_dates <- zoo::index(selected_market_factor_proxy_xts)
+      if(class(selected_market_factor_proxy_xts) != "Date"){
+        stop("dates in selected_market_factor_proxy_xts must be of class Date")
       }
 
-      if(any(benchmark_returns_dates != backtest_returns_dates)){
-        stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+      if(any(selected_market_factor_proxy_dates != backtest_returns_dates)){
+        stop("dates in selected_market_factor_proxy_xts and backtest_returns_xts must be the same")
       }
 
-    if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
-      stop("benchmark_returns_xts must not have any NA values")
+    if(any(apply(selected_market_factor_proxy_xts, 2, function(x) all(is.na(x))))){
+      stop("selected_market_factor_proxy_xts must not have any NA values")
     }
 
-    if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
-                 as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
-      stop("benchmark_returns_xts must have consecutive dates")
+    if(!all(diff(as.numeric(format(selected_market_factor_proxy_dates, "%Y")) * 12 +
+                 as.numeric(format(selected_market_factor_proxy_dates, "%m"))) == 1)){
+      stop("selected_market_factor_proxy_xts must have consecutive dates")
     }
 
-    if(!market_factor_proxy %in% colnames(benchmark_returns_xts)){
-      stop("market_factor_proxy must be present in benchmark_returns_xts")
-  }
 
 
   #Check structure of rebalancing_months
@@ -278,11 +281,11 @@ check_inputs_sb_backtest <- function(
 
   #Check for eligible signals
   signal_universe_m_df_dates <- signal_universe_m_df %>% dplyr::pull(dates) %>% unique()
-  first_rebalance_date <- as.Date(min(dates_m_vector[(training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size - 1)]))
+  first_training_date <- dates_m_vector[training_sample_size]
 
-  #First date of eligible_signals should be before first backtesting date
-  if(first_rebalance_date < min(signal_universe_m_df_dates)){
-    stop("First date of signal_universe_m_df should be before first backtesting date.")
+  #First date of eligible_signals should be before first training date
+  if(first_training_date < min(signal_universe_m_df_dates)){
+    stop("First date of signal_universe_m_df should be before first training date.")
   }
 
   #Get elected signals
@@ -301,8 +304,8 @@ check_inputs_sb_backtest <- function(
     if(!is.null(chosen_eval_metric)){
       if(!chosen_eval_metric %in% c("rmse", "mae", "cp", "rss", "mphe", "mpe", "hr", "mape")){
         stop("chosen_eval_metric choice not supported.")
-      } else {}
-    } else {}
+      }
+    }
 
   #Check for correct format of custom_eval/loss parameters
   if(quantile_tau <= 0 || quantile_tau >= 1){
@@ -443,11 +446,7 @@ check_inputs_sb_backtest <- function(
       stop("n_iter must be greater than k_iter")
     }
 
-
-
-
-
-  } else {}
+  }
 
 
 
@@ -500,6 +499,7 @@ check_inputs_sb_backtest <- function(
     stop("Early stop only allowed for xgb or nn sb_algorithm choices")
   }
 
+  #Check for NN
   if(sb_algorithm == "nn"){
 
     if(is.data.frame(keras_architecture_parameters) || !is.list(keras_architecture_parameters) ||
@@ -539,6 +539,45 @@ check_inputs_sb_backtest <- function(
       warning("keras models have some limitations regarding parallel computations. Use with care.")
     }
 
+
+
+  }
+
+  #Check for RP and MVO
+  if(sb_algorithm %in% c("rp", "mvo")){
+
+    if(is.null(covariance_estimation_method)){
+      stop("covariance_estimation_method should be set for rp and mvo algorithms")
+    }
+    if(!is.numeric(covariance_matrix_sample_size)){
+      stop("covariance_matrix_sample_size should be numeric")
+    }
+    if(!is.logical(active_returns)){
+      stop("active_returns should be logical")
+    }
+
+      if(sb_algorithm == "rp"){
+        if(!rp_method ==  "cyclical-spinu"){
+          stop("rp_method should be set to cyclical-spinu for rp algorithm")
+        }
+      } else {
+        if(!is.numeric(n_random_ports)){
+          stop("n_random_ports should be numeric")
+        }
+        if(!random_ports_method %in% c("sample", "simplex", "grid")){
+          stop("random_ports_method should be set to sample, simplex or grid")
+        }
+        if(!opt_objective %in% c("return", "risk", "sharpe")){
+          stop("opt_objective should be set to return, risk or sharpe")
+        }
+        if(!concentration_constraint_policy$benchmark %in% c("theme_sb", "theme_ss")){
+          stop("concentration_constraint_policy's benchmark should be set to theme_sb or theme_ss")
+        }
+        if(length(concentration_constraint_policy$max_abs_active_group_weight) > 0){
+          stop("group constraints are not supported for signal portfolios")
+        }
+
+      }
 
 
   }

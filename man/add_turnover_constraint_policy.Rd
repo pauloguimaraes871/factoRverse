@@ -4,10 +4,10 @@
 \alias{add_turnover_constraint_policy}
 \title{Add Turnover Constraint Policy}
 \usage{
-add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules)
+add_turnover_constraint_policy(port_backtest_config_obj, turnover_rules)
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object to which the liquidity constraint policy will be added.}
+\item{port_backtest_config_obj}{A \code{port_backtest_config} object to which the liquidity constraint policy will be added.}
 
 \item{turnover_rule}{A list with the following structure, specifying the turnover rule:
 #' \itemize{
@@ -17,13 +17,13 @@ add_turnover_constraint_policy(portfolio_policies_obj, turnover_rules)
 }}
 }
 \value{
-The updated \code{portfolio_policies} object with the added liquidity constraint policy.
+The updated \code{port_backtest_config} object with the added liquidity constraint policy.
 }
 \description{
-Adds a turnover constraint policy to a \code{portfolio_policies} object.
+Adds a turnover constraint policy to a \code{port_backtest_config} object.
 }
 \examples{
-portfolio <- create_portfolio_policies()
+portfolio <- create_port_backtest_config()
 portfolio <- add_turnover_constraint_policy(portfolio, turnover_rule = list(liquidity_classification = "micro_caps", turnover_cap = 0.01, top_stock_quantile_buffer = 0.66))
 
 }

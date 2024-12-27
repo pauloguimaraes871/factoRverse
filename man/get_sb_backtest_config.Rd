@@ -4,7 +4,7 @@
 \alias{get_sb_backtest_config}
 \alias{get_sb_backtest_config,sb_metabacktest_config-method}
 \alias{get_sb_backtest_config,sb_backtest_results-method}
-\title{Get ML Backtest Config Object}
+\title{Get SB Backtest Config Object}
 \usage{
 get_sb_backtest_config(object)
 

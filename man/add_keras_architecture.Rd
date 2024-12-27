@@ -15,7 +15,7 @@ add_keras_architecture(object, keras_architecture_parameters, ...)
 \arguments{
 \item{object}{An object of class \code{sb_backtest_config}.}
 
-\item{keras_architecture_parameters}{Should be \code{NULL} to dynamically create a new architecture.}
+\item{keras_architecture_parameters}{Should be missing to dynamically create a new architecture.}
 
 \item{...}{Additional parameters used to create the \code{keras_architecture_parameters}, including:
 \itemize{

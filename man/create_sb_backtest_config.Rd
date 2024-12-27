@@ -6,6 +6,7 @@
 \usage{
 create_sb_backtest_config(
   sb_algorithm = "ols",
+  target_fwd_name,
   tuning_strategy = NULL,
   training_sample_size,
   rebalancing_months,
@@ -14,13 +15,16 @@ create_sb_backtest_config(
   ss_backtest_results = NULL,
   custom_objective = "squared_error",
   keras_architecture_parameters = NULL,
+  signal_port_parameters = NULL,
   quantile_tau = 0.5,
   huber_delta = 1,
   config_name = "not_identified"
 )
 }
 \arguments{
-\item{sb_algorithm}{Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn').}
+\item{sb_algorithm}{Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn', 'sw', 'ew', etc.).}
+
+\item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
 
 \item{tuning_strategy}{An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.}
 
@@ -36,7 +40,9 @@ create_sb_backtest_config(
 
 \item{custom_objective}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.}
 
-\item{keras_architecture_parameters}{List or NULL, providing parameters specific to keras-based neural networks.}
+\item{keras_architecture_parameters}{An object of class \code{keras_architecture_parameters} providing parameters specific to keras-based neural networks.}
+
+\item{signal_port_parameters}{An object of class \code{signal_port_parameters}, specifying the parameters for constructing signal portfolios (portfolio-blending).}
 
 \item{quantile_tau}{Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.}
 

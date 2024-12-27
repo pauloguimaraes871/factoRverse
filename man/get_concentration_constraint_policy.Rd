@@ -2,16 +2,30 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_concentration_constraint_policy}
 \alias{get_concentration_constraint_policy}
-\title{Accessor for Concentration Constraint Policy}
+\alias{get_concentration_constraint_policy,port_backtest_config-method}
+\alias{get_concentration_constraint_policy,sb_backtest_config-method}
+\title{Get the Concentration Constraint Policy}
 \usage{
-get_concentration_constraint_policy(portfolio_policies_obj)
+get_concentration_constraint_policy(object)
+
+\S4method{get_concentration_constraint_policy}{port_backtest_config}(object)
+
+\S4method{get_concentration_constraint_policy}{sb_backtest_config}(object)
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object.}
+\item{object}{An object of class \code{port_backtest_config} or \code{sb_backtest_config}.}
 }
 \value{
-The concentration constraint policy list.
+An S4 object of class \code{concentration_constraint_policy}.
 }
 \description{
-Retrieves the concentration constraint policy from a \code{portfolio_policies} object.
+Accessor method to extract the \code{concentration_constraint_policy} from an object.
 }
+\section{Functions}{
+\itemize{
+\item \code{get_concentration_constraint_policy(port_backtest_config)}: Extract the concentration policy from \code{port_backtest_config}.
+
+\item \code{get_concentration_constraint_policy(sb_backtest_config)}: Extract the concentration policy from \code{sb_backtest_config},
+which stores it inside \code{object@signal_port_parameters}.
+
+}}

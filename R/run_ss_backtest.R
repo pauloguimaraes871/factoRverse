@@ -585,7 +585,6 @@ run_ss_backtest_internal <- function(
 
     #Assign dates to names of objects
     names(signal_universe_m_d_ref_list) <- rebalance_dates
-    names(eligible_signals_list) <- dates_backtest
 
     #Turn signal_universe_m_d_ref_list into a signle meta_dataframe
     signal_universe_m_df <- do.call(rbind, signal_universe_m_d_ref_list)

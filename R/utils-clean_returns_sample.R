@@ -12,18 +12,17 @@
 #' @export
 #'
 #' @examples
-clean_returns_sample <- function(returns_sample, groups_m_d_ref = NULL, fill = TRUE, fill_by = NULL, verbose = TRUE){
+clean_returns_sample <- function(returns_xts_sample, groups_m_d_ref = NULL, fill = TRUE, fill_by = NULL, verbose = TRUE){
 
-    #Remove holidays
-  returns_sample_clean <- returns_sample %>%
-    dplyr::filter(rowSums(is.na(.)) != ncol(returns_sample) - 1) #Rows with only NAs
+  #Remove holidays
+  returns_xts_clean <- returns_xts_sample %>% as.data.frame() %>% dplyr::filter(rowSums(is.na(.)) != ncol(returns_xts_sample))  #Rows with only NAs
 
   ##################n
 
   #Fill according to groups
   ##########################
   #Check if filling is necessary
-  if(any(apply(returns_sample_clean, 2, function(x) any(is.na(x)))) && fill){
+  if(any(apply(returns_xts_clean, 2, function(x) any(is.na(x)))) && fill){
 
     #Get what will be used to fill
     if(!is.null(fill_by)){
@@ -39,12 +38,13 @@ clean_returns_sample <- function(returns_sample, groups_m_d_ref = NULL, fill = T
     }
 
     #Fill NAs (by row) with groups medians or with rows-median
-    for(i in 1:nrow(returns_sample_clean)){
+    for(i in 1:nrow(returns_xts_clean)){
       #Merge tickers with daily returns and groups
-      tickers <- colnames(dplyr::select(returns_sample_clean, -dates))
+      tickers <- colnames(returns_xts_clean)
 
       tickers_and_returns <- merge(
-        data.frame(tickers = tickers, period_return = as.numeric(returns_sample_clean[i, -1])), groups_m_d_ref, by = "tickers")
+        data.frame(tickers = tickers, period_return = as.numeric(returns_xts_clean[i, ])),
+        groups_m_d_ref, by = "tickers")
 
       #Group Medians
       groups_medians <- tickers_and_returns %>%
@@ -65,12 +65,12 @@ clean_returns_sample <- function(returns_sample, groups_m_d_ref = NULL, fill = T
         median(tickers_and_returns_and_groups_filled$period_return, na.rm = TRUE)
 
       #Place return vector back into returns sample clean
-      returns_sample_clean[i, -1] <- tickers_and_returns_and_groups_filled$period_return
+      returns_xts_clean[i, ] <- tickers_and_returns_and_groups_filled$period_return
     }
     ###################
 
   }
   #Return
-  return(returns_sample_clean)
+  return(returns_xts_clean)
 
 }

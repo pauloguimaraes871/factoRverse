@@ -2,16 +2,25 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_alpha_test_strategy}
 \alias{get_alpha_test_strategy}
-\title{Get alpha test strategy}
+\alias{get_alpha_test_strategy,ss_backtest_config-method}
+\alias{get_alpha_test_strategy,ss_backtest_results-method}
+\alias{get_alpha_test_strategy,sb_backtest_config-method}
+\title{Get Alpha Test Strategy}
 \usage{
 get_alpha_test_strategy(object)
+
+\S4method{get_alpha_test_strategy}{ss_backtest_config}(object)
+
+\S4method{get_alpha_test_strategy}{ss_backtest_results}(object)
+
+\S4method{get_alpha_test_strategy}{sb_backtest_config}(object)
 }
 \arguments{
-\item{object}{A \code{ss_backtest_config} object.}
+\item{object}{An ss_backtest_config object.}
 }
 \value{
-A \code{alpha_test_strategy} S4 class.
+The \code{alpha_test_strategy} slot of the \code{ss_backtest_config} object.
 }
 \description{
-Accessor function to retrieve alpha_test_strategy
+Accessor function to retrieve the alpha test strategy from \code{ss_backtest_config}, \code{ss_backtest_results}   object.
 }

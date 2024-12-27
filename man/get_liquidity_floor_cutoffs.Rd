@@ -4,14 +4,14 @@
 \alias{get_liquidity_floor_cutoffs}
 \title{Accessor for Liquidity Floor Cutoffs}
 \usage{
-get_liquidity_floor_cutoffs(portfolio_policies_obj)
+get_liquidity_floor_cutoffs(port_backtest_config_obj)
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object.}
+\item{port_backtest_config_obj}{A \code{port_backtest_config} object.}
 }
 \value{
 The liquidity floor cutoffs list.
 }
 \description{
-Retrieves the liquidity floor cutoffs from a \code{portfolio_policies} object.
+Retrieves the liquidity floor cutoffs from a \code{port_backtest_config} object.
 }

@@ -15,11 +15,15 @@ experiment, including the hyperparameter tuning strategy, algorithm parameters, 
 ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mto (Mean-Tracking Error Optimization),
 ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
 
+\item{\code{target_fwd_name}}{Name of the target variable in \code{target_m_df}.}
+
 \item{\code{tuning_strategy}}{An object of class \code{tuning_strategy}, specifying the strategy for tuning hyperparameters.}
 
 \item{\code{ss_backtest_config}}{An object of class \code{ss_backtest_config}, specifying the single strategy backtest configuration.}
 
 \item{\code{ss_backtest_results}}{An object of class \code{ss_backtest_results}, containing the results of the single strategy backtest.}
+
+\item{\code{port_backtest_config}}{An object of class \code{port_backtest_config}, containing instructions to create SB portfolios for heuristic algorithms.}
 
 \item{\code{training_sample_size}}{Number of observations to include in each training sample.}
 
@@ -39,6 +43,8 @@ It includes:
 \item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
 \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
 }}
+
+\item{\code{signal_port_parameters}}{An object of class \code{signal_port_parameters}, specifying the parameters for constructing signal portfolios (portfolio-blending).}
 
 \item{\code{quantile_tau}}{A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.}
 

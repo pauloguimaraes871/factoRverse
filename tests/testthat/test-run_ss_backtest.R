@@ -28,12 +28,13 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
 
   chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
 
-  results <- run_ss_backtest(frequentist_ss_config,
+  results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
                              signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
                              signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
                              verbose = TRUE
                              )
-
+  )
 
   ####Expected Results
   ####################
@@ -146,9 +147,6 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   eligible_signals_1 <- signal_eligibility_results_list[[1]]$tickers[
     which(signal_eligibility_results_list[[1]]$is_eligible == 1)
   ]
-  eligible_signals_list[[1]] <- data.frame(tickers = eligible_signals_1)
-  eligible_signals_list[[2]] <- data.frame(tickers = eligible_signals_1)
-  eligible_signals_list[[3]] <- data.frame(tickers = eligible_signals_1)
 
 
   #Second Rebalancing Month
@@ -212,22 +210,17 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   eligible_signals_2 <- signal_eligibility_results_list[[2]]$tickers[
     which(signal_eligibility_results_list[[2]]$is_eligible == 1)
   ]
-  eligible_signals_list[[4]] <- data.frame(tickers = eligible_signals_2)
-  eligible_signals_list[[5]] <- data.frame(tickers = eligible_signals_2)
-  eligible_signals_list[[6]] <- data.frame(tickers = eligible_signals_2)
-  eligible_signals_list[[7]] <- data.frame(tickers = eligible_signals_2)
 
 
   names(signal_eligibility_results_list) <- c(dates_m_vector[data_availability_cutoff],
                                               current_date)
 
-
-  names(eligible_signals_list) <- dates_m_vector[initial_sample_size:length(dates_m_vector)]
-
   expect_equal(results@signal_universe_m_df@data,
                rbind(signal_eligibility_results_list[[1]], signal_eligibility_results_list[[2]]))
 
-  expect_equal(results@eligible_signals_list, eligible_signals_list)
+  expect_equal(results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers),
+               c(eligible_signals_1, eligible_signals_2))
+
 
   expect_equal(results@final_signal_universe_m_d_ref@data, results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15"))
 

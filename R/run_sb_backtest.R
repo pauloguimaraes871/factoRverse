@@ -507,14 +507,14 @@ setMethod("run_sb_backtest",
 #' @seealso
 #' \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 run_sb_backtest_internal <- function(
-  #Basic Objects Inputs
+    #Basic Objects Inputs
   features_m_df, target_m_df, training_sample_size, target_fwd_name,
   #Splits
   validation_sample_size = 0, rebalancing_months, split_method = "expanding",
   #Heuristic SB
-  signal_universe_m_df, #SW
-  backtest_returns_xts = NULL, benchmark_returns_xts = NULL, market_factor_proxy = NULL, covariance_matrix_sample_size = 36, covariance_estimation_method = "sample", active_returns = TRUE, #RP/MTO
-  n_random_portfolios = 1000, rp_method, mto_port_objective = "Sharpe", max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL, #MTO
+  signal_universe_m_df, backtest_returns_xts = NULL, selected_market_factor_proxy_xts = NULL,
+  covariance_matrix_sample_size = 36, covariance_estimation_method = "sample", active_returns = TRUE, #COV (for RP and MVO)
+  rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", concentration_constraint_policy, #RP/MVO
   #Choice of SB algorithm
   sb_algorithm = "ols",
   #Loss/Eval Functions and Related
@@ -540,8 +540,10 @@ run_sb_backtest_internal <- function(
     check_inputs_sb_backtest(
       features_m_df = features_m_df, target_m_df = target_m_df, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
       validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-      signal_universe_m_df = signal_universe_m_df, backtest_returns_xts = backtest_returns_xts,  sb_algorithm = sb_algorithm,
-      custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
+      signal_universe_m_df = signal_universe_m_df, backtest_returns_xts = backtest_returns_xts, selected_market_factor_proxy_xts = selected_market_factor_proxy_xts,
+      covariance_matrix_sample_size = covariance_matrix_sample_size, covariance_estimation_method = covariance_estimation_method, active_returns = active_returns,
+      rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+      sb_algorithm = sb_algorithm, custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
       hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
       init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel
     )
@@ -551,9 +553,7 @@ run_sb_backtest_internal <- function(
     #Initial Setup: Making some changes to metrics if needed and displaying initial setup
     ##Adjust custom obj and chosen eval metric
     if(verbose) cat("=============================\n")
-    adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric,
-                                          custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta,
-                                          verbose = verbose)
+    adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
 
     #Pass adjusted metrics
@@ -583,14 +583,14 @@ run_sb_backtest_internal <- function(
     target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
 
     #Print for target
-     if(verbose)   cat("Predicting a", target_fwd, "months ahead target: ", target_fwd_name, "\n")
+    if(verbose)   cat("Predicting a", target_fwd, "months ahead target: ", target_fwd_name, "\n")
 
     #Testing Sample Size
     testing_sample_size <- length(dates_m_vector) - training_sample_size - validation_sample_size + 1 #calculate testing sample size
 
     #Rebalancing Dates
     dates_testing_sample <- dates_m_vector[(training_sample_size + validation_sample_size):
-                                           (training_sample_size + validation_sample_size + testing_sample_size - 1)] #These are dates inside testing sample
+                                             (training_sample_size + validation_sample_size + testing_sample_size - 1)] #These are dates inside testing sample
 
     first_rebalance_date <- min(dates_testing_sample) #Get first rebalancing date
     rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
@@ -678,31 +678,37 @@ run_sb_backtest_internal <- function(
         ###Select and correct signals
         ##################
 
-          ####Get current_eligible_signals
-          most_recent_eligible_signals_date <- eligible_signals_dates[which(eligible_signals_dates <= current_date)] %>% max()
-          most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == most_recent_eligible_signals_date)
-          current_eligible_signals <- most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+        ####Get current_eligible_signals
+        most_recent_eligible_signals_date <- eligible_signals_dates[which(eligible_signals_dates <= current_date)] %>% max()
+        most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == most_recent_eligible_signals_date)
+        current_eligible_signals <- most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-          ####Reconstruct chosen_signals_and_positions
-          chosen_signals_and_positions <- ifelse(stringr::str_detect(current_eligible_signals, pattern = "low_"), "short", "long")
-          names(chosen_signals_and_positions) <- stringr::str_remove_all(current_eligible_signals, pattern = "low_")
+        ####Reconstruct chosen_signals_and_positions
+        chosen_signals_and_positions <- ifelse(stringr::str_detect(current_eligible_signals, pattern = "low_"), "short", "long")
+        names(chosen_signals_and_positions) <- stringr::str_remove_all(current_eligible_signals, pattern = "low_")
 
-          ####Select and correct signals
-          selected_features_corrected_positions_m_df <- select_and_correct_signals(
-            signals_m_df = features_m_df, #Extract eligible signals from features_m_df and then correct them (multiply short signal by -1)
-            chosen_signals_and_positions = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
+        ####Select and correct signals and backtests
+        selected_signals_and_backtest_list <- select_and_correct_signals(
+          signals_m_df = features_m_df, #Extract eligible signals from features_m_df and then correct them (multiply short signal by -1)
+          chosen_signals_and_positions = chosen_signals_and_positions, #Get instruction on what to change features
+          backtest_returns_xts = backtest_returns_xts #Backtest returns to be corrected
+        )
+        ####Get results
+        selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+        selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
 
-          #Print message
-          if(verbose){
-            cat("\n")
-            cat("Selecting and correcting signals:")
-            cat("\n")
-            cat("Most recent signal universe:\n")
-            print(most_recent_signal_universe_m_d_ref)
-            cat("\n")
-            cat("Eligible signals and positions:\n")
-            print(chosen_signals_and_positions)
-          }
+
+        #Print message
+        if(verbose){
+          cat("\n")
+          cat("Selecting and correcting signals:")
+          cat("\n")
+          cat("Most recent signal universe:\n")
+          print(most_recent_signal_universe_m_d_ref)
+          cat("\n")
+          cat("Eligible signals and positions:\n")
+          print(chosen_signals_and_positions)
+        }
 
 
         ##################
@@ -711,6 +717,7 @@ run_sb_backtest_internal <- function(
         ##################
         #In case of ML models, there is a validation split to search for hyperparameters. Therefore, the sample is split in three
 
+        ###Features and target split
         ts_splits <- time_series_split(
           #Data
           features_m_df = selected_features_corrected_positions_m_df, target_m_df = target_m_df, target_fwd = target_fwd, target_fwd_name = target_fwd_name,
@@ -720,10 +727,15 @@ run_sb_backtest_internal <- function(
           training_sample_size = training_sample_size, split_method = split_method, validation_sample_size = validation_sample_size
         )
 
-          ####No tuning warning
-          if(verbose & sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
-            cat(sb_algorithm, " chosen as sb_algorithm. Data will be split only in training and test sets")
-          }
+        ####No tuning warning
+        if(verbose & sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
+          cat(sb_algorithm, " chosen as sb_algorithm. Data will be split only in training and test sets")
+        }
+
+        ###backtest and selected market factor proxy split (get up to date references)
+        selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[which(zoo::index(selected_backtest_returns_corrected_positions_xts) <= current_date), ] #Get backtest returns until current date
+        selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[which(zoo::index(selected_market_factor_proxy_xts) <= current_date), ]
+
 
         ##################
 
@@ -757,11 +769,11 @@ run_sb_backtest_internal <- function(
 
           #Hyper tune according to chosen tuning_method
           ##################
-              ###Print
-              if(verbose == TRUE){
-                cat(paste("Starting", tuning_method, "hyperparameter tuning at:", current_date))
-                cat("\n")
-              }
+          ###Print
+          if(verbose == TRUE){
+            cat(paste("Starting", tuning_method, "hyperparameter tuning at:", current_date))
+            cat("\n")
+          }
 
           hyper_tune_results <- hyper_tune(
             #General Parameters
@@ -801,14 +813,14 @@ run_sb_backtest_internal <- function(
           #Fill validation_eval_metrics_hyper_choice
           validation_eval_metrics_hyper_choice[paste(current_date),] <-
             hyper_tune_results$validation_eval_metrics_hyper_choice_current_date[,colnames(validation_eval_metrics_hyper_choice)] #Take rights columns
-         ###################
+          ###################
         }
 
         #Refitting
         ###################
 
         ###Set objects
-          ####Refit new model using data from d - target_fwd
+        ####Refit new model using data from d - target_fwd
           features_m_refit <- ts_splits$refit$features_m_refit #Subset
           target_m_refit <- ts_splits$refit$target_m_refit #Subset
           full_data_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data

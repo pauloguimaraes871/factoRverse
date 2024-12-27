@@ -19,6 +19,10 @@
 #'
 #' @param active_returns If TRUE, calculate ative returns before applying performance functions.
 #'
+#' @import PerformanceAnalytics
+#' @importFrom PerformanceAnalytics StdDev SharpeRatio ES
+#'
+#' @export
 summarize_performance <- function(selected_backtest_returns_corrected_positions_xts_upd_ref,
                                   selected_market_factor_proxy_xts_upd_ref,
                                   model_structure, model_spec_theme_level, lmer_control,

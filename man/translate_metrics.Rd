@@ -5,7 +5,7 @@
 \title{Translate metrics based on machine learning algorithm and chosen evaluation metric.}
 \usage{
 translate_metrics(
-  ml_algorithm,
+  sb_algorithm,
   chosen_eval_metric,
   custom_objective,
   early_stop,
@@ -14,7 +14,7 @@ translate_metrics(
 )
 }
 \arguments{
-\item{ml_algorithm}{Character string specifying the machine learning algorithm.}
+\item{sb_algorithm}{Character string specifying the machine learning algorithm.}
 
 \item{chosen_eval_metric}{Character string specifying the chosen evaluation metric.}
 
@@ -36,7 +36,7 @@ This function adapts the chosen evaluation metric based on the provided paramete
 \itemize{
 \item If \code{chosen_eval_metric} is \code{NULL}, it selects an appropriate metric based on \code{custom_objective}.
 \item Provides commentary if the selected evaluation metric is not supported for early stopping.
-\item Adjusts \code{custom_objective} based on the specified \code{ml_algorithm}.
+\item Adjusts \code{custom_objective} based on the specified \code{sb_algorithm}.
 }
 }
 \examples{

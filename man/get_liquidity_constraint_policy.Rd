@@ -4,14 +4,14 @@
 \alias{get_liquidity_constraint_policy}
 \title{Accessor for Liquidity Constraint Policy}
 \usage{
-get_liquidity_constraint_policy(portfolio_policies_obj)
+get_liquidity_constraint_policy(port_backtest_config_obj)
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object.}
+\item{port_backtest_config_obj}{A \code{port_backtest_config} object.}
 }
 \value{
 The liquidity constraint policy list.
 }
 \description{
-Retrieves the liquidity constraint policy from a \code{portfolio_policies} object.
+Retrieves the liquidity constraint policy from a \code{port_backtest_config} object.
 }

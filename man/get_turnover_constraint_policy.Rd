@@ -4,14 +4,14 @@
 \alias{get_turnover_constraint_policy}
 \title{Accessor for Turnover Constraint Policy}
 \usage{
-get_turnover_constraint_policy(portfolio_policies_obj)
+get_turnover_constraint_policy(port_backtest_config_obj)
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object.}
+\item{port_backtest_config_obj}{A \code{port_backtest_config} object.}
 }
 \value{
 The turnover constraint policy list.
 }
 \description{
-Retrieves the turnover constraint policy from a \code{portfolio_policies} object.
+Retrieves the turnover constraint policy from a \code{port_backtest_config} object.
 }

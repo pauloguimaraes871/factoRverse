@@ -5,26 +5,26 @@
 \title{Add Liquidity Constraint Policy}
 \usage{
 add_liquidity_constraint_policy(
-  portfolio_policies_obj,
+  port_backtest_config_obj,
   liquidity_floor_rule = NULL,
   liquidity_cap_rules = NULL
 )
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object to which the liquidity constraint policy will be added.}
+\item{port_backtest_config_obj}{A \code{port_backtest_config} object to which the liquidity constraint policy will be added.}
 
 \item{liquidity_floor_rule}{A character string representing the liquidity floor rule (optional).}
 
 \item{liquidity_cap_rules}{A named numeric vector where names represent liquidity classifications and values represent liquidity caps (optional).}
 }
 \value{
-The updated \code{portfolio_policies} object with the added liquidity constraint policy.
+The updated \code{port_backtest_config} object with the added liquidity constraint policy.
 }
 \description{
-Adds a liquidity constraint policy to a \code{portfolio_policies} object.
+Adds a liquidity constraint policy to a \code{port_backtest_config} object.
 }
 \examples{
-portfolio <- create_portfolio_policies()
+portfolio <- create_port_backtest_config()
 portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "micro_caps")
 portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_cap_rules = c(micro_caps = 0.01))
 portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "small_caps") # This should update the liquidity_floor_rule

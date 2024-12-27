@@ -4,10 +4,14 @@
 \alias{add_liquidity_floor_cutoffs}
 \title{Add Liquidity Floor Cutoffs}
 \usage{
-add_liquidity_floor_cutoffs(portfolio_policies_obj, liquidity_metric, cutoffs)
+add_liquidity_floor_cutoffs(
+  port_backtest_config_obj,
+  liquidity_metric,
+  cutoffs
+)
 }
 \arguments{
-\item{portfolio_policies_obj}{An S4 object of class \code{portfolio_policies}.}
+\item{port_backtest_config_obj}{An S4 object of class \code{port_backtest_config}.}
 
 \item{liquidity_metric}{A character string representing the liquidity metric.}
 
@@ -15,8 +19,8 @@ add_liquidity_floor_cutoffs(portfolio_policies_obj, liquidity_metric, cutoffs)
 micro_caps, small_caps, mid_caps, large_caps, and mega_caps.}
 }
 \value{
-An updated \code{portfolio_policies} object.
+An updated \code{port_backtest_config} object.
 }
 \description{
-Add liquidity floor cutoffs to the portfolio_policies object.
+Add liquidity floor cutoffs to the port_backtest_config object.
 }

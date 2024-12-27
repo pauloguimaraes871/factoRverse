@@ -1,80 +1,149 @@
 #Signals
-
 test_that("set portfolio weights work for EW (signals)", {
 
   #Load
-  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_results.RData", sep =""))
 
-  current_date <- "2001-06-15"
+  current_date <- "2023-06-15"
 
-  signals_m_upd_ref <- signals_m_df[which(signals_m_df$dates <= current_date), ]
-  target_m_upd_ref <- target_m_df[which(target_m_df$dates <= current_date),]
-  backtest_returns_upd_ref <- backtest_returns_df[which(backtest_returns_df$dates <= current_date), ]
-  selected_benchmark_returns_upd_ref <- benchmark_returns_df[which(benchmark_returns_df$dates <= current_date), c("dates", concentration_constraint_policy$benchmark)]
-  priors_m_upd_ref_list <- list(jkp_emerging = priors_m_df_list$jkp_emerging[which(priors_m_df_list$jkp_emerging$dates <= current_date), ])
-  signals_groups_m_d_ref <- groups_m_df_list$signals[which(groups_m_df_list$signals$dates == current_date),]
+  #Select and correct signals
+  signal_universe_m_df <- results@signal_universe_m_df@data
+  most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == "2023-06-15")
+  current_eligible_signals <- most_recent_signal_universe_m_d_ref$tickers
+  signals_positions <- ifelse(stringr::str_detect(current_eligible_signals, "low_"), "short", "long")
+  chosen_signals_and_positions <- signals_positions
+  names(chosen_signals_and_positions) <- stringr::str_remove(current_eligible_signals, "low_")
+
+  selected_signals_corrected_positions_m_df <- select_and_correct_signals(signals_m_df = signals_m_df@data,
+                                                                          chosen_signals_and_positions = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
+
+  expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
+  expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
 
 
-  #Select signals based on user choice
-  selected_signals_and_backtest_list <- select_and_correct_signals(signal_selection_policy = signal_selection_policy, signals_m_upd_ref = signals_m_upd_ref, backtest_returns_upd_ref = backtest_returns_upd_ref)
-  selected_signals_backtest_returns_upd_ref <- selected_signals_and_backtest_list$selected_signals_backtest_returns_upd_ref
+  #ts_splits
+  features_m_refit <- signals_m_df@data %>% dplyr::filter(dates <= "2023-03-15") #this is to mimick ts_split behavior with a target_fwd of 3
 
-  #Define signal eligibilirt
-  signal_eligibility_results_list <- define_signal_eligibility(
-    selected_signals_backtest_returns_upd_ref = selected_signals_backtest_returns_upd_ref,
-    selected_benchmark_returns_upd_ref = selected_benchmark_returns_upd_ref,
-    signal_selection_policy = signal_selection_policy,
-    signals_groups_m_d_ref = signals_groups_m_d_ref
-    )
+  most_recent_signal_universe_m_d_ref$weights <- rep(0.20, 5)
 
-  #EW Portfolio for eligible
-  signal_universe_m_d_ref <- signal_eligibility_results_list$signal_universe_m_d_ref
-  expected_results <- signal_universe_m_d_ref
-  expected_results$weights <- c(0.5, 0.5, 0)
+  expect_equal(most_recent_signal_universe_m_d_ref, set_portfolio_weights(portfolio_construction_method = "ew",
+                                                       universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights)))
 
-  results <- set_portfolio_weights(universe_m_d_ref = signal_universe_m_d_ref, portfolio_construction_method = "EW")
-
-  expect_equal(expected_results, results)
 
 })
 
 test_that("set portfolio weights work for SW (signals) ", {
 
+
   #Load
-  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_results.RData", sep =""))
 
-  current_date <- "2001-06-15"
+  current_date <- "2023-06-15"
 
-  signals_m_upd_ref <- signals_m_df[which(signals_m_df$dates <= current_date), ]
-  target_m_upd_ref <- target_m_df[which(target_m_df$dates <= current_date),]
-  backtest_returns_upd_ref <- backtest_returns_df[which(backtest_returns_df$dates <= current_date), ]
-  selected_benchmark_returns_upd_ref <- benchmark_returns_df[which(benchmark_returns_df$dates <= current_date), c("dates", concentration_constraint_policy$benchmark)]
-  priors_m_upd_ref_list <- list(jkp_emerging = priors_m_df_list$jkp_emerging[which(priors_m_df_list$jkp_emerging$dates <= current_date), ])
-  signals_groups_m_d_ref <- groups_m_df_list$signals[which(groups_m_df_list$signals$dates == current_date),]
+  #Select and correct signals
+  signal_universe_m_df <- results@signal_universe_m_df@data
+  most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == "2023-06-15")
+  current_eligible_signals <- most_recent_signal_universe_m_d_ref$tickers
+  signals_positions <- ifelse(stringr::str_detect(current_eligible_signals, "low_"), "short", "long")
+  chosen_signals_and_positions <- signals_positions
+  names(chosen_signals_and_positions) <- stringr::str_remove(current_eligible_signals, "low_")
+
+  selected_signals_corrected_positions_m_df <- select_and_correct_signals(signals_m_df = signals_m_df@data,
+                                                                          chosen_signals_and_positions = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
+
+  expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
+  expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
 
 
-  #Select signals based on user choice
-  selected_signals_and_backtest_list <- select_and_correct_signals(signal_selection_policy = signal_selection_policy, signals_m_upd_ref = signals_m_upd_ref, backtest_returns_upd_ref = backtest_returns_upd_ref)
-  selected_signals_backtest_returns_upd_ref <- selected_signals_and_backtest_list$selected_signals_backtest_returns_upd_ref
+  #ts_splits
+  features_m_refit <- signals_m_df@data %>% dplyr::filter(dates <= "2023-03-15") #this is to mimick ts_split behavior with a target_fwd of 3
 
-  #Define signal eligibilirt
-  signal_eligibility_results_list <- define_signal_eligibility(
-    selected_signals_backtest_returns_upd_ref = selected_signals_backtest_returns_upd_ref,
-    selected_benchmark_returns_upd_ref = selected_benchmark_returns_upd_ref,
-    signal_selection_policy = signal_selection_policy,
-    signals_groups_m_d_ref = signals_groups_m_d_ref
+  #custom_obj
+  custom_objective <- "max_info_ratio"
+  weights <- signal_transform(most_recent_signal_universe_m_d_ref$info_ratio , 0.95, 0.05)/sum(signal_transform(most_recent_signal_universe_m_d_ref$info_ratio , 0.95, 0.05))
+
+  most_recent_signal_universe_m_d_ref[, "final_signal"] <- signal_transform(most_recent_signal_universe_m_d_ref$info_ratio , 0.95, 0.05)/sum(signal_transform(most_recent_signal_universe_m_d_ref$info_ratio , 0.95, 0.05))
+  most_recent_signal_universe_m_d_ref$weights <- weights
+
+  expect_equal(most_recent_signal_universe_m_d_ref,
+               set_portfolio_weights(portfolio_construction_method = "sw", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights))
+               )
+
+  #custom_obj
+  custom_objective <- "min_track_err"
+  weights <- signal_transform(most_recent_signal_universe_m_d_ref$track_err*-1 , 0.95, 0.05)/sum(signal_transform(most_recent_signal_universe_m_d_ref$track_err*-1 , 0.95, 0.05))
+
+  most_recent_signal_universe_m_d_ref[, "final_signal"] <- signal_transform(most_recent_signal_universe_m_d_ref$track_err*-1 , 0.95, 0.05)/sum(signal_transform(most_recent_signal_universe_m_d_ref$track_err*-1 , 0.95, 0.05))
+  most_recent_signal_universe_m_d_ref$weights <- weights
+
+  expect_equal(most_recent_signal_universe_m_d_ref,
+               set_portfolio_weights(portfolio_construction_method = "sw", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights))
   )
 
-  #SW Portfolio for eligible
-  signal_universe_m_d_ref <- signal_eligibility_results_list$signal_universe_m_d_ref
-  expected_results <- signal_universe_m_d_ref
-  expected_results$weights <- c(expected_results$final_signal[1]/sum(expected_results$final_signal[1:2]),
-                                expected_results$final_signal[2]/sum(expected_results$final_signal[1:2]),
-                                0)
 
-  results <- set_portfolio_weights(universe_m_d_ref = signal_universe_m_d_ref, portfolio_construction_method = "SW")
 
-  expect_equal(expected_results, results)
+})
+
+test_that("set portfolio weights work for RP (signals) ", {
+
+  #Load
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_results.RData", sep =""))
+
+  current_date <- "2023-06-15"
+
+  #Select and correct signals
+  signal_universe_m_df <- results@signal_universe_m_df@data
+  most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == "2023-06-15")
+  current_eligible_signals <- most_recent_signal_universe_m_d_ref$tickers
+  signals_positions <- ifelse(stringr::str_detect(current_eligible_signals, "low_"), "short", "long")
+  chosen_signals_and_positions <- signals_positions
+  names(chosen_signals_and_positions) <- stringr::str_remove(current_eligible_signals, "low_")
+
+  selected_signals_and_backtest_list <- select_and_correct_signals(
+    signals_m_df = signals_m_df@data, chosen_signals_and_positions = chosen_signals_and_positions,
+    backtest_returns_xts = mocked_backtest_returns_xts)
+
+  selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+
+  expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
+  expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
+
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
+  selected_market_factor_proxy_xts_upd_ref <- results@selected_market_factor_proxy_xts[c(1:9), ]
+
+  #ts_splits
+  features_m_refit <- signals_m_df@data %>% dplyr::filter(dates <= "2023-03-15") #this is to mimick ts_split behavior with a target_fwd of 3
+
+  #custom_obj
+  custom_objective <- "max_info_ratio"
+
+
+  #Calculate a sample cov active matrix
+  selected_backtest_returns_corrected_positions_xts_upd_ref_active <-
+    apply(selected_backtest_returns_corrected_positions_xts_upd_ref, 2, function(x){
+      ((1+x/100)/(1+as.numeric(selected_market_factor_proxy_xts_upd_ref)/100) - 1)*100
+    })
+
+  rp <- riskParityPortfolio::riskParityPortfolio(Sigma = cov(selected_backtest_returns_corrected_positions_xts_upd_ref_active))
+
+
+  weights <- rp$w
+  most_recent_signal_universe_m_d_ref$risk_contribution <- rp$relative_risk_contribution
+  most_recent_signal_universe_m_d_ref$weights <- weights
+
+  expect_equal(most_recent_signal_universe_m_d_ref,
+               set_portfolio_weights(portfolio_construction_method = "rp", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>%
+                                       dplyr::select(-risk_contribution, -weights),
+                                     cov_matrix_sample_size = 9, cov_estimation_method = "sample", groups_m_d_ref = NULL, active_returns = TRUE,
+                                     returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                     selected_benchmark_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+                                     )
+  )
+
 
 })
 

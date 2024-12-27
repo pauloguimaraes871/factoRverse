@@ -390,6 +390,71 @@ setMethod("show", "keras_architecture_parameters", function(object) {
   cat("------------------------------\n")
 })
 
+#' @title Show Signal Portfolio Parameters
+#' @description Prints the contents of a `signal_port_parameters` object, detailing
+#' the various parameters (covariance estimation, MVO, RP, and concentration constraints).
+#'
+#' @param object A `signal_port_parameters` object to be displayed.
+#'
+#' @method show signal_port_parameters
+#' @export
+setMethod("show", "signal_port_parameters", function(object) {
+  cat("====================================\n")
+  cat("Signal Portfolio Parameters\n")
+  cat("====================================\n\n")
+
+  # Cov Est Method
+  cat("Covariance Estimation Method:\n")
+  cat("  Method: ")
+  if (!is.null(object@cov_est_method)) {
+    cat(object@cov_est_method@cov_estimation_method, "\n")
+    cat("  Sample Size:", object@cov_est_method@cov_matrix_sample_size, "\n")
+    cat("  Active Returns:", object@cov_est_method@active_returns, "\n")
+  } else {
+    cat("  (No cov_est_method set)\n")
+  }
+
+  cat("\n------------------------------------\n")
+
+  # MVO parameters
+  cat("MVO Parameters:\n")
+  if (!is.null(object@mvo_parameters) && methods::is(object@mvo_parameters, "mvo_parameters")) {
+    cat("  Optimization Method:", object@mvo_parameters@opt_method, "\n")
+    cat("  Random Ports Method:", object@mvo_parameters@random_ports_method, "\n")
+    cat("  n_random_ports:", object@mvo_parameters@n_random_ports, "\n")
+    cat("  Objective:", object@mvo_parameters@opt_objective, "\n")
+  } else {
+    cat("  (No MVO parameters set)\n")
+  }
+
+  cat("\n------------------------------------\n")
+
+  # RP parameters
+  cat("RP Parameters:\n")
+  if (!is.null(object@rp_parameters) && methods::is(object@rp_parameters, "rp_parameters")) {
+    cat("  RP Method:", object@rp_parameters@rp_method, "\n")
+  } else {
+    cat("  (No RP parameters set)\n")
+  }
+
+  cat("\n------------------------------------\n")
+
+  # Concentration Constraint Policy
+  cat("Concentration Constraint Policy:\n")
+  if (!is.null(object@concentration_constraint_policy) &&
+      methods::is(object@concentration_constraint_policy, "concentration_constraint_policy")) {
+
+    cat("  Benchmark:", object@concentration_constraint_policy@benchmark, "\n")
+    cat("  Max Abs Active Individual Weight:", object@concentration_constraint_policy@max_abs_active_individual_weight, "\n")
+    cat("  Max Abs Active Group Weight:", object@concentration_constraint_policy@max_abs_active_group_weight, "\n")
+
+  } else {
+    cat("  (No concentration constraint policy set)\n")
+  }
+
+  cat("\n====================================\n")
+})
+
 
 #' @title Show SB Backtest Config
 #' @description Prints the contents of an `sb_backtest_config` object, detailing the various parameters and their configurations.
@@ -426,7 +491,8 @@ setMethod("show", "sb_backtest_config", function(object) {
   cat("  Huber Delta:", object@huber_delta)
   cat("  Quantile Tau:", object@quantile_tau, "\n")
 
-  if(object@sb_algorithm != "ols"){
+  #Display ML stuff
+  if(!object@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")){
     cat("------------------------------\n")
 
     # Display Keras Architecture Parameters Information
@@ -493,6 +559,19 @@ setMethod("show", "sb_backtest_config", function(object) {
     }
 
   }
+
+  #Display signal port
+  if(!object@sb_algorithm %in% c("rp", "mvo")){
+    if (!is.null(object@signal_port_parameters)) {
+      cat("\n------------------------------\n")
+      cat("Signal Portfolio Parameters:\n")
+      cat("------------------------------\n\n")
+      show(object@signal_port_parameters)
+    } else {
+      cat("\n(No signal_port_parameters set for this configuration.)\n")
+    }
+  }
+
 
   cat("\n=================================\n")
 })
@@ -1413,14 +1492,14 @@ setMethod("show", "ss_backtest_results", function(object) {
 #############################################
 
 #' @title Show Portfolio Policies
-#' @description Prints the contents of a `portfolio_policies` object, detailing
+#' @description Prints the contents of a `port_backtest_config` object, detailing
 #' the various policies and their configurations.
 #'
-#' @param object A `portfolio_policies` object to be displayed.
+#' @param object A `port_backtest_config` object to be displayed.
 #'
-#' @method show portfolio_policies
+#' @method show port_backtest_config
 #' @export
-setMethod("show", "portfolio_policies", function(object) {
+setMethod("show", "port_backtest_config", function(object) {
   cat("Portfolio Policie:\n")
 
   # Display Signal Selection Policy

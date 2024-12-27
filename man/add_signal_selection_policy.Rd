@@ -5,7 +5,7 @@
 \title{Add Signal Selection Policy}
 \usage{
 add_signal_selection_policy(
-  portfolio_policies_obj,
+  port_backtest_config_obj,
   chosen_signals = NULL,
   signal_positions = NULL,
   signal_blending_method = NULL,
@@ -21,7 +21,7 @@ add_signal_selection_policy(
 )
 }
 \arguments{
-\item{portfolio_policies_obj}{A \code{portfolio_policies} object to which the signal selection policy will be added.}
+\item{port_backtest_config_obj}{A \code{port_backtest_config} object to which the signal selection policy will be added.}
 
 \item{chosen_signals}{A vector of chosen signals.}
 
@@ -48,13 +48,13 @@ add_signal_selection_policy(
 \item{chosen_informative_data}{A data structure with informative data.}
 }
 \value{
-The updated \code{portfolio_policies} object with the added signal selection policy.
+The updated \code{port_backtest_config} object with the added signal selection policy.
 }
 \description{
-Adds a signal selection policy to a \code{portfolio_policies} object.
+Adds a signal selection policy to a \code{port_backtest_config} object.
 }
 \examples{
-portfolio <- create_portfolio_policies()
+portfolio <- create_port_backtest_config()
 portfolio <- add_signal_selection_policy(portfolio, signal_blending_method = "method1", ...)
 
 }
