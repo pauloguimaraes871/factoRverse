@@ -6,16 +6,16 @@
 \usage{
 signal_transform(
   vector,
-  upper_quantile_winsorization,
-  lower_quantile_winsorization
+  lower_quantile_winsorization = 0.05,
+  upper_quantile_winsorization = 0.95
 )
 }
 \arguments{
 \item{vector}{A numeric vector to be transformed.}
 
-\item{upper_quantile_winsorization}{A numeric value between 0 and 1 specifying the quantile threshold for upper winsorization.}
-
 \item{lower_quantile_winsorization}{A numeric value between 0 and 1 specifying the quantile threshold for lower winsorization.}
+
+\item{upper_quantile_winsorization}{A numeric value between 0 and 1 specifying the quantile threshold for upper winsorization.}
 }
 \value{
 A numeric vector of the same length as \code{vector} with transformed values.

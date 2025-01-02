@@ -124,6 +124,27 @@ setClass(
   }
 )
 
+#' Define the oos_sb_outputs_m_df S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a
+#' signal blending backtest workflow.
+#'
+#' @export
+setClass(
+  "oos_sb_outputs_m_df",
+  contains = "meta_dataframe",
+  validity = function(object) {
+    #Colnames adherence
+    if(!any(colnames(object@data) == c("id", "tickers", "target", "pred", "error"))){
+      stop("Column names do not adhere to expected oos_sb_outputs_m_df object")
+    }
+    #target, error and pred relationship
+    if(any((object@data$target - object@data$pred) != object@data$error)){
+      stop("target, pred and error columns do not adhere to expected oos_sb_outputs_m_df object")
+    }
+  }
+)
+
 #-----------------------------------------------------------------------
 # hyperparams
 #-----------------------------------------------------------------------
@@ -146,16 +167,16 @@ setClass(
 
     #Check for valid choice in hyperparameter
     if(length(object@hyperparameter_list) != 0){
-    valid_hyperparameters <- c("alpha", "lambda.min.ratio", "mtry", "num.trees", "max.depth", "min.bucket", "min_child_weight", "max_depth", "subsample", "colsample_bytree",
-                               "eta", "gamma", "nrounds", "regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs")
+      valid_hyperparameters <- c("alpha", "lambda.min.ratio", "mtry", "num.trees", "max.depth", "min.bucket", "min_child_weight", "max_depth", "subsample", "colsample_bytree",
+                                 "eta", "gamma", "nrounds", "regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs")
 
-    if (any(!names(object@hyperparameter_list) %in% valid_hyperparameters) ){
-      return("Invalid choice for hyperparameter. Should be one of alpha, lambda.min.ratio (glmnet), mtry, num.trees, max.depth, min.bucket (rf),
+      if (any(!names(object@hyperparameter_list) %in% valid_hyperparameters) ){
+        return("Invalid choice for hyperparameter. Should be one of alpha, lambda.min.ratio (glmnet), mtry, num.trees, max.depth, min.bucket (rf),
              min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds (xgb),
              regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs (nn)")
-    }
+      }
 
-  }
+    }
 
   })
 
@@ -191,7 +212,7 @@ setClass(
     chosen_eval_metric = "character",
     hyper_grid_domain = "hyper_grid_domain",
     early_stop = "ANY"
-    ),
+  ),
   validity = function(object) {
     if (!(object@tuning_method %in% c("grid_search", "random_search", "bayesian_opt"))) {
       return("Invalid tuning_method.")
@@ -269,7 +290,7 @@ setClass(
       stop("Invalid tuning_method. Only 'grid_search', 'random_search', and 'bayesian_opt' are supported.")
     }
 
-   return(TRUE)
+    return(TRUE)
   }
 )
 
@@ -373,6 +394,8 @@ setClass(
 #' to dimensionality curse.
 #' @slot active_returns logical. If TRUE, the covariance matrix will be estimated using active returns.
 #'  If FALSE, the covariance matrix will be estimated using raw returns.
+#' @slot cov_matrix_benchmark  A character string representing the benchmark from benchmark_returns_xts to be used when estimating the covariance matrix.
+#' Only needed when active_returns is TRUE.
 #'
 #' @return An S4 object of class `cov_est_method`.
 #'
@@ -381,7 +404,8 @@ setClass("cov_est_method",
          slots = list(
            cov_estimation_method = "character",
            cov_matrix_sample_size = "numeric",
-           active_returns = "logical"
+           active_returns = "logical",
+           cov_matrix_benchmark = "ANY"
          ),
          prototype = list(
            cov_estimation_method = "sample",
@@ -391,6 +415,9 @@ setClass("cov_est_method",
          validity = function(object){
            if(!object@cov_estimation_method %in% c("sample", "ewma", "cc", "pca1", "pca2", "shrink_id", "shrink_cc")){
              stop("Invalid cov_estimation_method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.")
+           }
+           if(object@active_returns && is.null(object@cov_matrix_benchmark)){
+             stop("cov_matrix_benchmark must be provided when active_returns is TRUE.")
            }
          }
 )
@@ -429,18 +456,18 @@ setClass("mvo_parameters",
          ),
          validity = function(object){
            if (!object@opt_method %in% c("random")) {
-                stop("Currently, 'opt_method' must be 'random'.")
-              }
-              if (!object@random_ports_method %in% c("sample", "simplex", "grid")) {
-                stop("random_ports_method must be one of 'sample', 'simplex', 'grid'.")
-              }
-              if (object@n_random_ports < 1) {
-                stop("n_random_ports must be at least 1.")
-              }
-              if (!object@opt_objective %in% c("return", "risk", "sharpe")) {
-                stop("opt_objective must be one of 'return', 'risk', 'sharpe'.")
-              }
-              TRUE
+             stop("Currently, 'opt_method' must be 'random'.")
+           }
+           if (!object@random_ports_method %in% c("sample", "simplex", "grid")) {
+             stop("random_ports_method must be one of 'sample', 'simplex', 'grid'.")
+           }
+           if (object@n_random_ports < 1) {
+             stop("n_random_ports must be at least 1.")
+           }
+           if (!object@opt_objective %in% c("return", "risk", "sharpe")) {
+             stop("opt_objective must be one of 'return', 'risk', 'sharpe'.")
+           }
+           TRUE
          }
 )
 
@@ -555,6 +582,10 @@ setClass(
       if (!inherits(concentration_constraint_policy, "concentration_constraint_policy")) {
         stop("concentration_constraint_policy must be of class 'concentration_constraint_policy'")
       }
+      if(!concentration_constraint_policy@benchmark %in% c("theme_ss", "theme_sb")){
+          stop("Only allowed benchmarks for concentration_constraint_policy in 'signal_port_parameters' are 'theme_ss' and 'theme_sb'")
+      }
+
     }
   }
 )
@@ -827,32 +858,32 @@ setClass("bayesian_alpha_test_strategy",
            theme_level_slope <- object@theme_level_slope
 
            if(!is.null(object@bayesian_model_parameters@user_priors)){
-           #Get user priors
-           prior_df <- as.data.frame(object@bayesian_model_parameters@user_priors)
+             #Get user priors
+             prior_df <- as.data.frame(object@bayesian_model_parameters@user_priors)
 
-           if (theme_level_intercept == "random" && theme_level_slope == "fixed") {
-             # Check for prior with class 'sd', coef 'Intercept', group 'theme'
-             required_row <- subset(priors_df, class == "sd" & coef == "Intercept" & group == "theme")
-             if (nrow(required_row) == 0) {
-               warning("For this model specification, it is recommended to include a prior with class = 'sd', coef = 'Intercept', and group = 'theme'.")
+             if (theme_level_intercept == "random" && theme_level_slope == "fixed") {
+               # Check for prior with class 'sd', coef 'Intercept', group 'theme'
+               required_row <- subset(priors_df, class == "sd" & coef == "Intercept" & group == "theme")
+               if (nrow(required_row) == 0) {
+                 warning("For this model specification, it is recommended to include a prior with class = 'sd', coef = 'Intercept', and group = 'theme'.")
+               }
+             } else if (theme_level_intercept == "theme_specific" && theme_level_slope == "fixed") {
+               # Check for priors with class 'b' and coef matching 'theme...'
+               required_rows <- subset(priors_df, class == "b" & grepl("^theme", coef))
+               if (nrow(required_rows) == 0) {
+                 warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme'.")
+               }
+             } else if (theme_level_intercept == "theme_specific" && theme_level_slope == "theme_specific") {
+               # Check for priors with class 'b' and coef matching 'theme...' and 'theme...:market_factor_proxy'
+               required_rows_intercepts <- subset(priors_df, class == "b" & grepl("^theme[^:]*$", coef))
+               required_rows_slopes <- subset(priors_df, class == "b" & grepl("^theme[^:]*:market_factor_proxy$", coef))
+               if (nrow(required_rows_intercepts) == 0) {
+                 warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme' for intercepts.")
+               }
+               if (nrow(required_rows_slopes) == 0) {
+                 warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme' and ending with ':market_factor_proxy' for slopes.")
+               }
              }
-           } else if (theme_level_intercept == "theme_specific" && theme_level_slope == "fixed") {
-             # Check for priors with class 'b' and coef matching 'theme...'
-             required_rows <- subset(priors_df, class == "b" & grepl("^theme", coef))
-             if (nrow(required_rows) == 0) {
-               warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme'.")
-             }
-           } else if (theme_level_intercept == "theme_specific" && theme_level_slope == "theme_specific") {
-             # Check for priors with class 'b' and coef matching 'theme...' and 'theme...:market_factor_proxy'
-             required_rows_intercepts <- subset(priors_df, class == "b" & grepl("^theme[^:]*$", coef))
-             required_rows_slopes <- subset(priors_df, class == "b" & grepl("^theme[^:]*:market_factor_proxy$", coef))
-             if (nrow(required_rows_intercepts) == 0) {
-               warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme' for intercepts.")
-             }
-             if (nrow(required_rows_slopes) == 0) {
-               warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme' and ending with ':market_factor_proxy' for slopes.")
-             }
-            }
            }
 
            TRUE
@@ -873,16 +904,18 @@ setClass("bayesian_alpha_test_strategy",
 #' @slot initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @slot split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
 #' @slot alpha_test_strategy An `alpha_test_strategy` object with the configuration for the alpha test.
+#' @slot chosen_signals_and_positions A character indicating to which signals ss_backtest should be applied and their positions (long and short).
 #' @export
 setClass("ss_backtest_config",
          slots = list(
+           chosen_signals_and_positions = "character",
            data_availability_cutoff = "numeric",
            initial_sample_size = "numeric",
            rebalancing_months = "numeric",
            active_returns = "logical",
            split_method = "character",
            alpha_test_strategy = "ANY",
-           config_name = "character"
+           config_name = "character",
          ), prototype = list(
            split_method = "expanding"
          ),
@@ -898,11 +931,11 @@ setClass("ss_backtest_config",
            }
            if (!is.null(object@alpha_test_strategy)){
              if (!inherits(object@alpha_test_strategy, "alpha_test_strategy")) {
-             stop("alpha_test_strategy must be an object of class alpha_test_strategy")
-           }
+               stop("alpha_test_strategy must be an object of class alpha_test_strategy")
+             }
            }
          }
-      )
+)
 
 #-----------------------------------------------------------------------
 # ss_backtest_results
@@ -917,7 +950,6 @@ setClass("ss_backtest_config",
 #' @slot signal_universe_m_df A meta dataframe containing the signal universes at each rebalancing period.
 #' @slot final_signal_universe_m_d_ref A meta dataframe containing the last signal universe.
 #' @slot final_bayesian_fit_list A list of Bayesian model fit results for each rebalancing period.
-#' @slot eligible_signals_list A list of eligible signals for each backtest period.
 #' @slot p_correction_method A character string indicating the p-value correction method used.
 #' @slot ss_backtest_workflow A list describing the signal selection backtest workflow, including parameters and metadata.
 #' @slot backtest_identifier A character string representing the backtest identifier.
@@ -933,7 +965,6 @@ setClass(
     selected_market_factor_proxy_xts = "xts",
     frequentist_results = "ANY",
     bayesian_results = "ANY",
-    eligible_signals_list = "list",
     p_correction_method = "character",
     ss_backtest_workflow = "list",
     backtest_identifier = "character"
@@ -948,7 +979,7 @@ setClass(
 #' @description The sb_backtest_config class is designed to define an end-to-end signal-blending (heuristic or machine learning)
 #' experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
 #' @slot sb_algorithm Character string specifying the signal-blending algorithm to be used. Should be one of
-#' ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mto (Mean-Tracking Error Optimization),
+#' ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mvo (Mean Variance Optimization),
 #' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
 #' @slot target_fwd_name Name of the target variable in `target_m_df`.
 #' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
@@ -1019,13 +1050,13 @@ setClass(
     }
 
     #Check for valid sb_algorithm
-    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto")
+    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo")
     if(!(object@sb_algorithm %in% valid_sb_algorithms)) {
-      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'mto', 'ols', 'glmnet', 'rf', 'xgb', or 'nn'.")
+      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'mvo', 'ols', 'glmnet', 'rf', 'xgb', or 'nn'.")
     }
 
     #Check for custom objective
-    if(!object@sb_algorithm %in% c("sw", "mto")){
+    if(!object@sb_algorithm %in% c("sw", "mvo")){
       valid_heuristic_sb_metrics <- c(
         "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
         "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
@@ -1054,15 +1085,15 @@ setClass(
         return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
       }
     }
-    if (!(object@sb_algorithm %in% c("xgb", "nn", "sw", "mto")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
-      return("Invalid custom_objective. Custom objectives are only allowed for 'sw', 'mto', 'xgb' or 'nn' algorithms.")
+    if (!(object@sb_algorithm %in% c("xgb", "nn", "sw", "mvo")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
+      return("Invalid custom_objective. Custom objectives are only allowed for 'sw', 'mvo', 'xgb' or 'nn' algorithms.")
     }
     if (!(object@sb_algorithm %in% c("xgb", "nn")) && !is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@early_stop)) {
       return("Invalid early_stop. Early stop is only allowed for 'xgb' or 'nn' algorithms.")
     }
     #Check for tuning strategy
-    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "mto", "ols") && is.null(object@tuning_strategy)){
-      message("when sb_algorithm is not 'ew', 'sw', 'rp', 'mto' or 'ols', a tuning_strategy must be set")
+    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "mvo", "ols") && is.null(object@tuning_strategy)){
+      message("when sb_algorithm is not 'ew', 'sw', 'rp', 'mvo' or 'ols', a tuning_strategy must be set")
     }
     #ETC
     if((object@training_sample_size < 0)){
@@ -1107,8 +1138,8 @@ setClass(
       if(!is_tuning_strategy(object@tuning_strategy)){
         return("Invalid tuning_strategy. Should be of class tuning_strategy")
       }
-      if(object@sb_algorithm %in% c("ew", "sw", "rp", "mto", "ols")){
-        return("ew, sw, rp, mto and ols do not support hyperparameter tuning")
+      if(object@sb_algorithm %in% c("ew", "sw", "rp", "mvo", "ols")){
+        return("ew, sw, rp, mvo and ols do not support hyperparameter tuning")
       }
 
       # Check hyperparameters validity based on sb_algorithm
@@ -1403,111 +1434,111 @@ setClass(
   ),
   validity = function(object) {
 
-  if(!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") && is.null(object@meta_sb_backtest_config@tuning_strategy)){
-    stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for OLS and heuristic sb algorithms).")
-  }
-
-
-  if(!is.null(object@base_sb_backtest_configs) & !is.null(object@base_sb_backtest_results)){
-    stop("base_sb_backtest_configs and base_sb_backtest_results can't be set at the same time.")
-  }
-
-
-  if(!is.null(object@base_sb_backtest_configs)){
-
-    if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-      stop("All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
+    if(!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && is.null(object@meta_sb_backtest_config@tuning_strategy)){
+      stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for ols and heuristic sb algorithms).")
     }
 
-    # Initialize an empty character vector to collect error messages
-    errors <- character()
 
-    # Check that all elements are sb_backtest_config objects
-    if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-      errors <- c(errors, "All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
+    if(!is.null(object@base_sb_backtest_configs) & !is.null(object@base_sb_backtest_results)){
+      stop("base_sb_backtest_configs and base_sb_backtest_results can't be set at the same time.")
     }
 
-    # Check for identical objects in base_sb_backtest_configs
-    num_configs <- length(object@base_sb_backtest_configs)
-    for (i in 1:(num_configs - 1)) {
-      for (j in (i + 1):num_configs) {
-        if (identical(object@base_sb_backtest_configs[[i]], object@base_sb_backtest_configs[[j]])) {
-          return("Duplicate objects found in 'base_sb_backtest_configs'. Each configuration must be unique.")
+
+    if(!is.null(object@base_sb_backtest_configs)){
+
+      if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+        stop("All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
+      }
+
+      # Initialize an empty character vector to collect error messages
+      errors <- character()
+
+      # Check that all elements are sb_backtest_config objects
+      if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+        errors <- c(errors, "All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
+      }
+
+      # Check for identical objects in base_sb_backtest_configs
+      num_configs <- length(object@base_sb_backtest_configs)
+      for (i in 1:(num_configs - 1)) {
+        for (j in (i + 1):num_configs) {
+          if (identical(object@base_sb_backtest_configs[[i]], object@base_sb_backtest_configs[[j]])) {
+            return("Duplicate objects found in 'base_sb_backtest_configs'. Each configuration must be unique.")
+          }
         }
       }
-    }
 
-    # Check for duplicate names in base_sb_backtest_configs
-    config_names <- names(object@base_sb_backtest_configs)
-    if (any(duplicated(config_names))) {
-      return("Duplicate names found in 'base_sb_backtest_configs'. Each configuration must have a unique name.")
-    }
-
-    # Check that training_sample_size + validation_sample_size matches across all configurations
-    sample_sizes <- sapply(object@base_sb_backtest_configs, function(x){
-      x@training_sample_size + if(!x@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")) x@tuning_strategy@validation_sample_size else 0
-    })
-    if (length(unique(sample_sizes)) > 1) {
-      errors <- c(errors, "Training sample size + validation sample size must match across all 'sb_backtest_config' elements.")
-    }
-
-    # Check that rebalancing months match
-    rebalancing_months <- sapply(object@base_sb_backtest_configs, function(x) x@rebalancing_months)
-    if (length(unique(rebalancing_months)) > 1){
-      errors <- c(errors, "Rebalancing months must match across all 'sb_backtest_config' elements.")
-    }
-
-    # Loop over each sb_backtest_config in the list
-    for (i in seq_along(object@base_sb_backtest_configs)) {
-      config <- object@base_sb_backtest_configs[[i]]
-
-      # Get sb_algorithm
-      sb_algorithm <- config@sb_algorithm
-
-      # If ml_algo is ols, skip hyperparameter checks
-      if (sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")) {
-        next
-      }
-      # Get hyperparameters_list names
-      hyperparameters_list <- config@tuning_strategy@hyper_grid_domain@hyperparameter_list
-      hyperparameters_names <- names(hyperparameters_list)
-
-      # Expected hyperparameters for each algorithm
-      expected_hyperparameters <- switch(sb_algorithm,
-                                         "glmnet" = c("alpha", "lambda.min.ratio"),
-                                         "rf" = c("mtry", "num.trees", "max.depth", "min.bucket"),
-                                         "xgb" = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
-                                         "nn" = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
-                                         "ols" = character(0), # OLS does not require hyperparameters
-                                         character(0) # default for unrecognized algorithms
-      )
-
-      # If sb_algorithm is not recognized, record an error
-      if (length(expected_hyperparameters) == 0) {
-        errors <- c(errors, paste0("Unknown sb_algorithm '", sb_algorithm, "' in config ", i, "."))
-        next
+      # Check for duplicate names in base_sb_backtest_configs
+      config_names <- names(object@base_sb_backtest_configs)
+      if (any(duplicated(config_names))) {
+        return("Duplicate names found in 'base_sb_backtest_configs'. Each configuration must have a unique name.")
       }
 
-      # For algorithms other than 'ols', perform hyperparameter checks
-      # Check for missing hyperparameters
-      missing_hyperparameters <- setdiff(expected_hyperparameters, hyperparameters_names)
-      if (length(missing_hyperparameters) > 0) {
-        errors <- c(errors, paste0("In config ", i, ", missing hyperparameters for algorithm '", sb_algorithm, "': ",
-                                   paste(missing_hyperparameters, collapse = ", "), "."))
+      # Check that training_sample_size + validation_sample_size matches across all configurations
+      sample_sizes <- sapply(object@base_sb_backtest_configs, function(x){
+        x@training_sample_size + if(!x@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) x@tuning_strategy@validation_sample_size else 0
+      })
+      if (length(unique(sample_sizes)) > 1) {
+        errors <- c(errors, "Training sample size + validation sample size must match across all 'sb_backtest_config' elements.")
       }
 
-      # Check for unexpected hyperparameters
-      extra_hyperparameters <- setdiff(hyperparameters_names, expected_hyperparameters)
-      if (length(extra_hyperparameters) > 0) {
-        errors <- c(errors, paste0("In config ", i, ", unexpected hyperparameters for algorithm '", sb_algorithm, "': ",
-                                   paste(extra_hyperparameters, collapse = ", "), "."))
+      # Check that rebalancing months match
+      rebalancing_months <- sapply(object@base_sb_backtest_configs, function(x) x@rebalancing_months)
+      if (length(unique(rebalancing_months)) > 1){
+        errors <- c(errors, "Rebalancing months must match across all 'sb_backtest_config' elements.")
       }
-    }
 
-    # If any errors were collected, return them
-    if (length(errors) > 0) {
-      return(paste(errors, collapse = "\n"))
-    }
+      # Loop over each sb_backtest_config in the list
+      for (i in seq_along(object@base_sb_backtest_configs)) {
+        config <- object@base_sb_backtest_configs[[i]]
+
+        # Get sb_algorithm
+        sb_algorithm <- config@sb_algorithm
+
+        # If ml_algo is ols, skip hyperparameter checks
+        if (sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) {
+          next
+        }
+        # Get hyperparameters_list names
+        hyperparameters_list <- config@tuning_strategy@hyper_grid_domain@hyperparameter_list
+        hyperparameters_names <- names(hyperparameters_list)
+
+        # Expected hyperparameters for each algorithm
+        expected_hyperparameters <- switch(sb_algorithm,
+                                           "glmnet" = c("alpha", "lambda.min.ratio"),
+                                           "rf" = c("mtry", "num.trees", "max.depth", "min.bucket"),
+                                           "xgb" = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
+                                           "nn" = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
+                                           "ols" = character(0), # OLS does not require hyperparameters
+                                           character(0) # default for unrecognized algorithms
+        )
+
+        # If sb_algorithm is not recognized, record an error
+        if (length(expected_hyperparameters) == 0) {
+          errors <- c(errors, paste0("Unknown sb_algorithm '", sb_algorithm, "' in config ", i, "."))
+          next
+        }
+
+        # For algorithms other than 'ols', perform hyperparameter checks
+        # Check for missing hyperparameters
+        missing_hyperparameters <- setdiff(expected_hyperparameters, hyperparameters_names)
+        if (length(missing_hyperparameters) > 0) {
+          errors <- c(errors, paste0("In config ", i, ", missing hyperparameters for algorithm '", sb_algorithm, "': ",
+                                     paste(missing_hyperparameters, collapse = ", "), "."))
+        }
+
+        # Check for unexpected hyperparameters
+        extra_hyperparameters <- setdiff(hyperparameters_names, expected_hyperparameters)
+        if (length(extra_hyperparameters) > 0) {
+          errors <- c(errors, paste0("In config ", i, ", unexpected hyperparameters for algorithm '", sb_algorithm, "': ",
+                                     paste(extra_hyperparameters, collapse = ", "), "."))
+        }
+      }
+
+      # If any errors were collected, return them
+      if (length(errors) > 0) {
+        return(paste(errors, collapse = "\n"))
+      }
 
     }
 
@@ -1550,7 +1581,7 @@ setClass(
   "sb_model",
   slots = list(
     model = "ANY",
-    eligible_signals_list = "character",
+    eligible_signals = "character",
     model_class = "character",
     sb_algorithm = "character",
     best_hyperparameters = "ANY",
@@ -1571,9 +1602,7 @@ setClass(
 #' validation on time series data using machine learning algorithms. It includes
 #' information about the model, data, tuning process, and performance metrics.
 #'
-#' @slot oos_prediction_list A list containing out-of-sample predictions indexed by testing dates.
-#' @slot oos_error_list A list of out-of-sample errors indexed by testing dates.
-#' @slot oos_y_list A list containing the actual target values for the out-of-sample period, indexed by testing dates.
+#' @slot oos_sb_outputs_m_df A meta dataframe containing out-of-sample predictions, target and errors, all indexed by testing dates.
 #' @slot oos_testing_eval_metrics A list of evaluation metrics for the out-of-sample testing samples.
 #' @slot final_model The final refitted machine learning model with best hyperparameters found after tuning. Possibly a object of sb_model S4 class.
 #' @slot chosen_eval_metric_validation A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.
@@ -1628,9 +1657,7 @@ setClass(
 setClass(
   "sb_backtest_results",
   slots = list(
-    oos_prediction_list = "list",
-    oos_error_list = "list",
-    oos_y_list = "list",
+    oos_sb_outputs_m_df = "meta_dataframe",
     oos_testing_eval_metrics = "data.frame",
     final_model = "sb_model",
     chosen_eval_metric_validation = "ANY",
@@ -1682,7 +1709,7 @@ setClass(
 )
 
 #-----------------------------------------------------------------------
-# port_backtest_results
+# port_backtest_config
 #-----------------------------------------------------------------------
 
 #' Class for Port Backtest Config
@@ -1732,7 +1759,7 @@ setClass(
 setClass(
   "port_backtest_config",
   slots = list(
-    final_signal = "ANY",
+    exp_ret_score_metric = "ANY",
     cov_est_method = "cov_est_method",
     port_construction_method = "character",
     mvo_parameters = "mvo_parameters",
@@ -1761,17 +1788,240 @@ setClass(
         stop("sb_backtest_results must be an object of class sb_backtest_results")
       }
     }
-   # if(is.null(sb_backtest_results) & is.null(sb_backtest_config) & is.null(final_signal)){
-   #   stop("final_signal must be provided if sb_backtest_results and sb_backtest_config are not provided.")
-   # }
+    if(is.null(sb_backtest_results) & is.null(sb_backtest_config) & is.null(exp_ret_score_metric)){
+      stop("exp_ret_score_metric must be provided if sb_backtest_results and sb_backtest_config are not provided.")
+    }
 
 
     TRUE
   }
 )
 
+#-----------------------------------------------------------------------
+# port
+#-----------------------------------------------------------------------
 
+#' Portfolio classes for backtesting portfolios
+#'
+#' These classes encapsulate various parameters and constraints used in backtesting portfolios.
+#'
+#' @section port-class:
+#' The \code{port} class is a base S4 class specifying general parameters for portfolio construction.
+#'
+#' @slot universe_m_df A meta_dataframe containing the universe of assets.
+#' @slot port_construction_method A \code{character} string specifying the method used to construct the portfolio. Must be one of: \code{c("ew", "sw", "cw", "cs", "rp", "mvo")}.
+#' @slot eligible_assets A \code{character} vector of eligible assets for the portfolio.
+#' @slot exp_ret_score The eligible assets expected return scores. Necessary if \code{port_construction_method \%in\% c("sw","cs","mvo")}.
+#' @slot covariance_matrix The eligible assets covariance matrix of returns. Must have rownames identical to colnames and be symmetric.
+#' @slot correlation_matrix An object storing the correlation matrix of returns (optional if covariance is provided).
+#' @slot weights A \code{numeric} vector of portfolio weights for eligible assets.
+#' @slot rel_risk_contr An object representing relative risk contributions (must be provided if \code{covariance_matrix} is not \code{NULL}).
+#' @slot mvo_port_spec An object of class \code{portfolio.spec} (from the \pkg{PortfolioAnalytics} or similar package) used for Markowitz optimization.
+#' @slot ind_max_weights A numeric vector specifying maximum weight constraints per asset.
+#' @slot ind_min_weights A numeric vector specifying minimum weight constraints per asset.
+#' @slot random_port_weights An object for storing random portfolio weights (used in MVO).
+#' @slot groups An object for grouping assets (e.g., sectors).
+#' @slot port_name A \code{character} giving a unique name or label for the configuration.
+#'
+#' @section signal_port-class:
+#' Inherits from \code{port}. Restricts \code{port_construction_method} to one of
+#' \code{c("ew","sw","rp","mvo")}. Additionally, it introduces:
+#' \describe{
+#'   \item{\code{heuristic_sb_metric}}{\code{ANY} object that must be non-\code{NULL}
+#'         when \code{port_construction_method} is \code{"sw"} or \code{"mvo"}.}
+#' }
+#'
+#' @section stock_port-class:
+#' Inherits from \code{port} and introduces:
+#' \describe{
+#'   \item{\code{type}}{\code{character} specifying the portfolio subtype. Must
+#'   \strong{not} be "signal_blend" or "single_signal" in this class.}
+#'   \item{\code{main_liquidity_metric}}{\code{ANY} object specifying a liquidity metric;
+#'         must be non-\code{NULL} when \code{port_construction_method} is \code{"cw"} or \code{"cs"}.}
+#' }
+#'
+#' @section sb_stock_port-class:
+#' Inherits from \code{stock_port}. Intended for scenarios where \code{sb_algorithm}
+#' can be one of \code{"cw"} or \code{"cs"}, with additional liquidity constraints required.
+#'
+#' @section single_signal_stock_port-class:
+#' Inherits from \code{stock_port}. Specialized stock-level portfolio class with
+#' \code{sb_algorithm} possibly being \code{"cw"} or \code{"cs"}, requiring the same
+#' liquidity-related parameters as \code{sb_stock_port}.
+#'
+#' @name port-class
+#'
+NULL
 
+#--------------------
+# Base class: port
+#--------------------
+
+#' @rdname port-class
+#' @export
+setClass(
+  "port",
+  slots = list(
+    universe_m_d_ref = "meta_dataframe",
+    port_construction_method = "character",
+    eligible_assets = "character",
+    exp_ret_score = "ANY",
+    covariance_matrix = "ANY",
+    correlation_matrix = "ANY",
+    weights = "numeric",
+    rel_risk_contr = "ANY",
+    mvo_port_spec = "ANY",
+    ind_max_weights = "ANY",
+    ind_min_weights = "ANY",
+    random_port_weights = "ANY",
+    groups = "ANY",
+    port_name = "character"
+  ),
+  validity = function(object) {
+
+    # port_construction_method must be one of the allowed
+    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo")) {
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'.")
+    }
+
+    #weights and eligible_assets
+    if(length(object@weights) != length(object@eligible_assets)){
+      stop("weights must have the same length as eligible_assets")
+    }
+
+    if(sum(object@weights) - 1 > 0.1){
+      stop("weights must sum to 1.")
+    }
+
+    #exp_ret_score
+    if (object@port_construction_method %in% c("sw", "cs", "mvo")){
+      if (is.null(object@exp_ret_score)){
+        stop("exp_ret_score must be provided for port_construction_method 'sw', 'cs' or 'mvo'.")
+      }
+      if(!is.numeric(object@exp_ret_score)){
+        stop("exp_ret_score must be numeric.")
+      }
+
+      if(length(object@eligible_assets) != length(object@exp_ret_score)){
+        stop("exp_ret_score must have the same length as eligible_assets")
+      }
+    }
+
+    # Check covariance_matrix rownames vs. colnames and symmetry
+    if(object@port_construction_method %in% c("mvo", "rp") & is.null(object@covariance_matrix)){
+      stop("covariance_matrix must be provided for port_construction_method 'mvo' or 'rp'.")
+    }
+    if (!is.null(object@covariance_matrix)) {
+      if (!identical(rownames(object@covariance_matrix), colnames(object@covariance_matrix))) {
+        stop("covariance_matrix must have rownames identical to colnames.")
+      }
+      if (!isSymmetric(object@covariance_matrix)) {
+        stop("covariance_matrix must be symmetric.")
+      }
+      if (!is.numeric(object@covariance_matrix)){
+        stop("covariance_matrix must be numeric.")
+      }
+      if (is.null(object@rel_risk_contr)){
+        stop("rel_risk_contr must be provided when covariance_matrix is not NULL.")
+      }
+
+      if(length(object@eligible_assets) != ncol(object@covariance_matrix)){
+        stop("covariance_matrix must have the same number of cols as eligible_assets")
+      }
+      if(!any(colnames(object@covariance_matrix) == object@eligible_assets)){
+        stop("covariance_matrix must have the same colnames as eligible_assets")
+      }
+
+      if(length(object@eligible_assets) != length(object@rel_risk_contr)){
+        stop("rel_risk_contr must have the same length as eligible_assets")
+      }
+    }
+
+    # Check for mvo
+    if(object@port_construction_method == "mvo"){
+      if(is.null(object@random_port_weights)){
+        stop("random_port_weights must not be NULL for port_construction_method 'mvo'.")
+      }
+
+      if(!any(object@random_port_weights$tickers %in% object@eligible_assets)){
+        stop("random_port_weights must have the same colnames as eligible_assets")
+      }
+
+      if(!is.null(object@ind_max_weights)){
+        if(length(object@ind_max_weights) != length(object@eligible_assets)){
+          stop("ind_max_weights must have the same length as eligible_assets")
+        }
+      }
+
+      if(!is.null(object@ind_min_weights)){
+        if(length(object@ind_min_weights) != length(object@eligible_assets)){
+          stop("ind_min_weights must have the same length as assets")
+        }
+      }
+    }
+    TRUE
+  }
+)
+
+#--------------------
+# Subclass: signal_port
+#--------------------
+#' @rdname port-class
+#' @export
+setClass(
+  "signal_port",
+  contains = "port",
+  slots = list(
+    universe_m_df = "signal_universe_m_df",
+    heuristic_sb_metric = "ANY"
+  ),
+  validity = function(object) {
+
+    # Restrict port_construction_method
+    if (!object@port_construction_method %in% c("ew","sw","rp","mvo")) {
+      stop("For signal_port, port_construction_method must be one of 'ew','sw','rp','mvo'.")
+    }
+
+    # If sw or mvo => heuristic_sb_metric should not be NULL
+    if (object@port_construction_method %in% c("sw","mvo")) {
+      if (is.null(object@heuristic_sb_metric)) {
+        stop("heuristic_sb_metric cannot be NULL when port_construction_method is 'sw' or 'mvo'.")
+      }
+    }
+
+    TRUE
+  }
+)
+
+#---------------------------
+# Subclass: stock_port class
+#---------------------------
+
+#' @rdname port-class
+#' @export
+setClass(
+  "stock_port",
+  contains = "port",
+  slots = list(
+    type = "character",
+    main_liquidity_metric = "ANY"
+  ),
+  validity = function(object) {
+
+    # If port_construction_method is 'cw' or 'cs', we enforce
+    # liquidity-related constraints must not be NULL
+    if (object@port_construction_method %in% c("cw","cs")) {
+      if (is.null(object@main_liquidity_metric)) {
+        stop("main_liquidity_metric cannot be NULL when port_construction_method is 'cw' or 'cs'.")
+      }
+    }
+    if(object@type %in% c("signal_blend", "single_signal")){
+      stop("type must be one of 'signal_blend' or 'single_signal'")
+    }
+
+    TRUE
+  }
+)
 
 #################################################################
 
@@ -2216,12 +2466,12 @@ setMethod("get_tuning_strategy", "sb_backtest_results", function(object){
   #WF
   sb_backtest_workflow <- object@sb_backtest_workflow
 
-  if(sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")) return(NULL)
+  if(sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) return(NULL)
 
   #Hyper Grid Domain
   hyper_grid_domain <- get_hyper_grid_domain(object)
 
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")){
+  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")){
     tuning_strategy <- create_tuning_strategy(tuning_method = sb_backtest_workflow$tuning_method,
                                               validation_sample_size = sb_backtest_workflow$validation_sample_size,
                                               chosen_eval_metric = sb_backtest_workflow$chosen_eval_metric,

@@ -6,19 +6,24 @@
 \usage{
 set_portfolio_weights(
   universe_m_d_ref,
-  portfolio_construction_method,
+  port_construction_method,
   liquidity_m_d_ref = NULL,
   cap_weighting_metric = NULL,
   groups_m_d_ref = NULL,
-  returns_upd_ref = NULL,
-  covariance_matrix_sample_size = NULL,
-  covariance_estimation_method = NULL,
+  returns_xts_upd_ref = NULL,
+  selected_benchmark_xts_upd_ref = NULL,
+  active_returns = if (is.null(selected_benchmark_xts_upd_ref)) FALSE else TRUE,
+  cov_estimation_method = "sample",
+  cov_matrix_sample_size = if (is.null(returns_xts_upd_ref)) NULL else
+    nrow(returns_xts_upd_ref),
   liquidity_constraint_policy = NULL,
   turnover_constraint_policy = NULL,
   concentration_constraint_policy = NULL,
-  n_random_portfolios = 2000,
-  rp_method = "sample",
-  mto_port_objective = "IR",
+  n_random_ports = 2000,
+  random_ports_method = "sample",
+  opt_objective = "sharpe",
+  opt_method = "random",
+  rp_method = "cyclical-spinu",
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975
 )
@@ -26,7 +31,7 @@ set_portfolio_weights(
 \arguments{
 \item{universe_m_d_ref}{A data frame containing the current universe of signals, including their associated metrics. The structure of this data frame depends on the portfolio construction method used.}
 
-\item{portfolio_construction_method}{A character string indicating the method to use for portfolio construction. Supported methods are:
+\item{port_construction_method}{A character string indicating the method to use for portfolio construction. Supported methods are:
 \describe{
 \item{\code{EW}}{Equal-Weighted Portfolio}
 \item{\code{SW}}{Signal-Weighted Portfolio}
@@ -42,17 +47,17 @@ set_portfolio_weights(
 
 \item{groups_m_d_ref}{An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.}
 
-\item{covariance_estimation_method}{An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.}
+\item{cov_estimation_method}{An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.}
 
 \item{liquidity_constraint_policy}{An optional list specifying the policy for liquidity constraints. Defaults to \code{NULL}.}
 
 \item{turnover_constraint_policy}{An optional list specifying the policy for turnover constraints. Defaults to \code{NULL}.}
 
-\item{n_random_portfolios}{An optional numeric value indicating the number of random portfolios to generate for optimization methods. Defaults to \code{NULL}.}
+\item{n_random_ports}{An optional numeric value indicating the number of random portfolios to generate for optimization methods. Defaults to \code{NULL}.}
 
-\item{rp_method}{An optional character string specifying the method for risk parity optimization. Defaults to \code{NULL}.}
+\item{random_ports_method}{An optional character string specifying the method for risk parity optimization. Defaults to \code{NULL}.}
 
-\item{mto_port_objective}{Objective of mean-tracking error optimization. Defaults to \code{NULL}.}
+\item{opt_objective}{Objective of mean-tracking error optimization. Defaults to \code{NULL}.}
 
 \item{lower_quantile_winsorization}{An optional numeric value for lower quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.}
 

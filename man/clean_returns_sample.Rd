@@ -5,7 +5,7 @@
 \title{Generate a sample of returns to estimate covariance matrix}
 \usage{
 clean_returns_sample(
-  returns_sample,
+  returns_xts_sample,
   groups_m_d_ref = NULL,
   fill = TRUE,
   fill_by = NULL,

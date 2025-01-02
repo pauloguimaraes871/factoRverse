@@ -2,23 +2,27 @@
 % Please edit documentation in R/run_sb_backtest.R
 \name{run_sb_backtest}
 \alias{run_sb_backtest}
-\alias{run_sb_backtest,meta_dataframe,meta_dataframe,character,sb_backtest_config-method}
-\alias{run_sb_backtest,meta_dataframe,meta_dataframe,character,sb_metabacktest_config-method}
+\alias{run_sb_backtest,meta_dataframe,meta_dataframe,sb_backtest_config-method}
+\alias{run_sb_backtest,meta_dataframe,meta_dataframe,sb_metabacktest_config-method}
 \alias{run_sb_backtest_internal}
 \title{Run Signal Blending Backtest}
 \usage{
-run_sb_backtest(features_m_df, target_m_df, target_fwd_name, config, ...)
+run_sb_backtest(features_m_df, target_m_df, config, ...)
 
-\S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,character,sb_backtest_config}(
+\S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,sb_backtest_config}(
   features_m_df,
   target_m_df,
-  target_fwd_name,
   config,
+  backtest_returns_xts = NULL,
+  benchmark_returns_xts = NULL,
+  signal_themes_m_df = NULL,
+  lower_quantile_winsorization = 0.05,
+  upper_quantile_winsorization = 0.95,
   verbose = TRUE,
   parallel = TRUE
 )
 
-\S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,character,sb_metabacktest_config}(
+\S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,sb_metabacktest_config}(
   features_m_df,
   target_m_df,
   target_fwd_name,
@@ -41,15 +45,17 @@ run_sb_backtest_internal(
   split_method = "expanding",
   signal_universe_m_df,
   backtest_returns_xts = NULL,
-  selected_market_factor_proxy_xts = NULL,
-  covariance_matrix_sample_size = 36,
-  covariance_estimation_method = "sample",
+  benchmark_returns_xts = NULL,
+  cov_matrix_benchmark = "IBOV",
+  cov_matrix_sample_size = 36,
+  cov_estimation_method = "sample",
   active_returns = TRUE,
   rp_method = "cyclical-spinu",
   n_random_ports = 2000,
   random_ports_method = "sample",
   opt_objective = "sharpe",
-  concentration_constraint_policy,
+  concentration_constraint_policy = NULL,
+  signal_themes_m_df = NULL,
   sb_algorithm = "ols",
   custom_objective = "squared_error",
   chosen_eval_metric = NULL,
@@ -75,15 +81,19 @@ run_sb_backtest_internal(
 \item{target_m_df}{A meta dataframe or data frame containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
 XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.}
 
-\item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
-
 \item{config}{A \code{sb_metabacktest_config} object containing a meta learner configuration and multiple individual configurations.}
 
 \item{...}{Additional arguments (not used in this method).}
 
+\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_universe_m_df},}
+
+\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
+
 \item{verbose}{Logical, indicating whether to print progress messages (default is TRUE).}
 
 \item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
+
+\item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
 
 \item{winsorize_predictions}{Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.}
 
@@ -101,8 +111,6 @@ Alternatively, if \code{'all'}, all features are passed through. If \code{'none'
 \item{rebalancing_months}{Months (numeric) when model should be rebalanced.}
 
 \item{split_method}{Choice of split method (expanding or rolling).}
-
-\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_universe_m_df},}
 
 \item{sb_algorithm}{Choice of sb_algorithm: ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
 
@@ -154,8 +162,6 @@ If running in parallel, set iters.k to a multiple of the number of cores. Must b
 }}
 
 \item{signal_universe_m_d_ref}{A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.}
-
-\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
 }
 \value{
 An object of class \code{sb_backtest_results} or \code{sb_metabacktest_results} with various outputs including model predictions, errors, and validation metrics.
@@ -167,7 +173,7 @@ An object of class sb_backtest_results with various outputs including model pred
 \description{
 The \code{run_sb_backtest} function performs out-of-sample testing for a range of signal-blending algorithms (including machine-learning),
 using walk-forward time series validation.
-It supports many algorithms and can handle different configurations for objective functions and tuning strategies through S4 objects.
+It supports many algorithms and can handle different configurations for objective functions, tuning strategies and also signal selection backtests results through S4 objects.
 The function divides the data into training, validation, and testing samples, and iteratively refits the model at specified rebalancing dates.
 
 Runs signal blending backtests for base learners and a meta learner using the provided configurations.
@@ -186,14 +192,12 @@ for elastic net regularization, supporting both Lasso and Ridge regression.
 \item \code{run_sb_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
-  target_fwd_name = character,
   config = sb_backtest_config
 )}: Runs a backtest with a single configuration.
 
 \item \code{run_sb_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
-  target_fwd_name = character,
   config = sb_metabacktest_config
 )}: Run Signal Blending Meta-Backtest
 

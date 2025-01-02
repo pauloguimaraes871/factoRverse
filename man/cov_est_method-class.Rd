@@ -21,5 +21,8 @@ to dimensionality curse.}
 
 \item{\code{active_returns}}{logical. If TRUE, the covariance matrix will be estimated using active returns.
 If FALSE, the covariance matrix will be estimated using raw returns.}
+
+\item{\code{cov_matrix_benchmark}}{A character string representing the benchmark from benchmark_returns_xts to be used when estimating the covariance matrix.
+Only needed when active_returns is TRUE.}
 }}
 

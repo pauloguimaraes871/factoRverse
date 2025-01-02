@@ -567,8 +567,6 @@ setMethod("show", "sb_backtest_config", function(object) {
       cat("Signal Portfolio Parameters:\n")
       cat("------------------------------\n\n")
       show(object@signal_port_parameters)
-    } else {
-      cat("\n(No signal_port_parameters set for this configuration.)\n")
     }
   }
 
@@ -748,48 +746,48 @@ setMethod("show", "sb_metabacktest_config",
 #'
 #' @export
 setMethod("show", "sb_model", function(object) {
-  cat("Refit SB Model Summary:\n")
+  cat("SB Model Summary:\n")
 
   cat("=================================\n")
 
   # Display the algorithm used
-  cat("  Model Algorithm: ", object@sb_algorithm, "\n")
+  cat("SB Algorithm: ", object@sb_algorithm, "\n")
 
   # Display the best hyperparameters if they exist
-  cat("  Best Hyperparameters:\n")
+  cat("Best Hyperparameters: ")
   if (length(object@best_hyperparameters) > 0) {
-    print(object@best_hyperparameters)
+    cat(object@best_hyperparameters)
   } else {
-    cat("    No hyperparameters available.\n")
+    cat("No hyperparameters available.\n")
   }
 
   # Display the custom objective if it exists
   if (!is.null(object@custom_objective)) {
-    cat("  Custom Objective:\n")
-    print(object@custom_objective)
+    cat("Custom Objective: ")
+    cat(object@custom_objective)
   } else {
-    cat("  No custom objective specified.\n")
+    cat("No custom objective specified.\n")
   }
 
   # Display the Huber delta if it is set
-  cat("  Huber Delta: ", object@huber_delta, "\n")
+  cat("\nHuber Delta: ", object@huber_delta, "\n")
 
   # Display Keras architecture parameters if they exist
   if (!is.null(object@keras_architecture_parameters)) {
-    cat("  Keras Architecture Parameters:\n")
+    cat("Keras Architecture Parameters:\n")
     print(object@keras_architecture_parameters)
   } else {
-    cat("  No Keras architecture parameters specified.\n")
+    cat("No Keras architecture parameters specified.\n")
   }
 
   cat("=================================\n")
 
   # Display model structure or summary if available
-  cat("  Model Structure:\n")
+  cat("Model Structure:\n\n")
   if (!is.null(object@model)) {
     print(object@model)
   } else {
-    cat("  No model object available.\n")
+    cat("No model object available.\n")
   }
 
   # Indicate that the object is displayed
@@ -1623,3 +1621,126 @@ setMethod("show", "port_backtest_config", function(object) {
   cat("=================================\n")
 })
 
+
+#' @title Show a \code{port} object
+#' @description
+#' Provides a concise summary of a \code{port} object, including its subclass,
+#' portfolio name, construction method, eligible assets, weights, covariance/correlation
+#' matrices, and key parameters for MVO or RP methods.
+#'
+#' @param object An instance of class \code{port} or one of its subclasses (e.g.,
+#'   \code{signal_port}, \code{signal_blend_stock_port}, \code{single_signal_stock_port}).
+#'
+#' @return Returns the \code{object} invisibly.
+#'
+#' @seealso \linkS4class{port}
+#' @importFrom methods setMethod show
+#' @export
+setMethod(
+  f = "show",
+  signature = "port",
+  definition = function(object) {
+
+    # 1) Class Identification
+    # Check if object is one of the subclasses
+    subclass <- if (is(object, "signal_port")) {
+      "signal_port"
+    } else if (is(object, "stock_port")) {
+      "stock_port"
+    }  else {
+      "port"
+    }
+
+    # 2) Print Header
+    if(subclass == "port"){
+      cat("Portfolio Summary:\n")
+    }
+    if(subclass == "signal_port"){
+      cat("Signal Portfolio Summary:\n")
+    }
+    if(subclass == "stock_port"){
+      cat("Stock Portfolio Summary:\n")
+      if(object@type == "signal_blend") cat("\n Signal-Blend")
+      if(object@type == "single_signal") cat("\n Single Signal")
+    }
+
+
+    cat("=================================\n")
+    cat("Class:                ", subclass, "\n")
+    if(subclass == "stock_port"){
+    cat("Type:                 ", object@type, "\n")
+    }
+    cat("Portfolio Name:       ", object@port_name, "\n")
+    cat("Method:               ", object@port_construction_method, "\n")
+    if(subclass == "signal_port"){
+    cat("Heuristic SB Metric:  ", object@heuristic_sb_metric, "\n")
+    }
+    cat("Eligible Assets:      ", paste(object@eligible_assets, collapse = ", "), "\n")
+    cat("Number of Assets:     ", length(object@eligible_assets), "\n")
+
+    if(!is.null(object@exp_ret_score)){
+    port_exp_ret_score <- object@weights %*% object@exp_ret_score
+    cat("Port Expected Return: ", round(port_exp_ret_score, 3), "\n")
+    }
+    if(!is.null(object@covariance_matrix)){
+    cov_matrix <- object@covariance_matrix
+    port_exp_risk <- sqrt(object@weights %*% cov_matrix %*% object@weights)
+    cat("Port Expected Risk:   ", round(port_exp_risk, 3), "\n")
+    }
+    if(!is.null(object@exp_ret_score) && !is.null(object@covariance_matrix)){
+    port_sharpe_ratio <- port_exp_ret_score / port_exp_risk
+    cat("Port Expected Sharpe: ", round(port_sharpe_ratio, 3), "\n")
+    }
+
+
+    # 3) Weights and Return Scores
+    cat("\nWeights (first few shown):\n")
+    weights_vector <- object@weights
+    names(weights_vector) <- object@eligible_assets
+    print(utils::head(round(weights_vector, 3), n = 10))
+
+    if (!is.null(object@exp_ret_score)) {
+      cat("\nExpected Return Score (first few):\n")
+      exp_ret_score_vector <- object@exp_ret_score
+      names(exp_ret_score_vector) <- object@eligible_assets
+      print(utils::head(round(exp_ret_score_vector, 2), n = 10))
+    } else {
+      cat("\nNo expected return score provided.\n\n")
+    }
+
+    # 4) Correlation Matrix
+    if (!is.null(object@correlation_matrix)) {
+      cat("\nCorrelation Matrix (first few rows shown):\n")
+      print(utils::head(round(object@correlation_matrix, 2), n = 10))
+      cat("\n")
+      cat("Relative Risk Contribution (first few):\n")
+      rel_risk_contr_vector <- object@rel_risk_contr
+      names(rel_risk_contr_vector) <- object@eligible_assets
+      print(utils::head(round(rel_risk_contr_vector, 3), n = 10))
+    } else {
+      cat("No correlation matrix.\n")
+    }
+
+
+    # 5) Additional Fields (if they exist)
+    if (!is.null(object@ind_max_weights)) {
+      ind_constraints_df <- data.frame(assets = object@eligible_assets,
+                                    ind_max_weights = object@ind_max_weights, ind_min_weights = object@ind_min_weights)
+
+      cat("\nIndividual Max and Min Weights (first few):\n")
+      print(utils::head(ind_constraints_df, 10))
+    }
+    if (!is.null(object@groups)) {
+      cat("\nGroups Provided:\n")
+      print(object@groups %>% dplyr::select(tickers, theme))
+    } else {
+      cat("\nNo groups specified.\n")
+    }
+
+    # Wrap up
+    cat("\n=================================\n")
+
+    # Return invisibly
+    invisible(object)
+  }
+)

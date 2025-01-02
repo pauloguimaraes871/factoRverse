@@ -2,14 +2,14 @@
 % Please edit documentation in R/utils-fit_sb_model.R
 \name{fit_sb_model}
 \alias{fit_sb_model}
-\title{Fit SB Model}
+\title{Fit Signal Blending (SB) Model}
 \usage{
 fit_sb_model(
   sb_algorithm,
   target_fwd_name,
-  full_data_m_refit_clean = NULL,
-  features_m_refit,
+  selected_features_corrected_positions_m_refit,
   target_m_refit,
+  selected_full_data_corrected_positions_m_refit_clean = NULL,
   custom_objective_translated,
   huber_delta,
   quantile_tau,
@@ -19,23 +19,84 @@ fit_sb_model(
   chosen_eval_metric_translated,
   most_recent_signal_universe_m_d_ref,
   selected_backtest_returns_corrected_positions_xts_upd_ref,
-  selected_market_factor_proxy_xts_upd_ref,
-  covariance_matrix_sample_size = 36,
-  covariance_estimation_method = "sample",
+  cov_matrix_sample_size = 36,
+  cov_estimation_method = "sample",
   active_returns = TRUE,
+  selected_cov_matrix_benchmark_xts_upd_ref,
   rp_method = "cyclical-spinu",
   n_random_ports = 2000,
   random_ports_method = "sample",
   opt_objective = "sharpe",
+  opt_method = "random",
   concentration_constraint_policy,
   upper_quantile_winsorization = 0.95,
   lower_quantile_winsorization = 0.05,
   verbose
 )
 }
+\arguments{
+\item{sb_algorithm}{A \code{character} specifying the signal blending algorithm. Options include:
+\code{"ols"}, \code{"glmnet"}, \code{"rf"}, \code{"xgb"}, \code{"nn"}, \code{"ew"}, \code{"sw"}, \code{"rp"}, \code{"mvo"}.}
+
+\item{target_fwd_name}{A \code{character} indicating the target variable's name.}
+
+\item{selected_features_corrected_positions_m_refit}{A matrix or dataframe containing the features for model refitting.}
+
+\item{target_m_refit}{A vector containing the target variable for model refitting.}
+
+\item{selected_full_data_corrected_positions_m_refit_clean}{A cleaned meta-dataframe for refitting the model.}
+
+\item{custom_objective_translated}{A \code{character} specifying the custom objective function for optimization.}
+
+\item{huber_delta}{A numeric value specifying the delta parameter for Huber loss (used in XGBoost and NN).}
+
+\item{quantile_tau}{A numeric value specifying the quantile level (used in custom objectives).}
+
+\item{early_stop}{A numeric value specifying the early stopping criteria (if applicable).}
+
+\item{keras_architecture_parameters}{A list containing Keras neural network architecture specifications.}
+
+\item{optimal_hyper}{A named list of optimal hyperparameters for the specified \code{sb_algorithm}.}
+
+\item{chosen_eval_metric_translated}{A \code{character} specifying the evaluation metric for validation.}
+
+\item{most_recent_signal_universe_m_d_ref}{A meta-dataframe representing the most recent signal universe.}
+
+\item{selected_backtest_returns_corrected_positions_xts_upd_ref}{An \code{xts} object containing backtested returns for corrected positions.}
+
+\item{cov_matrix_sample_size}{A numeric value specifying the sample size for covariance matrix estimation.}
+
+\item{cov_estimation_method}{A \code{character} specifying the method for covariance estimation (e.g., \code{"sample"}).}
+
+\item{active_returns}{A logical value indicating whether to use active returns (default: \code{TRUE}).}
+
+\item{selected_cov_matrix_benchmark_xts_upd_ref}{An \code{xts} object representing the selected market factor proxy.}
+
+\item{rp_method}{A \code{character} specifying the method for Risk Parity optimization.}
+
+\item{n_random_ports}{A numeric value specifying the number of random portfolios to generate (for MVO).}
+
+\item{random_ports_method}{A \code{character} specifying the method for generating random portfolios.}
+
+\item{opt_objective}{A \code{character} specifying the optimization objective (e.g., \code{"sharpe"}).}
+
+\item{opt_method}{A \code{character} specifying the optimization method (e.g., \code{"random"}).}
+
+\item{concentration_constraint_policy}{A policy object defining concentration constraints.}
+
+\item{upper_quantile_winsorization}{A numeric value specifying the upper winsorization quantile.}
+
+\item{lower_quantile_winsorization}{A numeric value specifying the lower winsorization quantile.}
+
+\item{verbose}{A logical value indicating whether to enable verbose output during model training.}
+}
+\value{
+An S4 object of class \code{sb_model}, encapsulating the trained model, algorithm, and associated metadata.
+}
 \description{
-Fits a Statistical/Beta (SB) model based on the specified \code{sb_algorithm}, preparing and
-training the model with given data, hyperparameters, and constraints. This function
-acts as a dispatcher, calling different modeling workflows (OLS, GLMNET, Ranger, XGBoost,
-Keras, heuristic portfolios, Risk Parity, or MVO) depending on \code{sb_algorithm}.
+Fits a Signal Blending (SB) model based on the specified \code{sb_algorithm}, preparing and
+training the model with the given data, hyperparameters, and constraints. This function
+dispatches to various modeling workflows, including OLS, GLMNET, Ranger (RF), XGBoost,
+Keras (NN), heuristic portfolios, Risk Parity, or Mean-Variance Optimization (MVO),
+depending on the input.
 }

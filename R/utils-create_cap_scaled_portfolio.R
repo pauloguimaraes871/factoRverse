@@ -22,7 +22,7 @@ create_cap_scaled_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap
   }
 
   #Create cs_weights object
-  cs_weights <- universe_m_d_ref %>% select(tickers, is_eligible, final_signal) %>%
+  cs_weights <- universe_m_d_ref %>% select(tickers, is_eligible, exp_ret_score) %>%
     merge(liquidity_m_d_ref[, c("tickers", cap_weighting_metric)], by = "tickers") #Merge with liquidity_m_d_ref
 
   #Create cap score (cw_weighting_metric signal_transformed)
@@ -32,8 +32,8 @@ create_cap_scaled_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap
                                            )
   #Create CS Weights
   weights <- cs_weights %>% dplyr::filter(is_eligible == 1) %>%
-    dplyr::mutate(weights = (final_signal*cap_score)/sum(final_signal*cap_score)) %>%
-    dplyr::select(-{{cap_weighting_metric}}, -is_eligible, -final_signal)
+    dplyr::mutate(weights = (exp_ret_score*cap_score)/sum(exp_ret_score*cap_score)) %>%
+    dplyr::select(-{{cap_weighting_metric}}, -is_eligible, -exp_ret_score)
 
   #Merge with universe_m_d_ref
   universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, weights, by = "tickers")
@@ -50,5 +50,12 @@ create_cap_scaled_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap
   }
 
   #Return
-  return(universe_m_d_ref)
+  cs_results_list <- list(
+    universe_m_d_ref = universe_m_d_ref,
+    weights = universe_m_d_ref$weights,
+    cap_weighting_metric = universe_m_d_ref$cap_weighting_metric,
+    exp_ret_score = universe_m_d_ref$exp_ret_score
+  )
+
+  return(cs_results_list)
 }

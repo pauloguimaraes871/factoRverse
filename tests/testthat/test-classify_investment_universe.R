@@ -26,7 +26,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   )
 
   signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "none")
-  signals_universe_m_d_ref$final_signal <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
+  signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
 
   expected_results <- signals_universe_m_d_ref
   expected_results$top_assets <- c(1,0,1)
@@ -61,60 +61,60 @@ test_that("classify_investment_universe works with no additional rules for signa
           respecting group representativeness when there are two competing unsignificant signals and
           when alpha is negative", {
 
-  #THEME SB
-  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+            #THEME SB
+            load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
-  #Create signal_universe_m_d_ref
-  set.seed(103)
-  signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15", "Delta-2001-07-15"),
-                                         tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
-                                         dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
-                                         mean_active_return = rnorm(4, 0, 1),
-                                         tracking_error = runif(4, 0, 1),
-                                         IR = rnorm(4,0,1),
-                                         alpha = rnorm(4,0,1),
-                                         alpha_t_stat = rnorm(4,0,1),
-                                         beta = rnorm(4,0,1),
-                                         treynor = rnorm(4,0,1),
-                                         p_value = c(0.05,0.20,0.03, 0.10)
-  )
+            #Create signal_universe_m_d_ref
+            set.seed(103)
+            signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15", "Delta-2001-07-15"),
+                                                   tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
+                                                   dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
+                                                   mean_active_return = rnorm(4, 0, 1),
+                                                   tracking_error = runif(4, 0, 1),
+                                                   IR = rnorm(4,0,1),
+                                                   alpha = rnorm(4,0,1),
+                                                   alpha_t_stat = rnorm(4,0,1),
+                                                   beta = rnorm(4,0,1),
+                                                   treynor = rnorm(4,0,1),
+                                                   p_value = c(0.05,0.20,0.03, 0.10)
+            )
 
-  signals_groups_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15", "Delta-2001-07-15"),
-                                       tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
-                                       dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
-                                       theme = c("Value", "Momentum", "Value", "Momentum")
-  )
-
-
-  signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "none")
-  signals_universe_m_d_ref$final_signal <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
-
-  expected_results <- signals_universe_m_d_ref
-  expected_results$top_assets <- c(0,0,1,0)
-
-  #GET SE BENCHMARKS
-  se_benchmarks <- create_se_benchmarks(expected_results, signals_groups_m_d_ref)
-
-  expected_results$theme_ss_bench_weights <- se_benchmarks$theme_ss
-  expected_results$theme_sb_bench_weights <- se_benchmarks$theme_sb
-  expected_results$theme = signals_groups_m_d_ref$theme
+            signals_groups_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15", "Delta-2001-07-15"),
+                                                 tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
+                                                 dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
+                                                 theme = c("Value", "Momentum", "Value", "Momentum")
+            )
 
 
-  expected_results$is_eligible <- c(0,0,1,1)
+            signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "none")
+            signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
 
-  expect_equal(
-    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_significance_threshold,
-                                 groups_m_d_ref = signals_groups_m_d_ref,
-                                 concentration_constraint_policy = list(
-                                   benchmark = c("theme_ss", "theme_sb"),
-                                   max_abs_active_group_weight = 0.1
-                                 ),
-                                 asset_object = "signals"),
+            expected_results <- signals_universe_m_d_ref
+            expected_results$top_assets <- c(0,0,1,0)
 
-    expected_results
-  )
+            #GET SE BENCHMARKS
+            se_benchmarks <- create_se_benchmarks(expected_results, signals_groups_m_d_ref)
 
-})
+            expected_results$theme_ss_bench_weights <- se_benchmarks$theme_ss
+            expected_results$theme_sb_bench_weights <- se_benchmarks$theme_sb
+            expected_results$theme = signals_groups_m_d_ref$theme
+
+
+            expected_results$is_eligible <- c(0,0,1,1)
+
+            expect_equal(
+              classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_significance_threshold,
+                                           groups_m_d_ref = signals_groups_m_d_ref,
+                                           concentration_constraint_policy = list(
+                                             benchmark = c("theme_ss", "theme_sb"),
+                                             max_abs_active_group_weight = 0.1
+                                           ),
+                                           asset_object = "signals"),
+
+              expected_results
+            )
+
+          })
 
 test_that("classify_investment_universe works with no additional rules for signals (bayesian)", {
 
@@ -154,7 +154,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   )
 
 
-  signals_universe_m_d_ref$final_signal <- signal_transform(signals_universe_m_d_ref$posterior_alpha, 0.99, 0.01)
+  signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$posterior_alpha, 0.99, 0.01)
 
   expected_results <- signals_universe_m_d_ref
   expected_results$top_assets <- c(1,0,1)
@@ -194,10 +194,10 @@ test_that("classify_investment_universe works with no additional rules for stock
 
   current_date <- "2001-07-15"
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
-  signals_m_d_ref$final_signal <- c(1.2, 0.8, 0.3, 0.2)
+  signals_m_d_ref$exp_ret_score <- c(1.2, 0.8, 0.3, 0.2)
 
   expected_results <- signals_m_d_ref
-  top_quantile_buffer <- quantile(signals_m_d_ref$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,1,0,0)
   expected_results$is_eligible <- c(1,1,0,0)
 
@@ -215,7 +215,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule", {
 
   current_date <- "2001-07-15"
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
-  signals_m_d_ref$final_signal <- c(1.2, 0.8, 0.3, 0.2)
+  signals_m_d_ref$exp_ret_score <- c(1.2, 0.8, 0.3, 0.2)
   liquidity_m_d_ref <- liquidity_m_df[which(liquidity_m_df$dates == current_date),]
 
   liquidity_floor_rule <- classify_stock_liquidity(liquidity_floor_cutoffs_list = liquidity_floor_cutoffs_list, liquidity_m_df = liquidity_m_df,
@@ -223,7 +223,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule", {
 
 
   expected_results <- signals_m_d_ref
-  top_quantile_buffer <- quantile(signals_m_d_ref$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,1,0,0)
   expected_results$mean_volfin_3m <- liquidity_m_d_ref$mean_volfin_3m
   expected_results$presence <- liquidity_m_d_ref$presence
@@ -247,7 +247,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule and buff
     tickers = c("Stock A", "Stock B", "Stock C"),
     signal_1 = c(1, -0.5, 0),
     signal_2 = c(-1, 0, 1),
-    final_signal = c(0.5, 0.25, 0.4)
+    exp_ret_score = c(0.5, 0.25, 0.4)
   )
 
   #Create cutoff
@@ -279,7 +279,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule and buff
 
 
   expected_results <- signals_m_d_ref_test
-  top_quantile_buffer <- quantile(signals_m_d_ref_test$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref_test$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,0,1)
   expected_results$mean_volfin_3m <- liquidity_m_d_ref_test$mean_volfin_3m
   expected_results$presence <- liquidity_m_d_ref_test$presence
@@ -295,8 +295,8 @@ test_that("classify_investment_universe works with liquidity_floor_rule and buff
 
   expect_equal(
     classify_investment_universe(signals_m_d_ref = signals_m_d_ref_test, top_assets_quantile = 0.50,
-                          liquidity_constraint_policy = liquidity_constraint_policy, liquidity_floor_cutoffs_list = liquidity_floor_cutoffs_list_test, liquidity_m_d_ref = liquidity_m_d_ref_test,
-                          turnover_constraint_policy = turnover_constraint_policy, portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref_test),
+                                 liquidity_constraint_policy = liquidity_constraint_policy, liquidity_floor_cutoffs_list = liquidity_floor_cutoffs_list_test, liquidity_m_d_ref = liquidity_m_d_ref_test,
+                                 turnover_constraint_policy = turnover_constraint_policy, portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref_test),
     expected_results
   )
 
@@ -309,7 +309,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule and 2 bu
   #Create signals_m_d_ref_test
   current_date <- "2001-04-15"
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
-  signals_m_d_ref$final_signal <- c(1.2,0.2,0,.04,3)
+  signals_m_d_ref$exp_ret_score <- c(1.2,0.2,0,.04,3)
 
   liquidity_m_d_ref <- liquidity_m_df[which(liquidity_m_df$dates == current_date),]
 
@@ -320,7 +320,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule and 2 bu
   portfolio_weights_m_lstd_ref_test$old_portfolio_weights <- c(0.5, 0, 0.5)
 
   expected_results <- signals_m_d_ref
-  top_quantile_buffer <- quantile(signals_m_d_ref$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,1,0,0,1)
   expected_results$mean_volfin_3m <- liquidity_m_d_ref$mean_volfin_3m
   expected_results$presence <- liquidity_m_d_ref$presence
@@ -370,7 +370,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, 2 buffe
   #Create signals_m_d_ref_test
   current_date <- "2001-04-15"
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
-  signals_m_d_ref$final_signal <- c(1.2,0.2,0,.04,3)
+  signals_m_d_ref$exp_ret_score <- c(1.2,0.2,0,.04,3)
 
   liquidity_m_d_ref <- liquidity_m_df[which(liquidity_m_df$dates == current_date),]
 
@@ -381,7 +381,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, 2 buffe
   portfolio_weights_m_lstd_ref_test$old_portfolio_weights <- c(0.5, 0, 0.5)
 
   expected_results <- signals_m_d_ref
-  top_quantile_buffer <- quantile(signals_m_d_ref$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,1,0,0,1)
   expected_results$mean_volfin_3m <- liquidity_m_d_ref$mean_volfin_3m
   expected_results$presence <- liquidity_m_d_ref$presence
@@ -439,10 +439,10 @@ test_that("classify_investment_universe works when concentration_constraint_poli
   #Create signals_m_d_ref_test
   current_date <- "2001-04-15"
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
-  signals_m_d_ref$final_signal <- c(1.2,0.2,0,.04,3)
+  signals_m_d_ref$exp_ret_score <- c(1.2,0.2,0,.04,3)
 
   expected_results <- signals_m_d_ref
-  top_quantile_buffer <- quantile(signals_m_d_ref$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,1,0,0,1)
 
   benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
@@ -464,14 +464,14 @@ test_that("classify_investment_universe works when concentration_constraint_poli
 
 })
 
-test_that("classify_investment_universe works with liquidity_floor_rule, 2 buffer_zones and groups representativeness, picking the representative with highest final_signal ", {
+test_that("classify_investment_universe works with liquidity_floor_rule, 2 buffer_zones and groups representativeness, picking the representative with highest exp_ret_score ", {
 
   load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
 
   #Create signals_m_d_ref_test
   current_date <- "2001-04-15"
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
-  signals_m_d_ref$final_signal <- c(1.2,0.2,0,.04,3)
+  signals_m_d_ref$exp_ret_score <- c(1.2,0.2,0,.04,3)
 
   liquidity_m_d_ref <- liquidity_m_df[which(liquidity_m_df$dates == current_date),]
   benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
@@ -484,7 +484,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, 2 buffe
   portfolio_weights_m_lstd_ref_test$old_portfolio_weights <- c(0.5, 0, 0.5)
 
   expected_results <- signals_m_d_ref
-  top_quantile_buffer <- quantile(signals_m_d_ref$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,1,0,0,1)
   expected_results$mean_volfin_3m <- liquidity_m_d_ref$mean_volfin_3m
   expected_results$presence <- liquidity_m_d_ref$presence
@@ -554,7 +554,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, buffer_
     tickers = c("Stock A", "Stock B", "Stock C"),
     signal_1 = c(1, -0.5, 0),
     signal_2 = c(-1, 0, 1),
-    final_signal = c(0.5, 0.25, 0.4)
+    exp_ret_score = c(0.5, 0.25, 0.4)
   )
 
   #Create cutoff
@@ -598,7 +598,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, buffer_
 
 
   expected_results <- signals_m_d_ref_test
-  top_quantile_buffer <- quantile(signals_m_d_ref_test$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref_test$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,0,1)
   expected_results$mean_volfin_3m <- liquidity_m_d_ref_test$mean_volfin_3m
   expected_results$presence <- liquidity_m_d_ref_test$presence
@@ -645,7 +645,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, buffer_
     tickers = c("Stock A", "Stock B", "Stock C"),
     signal_1 = c(1, -0.5, 0),
     signal_2 = c(-1, 0, 1),
-    final_signal = c(0.5, 0.25, 0.4)
+    exp_ret_score = c(0.5, 0.25, 0.4)
   )
 
   #Create cutoff
@@ -692,7 +692,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, buffer_
 
 
   expected_results <- signals_m_d_ref_test
-  top_quantile_buffer <- quantile(signals_m_d_ref_test$final_signal, 0.50)
+  top_quantile_buffer <- quantile(signals_m_d_ref_test$exp_ret_score, 0.50)
   expected_results$top_assets <- c(1,0,1)
   expected_results$mean_volfin_3m <- liquidity_m_d_ref_test$mean_volfin_3m
   expected_results$presence <- liquidity_m_d_ref_test$presence
@@ -860,9 +860,9 @@ test_that("classify_investment_universe throws an error when no signals are sign
 
 
   signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "BH")
-  signals_universe_m_d_ref$final_signal <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
+  signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
 
-    expect_error(
+  expect_error(
     classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
                                  groups_m_d_ref = signals_groups_m_d_ref,
                                  concentration_constraint_policy = list(

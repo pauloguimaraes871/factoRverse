@@ -15,11 +15,7 @@ information about the model, data, tuning process, and performance metrics.
 \section{Slots}{
 
 \describe{
-\item{\code{oos_prediction_list}}{A list containing out-of-sample predictions indexed by testing dates.}
-
-\item{\code{oos_error_list}}{A list of out-of-sample errors indexed by testing dates.}
-
-\item{\code{oos_y_list}}{A list containing the actual target values for the out-of-sample period, indexed by testing dates.}
+\item{\code{oos_sb_outputs_m_df}}{A meta dataframe containing out-of-sample predictions, target and errors, all indexed by testing dates.}
 
 \item{\code{oos_testing_eval_metrics}}{A list of evaluation metrics for the out-of-sample testing samples.}
 

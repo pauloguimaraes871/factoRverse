@@ -119,7 +119,7 @@ A data frame containing the updated signal universe with computed performance me
 \item{\code{treynor}}{The Treynor ratio of each signal.}
 \item{\code{p_value}}{The p-value of the alpha.}
 \item{\code{adjusted_p_value}}{The p-value adjusted for multiple comparisons, if applicable.}
-\item{\code{final_signal}}{The final signal classification after applying transformations and adjustments.}
+\item{\code{exp_ret_score}}{The final signal classification after applying transformations and adjustments.}
 }
 
 #' @details

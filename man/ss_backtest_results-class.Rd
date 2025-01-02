@@ -20,8 +20,6 @@ It includes information about eligible signals, signal universes, Bayesian fits,
 
 \item{\code{final_bayesian_fit_list}}{A list of Bayesian model fit results for each rebalancing period.}
 
-\item{\code{eligible_signals_list}}{A list of eligible signals for each backtest period.}
-
 \item{\code{p_correction_method}}{A character string indicating the p-value correction method used.}
 
 \item{\code{ss_backtest_workflow}}{A list describing the signal selection backtest workflow, including parameters and metadata.}

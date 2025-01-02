@@ -4,7 +4,12 @@
 \alias{predict,sb_backtest_results-method}
 \title{Predict Method for sb_backtest_results Class}
 \usage{
-\S4method{predict}{sb_backtest_results}(object, new_features_m_df)
+\S4method{predict}{sb_backtest_results}(
+  object,
+  new_features_m_df,
+  lower_quantile_winsorization = 0.025,
+  upper_quantile_winsorization = 0.975
+)
 }
 \arguments{
 \item{object}{An instance of the \code{sb_backtest_results} class containing the
@@ -19,7 +24,7 @@ three columns, which are reserved for identifiers.}
 A numeric vector of predictions for the new feature data.
 }
 \description{
-This method generates predictions using a machine learning model that has been
+This method generates predictions using a sb model that has been
 validated through walk-forward validation. It uses the provided new feature
 data and applies the appropriate prediction logic based on the underlying
 model and its hyperparameters.

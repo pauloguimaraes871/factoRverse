@@ -6,27 +6,32 @@
 \usage{
 estimate_covariance_matrix(
   tickers,
-  returns_upd_ref,
-  covariance_matrix_sample_size,
-  covariance_estimation_method,
+  returns_xts_upd_ref,
+  cov_matrix_sample_size,
+  cov_estimation_method,
   groups_m_d_ref = NULL,
+  active_returns,
+  selected_benchmark_xts_upd_ref,
   verbose = TRUE
 )
 }
 \arguments{
-\item{covariance_matrix_sample_size}{Number of periods to subset returns_d_ref sample when estimating the covariance_matrix. A high number will provide
+\item{returns_xts_upd_ref}{A dataframe in which columns represent tickers present in current_universe_df and row represent days
+It should include all stocks in assets and a dates column with at least cov_matrix_sample_size days before current_date}
+
+\item{cov_matrix_sample_size}{Number of periods to subset returns_d_ref sample when estimating the covariance_matrix. A high number will provide
 higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
 to dimensionality curse.}
 
-\item{covariance_estimation_method}{One of SAM (Sample), EWMA, CC (Constant Correlation), PCA1, PCA2, Shrink_ID or Shrink_CC.
+\item{cov_estimation_method}{One of SAM (Sample), EWMA, CC (Constant Correlation), PCA1, PCA2, Shrink_ID or Shrink_CC.
 If NULL, blending_method can only be EW or IR}
 
 \item{groups_m_d_ref}{A dataframe with id, tickers and dates with dummy group classifications to be used to fill NAs}
 
-\item{assets}{A dataframe with a tickers column to specifiy to which stocks/signal portfolios covariance is to be calculated.}
+\item{active_returns}{A character string indicating whether covariance matrix should be calculated based on active returns or raw returns. If TRUE,
+returns_xts_upd_ref will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts.}
 
-\item{returns_d_ref}{A dataframe in which columns represent tickers present in current_universe_df and row represent days
-It should include all stocks in assets and a dates column with at least covariance_matrix_sample_size days before current_date}
+\item{assets}{A dataframe with a tickers column to specifiy to which stocks/signal portfolios covariance is to be calculated.}
 
 \item{fill}{If TRUE, will fill rows NAs with group medians. If group median are NAs, it will fill with row's median}
 }

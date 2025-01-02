@@ -21,7 +21,7 @@ create_equal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
   ew_weights <- universe_m_d_ref %>% dplyr::select(tickers, is_eligible) %>% #Select only two colums
         dplyr::filter(is_eligible == 1) %>% #Filter only eligibles
         dplyr::mutate(weights = 1/sum(is_eligible)) %>% #Calculate equal-weights
-        dplyr::select(-is_eligible) #Drop
+    dplyr::select(-is_eligible) #Drop
 
   #Left Join back to portfolio
   universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, ew_weights, by = "tickers") #Left join
@@ -38,5 +38,10 @@ create_equal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
   }
 
   #Return
-  return(universe_m_d_ref)
+  ew_results_list <- list(
+    universe_m_d_ref = universe_m_d_ref,
+    weights = universe_m_d_ref$weights
+  )
+
+  return(ew_results_list)
 }

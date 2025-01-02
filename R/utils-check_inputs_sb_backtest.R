@@ -51,8 +51,8 @@ check_inputs_sb_backtest <- function(
     #Time
     validation_sample_size, rebalancing_months, split_method,
     #SB heuristic
-    signal_universe_m_df, backtest_returns_xts, selected_market_factor_proxy_xts,
-    covariance_matrix_sample_size, covariance_estimation_method, active_returns,
+    signal_universe_m_df, backtest_returns_xts, benchmark_returns_xts, cov_matrix_benchmark,
+    cov_matrix_sample_size, cov_estimation_method, active_returns, signal_themes_m_df,
     rp_method, n_random_ports, random_ports_method, opt_objective, concentration_constraint_policy,
     #SB algorithm
     sb_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
@@ -77,9 +77,8 @@ check_inputs_sb_backtest <- function(
         stop("features_m_df should contain only numeric columns with non-NAs.")
       }
 
-      if(all(!is.factor(features_m_df$dates),
-            any(!lubridate::is.Date(features_m_df$dates)) ||
-            any(is.na(as.Date(features_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+      if(all(any(!lubridate::is.Date(features_m_df$dates)) ||
+             any(is.na(as.Date(features_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
         stop("dates in features_m_df must be a date object with format %Y-%m-%d.")
       }
 
@@ -99,8 +98,7 @@ check_inputs_sb_backtest <- function(
         stop("target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.")
       }
 
-      if(all(!is.factor(target_m_df$dates),
-             any(!lubridate::is.Date(target_m_df$dates)) ||
+      if(all(any(!lubridate::is.Date(target_m_df$dates)) ||
              any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
         stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
       }
@@ -164,6 +162,10 @@ check_inputs_sb_backtest <- function(
     }
 
   #backtest_returns_xts
+  if(sb_algorithm %in% c("rp", "mvo") && is.null(backtest_returns_xts)){
+    stop("backtest_returns_xts are strictly needed when sb_algorithm is either rp or mvo.")
+  }
+  if(!is.null(backtest_returns_xts)){
     if(!xts::is.xts(backtest_returns_xts)){
       stop("backtest_returns_xts must be a xts object")
     }
@@ -199,30 +201,71 @@ check_inputs_sb_backtest <- function(
     if(length(backtest_returns_dates) <= covariance_matrix_sample_size){
       stop("backtest_returns_xts must have more dates than covariance_matrix_sample_size")
     }
+  }
 
-  #selected_market_factor_proxy_xts
-    if(!xts::is.xts(selected_market_factor_proxy_xts)){
-      stop("selected_market_factor_proxy_xts must be a xts object")
+  #benchmark_returns_xts
+  if(sb_algorithm %in% c("rp", "mvo") && active_returns && is.null(benchmark_returns_xts)){
+    stop("benchmark_returns_xts are strictly needed when sb_algorithm is either rp or mvo and active_returns is set to TRUE.")
+  }
+  if(!is.null(benchmark_returns_xts)){
+    if(!xts::is.xts(benchmark_returns_xts)){
+      stop("benchmark_returns_xts must be a xts object")
     }
       #get dates
-      selected_market_factor_proxy_dates <- zoo::index(selected_market_factor_proxy_xts)
-      if(class(selected_market_factor_proxy_xts) != "Date"){
-        stop("dates in selected_market_factor_proxy_xts must be of class Date")
+      benchmark_returns_xts_dates <- zoo::index(benchmark_returns_xts)
+      if(class(benchmark_returns_xts_dates) != "Date"){
+        stop("dates in benchmark_returns_xts_dates must be of class Date")
       }
 
-      if(any(selected_market_factor_proxy_dates != backtest_returns_dates)){
-        stop("dates in selected_market_factor_proxy_xts and backtest_returns_xts must be the same")
+      if(any(benchmark_returns_xts_dates != backtest_returns_dates)){
+        stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
       }
 
-    if(any(apply(selected_market_factor_proxy_xts, 2, function(x) all(is.na(x))))){
-      stop("selected_market_factor_proxy_xts must not have any NA values")
+    if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
+      stop("benchmark_returns_xts must not have any NA values")
     }
 
-    if(!all(diff(as.numeric(format(selected_market_factor_proxy_dates, "%Y")) * 12 +
-                 as.numeric(format(selected_market_factor_proxy_dates, "%m"))) == 1)){
-      stop("selected_market_factor_proxy_xts must have consecutive dates")
+    if(!all(diff(as.numeric(format(benchmark_returns_xts_dates, "%Y")) * 12 +
+                 as.numeric(format(benchmark_returns_xts_dates, "%m"))) == 1)){
+      stop("benchmark_returns_xts must have consecutive dates")
     }
 
+    if(!cov_matrix_benchmark %in% colnames(benchmark_returns_xts)){
+      stop("cov_matrix_benchmark must be present in benchmark_returns_xts")
+    }
+  }
+
+  #signal_themes_m_df
+  if(sb_algorithm %in% c("rp", "mvo") && is.null(signal_themes_m_df)){
+      stop("signal_themes_m_df are strictly needed when sb_algorithm is either rp or mvo.")
+  }
+  if(!is.null(signal_themes_m_df)){
+    ##Check if signal_themes_m_df contemplates theme column
+    if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
+      stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
+    }
+
+    if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) & is.null(signal_themes_m_df)){
+      stop("signal_themes_m_df must be provided if max_abs_active_group_weight is given.")
+    }
+
+    ##Check if theme column is character
+    if(!is.character(signal_themes_m_df$theme)){
+      stop("theme column in signal_themes_m_df must be character")
+    }
+
+    ##Check format in signal_themes_m_df
+    if(any(grepl("_", signal_themes_m_df$theme))){
+      stop("No underscores allowed in signal_themes_m_df theme names")
+    }
+
+    ##Check if dates in signal_themes_m_df and signals_m_df are the same
+    dates_m_vector <- as.Date(unique(features_m_df$dates))
+    signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df$dates))
+    if(any(!dates_m_vector %in% signal_themes_dates_m_vector)){
+      stop("dates in signal_themes_m_df and features_m_df must be the same")
+    }
+   }
 
 
   #Check structure of rebalancing_months
@@ -283,21 +326,40 @@ check_inputs_sb_backtest <- function(
   signal_universe_m_df_dates <- signal_universe_m_df %>% dplyr::pull(dates) %>% unique()
   first_training_date <- dates_m_vector[training_sample_size]
 
-  #First date of eligible_signals should be before first training date
+  ##First date of eligible_signals should be before first training date
   if(first_training_date < min(signal_universe_m_df_dates)){
     stop("First date of signal_universe_m_df should be before first training date.")
   }
 
   #Get elected signals
-  eligible_signals <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers) %>% stringr::str_remove_all(pattern = "low_") %>% unique()
-  check_signal_presence <- eligible_signals %in% colnames(features_m_df)
-
+  eligible_signals <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers) %>% unique()
+  ##Check signal presence in features_m_df
+  check_signal_presence <- stringr::str_remove_all(eligible_signals, pattern = "low_") %in% colnames(features_m_df)
   if (any(check_signal_presence)) {
     stop("There is a signal mismatch between eligible_signals and features_m_df: ",
-      paste(eligible_signals[check_signal_presence], collapse = ", ")
+      paste(stringr::str_remove_all(eligible_signals, pattern = "low_")[check_signal_presence], collapse = ", ")
     )
   }
 
+  ##Check signal presence in signal_themes_m_df
+  if(!is.null(signal_themes_m_df)){
+  check_signal_presence <- eligible_signals %in% signal_themes_m_df$tickers
+  if (any(check_signal_presence)) {
+     stop("There is a signal mismatch between eligible_signals and signal_themes_m_df: ",
+         paste(eligible_signals[check_signal_presence], collapse = ", ")
+     )
+   }
+  }
+
+  ##Check signal presence in backtest_returns_xts
+  if(!is.null(backtest_returns_xts)){
+  check_signal_presence <- eligible_signals %in% colnames(backtest_returns_xts)
+  if (any(check_signal_presence)) {
+    stop("There is a signal mismatch between eligible_signals and backtest_returns_xts: ",
+         paste(eligible_signals[check_signal_presence], collapse = ", ")
+    )
+  }
+ }
 
   #Validation Schema
   #Check for correct choice in chosen_eval_metric
@@ -554,6 +616,9 @@ check_inputs_sb_backtest <- function(
     }
     if(!is.logical(active_returns)){
       stop("active_returns should be logical")
+    }
+    if(active_returns & is.null(cov_matrix_benchmark)){
+      stop("cov_matrix_benchmark should be set if active_returns is TRUE")
     }
 
       if(sb_algorithm == "rp"){

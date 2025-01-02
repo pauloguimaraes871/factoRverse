@@ -126,7 +126,7 @@
 #'   \item{\code{treynor}}{The Treynor ratio of each signal.}
 #'   \item{\code{p_value}}{The p-value of the alpha.}
 #'   \item{\code{adjusted_p_value}}{The p-value adjusted for multiple comparisons, if applicable.}
-#'   \item{\code{final_signal}}{The final signal classification after applying transformations and adjustments.}
+#'   \item{\code{exp_ret_score}}{The final signal classification after applying transformations and adjustments.}
 #' }
 #'
 #'
@@ -278,7 +278,7 @@ define_signal_eligibility <- function(
     signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(p_value_df, by = "p_value") #Join p-value adjust
 
     #Elect final signal for signal_universe_m_d_ref
-    signal_universe_m_d_ref[, "final_signal"] <- signal_transform(
+    signal_universe_m_d_ref[, "exp_ret_score"] <- signal_transform(
       signal_universe_m_d_ref[, "alpha_t_stat"],
       upper_quantile_winsorization = upper_quantile_winsorization,
       lower_quantile_winsorization = lower_quantile_winsorization
@@ -328,7 +328,7 @@ define_signal_eligibility <- function(
 
 
     #Elect final signal for signal_universe_m_d_ref
-    signal_universe_m_d_ref[, "final_signal"] <- signal_transform(
+    signal_universe_m_d_ref[, "exp_ret_score"] <- signal_transform(
       signal_universe_m_d_ref[, paste0("posterior_", "alpha_t_stat")], #Final signal
       #Winsorization quantiles
       upper_quantile_winsorization = upper_quantile_winsorization,
@@ -354,7 +354,7 @@ define_signal_eligibility <- function(
   ################################
 
   signal_eligibility_results_list <- list()
-  signal_eligibility_results_list$signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::select(-final_signal)
+  signal_eligibility_results_list$signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::select(-exp_ret_score)
   signal_eligibility_results_list$frequentist_results <- frequentist_results
   try(signal_eligibility_results_list$bayesian_results <- bayesian_results, silent = TRUE)
 

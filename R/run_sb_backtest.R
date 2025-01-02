@@ -2,7 +2,7 @@
 #'
 #' The `run_sb_backtest` function performs out-of-sample testing for a range of signal-blending algorithms (including machine-learning),
 #' using walk-forward time series validation.
-#' It supports many algorithms and can handle different configurations for objective functions and tuning strategies through S4 objects.
+#' It supports many algorithms and can handle different configurations for objective functions, tuning strategies and also signal selection backtests results through S4 objects.
 #' The function divides the data into training, validation, and testing samples, and iteratively refits the model at specified rebalancing dates.
 #'
 #' @param features_m_df A meta_dataframe containing features.
@@ -47,7 +47,7 @@
 #' \code{\link{sb_backtest_config}}, \code{\link{sb_metabacktest_config}}
 #'
 #' @export
-setGeneric("run_sb_backtest", function(features_m_df, target_m_df, target_fwd_name, config, ...) standardGeneric("run_sb_backtest"))
+setGeneric("run_sb_backtest", function(features_m_df, target_m_df, config, ...) standardGeneric("run_sb_backtest"))
 
 
 #' @describeIn run_sb_backtest Runs a backtest with a single configuration.
@@ -58,100 +58,216 @@ setGeneric("run_sb_backtest", function(features_m_df, target_m_df, target_fwd_na
 #' result <- run_sb_backtest(features_m_df, target_m_df, config, training_sample_size = 30, rebalacing_months = c(6,12), verbose = TRUE, parallel = TRUE)
 #' @export
 setMethod("run_sb_backtest",
-          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", target_fwd_name = "character",
-                    config = "sb_backtest_config"),
+          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "sb_backtest_config"),
 
-          function(features_m_df, target_m_df, target_fwd_name, config, verbose = TRUE, parallel = TRUE) {
+          function(features_m_df, target_m_df, config, #SB Backtest
+                   backtest_returns_xts = NULL, benchmark_returns_xts = NULL, signal_themes_m_df = NULL, #SS Backtest
+                   lower_quantile_winsorization = 0.05, upper_quantile_winsorization = 0.95, verbose = TRUE, parallel = TRUE) {
 
 
             #Assign default values for internal function
             ###########################
-            split_method <- "expanding"
-            validation_sample_size <- 0
-            custom_objective <- "squared_error"
-            chosen_eval_metric <- NULL
-            huber_delta <- 1
-            quantile_tau <- 0.5
-            hyper_grid_domain_list <- NULL
-            tuning_method <- NULL
-            n_iter <- NULL
-            k_iter <- NULL
-            acq <- "ucb"
-            init_points <- NULL
-            early_stop <- NULL
-            keras_architecture_parameters <- NULL
+              ##Training and splits
+              split_method <- "expanding"
+              validation_sample_size <- 0
 
-            ##Set missing values to TRUE
-            if(missing(verbose)){
-              verbose <- TRUE
-            }
-            if(missing(parallel)){
-              parallel <- TRUE
-            }
+              ##Training algo (loss and eval function)
+              custom_objective <- "squared_error"
+              chosen_eval_metric <- NULL
+              huber_delta <- 1
+              quantile_tau <- 0.5
+              keras_architecture_parameters <- NULL
+
+              ##Hyper tuning
+              hyper_grid_domain_list <- NULL
+              tuning_method <- NULL
+              n_iter <- NULL
+              k_iter <- NULL
+              acq <- "ucb"
+              init_points <- NULL
+              early_stop <- NULL
+
+              ##Heuristic SB
+              cov_matrix_sample_size <- 36
+              cov_estimation_method <- "sample"
+              cov_matrix_benchmark <- NULL
+              active_returns <- TRUE
+              rp_method <- "cyclical-spinu"
+              n_random_ports <- 2000
+              random_ports_method <- "sample"
+              opt_objective <- "sharpe"
+              concentration_constraint_policy <- NULL
+
 
             ###########################
 
             #Get data from S4 objects
             ###########################
-            ##features_m_df
-            features_workflow <- features_m_df@workflow #Get workflow
-            features_object_name <- features_m_df@meta_dataframe_name #Get mdf name
-            features_m_df <- features_m_df@data #Get features_m_df
+              ##features_m_df
+              features_workflow <- features_m_df@workflow #Get workflow
+              features_object_name <- features_m_df@meta_dataframe_name #Get mdf name
+              features_m_df <- features_m_df@data #Get features_m_df
 
-            ##target_m_df
-            target_workflow <- target_m_df@workflow #Get workflow
-            target_object_name <- target_m_df@meta_dataframe_name #Get mdf name
-            target_m_df <- target_m_df@data #Get target_m_df
+              ##target_m_df
+              target_workflow <- target_m_df@workflow #Get workflow
+              target_object_name <- target_m_df@meta_dataframe_name #Get mdf name
+              target_m_df <- target_m_df@data #Get target_m_df
+
+              ##Get general Information from config
+                ###Training and splits
+                training_sample_size <- config@training_sample_size #Get training sample size
+                rebalancing_months <- config@rebalancing_months #Get rebalancing months
+                split_method <- config@split_method #Split method
+                target_fwd_name <- config@target_fwd_name #Get target_fwd_name
+
+                ###Training algo (loss and eval function)
+                sb_algorithm <- config@sb_algorithm #Get sb_algorithm
+                custom_objective <- config@custom_objective #Get custom_objective
+                keras_architecture_parameters <- if(sb_algorithm == "nn") as.list(config@keras_architecture_parameters) #Get keras_architecture_parameters
+                huber_delta <- config@huber_delta #Get huber_delta
+                quantile_tau <- config@quantile_tau #Get quantile_tau
+
+                ###Signal Selection
+                ss_backtest_config <- config@ss_backtest_config #Get ss_backtest_config
+                ss_backtest_results <- config@ss_backtest_results #Get ss_backtest_results
+
+                ###Tuning Strategy
+                if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")){
+                  tuning_strategy <- config@tuning_strategy #Get tuning strategy
+                  ###Get objects inside tuning strategy
+                  tuning_method <- tuning_strategy@tuning_method #Get tuning method
+                  validation_sample_size <- tuning_strategy@validation_sample_size #Get validation sample size
+                  chosen_eval_metric <- tuning_strategy@chosen_eval_metric #Get chosen eval metric
+                  hyper_grid_domain_list <- tuning_strategy@hyper_grid_domain@hyperparameter_list #Get hyper_grid_domain_list
+                  early_stop <- tuning_strategy@early_stop #Get early_stop
+
+                  ###Random search
+                  if(tuning_method == "random_search"){
+                    n_iter <- tuning_strategy@n_iter #Get n_iter
+                  }
+
+                  ###Bayesian Opt
+                  if(tuning_method == "bayesian_opt"){
+                    n_iter <- tuning_strategy@n_iter #Get n_iter
+                    acq <- tuning_strategy@acq #Get acq
+                    k_iter <- tuning_strategy@k_iter #Get k_iter
+                    init_points <- tuning_strategy@init_points #Get init_points
+                  }
+                }
+
+                ###Signal Port Parameters
+                if(sb_algorithm %in% c("rp", "mvo")){
+                  signal_port_parameters <- object@signal_port_parameters
+                    ####Covariance
+                    cov_est_method <- signal_port_parameters@cov_est_method
+                      cov_estimation_method <- signal_port_parameters@cov_estimation_method
+                      cov_matrix_sample_size <- signal_port_parameters@cov_matrix_sample_size
+                      active_returns <- signal_port_parameters@active_returns
+                      cov_matrix_benchmark <- signal_port_parameters@cov_matrix_benchmark
+
+                    ###RP
+                    if(sb_algorithm == "rp"){
+                      rp_parameters <- signal_port_parameters@rp_parameters
+                        rp_method <- rp_parameters@rp_method
+                    }
+
+                    ###MVO
+                    if(sb_algorithm == "mvo"){
+                      mvo_parameters <- signal_port_parameters@mvo_parameters
+                        random_ports_method <- mvo_parameters$random_ports_method
+                        n_random_ports <- mvo_parameters@n_random_ports
+                        opt_method <- mvo_parameters@opt_method
+                        opt_objective <- mvo_parameters@opt_objective
+
+                      concentration_constraint_policy <- as.list(signal_port_parameters@concentration_constraint_policy)
+                    }
+                }
 
 
-            ##Get general Information from config
-            sb_algorithm <- config@sb_algorithm #Get sb_algorithm
-            training_sample_size <- config@training_sample_size #Get training sample size
-            rebalancing_months <- config@rebalancing_months #Get rebalancing months
-            split_method <- config@split_method #Get split method
-            custom_objective <- config@custom_objective #Get custom_objective
-            keras_architecture_parameters <- if(sb_algorithm == "nn") as.list(config@keras_architecture_parameters) #Get keras_architecture_parameters
-            huber_delta <- config@huber_delta #Get huber_delta
-            quantile_tau <- config@quantile_tau #Get quantile_tau
+            ###########################
 
-            ##Tuning Strategy
-            if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")){
-              tuning_strategy <- config@tuning_strategy #Get tuning strategy
-              ###Get objects inside tuning strategy
-              tuning_method <- tuning_strategy@tuning_method #Get tuning method
-              validation_sample_size <- tuning_strategy@validation_sample_size #Get validation sample size
-              chosen_eval_metric <- tuning_strategy@chosen_eval_metric #Get chosen eval metric
-              hyper_grid_domain_list <- tuning_strategy@hyper_grid_domain@hyperparameter_list #Get hyper_grid_domain_list
-              early_stop <- tuning_strategy@early_stop #Get early_stop
+            #Get or Fabricate Signal Universe and market_factor_proxy
+            ###########################
+            if(is.null(ss_backtest_results)){
+              #Run a Signal Selection Backtest based on ss_backtest_config
+              if(!is.null(ss_backtest_config)){
+                #Print
+                if(verbose){
+                  cat(crayon::cyan("Running Signal Selection Backtest based on ss_backtest_config \n"))
+                }
+                  ##Checks
+                  if(is.null(backtest_returns_xts)){
+                    stop("Please provide backtest_returns_xts")
+                  }
+                  if(is.null(benchmark_returns_xts)){
+                    stop("Please provide benchmark_returns_xts")
+                  }
+                  if(is.null(signal_themes_m_df)){
+                    stop("Please provide signal_themes_m_df")
+                  }
+                  if(!is.null(cov_matrix_benchmark) && ss_backtest_config@alpha_test_strategy$market_factor_proxy != cov_matrix_benchmark){
+                    message(crayon::yellow("market_factor_proxy and cov_matrix_benchmark in ss_backtest_config differ."))
+                  }
 
-              ###Random search
-              if(tuning_method == "random_search"){
-                n_iter <- tuning_strategy@n_iter #Get n_iter
+                 #Run Signal Selection Backtest
+                  ss_backtest_results <- run_ss_backtest(
+                    config = ss_backtest_config,
+                    signals_m_df = features_m_df,
+                    backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, signal_themes_m_df = signal_themes_m_df
+                  )
+                  #Extract signal_universe_m_df
+                  signal_universe_m_df <- ss_backtest_results@signal_universe_m_df
+                  cat(crayon::green("Signal Selection Backtest completed sucessfully \n"))
+              } else {
+                #Generate an artificial signal_universe_m_df
+                  ##Get columns values
+                  dates <- unique(features_m_df$dates)
+                  tickers <- colnames(features_m_df[,-c(1:3)])
+
+                  ##Create signal_universe_m_df
+                  signal_universe_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE) %>%
+                    dplyr::mutate(id = paste0(rep(tickers, each = length(dates)), "-",dates), .before = Var1) %>%
+                    dplyr::rename(tickers = Var1, dates = Var2) %>%
+                    dplyr::mutate(is_eligible = 1) %>%
+                      create_meta_dataframe(type = "signal_universe", meta_dataframe_name = "mocked_signal_universe")
+
+              }
+            } else {
+              #Check
+              if(!is.null(cov_matrix_benchmark) && ss_backtest_results@ss_backtest_workflow$market_factor_proxy != cov_matrix_benchmark){
+                message(crayon::yellow("market_factor_proxy and cov_matrix_benchmark in ss_backtest_results differ."))
               }
 
-              ###Bayesian Opt
-              if(tuning_method == "bayesian_opt"){
-                n_iter <- tuning_strategy@n_iter #Get n_iter
-                acq <- tuning_strategy@acq #Get acq
-                k_iter <- tuning_strategy@k_iter #Get k_iter
-                init_points <- tuning_strategy@init_points #Get init_points
-              }
+              #Extract signal_universe_m_df
+              signal_universe_m_df <- ss_backtest_results@signal_universe_m_df
+
             }
+
             ###########################
 
             #Run ML Backtest
             ###########################
             sb_backtest_results <- run_sb_backtest_internal(
-              features_m_df = features_m_df, target_m_df = target_m_df, sb_algorithm = sb_algorithm,
-              target_fwd_name = target_fwd_name, custom_objective = custom_objective,
+              #Basic Obj Inputs
+              features_m_df = features_m_df, target_m_df = target_m_df, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+              #Splits
+              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
+              #Heuristic SBs
+              signal_universe_m_df = signal_universe_m_df,
+              cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Covariance Matrix
+              backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark, #Covariance Matrix
+              rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective,  #RP/MVO
+              concentration_constraint_policy = concentration_constraint_policy, signal_themes_m_df = signal_themes_m_df, #MVO (Group constraints) and returns_sample_clean
+              #Choice of SB algorithm
+              sb_algorithm = sb_algorithm,
+              #Loss/Eval Functions and Related
+              custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
+              #Hyperparameter tuning
+              hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop,
+              #Keras architecture parameters
               keras_architecture_parameters = keras_architecture_parameters,
-              huber_delta = huber_delta, quantile_tau = quantile_tau,
-              tuning_method = tuning_method,
-              split_method = split_method, validation_sample_size = validation_sample_size,
-              chosen_eval_metric = chosen_eval_metric, hyper_grid_domain_list = hyper_grid_domain_list,
-              early_stop = early_stop, n_iter = n_iter, acq = acq, k_iter = k_iter, init_points = init_points,
-              training_sample_size = training_sample_size, rebalancing_months = rebalancing_months, verbose = verbose,
-              parallel = parallel
+              #Misc
+              verbose = verbose, parallel = parallel, lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization
             )
             ###########################
 
@@ -166,6 +282,11 @@ setMethod("run_sb_backtest",
             ###Features
             sb_backtest_results@sb_backtest_workflow$features_object_name <- features_object_name
             sb_backtest_results@sb_backtest_workflow$features_workflow <- features_workflow
+
+            ###Covariance objects
+            sb_backtest_results@sb_backtest_workflow$signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name
+            sb_backtest_results@sb_backtest_workflow$signal_themes_workflow <- signal_themes_m_df@workflow #Get workflow
+
 
             ###IDs
             sb_backtest_results@sb_backtest_workflow$config_name <- config@config_name
@@ -199,7 +320,7 @@ setMethod("run_sb_backtest",
 #' results_list <- run_sb_backtest(features_m_df, target_m_df, training_sample_size = 30, rebalacing_months = c(6,12), meta_config)
 #' @export
 setMethod("run_sb_backtest",
-          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", target_fwd_name = "character",
+          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe",
                     config = "sb_metabacktest_config"),
 
           function(features_m_df, target_m_df, target_fwd_name, config, verbose = TRUE, parallel = TRUE,
@@ -296,7 +417,7 @@ setMethod("run_sb_backtest",
             # Fit Meta Model
             meta_learner_backtest_results <- tryCatch({
 
-              if (verbose == TRUE) {
+              if (verbose) {
                 cat(crayon::cyan("Starting Meta SB backtesting\n"))
                 tictoc::tic(msg = crayon::green("Meta SB backtest finished\n"))
               }
@@ -512,9 +633,11 @@ run_sb_backtest_internal <- function(
   #Splits
   validation_sample_size = 0, rebalancing_months, split_method = "expanding",
   #Heuristic SB
-  signal_universe_m_df, backtest_returns_xts = NULL, selected_market_factor_proxy_xts = NULL,
-  covariance_matrix_sample_size = 36, covariance_estimation_method = "sample", active_returns = TRUE, #COV (for RP and MVO)
-  rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", concentration_constraint_policy, #RP/MVO
+  signal_universe_m_df,
+  cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, #COV (for RP and MVO)
+  backtest_returns_xts = NULL, benchmark_returns_xts = NULL, cov_matrix_benchmark = "IBOV", #COV (for RP and MVO)
+  rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", #RP/MVO
+  concentration_constraint_policy = NULL, signal_themes_m_df = NULL, #Group constraints and returns sample clean
   #Choice of SB algorithm
   sb_algorithm = "ols",
   #Loss/Eval Functions and Related
@@ -540,8 +663,8 @@ run_sb_backtest_internal <- function(
     check_inputs_sb_backtest(
       features_m_df = features_m_df, target_m_df = target_m_df, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
       validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-      signal_universe_m_df = signal_universe_m_df, backtest_returns_xts = backtest_returns_xts, selected_market_factor_proxy_xts = selected_market_factor_proxy_xts,
-      covariance_matrix_sample_size = covariance_matrix_sample_size, covariance_estimation_method = covariance_estimation_method, active_returns = active_returns,
+      signal_universe_m_df = signal_universe_m_df, backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+      cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
       rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
       sb_algorithm = sb_algorithm, custom_objective = custom_objective, chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
       hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
@@ -590,7 +713,7 @@ run_sb_backtest_internal <- function(
 
     #Rebalancing Dates
     dates_testing_sample <- dates_m_vector[(training_sample_size + validation_sample_size):
-                                             (training_sample_size + validation_sample_size + testing_sample_size - 1)] #These are dates inside testing sample
+                                           (training_sample_size + validation_sample_size + testing_sample_size - 1)] #These are dates inside testing sample
 
     first_rebalance_date <- min(dates_testing_sample) #Get first rebalancing date
     rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
@@ -666,14 +789,16 @@ run_sb_backtest_internal <- function(
     for(d in (training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size - 1)){
       #Get current date
       current_date <- dates_m_vector[d]
-      #Check if it's a rebalancing month
+
+      ##Check if it's a rebalancing month
       if((lubridate::month(current_date) %in% rebalancing_months) || d == (training_sample_size + validation_sample_size)){
-        #Print refitting message
-        if(verbose){
-          cat("\n")
-          cat(crayon::yellow(paste("Starting model rebalancing at:", current_date)))
-          cat("\n")
-        }
+
+          ###Print refitting message
+          if(verbose){
+            cat("\n")
+            cat(crayon::yellow(paste("Starting model rebalancing at:", current_date)))
+            cat("\n")
+          }
 
         ###Select and correct signals
         ##################
@@ -693,29 +818,41 @@ run_sb_backtest_internal <- function(
           chosen_signals_and_positions = chosen_signals_and_positions, #Get instruction on what to change features
           backtest_returns_xts = backtest_returns_xts #Backtest returns to be corrected
         )
+
         ####Get results
-        selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-        selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+          ####Selected features_m_df with corrected positions
+          selected_features_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+          ####Selected backtest_returns_corrected_positions_xts
+          selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+          ####Subset cov_matrix_benchmark
+          selected_cov_matrix_benchmark_xts <- benchmark_returns_xts[, cov_matrix_benchmark]
 
+            ###Check if both are contemplated in signal_themes
+            if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(signal_themes_m_df$tickers))){
+              stop("all selected signals (with corrected positions) should have a theme classification in signal_themes_m_df")
+            }
+            if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% signal_themes_m_df$tickers)){
+              stop("all selected signals in backtests (with corrected positions) should have a theme classification in signal_themes_m_df")
+            }
 
-        #Print message
-        if(verbose){
-          cat("\n")
-          cat("Selecting and correcting signals:")
-          cat("\n")
-          cat("Most recent signal universe:\n")
-          print(most_recent_signal_universe_m_d_ref)
-          cat("\n")
-          cat("Eligible signals and positions:\n")
-          print(chosen_signals_and_positions)
-        }
+            ###Print message
+            if(verbose){
+              cat("\n")
+              cat("Selecting and correcting signals:")
+              cat("\n")
+              cat("Most recent signal universe:\n")
+              print(most_recent_signal_universe_m_d_ref)
+              cat("\n")
+              cat("Eligible signals and positions:\n")
+              print(chosen_signals_and_positions)
+            }
 
 
         ##################
 
         ###Time Series Splits
         ##################
-        #In case of ML models, there is a validation split to search for hyperparameters. Therefore, the sample is split in three
+        #In case of SB models, there is a validation split to search for hyperparameters. Therefore, the sample is split in three
 
         ###Features and target split
         ts_splits <- time_series_split(
@@ -734,8 +871,8 @@ run_sb_backtest_internal <- function(
 
         ###backtest and selected market factor proxy split (get up to date references)
         selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[which(zoo::index(selected_backtest_returns_corrected_positions_xts) <= current_date), ] #Get backtest returns until current date
-        selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[which(zoo::index(selected_market_factor_proxy_xts) <= current_date), ]
-
+        selected_cov_matrix_benchmark_xts_upd_ref <- selected_cov_matrix_benchmark_xts[which(zoo::index(selected_cov_matrix_benchmark_xts) <= current_date), ]
+        signal_themes_m_d_ref <- signal_themes_m_df[which(signal_themes_m_df$dates == current_date), ] #Not only selected because we need to compute groups for benchmark
 
         ##################
 
@@ -770,7 +907,7 @@ run_sb_backtest_internal <- function(
           #Hyper tune according to chosen tuning_method
           ##################
           ###Print
-          if(verbose == TRUE){
+          if(verbose){
             cat(paste("Starting", tuning_method, "hyperparameter tuning at:", current_date))
             cat("\n")
           }
@@ -814,34 +951,43 @@ run_sb_backtest_internal <- function(
           validation_eval_metrics_hyper_choice[paste(current_date),] <-
             hyper_tune_results$validation_eval_metrics_hyper_choice_current_date[,colnames(validation_eval_metrics_hyper_choice)] #Take rights columns
           ###################
+        } else {
+          optimal_hyper <- NULL #Set optimal hyper as NULL for methods that do not depend on hyper tuning
         }
 
         #Refitting
         ###################
 
-        ###Set objects
+        ###Set objects for regression-type algos
         ####Refit new model using data from d - target_fwd
-          features_m_refit <- ts_splits$refit$features_m_refit #Subset
+          selected_features_corrected_positions_m_refit <- ts_splits$refit$features_m_refit #Subset -> Signal Ports do not depend on features_m_refit. Therefore, they are fit with most avaiable signal universe data.
           target_m_refit <- ts_splits$refit$target_m_refit #Subset
-          full_data_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
+          selected_full_data_corrected_positions_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
 
 
         #(RE)Fit SB Model
-
-
-
-
-
-        #Create S4 Object
-        refit_sb_model <- new("sb_model",
-                              model = sb_model,
-                              model_class = class(refit_model),
-                              sb_algorithm = sb_algorithm,
-                              best_hyperparameters = if(sb_algorithm == "ols") NULL else optimal_hyper,
-                              custom_objective = custom_objective_translated,
-                              huber_delta = huber_delta,
-                              keras_architecture_parameters = keras_architecture_parameters
+        sb_model_fit <- fit_sb_model(
+          #General Parameters
+          sb_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
+          #Data
+          selected_features_corrected_positions_m_refit = selected_features_corrected_positions_m_refit, target_m_refit = target_m_refit,
+          selected_full_data_corrected_positions_m_refit_clean = selected_full_data_corrected_positions_m_refit_clean,
+          #Model Params
+          custom_objective_translated = custom_objective_translated, huber_delta = huber_delta, quantile_tau = quantile_tau, early_stop = early_stop,
+          keras_architecture_parameters = keras_architecture_parameters,
+          #Hyperparameters
+          optimal_hyper = optimal_hyper, chosen_eval_metric_translated = chosen_eval_metric_translated,
+          #Signal Ports Parameters
+          most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+          selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref, selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+          cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns,
+          rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+          concentration_constraint_policy = concentration_constraint_policy,
+          upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization,
+          #etc
+          verbose = verbose
         )
+
 
         ###################
 
@@ -851,20 +997,21 @@ run_sb_backtest_internal <- function(
       ############
       #d stands for the date in which the features are being calculated. Therefore, in d, we have new features, but we still don't have the target, as it is in future.
       d_ref <- which(as.Date(features_m_df$dates,  format = "%Y-%m-%d") == current_date) #What references correspond to this date?
+
       #Subsets for date
       target_vector_ref <- target_vector[d_ref] #targets for new date
-      features_m_d_ref <- features_m_df[d_ref,] #features for new date.
+      selected_features_corrected_positions_m_d_ref <- selected_features_corrected_positions_m_df[d_ref,] #features for new date.
+
       #Reference for input in testing list
       testing_lists_ref <- d - training_sample_size - validation_sample_size + 1
 
       #Make predictions
-      oos_prediction_list[[testing_lists_ref]] <- predict(refit_ml_model, new_features_m_df = features_m_d_ref)
-
-      names(oos_prediction_list[[testing_lists_ref]]) <- features_m_d_ref$tickers #Rename
+      oos_prediction_list[[testing_lists_ref]] <- predict(sb_model_fit, new_features_m_df = selected_features_corrected_positions_m_d_ref)
+      names(oos_prediction_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref$tickers #Rename
 
       #Inform targets
       oos_y_list[[testing_lists_ref]] <- as.numeric(target_vector_ref)
-      names(oos_y_list[[testing_lists_ref]]) <- features_m_d_ref$tickers  #Rename
+      names(oos_y_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref$tickers  #Rename
 
       #Calculate eval metrics and error on testing sample
       testing_metrics <- calculate_eval_metrics(pred = oos_prediction_list[[testing_lists_ref]], target = oos_y_list[[testing_lists_ref]],
@@ -872,8 +1019,22 @@ run_sb_backtest_internal <- function(
 
       #Fill error
       oos_error_list[[testing_lists_ref]] <- as.numeric(testing_metrics$error) #Calculate error
-      names(oos_error_list[[testing_lists_ref]]) <- features_m_d_ref$tickers  #Rename
+      names(oos_error_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref$tickers  #Rename
 
+      #Turn all oos_lists to a single meta_dataframe
+        ##Turn y, preds and error in a oos_sb_outputs_m_df
+        oos_y_m_df <- convert_oos_list_to_m_df(oos_y_list) #Convert list to meta dataframe
+        colnames(oos_y_m_df)[4] <- "target"
+        oos_prediction_m_df <- convert_oos_list_to_m_df(oos_prediction_list) #Convert list to meta dataframe
+        colnames(oos_prediction_m_df)[4] <- "pred"
+        oos_error_m_df <- convert_oos_list_to_m_df(oos_error_list) #Convert list to meta dataframe
+        colnames(oos_error_m_df)[4] <- "error"
+
+        ##Join into a single meta dataframe
+        oos_sb_outputs_m_df <- create_meta_dataframe(
+          dplyr::left_join(oos_y_m_df, dplyr::select(oos_prediction_m_df, -tickers, -dates)) %>%
+          dplyr::left_join(dplyr::select(oos_error_m_df, -tickers, -dates)), type = "oos_sb_outputs"
+        )
 
       #Test Eval Metrics
       oos_testing_eval_metrics[testing_lists_ref,] <- testing_metrics$df_eval_metrics[,colnames(oos_testing_eval_metrics)]
@@ -889,17 +1050,8 @@ run_sb_backtest_internal <- function(
     #initialize result list
     result_list <- list()
 
-    #OOS Prediction List
-    result_list[[1]] <- oos_prediction_list
-    names(result_list[[1]]) <- dates_testing_sample #Rename
-
-    #OOS Error List
-    result_list[[2]] <- oos_error_list
-    names(result_list[[2]]) <- dates_testing_sample #Rename
-
-    #OOS Y List
-    result_list[[3]] <- oos_y_list
-    names(result_list[[3]]) <- dates_testing_sample #Rename
+    #OOS SB Outputs
+    result_list[[1]] <- oos_sb_outputs_m_df
 
     #OOS Testing Eval-metrics
       ##Create consolidated row
@@ -907,33 +1059,33 @@ run_sb_backtest_internal <- function(
                                                           huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
       rownames(consolidated_eval_metrics) <- "consolidated"
 
-    result_list[[4]] <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
+    result_list[[2]] <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
 
     #Model
-    result_list[[5]] <- refit_ml_model
+    result_list[[3]] <- sb_model_fit
 
     if(!sb_algorithm == "ols"){
 
       #Validation eval for all hyperparameters
       names(chosen_eval_metric_validation) <- rebalance_dates #Change names
-      result_list[[6]] <- chosen_eval_metric_validation
+      result_list[[4]] <- chosen_eval_metric_validation
       #Hyper_choice
-      result_list[[7]] <- hyper_choice_df
+      result_list[[5]] <- hyper_choice_df
 
       #Validation eval-metrics
         ##Create average row
         avg_validation_eval_metrics_hyper_choice <- as.data.frame(t(colMeans(validation_eval_metrics_hyper_choice)))
         rownames(avg_validation_eval_metrics_hyper_choice) <- "average"
 
-      result_list[[8]] <- rbind(validation_eval_metrics_hyper_choice, avg_validation_eval_metrics_hyper_choice)
+      result_list[[6]] <- rbind(validation_eval_metrics_hyper_choice, avg_validation_eval_metrics_hyper_choice)
 
       #Fill names
-      names(result_list) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+      names(result_list) <- c("oos_sb_outputs_m_df", "oos_testing_eval_metrics", "final_model",
                               "chosen_eval_metric_validation","best_hyperparameters", "validation_eval_metrics_hyper_choice") #ML Specific
 
     } else {
       #Fill names
-      names(result_list) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
+      names(result_list) <- c("oos_sb_outputs_m_df", "oos_testing_eval_metrics", "final_model")
     }
 
 
@@ -975,7 +1127,7 @@ run_sb_backtest_internal <- function(
     #Features
     features = colnames(features_m_df[,-c(1:3)]),
     features_workflow = NULL,
-    features_object = "not_identified",
+    features_object_name = "not_identified",
     #Tuning
     tuning_method = tuning_method,
     n_iter = n_iter,
@@ -989,6 +1141,22 @@ run_sb_backtest_internal <- function(
     early_stop = early_stop,
     #Keras
     keras_architecture_parameters = keras_architecture_parameters,
+    #Heuristic SB
+    cov_matrix_sample_size = cov_matrix_sample_size,
+    cov_estimation_method = cov_estimation_method,
+    cov_matrix_benchmark = cov_matrix_benchmark,
+    active_returns = active_returns,
+    benchmark_returns_object_name = "not_identified",
+    backtest_returns_object_name = "not_identified",
+    rp_method = rp_method,
+    n_random_ports = n_random_ports,
+    random_ports_method = random_ports_method,
+    opt_objective = opt_objective,
+    concentration_constraint_policy = concentration_constraint_policy,
+    signal_themes_object_name = "not_identified",
+    signal_themes_workflow = NULL,
+    lower_quantile_winsorization = lower_quantile_winsorization,
+    upper_quantile_winsorization = upper_quantile_winsorization,
     #Performance
     timestamps = c(initialization = Sys.time()),
     elapsed_time = elapsed_time,
@@ -1000,9 +1168,7 @@ run_sb_backtest_internal <- function(
   #Get S4 object
   sb_backtest_results_object <-
     new("sb_backtest_results",
-        oos_prediction_list = result_list$oos_prediction_list,
-        oos_error_list = result_list$oos_error_list,
-        oos_y_list = result_list$oos_y_list,
+        oos_sb_outputs_m_df = result_list$oos_sb_outputs_m_df,
         oos_testing_eval_metrics = result_list$oos_testing_eval_metrics,
         final_model = result_list$final_model,
         chosen_eval_metric_validation = result_list$chosen_eval_metric_validation,
@@ -1047,10 +1213,10 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, target_fwd_name, b
   base_sb_backtest_configs_names <- sapply(base_sb_backtest_configs, function(x) x@config_name)
 
   if (verbose == TRUE) {
-    cat(crayon::green("Starting Base ML backtests:\n"))
+    cat(crayon::green("Starting Base SB backtests:\n"))
     cat(paste("Number of configurations: ", length(base_sb_backtest_configs), "\n"))
     cat(paste("Configuration names: ", paste(base_sb_backtest_configs_names, collapse = ", "), "\n"))
-    tictoc::tic(msg = crayon::green("Base ML backtests finished\n"))
+    tictoc::tic(msg = crayon::green("Base SB backtests finished\n"))
   }
 
   tryCatch({
@@ -1060,7 +1226,7 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, target_fwd_name, b
                                                          ~ run_sb_backtest( #Backtesting function
                                                            ...,
                                                            #Data
-                                                           features_m_df = features_m_df, target_m_df = target_m_df, target_fwd_name = target_fwd_name,
+                                                           features_m_df = features_m_df, target_m_df = target_m_df,
                                                            #Misc
                                                            verbose = FALSE, parallel = parallel
                                                          ),
@@ -1073,7 +1239,7 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, target_fwd_name, b
       base_sb_backtest_results_list <-  purrr::map(base_sb_backtest_configs,
                                                    run_sb_backtest, #Backtesting function
                                                    #Data
-                                                   features_m_df = features_m_df, target_m_df = target_m_df, target_fwd_name = target_fwd_name,
+                                                   features_m_df = features_m_df, target_m_df = target_m_df,
                                                    #Misc
                                                    verbose = FALSE, parallel = parallel
       )

@@ -18,10 +18,10 @@ create_signal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
 
 
   #Calculate Signal-Weights
-  sw_weights <- universe_m_d_ref %>% dplyr::select(tickers, is_eligible, final_signal) %>% #Select only two colums
+  sw_weights <- universe_m_d_ref %>% dplyr::select(tickers, is_eligible, exp_ret_score) %>% #Select only two colums
     dplyr::filter(is_eligible == 1) %>% #Filter only eligibles
-    dplyr::mutate(weights = final_signal/sum(final_signal)) %>% #Calculate equal-weights
-    dplyr::select(-is_eligible, -final_signal) #Drop
+    dplyr::mutate(weights = exp_ret_score/sum(exp_ret_score)) %>% #Calculate equal-weights
+    dplyr::select(-is_eligible, -exp_ret_score) #Drop
 
   #Left Join back to portfolio
   universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, sw_weights, by = "tickers") #Left join
@@ -37,6 +37,13 @@ create_signal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
     elapsed_time <- tictoc::toc()
   }
 
+
   #Return
-  return(universe_m_d_ref)
+  sw_results_list <- list(
+    universe_m_d_ref = universe_m_d_ref,
+    weights = universe_m_d_ref$weights,
+    exp_ret_score = universe_m_d_ref$exp_ret_score
+  )
+
+  return(sw_results_list)
 }

@@ -1,16 +1,9 @@
-#' Create a MTO portfolio
+#' Create a MVO portfolio
 #'
-#' @param universe_m_d_ref A dataframe with tickers, is_eligible and final_signal columns
-#' @param returns_d_ref A dataframe in which columns represent tickers present in universe_m_d_ref and row represent days
-#' It should include all stocks in current_stock_universe and a dates column with at least covariance_matrix_sample_size days before current_date
-#' @param current_date Current date
-#' @param covariance_matrix_sample_size Number of periods to subset returns_df sample when estimating the covariance_matrix. A high number will provide
-#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
-#' to dimensionality curse.
-#' @param covariance_estimation_method One of SAM (Sample), EWMA, CC (Constant Correlation), PCA1, PCA2, Shrink_ID or Shrink_CC.
-#' If NULL, blending_method can only be EW or IR
-#' @param rp_method
-#' @param n_random_portfolios
+#' @param universe_m_d_ref A dataframe with tickers, is_eligible and exp_ret_score columns
+#' @param covariance_matrix The covariance matrix of all eligible stocks in universe_m_d_ref.
+#' @param random_ports_method
+#' @param n_random_ports
 #' @param liquidity_constraint_policy Optional. A named list containing objects used to apply liquidity constraints. Possible elements of the list are:
 #' - `liquidity_floor_rule`: A character indicating the liquidity classification (e.g., micro_caps, small_caps) used to filter stocks. Stocks with less liquidity than specified in `liquidity_floor_rule` will be considered ineligible.
 #'   In the case of the `generate_box_constraints` function, `liquidity_constraint_policy` can also contain:
@@ -28,25 +21,21 @@
 #' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
 #' Must have a correspondence in `benchmark_weights_m_d_ref`
 #' - `max_abs_active_individual_weight`: The maximum absolute individual active weights.
-#' - `group_classification`: A character vector describing the group classification to be used to apply group constraints.
-#' Must have a correspondence in `groups_m_d_ref`
 #' - `max_abs_active_group_weight`: The maximum absolute group active weight used for creating group constraints in `generate_group_constraints`.
 #' If a given group has no eligible stock, the one with the greatest signal will be automatically promoted.
 #' Note that, in the context of `generate_group_constraints`, a `benchmark_weights_m_d_ref` data frame must also be supplied.
-#' @param benchmark_weights_m_d_ref A data frame containing columns for id, tickers, dates, and current benchmark weights columns.
-#'  All tickers in the current stock universe must have a unique correspondence in this data frame.
 #' @param groups_m_d_ref A data frame containing columns for id, tickers, dates, and group classification columns following a given classification method.
 #' All tickers in the current stock universe must have a unique correspondence in the data frame.
-#' @param mto_port_objective A character describing the objective to maximize in order to choose the best portfolio. One of "AR (active return)",
-#' "TE (tracking error)" or " IR (information ratio)"
+#' @param opt_objective A character describing the objective to maximize in order to choose the best portfolio. One of "return (max return)",
+#' "risk (min risk)" or "sharpe (max sharpe-ratio)"
 #' @return
 #' @export
 #'
-create_mto_portfolio <- function(universe_m_d_ref,
-                                 returns_upd_ref, covariance_matrix_sample_size, covariance_estimation_method, #Covariance matrix estimation
+create_mvo_portfolio <- function(universe_m_d_ref,
+                                 covariance_matrix,
                                  liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL, #Constraints
                                  groups_m_d_ref = NULL,
-                                 n_random_portfolios = 2000, rp_method = "sample", mto_port_objective = "IR",
+                                 n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random",
                                  verbose = TRUE
 ){
 
@@ -54,9 +43,9 @@ create_mto_portfolio <- function(universe_m_d_ref,
   if(verbose){
     tictoc::tic()
     cat("\n")
-    cat("Deriving weights through MTO...")
+    cat("Deriving weights through MVO...")
     cat("\n")
-    cat(paste0("Optimization objective: ", mto_port_objective, "."))
+    cat(paste0("Optimization objective: ", opt_objective, "."))
   }
 
   #Eligible universe
@@ -103,7 +92,7 @@ create_mto_portfolio <- function(universe_m_d_ref,
     ###Message
     if(verbose){
       cat("\n")
-      cat("Defining group constraints following: ", colnames(groups_m_d_ref[,-c(1:3)]))
+      cat("Defining group constraints following: ", colnames(groups_m_d_ref)[-c(1:3)])
     }
     ###Generate group constraints
     group_constraints_list <- generate_group_constraints(universe_m_d_ref = universe_m_d_ref, #Current Stock Universe
@@ -126,18 +115,18 @@ create_mto_portfolio <- function(universe_m_d_ref,
   ##Message
   if(verbose){
     cat("\n")
-    cat(paste0("Beginning numerical optimization with ", n_random_portfolios, " portfolios and ", rp_method, " method."))
+    cat(paste0("Beginning numerical optimization with ", n_random_ports, " portfolios and ", random_ports_method, " method."))
   }
   ##Numeric optimization
   random_portfolios_weights <- PortfolioAnalytics::random_portfolios(portfolio = port_spec_constrained,
-                                                                     permutations = n_random_portfolios,
-                                                                     rp_method = rp_method
+                                                                     permutations = n_random_ports,
+                                                                     random_ports_method = random_ports_method
   )
   ##Random weights DF
   random_portfolios_weights_df <- as.data.frame(t(random_portfolios_weights)) %>% tibble::rownames_to_column()
   colnames(random_portfolios_weights_df)[1] <- "tickers"
 
-  random_portfolios_weights_df <- dplyr::left_join(dplyr::select(eligible_universe_m_d_ref, c(tickers, final_signal)), #Get eligible stocks
+  random_portfolios_weights_df <- dplyr::left_join(dplyr::select(eligible_universe_m_d_ref, c(tickers, exp_ret_score)), #Get eligible stocks
                                                    random_portfolios_weights_df, #Get weights
                                                    by = "tickers")
 
@@ -148,41 +137,37 @@ create_mto_portfolio <- function(universe_m_d_ref,
   ####################
   ##Calculate Portfolios Expected Returns
   expected_returns <-
-    apply(dplyr::select(random_portfolios_weights_df, c(-tickers, -final_signal)), 2, function(col){ ##Multiply each weights col to final signal
-      sum(col * random_portfolios_weights_df$final_signal) #Calculate active returns
+    apply(dplyr::select(random_portfolios_weights_df, c(-tickers, -exp_ret_score)), 2, function(col){ ##Multiply each weights col to final signal
+      sum(col * random_portfolios_weights_df$exp_ret_score) #Calculate active returns
     })
 
-  ##Calculate Portfolio Covariance
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_universe_m_d_ref$tickers, #Eligible universe
-                                                  returns_upd_ref = returns_upd_ref, #Return sample
-                                                  covariance_matrix_sample_size = covariance_matrix_sample_size, covariance_estimation_method = covariance_estimation_method, #Cov estimation
-                                                  groups_m_d_ref = groups_m_d_ref) #Groups
 
   ##t(w) * Cov * w
   expected_risk <-
-    apply(dplyr::select(random_portfolios_weights_df, c(-tickers, -final_signal)), 2, function(col){
+    apply(dplyr::select(random_portfolios_weights_df, c(-tickers, -exp_ret_score)), 2, function(col){
       sqrt(t(col) %*% covariance_matrix %*% col) #Calculate tracking error
     })
 
-    ##Get IR
-    expected_ir <- expected_returns/expected_risk
+    ##Get Sharpe Ratio
+    expected_sharpe <- expected_returns/expected_risk
 
   ####################
 
   #Get best portfolio
   ###################
   ##Which stock maximizes objective?
-  best_portfolio <- names(switch(mto_port_objective,
-                                 "IR" = which.max(expected_ir), #Max IR
-                                 "AR" = which.max(expected_returns), #Max AR
-                                 "TE" = which.min(expected_risk) #Min Risk
+  best_portfolio <- names(switch(opt_objective,
+                                 "sharpe" = which.max(expected_sharpe), #Max Sharpe
+                                 "return" = which.max(expected_returns), #Max Return
+                                 "risk" = which.min(expected_risk) #Min Risk
   ))
 
   #Get best portfolio
-  mto_weights <- data.frame(tickers = random_portfolios_weights_df$tickers, weights = random_portfolios_weights_df[,best_portfolio]) #get weights and relative risk contribution
+  mvo_weights <- data.frame(tickers = random_portfolios_weights_df$tickers,
+                            weights = random_portfolios_weights_df[,best_portfolio]) #get weights and relative risk contribution
 
   #Merge with current_stock_universe
-  universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, mto_weights, by = "tickers")
+  universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, mvo_weights, by = "tickers")
 
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
@@ -194,17 +179,26 @@ create_mto_portfolio <- function(universe_m_d_ref,
     cat("\n")
     cat(paste("Metrics for the portfolio were:"))
     cat("\n")
-    cat(paste("Expected Active Return:", round(expected_returns[as.numeric(gsub("V", "", best_portfolio))],3)))
+    cat(paste("Expected Return:", round(expected_returns[as.numeric(gsub("V", "", best_portfolio))],3)))
     cat("\n")
-    cat(paste("Expected Tracking Error:", round(expected_risk[as.numeric(gsub("V", "", best_portfolio))],3)))
+    cat(paste("Expected Risk:", round(expected_risk[as.numeric(gsub("V", "", best_portfolio))],3)))
     cat("\n")
-    cat(paste("Expected Information Ratio:", round(expected_ir[as.numeric(gsub("V", "", best_portfolio))],3)))
+    cat(paste("Expected Sharpe:", round(expected_sharpe[as.numeric(gsub("V", "", best_portfolio))],3)))
     cat("\n")
     elapsed_time <- tictoc::toc()
   }
 
   #Return
-  return(universe_m_d_ref)
+  mvo_results_list <- list(
+    universe_m_d_ref = universe_m_d_ref,
+    weights = universe_m_d_ref$weights,
+    exp_ret_score = universe_m_d_ref$exp_ret_score,
+    port_spec = port_spec_constrained,
+    random_portfolios_weights_df = random_portfolios_weights_df
+  )
+
+
+  return(mvo_results_list)
 
 
 

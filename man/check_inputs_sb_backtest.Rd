@@ -14,10 +14,12 @@ check_inputs_sb_backtest(
   split_method,
   signal_universe_m_df,
   backtest_returns_xts,
-  selected_market_factor_proxy_xts,
-  covariance_matrix_sample_size,
-  covariance_estimation_method,
+  benchmark_returns_xts,
+  cov_matrix_benchmark,
+  cov_matrix_sample_size,
+  cov_estimation_method,
   active_returns,
+  signal_themes_m_df,
   rp_method,
   n_random_ports,
   random_ports_method,
@@ -57,6 +59,8 @@ check_inputs_sb_backtest(
 
 \item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
+\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
+
 \item{sb_algorithm}{Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto").}
 
 \item{custom_objective}{Character, custom objective function for loss.}
@@ -88,8 +92,6 @@ check_inputs_sb_backtest(
 \item{verbose}{Logical, whether to print verbose output.}
 
 \item{signal_universe_m_d_ref}{A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.}
-
-\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
 
 \item{show_plots}{Logical, whether to show diagnostic plots.}
 }

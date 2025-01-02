@@ -128,27 +128,27 @@ estimate_covariance_matrix <- function(tickers, returns_xts_upd_ref,
                                                                                   k = which(
                                                                                     #Get the cumulative proportion of variance explanation
                                                                                     cumsum(stats::prcomp(cov(R))$sdev/sum(stats::prcomp(cov(R))$sdev))
-                                                                                                      #Which number equates 90% explained
-                                                                                                      >= 0.90)[1])))
-                                        out
+                                                                                    #Which number equates 90% explained
+                                                                                    >= 0.90)[1])))
+                                   out
                                  },
                                  #PCA2
                                  pca2 = function(R){
-                                        out <- list(sigma = PortfolioAnalytics::extractCovariance(
-                                                    PortfolioAnalytics::statistical.factor.model(R,
-                                                                                                 #Number of factors = number that explains 66% of total variance
-                                                                                                 k = round(log(ncol(R))))))
-                                        out
+                                   out <- list(sigma = PortfolioAnalytics::extractCovariance(
+                                     PortfolioAnalytics::statistical.factor.model(R,
+                                                                                  #Number of factors = number that explains 66% of total variance
+                                                                                  k = round(log(ncol(R))))))
+                                   out
                                  },
                                  #Shrink ID
                                  shrink_id = function(R){
-                                             out <- list(sigma = PerformanceAnalytics::M2.shrink(R, target = 2)$M2sh)
-                                             out
+                                   out <- list(sigma = PerformanceAnalytics::M2.shrink(R, target = 2)$M2sh)
+                                   out
                                  },
                                  #Shrink CC
                                  shrink_cc = function(R){
-                                             out <- list(sigma = PerformanceAnalytics::M2.shrink(R, target = 4)$M2sh)
-                                             out
+                                   out <- list(sigma = PerformanceAnalytics::M2.shrink(R, target = 4)$M2sh)
+                                   out
                                  }
 
   )
@@ -159,6 +159,7 @@ estimate_covariance_matrix <- function(tickers, returns_xts_upd_ref,
   ################################
   covariance_matrix <- covariance_estimator(returns_xts_sample_clean)$sigma
   colnames(covariance_matrix) <- colnames(returns_xts_sample_clean)
+  rownames(covariance_matrix) <- colnames(returns_xts_sample_clean)
   ################################
 
   #Message

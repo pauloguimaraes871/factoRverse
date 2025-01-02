@@ -12,7 +12,7 @@ experiment, including the hyperparameter tuning strategy, algorithm parameters, 
 
 \describe{
 \item{\code{sb_algorithm}}{Character string specifying the signal-blending algorithm to be used. Should be one of
-ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mto (Mean-Tracking Error Optimization),
+ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mvo (Mean Variance Optimization),
 ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
 
 \item{\code{target_fwd_name}}{Name of the target variable in \code{target_m_df}.}

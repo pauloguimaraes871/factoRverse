@@ -96,9 +96,9 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
 ){
   ###Check objects
   #################
-  ##Check if last col is final_signal
-  if(!"final_signal" == colnames(signals_m_d_ref)[length(colnames(signals_m_d_ref))]){
-    stop("last column of signals_m_d_ref must be final_signal")
+  ##Check if last col is exp_ret_score
+  if(!"exp_ret_score" == colnames(signals_m_d_ref)[length(colnames(signals_m_d_ref))]){
+    stop("last column of signals_m_d_ref must be exp_ret_score")
   }
 
   ##Check if liquidity_m_d_ref is for only one date
@@ -201,10 +201,10 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
   }
   ###Only Top Assets Rule for Stocks
   else {
-    universe_m_d_ref$top_assets <- ifelse(signals_m_d_ref[,"final_signal"] >= quantile(signals_m_d_ref[,"final_signal"], top_assets_quantile), 1L,0L) #Apply rule
+    universe_m_d_ref$top_assets <- ifelse(signals_m_d_ref[,"exp_ret_score"] >= quantile(signals_m_d_ref[,"exp_ret_score"], top_assets_quantile), 1L,0L) #Apply rule
     #Print
     if(verbose){
-      cat("The following stocks have a final_signal above the specified quantile for top_assets:",
+      cat("The following stocks have a exp_ret_score above the specified quantile for top_assets:",
           paste(universe_m_d_ref$tickers[universe_m_d_ref$top_assets == 1], collapse = ", "), "\n")
     }
   }
@@ -373,7 +373,7 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
             which(universe_m_d_ref[,groups[i]] == ineligible_groups[j]),]
 
           ##Replace is_eligible for 1 for that asset high highest signal
-          best_ineligible_asset <- assets_in_ineligible_groups$tickers[which.max(assets_in_ineligible_groups$final_signal)]
+          best_ineligible_asset <- assets_in_ineligible_groups$tickers[which.max(assets_in_ineligible_groups$exp_ret_score)]
           universe_m_d_ref[which(universe_m_d_ref$tickers == best_ineligible_asset),"is_eligible"] <- 1
 
           ##Print

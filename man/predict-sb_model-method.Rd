@@ -4,7 +4,12 @@
 \alias{predict,sb_model-method}
 \title{Predict Method for sb_model Class}
 \usage{
-\S4method{predict}{sb_model}(object, new_features_m_df)
+\S4method{predict}{sb_model}(
+  object,
+  new_features_m_df,
+  lower_quantile_winsorization = 0.025,
+  upper_quantile_winsorization = 0.975
+)
 }
 \arguments{
 \item{object}{An instance of the \code{sb_model} class containing the
@@ -19,7 +24,7 @@ three columns, which are reserved for identifiers.}
 A numeric vector of predictions for the new feature data.
 }
 \description{
-This method generates predictions using a refitted machine learning model
+This method generates predictions using a refitted sb model
 based on the provided new feature data. It accommodates different machine
 learning algorithms and applies the appropriate prediction logic.
 }

@@ -39,7 +39,7 @@ test_that("define_signal_elibility works for no-pooled setting", {
   expected_result$signal_universe_m_d_ref$adjusted_p_value <- p_value_df$adjusted_p_value
 
   #final signal
-  expected_result$signal_universe_m_d_ref$final_signal <-
+  expected_result$signal_universe_m_d_ref$exp_ret_score <-
     signal_transform(expected_result$signal_universe_m_d_ref[, "alpha_t_stat"],
                      upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization)
 
@@ -54,7 +54,7 @@ test_that("define_signal_elibility works for no-pooled setting", {
                                                            asset_object = "signals")
 
 
-  expected_result$signal_universe_m_d_ref$final_signal <- NULL
+  expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
   #results
   results <- define_signal_eligibility(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
                                        selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
@@ -122,7 +122,7 @@ test_that("define_signal_elibility works for pooled setting", {
 
 
   #final signal
-  expected_result$signal_universe_m_d_ref$final_signal <-
+  expected_result$signal_universe_m_d_ref$exp_ret_score <-
     signal_transform(expected_result$signal_universe_m_d_ref[, "alpha_t_stat"],
                      upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization)
 
@@ -136,7 +136,7 @@ test_that("define_signal_elibility works for pooled setting", {
                                                            concentration_constraint_policy = concentration_constraint_policy_test,
                                                            asset_object = "signals")
 
-  expected_result$signal_universe_m_d_ref$final_signal <- NULL
+  expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
   #results
   results <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
                                        selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
@@ -195,7 +195,7 @@ test_that("define_signal_elibility works for no-pooled frequentist setting when 
 
 
   #final signal
-  expected_results$signal_universe_m_d_ref$final_signal <-
+  expected_results$signal_universe_m_d_ref$exp_ret_score <-
     signal_transform(expected_results$signal_universe_m_d_ref[, "alpha_t_stat"],
                      upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization)
 
@@ -260,7 +260,7 @@ test_that("define_signal_elibility works for no-pooled frequentist setting when 
   expected_result$signal_universe_m_d_ref$adjusted_p_value <- p.adjust(expected_result$signal_universe_m_d_ref$p_value, "none")
 
   #final signal
-  expected_result$signal_universe_m_d_ref$final_signal <- signal_transform(expected_result$signal_universe_m_d_ref[, "alpha_t_stat"], upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization)
+  expected_result$signal_universe_m_d_ref$exp_ret_score <- signal_transform(expected_result$signal_universe_m_d_ref[, "alpha_t_stat"], upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization)
 
 
   #Classify
@@ -271,7 +271,7 @@ test_that("define_signal_elibility works for no-pooled frequentist setting when 
                                                            groups_m_d_ref = selected_signal_themes_m_d_ref, concentration_constraint_policy = concentration_constraint_policy_test,
                                                            asset_object = "signals")
 
-  expected_result$signal_universe_m_d_ref$final_signal <- NULL
+  expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
 
   result <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
                                                            selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
@@ -337,7 +337,7 @@ test_that("define_signal_elibility works for pooled frequentist setting when the
   expected_result$signal_universe_m_d_ref$adjusted_p_value <- c(adjusted_p_value[1], NA, adjusted_p_value[1])
 
   #final signal
-  expected_result$signal_universe_m_d_ref$final_signal <- signal_transform(expected_result$signal_universe_m_d_ref[, "alpha_t_stat"], upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization)
+  expected_result$signal_universe_m_d_ref$exp_ret_score <- signal_transform(expected_result$signal_universe_m_d_ref[, "alpha_t_stat"], upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization)
 
 
   #Classify
@@ -348,7 +348,7 @@ test_that("define_signal_elibility works for pooled frequentist setting when the
                                                                           groups_m_d_ref = selected_signal_themes_m_d_ref, concentration_constraint_policy = concentration_constraint_policy_test,
                                                                           asset_object = "signals")
 
-  expected_result$signal_universe_m_d_ref$final_signal <- NULL
+  expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
 
   result <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
                                                        selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
@@ -428,7 +428,7 @@ test_that("define_signal_elibility works for bayesian setting", {
 
   expected_result <- bayesian_results$posterior_signal_universe_m_d_ref
   #final signal
-  expected_result$final_signal <- signal_transform(expected_result[, paste0("posterior_", "alpha_t_stat")],
+  expected_result$exp_ret_score <- signal_transform(expected_result[, paste0("posterior_", "alpha_t_stat")],
                                                    lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization)
 
   #Classify
@@ -445,7 +445,7 @@ test_that("define_signal_elibility works for bayesian setting", {
     bayesian_fit_list = bayesian_results[-1]
   )
 
-  expected_result$signal_universe_m_d_ref$final_signal <- NULL
+  expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
 
   #results
   set.seed(123)

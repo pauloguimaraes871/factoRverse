@@ -7,8 +7,7 @@
 #'
 #' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
-#' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
-#' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
+
 #' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
 #' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
@@ -21,7 +20,6 @@
 #' @param ... Additional arguments (not used in this method).
 #' @export
 setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_xts, benchmark_returns_xts, signal_themes_m_df,
-                                       chosen_signals_and_positions,
                                        ...) {
   standardGeneric("run_ss_backtest")
 })
@@ -32,8 +30,7 @@ setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_xt
 #' @export
 setMethod("run_ss_backtest",
           signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_xts = "xts", benchmark_returns_xts = "xts",
-                    signal_themes_m_df = "meta_dataframe",
-                    chosen_signals_and_positions = "character"),
+                    signal_themes_m_df = "meta_dataframe",),
 
           function(config, signals_m_df, backtest_returns_xts, benchmark_returns_xts, signal_themes_m_df,
                    chosen_signals_and_positions, priors_m_df = NULL,
@@ -56,6 +53,13 @@ setMethod("run_ss_backtest",
             brms_control <- list(iter = 2000, chains = 4, thin = 1, seed = NA, adapt_delta = 0.80, warmup = 1000)
             prior_derivation_control <- list(half_t_df = 30)
             lmer_control <- list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite")
+
+            #Convert 'all' chosen_signals_and_positions
+            if(chosen_signals_and_positions == "all"){
+              chosen_signals <- colnames(signals_m_df@data)[-c(1:3)] #Get all signals in signals_m_df
+              chosen_signals_and_positions <- rep("long", length(chosen_signals)) #Set all positions as 'long'
+              names(chosen_signals_and_positions) <- chosen_signals
+            }
 
             # Input validation
             if (any(!names(chosen_signals_and_positions) %in% colnames(signals_m_df@data)[-c(1:3)])) {
@@ -502,13 +506,13 @@ run_ss_backtest_internal <- function(
     ###Selected signals backtest returns
     selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
 
-    ###Check if both are contemplated in signal_themes
-    if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(selected_signal_themes_m_df$tickers))){
-      stop("all selected signals (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
-    }
-    if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% selected_signal_themes_m_df$tickers)){
-        stop("all selected signals in backtests (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
-    }
+        ###Check if both are contemplated in signal_themes
+        if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(selected_signal_themes_m_df$tickers))){
+          stop("all selected signals (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
+        }
+        if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% selected_signal_themes_m_df$tickers)){
+            stop("all selected signals in backtests (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
+        }
 
     ###Select market factor proxy from benchmark returns xts
      selected_market_factor_proxy_xts <- benchmark_returns_xts[, market_factor_proxy]

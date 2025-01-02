@@ -100,8 +100,8 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             type <- list(...)
             if(length(type) > 0){
               #Check if it is correct
-              if(!type %in% c("generic", "signal_universe", "stock_universe")){
-                stop("type argument must be one of 'generic', 'signal_universe', or 'stock_universe'")
+              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs")){
+                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', or 'oos_sb_outputs'")
               }
             } else {
               type <- "generic"
@@ -206,6 +206,19 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                   meta_dataframe_name = meta_dataframe_name,
                   ss_backtest_workflow = ss_backtest_workflow,
                   sb_backtest_workflow = sb_backtest_workflow)
+              )
+            }
+
+            if(type == "oos_sb_outputs"){
+              return(
+                new("oos_sb_outputs_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name)
               )
             }
           }
@@ -1771,12 +1784,13 @@ setMethod(
 #' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
 #' to dimensionality curse.
 #' @param active_returns logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
-create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE) {
+create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE, cov_matrix_benchmark = NULL) {
 
   cov_est_method <- new("cov_est_method",
                         cov_estimation_method = cov_estimation_method,
                         cov_matrix_sample_size = cov_matrix_sample_size,
-                        active_returns = active_returns
+                        active_returns = active_returns,
+                        cov_matrix_benchmark = cov_matrix_benchmark
                         )
 
 }
@@ -1827,11 +1841,12 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
 #' @param cov_est_method An existing object of class `cov_est_method`.
 #' @export
 setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "missing"),
-          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, ...) {
+          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = NULL ...) {
 
             object@signal_port_parameters@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
                                                                                   cov_matrix_sample_size = cov_matrix_sample_size,
-                                                                                  active_returns = active_returns
+                                                                                  active_returns = active_returns,
+                                                                                  cov_matrix_benchmark = cov_matrix_benchmark
                                                                                   )
 
             return(object)
@@ -1864,11 +1879,12 @@ setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_e
 #' @param cov_est_method An existing object of class `cov_est_method`.
 #' @export
 setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
-          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = TRUE, ...) {
+          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
 
             object@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
                                                            cov_matrix_sample_size = cov_matrix_sample_size,
-                                                           active_returns = active_returns
+                                                           active_returns = active_returns,
+                                                           cov_matrix_benchmark = cov_matrix_benchmark
             )
 
             return(object)
@@ -3221,11 +3237,6 @@ setMethod("add_concentration_constraint_policy",
               object@signal_port_parameters <- methods::new("signal_port_parameters")
             }
 
-            #No group constraints for signal port
-            if(length(policy@max_abs_active_group_weight) > 0){
-              stop("Group constraints are not supported for signal port")
-            }
-
             object@signal_port_parameters@concentration_constraint_policy <- policy
             methods::validObject(object)
             return(object)
@@ -3332,16 +3343,16 @@ setGeneric("add_signal_selection_policy", function(port_backtest_config_obj,
 
 #' @export
 setMethod("add_signal_selection_policy", "port_backtest_config", function(port_backtest_config_obj,
-                                                                        #Signal Selection
-                                                                        chosen_signals = NULL, signal_positions = NULL,
-                                                                        #How to blend signals?
-                                                                        signal_blending_method = NULL, chosen_sb_metric = NULL,
-                                                                        #Restrictions on weights
-                                                                        sb_benchmark_weighting_method = "theme_sb", max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL,
-                                                                        #How to select signals
-                                                                        p_correction_method = "none", signal_significance_threshold = 0.05, data_availability_cutoff = 60,
-                                                                        priors_type = NULL, priors_informative_data = NULL
-                                                                       ) {
+                                                                          #Signal Selection
+                                                                          chosen_signals = NULL, signal_positions = NULL,
+                                                                          #How to blend signals?
+                                                                          signal_blending_method = NULL, chosen_sb_metric = NULL,
+                                                                          #Restrictions on weights
+                                                                          sb_benchmark_weighting_method = "theme_sb", max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL,
+                                                                          #How to select signals
+                                                                          p_correction_method = "none", signal_significance_threshold = 0.05, data_availability_cutoff = 60,
+                                                                          priors_type = NULL, priors_informative_data = NULL
+                                                                        ) {
 
   # Validate arguments
     ## chosen_signals

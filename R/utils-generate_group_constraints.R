@@ -35,15 +35,24 @@ generate_group_constraints <- function(universe_m_d_ref, concentration_constrain
     current_group_m_d_ref <- groups_m_d_ref[, c("tickers", groups[i])]
 
     ##Get benchmark weight
-    current_group_m_d_ref <- merge(current_group_m_d_ref, universe_m_d_ref %>%
-                                     dplyr::select(tickers, !!rlang::sym(paste0(selected_benchmark, "_bench_weights")), is_eligible)) #Dynamically evaluate expression
+    current_group_m_d_ref <- dplyr::left_join(
+      dplyr::select(universe_m_d_ref, tickers, !!rlang::sym(paste0(selected_benchmark, "_bench_weights")), is_eligible), #Dynamically evaluate expression
+      current_group_m_d_ref,
+      by = "tickers"
+    )
 
     ##Change name to easy manipulation
-    colnames(current_group_m_d_ref) <- c("tickers", "group", "benchmark_weight", "is_eligible")
+    colnames(current_group_m_d_ref) <- c("tickers", "benchmark_weight", "is_eligible", "group")
+    current_group_m_d_ref <- current_group_m_d_ref %>% dplyr::select(tickers, group, benchmark_weight, is_eligible)
 
-    ##Get group weights in benchmark
+    ##Get group weights in benchmark and re-order alphabetically
     group_concentration_constraints <- current_group_m_d_ref %>% dplyr::group_by(group) %>% #Group by group
       dplyr::summarise(group_benchmark_weights = sum(benchmark_weight)) #Sum group weights
+
+      ###Check if benchmark weights sum to 1
+      if(sum(group_concentration_constraints$group_benchmark_weights) - 1 > 0.02){
+        stop("Error in generating group constraints. Benchmark weights do not sum to 1.")
+      }
 
     ###Max
     group_concentration_constraints$max_weight <- group_concentration_constraints$group_benchmark_weights +

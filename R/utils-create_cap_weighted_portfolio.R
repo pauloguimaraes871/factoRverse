@@ -52,5 +52,11 @@ create_cap_weighted_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, c
   }
 
   #Return
-  return(universe_m_d_ref)
+  cw_results_list <- list(
+    universe_m_d_ref = universe_m_d_ref,
+    weights = universe_m_d_ref$weights,
+    cap_weighting_metric = universe_m_d_ref$cap_weighting_metric
+  )
+
+  return(cw_results_list)
 }

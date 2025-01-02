@@ -23,7 +23,18 @@
 #' print(transformed_vector)
 #'
 #' @export
-signal_transform <- function(vector, upper_quantile_winsorization, lower_quantile_winsorization){
+signal_transform <- function(vector, lower_quantile_winsorization = 0.05, upper_quantile_winsorization = 0.95){
+
+  #Check if quantiles are correct and adjust if needed
+  if(upper_quantile_winsorization <= lower_quantile_winsorization){
+    #Swap quantiles
+    adj_lower_quantile_winsorization <- upper_quantile_winsorization
+    adj_upper_quantile_winsorization <- lower_quantile_winsorization
+    lower_quantile_winsorization <- adj_lower_quantile_winsorization
+    upper_quantile_winsorization <- adj_upper_quantile_winsorization
+
+    warning("The lower quantile threshold was higher than the upper quantile threshold. The quantiles have been swapped.")
+  }
 
   #If all NAs, return a vector of NAs
   if(all(is.na(vector))){

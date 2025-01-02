@@ -179,7 +179,7 @@ metabacktest <- function(signals_m_df,
           hyper_choice_df$best_lam <- if(signal_selection_policy$ml_parameters$ml_algorithm == "glmnet") NA
           hyper_choice_df$best_iteration <- if(!is.null(signal_selection_policy$ml_parameters$early_stop)) NA
 
-          } else {}
+          }
 
           #Store test eval
           oos_testing_eval_metrics <- data.frame(

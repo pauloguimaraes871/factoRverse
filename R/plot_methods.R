@@ -4589,6 +4589,605 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 })
 
 
+#' Plot Method for 'port' Objects
+#'
+#' This method generates plots for a \code{port} object, depending on the specified \code{type}.
+#' The currently supported plot types are:
+#' \enumerate{
+#'  \item \code{"weights"} - A basic pie chart of the portfolio weights.
+#'  \item \code{"exp_ret_score"} - A bar chart of the portfolio's expected return scores.
+#'  \item \code{"risk_return"} - Scatterplot of expected return score (y) vs. risk (x) (the main diagonal of covariance matrix).
+#'  \item \code{"correlation"} - A heatmap of the correlation (or covariance) matrix.
+#'  \item \code{"relative_risk_contribution"} - A bar chart showing each asset's weight and relative risk contribution side by side.
+#'  \item \code{"efficient_frontier"} - Plots a scatterplot of random portfolios' risk and return, plus an optimal portfolio point.
+#'  \item \code{"group_composition"} - Compares portfolio group weights (e.g., sectors, themes) with benchmark group weights (if available).
+#' }
+#'
+#' @param x An object of class \code{"port"}.
+#' @param y Missing. (Not used.)
+#' @param type A character string specifying the type of plot to generate. If \code{NULL}, the user will be prompted.
+#' @param ... Additional arguments for future extensions (currently unused).
+#'
+#' @return A \code{ggplot} object (invisibly). The function will also print the plot to the graphics device.
+#' @export
+setMethod(
+  "plot",
+  signature(x = "port", y = "missing"),
+  function(x, type = NULL, ...) {
+
+    #------------------------------------------------------------------------------------------------
+    # 0) Prompt for 'type' if not specified
+    #------------------------------------------------------------------------------------------------
+    if (is.null(type)) {
+      available_types <- c(
+        "Weights",
+        "Expected Return Score",
+        "Risk-Return Trade-off",
+        "Correlation",
+        "Relative Risk Contribution",
+        "Efficient Frontier",
+        "Random Weights Distribution",
+        "Group Composition"
+      )
+      cat("\nPlease choose a plot type:\n")
+      for (i in seq_along(available_types)) {
+        cat(paste0(i, ": ", available_types[i], "\n"))
+      }
+      selection <- readline(prompt = "Enter the number of your choice: ")
+      selection <- as.numeric(selection)
+      if (is.na(selection) || selection < 1 || selection > length(available_types)) {
+        stop("Invalid selection.")
+      }
+      type <- available_types[selection]
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # Extract needed slots for convenience
+    #------------------------------------------------------------------------------------------------
+    weights           <- x@weights
+    exp_ret_score     <- x@exp_ret_score
+    cov_mat           <- x@covariance_matrix
+    corr_mat          <- x@correlation_matrix
+    rel_risk_contr    <- x@rel_risk_contr
+    random_port_wt    <- x@random_port_weights
+    groups_df         <- x@groups
+    universe_df       <- if (methods::is(x@universe_m_d_ref, "meta_dataframe")) x@universe_m_d_ref@data else NULL
+    asset_names       <- x@eligible_assets
+    port_name         <- x@port_name
+
+    #------------------------------------------------------------------------------------------------
+    # Color definitions
+    #------------------------------------------------------------------------------------------------
+    vibrant_purple <- "#6A0DAD"
+    black          <- "#000000"
+    white          <- "#FFFFFF"
+    neon_green     <- "#39FF14"
+    neon_orange    <- "#FF5F1F"
+    neon_pink      <- "#FF007F"
+    blue_bg        <- "#001f3f"
+
+    #------------------------------------------------------------------------------------------------
+    # 1) weights - Donut chart
+    #------------------------------------------------------------------------------------------------
+    if (type == "Weights") {
+      if (length(weights) == 0)
+        stop("No weights found in 'x'.")
+      if (length(asset_names) != length(weights))
+        stop("Mismatch between 'eligible_assets' and 'weights' length.")
+
+      # Build plotting data
+      df_pie <- data.frame(Asset = asset_names, Weight = weights) %>%
+        dplyr::filter(.data$Weight > 0)
+
+      if (nrow(df_pie) == 0) {
+        stop("All weights are zero or negative. Nothing to plot.")
+      }
+
+      df_pie <- df_pie %>%
+        dplyr::mutate(
+          prop  = .data$Weight / sum(.data$Weight),
+          label = paste0(.data$Asset, "\n", scales::percent(.data$prop, accuracy = 0.1))
+        )
+
+      # Create donut plot
+      p <- ggplot2::ggplot(df_pie, ggplot2::aes(x = 2, y = .data$prop, fill = .data$Asset)) +
+        ggplot2::geom_bar(stat = "identity", color = white, width = 1, size = 0.5) +
+        # Place labels inside the slices
+        ggplot2::geom_text(
+          ggplot2::aes(label = .data$label),
+          position = ggplot2::position_stack(vjust = 0.5),
+          color = white
+        ) +
+        ggplot2::coord_polar(theta = "y", start = 0) +
+        ggplot2::xlim(1.2, 2.5) +
+        ggplot2::scale_fill_brewer(palette = "Set2") +
+        ggplot2::theme_void() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.margin      = grid::unit(rep(0, 4), "pt"),
+          # Turn off legend since labels are inside
+          legend.position  = "none"
+        ) +
+        ggplot2::labs(
+          title = paste("Portfolio Weights:", if (port_name == "") "not_identified" else port_name)
+        )
+
+      print(p)
+      return(invisible(p))
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # 2) exp_ret_score - Bar chart
+    #------------------------------------------------------------------------------------------------
+    if (type == "Expected Return Score") {
+      if (length(exp_ret_score) == 0)
+        stop("No exp_ret_score found in 'x'.")
+      if (length(asset_names) != length(exp_ret_score))
+        stop("Mismatch between 'eligible_assets' and 'exp_ret_score' length.")
+
+      df_bar <- data.frame(Asset = asset_names, ExpRet = exp_ret_score)
+      p <- ggplot2::ggplot(df_bar, ggplot2::aes(x = .data$Asset, y = .data$ExpRet, fill = .data$Asset)) +
+        ggplot2::geom_bar(stat = "identity", color = black, alpha = 0.8) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          axis.text        = ggplot2::element_text(color = white),
+          axis.title       = ggplot2::element_text(color = white),
+          legend.position  = "none",
+          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
+        ) +
+        ggplot2::labs(
+          title = paste("Expected Return Scores:", if (port_name == "") "not_identified" else port_name),
+          x = "Assets",
+          y = "Exp Ret Score"
+        )
+
+      print(p)
+      return(invisible(p))
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # 3) risk_return - Scatterplot of risk (x) vs. exp_ret_score (y)
+    #------------------------------------------------------------------------------------------------
+    if (type == "Risk-Return Trade-off") {
+      if (is.null(cov_mat))
+        stop("No 'covariance_matrix' found in x for risk_return plot.")
+      if (is.null(exp_ret_score))
+        stop("No 'exp_ret_score' found in x for risk_return plot.")
+      if (nrow(cov_mat) != length(asset_names))
+        stop("Dimension mismatch between covariance_matrix and eligible_assets.")
+
+      diag_risk <- diag(cov_mat)
+      if (length(diag_risk) != length(asset_names))
+        stop("Mismatch between diagonal of covariance_matrix and eligible_assets.")
+      if (length(exp_ret_score) != length(asset_names))
+        stop("Mismatch between exp_ret_score and eligible_assets.")
+
+      df_scatter <- data.frame(
+        Asset  = asset_names,
+        Risk   = sqrt(diag_risk),
+        ExpRet = exp_ret_score
+      )
+
+      p <- ggplot2::ggplot(df_scatter, ggplot2::aes(x = .data$Risk, y = .data$ExpRet, label = .data$Asset)) +
+        ggplot2::geom_point(color = vibrant_purple, size = 3) +
+        ggrepel::geom_text_repel(
+          color = white,
+          size = 3.5,
+          box.padding = 0.3,
+          segment.color = white
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_line(color = "grey20"),
+          axis.text        = ggplot2::element_text(color = white),
+          axis.title       = ggplot2::element_text(color = white),
+          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
+        ) +
+        ggplot2::labs(
+          title = paste("Risk vs. Expected Return Score:", if (port_name == "") "not_identified" else port_name),
+          x = "Expected Risk",
+          y = "Expected Return Score"
+        )
+
+      print(p)
+      return(invisible(p))
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # 4) correlation - heatmap of correlations
+    #------------------------------------------------------------------------------------------------
+    if (type == "Correlation") {
+      if (is.null(corr_mat)) {
+        if (is.null(cov_mat))
+          stop("No covariance_matrix or correlation_matrix found in 'x'. Can't create correlation heatmap.")
+        diag_sd  <- sqrt(diag(cov_mat))
+        outer_sd <- diag_sd %*% t(diag_sd)
+        corr_mat <- cov_mat / outer_sd
+      }
+      if (nrow(corr_mat) != length(asset_names))
+        stop("Dimension mismatch between correlation_matrix and eligible_assets.")
+
+      cat("Assets:\n")
+      for (i in seq_along(asset_names)) {
+        cat(paste0(i, ": ", asset_names[i], "\n"))
+      }
+      cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'book_yield, roe_3m'):\n")
+      selection <- readline(prompt = "Your choice: ")
+
+      if (nzchar(selection) && tolower(selection) != "all") {
+        parts <- strsplit(selection, ",")[[1]]
+        parts <- trimws(parts)
+        all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+        if (all_numeric) {
+          indices <- as.numeric(parts)
+          if (any(indices < 1 | indices > length(asset_names)))
+            stop("Some indices are out of range.")
+          assets_to_plot <- asset_names[indices]
+        } else {
+          if (!all(parts %in% asset_names))
+            stop("Some chosen assets are not in the correlation matrix.")
+          assets_to_plot <- parts
+        }
+      } else {
+        assets_to_plot <- asset_names
+      }
+
+      sub_mat <- corr_mat[assets_to_plot, assets_to_plot, drop = FALSE]
+      sub_mat[upper.tri(sub_mat, diag = FALSE)] <- NA
+
+      df_cor          <- as.data.frame(sub_mat)
+      df_cor$AssetRow <- rownames(df_cor)
+
+      df_long <- df_cor %>%
+        tidyr::pivot_longer(
+          cols      = -AssetRow,
+          names_to  = "AssetCol",
+          values_to = "Correlation"
+        )
+
+      p <- ggplot2::ggplot(
+        df_long,
+        ggplot2::aes(
+          x = factor(.data$AssetCol, levels = assets_to_plot),
+          y = factor(.data$AssetRow, levels = rev(assets_to_plot)),
+          fill = .data$Correlation
+        )
+      ) +
+        ggplot2::geom_tile(color = "white") +
+
+        # NEW: Text labels for each tile
+        ggplot2::geom_text(
+          ggplot2::aes(label = round(.data$Correlation, 2)),
+          color = "black",  # or "white"
+          na.rm = TRUE,
+          size = 3
+        ) +
+
+        ggplot2::scale_fill_gradient2(
+          low      = neon_pink,
+          mid      = white,
+          high     = neon_green,
+          midpoint = 0,
+          limits   = c(-1, 1)
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          axis.text.x      = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1, color = white),
+          axis.text.y      = ggplot2::element_text(color = white),
+          axis.title       = ggplot2::element_blank(),
+          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold"),
+          legend.position  = "right",
+          legend.title     = ggplot2::element_text(color = white),
+          legend.text      = ggplot2::element_text(color = white)
+        ) +
+        ggplot2::labs(
+          title = paste("Correlation Heatmap:", if (port_name == "") "not_identified" else port_name)
+        )
+
+      print(p)
+      return(invisible(p))
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # 5) relative_risk_contribution - bar chart
+    #------------------------------------------------------------------------------------------------
+    if (type == "Relative Risk Contribution") {
+      if (is.null(rel_risk_contr))
+        stop("No 'rel_risk_contr' found in 'x'. This plot requires relative risk contributions.")
+      if (length(rel_risk_contr) != length(weights))
+        stop("Mismatch between rel_risk_contr and weights lengths.")
+
+      df_rrc <- data.frame(
+        Asset  = asset_names,
+        Weight = weights,
+        RRC    = rel_risk_contr
+      )
+
+      # Pivot longer for side-by-side bars
+      df_long <- tidyr::pivot_longer(
+        df_rrc,
+        cols = c("Weight", "RRC"),
+        names_to = "Metric",
+        values_to = "Value"
+      )
+
+      p <- ggplot2::ggplot(
+        df_long,
+        ggplot2::aes(x = .data$Asset, y = .data$Value, fill = .data$Metric)
+      ) +
+        ggplot2::geom_bar(position = "dodge", stat = "identity", color = black, alpha = 0.9) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          axis.text        = ggplot2::element_text(color = white),
+          axis.title       = ggplot2::element_text(color = white),
+          legend.title     = ggplot2::element_text(color = white),
+          legend.text      = ggplot2::element_text(color = white),
+          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
+        ) +
+        ggplot2::scale_fill_manual(values = c("Weight" = vibrant_purple, "RRC" = neon_green)) +
+        ggplot2::labs(
+          title = paste("Relative Risk Contribution:", if (port_name == "") "not_identified" else port_name),
+          x = "Asset",
+          y = "Value",
+          fill = "Metric"
+        )
+
+      print(p)
+      return(invisible(p))
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # 6) efficient_frontier - scatterplot using random_port_weights
+    #------------------------------------------------------------------------------------------------
+    if (type == "Efficient Frontier") {
+      if (is.null(random_port_wt))
+        stop("No 'random_port_weights' found in 'x'. This plot requires random_port_weights.")
+      if (is.null(cov_mat))
+        stop("No covariance_matrix found in 'x'. This plot requires covariance_matrix.")
+      if (is.null(exp_ret_score))
+        stop("No exp_ret_score found in 'x'. This plot requires exp_ret_score.")
+      if (length(random_port_wt$tickers) != length(asset_names)) {
+        stop("random_port_weights does not have the same number of columns as eligible_assets.")
+      }
+
+      # Temporarily rename columns in random_port_wt to match asset_names
+      rp_df <- random_port_wt[,-1]
+      rownames(rp_df) <- asset_names
+
+      # Calculate returns, risk, sharpe for each random portfolio
+      rp_returns <- apply(rp_df, 2, function(w) sum(w * exp_ret_score))
+      rp_risk    <- apply(rp_df, 2, function(w) sqrt(t(w) %*% cov_mat %*% w))
+      rp_sharpe  <- rp_returns / rp_risk
+
+      frontier_df <- data.frame(
+        Return = rp_returns,
+        Risk   = rp_risk,
+        Sharpe = rp_sharpe
+      )
+
+      # Also compute risk/return for the "optimal" portfolio in x@weights
+      opt_w      <- weights
+      opt_return <- sum(opt_w * exp_ret_score)
+      opt_risk   <- sqrt(t(opt_w) %*% cov_mat %*% opt_w)
+      opt_sharpe <- opt_return / opt_risk
+
+      # Create the scatterplot
+      p <- ggplot2::ggplot(frontier_df, ggplot2::aes(x = .data$Risk, y = .data$Return, color = .data$Sharpe)) +
+        ggplot2::geom_point(size = 3, alpha = 0.7) +
+        ggplot2::scale_color_gradient(low = neon_pink, high = neon_green) +
+        # Add the "optimal" portfolio point
+        ggplot2::annotate(
+          "point",
+          x = opt_risk, y = opt_return,
+          color = "red", size = 4, shape = 17
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          axis.text        = ggplot2::element_text(color = white),
+          axis.title       = ggplot2::element_text(color = white),
+          legend.title     = ggplot2::element_text(color = white),
+          legend.text      = ggplot2::element_text(color = white),
+          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
+        ) +
+        ggplot2::labs(
+          title = paste("Efficient Frontier:", if (port_name == "") "not_identified" else port_name),
+          x = "Expected Risk (Std Dev)",
+          y = "Expected Return",
+          color = "Sharpe"
+        )
+
+      print(p)
+      return(invisible(p))
+    }
+    #------------------------------------------------------------------------------------------------
+    # 7) weight distribution
+    #------------------------------------------------------------------------------------------------
+    if (type == "Random Weights Distribution"){
+      # Extract relevant slots
+      random_port_weights <- x@random_port_weights
+      ind_max_weights <- x@ind_max_weights
+      ind_min_weights <- x@ind_min_weights
+      asset_names <- x@eligible_assets
+
+      # Check for required inputs
+      if (is.null(random_port_weights) || is.null(ind_max_weights) || is.null(ind_min_weights)) {
+        stop("random_port_weights, ind_max_weights, and ind_min_weights must be provided.")
+      }
+
+      if (length(ind_max_weights) != length(asset_names) || length(ind_min_weights) != length(asset_names)) {
+        stop("Mismatch between constraints and eligible assets.")
+      }
+
+      # Prepare data for plotting
+      weights_long <- as.data.frame(t(random_port_weights[, -1]))
+      colnames(weights_long) <- random_port_weights$tickers
+      weights_long <- tidyr::pivot_longer(
+        weights_long,
+        cols = dplyr::everything(),
+        names_to = "assets",
+        values_to = "weights"
+      )
+
+      constraints <- data.frame(
+        assets = asset_names,
+        ind_max_weights = ind_max_weights,
+        ind_min_weights = ind_min_weights
+      )
+
+      plot_data <- dplyr::left_join(weights_long, constraints, by = "assets")
+
+      # Create the jitter plot
+      p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = .data$assets, y = .data$weights)) +
+        ggplot2::geom_jitter(width = 0.2, color = "#6A0DAD", alpha = 0.5, size = 2) +
+        ggplot2::geom_point(
+          data = constraints,
+          ggplot2::aes(x = .data$assets, y = .data$ind_max_weights),
+          color = "#FF5F1F", size = 3, shape = 17
+        ) +
+        ggplot2::geom_point(
+          data = constraints,
+          ggplot2::aes(x = .data$assets, y = .data$ind_min_weights),
+          color = "#39FF14", size = 3, shape = 17
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+          panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+          panel.grid = ggplot2::element_blank(),
+          axis.text = ggplot2::element_text(color = "white"),
+          axis.title = ggplot2::element_text(color = "white"),
+          plot.title = ggplot2::element_text(color = "white", size = 14, face = "bold")
+        ) +
+        ggplot2::labs(
+          title = "Weight Distribution with Constraints",
+          x = "Assets",
+          y = "Weights"
+        )
+
+
+      print(p)
+      return(invisible(p))
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # 8) group_composition - compare group weights to a benchmark if available
+    #------------------------------------------------------------------------------------------------
+    if (type == "Group Composition") {
+
+      if (is.null(groups_df)){
+        stop("No valid groups slot found. This plot requires group information.")
+      }
+      required_cols <- c("id", "tickers", "dates")
+      if (!all(required_cols %in% colnames(groups_df))) {
+        stop("groups slot must contain at least 'id','tickers','dates'.")
+      }
+      # Identify group columns
+      group_cols <- setdiff(colnames(groups_df), required_cols)
+      if (length(group_cols) == 0)
+        stop("No group columns found in 'groups' data.")
+
+      # Merge each eligible asset with its group(s)
+      port_alloc    <- data.frame(tickers = asset_names, weights = weights)
+      groups_merged <- dplyr::left_join(port_alloc, groups_df, by = "tickers")
+      groups_merged <- dplyr::filter(groups_merged, !is.na(.data$id))
+
+      # For simplicity, pick the first group column
+      main_group_col <- group_cols[1]
+
+      df_by_group <- groups_merged %>%
+        dplyr::group_by(.data[[main_group_col]]) %>%
+        dplyr::summarize(Portfolio_Weight = sum(.data$weights), .groups = "drop")
+
+      # Attempt to detect a benchmark column in the universe df
+      bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
+      bench_col  <- if (length(bench_cols) > 0) bench_cols[1] else NULL
+
+      if (!is.null(bench_col) && bench_col %in% colnames(universe_df)) {
+        # Merge group info with the universe benchmark column
+        bench_merged <- dplyr::left_join(groups_df, dplyr::select(universe_df, -group_cols), by = c("tickers", "dates"))
+
+        df_bench <- bench_merged %>%
+          dplyr::group_by(.data[[main_group_col]]) %>%
+          dplyr::summarize(Benchmark_Weight = sum(.data[[bench_col]], na.rm = TRUE), .groups = "drop")
+
+        df_compare <- dplyr::full_join(df_by_group, df_bench, by = main_group_col) %>%
+          tidyr::replace_na(list(Portfolio_Weight = 0, Benchmark_Weight = 0))
+
+        df_plot <- tidyr::pivot_longer(
+          df_compare,
+          cols = c("Portfolio_Weight", "Benchmark_Weight"),
+          names_to = "Type",
+          values_to = "Weight"
+        )
+
+        p <- ggplot2::ggplot(df_plot, ggplot2::aes_string(x = main_group_col, y = "Weight", fill = "Type")) +
+          ggplot2::geom_bar(stat = "identity", position = "dodge", color = black) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            axis.text        = ggplot2::element_text(color = white),
+            axis.title       = ggplot2::element_text(color = white),
+            legend.title     = ggplot2::element_text(color = white),
+            legend.text      = ggplot2::element_text(color = white),
+            plot.title = ggplot2::element_text(color = "white", size = 14, face = "bold")
+          ) +
+          ggplot2::labs(
+            title = paste("Group Composition vs. Benchmark:", if (port_name == "") "not_identified" else port_name),
+            x     = main_group_col,
+            y     = "Weight",
+            fill  = "Allocation"
+          )
+
+        print(p)
+        return(invisible(p))
+
+      } else {
+        # No benchmark found, just the portfolio composition
+        p <- ggplot2::ggplot(df_by_group, ggplot2::aes_string(x = main_group_col, y = "Portfolio_Weight", fill = main_group_col)) +
+          ggplot2::geom_bar(stat = "identity", color = black) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.grid.major = ggplot2::element_blank(),
+            axis.text        = ggplot2::element_text(color = white),
+            axis.title       = ggplot2::element_text(color = white),
+            legend.position  = "none"
+          ) +
+          ggplot2::labs(
+            title = paste("Group Composition:", if (port_name == "") "not_identified" else port_name),
+            x = main_group_col,
+            y = "Weight"
+          )
+
+        print(p)
+        return(invisible(p))
+      }
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # If none of the above matched, show an error
+    #------------------------------------------------------------------------------------------------
+    stop(paste("Plot type", type, "not recognized."))
+  }
+)
+
 
 
 

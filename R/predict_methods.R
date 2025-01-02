@@ -1,6 +1,50 @@
+#' Predict method for signal_port class
+#'
+#' This method generates predictions using a signal_port obejct
+#' based on the provided new feature data. It accommodates different port construction methods.
+#' The function handles signal weighting and quantile winsorization.
+#'
+#' @param object An instance of the `signal_port` class containing the
+#' signal portfolio and respective weights.
+#' @param new_features_m_df A data frame or an object of class `meta_dataframe`
+#'   containing new feature data for which predictions are to be made. The
+#'   data frame must be structured correctly and should not include the first
+#'   three columns, which are reserved for identifiers.
+#' @param upper_quantile_winsorization Numeric value for upper winsorization
+#' @param lower_quantile_winsorization Numeric value for lower winsorization
+#' @export
+#'
+#' @export
+setMethod("predict", "signal_port", function(object, new_features_m_df_clean,
+                                             upper_quantile_winsorization, lower_quantile_winsorization) {
+
+
+  #Check if all signals are present in new_features_m_df_clean
+  if(!all(object@eligible_assets %in% colnames(new_features_m_df_clean))){
+    stop("Not all eligible assets are present in new_features_m_df_clean")
+  }
+
+  #Eliminate signals not in eligible_signals
+  selected_signals_corrected_positions_m_df <- new_features_m_df_clean[, object@eligible_assets]
+
+  #Get signal weights
+  signal_weights <- object@weights
+
+  ##Calculate preds
+  ############################
+  preds <- selected_signals_corrected_positions_m_df %>% apply(1, function(row){ #To each row
+    sum(row * signal_weights) #Multiply by corresponding weights and sum
+  }) %>% #Signal transform
+    signal_transform(upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization)
+  ############################
+
+  return(preds)
+})
+
+
 #' Predict Method for sb_model Class
 #'
-#' This method generates predictions using a refitted machine learning model
+#' This method generates predictions using a refitted sb model
 #' based on the provided new feature data. It accommodates different machine
 #' learning algorithms and applies the appropriate prediction logic.
 #'
@@ -24,7 +68,8 @@
 #' predictions <- predict(refit_model, new_data)
 #'
 #' @export
-setMethod("predict", "sb_model", function(object, new_features_m_df) {
+setMethod("predict", "sb_model", function(object, new_features_m_df,
+                                          lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975) {
 
   #Validate input
   if (!is_coercible_to_meta_dataframe(new_features_m_df)) {
@@ -32,32 +77,45 @@ setMethod("predict", "sb_model", function(object, new_features_m_df) {
   }
 
   #Prepare new data
+  ################
   #Extract data.frame in case of meta_dataframe obj
   if(is_meta_dataframe(new_features_m_df)){
-    new_features_m_df <- new_features_m_df@data[,-c(1:3)] #get data
+    new_data <- new_features_m_df@data[,-c(1:3)] #get data
   } else {
     new_data <- new_features_m_df[,-c(1:3)]
   }
+  ################
 
   #Get parameters
-  ml_algorithm <- object@ml_algorithm
+  ################
+  sb_algorithm <- object@sb_algorithm
   optimal_hyper <- object@best_hyperparameters
-  if(ml_algorithm == "glmnet"){
+  if(sb_algorithm == "glmnet"){
     best_lam = as.numeric(optimal_hyper["best_lam"])
   } else {
     NULL
   }
-  refit_model <- object@model
+  sb_model_fit <- object@model
+  ################
 
-  #Choose predict method base on ml_algorithm
-  predictions <- switch(
-    ml_algorithm, #Depending on the algorithm
-    ols = as.numeric(stats::predict(refit_model, newdata = as.data.frame(new_data))), #prediction for new data OLS
-    glmnet = as.numeric(stats::predict(refit_model, newx = as.matrix(new_data), s = best_lam)), #prediction for new data GLM
-    rf = as.numeric(stats::predict(refit_model, data = janitor::clean_names(new_data))$predictions), #prediction for RF
-    xgb = as.numeric(stats::predict(refit_model, newdata = as.matrix(new_data))), #predictions for XGB
-    nn = as.numeric(stats::predict(refit_model, x = as.matrix(new_data)))
-  )
+  #Choose predict method base on sb_algorithm
+  ################
+    ###Make a general case for signal port
+    if(sb_algorithm %in% c("ew", "sw", "mvo", "rp")) sb_algorithm <- "signal_port"
+
+    ###Generate predictions
+    predictions <- switch(
+      sb_algorithm, #Depending on the algorithm
+      ols = as.numeric(predict(sb_model_fit, newdata = as.data.frame(new_data))), #prediction for new data OLS
+      glmnet = as.numeric(predict(sb_model_fit, newx = as.matrix(new_data), s = best_lam)), #prediction for new data GLM
+      rf = as.numeric(predict(sb_model_fit, data = janitor::clean_names(new_data))$predictions), #prediction for RF
+      xgb = as.numeric(predict(sb_model_fit, newdata = as.matrix(new_data))), #predictions for XGB
+      nn = as.numeric(predict(sb_model_fit, x = as.matrix(new_data))), #predictions for NN
+      signal_port = as.numeric(predict(sb_model_fit, new_features_m_df_clean = new_data,
+                                       lower_quantile_winsorization = lower_quantile_winsorization,
+                                       upper_quantile_winsorization = upper_quantile_winsorization)) #Predictions for signal ports
+    )
+  ################
 
   return(predictions)
 })
@@ -66,7 +124,7 @@ setMethod("predict", "sb_model", function(object, new_features_m_df) {
 
 #' Predict Method for sb_backtest_results Class
 #'
-#' This method generates predictions using a machine learning model that has been
+#' This method generates predictions using a sb model that has been
 #' validated through walk-forward validation. It uses the provided new feature
 #' data and applies the appropriate prediction logic based on the underlying
 #' model and its hyperparameters.
@@ -92,39 +150,23 @@ setMethod("predict", "sb_model", function(object, new_features_m_df) {
 #' predictions <- predict(ml_wf_model, new_data)
 #'
 #' @export
-setMethod("predict", "sb_backtest_results", function(object, new_features_m_df) {
+setMethod("predict", "sb_backtest_results", function(object, new_features_m_df,
+                                                     lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975) {
 
-  #Validate input
-  if (!is_coercible_to_meta_dataframe(new_features_m_df)) {
-    stop("new_features_m_df must be coercible to meta_dataframe.")
-  }
 
-  #Prepare new data
-  #Extract data.frame in case of meta_dataframe obj
-  if(is_meta_dataframe(new_features_m_df)){
-    new_features_m_df <- new_features_m_df@data[,-c(1:3)] #get data
-  } else {
-    new_data <- new_features_m_df[,-c(1:3)]
-  }
+  #Get objects of sb_backtest_workflow
+  sb_model_refit <- sb_backtest_results@final_model #Get refitted model
 
-  #Get objects of ml_walk_forward_validation_results
-    ml_algorithm <- sb_backtest_results@metadata$ml_algorithm #Get ML algo
-    refit_model <- ml_walk_forward_validation_results@final_model #Get refitted model
-    best_hyperparameters <- ml_walk_forward_validation_results@best_hyperparameters #Best hyper
-    ##Extract best_lam for glmnet
-    best_lam <- ifelse(ml_walk_forward_validation_results@metadata$ml_algorithm == "glmnet",
-                       as.numeric(best_hyperparameters[nrow(best_hyperparameters), "best_lam"]),
-                       NULL)
-
-    #Choose predict method base on ml_algorithm
-    predictions <- switch(
-      ml_algorithm, #Depending on the algorithm
-      ols = as.numeric(stats::predict(refit_model, newdata = as.data.frame(new_data))), #prediction for new data OLS
-      glmnet = as.numeric(stats::predict(refit_model, newx = as.matrix(new_data), s = best_lam)), #prediction for new data GLM
-      rf = as.numeric(stats::predict(refit_model, data = janitor::clean_names(new_data))$predictions), #prediction for RF
-      xgb = as.numeric(stats::predict(refit_model, newdata = as.matrix(new_data))), #predictions for XGB
-      nn = as.numeric(stats::predict(refit_model, x = as.matrix(new_data)))
-    )
+  #Get predictions
+  predictions <- predict(sb_model_refit, new_features_m_df = new_features_m_df,
+                         lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization)
 
   return(predictions)
 })
+
+
+
+
+
+
+
