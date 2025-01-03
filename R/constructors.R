@@ -386,8 +386,13 @@ create_ss_backtest_config <- function(
     active_returns = TRUE,
     split_method = "expanding",
     alpha_test_strategy = NULL,
-    config_name = "not_identified"
+    config_name = "not_identified",
+    chosen_signals_and_positions = "all"
 ) {
+  #Message
+  if (chosen_signals_and_positions == "all"){
+    message("chosen_signals_and_positions set as 'all'. All signals in signals_m_df will be used and a long position will be assumed to all.")
+  }
   # Input validation
   if (data_availability_cutoff < 0) {
     stop("data_availability_cutoff cannot be negative.")
@@ -404,6 +409,7 @@ create_ss_backtest_config <- function(
 
   # Create and return the object
   new("ss_backtest_config",
+      chosen_signals_and_positions = chosen_signals_and_positions,
       data_availability_cutoff = data_availability_cutoff,
       initial_sample_size = initial_sample_size,
       rebalancing_months = rebalancing_months,
@@ -1841,7 +1847,7 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
 #' @param cov_est_method An existing object of class `cov_est_method`.
 #' @export
 setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "missing"),
-          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = NULL ...) {
+          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
 
             object@signal_port_parameters@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
                                                                                   cov_matrix_sample_size = cov_matrix_sample_size,

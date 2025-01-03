@@ -69,15 +69,14 @@ setClass("meta_dataframe",
 #' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
 #'
 #' @slot universe_name A \code{character} string describing the universe name.
-#' @slot ss_backtest_workflow A \code{list} storing the sb_backtest_workflow that generated the signal_universe_meta_dataframe object.
+#' @slot ss_backtest_workflow A \code{list} storing the ss_backtest_workflow that generated the signal_universe_meta_dataframe object.
 #'
 #'
 #' @export
 setClass(
   "signal_universe_m_df",
   slots = c(
-    ss_backtest_workflow = "ANY",
-    sb_backtest_workflow = "ANY"
+    ss_backtest_workflow = "ANY"
   ),
   contains = "meta_dataframe",
   validity = function(object) {
@@ -133,6 +132,7 @@ setClass(
 setClass(
   "oos_sb_outputs_m_df",
   contains = "meta_dataframe",
+  slots = sb_backtest_workflow,
   validity = function(object) {
     #Colnames adherence
     if(!any(colnames(object@data) == c("id", "tickers", "target", "pred", "error"))){
@@ -905,6 +905,7 @@ setClass("bayesian_alpha_test_strategy",
 #' @slot split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
 #' @slot alpha_test_strategy An `alpha_test_strategy` object with the configuration for the alpha test.
 #' @slot chosen_signals_and_positions A character indicating to which signals ss_backtest should be applied and their positions (long and short).
+#' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
 #' @export
 setClass("ss_backtest_config",
          slots = list(
@@ -915,7 +916,7 @@ setClass("ss_backtest_config",
            active_returns = "logical",
            split_method = "character",
            alpha_test_strategy = "ANY",
-           config_name = "character",
+           config_name = "character"
          ), prototype = list(
            split_method = "expanding"
          ),
@@ -1608,46 +1609,7 @@ setClass(
 #' @slot chosen_eval_metric_validation A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.
 #' @slot best_hyperparameters A data frame containing the best hyperparameters selected during tuning for each rebalancing period.
 #' @slot validation_eval_metrics_hyper_choice All evaluation metrics calculated for the set of best hyperparameters.
-#' @slot sb_backtest_workflow A list containing sb_backtest_workflow about the walk-forward validation process. It includes:
-#' \itemize{
-#'   \item \strong{sb_algorithm}: A character string specifying the machine learning algorithm used.
-#'   \item \strong{custom_objective}: A character string indicating the custom loss function applied (e.g., "squared_error").
-#'   \item \strong{dates_covered}: A vector of dates representing the time period covered by the analysis.
-#'   \item \strong{n_dates}: An integer indicating the total number of dates in the covered period.
-#'   \item \strong{training_sample_size}: An integer representing the size of the training samples used.
-#'   \item \strong{validation_sample_size}: An integer indicating the size of the validation samples used.
-#'   \item \strong{testing_sample_size}: An integer indicating the size of the testing samples used.
-#'   \item \strong{dates_testing_sample}: A vector of dates corresponding to the testing samples.
-#'   \item \strong{first_rebalance_date}: A date indicating the first date when the model was rebalanced.
-#'   \item \strong{rebalance_dates}: A vector of dates when the model was rebalanced.
-#'   \item \strong{split_method}: A character string indicating the method used for splitting the data (e.g., "expanding" or "rolling").
-#'   \item \strong{ids}: A vector of identifiers from the features data frame.
-#'   \item \strong{nobs}: An integer representing the total number of observations in the features data frame.
-#'   \item \strong{tickers}: A vector of unique stock tickers from the features data frame.
-#'   \item \strong{n_stocks}: An integer indicating the number of unique stocks in the features data frame.
-#'   \item \strong{target_fwd_name}: A character string naming the target variable for forward prediction.
-#'   \item \strong{target_fwd}: A vector of forward target values.
-#'   \item \strong{target_workflow}: A description of the workflow used for the target variable.
-#'   \item \strong{target_object}: A character string capturing the name of the target data frame passed to the function.
-#'   \item \strong{features}: A character vector of feature names extracted from the features data frame.
-#'   \item \strong{features_workflow}: A description of the workflow used for the features.
-#'   \item \strong{features_object}: A character string capturing the name of the features data frame passed to the function.
-#'   \item \strong{tuning_method}: A character string indicating the method used for hyperparameter tuning (e.g., "grid_search").
-#'   \item \strong{n_iter}: An integer specifying the number of iterations for tuning methods that require it.
-#'   \item \strong{k_iter}: An integer indicating the number of times to sample the evaluation function during tuning.
-#'   \item \strong{acq}: A character string specifying the acquisition function used in Bayesian optimization.
-#'   \item \strong{init_points}: An integer indicating the number of initial random points for Bayesian optimization.
-#'   \item \strong{hyper_grid_domain_list}: A list containing hyperparameter definitions for tuning.
-#'   \item \strong{chosen_eval_metric}: A character string representing the evaluation metric chosen for optimization.
-#'   \item \strong{huber_delta}: A numeric value indicating the boundary for the Huber loss function.
-#'   \item \strong{quantile_tau}: A numeric value representing the target quantile for quantile loss.
-#'   \item \strong{early_stop}: A criteria indicating if early stopping was used during training.
-#'   \item \strong{keras_architecture_parameters}: A list containing parameters for the Keras model architecture.
-#'   \item \strong{completion_time}: The system time when the validation process was completed.
-#'   \item \strong{elapsed_time}: A numeric value representing the total time taken for the validation process.
-#'   \item \strong{parallel}: A logical value indicating whether the process was run in parallel (TRUE or FALSE).
-#'   \item \strong{call}: The matched call used to create the S4 object, capturing the function call context.
-#' }
+#' @slot sb_backtest_workflow A list containing sb_backtest_workflow about the walk-forward validation process.
 #'
 #'
 #' @return An S4 object of class `sb_backtest_results` containing all the specified results and sb_backtest_workflow.
@@ -1659,13 +1621,28 @@ setClass(
   slots = list(
     oos_sb_outputs_m_df = "meta_dataframe",
     oos_testing_eval_metrics = "data.frame",
-    final_model = "sb_model",
+    final_sb_model = "sb_model",
+    final_gsm = "ANY",
+    feature_importance_m_df = "meta_dataframe",
+    final_feature_importance_m_df = "meta_dataframe",
     chosen_eval_metric_validation = "ANY",
     best_hyperparameters = "ANY",
     validation_eval_metrics_hyper_choice = "ANY",
+    ss_backtest_results = "ANY",
     sb_backtest_workflow = "list",
     backtest_identifier = "character"
-  )
+  ), validity = function(object){
+
+    if(!object@final_gsm %in% c("lm", "rpart")){
+      stop("final_gsm must be a 'lm' or 'rpart' object")
+    }
+
+    if(!is.null(object@ss_backtest_results) && !inherits(object@ss_backtest_results, "ss_backtest_results")){
+      stop("ss_backtest_results must be an 'ss_backtest_results' object")
+    }
+
+
+  }
 )
 
 #' @title sb_metabacktest_results Class

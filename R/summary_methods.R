@@ -725,7 +725,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   # Display Main Information always
   cat("Backtest Identifier:", object@backtest_identifier, "\n")
   cat("SB Algorithm:", object@sb_backtest_workflow$sb_algorithm, "\n")
-  cat("Final Model Object Class:", object@final_model@model_class, "\n")
+  cat("Final Model Object Class:", object@final_sb_model@model_class, "\n")
   cat("Custom Objective:", object@sb_backtest_workflow$custom_objective, "\n")
   cat("Chosen Evaluation Metric:", object@sb_backtest_workflow$chosen_eval_metric, "\n")
   cat("Testing Sample Dates:", format(as.Date(object@sb_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")

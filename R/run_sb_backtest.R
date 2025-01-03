@@ -780,6 +780,9 @@ run_sb_backtest_internal <- function(
     oos_error_list <- list() #Initialize error list.
     oos_y_list <- list() #Initialize y list.
 
+    #Feature importance
+    feature_importance_m_d_ref_list <- list()
+
 
     ##################
 
@@ -955,7 +958,7 @@ run_sb_backtest_internal <- function(
           optimal_hyper <- NULL #Set optimal hyper as NULL for methods that do not depend on hyper tuning
         }
 
-        #Refitting
+        #(Re)Fitting
         ###################
 
         ###Set objects for regression-type algos
@@ -990,6 +993,39 @@ run_sb_backtest_internal <- function(
 
 
         ###################
+
+        ##Interpretate (if asked)
+        if(gsm_type != "none"){
+          ##Join predictions to design matrix X
+          selected_features_corrected_positions_and_predictions_m_refit <- dplyr::mutate(selected_features_corrected_positions_m_refit,
+                                                                                         preds = predict(sb_model_fit, selected_features_corrected_positions_m_refit))
+
+          ##Fit Global Surrogate Model
+          global_surrogate_model <- switch(gsm_type,
+                                           ols = lm(preds ~ ., selected_features_corrected_positions_and_predictions_m_refit[,-c(1:3)]), #Fit OLS Global Surrogate Model
+                                           tree = rpart::rpart(preds ~ ., data = selected_features_corrected_positions_and_predictions_m_refit[,-c(1:3)]) #Fit Tree Global Surrogate Model
+                                           )
+
+          ##Get feature importance_m_d_ref
+          feature_importance_m_d_ref <- dplyr::full_join(#Full join to get both intercept and all signals (eligible or not)
+            switch(gsm_type,
+              ols = summary(global_surrogate_model)$coef %>% as.data.frame() %>%
+                dplyr::mutate(tickers = rownames(.), .before = Estimate) %>% tibble::remove_rownames() %>% #Place rownames as columns
+                dplyr::rename(importance = Estimate, std_error = `Std. Error`, t_value = `t value`, p_value = `Pr(>|t|)`), #Rename columns
+              tree = data.frame(importance = global_surrogate_model$variable.importance) %>% dplyr::mutate(tickers = rownames(.), .before = importance) %>% tibble::remove_rownames()
+            ),
+            dplyr::select(most_recent_signal_universe_m_d_ref, #Join with only relevant columns from most_recent_signal_universe_m_d_ref
+                          dplyr::any_of(c("tickers", "theme", "theme_ss_bench_weights", "theme_sb_bench_weights", "is_eligible"))),
+            by = "tickers"
+          ) %>% dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ tidyr::replace_na(., 0))) %>%  #Replace NAs with 0s
+                dplyr::mutate(normalized_importance = (importance - mean(importance)) / sd(importance), .after = importance) %>% #Normalize importance
+                dplyr::mutate(dates = current_date, .before = importance) %>% #Add current date
+                dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) #Add id
+
+          ##Save feature_importance_m_d_ref
+          feature_importance_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- feature_importance_m_d_ref
+
+        }
 
       }
 
@@ -1061,31 +1097,39 @@ run_sb_backtest_internal <- function(
 
     result_list[[2]] <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
 
-    #Model
+    #SB Model
     result_list[[3]] <- sb_model_fit
+
+    #GSM
+    results_list[[4]] <- global_surrogate_model
+
+    #Feature Importance
+    feature_importance_m_df <- do.call(rbind, feature_importance_m_d_ref_list)
+    rownames(feature_importance_m_df) <- NULL
+    results_list[[5]] <- feature_importance_m_df
 
     if(!sb_algorithm == "ols"){
 
       #Validation eval for all hyperparameters
       names(chosen_eval_metric_validation) <- rebalance_dates #Change names
-      result_list[[4]] <- chosen_eval_metric_validation
+      result_list[[6]] <- chosen_eval_metric_validation
       #Hyper_choice
-      result_list[[5]] <- hyper_choice_df
+      result_list[[7]] <- hyper_choice_df
 
       #Validation eval-metrics
         ##Create average row
         avg_validation_eval_metrics_hyper_choice <- as.data.frame(t(colMeans(validation_eval_metrics_hyper_choice)))
         rownames(avg_validation_eval_metrics_hyper_choice) <- "average"
 
-      result_list[[6]] <- rbind(validation_eval_metrics_hyper_choice, avg_validation_eval_metrics_hyper_choice)
+      result_list[[8]] <- rbind(validation_eval_metrics_hyper_choice, avg_validation_eval_metrics_hyper_choice)
 
       #Fill names
-      names(result_list) <- c("oos_sb_outputs_m_df", "oos_testing_eval_metrics", "final_model",
+      names(result_list) <- c("oos_sb_outputs_m_df", "oos_testing_eval_metrics", "final_sb_model", "final_gsm_model",
                               "chosen_eval_metric_validation","best_hyperparameters", "validation_eval_metrics_hyper_choice") #ML Specific
 
     } else {
       #Fill names
-      names(result_list) <- c("oos_sb_outputs_m_df", "oos_testing_eval_metrics", "final_model")
+      names(result_list) <- c("oos_sb_outputs_m_df", "oos_testing_eval_metrics", "final_sb_model", "final_gsm_model")
     }
 
 
@@ -1103,6 +1147,7 @@ run_sb_backtest_internal <- function(
     backtest_identifier = "not_identified",
     custom_objective = custom_objective,
     backtest_type = "base_learner",
+    gsm_type = gsm_type,
     #Dates
     dates_covered = dates_m_vector,
     n_dates = length(dates_m_vector),

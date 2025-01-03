@@ -30,7 +30,7 @@ setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_xt
 #' @export
 setMethod("run_ss_backtest",
           signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_xts = "xts", benchmark_returns_xts = "xts",
-                    signal_themes_m_df = "meta_dataframe",),
+                    signal_themes_m_df = "meta_dataframe"),
 
           function(config, signals_m_df, backtest_returns_xts, benchmark_returns_xts, signal_themes_m_df,
                    chosen_signals_and_positions, priors_m_df = NULL,
@@ -648,27 +648,23 @@ run_ss_backtest_internal <- function(
       call = match.call()
     )
 
-    ##Create signal_universe_m_df
-    signal_universe_m_df <- withCallingHandlers(
-      {
-        create_meta_dataframe(signal_universe_m_df, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
-      },
-      warning = function(w) {
-        warning("Signal universe creation warning: ", conditionMessage(w))
-        invokeRestart("muffleWarning")
-      }
-    )
-
-    #Create final_signal_universe_m_d_ref
-    final_signal_universe_m_d_ref <- withCallingHandlers(
-      {
-        create_meta_dataframe(signal_universe_m_d_ref, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
-      },
-      warning = function(w) {
-        warning("Final signal universe creation warning: ", conditionMessage(w))
-        invokeRestart("muffleWarning")
-      }
-    )
+    ##Create meta_dataframes
+      ###Create signal_universe_m_df
+      signal_universe_m_df <- withCallingHandlers({
+          create_meta_dataframe(signal_universe_m_df, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
+        },
+        warning = function(w) {
+          warning("Signal universe creation warning: ", conditionMessage(w))
+          invokeRestart("muffleWarning")
+      })
+      ###Create final_signal_universe_m_d_ref
+      final_signal_universe_m_d_ref <- withCallingHandlers({
+          create_meta_dataframe(signal_universe_m_d_ref, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
+        },
+        warning = function(w) {
+          warning("Final signal universe creation warning: ", conditionMessage(w))
+          invokeRestart("muffleWarning")
+      })
 
     #Get final object
     ss_backtest_results <- new("ss_backtest_results",

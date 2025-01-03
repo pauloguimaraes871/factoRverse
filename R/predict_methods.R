@@ -25,7 +25,7 @@ setMethod("predict", "signal_port", function(object, new_features_m_df_clean,
   }
 
   #Eliminate signals not in eligible_signals
-  selected_signals_corrected_positions_m_df <- new_features_m_df_clean[, object@eligible_assets]
+  selected_signals_corrected_positions_m_df <- new_features_m_df_clean[, dplyr::all_of(object@eligible_assets)]
 
   #Get signal weights
   signal_weights <- object@weights
@@ -155,7 +155,7 @@ setMethod("predict", "sb_backtest_results", function(object, new_features_m_df,
 
 
   #Get objects of sb_backtest_workflow
-  sb_model_refit <- sb_backtest_results@final_model #Get refitted model
+  sb_model_refit <- sb_backtest_results@final_sb_model #Get refitted model
 
   #Get predictions
   predictions <- predict(sb_model_refit, new_features_m_df = new_features_m_df,

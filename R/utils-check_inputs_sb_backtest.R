@@ -317,6 +317,11 @@ check_inputs_sb_backtest <- function(
     stop("split_method should be expanding.")
   }
 
+  #gsm
+  if(!gsm_type %in% c("ols", "tree")){
+    stop("gsm_type should be either 'ols' or 'tree'.")
+  }
+
 
 
 
