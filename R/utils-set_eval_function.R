@@ -29,9 +29,9 @@ set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
         ){
 
           #Set objects in GLM format
-          features_matrix_train_clean <- full_data_training_sample_clean[,-which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training features matrix
-          target_vector_train <- full_data_training_sample_clean[, which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training target vector
-          features_validation_sample_clean <- features_validation_sample[,-c(1:3)]
+          features_matrix_train_clean <- full_data_training_sample_clean %>% dplyr::select(-dplyr::all_of(target_fwd_name)) #Get training features matrix
+          target_vector_train <- full_data_training_sample_clean %>% dplyr::pull(target_fwd_name) #Get training target vector
+          features_validation_sample_clean <- features_validation_sample %>% dplyr::select(-1:-3)
 
 
           #Fit GLM model
@@ -89,7 +89,7 @@ set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
                                    verbose = FALSE
                                    )
           #Format
-          features_validation_sample_clean <- features_validation_sample[,-c(1:3)]
+          features_validation_sample_clean <- features_validation_sample %>% dplyr::select(-1:-3)
 
           #Predict
           pred <- stats::predict(rf_fit,#RF model
@@ -135,9 +135,9 @@ set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
           custom_objective_translated <- args$custom_objective_translated
 
           #Set objects in XGB Format
-          features_matrix_train_clean <- full_data_training_sample_clean[,-which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training features matrix
-          target_vector_train <- full_data_training_sample_clean[, which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training target vector
-          features_validation_sample_clean = features_validation_sample[,-c(1:3)]
+          features_matrix_train_clean <- full_data_training_sample_clean %>% dplyr::select(-dplyr::all_of(target_fwd_name)) #Get training features matrix
+          target_vector_train <- full_data_training_sample_clean %>% dplyr::pull(target_fwd_name) #Get training target vector
+          features_validation_sample_clean <- features_validation_sample %>% dplyr::select(-1:-3)
 
           full_data_training_sample_clean_xgb <- xgboost::xgb.DMatrix(data = as.matrix(features_matrix_train_clean), #Already withou 3 first columns
                                                       label = target_vector_train)
@@ -223,9 +223,9 @@ set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
           custom_objective_translated <- args$custom_objective_translated
 
           #Format
-          features_matrix_train_clean <- full_data_training_sample_clean[,-which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training features matrix
-          target_vector_train <- full_data_training_sample_clean[, which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training target vector
-          features_validation_sample_clean <- features_validation_sample[,-c(1:3)]
+          features_matrix_train_clean <- full_data_training_sample_clean %>% dplyr::select(-dplyr::all_of(target_fwd_name)) #Get training features matrix
+          target_vector_train <- full_data_training_sample_clean %>% dplyr::pull(target_fwd_name) #Get training target vector
+          features_validation_sample_clean <- features_validation_sample %>% dplyr::select(-1:-3)
 
           #Fit keras model
           keras_results <- fit_keras_model(
@@ -318,9 +318,9 @@ set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
                fit <- function(alpha, lambda.min.ratio){ #Hyperparameters
 
                  #Set objects in GLM format
-                 features_matrix_train_clean <- full_data_training_sample_clean[,-which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training features matrix
-                 target_vector_train <- full_data_training_sample_clean[, which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training target vector
-                 features_validation_sample_clean <- features_validation_sample[,-c(1:3)]
+                 features_matrix_train_clean <- full_data_training_sample_clean %>% dplyr::select(-dplyr::all_of(target_fwd_name)) #Get training features matrix
+                 target_vector_train <- full_data_training_sample_clean %>% dplyr::pull(target_fwd_name) #Get training target vector
+                 features_validation_sample_clean <- features_validation_sample %>% dplyr::select(-1:-3)
 
 
                  #Fit GLM model
@@ -404,7 +404,7 @@ set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
                                           min.bucket = min.bucket) #Min Size of Terminal Node
 
                  #Format
-                 features_validation_sample_clean <- features_validation_sample[,-c(1:3)]
+                 features_validation_sample_clean <- features_validation_sample %>% dplyr::select(-1:-3)
 
 
                  #Predict
@@ -468,9 +468,9 @@ set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
                fit <- function(min_child_weight, max_depth, subsample, colsample_bytree, eta, alpha, gamma, nrounds){ #Hyperparameters
 
                #Set objects in XGB Format
-               features_matrix_train_clean <- full_data_training_sample_clean[,-which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training features matrix
-               target_vector_train <- full_data_training_sample_clean[, which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training target vector
-               features_validation_sample_clean = features_validation_sample[,-c(1:3)]
+               features_matrix_train_clean <- full_data_training_sample_clean %>% dplyr::select(-dplyr::all_of(target_fwd_name)) #Get training features matrix
+               target_vector_train <- full_data_training_sample_clean %>% dplyr::pull(target_fwd_name) #Get training target vector
+               features_validation_sample_clean <- features_validation_sample %>% dplyr::select(-1:-3)
 
                full_data_training_sample_clean_xgb <- xgboost::xgb.DMatrix(data = as.matrix(features_matrix_train_clean), #Already withou 3 first columns
                                                                            label = target_vector_train)
@@ -588,9 +588,9 @@ set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
                fit <- function(regularizer_l1, regularizer_l2, droprate, lr, number_of_epochs, size_of_batch){ #Hyperparameters
 
                  #Format
-                 features_matrix_train_clean <- full_data_training_sample_clean[,-which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training features matrix
-                 target_vector_train <- full_data_training_sample_clean[, which(names(full_data_training_sample_clean) == target_fwd_name)] #Get training target vector
-                 features_validation_sample_clean <- features_validation_sample[,-c(1:3)]
+                 features_matrix_train_clean <- full_data_training_sample_clean %>% dplyr::select(-dplyr::all_of(target_fwd_name)) #Get training features matrix
+                 target_vector_train <- full_data_training_sample_clean %>% dplyr::pull(target_fwd_name) #Get training target vector
+                 features_validation_sample_clean <- features_validation_sample %>% dplyr::select(-1:-3)
 
                  #Fit keras model
                  keras_results <- fit_keras_model(

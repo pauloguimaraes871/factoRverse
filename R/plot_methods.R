@@ -1747,7 +1747,7 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @export
 setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y){
 
-  if(x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
+  if(!x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
     plot(x@tuning_strategy)
   } else {
     message("Plot method not avaiable for `ols`, `sw`, `ew`, `rp` or `mto` sb_algorithm.")

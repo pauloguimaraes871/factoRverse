@@ -54,14 +54,14 @@ convert_oos_predictions_lists_to_m_df <- function(sb_backtest_results_list, wins
   }
 
   # Check if length of oos_predictions_list match
-  if(!all(sapply(sb_backtest_results_list, function(x) length(x@oos_prediction_list)) == length(sb_backtest_results_list[[1]]@oos_prediction_list))){
-    stop("Length of oos_prediction_list in each sb_backtest_results object must be the same.")
+  if(!all(sapply(sb_backtest_results_list, function(x) nrow(x@oos_sb_outputs_m_df@data)) == nrow(sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data))){
+    stop("Number of rows of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
   }
 
   #Check if elements of lists in oos_predictions_list match
-  elements <- lapply(sb_backtest_results_list, function(x) names(unlist(x@oos_prediction_list)))
+  elements <- lapply(sb_backtest_results_list, function(x) x@oos_sb_outputs_m_df@data %>% dplyr::select(id))
   if(!all(purrr::map_lgl(elements, ~ identical(.x, elements[[1]])))){
-    stop("Elements of lists in oos_prediction_list in each sb_backtest_results object must be the same.")
+    stop("Elements of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
   }
 
   # Function to Convert a Single S4 Object to a Data Frame with Model Name as Column
@@ -71,17 +71,17 @@ convert_oos_predictions_lists_to_m_df <- function(sb_backtest_results_list, wins
       stop(paste("All objects in the list must be of class 'sb_backtest_results'. Object named", model_name, "is not."))
     }
 
-    # Check if the 'oos_prediction_list' slot exists
-    if (!"oos_prediction_list" %in% methods::slotNames(s4_obj)) {
-      stop(paste("The S4 object named", model_name, "does not contain the 'oos_prediction_list' slot."))
+    # Check if the 'oos_sb_outputs_m_df' slot exists
+    if (!"oos_sb_outputs_m_df" %in% methods::slotNames(s4_obj)) {
+      stop(paste("The S4 object named", model_name, "does not contain the 'oos_sb_outputs_m_df' slot."))
     }
 
     # Extract the 'oos_prediction_list' slot
-    oos_pred_list <- s4_obj@oos_prediction_list
+    oos_sb_outputs_m_df <- s4_obj@oos_sb_outputs_m_df@data
 
     # Check if 'oos_prediction_list' is a list
-    if (!is.list(oos_pred_list)) {
-      stop(paste("The 'oos_prediction_list' slot in object named", model_name, "must be a list."))
+    if (!is.data.frame(oos_sb_outputs_m_df)) {
+      stop(paste("The 'oos_sb_outputs_m_df' slot in object named", model_name, "must be a data.frame."))
     }
 
     # Convert the list to a (meta) data frame

@@ -161,7 +161,7 @@ check_inputs_ss_backtest <- function(
       stop("backtest_returns_xts must have at least initial_sample_size rows")
     }
 
-    if(any(!signals_m_df$dates %in% backtest_returns_dates)){
+    if(any(!signals_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
       stop("all dates in signals_m_df must be present in backtest_returns_xts")
     }
 
@@ -209,23 +209,23 @@ check_inputs_ss_backtest <- function(
   }
 
   ##Check if all signals of signals_m_df are covered and vice-versa
-  if(any(!names(chosen_signals_corrected_positions) %in% signal_themes_m_df$tickers)){
+  if(any(!names(chosen_signals_corrected_positions) %in% signal_themes_m_df %>% dplyr::pull(tickers))){
     stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
   }
 
   ###Check if theme column is character
-  if(!is.character(signal_themes_m_df$theme)){
+  if(!is.character(signal_themes_m_df %>% dplyr::pull(theme))){
     stop("theme column in signal_themes_m_df must be character")
   }
 
   ###Check format in signal_themes_m_df
-  if(any(grepl("_", signal_themes_m_df$theme))){
+  if(any(grepl("_", signal_themes_m_df %>% dplyr::pull(theme)))){
     stop("No underscores allowed in signal_themes_m_df theme names")
   }
 
   ###Check if dates in signal_themes_m_df and signals_m_df are the same
-  signal_dates_m_vector <- as.Date(unique(signals_m_df$dates))
-  signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df$dates))
+  signal_dates_m_vector <- as.Date(unique(signals_m_df %>% dplyr::pull(dates)))
+  signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df %>% dplyr::pull(dates)))
   if(any(!signal_dates_m_vector %in% signal_themes_dates_m_vector)){
     stop("dates in signal_themes_m_df and signals_m_df must be the same")
   }
@@ -279,8 +279,8 @@ check_inputs_ss_backtest <- function(
   }
 
   ###Check if all themes are present
-  if(!all(unique(priors_m_df$theme) %in% unique(signal_themes_m_df$theme)) ||
-     !all(unique(signal_themes_m_df$theme) %in% unique(priors_m_df$theme))
+  if(!all(unique(priors_m_df %>% dplyr::pull(theme)) %in% unique(signal_themes_m_df %>% dplyr::pull(theme))) ||
+     !all(unique(signal_themes_m_df %>% dplyr::pull(theme)) %in% unique(priors_m_df %>% dplyr::pull(theme)))
      ){
     stop("themes in priors_m_df and signal_themes_m_df should match")
   }
@@ -352,7 +352,7 @@ check_inputs_ss_backtest <- function(
       }
 
       # Extract themes from signal_themes_m_df
-      themes <- unique(signal_themes_m_df$theme)
+      themes <- unique(signal_themes_m_df %>% dplyr::pull(theme))
       n_themes <- length(themes)
 
       # Define expected structures based on `model_spec_theme_level`

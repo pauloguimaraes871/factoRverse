@@ -107,48 +107,12 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
               type <- "generic"
             }
 
-            if (!is.data.frame(data)) {
-              stop("Input must be a data.frame")
+            #Is it coercible
+            if(!is_coercible_to_meta_dataframe(data)){
+              stop("The data frame is not coercible to a meta_dataframe object")
             }
 
-            required_columns <- c("id", "tickers", "dates")
-            if (!all(required_columns %in% names(data))) {
-              stop("Data must contain 'id', 'tickers', and 'dates' columns")
-            }
-
-            # Check for NA values in the required columns
-            if (any(is.na(data[required_columns]))) {
-              stop("Columns 'id', 'tickers', or 'dates' contain NA values")
-            }
-
-            #Check dates format
-            if (!inherits(data$dates, "Date")) {
-              stop("The 'dates' column must be of class 'Date'")
-            }
-
-            if (!all(diff(unique(data$dates)[order(unique(data$dates))]) >= 0)) {
-              stop("Dates must be in ascending chronological order")
-            }
-
-            #Check tickers format
-            if(any(!is.character(data$tickers))){
-              stop("Tickers must be of class character")
-            }
-
-            # Check for NA values in remaining columns and report them
-            remaining_columns <- setdiff(names(data), required_columns)
-            na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
-            if (any(na_remaining)) {
-              warning("The following columns contain NA values: ",
-                      paste(remaining_columns[na_remaining], collapse = ", "))
-            }
-
-            # Ensure the 'id' column matches paste0(tickers, "-", dates)
-            expected_id <- paste0(data$tickers, "-", data$dates)
-            if (!all(data$id == expected_id)) {
-              stop("The 'id' column does not match 'tickers-dates')")
-            }
-            # Ensure no gaps in the dates sequence
+            # Ensure no gaps in the dates sequence FOR GENERIC
             unique_dates <- unique(data$dates)
             full_dates <- seq(min(unique_dates), max(unique_dates), by = "month")
             missing_dates <- setdiff(full_dates, unique_dates)
@@ -157,16 +121,6 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
               warning("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
             }
 
-            if (any(duplicated(data$id))) {
-              stop("ID column contains duplicated values")
-            }
-
-            # Check for NA values in remaining columns and report them
-            remaining_columns <- setdiff(names(data), required_columns)
-            na_remaining <- sapply(data[, remaining_columns], function(col) any(is.na(col)))
-            if (any(duplicated(remaining_columns))) {
-              stop("Column names for variables must be unique")
-            }
 
             # Calculate metadata
             unique_dates_count <- length(unique(data$dates))
@@ -204,12 +158,17 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                   unique_tickers = unique_tickers_count,
                   n_obs = total_observations_count,
                   meta_dataframe_name = meta_dataframe_name,
-                  ss_backtest_workflow = ss_backtest_workflow,
-                  sb_backtest_workflow = sb_backtest_workflow)
+                  ss_backtest_workflow = ss_backtest_workflow)
               )
             }
 
             if(type == "oos_sb_outputs"){
+
+              #Check for workflow
+              if(is.null(sb_backtest_workflow)){
+                stop("sb_backtest_workflow argument must be provided for signal_universe type")
+              }
+
               return(
                 new("oos_sb_outputs_m_df",
                     data = data,
@@ -218,7 +177,8 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                     unique_dates = unique_dates_count,
                     unique_tickers = unique_tickers_count,
                     n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name)
+                    meta_dataframe_name = meta_dataframe_name,
+                    sb_backtest_workflow = sb_backtest_workflow)
               )
             }
           }

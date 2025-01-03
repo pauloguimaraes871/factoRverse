@@ -3,113 +3,113 @@
 #BEGIN OLS TESTS (TRAINING + TESTING)
 ####################
 #Define your test
-test_that("OLS - run_ml_backtest works with no rebalancing and a 1m target", {
+test_that("OLS - run_sb_backtest works with no rebalancing and a 1m target", {
 
-  ols_config <- create_ml_backtest_config(
-    ml_algorithm = "ols",
+  ols_config <- create_sb_backtest_config(
+    sb_algorithm = "ols",
+    target_fwd_name = "fwd_premium_1m",
     training_sample_size = 4,
     rebalancing_months = 9
   )
 
+  features_m_df = create_meta_dataframe(data.frame(
+    stringsAsFactors = FALSE,
+    id = c("Stock A-2001-03-15",
+           "Stock A-2001-04-15","Stock A-2001-05-15",
+           "Stock A-2001-06-15","Stock A-2001-07-15",
+           "Stock A-2001-08-15",
+           "Stock B-2001-03-15","Stock B-2001-04-15",
+           "Stock B-2001-05-15","Stock B-2001-06-15",
+           "Stock B-2001-07-15","Stock B-2001-08-15",
+           "Stock C-2001-03-15","Stock C-2001-04-15",
+           "Stock C-2001-05-15",
+           "Stock C-2001-06-15","Stock C-2001-07-15",
+           "Stock C-2001-08-15","Stock D-2001-03-15",
+           "Stock D-2001-04-15","Stock D-2001-05-15",
+           "Stock D-2001-06-15",
+           "Stock D-2001-07-15","Stock D-2001-08-15",
+           "Stock E-2001-03-15","Stock E-2001-04-15",
+           "Stock E-2001-05-15","Stock E-2001-06-15",
+           "Stock E-2001-07-15","Stock E-2001-08-15"),
+    tickers = c("Stock A","Stock A","Stock A",
+                "Stock A","Stock A","Stock A",
+                "Stock B","Stock B","Stock B","Stock B",
+                "Stock B","Stock B","Stock C",
+                "Stock C","Stock C","Stock C","Stock C",
+                "Stock C","Stock D","Stock D","Stock D",
+                "Stock D","Stock D","Stock D",
+                "Stock E","Stock E","Stock E","Stock E",
+                "Stock E","Stock E"),
+    dates = as.Date(c("2001-03-15","2001-04-15",
+                      "2001-05-15","2001-06-15","2001-07-15",
+                      "2001-08-15","2001-03-15","2001-04-15",
+                      "2001-05-15","2001-06-15",
+                      "2001-07-15","2001-08-15","2001-03-15",
+                      "2001-04-15","2001-05-15","2001-06-15",
+                      "2001-07-15","2001-08-15","2001-03-15",
+                      "2001-04-15","2001-05-15","2001-06-15",
+                      "2001-07-15","2001-08-15",
+                      "2001-03-15","2001-04-15","2001-05-15",
+                      "2001-06-15","2001-07-15","2001-08-15"),
+                    format = "%Y-%m-%d"),
+    Alpha = c(3,-20,-450,5,-2,1,1,7,4,2,
+              20,1,2,9,9,-20,-150,-20,5,-2,
+              2,-1,-50,-25,5,3,-1,2,-1,-20),
+    Beta = c(4,7,5,3,13,10,5,2,4,1,
+             -12,-10,6,-3,-2,1,1,4,0,-2,5,2,
+             5,1,2,-9,3,1,2,1),
+    Gamma = c(800,11,4,20,0,-523,9,-2,4,
+              -15,3,4,10,-3,2,6,20,12,-9,5,
+              2,3,3,-10,3,1,-500,6,4,405)))
+
+  target_m_df = create_meta_dataframe(data.frame(
+    id = c(
+      "Stock A-2001-03-15", "Stock A-2001-04-15", "Stock A-2001-05-15",
+      "Stock A-2001-06-15", "Stock A-2001-07-15", "Stock A-2001-08-15",
+      "Stock B-2001-03-15", "Stock B-2001-04-15", "Stock B-2001-05-15",
+      "Stock B-2001-06-15", "Stock B-2001-07-15", "Stock B-2001-08-15",
+      "Stock C-2001-03-15", "Stock C-2001-04-15", "Stock C-2001-05-15",
+      "Stock C-2001-06-15", "Stock C-2001-07-15", "Stock C-2001-08-15",
+      "Stock D-2001-03-15", "Stock D-2001-04-15", "Stock D-2001-05-15",
+      "Stock D-2001-06-15", "Stock D-2001-07-15", "Stock D-2001-08-15",
+      "Stock E-2001-03-15", "Stock E-2001-04-15", "Stock E-2001-05-15",
+      "Stock E-2001-06-15", "Stock E-2001-07-15", "Stock E-2001-08-15"
+    ),
+    tickers = c(
+      "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+      "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+      "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+      "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+      "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
+    ),
+    dates = as.Date(c(
+      "2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15",
+      "2001-07-15", "2001-08-15", "2001-03-15", "2001-04-15",
+      "2001-05-15", "2001-06-15", "2001-07-15", "2001-08-15",
+      "2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15",
+      "2001-07-15", "2001-08-15", "2001-03-15", "2001-04-15",
+      "2001-05-15", "2001-06-15", "2001-07-15", "2001-08-15",
+      "2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15",
+      "2001-07-15", "2001-08-15"
+    )),
+    fwd_premium_1m = c(
+      0, 6, 7, 1, 2, 1, 1, 8, 2, 3, 5, -1, 2, 3, 7, 5, 1, -9, 8,
+      8, 8, 7, 2, -2, 5, 1, 8, 1, 2, 0
+    ),
+    fwd_premium_3m = c(
+      4, 4, 2, 0, 6, 5, 5, 3, 7, 3, 8, 2, 0, 5, 2, 8, 3, 5, 1,
+      3, 8, 3, 1, 1, 9, 9, 1, 2, 3, -9
+    ),
+    fwd_sharpe_1m = c(
+      7,7,3,1,1,3,
+      4,2,8,5,4,1,2,
+      6,4,6,5,1,4,
+      9,0,10,1,4,7,1,
+      3,3,0,1)))
+
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
-      features_m_df = create_meta_dataframe(data.frame(
-        stringsAsFactors = FALSE,
-        id = c("Stock A-2001-03-15",
-               "Stock A-2001-04-15","Stock A-2001-05-15",
-               "Stock A-2001-06-15","Stock A-2001-07-15",
-               "Stock A-2001-08-15",
-               "Stock B-2001-03-15","Stock B-2001-04-15",
-               "Stock B-2001-05-15","Stock B-2001-06-15",
-               "Stock B-2001-07-15","Stock B-2001-08-15",
-               "Stock C-2001-03-15","Stock C-2001-04-15",
-               "Stock C-2001-05-15",
-               "Stock C-2001-06-15","Stock C-2001-07-15",
-               "Stock C-2001-08-15","Stock D-2001-03-15",
-               "Stock D-2001-04-15","Stock D-2001-05-15",
-               "Stock D-2001-06-15",
-               "Stock D-2001-07-15","Stock D-2001-08-15",
-               "Stock E-2001-03-15","Stock E-2001-04-15",
-               "Stock E-2001-05-15","Stock E-2001-06-15",
-               "Stock E-2001-07-15","Stock E-2001-08-15"),
-        tickers = c("Stock A","Stock A","Stock A",
-                    "Stock A","Stock A","Stock A",
-                    "Stock B","Stock B","Stock B","Stock B",
-                    "Stock B","Stock B","Stock C",
-                    "Stock C","Stock C","Stock C","Stock C",
-                    "Stock C","Stock D","Stock D","Stock D",
-                    "Stock D","Stock D","Stock D",
-                    "Stock E","Stock E","Stock E","Stock E",
-                    "Stock E","Stock E"),
-        dates = as.Date(c("2001-03-15","2001-04-15",
-                  "2001-05-15","2001-06-15","2001-07-15",
-                  "2001-08-15","2001-03-15","2001-04-15",
-                  "2001-05-15","2001-06-15",
-                  "2001-07-15","2001-08-15","2001-03-15",
-                  "2001-04-15","2001-05-15","2001-06-15",
-                  "2001-07-15","2001-08-15","2001-03-15",
-                  "2001-04-15","2001-05-15","2001-06-15",
-                  "2001-07-15","2001-08-15",
-                  "2001-03-15","2001-04-15","2001-05-15",
-                  "2001-06-15","2001-07-15","2001-08-15"),
-                  format = "%Y-%m-%d"),
-        Alpha = c(3,-20,-450,5,-2,1,1,7,4,2,
-                  20,1,2,9,9,-20,-150,-20,5,-2,
-                  2,-1,-50,-25,5,3,-1,2,-1,-20),
-        Beta = c(4,7,5,3,13,10,5,2,4,1,
-                 -12,-10,6,-3,-2,1,1,4,0,-2,5,2,
-                 5,1,2,-9,3,1,2,1),
-        Gamma = c(800,11,4,20,0,-523,9,-2,4,
-                  -15,3,4,10,-3,2,6,20,12,-9,5,
-                  2,3,3,-10,3,1,-500,6,4,405))),
-
-      target_m_df = create_meta_dataframe(data.frame(
-        id = c(
-          "Stock A-2001-03-15", "Stock A-2001-04-15", "Stock A-2001-05-15",
-          "Stock A-2001-06-15", "Stock A-2001-07-15", "Stock A-2001-08-15",
-          "Stock B-2001-03-15", "Stock B-2001-04-15", "Stock B-2001-05-15",
-          "Stock B-2001-06-15", "Stock B-2001-07-15", "Stock B-2001-08-15",
-          "Stock C-2001-03-15", "Stock C-2001-04-15", "Stock C-2001-05-15",
-          "Stock C-2001-06-15", "Stock C-2001-07-15", "Stock C-2001-08-15",
-          "Stock D-2001-03-15", "Stock D-2001-04-15", "Stock D-2001-05-15",
-          "Stock D-2001-06-15", "Stock D-2001-07-15", "Stock D-2001-08-15",
-          "Stock E-2001-03-15", "Stock E-2001-04-15", "Stock E-2001-05-15",
-          "Stock E-2001-06-15", "Stock E-2001-07-15", "Stock E-2001-08-15"
-        ),
-        tickers = c(
-          "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-          "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-          "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-          "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-          "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
-        ),
-        dates = as.Date(c(
-          "2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15",
-          "2001-07-15", "2001-08-15", "2001-03-15", "2001-04-15",
-          "2001-05-15", "2001-06-15", "2001-07-15", "2001-08-15",
-          "2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15",
-          "2001-07-15", "2001-08-15", "2001-03-15", "2001-04-15",
-          "2001-05-15", "2001-06-15", "2001-07-15", "2001-08-15",
-          "2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15",
-          "2001-07-15", "2001-08-15"
-        )),
-        fwd_premium_1m = c(
-          0, 6, 7, 1, 2, 1, 1, 8, 2, 3, 5, -1, 2, 3, 7, 5, 1, -9, 8,
-          8, 8, 7, 2, -2, 5, 1, 8, 1, 2, 0
-        ),
-        fwd_premium_3m = c(
-          4, 4, 2, 0, 6, 5, 5, 3, 7, 3, 8, 2, 0, 5, 2, 8, 3, 5, 1,
-          3, 8, 3, 1, 1, 9, 9, 1, 2, 3, -9
-        ),
-        fwd_sharpe_1m = c(
-          7,7,3,1,1,3,
-          4,2,8,5,4,1,2,
-          6,4,6,5,1,4,
-          9,0,10,1,4,7,1,
-          3,3,0,1))),
-      target_fwd_name = "fwd_premium_1m",
-      ols_config)
+    sb_backtest_results <- run_sb_backtest(features_m_df, target_m_df, ols_config)
   }))
 
 
@@ -122,17 +122,38 @@ test_that("OLS - run_ml_backtest works with no rebalancing and a 1m target", {
                           c(`Stock A` = 5.48519825741933, `Stock B` = 4.20386094336353, `Stock C` = 5.43567282083367, `Stock D` = 5.29919524341379, `Stock E` = 4.94189073217023),
                           c(`Stock A` = 8.62515342023342, `Stock B` = 4.37275430239549, `Stock C` = 5.06670954495026, `Stock D` = 5.08661517651311, `Stock E` = 2.45210627787541))
   names(prediction_list) <- c("2001-06-15","2001-07-15", "2001-08-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(c(`Stock A` = -3.86203815251015, `Stock B` = -2.00190010698946, `Stock C` = 0.0356445857644596, `Stock D` = 2.05181290407949, `Stock E` = -3.86967646823366),
                      c(`Stock A` = -3.48519825741933, `Stock B` = 0.796139056636471, `Stock C` = -4.43567282083367, `Stock D` = -3.29919524341379, `Stock E` = -2.94189073217023),
                      c(`Stock A` = -7.62515342023342, `Stock B` = -5.37275430239549, `Stock C` = -14.0667095449503, `Stock D` = -7.08661517651311, `Stock E` = -2.45210627787541))
   names(error_list) <- c("2001-06-15","2001-07-15", "2001-08-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(c(`Stock A` = 1, `Stock B` = 3, `Stock C` = 5, `Stock D` = 7, `Stock E` = 1), c(`Stock A` = 2, `Stock B` = 5, `Stock C` = 1, `Stock D` = 2, `Stock E` = 2), c(`Stock A` = 1, `Stock B` = -1, `Stock C` = -9, `Stock D` = -2, `Stock E` = 0))
   names(y_list) <- c("2001-06-15","2001-07-15", "2001-08-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  results$outputs[[1]] <- final_df
+
+
   #Eval metrics
   eval_metrics <- data.frame(#out_of_sample_rsquared_ols
     rss = c(0.551664171429985, -0.368290736807804, -2.92085874432165),
@@ -163,17 +184,26 @@ test_that("OLS - run_ml_backtest works with no rebalancing and a 1m target", {
   rownames(consolidated_eval_metrics) <- "consolidated"
   eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
 
-  results$outputs[[4]] <- eval_metrics
-  #final_model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  results$outputs[[2]] <- eval_metrics
+  #final_sb_model
+  results$outputs[[3]] <- sb_backtest_results@final_sb_model
 
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
+  #final gsm
+  results$outputs[[4]] <- sb_backtest_results@final_gsm
+  gsm_df <- final_df %>% dplyr::left_join(features_m_df@data %>% dplyr::select(-tickers, -dates), by = "id")
+  final_gsm <- lm(pred ~ Alpha + Beta + Gamma, data = gsm_df %>% dplyr::filter(dates <= "2001-06-15"))
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  feature_importance_m_df <- suppressWarnings(coef(summary(final_gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames()
+
+
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
+
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -181,17 +211,17 @@ test_that("OLS - run_ml_backtest works with no rebalancing and a 1m target", {
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with rebalancing and a 1m target", {
+test_that("OLS - run_sb_backtest works with rebalancing and a 1m target", {
 
-  ols_config <- create_ml_backtest_config(
-    ml_algorithm = "ols",
+  ols_config <- create_sb_backtest_config(
+    sb_algorithm = "ols",
     training_sample_size = 4,
     rebalancing_months = 9
   )
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(
         data.frame(
           stringsAsFactors = FALSE,
@@ -371,17 +401,17 @@ test_that("OLS - run_ml_backtest works with rebalancing and a 1m target", {
 
 
   results$outputs[[4]] <- eval_metrics
-  #final_model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  #final_sb_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
 
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -389,17 +419,17 @@ test_that("OLS - run_ml_backtest works with rebalancing and a 1m target", {
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with rebalancing occuring at last month and a 1m target", {
+test_that("OLS - run_sb_backtest works with rebalancing occuring at last month and a 1m target", {
 
-  ols_config <- create_ml_backtest_config(
-    ml_algorithm = "ols",
+  ols_config <- create_sb_backtest_config(
+    sb_algorithm = "ols",
     training_sample_size = 4,
     rebalancing_months = 9
   )
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df =
         create_meta_dataframe(
         data.frame(
@@ -556,16 +586,16 @@ test_that("OLS - run_ml_backtest works with rebalancing occuring at last month a
 
   results$outputs[[4]] <- eval_metrics
 
-  #final_model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  #final_sb_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -573,17 +603,17 @@ test_that("OLS - run_ml_backtest works with rebalancing occuring at last month a
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with rebalancing and a 3m target", {
+test_that("OLS - run_sb_backtest works with rebalancing and a 3m target", {
 
-  ols_config <- create_ml_backtest_config(
-    ml_algorithm = "ols",
+  ols_config <- create_sb_backtest_config(
+    sb_algorithm = "ols",
     training_sample_size = 7,
     rebalancing_months = 9
   )
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df =
         create_meta_dataframe(
         data.frame(
@@ -755,17 +785,17 @@ test_that("OLS - run_ml_backtest works with rebalancing and a 3m target", {
   eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
 
   results$outputs[[4]] <- eval_metrics
-  #final_model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  #final_sb_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -773,16 +803,16 @@ test_that("OLS - run_ml_backtest works with rebalancing and a 3m target", {
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with two rebalancing dates, unbalanced panel and a 3m target", {
+test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced panel and a 3m target", {
 
-  ols_config <- create_ml_backtest_config(ml_algorithm = "ols",
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols",
                                           training_sample_size = 7, rebalancing_months = 9, quantile_tau = 0.25)
 
 
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df =
         create_meta_dataframe(
         data.frame(
@@ -1115,18 +1145,18 @@ test_that("OLS - run_ml_backtest works with two rebalancing dates, unbalanced pa
   rownames(consolidated_eval_metrics) <- "consolidated"
   eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
   results$outputs[[4]] <- eval_metrics
-  #final_model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  #final_sb_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
 
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model")
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-03
   )
@@ -1134,18 +1164,18 @@ test_that("OLS - run_ml_backtest works with two rebalancing dates, unbalanced pa
 })
 
 #Define your test
-test_that("OLS - run_ml_backtest works with toy_preprocessed_features_and_targets", {
+test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_targets", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  ols_config <- create_ml_backtest_config(ml_algorithm = "ols", rebalancing_months = 7, training_sample_size = 5)
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", rebalancing_months = 7, training_sample_size = 5)
 
   features_m_df <- create_meta_dataframe(toy_preprocessed_features)
   target_m_df <- create_meta_dataframe(toy_preprocessed_targets)
 
   #Apply FUN
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = features_m_df,
       target_m_df = target_m_df,
       target_fwd_name = "fwd_premium_3m",
@@ -1156,12 +1186,12 @@ test_that("OLS - run_ml_backtest works with toy_preprocessed_features_and_target
 
   #Apply function
   #suppressMessages(suppressWarnings({
-  #  ml_backtest_results <- run_ml_backtest(
+  #  sb_backtest_results <- run_sb_backtest(
   #    features_m_df = toy_preprocessed_features,
   #    target_m_df = toy_preprocessed_targets,
   #    rebalancing_months = 7,
   #    training_sample_size = 5,
-  #    ml_algorithm = "ols",
+  #    sb_algorithm = "ols",
   #    target_fwd_name = "fwd_premium_3m"
   #    )
   #}))
@@ -1360,17 +1390,17 @@ test_that("OLS - run_ml_backtest works with toy_preprocessed_features_and_target
   eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
   results$outputs[[4]] <- eval_metrics
 
-  if(all(coefficients(second_model) == coefficients(ml_backtest_results@final_model@model))){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(coefficients(second_model) == coefficients(sb_backtest_results@final_sb_model@model))){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
-  names(results$outputs) <- c('oos_prediction_list', 'oos_error_list', 'oos_y_list', 'oos_testing_eval_metrics', 'final_model')
+  names(results$outputs) <- c('oos_prediction_list', 'oos_error_list', 'oos_y_list', 'oos_testing_eval_metrics', 'final_sb_model')
   #Compare
-  expect_equal(ml_backtest_results,
+  expect_equal(sb_backtest_results,
                results$outputs,
                tolerance = 1e-05)
 })
@@ -1382,9 +1412,9 @@ test_that("OLS - run_ml_backtest works with toy_preprocessed_features_and_target
 ####################
 ###Grid Search
 #Define your test Excel sheet test glmnet 1
-test_that("GLMNET - run_ml_backtest works with no rebalancing, 1m target, grid_search as tuning method and rss as chosen eval metric",{
+test_that("GLMNET - run_sb_backtest works with no rebalancing, 1m target, grid_search as tuning method and rss as chosen eval metric",{
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 12,
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 12,
                                              quantile_tau = 0.75) %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rss", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
@@ -1392,7 +1422,7 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 1m target, grid_s
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(
         structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
@@ -1686,8 +1716,8 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 1m target, grid_s
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -1707,16 +1737,16 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 1m target, grid_s
   rownames(validation_eval_hyper_choice_avg) <- "average"
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-05
   )
@@ -1724,9 +1754,9 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 1m target, grid_s
 })
 
 #Define your test Excel sheet test glmnet 2
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 1m target, grid_search as tuning method and hr as chosen eval metric",{
+test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, grid_search as tuning method and hr as chosen eval metric",{
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11,
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11,
                                              huber_delta = 1.35) %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "hr", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
@@ -1734,7 +1764,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 1m target, 
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(
         structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
@@ -2179,8 +2209,8 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 1m target, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -2200,16 +2230,16 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 1m target, 
   rownames(validation_eval_hyper_choice_avg) <- "average"
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-2
   )
@@ -2217,9 +2247,9 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 1m target, 
 })
 
 #Define your test Excel sheet test glmnet 3
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and rss as chosen eval metric",{
+test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method and rss as chosen eval metric",{
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11,
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11,
                                              huber_delta = 0.5) %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rss", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
@@ -2228,7 +2258,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(
         structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
@@ -2682,8 +2712,8 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -2704,16 +2734,16 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-03
   )
@@ -2721,9 +2751,9 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 })
 
 #Define your test  Excel sheet test glmnet 4
-test_that("GLMNET - run_ml_backtest works with no rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric - bigger sample",{
+test_that("GLMNET - run_sb_backtest works with no rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric - bigger sample",{
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 8, rebalancing_months = 11) %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 8, rebalancing_months = 11) %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rmse", validation_sample_size = 5) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
@@ -2732,7 +2762,7 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 3m target, grid_s
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(
         structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                               "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -3172,8 +3202,8 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 3m target, grid_s
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -3194,17 +3224,17 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 3m target, grid_s
   rownames(validation_eval_hyper_choice_avg) <- "average"
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-1
   )
@@ -3212,16 +3242,16 @@ test_that("GLMNET - run_ml_backtest works with no rebalancing, 3m target, grid_s
 })
 
 #Define your test Excel sheet test glmnet 5
-test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric",{
+test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric",{
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rmse", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(
         structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
@@ -3671,8 +3701,8 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, grid_sear
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -3692,17 +3722,17 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, grid_sear
   rownames(validation_eval_hyper_choice_avg) <- "average"
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                                "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-1
   )
@@ -3710,9 +3740,9 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, grid_sear
 })
 
 #Define your test Excel sheet test glmnet 6
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and cp as chosen eval metric",{
+test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method and cp as chosen eval metric",{
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3, chosen_eval_metric = "cp") %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length = 10)))
 
@@ -3720,7 +3750,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(
         structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
@@ -4166,8 +4196,8 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -4187,16 +4217,16 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-3
   )
@@ -4204,15 +4234,15 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 })
 
 #Define your test
-test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   #install package for plan(multisession)
   future::plan("multisession")
 
-  rf_config <- create_ml_backtest_config(
-    ml_algorithm = "rf",
+  rf_config <- create_sb_backtest_config(
+    sb_algorithm = "rf",
     training_sample_size = 7,
     rebalancing_months = 6
   ) %>% add_tuning_strategy(
@@ -4227,7 +4257,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, gr
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       target_fwd_name = c("fwd_premium_3m"),
@@ -4584,8 +4614,8 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, gr
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(rf.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -4607,15 +4637,15 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, gr
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -4625,11 +4655,11 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, gr
 })
 
 #Define your test
-test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber (not mentioned) as chosen eval metric and custom_objective pseudo huber error -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber (not mentioned) as chosen eval metric and custom_objective pseudo huber error -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  xgb_config <- create_ml_backtest_config(ml_algorithm = "xgb", huber_delta = 1.3,
+  xgb_config <- create_sb_backtest_config(sb_algorithm = "xgb", huber_delta = 1.3,
                                           training_sample_size = 7,
                                           rebalancing_months = 6,
                                           custom_objective = "pseudo_huber_error") %>%
@@ -4645,7 +4675,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, g
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       target_fwd_name = "fwd_premium_3m",
@@ -5061,8 +5091,8 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, g
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(xgb.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
   #Validation lossess for chosen metric
@@ -5092,15 +5122,15 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, g
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -5112,13 +5142,13 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, g
 })
 
 #Define your test
-test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("sequential")
 
   nn_config <-
-  create_ml_backtest_config(ml_algorithm = "nn", training_sample_size = 7, rebalancing_months = 6) %>%
+  create_sb_backtest_config(sb_algorithm = "nn", training_sample_size = 7, rebalancing_months = 6) %>%
 
     add_keras_architecture(nn_optimizer = "Adam", units = 32, activation = "relu", batch_norm_option = TRUE) %>%
 
@@ -5131,7 +5161,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebal
   tensorflow::set_random_seed(100)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       target_fwd_name = "fwd_premium_3m",
@@ -5627,7 +5657,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebal
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
 
   #Validation lossess for chosen metric
@@ -5652,17 +5682,17 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebal
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-3
   )
@@ -5672,12 +5702,12 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_ml_backtest works with rebal
 })
 
 #Define your test
-test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("sequential")
 
-  rf_config <- create_ml_backtest_config(ml_algorithm = "rf", quantile_tau = 0.25,
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", quantile_tau = 0.25,
                                          training_sample_size = 7,
                                          rebalancing_months = 6) %>%
                                          add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "cp", validation_sample_size = 3) %>%
@@ -5687,7 +5717,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebala
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       target_fwd_name = "fwd_premium_3m",
@@ -6049,8 +6079,8 @@ test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebala
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(rf.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
     #Validation lossess for chosen metric
@@ -6071,16 +6101,16 @@ test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebala
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -6090,19 +6120,19 @@ test_that("RF (Sequential - Parallel = TRUE) - run_ml_backtest works with rebala
 })
 
 #Define your test
-test_that("RF (Sequential - Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Sequential - Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  rf_config <- create_ml_backtest_config(
-    rebalancing_months = 6, ml_algorithm = "rf", training_sample_size = 7) %>%
+  rf_config <- create_sb_backtest_config(
+    rebalancing_months = 6, sb_algorithm = "rf", training_sample_size = 7) %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "hr", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"), grid = list(c(0, 0.5, 1), c(200, 500), c(2, 4, 6), c(1, 5, 10)))
 
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
       target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
       target_fwd_name = "fwd_premium_3m",
@@ -6439,8 +6469,8 @@ test_that("RF (Sequential - Parallel = FALSE) - run_ml_backtest works with rebal
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(rf.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
    #Validation lossess for chosen metric
@@ -6461,16 +6491,16 @@ test_that("RF (Sequential - Parallel = FALSE) - run_ml_backtest works with rebal
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-3
   )
@@ -6479,9 +6509,9 @@ test_that("RF (Sequential - Parallel = FALSE) - run_ml_backtest works with rebal
 })
 
 #Define your test Excel sheet test glmnet 7
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
+test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", huber_delta = 1.25, training_sample_size = 4,
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", huber_delta = 1.25, training_sample_size = 4,
                                               rebalancing_months = 11,
   ) %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "mphe", validation_sample_size = 3) %>%
@@ -6489,7 +6519,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
                     "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
@@ -6934,8 +6964,8 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -6956,16 +6986,16 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-3
   )
@@ -6974,20 +7004,20 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 
 ###Random Search
 #Define your test Excel sheet test glmnet 8
-test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, random_search (uniform) as tuning method and rmse as chosen eval metric",{
+test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, random_search (uniform) as tuning method and rmse as chosen eval metric",{
 
 
   ################Uniform Distribution
   #########################################
   set.seed(123)
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
     add_tuning_strategy(validation_sample_size = 3, chosen_eval_metric = "rmse", tuning_method = "random_search", n_iter = 5) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), distribution_choice = c("uniform", "uniform"),
                        pars = list(c(min=0, max=1), c(min=0.1, max=0.99)))
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(
         structure(
         list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
@@ -7439,8 +7469,8 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
 
@@ -7460,15 +7490,15 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -7476,12 +7506,12 @@ test_that("GLMNET - run_ml_backtest works with rebalancing at final, 3m target, 
 })
 
 #Define your test
-test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, random_search (uniform and lognormal) as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, random_search (uniform and lognormal) as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   future::plan("multisession")
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  rf_config <- create_ml_backtest_config(ml_algorithm = "rf", training_sample_size = 7, rebalancing_months = 6,
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 7, rebalancing_months = 6,
                                          huber_delta = 1.5) %>%
     add_tuning_strategy(tuning_method = "random_search", chosen_eval_metric = "rmse", n_iter = 3, validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
@@ -7491,7 +7521,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ra
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       config = rf_config,
@@ -7880,7 +7910,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ra
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
 
   #Validation lossess for chosen metric
@@ -7900,16 +7930,16 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ra
   rownames(validation_eval_hyper_choice_avg) <- "average"
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -7919,24 +7949,24 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ra
 })
 
 #Define your test
-test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, random_search as tuning method and rss as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, random_search as tuning method and rss as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   set.seed(123)
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 7, rebalancing_months = 6) %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 7, rebalancing_months = 6) %>%
     add_tuning_strategy(tuning_method = "random_search", chosen_eval_metric = "rss", n_iter = 5, validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), distribution_choice = c("uniform", "uniform"), pars = list(c(min = 0, max = 1), c(min = 0.1, max = 0.9)))
 
-  #hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "random_search", ml_algorithm = "glmnet")
+  #hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "random_search", sb_algorithm = "glmnet")
   #hyper_grid_domain <- add_hyperparameter(hyper_grid_domain,
   #                                        new_hyperparameters = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
   #                                                                   lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.9))))
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
       target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
       target_fwd_name = "fwd_premium_3m",
@@ -8267,7 +8297,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, random_se
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
 
   #Validation lossess for chosen metric
@@ -8286,15 +8316,15 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, random_se
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
   #Rename
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics",
-                              "final_model", "chosen_eval_metric_validation",
+                              "final_sb_model", "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -8302,11 +8332,11 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, random_se
 })
 
 #Define your test
-test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, random as tuning method, rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, random as tuning method, rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  xgb_config <- create_ml_backtest_config(ml_algorithm = "xgb", huber_delta = 1.3, custom_objective = "squared_error",
+  xgb_config <- create_sb_backtest_config(sb_algorithm = "xgb", huber_delta = 1.3, custom_objective = "squared_error",
                                           training_sample_size = 7, rebalancing_months = 6,) %>%
     add_tuning_strategy(tuning_method = "random_search", n_iter = 2, early_stop = 25, validation_sample_size = 3, chosen_eval_metric = "rmse") %>%
     add_hyperparameter(hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
@@ -8322,7 +8352,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, r
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       target_fwd_name = "fwd_premium_3m",
@@ -8775,8 +8805,8 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, r
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(xgb.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
   #Validation lossess for chosen metric
@@ -8806,17 +8836,17 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, r
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -8831,13 +8861,13 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, r
 
 ###Bayesian Opt
 #Define your test
-test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   #For second rebalancing, bayesian_opt could not converge because FUN was evaluating same results. So a hypothetical cov is added just to test bayes opt dynamic
   toy_preprocessed_features$artificial_var <- toy_preprocessed_targets$fwd_return_1m
 
-  glmnet_config <- create_ml_backtest_config( ml_algorithm = "glmnet", huber_delta = 0.5,
+  glmnet_config <- create_sb_backtest_config( sb_algorithm = "glmnet", huber_delta = 0.5,
                                               training_sample_size = 7,
                                               rebalancing_months = 6) %>%
     add_tuning_strategy(tuning_method = "bayesian_opt", n_iter = 10, validation_sample_size = 3, chosen_eval_metric = "rmse", init_points = 5, k_iter = 1, acq = "ucb") %>%
@@ -8847,7 +8877,7 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
       target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
       config = glmnet_config,
@@ -9255,8 +9285,8 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
   #Validation lossess for chosen metric
@@ -9281,17 +9311,17 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-2
   )
@@ -9299,11 +9329,11 @@ test_that("GLMNET - run_ml_backtest works with rebalancing, 3m target, bayesian_
 })
 
 #Define your test
-test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  rf_config <- create_ml_backtest_config( ml_algorithm = "rf", huber_delta = 1.3, quantile_tau = 0.25,
+  rf_config <- create_sb_backtest_config( sb_algorithm = "rf", huber_delta = 1.3, quantile_tau = 0.25,
                                           training_sample_size = 7, rebalancing_months = 6) %>%
     add_tuning_strategy(tuning_method = "bayesian_opt", chosen_eval_metric = "mphe", acq = "ucb", n_iter = 16, k_iter = 8, init_points = 5, validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"), bounds = list(c(0,1), c(100L, 1000L), c(2L, 8L), c(1,5)))
@@ -9314,7 +9344,7 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ba
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       config = rf_config,
@@ -9748,8 +9778,8 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ba
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(rf.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
   #Validation lossess for chosen metric
@@ -9778,16 +9808,16 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ba
   rownames(validation_eval_hyper_choice_avg) <- "average"
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -9798,12 +9828,12 @@ test_that("RF (Parallel) - run_ml_backtest works with rebalancing, 3m target, ba
 })
 
 #Define your test
-test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   xgb_config  <-
-    create_ml_backtest_config(ml_algorithm = "xgb", custom_objective = "pseudo_huber_error", quantile_tau = 0.25, huber_delta = 1.25,
+    create_sb_backtest_config(sb_algorithm = "xgb", custom_objective = "pseudo_huber_error", quantile_tau = 0.25, huber_delta = 1.25,
                               training_sample_size = 7, rebalancing_months = 6) %>%
     add_tuning_strategy(tuning_method = "bayesian_opt", n_iter = 16, k_iter = 8, init_points = 10, acq = "ucb", early_stop = 10, validation_sample_size = 3, chosen_eval_metric = "mphe") %>%
     add_hyperparameter(hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
@@ -9816,7 +9846,7 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, b
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
       target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
       target_fwd_name = "fwd_premium_3m",
@@ -10293,8 +10323,8 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, b
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit2) - coef(ml_backtest_results@final_model@model)) < 0.0001)){
-    results$outputs[[5]] <- ml_backtest_results@final_model
+  if(all(abs(coef(xgb.mod.refit2) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
+    results$outputs[[5]] <- sb_backtest_results@final_sb_model
   }
 
   #Validation lossess for chosen metric
@@ -10340,16 +10370,16 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, b
   rownames(validation_eval_hyper_choice_avg) <- "average"
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -10359,12 +10389,12 @@ test_that("XGB (Parallel) - run_ml_backtest works with rebalancing, 3m target, b
 })
 
 #Define your test
-test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   nn_config <-
-    create_ml_backtest_config(ml_algorithm = "nn", custom_objective = "pseudo_huber_error",
+    create_sb_backtest_config(sb_algorithm = "nn", custom_objective = "pseudo_huber_error",
                               quantile_tau = 0.25, huber_delta = 1.25, training_sample_size = 7, rebalancing_months = 6) %>%
     add_keras_architecture(nn_optimizer = "Adam", units = c(32, 16, 8), activation = rep("relu", 3), batch_norm_option = rep(TRUE, 3)) %>%
     add_tuning_strategy(tuning_method = "bayesian_opt", n_iter = 3, k_iter = 1, init_points = 8,
@@ -10378,7 +10408,7 @@ test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m ta
   tensorflow::set_random_seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       target_fwd_name = "fwd_premium_3m",
@@ -10882,7 +10912,7 @@ test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m ta
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
 
   #Validation lossess for chosen metric
@@ -10923,16 +10953,16 @@ test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m ta
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -10942,7 +10972,7 @@ test_that("NN (Parallel = FALSE) - run_ml_backtest works with rebalancing, 3m ta
 })
 
 #Define your test
-test_that("Skipped: NN (Parallel = TRUE) - run_ml_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+test_that("Skipped: NN (Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
 skip()
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -10953,13 +10983,13 @@ skip()
   tensorflow::set_random_seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = toy_preprocessed_features,
       target_m_df = toy_preprocessed_targets,
       training_sample_size = 7,
       validation_sample_size = 3,
       rebalancing_months = 6,
-      ml_algorithm = "nn",
+      sb_algorithm = "nn",
       custom_objective = "pseudo_huber_error",
       target_fwd_name = c("fwd_premium_3m"),
       hyper_grid_domain = list(regularizer_l1 = c(1, 6), regularizer_l2 = c(2, 8),
@@ -11467,7 +11497,7 @@ skip()
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
 
   #Validation lossess for chosen metric
@@ -11507,16 +11537,16 @@ skip()
   results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_model",
+  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -11532,11 +11562,11 @@ test_that("Metabacktesting works for configs", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6, config_name = "glmnet_123") %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6, config_name = "glmnet_123") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
 
-  rf_config <- create_ml_backtest_config(ml_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6, config_name = "rf_101") %>%
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6, config_name = "rf_101") %>%
     add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
     add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
                        distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
@@ -11544,14 +11574,14 @@ test_that("Metabacktesting works for configs", {
                                    c(min = 1L, max = 10L))
     )
 
-  nn1_config <- create_ml_backtest_config(ml_algorithm = "nn", training_sample_size = 4, rebalancing_months = 6) %>%
+  nn1_config <- create_sb_backtest_config(sb_algorithm = "nn", training_sample_size = 4, rebalancing_months = 6) %>%
     add_keras_architecture(nn_optimizer = "Adam", units = 32, batch_norm_option = TRUE, activation = "relu") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3, early_stop = 3) %>%
     add_hyperparameter(hyperparameter = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
                        grid = list(c(0,1), c(0,1), c(0, 0.75), c(0.1, 0.5), c(32L, 128L), c(1L, 10L))
     )
 
-  meta_learner_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4,
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4,
                                                    rebalancing_months = 6, config_name = "meta") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
@@ -11565,7 +11595,7 @@ test_that("Metabacktesting works for configs", {
 
 
   set.seed(123)
-  ml_metabacktest_results <- run_ml_backtest(
+  ml_metabacktest_results <- run_sb_backtest(
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_fwd_name = "fwd_premium_3m",
@@ -11575,7 +11605,7 @@ test_that("Metabacktesting works for configs", {
   )
 
   set.seed(123)
-  rf_results <- run_ml_backtest(
+  rf_results <- run_sb_backtest(
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_fwd_name = "fwd_premium_3m",
@@ -11584,7 +11614,7 @@ test_that("Metabacktesting works for configs", {
     verbose = TRUE
   )
 
-  glmnet_results <- run_ml_backtest(
+  glmnet_results <- run_sb_backtest(
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_fwd_name = "fwd_premium_3m",
@@ -11602,7 +11632,7 @@ test_that("Metabacktesting works for configs", {
   adapted_target_m_df <- create_meta_dataframe(toy_preprocessed_targets)
   adapted_target_m_df@data <- adapted_target_m_df@data[which(adapted_target_m_df@data$id %in% oos_predictions_m_df@data$id),]
 
-  meta_results <- run_ml_backtest(
+  meta_results <- run_sb_backtest(
     target_m_df = adapted_target_m_df,
     features_m_df = oos_predictions_m_df,
     target_fwd_name = "fwd_premium_3m",
@@ -11663,15 +11693,15 @@ test_that("Metabacktesting works for provided backtests", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  ols_config <- create_ml_backtest_config(ml_algorithm = "ols", custom_objective = "squared_error",
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", custom_objective = "squared_error",
                                           training_sample_size = 7, rebalancing_months = 6, config_name = "ols")
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6,
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6,
                                              config_name = "glmnet-grid") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
 
-  rf_config <- create_ml_backtest_config(ml_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6,
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6,
                                          config_name = "rf-random") %>%
     add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
     add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
@@ -11681,7 +11711,7 @@ test_that("Metabacktesting works for provided backtests", {
     )
 
 
-  meta_learner_config <- create_ml_backtest_config(ml_algorithm = "ols", custom_objective = "squared_error", config_name = "meta-ols",
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "ols", custom_objective = "squared_error", config_name = "meta-ols",
                                           training_sample_size = 4, rebalancing_months = 6)
 
 
@@ -11693,7 +11723,7 @@ test_that("Metabacktesting works for provided backtests", {
   #Run
   set.seed(123)
   tensorflow::set_random_seed(123)
-  ols_results <- run_ml_backtest(
+  ols_results <- run_sb_backtest(
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     target_fwd_name = "fwd_premium_3m",
@@ -11702,7 +11732,7 @@ test_that("Metabacktesting works for provided backtests", {
     parallel = FALSE
   )
 
-  glmnet_results <- run_ml_backtest(
+  glmnet_results <- run_sb_backtest(
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     target_fwd_name = "fwd_premium_3m",
@@ -11711,7 +11741,7 @@ test_that("Metabacktesting works for provided backtests", {
     parallel = FALSE
   )
 
-  rf_results <- run_ml_backtest(
+  rf_results <- run_sb_backtest(
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     target_fwd_name = "fwd_premium_3m",
@@ -11723,7 +11753,7 @@ test_that("Metabacktesting works for provided backtests", {
   set.seed(123)
   tensorflow::set_random_seed(123)
 
-  ml_metabacktest_results <- run_ml_backtest(
+  ml_metabacktest_results <- run_sb_backtest(
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     target_fwd_name = "fwd_premium_3m",
@@ -11762,7 +11792,7 @@ test_that("Metabacktesting works for provided backtests", {
                                                config_name = "meta123")
 
   set.seed(123)
-  ml_metabacktest_results2 <- run_ml_backtest(
+  ml_metabacktest_results2 <- run_sb_backtest(
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     target_fwd_name = "fwd_premium_3m",
@@ -11796,11 +11826,11 @@ test_that("Metabacktesting works for provided backtests", {
 
 #BEGIN OTHER TESTS
 #####################################
-test_that("run_ml_backtest correctly classifies data as training, validation and testing", {
+test_that("run_sb_backtest correctly classifies data as training, validation and testing", {
 
    load(paste(test_path(),"/testdata/","toy_fulldates_features_and_targets.RData", sep =""))
 
-    xgb_config <- create_ml_backtest_config(ml_algorithm = "xgb", custom_objective = "pseudo_huber_error",
+    xgb_config <- create_sb_backtest_config(sb_algorithm = "xgb", custom_objective = "pseudo_huber_error",
                                             training_sample_size = 60, rebalancing_months = 6) %>%
       add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 36) %>%
       add_hyperparameter(hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
@@ -11811,7 +11841,7 @@ test_that("run_ml_backtest correctly classifies data as training, validation and
 
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_features_full_dates),
       target_m_df = create_meta_dataframe(toy_target_full_date),
       target_fwd_name = c("fwd_premium_3m"),
@@ -11819,7 +11849,7 @@ test_that("run_ml_backtest correctly classifies data as training, validation and
       verbose = FALSE
     )}))
 
-  rebalance_dates <- as.Date(rownames(ml_backtest_results@validation_eval_metrics_hyper_choice), format = "%Y-%m-%d")
+  rebalance_dates <- as.Date(rownames(sb_backtest_results@validation_eval_metrics_hyper_choice), format = "%Y-%m-%d")
 
 
   #Check if rebalance dates match expected months
@@ -11833,7 +11863,7 @@ test_that("run_ml_backtest correctly classifies data as training, validation and
 })
 
 #Define your test
-test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m_df",{
+test_that("run_sb_backtest works with NAs in last target_fwd periods of target_m_df",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -11842,7 +11872,7 @@ test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m
   toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15")), "fwd_return_1m"] <- NA
   toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15")), "fwd_premium_1m"] <- NA
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 7, rebalancing_months = 6) %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 7, rebalancing_months = 6) %>%
     add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, chosen_eval_metric = "rss", n_iter = 5) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        distribution_choice = c("uniform", "uniform"),
@@ -11856,7 +11886,7 @@ test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m
   set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = features_m_df,
       target_m_df = target_m_df,
       target_fwd_name = c("fwd_premium_3m"),
@@ -12187,7 +12217,7 @@ test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m
   results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  results$outputs[[5]] <- ml_backtest_results@final_model
+  results$outputs[[5]] <- sb_backtest_results@final_sb_model
 
 
   #Validation lossess for chosen metric
@@ -12207,15 +12237,15 @@ test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m
 
   #Rename
   names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics",
-                              "final_model", "chosen_eval_metric_validation",
+                              "final_sb_model", "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  ml_backtest_results <- as.list(ml_backtest_results)
-  ml_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_results <- as.list(sb_backtest_results)
+  sb_backtest_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    ml_backtest_results,
+    sb_backtest_results,
     results$outputs,
     tolerance = 1e-5
   )
@@ -12223,7 +12253,7 @@ test_that("run_ml_backtest works with NAs in last target_fwd periods of target_m
 })
 
 #Define your test
-test_that("run_ml_backtest does not works with NAs in last target_fwd+ 1 periods of target_m_df",{
+test_that("run_sb_backtest does not works with NAs in last target_fwd+ 1 periods of target_m_df",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -12232,7 +12262,7 @@ test_that("run_ml_backtest does not works with NAs in last target_fwd+ 1 periods
   toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15")), "fwd_return_1m"] <- NA
   toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-07-15")), "fwd_premium_1m"] <- NA
 
-  glmnet_config <- create_ml_backtest_config(ml_algorithm = "glmnet", training_sample_size = 7, rebalancing_months = 6) %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 7, rebalancing_months = 6) %>%
     add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, chosen_eval_metric = "rss", n_iter = 5) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        distribution_choice = c("uniform", "uniform"),
@@ -12244,7 +12274,7 @@ test_that("run_ml_backtest does not works with NAs in last target_fwd+ 1 periods
   #Apply function
   expect_error(
   suppressMessages(suppressWarnings({
-    ml_backtest_results <- run_ml_backtest(
+    sb_backtest_results <- run_sb_backtest(
       features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
       target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
       target_fwd_name = c("fwd_premium_3m"),

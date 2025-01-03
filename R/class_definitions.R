@@ -132,7 +132,9 @@ setClass(
 setClass(
   "oos_sb_outputs_m_df",
   contains = "meta_dataframe",
-  slots = sb_backtest_workflow,
+  slots = c(
+    sb_backtest_workflow = "ANY"
+  ),
   validity = function(object) {
     #Colnames adherence
     if(!any(colnames(object@data) == c("id", "tickers", "target", "pred", "error"))){
@@ -1624,7 +1626,7 @@ setClass(
     final_sb_model = "sb_model",
     final_gsm = "ANY",
     feature_importance_m_df = "meta_dataframe",
-    final_feature_importance_m_df = "meta_dataframe",
+    final_feature_importance_m_d_ref = "meta_dataframe",
     chosen_eval_metric_validation = "ANY",
     best_hyperparameters = "ANY",
     validation_eval_metrics_hyper_choice = "ANY",
@@ -1633,7 +1635,7 @@ setClass(
     backtest_identifier = "character"
   ), validity = function(object){
 
-    if(!object@final_gsm %in% c("lm", "rpart")){
+    if(!class(object@final_gsm) %in% c("lm", "rpart")){
       stop("final_gsm must be a 'lm' or 'rpart' object")
     }
 

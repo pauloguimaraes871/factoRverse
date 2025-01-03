@@ -69,6 +69,7 @@ setMethod("run_ss_backtest",
               stop("chosen_signals_and_positions should contain only 'long' or 'short'.")
             }
 
+            #Winsorization probs
             lower_quantile_winsorization <- min(winsorization_probs)
             upper_quantile_winsorization <- max(winsorization_probs)
 
@@ -179,13 +180,13 @@ setMethod("run_ss_backtest",
               }
             ss_backtest_results@backtest_identifier <- ss_backtest_results@ss_backtest_workflow$backtest_identifier
 
-            ###Workflow for signal_universe_m_df
-            ss_backtest_results@signal_universe_m_df@workflow <- list(paste0("signal_universe_m_df result of ", ss_backtest_results@backtest_identifier))
-            ss_backtest_results@final_signal_universe_m_d_ref@workflow <- list(paste0("final_signal_universe_m_d_ref result of ", ss_backtest_results@backtest_identifier))
-
-            ###Names for signal_universe_m_df
-            ss_backtest_results@signal_universe_m_df@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
-            ss_backtest_results@final_signal_universe_m_d_ref@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
+            ###Workflow and names for signal_universe_m_df
+              ####Workflow
+              ss_backtest_results@signal_universe_m_df@workflow <- list(paste0("signal_universe_m_df result of ", ss_backtest_results@backtest_identifier))
+              ss_backtest_results@final_signal_universe_m_d_ref@workflow <- list(paste0("final_signal_universe_m_d_ref result of ", ss_backtest_results@backtest_identifier))
+              ####Names
+              ss_backtest_results@signal_universe_m_df@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
+              ss_backtest_results@final_signal_universe_m_d_ref@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
 
 
             ###Call

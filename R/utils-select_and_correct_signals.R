@@ -41,7 +41,7 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
       stop("all chosen signals should have a matching position in signals_m_df")
     }
 
-  selected_signals_m_df <- signals_m_df[, c("id", "tickers", "dates", chosen_signals)] #subset cols present in signals_m_df
+  selected_signals_m_df <- signals_m_df %>% dplyr::select(id, tickers, dates, dplyr::all_of(chosen_signals)) #subset cols present in signals_m_df
   #####################
 
   ###Inform short positions
@@ -55,7 +55,7 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
   ####Correct positions
   selected_signals_corrected_positions_m_df <- selected_signals_m_df
   ###Invert sign of short signals
-  selected_signals_corrected_positions_m_df[, chosen_short_signals] <- selected_signals_corrected_positions_m_df[, chosen_short_signals]*-1
+  selected_signals_corrected_positions_m_df <- selected_signals_corrected_positions_m_df %>% dplyr::mutate(dplyr::across(dplyr::all_of(chosen_short_signals), ~ . * -1))
   ###Change colnames
   colnames(selected_signals_corrected_positions_m_df)[-c(1:3)] <- chosen_signals_corrected_positions
 
@@ -66,7 +66,7 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
   ########################
   if(!is.null(signal_themes_m_df)){
   ###Check if all signals have a theme
-  if(!all(chosen_signals_corrected_positions %in% unique(signal_themes_m_df$tickers))){
+  if(!all(chosen_signals_corrected_positions %in% unique(signal_themes_m_df %>% dplyr::pull(tickers)))){
     stop("all chosen signals should have a matching position in signal_themes_m_df")
   }
 

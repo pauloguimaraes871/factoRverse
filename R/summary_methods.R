@@ -691,14 +691,13 @@ setMethod("summary", "sb_metabacktest_config",
 #' @description Provides a detailed summary of an `sb_backtest_results` object.
 #' Users can select which summary table to display by specifying the `summary_id` parameter,
 #' either by name or by number.
-#' The summary includes interactive tables styled using the `DT` package.
+#' The summary includes interactive tables styled using the `DT` package and leverages
+#' the summary method of the `meta_dataframe` class for the `oos_sb_outputs_m_df` component.
 #'
 #' @param object An object of class `sb_backtest_results`.
 #' @param summary_id A character string or numeric value specifying which table to display.
 #'   - By name: Options are:
-#'     - `"OOS_Predictions"`
-#'     - `"OOS_Errors"`
-#'     - `"OOS_Y"`
+#'     - `"OOS_SB_Outputs_Summary"` (Delegates to `meta_dataframe` summary)
 #'     - `"OOS_Testing_Eval_Metrics"`
 #'     - `"Chosen_Eval_Metric_Validation"`
 #'   - By number: Provide a number corresponding to the table (as listed when `summary_id` is `NULL`).
@@ -711,13 +710,11 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   # Define colors for styling
   deep_navy <- "#000033"   # Deep Navy for data rows
   black <- "#000000"       # Black for headers
-  white <- "#FFFFFF"       # White text
+  white <- "#FFFFFF"       # White for headers and text
 
-  # List of available tables (excluding 'Main_Information')
+  # List of available tables
   available_tables <- c(
-    "OOS_Predictions",
-    "OOS_Errors",
-    "OOS_Y",
+    "OOS_SB_Outputs_Summary",        # Delegates to meta_dataframe summary
     "OOS_Testing_Eval_Metrics",
     "Chosen_Eval_Metric_Validation"
   )
@@ -730,7 +727,6 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   cat("Chosen Evaluation Metric:", object@sb_backtest_workflow$chosen_eval_metric, "\n")
   cat("Testing Sample Dates:", format(as.Date(object@sb_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")
   cat("Rebalancing Dates:", format(as.Date(object@sb_backtest_workflow$rebalance_dates), "%d-%m-%Y"), "\n")
-
 
   if (is.null(summary_id)) {
     cat("\nPlease choose a table to display:\n")
@@ -845,45 +841,49 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   }
 
   # Prepare data based on the selected table
-  if (table_name %in% c("OOS_Predictions", "OOS_Errors", "OOS_Y", "OOS_Testing_Eval_Metrics")) {
-    # Helper function to summarize a list of vectors or data frames
-    summarize_list <- function(lst) {
-      summaries <- lapply(names(lst), function(name) {
-        x <- lst[[name]]
-        if (is.vector(x) || is.data.frame(x)) {
-          summary_stats <- data.frame(
-            Date = name,  # Add the date as the first column
-            Mean = mean(x, na.rm = TRUE),
-            Median = median(x, na.rm = TRUE),
-            SD = sd(x, na.rm = TRUE),
-            Min = min(x, na.rm = TRUE),
-            Max = max(x, na.rm = TRUE)
-          )
-          return(summary_stats)
-        } else {
-          return(NULL)
-        }
-      })
-      # Combine all summaries into one data frame and remove NULLs
-      summaries <- do.call(rbind, summaries)
-      return(summaries)
+  if (table_name == "OOS_SB_Outputs_Summary") {
+    # Delegate to the meta_dataframe summary method
+    if (!is.null(object@oos_sb_outputs_m_df)) {
+      cat("\nDisplaying Summary for oos_sb_outputs_m_df:\n")
+      summary(object@oos_sb_outputs_m_df)
+    } else {
+      cat("oos_sb_outputs_m_df is not specified.\n")
     }
 
-    # Extracting summary statistics for each component
-    summary_list <- list(
-      OOS_Predictions = object@oos_prediction_list,
-      OOS_Errors = object@oos_error_list,
-      OOS_Y = object@oos_y_list,
-      OOS_Testing_Eval_Metrics = object@oos_testing_eval_metrics
-    )
+  } else if (table_name == "OOS_Testing_Eval_Metrics") {
+    # Existing logic for OOS_Testing_Eval_Metrics
+    if (!is.null(object@oos_testing_eval_metrics) && length(object@oos_testing_eval_metrics) > 0) {
+      # Assuming oos_testing_eval_metrics is a list of evaluation metrics per date
+      oos_testing_metrics <- convert_oos_list_to_m_df(object@oos_testing_eval_metrics)
 
-    data_list <- summarize_list(summary_list[[table_name]])
+      # Summarize evaluation metrics
+      oos_testing_summary <- oos_testing_metrics %>%
+        dplyr::group_by(Date) %>%
+        dplyr::summarise(
+          Mean = mean(value, na.rm = TRUE),
+          Median = median(value, na.rm = TRUE),
+          SD = sd(value, na.rm = TRUE),
+          Min = min(value, na.rm = TRUE),
+          Max = max(value, na.rm = TRUE),
+          .groups = 'drop'
+        )
 
-    # Display the table
-    display_table(data_list, paste("Summary of", table_name))
+      # Rename 'value' to the actual metric name if available
+      metric_name <- object@sb_backtest_workflow$chosen_eval_metric
+      # Ensure that the renaming does not cause duplication
+      if (!metric_name %in% names(oos_testing_summary)) {
+        names(oos_testing_summary)[names(oos_testing_summary) == "value"] <- metric_name
+      }
+
+      # Display the table
+      display_table(oos_testing_summary, "OOS Testing Evaluation Metrics Summary")
+
+    } else {
+      cat("OOS Testing Evaluation Metrics not specified or empty.\n")
+    }
 
   } else if (table_name == "Chosen_Eval_Metric_Validation") {
-    # Summarize chosen evaluation metric validation
+    # Existing logic for Chosen_Eval_Metric_Validation
     if (!is.null(object@chosen_eval_metric_validation) && length(object@chosen_eval_metric_validation) > 0) {
       # Combine all data frames in the list into one data frame
       chosen_eval_metric_validation_list <- object@chosen_eval_metric_validation
@@ -958,21 +958,20 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
       chosen_eval_metric_validation_summary <- chosen_eval_metric_validation_df %>%
         dplyr::group_by(concatenation) %>%
         dplyr::summarise(
-          mean_chosen_eval_metric = mean(chosen_eval_metric, na.rm = TRUE),
-          median_chosen_eval_metric = median(chosen_eval_metric, na.rm = TRUE),
-          q25 = stats::quantile(chosen_eval_metric, 0.25, na.rm = TRUE),
-          q75 = stats::quantile(chosen_eval_metric, 0.75, na.rm = TRUE),
-          max = max(chosen_eval_metric, na.rm = TRUE),
-          min = min(chosen_eval_metric, na.rm = TRUE),
+          Mean_Chosen_Eval_Metric = mean(chosen_eval_metric, na.rm = TRUE),
+          Median_Chosen_Eval_Metric = median(chosen_eval_metric, na.rm = TRUE),
+          Q25 = stats::quantile(chosen_eval_metric, 0.25, na.rm = TRUE),
+          Q75 = stats::quantile(chosen_eval_metric, 0.75, na.rm = TRUE),
+          Max = max(chosen_eval_metric, na.rm = TRUE),
+          Min = min(chosen_eval_metric, na.rm = TRUE),
           .groups = 'drop'
         )
 
       # Display the table
-      display_table(chosen_eval_metric_validation_summary, "Chosen Evaluation Metric Summary")
-
+      display_table(chosen_eval_metric_validation_summary, "Chosen Evaluation Metric Validation Summary")
 
     } else {
-      cat("Not specified or empty.\n")
+      cat("Chosen Evaluation Metric Validation not specified or empty.\n")
     }
   }
 

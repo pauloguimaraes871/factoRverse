@@ -55,7 +55,7 @@ check_inputs_sb_backtest <- function(
     cov_matrix_sample_size, cov_estimation_method, active_returns, signal_themes_m_df,
     rp_method, n_random_ports, random_ports_method, opt_objective, concentration_constraint_policy,
     #SB algorithm
-    sb_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
+    sb_algorithm, gsm_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
     #Tuning
     hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
     #Etc
@@ -77,8 +77,8 @@ check_inputs_sb_backtest <- function(
         stop("features_m_df should contain only numeric columns with non-NAs.")
       }
 
-      if(all(any(!lubridate::is.Date(features_m_df$dates)) ||
-             any(is.na(as.Date(features_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+      if(all(any(!lubridate::is.Date(features_m_df %>% dplyr::pull(dates))) ||
+             any(is.na(as.Date(features_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
         stop("dates in features_m_df must be a date object with format %Y-%m-%d.")
       }
 
@@ -98,17 +98,17 @@ check_inputs_sb_backtest <- function(
         stop("target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.")
       }
 
-      if(all(any(!lubridate::is.Date(target_m_df$dates)) ||
-             any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+      if(all(any(!lubridate::is.Date(target_m_df %>% dplyr::pull(dates))) ||
+             any(is.na(as.Date(target_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
         stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
       }
 
       #Get dates allowed to be NA
-      dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df$dates)[(length(unique(target_m_df$dates)) - assumed_target_fwd + 1):length(unique(target_m_df$dates))]
+      dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df %>% dplyr::pull(dates))[(length(unique(target_m_df %>% dplyr::pull(dates))) - assumed_target_fwd + 1):length(unique(target_m_df %>% dplyr::pull(dates)))]
       if(length(dates_allowed_to_be_NA_in_target_m_df) > assumed_target_fwd){
         stop("number of dates in target_m_df with NAs should be at most equal to prediction horizon")
       }
-      if(any(is.na(target_m_df[-which(target_m_df$dates %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
+      if(any(is.na(target_m_df[-which(target_m_df %>% dplyr::pull(dates) %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
          stop("target_m_df can't have NAs until the last target_fwd periods")
       }
 
@@ -132,15 +132,15 @@ check_inputs_sb_backtest <- function(
         stop("features_m_df and target_m_df must possess same number of rows.")
       }
 
-      if(any(target_m_df$id != features_m_df$id)){
+      if(any(target_m_df %>% dplyr::pull(id) != features_m_df %>% dplyr::pull(id))){
         stop("id in features_m_df and in target_m_df must match.")
       }
 
-      if(any(target_m_df$tickers != features_m_df$tickers)){
+      if(any(target_m_df %>% dplyr::pull(tickers) != features_m_df %>% dplyr::pull(tickers))){
         stop("tickers in features_m_df and in target_m_df must match.")
       }
 
-      if(any(target_m_df$dates != features_m_df$dates)){
+      if(any(target_m_df %>% dplyr::pull(dates) != features_m_df %>% dplyr::pull(dates))){
         stop("dates in features_m_df and in target_m_df must match.")
       }
 
@@ -155,11 +155,13 @@ check_inputs_sb_backtest <- function(
       }
 
       ##Check for NAs in heuristic sb metric
-      heuristic_sb_metric <- signal_universe_m_df %>% dplyr::pull(stringr::str_remove_all(custom_objective_translated, "max_") %>% stringr::str_remove_all("min_"))
+      if(sb_algorithm %in% c("sw", "mvo")){
+      heuristic_sb_metric <- signal_universe_m_df %>% dplyr::pull(stringr::str_remove_all(custom_objective, "max_") %>% stringr::str_remove_all("min_"))
       if(any(is.na(heuristic_sb_metric))){
         stop("Heuristic Signal Blending Metric contains NAs")
       }
     }
+  }
 
   #backtest_returns_xts
   if(sb_algorithm %in% c("rp", "mvo") && is.null(backtest_returns_xts)){
@@ -186,11 +188,11 @@ check_inputs_sb_backtest <- function(
       stop("backtest_returns_xts must have at least training_sample_size + validation_sample_size rows")
     }
 
-    if(any(!signal_universe_m_df$dates %in% backtest_returns_dates)){
+    if(any(!signal_universe_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
       stop("all dates in signal_universe_m_df must be present in backtest_returns_xts")
     }
 
-    if(any(!features_m_df$dates %in% backtest_returns_dates)){
+    if(any(!features_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
       stop("all dates in features_m_df must be present in backtest_returns_xts")
     }
 
@@ -250,18 +252,18 @@ check_inputs_sb_backtest <- function(
     }
 
     ##Check if theme column is character
-    if(!is.character(signal_themes_m_df$theme)){
+    if(!is.character(signal_themes_m_df %>% dplyr::pull(theme))){
       stop("theme column in signal_themes_m_df must be character")
     }
 
     ##Check format in signal_themes_m_df
-    if(any(grepl("_", signal_themes_m_df$theme))){
+    if(any(grepl("_", signal_themes_m_df %>% dplyr::pull(theme)))){
       stop("No underscores allowed in signal_themes_m_df theme names")
     }
 
     ##Check if dates in signal_themes_m_df and signals_m_df are the same
-    dates_m_vector <- as.Date(unique(features_m_df$dates))
-    signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df$dates))
+    dates_m_vector <- as.Date(unique(features_m_df %>% dplyr::pull(dates)))
+    signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df %>% dplyr::pull(dates)))
     if(any(!dates_m_vector %in% signal_themes_dates_m_vector)){
       stop("dates in signal_themes_m_df and features_m_df must be the same")
     }
@@ -307,7 +309,7 @@ check_inputs_sb_backtest <- function(
       stop("ols and heuristic sb algorithms do not support validation split.")
     }
 
-    dates_m_vector <- unique(as.Date(features_m_df$dates, format = "%Y-%m-%d"))
+    dates_m_vector <- unique(as.Date(features_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d"))
     if(length(dates_m_vector) < (training_sample_size + validation_sample_size)){
       stop("training_sample_size + validation_sample_size should be less than the number of unique dates in features_m_df.")
     }
@@ -318,8 +320,8 @@ check_inputs_sb_backtest <- function(
   }
 
   #gsm
-  if(!gsm_type %in% c("ols", "tree")){
-    stop("gsm_type should be either 'ols' or 'tree'.")
+  if(!gsm_algorithm %in% c("ols", "tree")){
+    stop("gsm_algorithm should be either 'ols' or 'tree'.")
   }
 
 
@@ -339,7 +341,7 @@ check_inputs_sb_backtest <- function(
   #Get elected signals
   eligible_signals <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers) %>% unique()
   ##Check signal presence in features_m_df
-  check_signal_presence <- stringr::str_remove_all(eligible_signals, pattern = "low_") %in% colnames(features_m_df)
+  check_signal_presence <- !stringr::str_remove_all(eligible_signals, pattern = "low_") %in% colnames(features_m_df)
   if (any(check_signal_presence)) {
     stop("There is a signal mismatch between eligible_signals and features_m_df: ",
       paste(stringr::str_remove_all(eligible_signals, pattern = "low_")[check_signal_presence], collapse = ", ")
@@ -348,7 +350,7 @@ check_inputs_sb_backtest <- function(
 
   ##Check signal presence in signal_themes_m_df
   if(!is.null(signal_themes_m_df)){
-  check_signal_presence <- eligible_signals %in% signal_themes_m_df$tickers
+  check_signal_presence <- !eligible_signals %in% signal_themes_m_df %>% dplyr::pull(tickers)
   if (any(check_signal_presence)) {
      stop("There is a signal mismatch between eligible_signals and signal_themes_m_df: ",
          paste(eligible_signals[check_signal_presence], collapse = ", ")
@@ -358,7 +360,7 @@ check_inputs_sb_backtest <- function(
 
   ##Check signal presence in backtest_returns_xts
   if(!is.null(backtest_returns_xts)){
-  check_signal_presence <- eligible_signals %in% colnames(backtest_returns_xts)
+  check_signal_presence <- !eligible_signals %in% colnames(backtest_returns_xts)
   if (any(check_signal_presence)) {
     stop("There is a signal mismatch between eligible_signals and backtest_returns_xts: ",
          paste(eligible_signals[check_signal_presence], collapse = ", ")
@@ -377,11 +379,11 @@ check_inputs_sb_backtest <- function(
   #Check for correct format of custom_eval/loss parameters
   if(quantile_tau <= 0 || quantile_tau >= 1){
     stop("quantile_tau should be > 0 and less than 1.")
-  } else {}
+  }
 
   if(!is.numeric(huber_delta)){
     stop("huber_delta should be numeric.")
-  } else {}
+  }
 
 
 
@@ -530,7 +532,7 @@ check_inputs_sb_backtest <- function(
     }
 
     #Check for custom objective
-    if(!object@sb_algorithm %in% c("sw", "mto")){
+    if(!sb_algorithm %in% c("sw", "mto")){
       valid_heuristic_sb_metrics <- c(
         "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
         "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
@@ -550,12 +552,12 @@ check_inputs_sb_backtest <- function(
         "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
         "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
       )
-      if (grepl("^max_|^min_", object@custom_objective) && substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
+      if (grepl("^max_|^min_", custom_objective) && substr(custom_objective, 5, nchar(custom_objective)) %in% valid_heuristic_sb_metrics){
         return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
                  To see complete list of valid heuristic performance metrics, run 'display_valid_custom_objectives()'.")
       }
     } else {
-      if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
+      if (!is.null(custom_objective) && !(custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
         return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
       }
     }

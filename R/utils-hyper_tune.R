@@ -158,7 +158,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
       }
 
       #Displays how much time it took for hyper_tuning
-      if(verbose == TRUE){
+      if(verbose){
         tictoc::toc()
       }
 

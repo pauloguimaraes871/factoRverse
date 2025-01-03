@@ -473,6 +473,7 @@ setMethod("show", "sb_backtest_config", function(object) {
   cat("------------------------------\n")
   cat("SB Algorithm:", object@sb_algorithm, "\n")
   cat("Config Name:", object@config_name, "\n")
+  cat("Target Fwd Name:", object@target_fwd_name, "\n")
 
   cat("Training Scheme:\n")
   cat("  Training Sample Size:", object@training_sample_size, "\n")
@@ -918,7 +919,23 @@ setMethod("show", "sb_backtest_results", function(object) {
     print(sb_backtest_workflow$features_workflow)
     cat("\n")
   }
+  cat("Top 5 most important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
+                                                             dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
+                                                             collapse = ", "), "\n")
+
+  cat("Bottom 5 least important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
+                                                                   dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
+                                                                   collapse = ", "), "\n")
+
   if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("Features Object:", sb_backtest_workflow$features_object, "\n")
+
+  cat("Feature Selection Backtest Information:\n")
+  if(!is.null(object@ss_backtest_results)){
+    print(object@ss_backtest_results)
+  } else {
+    cat("  No feature selection backtest results available.\n")
+  }
+
 
   cat("=================================\n")
 

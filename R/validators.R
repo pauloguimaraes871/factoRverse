@@ -45,17 +45,16 @@ is_coercible_to_meta_dataframe <- function(obj) {
       return(FALSE)
     }
 
+
     expected_id <- paste0(obj$tickers, "-", obj$dates)
     if (!all(obj$id == expected_id)) {
       message("The 'id' column does not match the expected format 'tickers-dates'.")
       return(FALSE)
     }
 
-    unique_dates <- unique(obj$dates)
-    full_dates <- seq(min(unique_dates), max(unique_dates), by = "month")
-    missing_dates <- setdiff(full_dates, unique_dates)
-    if (length(missing_dates) > 0) {
-      message("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
+
+    if (!all(diff(unique(obj$dates)[order(unique(obj$dates))]) >= 0)) {
+      message("Dates must be in ascending chronological order")
       return(FALSE)
     }
 
@@ -64,6 +63,8 @@ is_coercible_to_meta_dataframe <- function(obj) {
       return(FALSE)
     }
 
+
+
     # Check for NA values in remaining columns
     remaining_columns <- setdiff(names(obj), required_columns)
     na_remaining <- sapply(obj[, remaining_columns], function(col) any(is.na(col)))
@@ -71,6 +72,13 @@ is_coercible_to_meta_dataframe <- function(obj) {
       message("The following columns contain NA values: ",
               paste(remaining_columns[na_remaining], collapse = ", "))
     }
+
+    if (any(duplicated(remaining_columns))) {
+      stop("Column names for variables must be unique")
+    }
+
+
+
     # All checks passed
     return(TRUE)
 

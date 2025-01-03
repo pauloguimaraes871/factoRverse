@@ -97,7 +97,7 @@ time_series_split <- function(current_date, features_m_df, target_m_df, dates_m_
   d <- which(dates_m_vector == current_date)
 
   #Takes column corresponding to specific target
-  target_vector <- target_m_df[, which(colnames(target_m_df) == target_fwd_name)]
+  target_vector <- target_m_df %>% dplyr::pull(target_fwd_name)
 
   #Training Sample
   #################
