@@ -716,7 +716,8 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   available_tables <- c(
     "OOS_SB_Outputs_Summary",        # Delegates to meta_dataframe summary
     "OOS_Testing_Eval_Metrics",
-    "Chosen_Eval_Metric_Validation"
+    "Chosen_Eval_Metric_Validation",
+    "Feature_Importance"
   )
 
   # Display Main Information always
@@ -724,7 +725,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   cat("SB Algorithm:", object@sb_backtest_workflow$sb_algorithm, "\n")
   cat("Final Model Object Class:", object@final_sb_model@model_class, "\n")
   cat("Custom Objective:", object@sb_backtest_workflow$custom_objective, "\n")
-  cat("Chosen Evaluation Metric:", object@sb_backtest_workflow$chosen_eval_metric, "\n")
+  if(!object@sb_backtest_workflow$sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")) cat("Chosen Evaluation Metric:", object@sb_backtest_workflow$chosen_eval_metric, "\n")
   cat("Testing Sample Dates:", format(as.Date(object@sb_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")
   cat("Rebalancing Dates:", format(as.Date(object@sb_backtest_workflow$rebalance_dates), "%d-%m-%Y"), "\n")
 
@@ -852,13 +853,14 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
 
   } else if (table_name == "OOS_Testing_Eval_Metrics") {
     # Existing logic for OOS_Testing_Eval_Metrics
-    if (!is.null(object@oos_testing_eval_metrics) && length(object@oos_testing_eval_metrics) > 0) {
-      # Assuming oos_testing_eval_metrics is a list of evaluation metrics per date
-      oos_testing_metrics <- convert_oos_list_to_m_df(object@oos_testing_eval_metrics)
+    if (!is.null(object@oos_testing_eval_metrics_xts) && length(object@oos_testing_eval_metrics_xts) > 0) {
+      # Convert to data.frame
+      oos_testing_metrics <- object@oos_testing_eval_metrics_xts %>% as.data.frame() %>%
+        dplyr::mutate(Date = zoo::index(object@oos_testing_eval_metrics_xts)) %>% tidyr::pivot_longer(cols = -Date, names_to = "Metric", values_to = "value")
 
       # Summarize evaluation metrics
       oos_testing_summary <- oos_testing_metrics %>%
-        dplyr::group_by(Date) %>%
+        dplyr::group_by(Metric) %>%
         dplyr::summarise(
           Mean = mean(value, na.rm = TRUE),
           Median = median(value, na.rm = TRUE),
@@ -867,13 +869,6 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
           Max = max(value, na.rm = TRUE),
           .groups = 'drop'
         )
-
-      # Rename 'value' to the actual metric name if available
-      metric_name <- object@sb_backtest_workflow$chosen_eval_metric
-      # Ensure that the renaming does not cause duplication
-      if (!metric_name %in% names(oos_testing_summary)) {
-        names(oos_testing_summary)[names(oos_testing_summary) == "value"] <- metric_name
-      }
 
       # Display the table
       display_table(oos_testing_summary, "OOS Testing Evaluation Metrics Summary")
@@ -973,6 +968,39 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
     } else {
       cat("Chosen Evaluation Metric Validation not specified or empty.\n")
     }
+  } else if (table_name == "Feature_Importance"){
+    # Delegate to the meta_dataframe summary method
+    if (!is.null(object@feature_importance_m_df)) {
+      cat("\nDisplaying Summary for feature_importance_m_df:\n")
+
+      #Summarize
+      feature_importance_summary <- object@feature_importance_m_df@data %>% dplyr::group_by(tickers) %>%
+        dplyr::summarise(
+          Mean_Feature_Imp = mean(normalized_importance, na.rm = TRUE),
+          Median_Feature_Imp = median(normalized_importance, na.rm = TRUE),
+          Q25 = stats::quantile(normalized_importance, 0.25, na.rm = TRUE),
+          Q75 = stats::quantile(normalized_importance, 0.75, na.rm = TRUE),
+          Max = max(normalized_importance, na.rm = TRUE),
+          Min = min(normalized_importance, na.rm = TRUE),
+          .groups = 'drop'
+        )
+
+
+      #Get data for last model
+      last_model_feature_importance <- object@final_feature_importance_m_d_ref@data %>%
+        dplyr::select(tickers, normalized_importance) %>%
+        dplyr::rename(Final_Feature_Imp = "normalized_importance")
+
+      feature_importance_summary <- dplyr::left_join(feature_importance_summary, last_model_feature_importance, by = "tickers")
+
+      # Display the table
+      display_table(feature_importance_summary, "Feature Importance Summary")
+
+
+    } else {
+      cat("feature_importance_m_df is not specified.\n")
+    }
+
   }
 
   invisible(object)  # Return the object invisibly
@@ -1434,8 +1462,8 @@ methods::setMethod("summary", "ss_backtest_results", function(object, summary_id
 
 
   # Data extraction
-  signal_universe_df <- object@signal_universe_m_df@data
-  final_signal_universe_df <- object@final_signal_universe_m_d_ref@data
+  signal_universe_df <- object@signal_universe_m_df@data %>% dplyr::filter(theme != "forced")
+  final_signal_universe_df <- object@final_signal_universe_m_d_ref@data %>% dplyr::filter(theme != "forced")
 
   # Table logic
   if (table_name == "Eligibility_Count") {

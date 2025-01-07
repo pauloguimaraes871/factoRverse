@@ -62,12 +62,12 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
       )
 
     #Print start
-      if(verbose == TRUE){
+      if(verbose){
         tictoc::tic(msg = crayon::green("Hyperparameter tuning finished"))
       }
 
       #Evalute eval metrics to all hyper values
-      if(parallel == TRUE){ #If running in parallel
+      if(parallel){ #If running in parallel
         hyper_eval <- furrr::future_pmap(expanded_hyper_grid_list, #List of hyperparameters for search
                                          ~ eval_function( #function on which to apply the search
                                            ...,
@@ -195,14 +195,14 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
 
       ####################
 
-    } else {}
+    }
 
 
     ###Hyperparameter tuning following Bayesian Optimization!
     if(tuning_method == c("bayesian_opt")){
 
       #Apply Bayes Optimization
-      if(parallel == TRUE){
+      if(parallel){
         #Bayesian Optimization
         bayes_opt <- doFuture::withDoRNG(
           ParBayesianOptimization::bayesOpt(
@@ -350,7 +350,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
     } else {}
 
   #Print Results
-  if(verbose == TRUE){
+  if(verbose){
     cat(paste0("Chosen hyperparameters were: "))
     if(ml_algorithm != "glmnet") cat(paste0(names(hyper_grid_domain_list),":", round(optimal_hyper, 4), sep=" ")) else cat(paste0(c(names(hyper_grid_domain_list), "best_lam"),":", round(optimal_hyper, 4), sep=" "))
     cat("\n")

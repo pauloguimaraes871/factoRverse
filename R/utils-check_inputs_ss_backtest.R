@@ -86,7 +86,7 @@ check_inputs_ss_backtest <- function(
   #Dates
   initial_sample_size, rebalancing_months, data_availability_cutoff, split_method,
   #Signals
-  signals_m_df, chosen_signals_and_positions,
+  signals_m_df, chosen_signals_and_positions, forced_signals,
   #Backtests and benchmark returns
   backtest_returns_xts, benchmark_returns_xts, market_factor_proxy, active_returns,
   #P-value
@@ -96,7 +96,7 @@ check_inputs_ss_backtest <- function(
   #Model Structure
   model_structure, theme_level_intercept, theme_level_slope, lmer_control,
   #Priors
-  priors_m_df, user_priors,  brms_control, prior_derivation_control,
+  priors_m_df, user_priors, brms_control, prior_derivation_control,
   #Signal Theme
   signal_themes_m_df,
   #Winsorization
@@ -121,21 +121,40 @@ check_inputs_ss_backtest <- function(
     stop("signals_m_df should contain only numeric columns with non-NAs.")
   }
 
-  ###Check if all chosen_signals are present in signals_m_upd_ref
+  ###Check if all chosen_signals are present in signals_m_df
   if(any(!names(chosen_signals_and_positions) %in% colnames(signals_m_df))){
     stop("signal selection not avaiable in signals_m_df")
   }
 
+  ###Check if categorical variables are being selected
+    ####Get categorical signals (which are elected by default)
+    categorical_signals <- signals_m_df %>% dplyr::select_if(function(x){
+      # Convert column to character to unify comparison
+      vals <- unique(as.character(x))
+      all(vals %in% c("0", "1"))
+    }) %>% colnames()
+
+  if(any(names(chosen_signals_and_positions) %in% categorical_signals)){
+    warning("Categorical signals included in chosen_signals_and_positions.")
+  }
+
+ ###Check for forced_signals presence in signals_m_df
+  if(!is.null(forced_signals)){
+    if(any(!forced_signals %in% colnames(signals_m_df))){
+      warning("forced_signals not available in signals_m_df")
+    }
+  }
+
   #initial_sample_size and data_availability_cutoff
-  if(any(!is.numeric(initial_sample_size), !is.numeric(data_availability_cutoff))){
-    stop("initial_sample_size and data_availability_cutoff must be numeric")
-  }
+    if(any(!is.numeric(initial_sample_size), !is.numeric(data_availability_cutoff))){
+      stop("initial_sample_size and data_availability_cutoff must be numeric")
+    }
 
-  if(initial_sample_size < data_availability_cutoff){
-    stop("initial_sample_size must be greater than or equal to data_availability_cutoff")
-  }
+    if(initial_sample_size < data_availability_cutoff){
+      stop("initial_sample_size must be greater than or equal to data_availability_cutoff")
+    }
 
-  #backtest_returns_xts
+    #backtest_returns_xts
     if(!xts::is.xts(backtest_returns_xts)){
       stop("backtest_returns_xts must be a xts object")
     }
@@ -161,17 +180,21 @@ check_inputs_ss_backtest <- function(
       stop("backtest_returns_xts must have at least initial_sample_size rows")
     }
 
-    if(any(!signals_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
+    if(any(!backtest_returns_dates %in% (signals_m_df %>% dplyr::pull(dates)))){
+      stop("all dates in backtest_returns_xts must be present in signals_m_df")
+    }
+
+    if(any(!signals_m_df %>% dplyr::pull(dates) %>% unique() %in% backtest_returns_dates)){
       stop("all dates in signals_m_df must be present in backtest_returns_xts")
     }
 
     if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 +
-                as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
+                 as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
       stop("backtest_returns_xts must have consecutive dates")
     }
 
 
-  #benchmark_returns_xts
+    #benchmark_returns_xts
     if(!xts::is.xts(benchmark_returns_xts)){
       stop("benchmark_returns_xts must be a xts object")
     }
@@ -198,131 +221,131 @@ check_inputs_ss_backtest <- function(
       stop("market_factor_proxy must be present in benchmark_returns_xts")
     }
 
-  #signal_themes_m_df
-  ###Check if signal_themes_m_df contemplates theme column
-  if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
-    stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
-  }
-
-  if(enable_theme_representativeness & is.null(signal_themes_m_df)){
-    stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
-  }
-
-  ##Check if all signals of signals_m_df are covered and vice-versa
-  if(any(!names(chosen_signals_corrected_positions) %in% signal_themes_m_df %>% dplyr::pull(tickers))){
-    stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
-  }
-
-  ###Check if theme column is character
-  if(!is.character(signal_themes_m_df %>% dplyr::pull(theme))){
-    stop("theme column in signal_themes_m_df must be character")
-  }
-
-  ###Check format in signal_themes_m_df
-  if(any(grepl("_", signal_themes_m_df %>% dplyr::pull(theme)))){
-    stop("No underscores allowed in signal_themes_m_df theme names")
-  }
-
-  ###Check if dates in signal_themes_m_df and signals_m_df are the same
-  signal_dates_m_vector <- as.Date(unique(signals_m_df %>% dplyr::pull(dates)))
-  signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df %>% dplyr::pull(dates)))
-  if(any(!signal_dates_m_vector %in% signal_themes_dates_m_vector)){
-    stop("dates in signal_themes_m_df and signals_m_df must be the same")
-  }
-
-  #model_structure
-  if(!model_structure %in% c("no_pooled", "partial_pooled")){
-    stop("model_structure must be one of 'no_pooled' or 'partial_pooled'")
-  }
-  if(model_structure == "partial_pooled"){
-    #lmer control
-    if(!is.null(lmer_control)){
-      if(any(!names(lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective", "hierarchical_p_value_method"))){
-        stop("lmer_control should have only 'lmer_optimizer', 'lmer_optimization_objective' or 'hierarchical_p_value_method' as names.")
-      }
-
-      if(!is.null(lmer_control$lmer_optimizer) && !lmer_control$lmer_optimizer %in% c("Nelder_Mead", "bobyqa", "nlminbwrap", "nloptwrap")){
-        stop("lmer_optimizer should be one of 'Nelder_Mead', 'bobyqa', 'nlminbwrap' or 'nloptwrap'")
-      }
-
-      if(!is.null(lmer_control$lmer_optimization_objective) && !lmer_control$lmer_optimization_objective %in% c("likelihood", "REML")){
-        stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
-      }
-
-      if(!is.null(lmer_control$hierarchical_p_value_method) && !lmer_control$hierarchical_p_value_method %in% c("Satterthwaite", "Kenward-Roger", "lme4")){
-        stop("hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
-      }
-      if(any(is.null(theme_level_intercept), is.null(theme_level_slope))){
-        stop("For 'partial_pooled' model structure, 'theme_level_intercept' and 'theme_level_slope' must be provided.")
-      }
-    }
-  }
-  #p_correction_method
-  if(!p_correction_method %in% c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "bayesian", "none")){
-    stop("p_correction_method must be one of 'holm', 'hochberg', 'hommel', 'bonferroni', 'BH', 'BY', 'fdr', 'bayesian' or 'none'")
-  }
-
-  if(p_correction_method == "bayesian" && model_structure == "no_pooled"){
-    stop("bayesian p_correction_method is currently only available for partial_pooled model_structure")
-  }
-
-  #signal_significance_threshold
-  if(any(signal_significance_threshold < 0, signal_significance_threshold > 1)){
-    stop("signal_significance_threshold must be between 0 and 1")
-  }
-
-  #priors_m_df
-  if(!is.null(priors_m_df)){
-  ###Coercible
-  if(!(is_coercible_to_meta_dataframe(priors_m_df))){
-    stop("priors_m_df should be coercible to meta_dataframe object")
-  }
-
-  ###Check if all themes are present
-  if(!all(unique(priors_m_df %>% dplyr::pull(theme)) %in% unique(signal_themes_m_df %>% dplyr::pull(theme))) ||
-     !all(unique(signal_themes_m_df %>% dplyr::pull(theme)) %in% unique(priors_m_df %>% dplyr::pull(theme)))
-     ){
-    stop("themes in priors_m_df and signal_themes_m_df should match")
-  }
-  }
-
-  #chosen signals and signal positions
-  ###Check if there are repeated signals in chosen_signals
-  if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
-    stop("each signal must be chosen only once")
-  }
-
-
-  ###Check if bayesian fit can be run
-  if(p_correction_method == "bayesian"){
-    if(is.null(user_priors) && is.null(priors_m_df)){
-      stop("bayesian fit requires priors_m_df or user_priors.")
+    #signal_themes_m_df
+    ###Check if signal_themes_m_df contemplates theme column
+    if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
+      stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
     }
 
-    if(is.null(user_priors) && is.null(signal_themes_m_df)){
-      stop("bayesian fit requires signal_themes_m_df.")
+    if(enable_theme_representativeness & is.null(signal_themes_m_df)){
+      stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
     }
 
-    if(!all(sapply(user_priors, function(x) class(x) == "brmsprior"))){
-      stop("user_priors should contain only brmsprior objects.")
+    ##Check if all signals of signals_m_df are covered and vice-versa
+    if(any(!names(chosen_signals_corrected_positions) %in% (signal_themes_m_df %>% dplyr::pull(tickers)))){
+      stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
     }
 
-    #Prior derivation control
-    if(!is.null(prior_derivation_control)){
-      if(any(!names(prior_derivation_control) %in% c("half_t_df"))){
-        stop("prior_derivation_control should have only 'half_t_df' as names.")
+    ###Check if theme column is character
+    if(!is.character(signal_themes_m_df %>% dplyr::pull(theme))){
+      stop("theme column in signal_themes_m_df must be character")
+    }
+
+    ###Check format in signal_themes_m_df
+    if(any(grepl("_", signal_themes_m_df %>% dplyr::pull(theme)))){
+      stop("No underscores allowed in signal_themes_m_df theme names")
+    }
+
+    ###Check if dates in signal_themes_m_df and signals_m_df are the same
+    signal_dates_m_vector <- as.Date(unique(signals_m_df %>% dplyr::pull(dates)))
+    signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df %>% dplyr::pull(dates)))
+    if(any(!signal_dates_m_vector %in% signal_themes_dates_m_vector)){
+      stop("dates in signal_themes_m_df and signals_m_df must be the same")
+    }
+
+    #model_structure
+    if(!model_structure %in% c("no_pooled", "partial_pooled")){
+      stop("model_structure must be one of 'no_pooled' or 'partial_pooled'")
+    }
+    if(model_structure == "partial_pooled"){
+      #lmer control
+      if(!is.null(lmer_control)){
+        if(any(!names(lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective", "hierarchical_p_value_method"))){
+          stop("lmer_control should have only 'lmer_optimizer', 'lmer_optimization_objective' or 'hierarchical_p_value_method' as names.")
+        }
+
+        if(!is.null(lmer_control$lmer_optimizer) && !lmer_control$lmer_optimizer %in% c("Nelder_Mead", "bobyqa", "nlminbwrap", "nloptwrap")){
+          stop("lmer_optimizer should be one of 'Nelder_Mead', 'bobyqa', 'nlminbwrap' or 'nloptwrap'")
+        }
+
+        if(!is.null(lmer_control$lmer_optimization_objective) && !lmer_control$lmer_optimization_objective %in% c("likelihood", "REML")){
+          stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
+        }
+
+        if(!is.null(lmer_control$hierarchical_p_value_method) && !lmer_control$hierarchical_p_value_method %in% c("Satterthwaite", "Kenward-Roger", "lme4")){
+          stop("hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
+        }
+        if(any(is.null(theme_level_intercept), is.null(theme_level_slope))){
+          stop("For 'partial_pooled' model structure, 'theme_level_intercept' and 'theme_level_slope' must be provided.")
+        }
+      }
+    }
+    #p_correction_method
+    if(!p_correction_method %in% c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "bayesian", "none")){
+      stop("p_correction_method must be one of 'holm', 'hochberg', 'hommel', 'bonferroni', 'BH', 'BY', 'fdr', 'bayesian' or 'none'")
+    }
+
+    if(p_correction_method == "bayesian" && model_structure == "no_pooled"){
+      stop("bayesian p_correction_method is currently only available for partial_pooled model_structure")
+    }
+
+    #signal_significance_threshold
+    if(any(signal_significance_threshold < 0, signal_significance_threshold > 1)){
+      stop("signal_significance_threshold must be between 0 and 1")
+    }
+
+    #priors_m_df
+    if(!is.null(priors_m_df)){
+      ###Coercible
+      if(!(is_coercible_to_meta_dataframe(priors_m_df))){
+        stop("priors_m_df should be coercible to meta_dataframe object")
+      }
+
+      ###Check if all themes are present
+      if(!all(unique(priors_m_df %>% dplyr::pull(theme)) %in% unique(signal_themes_m_df %>% dplyr::pull(theme))) ||
+         !all(unique(signal_themes_m_df %>% dplyr::pull(theme)) %in% unique(priors_m_df %>% dplyr::pull(theme)))
+      ){
+        stop("themes in priors_m_df and signal_themes_m_df should match")
       }
     }
 
-    #BRMS control
-    if(!is.null(brms_control)){
-      if(any(!names(brms_control) %in% c("chains", "iter", "warmup", "thin", "seed", "adapt_delta"))){
-        stop("brms_control must be a list containing 'chains', 'iter', 'warmup', 'thin', 'seed' and/or 'adapt_delta'.")
+    #chosen signals and signal positions
+    ###Check if there are repeated signals in chosen_signals
+    if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
+      stop("each signal must be chosen only once")
+    }
+
+
+    ###Check if bayesian fit can be run
+    if(p_correction_method == "bayesian"){
+      if(is.null(user_priors) && is.null(priors_m_df)){
+        stop("bayesian fit requires priors_m_df or user_priors.")
       }
-      #chains
-      if(!is.null(brms_control$chains) && (!is.numeric(brms_control$chains) || brms_control$chains <= 0)){
-        stop("chains must be a positive number.")
+
+      if(is.null(user_priors) && is.null(signal_themes_m_df)){
+        stop("bayesian fit requires signal_themes_m_df.")
       }
+
+      if(!all(sapply(user_priors, function(x) class(x) == "brmsprior"))){
+        stop("user_priors should contain only brmsprior objects.")
+      }
+
+      #Prior derivation control
+      if(!is.null(prior_derivation_control)){
+        if(any(!names(prior_derivation_control) %in% c("half_t_df"))){
+          stop("prior_derivation_control should have only 'half_t_df' as names.")
+        }
+      }
+
+      #BRMS control
+      if(!is.null(brms_control)){
+        if(any(!names(brms_control) %in% c("chains", "iter", "warmup", "thin", "seed", "adapt_delta"))){
+          stop("brms_control must be a list containing 'chains', 'iter', 'warmup', 'thin', 'seed' and/or 'adapt_delta'.")
+        }
+        #chains
+        if(!is.null(brms_control$chains) && (!is.numeric(brms_control$chains) || brms_control$chains <= 0)){
+          stop("chains must be a positive number.")
+        }
       #iter
       if(!is.null(brms_control$iter) && (!is.numeric(brms_control$iter) || brms_control$iter <= 0)){
         stop("iter must be a positive number.")

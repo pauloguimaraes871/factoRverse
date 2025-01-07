@@ -15,9 +15,66 @@ setMethod("show", "meta_dataframe", function(object) {
   cat("Meta Dataframe Summary:\n")
   cat("=================================\n")
   cat("Meta Dataframe name: ", object@meta_dataframe_name, " \n\n")
+  if(object@class == "target_m_df"){
+  cat(" Targets:\n")
+  } else {
   cat(" Signals:\n")
+  }
   cat(paste(object@signals, collapse = ", "))
+  if(object@class == "target_m_df"){
+  cat("  \nNumber of targets:", ncol(object@data)-3, "\n")
+  } else {
   cat("  \nNumber of signals:", ncol(object@data)-3, "\n")
+  }
+  cat(" \nDates:\n")
+  print(unique(as.Date(object@data$dates)))
+  cat("  Number of unique dates:", object@unique_dates, "\n")
+  cat(" \nTickers:\n", unique(object@data$tickers), "\n")
+  cat("  Number of unique tickers:", object@unique_tickers, "\n")
+  cat("\nTotal Observations (n_obs):", object@n_obs, "\n")
+  cat("  \nWorkflow:\n")
+  if(length(object@workflow) == 0){
+    cat("  No workflow set.\n")
+  } else {
+    print(object@workflow)
+  }
+
+  cat("=================================\n")
+
+  # Print the first few rows of the data
+  cat("\nFirst few rows of the data:\n")
+  print(head(object@data))
+
+  # Return the object invisibly
+  invisible(object)
+})
+
+
+#' Show Method for meta_dataframe Class
+#'
+#' This method displays a summary of the `meta_dataframe` object, including
+#' sb_backtest_workflow information, number of signals, unique dates, unique tickers,
+#' total observations, and the first few rows of the data.
+#'
+#' @param object An instance of the `meta_dataframe` class.
+#'
+#' @return The method returns the object invisibly.
+#'
+#' @export
+setMethod("show", "groups_m_df", function(object) {
+
+  # Print a summary of the sb_backtest_workflow
+  cat("Meta Dataframe Groups Summary:\n")
+  cat("=================================\n")
+  cat("Meta Dataframe name: ", object@meta_dataframe_name, " \n\n")
+  cat(" Groups:\n")
+  cat(paste(object@signals, collapse = ", "))
+  cat("  \nNumber of groups:", ncol(object@data)-3, "\n")
+  group_classifications <- object@data %>% dplyr::select(object@signals)
+  for(i in 1:ncol(group_classifications)){
+    cat(paste0(" \nGroup '", object@signals[i], "':\n"))
+    print(unique(group_classifications[,i]))
+  }
   cat(" \nDates:\n")
   print(unique(as.Date(object@data$dates)))
   cat("  Number of unique dates:", object@unique_dates, "\n")
@@ -62,7 +119,7 @@ setMethod("show", "meta_dataframe", function(object) {
 #' @export
 setMethod("show", "signal_universe_m_df", function(object) {
   # 1) Initial Info
-  # Print a summary of the sb_backtest_workflow
+  # Print a summary of the signal_universe_m_df
   cat("Signal Universe Summary:\n")
   cat("=================================\n")
   cat("Object name: ", object@meta_dataframe_name, " \n\n")
@@ -122,37 +179,6 @@ setMethod("show", "signal_universe_m_df", function(object) {
     cat("   \n Initial Sample Size:", paste(ss_wf[["initial_sample_size"]] %||% "NULL", collapse = ", "))
     cat("   \n Data Availability Cutoff:", paste(ss_wf[["data_availability_cutoff"]] %||% "NULL", collapse = ", "))
     cat("\n")
-  }
-
-  # 3) Summarize sb_backtest_workflow
-  sb_wf <- object@sb_backtest_workflow
-  if (!is.null(sb_wf)) {
-    cat("\n=========================\n")
-    cat("Signal Building Backtest Summary\n")
-    cat("=========================\n")
-
-    cat("\n ML Architecture and Tuning Details:")
-    cat("   \n sb_algorithm:", sb_wf[["sb_algorithm"]] %||% "NULL")
-    cat("   \n custom_objective:", sb_wf[["custom_objective"]] %||% "NULL")
-    cat("   \n backtest_type:", sb_wf[["backtest_type"]] %||% "NULL")
-
-    cat("\n   \n keras_architecture_parameters:\n")
-    # If keras_architecture_parameters is itself an S4 object with a show() or print() method, dispatch to it:
-    if (!is.null(sb_wf[["keras_architecture_parameters"]])) {
-      print(sb_wf[["keras_architecture_parameters"]])
-    } else {
-      cat("NULL\n")
-    }
-    cat("\n------------------------\n")
-
-    cat("\n Tuning:")
-    cat("   \n tuning_method:", sb_wf[["tuning_method"]] %||% "NULL")
-    cat("   \n chosen_eval_metric:", sb_wf[["chosen_eval_metric"]] %||% "NULL")
-    cat("   \n huber_delta:", sb_wf[["huber_delta"]] %||% "NULL")
-    cat("   \n quantile_tau:", sb_wf[["quantile_tau"]] %||% "NULL")
-    cat("\n")
-  } else {
-    cat("\nNo sb_backtest_workflow available.\n")
   }
 
   # Print the first few rows of the data
@@ -571,6 +597,21 @@ setMethod("show", "sb_backtest_config", function(object) {
     }
   }
 
+  if(!is.null(object@ss_backtest_results)){
+    cat("\n")
+    cat("Printing Signal Selection Backtest:\n")
+    cat("==============================\n")
+    print(object@ss_backtest_results)
+  }
+
+
+  if(!is.null(object@ss_backtest_config)){
+    cat("\n")
+    cat("Printing Signal Selection Configuration:\n")
+    cat("==============================\n")
+    print(object@ss_backtest_config)
+  }
+
 
   cat("\n=================================\n")
 })
@@ -905,7 +946,12 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("  Target Forward:", sb_backtest_workflow$target_fwd, "\n")
   cat("  Target Object:", sb_backtest_workflow$target_object, "\n")
   cat("  Target Workflow:\n")
-  print(sb_backtest_workflow$target_workflow)
+  if(is.null(sb_backtest_workflow$target_workflow)){
+    cat("    No Target Workflow\n")
+  } else {
+    print(sb_backtest_workflow$target_workflow)
+    cat("\n")
+  }
   cat("\n")
 
 
@@ -916,9 +962,15 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("Features:", paste(sb_backtest_workflow$features, collapse = ", "), "\n")
   if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
     cat("  Features Workflow:\n")
-    print(sb_backtest_workflow$features_workflow)
-    cat("\n")
+    if(is.null(sb_backtest_workflow$features_workflow)){
+      cat("    No Features Workflow\n")
+    } else {
+      print(sb_backtest_workflow$features_workflow)
+      cat("\n")
+    }
   }
+  cat("\n")
+
   cat("Top 5 most important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
                                                              dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
                                                              collapse = ", "), "\n")
@@ -1228,6 +1280,10 @@ setMethod("show", "ss_backtest_config", function(object) {
   cat("Rebalancing Months:", object@rebalancing_months, "\n")
   cat("Active Returns:", object@active_returns, "\n")
   cat("Split Method:", object@split_method, "\n")
+  cat("Chosen Signals and Positions:\n")
+  print(object@chosen_signals_and_positions, quote = FALSE)
+
+
 
   # Display Alpha Test Strategy
   cat("------------------------------\n")

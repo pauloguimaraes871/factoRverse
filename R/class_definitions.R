@@ -64,6 +64,66 @@ setClass("meta_dataframe",
          })
 
 
+#' Define the groups S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a grouping meta_dataframe.
+#'
+#' @export
+setClass(
+  "groups_m_df",
+  contains = "meta_dataframe",
+  validity = function(object) {
+    groups <- object@signals
+    for (g in groups) {
+      # Count distinct classifications for each ticker
+      df_counts <- object@data %>%
+        dplyr::group_by(.data[["tickers"]]) %>%
+        dplyr::summarise(
+          n_class = dplyr::n_distinct(.data[[g]]),
+          .groups = "drop"
+        )
+
+      # Identify tickers with more than one classification
+      multi_idx <- which(df_counts$n_class > 1)
+      if (length(multi_idx) > 0) {
+        multi_tickers <- df_counts[["tickers"]][multi_idx]
+        warning(
+          sprintf(
+            "Ticker(s) %s have multiple classifications in '%s'.",
+            paste(multi_tickers, collapse = ", "),
+            g
+          ),
+          call. = FALSE
+        )
+      }
+    }
+  }
+)
+
+
+#' Define the groups S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a grouping meta_dataframe.
+#'
+#' @export
+setClass(
+  "target_m_df",
+  contains = "meta_dataframe",
+  validity = function(object) {
+
+  target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
+
+  for(target in object@signals){
+
+    if(!grepl(target_fwd_name_right_pattern, target)){
+      stop(cat(paste(target, " is not a valid target variable name. The
+            target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable,
+            number is the amount of forward periods and m indicates periods are measured in months.")))
+    }
+  }
+  }
+)
+
 #' Define the signal_universe_meta_dataframe S4 Class
 #'
 #' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
@@ -110,8 +170,8 @@ setClass(
       return("Column names do not adhere to expected signal_universe_m_df object")
     }
 
-    if(any(!c("top_assets", "is_eligible", "adjusted_p_value") %in% colnames)){
-      return("signal_universe_m_df object must contain top_assets, is_eligible and adjusted_p_value columns.")
+    if(any(!c("top_assets", "is_eligible") %in% colnames)){
+      return("signal_universe_m_df object must contain top_assets and is_eligible columns.")
     }
 
     if(any(!c("theme_ss_bench_weights", "theme_sb_bench_weights", "theme") %in% colnames)){
@@ -137,7 +197,7 @@ setClass(
   ),
   validity = function(object) {
     #Colnames adherence
-    if(!any(colnames(object@data) == c("id", "tickers", "target", "pred", "error"))){
+    if(!any(colnames(object@data) == c("id", "tickers", "dates", "target", "pred", "error"))){
       stop("Column names do not adhere to expected oos_sb_outputs_m_df object")
     }
     #target, error and pred relationship
@@ -476,8 +536,6 @@ setClass("mvo_parameters",
 #-----------------------------------------------------------------------
 # rp_parameters
 #-----------------------------------------------------------------------
-
-
 #' Define the `rp_parameters` S4 Class
 #'
 #' S4 class to represent a set of configurations for risk-parity portfolios.
@@ -499,7 +557,7 @@ setClass("rp_parameters",
 
 
 #-----------------------------------------------------------------------
-# concnetration_constraint_policy
+# concentration_constraint_policy
 #-----------------------------------------------------------------------
 
 #' @title Concentration Constraint Policy
@@ -925,6 +983,15 @@ setClass("ss_backtest_config",
          validity = function(object) {
            if(object@data_availability_cutoff < 0){
              stop("data_availability_cutoff can't be negative")
+           }
+           if(length(object@chosen_signals_and_positions) == 1){
+             if(!object@chosen_signals_and_positions == "all"){
+               stop("chosen_signals_and_positions should be 'all' or a named vector with signals and positions")
+             }
+           } else {
+             if(!any(object@chosen_signals_and_positions %in% c("long", "short", "force"))){
+               stop("chosen_signals_and_positions should be either 'long', 'short' or 'force'.")
+             }
            }
            if(object@initial_sample_size < 0){
              stop("initial_sample_size can't be negative")
@@ -1609,7 +1676,7 @@ setClass(
 #' @slot oos_testing_eval_metrics A list of evaluation metrics for the out-of-sample testing samples.
 #' @slot final_model The final refitted machine learning model with best hyperparameters found after tuning. Possibly a object of sb_model S4 class.
 #' @slot chosen_eval_metric_validation A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.
-#' @slot best_hyperparameters A data frame containing the best hyperparameters selected during tuning for each rebalancing period.
+#' @slot best_hyperparameters_xts A data frame containing the best hyperparameters selected during tuning for each rebalancing period.
 #' @slot validation_eval_metrics_hyper_choice All evaluation metrics calculated for the set of best hyperparameters.
 #' @slot sb_backtest_workflow A list containing sb_backtest_workflow about the walk-forward validation process.
 #'
@@ -1622,14 +1689,15 @@ setClass(
   "sb_backtest_results",
   slots = list(
     oos_sb_outputs_m_df = "meta_dataframe",
-    oos_testing_eval_metrics = "data.frame",
+    oos_testing_eval_metrics_xts = "xts",
+    consolidated_eval_metrics = "data.frame",
     final_sb_model = "sb_model",
     final_gsm = "ANY",
+    chosen_eval_metric_validation = "ANY",
+    best_hyperparameters_xts = "ANY",
+    validation_eval_metrics_hyper_choice_xts = "ANY",
     feature_importance_m_df = "meta_dataframe",
     final_feature_importance_m_d_ref = "meta_dataframe",
-    chosen_eval_metric_validation = "ANY",
-    best_hyperparameters = "ANY",
-    validation_eval_metrics_hyper_choice = "ANY",
     ss_backtest_results = "ANY",
     sb_backtest_workflow = "list",
     backtest_identifier = "character"
@@ -1643,6 +1711,13 @@ setClass(
       stop("ss_backtest_results must be an 'ss_backtest_results' object")
     }
 
+    if(!is.null(object@validation_eval_metrics_hyper_choice_xts) && !inherits(object@validation_eval_metrics_hyper_choice_xts, "xts")){
+      stop("validation_eval_metrics_hyper_choice_xts must be an 'xts' object")
+    }
+
+    if(!is.null(object@best_hyperparameters_xts) && !inherits(object@best_hyperparameters_xts, "xts")){
+      stop("best_hyperparameters_xts must be an 'xts' object")
+    }
 
   }
 )
@@ -2002,6 +2077,7 @@ setClass(
   }
 )
 
+
 #################################################################
 
 
@@ -2190,7 +2266,7 @@ setMethod("get_chosen_eval_metric_validation", "sb_backtest_results", function(o
 
 #' @export
 setMethod("get_best_hyperparameters", "sb_backtest_results", function(object) {
-  return(object@best_hyperparameters)
+  return(object@best_hyperparameters_xts)
 })
 
 #' @export

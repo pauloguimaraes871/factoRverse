@@ -21,8 +21,8 @@ is_coercible_to_meta_dataframe <- function(obj) {
 
     required_columns <- c("id", "tickers", "dates")
 
-    if (!all(required_columns %in% names(obj))) {
-      message("The data frame must contain the following columns: 'id', 'tickers', 'dates'.")
+    if (!all(required_columns == names(obj)[1:3])) {
+      message("The data frame must contain the following columns: 'id', 'tickers', 'dates', exactly in this order.")
       return(FALSE)
     }
 

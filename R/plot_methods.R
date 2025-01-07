@@ -24,8 +24,12 @@ setMethod(
 
     # Prompt for 'type' if not specified
     if (is.null(type)) {
+      if(class(x) == "groups_m_df"){
+      available_types <- c("frequency", "composition", "tile_heatmap")
+      } else {
       available_types <- c("cross_sectional", "time_series", "histogram", "boxplot", "composition",
                            "regression", "density2d", "correlogram", "radar", "waterfall", "tile_heatmap")
+      }
       cat("\nPlease choose a plot type:\n")
       for (i in seq_along(available_types)) {
         cat(paste0(i, ": ", available_types[i], "\n"))
@@ -36,6 +40,10 @@ setMethod(
         stop("Invalid selection.")
       }
       type <- available_types[selection]
+    }
+
+    if(class(x) == "groups_m_df" && !type %in% c("frequency", "composition", "tile_heatmap")){
+      stop("Only composition and tile_heatmaps are avaiable for groups_m_df objects.")
     }
 
     # Prompt for 'variables' if not specified
@@ -104,12 +112,16 @@ setMethod(
       selection <- readline(prompt = "Enter your choice: ")
       if (nzchar(selection) && selection != "all") {
         date_range <- strsplit(selection, ",")[[1]]
-        if (length(date_range) != 2 || any(!grepl("^\\d{4}-\\d{2}-\\d{2}$", date_range))) {
+        if (length(date_range) > 2 || any(!grepl("^\\d{4}-\\d{2}-\\d{2}$", date_range))) {
           stop("Invalid date range format. Use 'YYYY-MM-DD,YYYY-MM-DD'.")
         }
+        if(length(dates) == 1){
+          dates <- as.Date(date_range)
+        } else {
         dates <- seq.Date(as.Date(date_range[1]), as.Date(date_range[2]), by = "day")
+        }
       }
-    }
+     }
 
     # Prompt for 'calc_stat' if not specified
     if (is.null(calc_stat) && type %in% c("cross_sectional", "time_series", "waterfall")) {
@@ -244,7 +256,8 @@ setMethod(
 
     # Filter based on tickers
     if (!identical(tickers, "all")) {
-      df <- df %>% dplyr::filter(tickers %in% !!tickers)
+      tickers_clean <- gsub(pattern = '[\"[:space:]]', replacement = '', x = tickers)
+      df <- df %>% dplyr::filter(tickers %in% tickers_clean)
       tickers_text <- if (length(tickers) > 10) "> 10 tickers" else paste("Tickers:", paste(tickers, collapse = ", "))
     } else {
       tickers_text <- "All tickers"
@@ -1197,22 +1210,22 @@ setMethod(
 
       # Categorize each Cluster by Calc_Stat for each date
       df_summary <- df_summary %>%
-        group_by(dates) %>%
-        mutate(
-          bin = ntile(Calc_Stat,
+        dplyr::group_by(dates) %>%
+        dplyr::mutate(
+          bin = dplyr::ntile(Calc_Stat,
                       switch(numeric_aggregation,
                              decile = 10,
                              quartile = 4,
                              tercile = 3,
                              median = 2)),
-          bin_label = case_when(
+          bin_label = dplyr::case_when(
             numeric_aggregation == "decile" ~ sprintf("D%02d", bin),
             numeric_aggregation == "quartile" ~ sprintf("Q%02d", bin),
             numeric_aggregation == "tercile" ~ sprintf("T%02d", bin),
             numeric_aggregation == "median" ~ ifelse(bin == 1, "Below_Median", "Above_Median")
           )
         ) %>%
-        ungroup()
+        dplyr::ungroup()
 
       # Color palette for bins
       color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
@@ -1284,6 +1297,54 @@ setMethod(
           )
     }
       print(p)
+    }
+
+    # Frequency
+    if (type == "frequency") {
+
+      # Identify categorical columns (excluding 'id', 'tickers', and 'dates')
+      categorical_cols <- sapply(df, function(col) is.factor(col) || is.character(col))
+      categorical_data <- df[, categorical_cols, drop = FALSE]
+      categorical_data <- categorical_data[, !(names(categorical_data) %in% c("id", "tickers", "dates")), drop = FALSE]
+
+      if (!is.null(categorical_data) && ncol(categorical_data) > 0) {
+        for (col_name in names(categorical_data)) {
+          col_data <- categorical_data[[col_name]]
+          freq_table <- as.data.frame(table(col_data, useNA = "ifany"))
+          names(freq_table) <- c("Category", "Frequency")
+
+          # Create a bar plot using the specified colors
+          plot <- ggplot2::ggplot(freq_table, ggplot2::aes(x = reorder(Category, -Frequency), y = Frequency)) +
+            ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = white, size = 0.5) +
+            ggplot2::geom_text(ggplot2::aes(label = Frequency), vjust = -0.5, color = white, size = 4) +
+            ggplot2::theme_minimal() +
+            ggplot2::theme(
+              plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),    # Deep Navy background outside plot area
+              panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),   # Blue background inside plot area
+              panel.grid.major = ggplot2::element_blank(),                              # Remove major grid lines
+              panel.grid.minor = ggplot2::element_blank(),                              # Remove minor grid lines
+              axis.text = ggplot2::element_text(color = white),
+              axis.title = ggplot2::element_text(color = white),
+              axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+              plot.title = ggplot2::element_text(size = 16, face = "bold", color = white, hjust = 0.5),
+              plot.caption = ggplot2::element_text(color = white),
+              legend.position = "none"
+            ) +
+            ggplot2::labs(
+              title = paste(x@meta_dataframe_name, ": Frequency Plot for", col_name),
+              x = col_name,
+              y = "Frequency"
+            ) +
+            ggplot2::expand_limits(y = max(freq_table$Frequency) * 1.1)  # Add more space above bars
+
+          # Display the plot
+          print(plot)
+        }
+      } else {
+        cat("\nNo additional categorical columns to plot.\n")
+      }
+
+
     }
 
   }
@@ -1933,7 +1994,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
     "Average Validation vs Consolidated OOS Testing Metrics"
   )
 
-  if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
+  if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "rp", "mvo", "sw", "ew_ensemble", "optimal_ensemble")){
     plot_id <- 5
     message("'All Evaluation Metrics Over Time' is the only available plot for OLS, EW Ensemble, and Optimal Ensemble. Plotting 'All Evaluation Metrics Over Time'...")
   }
@@ -1969,9 +2030,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
   }
 
   # Extract relevant data from the S4 object
-  oos_testing_eval_metrics <- x@oos_testing_eval_metrics
-  validation_eval_metrics_hyper_choice <- x@validation_eval_metrics_hyper_choice
-  hyper_choice_df <- x@best_hyperparameters
+  oos_testing_eval_metrics <- x@oos_testing_eval_metrics_xts %>% as.data.frame()
+  validation_eval_metrics_hyper_choice <- x@validation_eval_metrics_hyper_choice_xts %>% as.data.frame()
+  consolidated_eval_metrics <- x@consolidated_eval_metrics
+  hyper_choice_df <- x@best_hyperparameters_xts %>% as.data.frame()
   chosen_eval_metric <- x@sb_backtest_workflow$chosen_eval_metric
   chosen_eval_metric_validation <- x@chosen_eval_metric_validation
   sb_algorithm <- x@sb_backtest_workflow$sb_algorithm
@@ -2004,18 +2066,12 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
     q25 <- variable_mean <- x_coord <- y_coord <- label <- variable <- mtry <- num.trees <- min.bucket <- max.depth <- eta <- max_depth <- colsample_bytree <-
     lr <- droprate <- regularizer_l2 <- regularizer_l1 <- min_child_weight <- subsample <- gamma <- nrounds <- NULL
 
-  # Remove 'consolidated' row from oos_testing_eval_metrics before time series plots
-  if ("consolidated" %in% rownames(oos_testing_eval_metrics)) {
-    consolidated_oos_testing_metrics <- oos_testing_eval_metrics["consolidated", , drop = FALSE]
-    oos_testing_eval_metrics <- oos_testing_eval_metrics[rownames(oos_testing_eval_metrics) != "consolidated", , drop = FALSE]
-  } else {
-    consolidated_oos_testing_metrics <- NULL
-  }
+  # Get 'consolidated' row
+    consolidated_oos_testing_metrics <- consolidated_eval_metrics %>% dplyr::select(metric, cons_oos)
 
-  # Remove 'average' row from validation_eval_metrics_hyper_choice before time series plots
-  if ("average" %in% rownames(validation_eval_metrics_hyper_choice)) {
-    average_validation_metrics <- validation_eval_metrics_hyper_choice["average", , drop = FALSE]
-    validation_eval_metrics_hyper_choice <- validation_eval_metrics_hyper_choice[rownames(validation_eval_metrics_hyper_choice) != "average", , drop = FALSE]
+  # Get 'average' row from validation_eval_metrics_hyper_choice before time series plots
+  if (length(validation_eval_metrics_hyper_choice) > 0) {
+    average_validation_metrics <-  consolidated_eval_metrics %>% dplyr::select(metric, avg_val)
   } else {
     average_validation_metrics <- NULL
   }
@@ -2029,7 +2085,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
   oos_testing_eval_metrics <- oos_testing_eval_metrics %>% dplyr::mutate(dates = rownames(oos_testing_eval_metrics))
   oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") # Coerce to dates
 
-  if (!sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")) {
+  if (!sb_algorithm %in% c("ols", "rp", "sw", "ew", "mvo", "ew_ensemble", "optimal_ensemble")) {
     # Some treatments to validation_eval_metrics_hyper_choice
     # Change colnames
     colnames(validation_eval_metrics_hyper_choice) <- paste("validation_", colnames(validation_eval_metrics_hyper_choice), sep = "")
@@ -3417,7 +3473,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     "Box-Plot by Eligibility",
     "Waterfall Plot by Ticker",
     "Waterfall Plot by Theme",
-    "Eligibility by Time",
+    "Eligibility by Theme",
     "Posterior Individual Alphas",
     "Posterior Individual Betas",
     "Posterior Random Effects",
@@ -3436,7 +3492,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       "Box-Plot by Eligibility",
       "Waterfall Plot by Ticker",
       "Waterfall Plot by Theme",
-      "Eligibility by Time"
+      "Eligibility by Theme"
     )
   }
 
@@ -3472,7 +3528,9 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
   # Define the data sources
   signal_universe_m_df <- x@signal_universe_m_df
+  signal_universe_m_df@data <- signal_universe_m_df@data %>% dplyr::filter(theme != "forced")
   final_signal_universe_m_d_ref <- x@final_signal_universe_m_d_ref
+  final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>% dplyr::filter(theme != "forced")
 
   if(x@p_correction_method == "bayesian"){
     #Reconstruct selected_signal_themes_m_d_ref
@@ -3577,7 +3635,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat)
 
 
-  } else if (plot_name == "Eligibility by Time") {
+  } else if (plot_name == "Eligibility by Theme") {
     #Plot 9
     signal_universe_m_df@data <- signal_universe_m_df@data %>%
       dplyr::mutate(eligibility = ifelse(is_eligible == 1, "elected", "not_elected"))
@@ -4251,7 +4309,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     sampled_draws <- dplyr::group_by(tidy_posterior_draws_intercept_and_slope, tickers) %>%
       dplyr::sample_n(size = 25, replace = FALSE) %>%
       dplyr::ungroup()
-    browser()
+
     # Create a grid of sampled draws and x_values
     plot_data <- tidyr::crossing(
       sampled_draws %>% dplyr::select(tickers, posterior_individual_alpha, posterior_individual_beta, .draw),

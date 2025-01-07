@@ -36,7 +36,7 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
       quantile_error = "mpe",
       "rmse"
     )
-    if(verbose == TRUE){
+    if(verbose && !sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")){
       cat(crayon::yellow("chosen_eval_metric not declared. Choice will be based on custom_objective"))
       cat("\n")
     }

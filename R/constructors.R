@@ -100,8 +100,8 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             type <- list(...)
             if(length(type) > 0){
               #Check if it is correct
-              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs")){
-                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', or 'oos_sb_outputs'")
+              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target")){
+                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups' or 'target'.")
               }
             } else {
               type <- "generic"
@@ -161,7 +161,6 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                   ss_backtest_workflow = ss_backtest_workflow)
               )
             }
-
             if(type == "oos_sb_outputs"){
 
               #Check for workflow
@@ -181,6 +180,36 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                     sb_backtest_workflow = sb_backtest_workflow)
               )
             }
+            if(type == "groups"){
+
+              return(
+                new("groups_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name)
+              )
+            }
+
+            if(type == "target"){
+
+              return(
+                new("target_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name)
+              )
+            }
+
+
+
           }
 )
 
@@ -350,7 +379,7 @@ create_ss_backtest_config <- function(
     chosen_signals_and_positions = "all"
 ) {
   #Message
-  if (chosen_signals_and_positions == "all"){
+  if (length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions == "all"){
     message("chosen_signals_and_positions set as 'all'. All signals in signals_m_df will be used and a long position will be assumed to all.")
   }
   # Input validation
@@ -446,6 +475,7 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
 #' @export
 setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "missing"),
           function(object, data_availability_cutoff, initial_sample_size, rebalancing_months, active_returns = TRUE, split_method = "expanding",
+                   chosen_signals_and_positions = "all",
                    alpha_test_strategy = NULL, config_name = "not_identified") {
 
             #Create an empty alpha_test_strategy
@@ -455,6 +485,7 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
 
             #create ss_backtest_config
             ss_backtest_config <- create_ss_backtest_config(data_availability_cutoff = data_availability_cutoff,
+                                                            chosen_signals_and_positions = chosen_signals_and_positions,
                                                             initial_sample_size = initial_sample_size,
                                                             rebalancing_months = rebalancing_months,
                                                             active_returns = active_returns,

@@ -113,10 +113,10 @@ test_that("OLS - run_sb_backtest works with no rebalancing and a 1m target", {
   }))
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(c(`Stock A` = 4.86203815251015, `Stock B` = 5.00190010698946, `Stock C` = 4.96435541423554, `Stock D` = 4.94818709592051, `Stock E` = 4.86967646823366),
                           c(`Stock A` = 5.48519825741933, `Stock B` = 4.20386094336353, `Stock C` = 5.43567282083367, `Stock D` = 5.29919524341379, `Stock E` = 4.94189073217023),
@@ -151,11 +151,15 @@ test_that("OLS - run_sb_backtest works with no rebalancing and a 1m target", {
   # Create the final data frame
   final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
 
-  results$outputs[[1]] <- final_df
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
 
   #Eval metrics
-  eval_metrics <- data.frame(#out_of_sample_rsquared_ols
+  eval_metrics <- xts::xts(data.frame(
+    #out_of_sample_rsquared_ols
     rss = c(0.551664171429985, -0.368290736807804, -2.92085874432165),
     #out-of-sample_crossproduct
     cp = c(16.8393003368667, 11.5815092007316, -10.3042434279481),
@@ -173,40 +177,40 @@ test_that("OLS - run_sb_backtest works with no rebalancing and a 1m target", {
     hr = c(1.0, 1.0, 0.2),
     #mean bias
     mb = c(-1.529231, -2.673164, -7.320668)
+  ), order.by = as.Date(c("2001-06-15","2001-07-15", "2001-08-15"))
   )
 
-  rownames(eval_metrics) <- c("2001-06-15","2001-07-15", "2001-08-15")
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-7)
 
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
 
-  results$outputs[[2]] <- eval_metrics
-  #final_sb_model
-  results$outputs[[3]] <- sb_backtest_results@final_sb_model
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
 
   #final gsm
-  results$outputs[[4]] <- sb_backtest_results@final_gsm
-  gsm_df <- final_df %>% dplyr::left_join(features_m_df@data %>% dplyr::select(-tickers, -dates), by = "id")
-  final_gsm <- lm(pred ~ Alpha + Beta + Gamma, data = gsm_df %>% dplyr::filter(dates <= "2001-06-15"))
+  gsm_df <- features_m_df@data %>% dplyr::filter(dates <= "2001-05-15")
+  preds <- predict(sb_backtest_results@final_sb_model, new_features_m_df = gsm_df)
+  final_gsm <- lm(preds ~ Alpha + Beta + Gamma, data = gsm_df) #Date used to fit lm model
 
   feature_importance_m_df <- suppressWarnings(coef(summary(final_gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
-  colnames()
+  colnames(feature_importance_m_df) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df$normalized_importance <-
+    (feature_importance_m_df$importance - mean(feature_importance_m_df$importance))/sd(feature_importance_m_df$importance)
+  feature_importance_m_df$dates <- as.Date("2001-06-15") #Rebalance date
+  feature_importance_m_df$id <- paste0(feature_importance_m_df$tickers, "-", feature_importance_m_df$dates)
+  feature_importance_m_df <- feature_importance_m_df %>% dplyr::select(id, tickers, dates, importance, normalized_importance,
+                                                                       std_error, t_value, p_value)
+  feature_importance_m_df$is_eligible <- c(0, 1, 1, 1)
+  feature_importance_m_df <- feature_importance_m_df[order(feature_importance_m_df$id),]
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
 
-
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-05
-  )
+  feature_importance_m_d_ref <- feature_importance_m_df #only one date in feature_importance_m_df
+  expected_results$outputs[[5]] <- feature_importance_m_d_ref
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
 
 })
 
@@ -215,133 +219,136 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 1m target", {
 
   ols_config <- create_sb_backtest_config(
     sb_algorithm = "ols",
+    target_fwd_name = "fwd_premium_1m",
     training_sample_size = 4,
     rebalancing_months = 9
   )
 
+  features_m_df = create_meta_dataframe(
+    data.frame(
+      stringsAsFactors = FALSE,
+      id = c("Stock A-2001-03-15",
+             "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
+             "Stock A-2001-07-15","Stock A-2001-08-15",
+             "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
+             "Stock B-2001-03-15","Stock B-2001-04-15",
+             "Stock B-2001-05-15","Stock B-2001-06-15","Stock B-2001-07-15",
+             "Stock B-2001-08-15","Stock B-2001-09-15","Stock B-2001-10-15",
+             "Stock B-2001-11-15","Stock C-2001-03-15",
+             "Stock C-2001-04-15","Stock C-2001-05-15","Stock C-2001-06-15",
+             "Stock C-2001-07-15","Stock C-2001-08-15",
+             "Stock C-2001-09-15","Stock C-2001-10-15","Stock C-2001-11-15",
+             "Stock D-2001-03-15","Stock D-2001-04-15","Stock D-2001-05-15",
+             "Stock D-2001-06-15","Stock D-2001-07-15",
+             "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
+             "Stock D-2001-11-15","Stock E-2001-03-15",
+             "Stock E-2001-04-15","Stock E-2001-05-15","Stock E-2001-06-15",
+             "Stock E-2001-07-15","Stock E-2001-08-15",
+             "Stock E-2001-09-15","Stock E-2001-10-15","Stock E-2001-11-15"),
+      tickers = c("Stock A","Stock A","Stock A",
+                  "Stock A","Stock A","Stock A","Stock A","Stock A",
+                  "Stock A","Stock B","Stock B","Stock B","Stock B",
+                  "Stock B","Stock B","Stock B","Stock B","Stock B",
+                  "Stock C","Stock C","Stock C","Stock C","Stock C",
+                  "Stock C","Stock C","Stock C","Stock C","Stock D",
+                  "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
+                  "Stock D","Stock D","Stock E","Stock E","Stock E",
+                  "Stock E","Stock E","Stock E","Stock E","Stock E",
+                  "Stock E"),
+      dates = as.Date(c("2001-03-15","2001-04-15",
+                        "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                        "2001-09-15","2001-10-15","2001-11-15","2001-03-15",
+                        "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
+                        "2001-08-15","2001-09-15","2001-10-15","2001-11-15",
+                        "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
+                        "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
+                        "2001-11-15","2001-03-15","2001-04-15","2001-05-15",
+                        "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                        "2001-10-15","2001-11-15","2001-03-15","2001-04-15","2001-05-15",
+                        "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                        "2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
+      Alpha = c(3,-20,-450,5,-2,1,6,1,
+                -9,1,7,4,2,20,1,1,-2,-2,2,9,9,-20,-150,-20,
+                8,17,1,5,-2,2,-1,-50,-25,1,4,2,5,3,-1,2,
+                -1,-20,-1,4,4),
+      Beta = c(4,7,5,3,13,10,4,-5,1,5,
+               2,4,1,-12,-10,3,4,1,6,-3,-2,1,1,4,24,19,
+               -1,0,-2,5,2,5,1,2,5,3,2,-9,3,1,2,1,-1,
+               -20,2),
+      Gamma = c(800,11,4,20,0,-523,2,3,
+                27,9,-2,4,-15,3,4,4,3,7,10,-3,2,6,20,12,
+                13,-4,105,-9,5,2,3,3,-10,0,-1,4,3,1,-500,6,
+                4,405,0,1,31)
+    ), meta_dataframe_name = "ols_feat")
+
+  target_m_df = create_meta_dataframe(
+    data.frame(
+      stringsAsFactors = FALSE,
+      id = c("Stock A-2001-03-15",
+             "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
+             "Stock A-2001-07-15","Stock A-2001-08-15",
+             "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
+             "Stock B-2001-03-15","Stock B-2001-04-15",
+             "Stock B-2001-05-15","Stock B-2001-06-15","Stock B-2001-07-15",
+             "Stock B-2001-08-15","Stock B-2001-09-15","Stock B-2001-10-15",
+             "Stock B-2001-11-15","Stock C-2001-03-15",
+             "Stock C-2001-04-15","Stock C-2001-05-15","Stock C-2001-06-15",
+             "Stock C-2001-07-15","Stock C-2001-08-15",
+             "Stock C-2001-09-15","Stock C-2001-10-15","Stock C-2001-11-15",
+             "Stock D-2001-03-15","Stock D-2001-04-15","Stock D-2001-05-15",
+             "Stock D-2001-06-15","Stock D-2001-07-15",
+             "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
+             "Stock D-2001-11-15","Stock E-2001-03-15",
+             "Stock E-2001-04-15","Stock E-2001-05-15","Stock E-2001-06-15",
+             "Stock E-2001-07-15","Stock E-2001-08-15",
+             "Stock E-2001-09-15","Stock E-2001-10-15","Stock E-2001-11-15"),
+      tickers = c("Stock A","Stock A","Stock A",
+                  "Stock A","Stock A","Stock A","Stock A","Stock A",
+                  "Stock A","Stock B","Stock B","Stock B","Stock B",
+                  "Stock B","Stock B","Stock B","Stock B","Stock B",
+                  "Stock C","Stock C","Stock C","Stock C","Stock C",
+                  "Stock C","Stock C","Stock C","Stock C","Stock D",
+                  "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
+                  "Stock D","Stock D","Stock E","Stock E","Stock E",
+                  "Stock E","Stock E","Stock E","Stock E","Stock E",
+                  "Stock E"),
+      dates = as.Date(c("2001-03-15","2001-04-15",
+                        "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                        "2001-09-15","2001-10-15","2001-11-15","2001-03-15",
+                        "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
+                        "2001-08-15","2001-09-15","2001-10-15","2001-11-15",
+                        "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
+                        "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
+                        "2001-11-15","2001-03-15","2001-04-15","2001-05-15",
+                        "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                        "2001-10-15","2001-11-15","2001-03-15","2001-04-15","2001-05-15",
+                        "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                        "2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
+      fwd_premium_1m = c(0,6,7,1,2,1,10,3,1,1,
+                         8,2,3,5,-1,35,-152,3,2,3,7,5,1,-9,2,4,-20,
+                         8,8,8,7,2,-2,-10,-45,-3,5,1,8,1,2,1,4,
+                         -5,0),
+      fwd_premium_3m = c(4,4,2,0,6,5,-5,-1,4,5,
+                         3,7,3,8,2,5,1,2,0,5,2,8,3,5,3,40,2,1,3,
+                         8,3,1,1,11,4,2,9,9,1,2,3,-9,-4,4,3),
+      fwd_sharpe_1m = c(7,7,3,1,1,3,1,0,10,4,
+                        2,8,5,4,1,1,4,-5,2,6,4,6,5,1,1,5,3,4,9,
+                        0,10,1,4,12,1,92,7,1,3,3,0,1,3,1,9)
+    ), meta_dataframe_name = "tgt ols")
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(
-        data.frame(
-          stringsAsFactors = FALSE,
-          id = c("Stock A-2001-03-15",
-                 "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
-                 "Stock A-2001-07-15","Stock A-2001-08-15",
-                 "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
-                 "Stock B-2001-03-15","Stock B-2001-04-15",
-                 "Stock B-2001-05-15","Stock B-2001-06-15","Stock B-2001-07-15",
-                 "Stock B-2001-08-15","Stock B-2001-09-15","Stock B-2001-10-15",
-                 "Stock B-2001-11-15","Stock C-2001-03-15",
-                 "Stock C-2001-04-15","Stock C-2001-05-15","Stock C-2001-06-15",
-                 "Stock C-2001-07-15","Stock C-2001-08-15",
-                 "Stock C-2001-09-15","Stock C-2001-10-15","Stock C-2001-11-15",
-                 "Stock D-2001-03-15","Stock D-2001-04-15","Stock D-2001-05-15",
-                 "Stock D-2001-06-15","Stock D-2001-07-15",
-                 "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
-                 "Stock D-2001-11-15","Stock E-2001-03-15",
-                 "Stock E-2001-04-15","Stock E-2001-05-15","Stock E-2001-06-15",
-                 "Stock E-2001-07-15","Stock E-2001-08-15",
-                 "Stock E-2001-09-15","Stock E-2001-10-15","Stock E-2001-11-15"),
-          tickers = c("Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock C","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock C","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock D","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E"),
-          dates = as.Date(c("2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-03-15",
-                    "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
-                    "2001-08-15","2001-09-15","2001-10-15","2001-11-15",
-                    "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
-                    "2001-11-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-10-15","2001-11-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
-          Alpha = c(3,-20,-450,5,-2,1,6,1,
-                    -9,1,7,4,2,20,1,1,-2,-2,2,9,9,-20,-150,-20,
-                    8,17,1,5,-2,2,-1,-50,-25,1,4,2,5,3,-1,2,
-                    -1,-20,-1,4,4),
-          Beta = c(4,7,5,3,13,10,4,-5,1,5,
-                   2,4,1,-12,-10,3,4,1,6,-3,-2,1,1,4,24,19,
-                   -1,0,-2,5,2,5,1,2,5,3,2,-9,3,1,2,1,-1,
-                   -20,2),
-          Gamma = c(800,11,4,20,0,-523,2,3,
-                    27,9,-2,4,-15,3,4,4,3,7,10,-3,2,6,20,12,
-                    13,-4,105,-9,5,2,3,3,-10,0,-1,4,3,1,-500,6,
-                    4,405,0,1,31)
-        ))
-      ,
-      target_m_df = create_meta_dataframe(
-        data.frame(
-          stringsAsFactors = FALSE,
-          id = c("Stock A-2001-03-15",
-                 "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
-                 "Stock A-2001-07-15","Stock A-2001-08-15",
-                 "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
-                 "Stock B-2001-03-15","Stock B-2001-04-15",
-                 "Stock B-2001-05-15","Stock B-2001-06-15","Stock B-2001-07-15",
-                 "Stock B-2001-08-15","Stock B-2001-09-15","Stock B-2001-10-15",
-                 "Stock B-2001-11-15","Stock C-2001-03-15",
-                 "Stock C-2001-04-15","Stock C-2001-05-15","Stock C-2001-06-15",
-                 "Stock C-2001-07-15","Stock C-2001-08-15",
-                 "Stock C-2001-09-15","Stock C-2001-10-15","Stock C-2001-11-15",
-                 "Stock D-2001-03-15","Stock D-2001-04-15","Stock D-2001-05-15",
-                 "Stock D-2001-06-15","Stock D-2001-07-15",
-                 "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
-                 "Stock D-2001-11-15","Stock E-2001-03-15",
-                 "Stock E-2001-04-15","Stock E-2001-05-15","Stock E-2001-06-15",
-                 "Stock E-2001-07-15","Stock E-2001-08-15",
-                 "Stock E-2001-09-15","Stock E-2001-10-15","Stock E-2001-11-15"),
-          tickers = c("Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock C","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock C","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock D","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E"),
-          dates = as.Date(c("2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-03-15",
-                    "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
-                    "2001-08-15","2001-09-15","2001-10-15","2001-11-15",
-                    "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
-                    "2001-11-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-10-15","2001-11-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
-          fwd_premium_1m = c(0,6,7,1,2,1,10,3,1,1,
-                             8,2,3,5,-1,35,-152,3,2,3,7,5,1,-9,2,4,-20,
-                             8,8,8,7,2,-2,-10,-45,-3,5,1,8,1,2,1,4,
-                             -5,0),
-          fwd_premium_3m = c(4,4,2,0,6,5,-5,-1,4,5,
-                             3,7,3,8,2,5,1,2,0,5,2,8,3,5,3,40,2,1,3,
-                             8,3,1,1,11,4,2,9,9,1,2,3,-9,-4,4,3),
-          fwd_sharpe_1m = c(7,7,3,1,1,3,1,0,10,4,
-                            2,8,5,4,1,1,4,-5,2,6,4,6,5,1,1,5,3,4,9,
-                            0,10,1,4,12,1,92,7,1,3,3,0,1,3,1,9)
-        )),
-      config = ols_config,
-      target_fwd_name = "fwd_premium_1m")
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = ols_config)
   }))
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(c(`Stock A` = 4.86203815251015, `Stock B` = 5.00190010698946, `Stock C` = 4.96435541423554, `Stock D` = 4.94818709592051, `Stock E` = 4.86967646823366),
                           c(`Stock A` = 5.48519825741933, `Stock B` = 4.20386094336353, `Stock C` = 5.43567282083367, `Stock D` = 5.29919524341379, `Stock E` = 4.94189073217023),
@@ -350,7 +357,6 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 1m target", {
                           c(`Stock A` = 3.36877633975403, `Stock B` = 2.88800431705638, `Stock C` = 1.98952539865867, `Stock D` = 2.81715855293, `Stock E` = 4.1880279492188),
                           c(`Stock A` = 2.9979157080522, `Stock B` = 3.03814949016211, `Stock C` = 2.75868492698232, `Stock D` = 2.91867156906171, `Stock E` = 2.86037385247988))
   names(prediction_list) <- c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(c(`Stock A` = -3.86203815251015, `Stock B` = -2.00190010698946, `Stock C` = 0.0356445857644596, `Stock D` = 2.05181290407949, `Stock E` = -3.86967646823366),
                      c(`Stock A` = -3.48519825741933, `Stock B` = 0.796139056636471, `Stock C` = -4.43567282083367, `Stock D` = -3.29919524341379, `Stock E` = -2.94189073217023),
@@ -359,7 +365,6 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 1m target", {
                      c(`Stock A` = -0.368776339754032, `Stock B` = -154.888004317056, `Stock C` = 2.01047460134133, `Stock D` = -47.81715855293, `Stock E` = -9.1880279492188),
                      c(`Stock A` = -1.9979157080522, `Stock B` = -0.0381494901621053, `Stock C` = -22.7586849269823, `Stock D` = -5.91867156906171, `Stock E` = -2.86037385247988))
   names(error_list) <- c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(c(`Stock A` = 1, `Stock B` = 3, `Stock C` = 5, `Stock D` = 7, `Stock E` = 1),
                  c(`Stock A` = 2, `Stock B` = 5, `Stock C` = 1, `Stock D` = 2, `Stock E` = 2),
@@ -368,9 +373,34 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 1m target", {
                  c(`Stock A` = 3, `Stock B` = -152, `Stock C` = 4, `Stock D` = -45, `Stock E` = -5),
                  c(`Stock A` = 1, `Stock B` = 3, `Stock C` = -20, `Stock D` = -3, `Stock E` = 0))
   names(y_list) <- c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
   #Eval metrics
-  eval_metrics <- data.frame(#out_of_sample_rsquared_ols
+  eval_metrics <- xts::xts(data.frame(#out_of_sample_rsquared_ols
     rss = c(0.551664171429985, -0.368290736807804, -2.8319374795481, 0.135205709142454, -0.0471175342588488, -0.348838362491895),
     #out-of-sample_crossproduct
     cp = c(16.8393003368667, 11.5815092007316, -9.81382217237304, 23.3935223492361, -113.724900041323, -10.3634698136586),
@@ -388,33 +418,59 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 1m target", {
     hr = c(1, 1, 0.4, 0.8, 0.4, 0.4),
     #oos mb
     mb = c(-1.5292, -2.6732, -7.1207, 5.4732, -42.0503, -6.7148)
-  )
-  #Rename
-  rownames(eval_metrics) <- c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")
+  ), order.by = as.Date(c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")))
 
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-5)
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
 
-  results$outputs[[4]] <- eval_metrics
-  #final_sb_model
-  results$outputs[[5]] <- sb_backtest_results@final_sb_model
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
 
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
+  #gsm 1
+  gsm_df <- features_m_df@data %>% dplyr::filter(dates <= "2001-05-15") #Data used to feed the last global surrogate model
+  target <- target_m_df@data %>% dplyr::filter(dates <= "2001-05-15") %>% dplyr::pull(fwd_premium_1m)
+  lm_mod_1 <- lm(target ~., gsm_df %>% dplyr::select(-id, -tickers, -dates))
+  preds <- predict(lm_mod_1, new_features_m_df = gsm_df)
+  gsm <- lm(preds ~ Alpha + Beta + Gamma, data = gsm_df) #Date used to fit lm model
 
+  feature_importance_m_df1 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df1) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df1$normalized_importance <-
+    (feature_importance_m_df1$importance - mean(feature_importance_m_df1$importance))/sd(feature_importance_m_df1$importance)
+  feature_importance_m_df1$dates <- as.Date("2001-06-15") #Rebalance date
+  feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates, importance, normalized_importance,
+                                                                       std_error, t_value, p_value)
+  feature_importance_m_df1$is_eligible <- c(0, 1, 1, 1)
+  feature_importance_m_df1 <- feature_importance_m_df1[order(feature_importance_m_df1$id),]
+  #gsm 2
+  gsm_df <- features_m_df@data %>% dplyr::filter(dates <= "2001-08-15") #Data used to feed the last global surrogate model
+  preds <- predict(sb_backtest_results@final_sb_model, new_features_m_df = gsm_df)
+  gsm <- lm(preds ~ Alpha + Beta + Gamma, data = gsm_df) #Date used to fit lm model
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
+  feature_importance_m_df2 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df2) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df2$normalized_importance <-
+    (feature_importance_m_df2$importance - mean(feature_importance_m_df2$importance))/sd(feature_importance_m_df2$importance)
+  feature_importance_m_df2$dates <- as.Date("2001-09-15") #Rebalance date
+  feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates, importance, normalized_importance,
+                                                                       std_error, t_value, p_value)
+  feature_importance_m_df2$is_eligible <- c(0, 1, 1, 1)
+  feature_importance_m_df2 <- feature_importance_m_df2[order(feature_importance_m_df2$id),]
 
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-05
-  )
+  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
+
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
+
+  expected_results$outputs[[5]] <- feature_importance_m_df2
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
+
 
 })
 
@@ -424,137 +480,162 @@ test_that("OLS - run_sb_backtest works with rebalancing occuring at last month a
   ols_config <- create_sb_backtest_config(
     sb_algorithm = "ols",
     training_sample_size = 4,
-    rebalancing_months = 9
+    rebalancing_months = 9,
+    target = "fwd_premium_1m",
+    config_name = "ols_config_1"
   )
+
+  features_m_df = create_meta_dataframe(
+    data.frame(
+      stringsAsFactors = FALSE,
+      id = c("Stock A-2001-03-15",
+             "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
+             "Stock A-2001-07-15","Stock A-2001-08-15",
+             "Stock A-2001-09-15","Stock B-2001-03-15","Stock B-2001-04-15",
+             "Stock B-2001-05-15","Stock B-2001-06-15",
+             "Stock B-2001-07-15","Stock B-2001-08-15","Stock B-2001-09-15",
+             "Stock C-2001-03-15","Stock C-2001-04-15","Stock C-2001-05-15",
+             "Stock C-2001-06-15","Stock C-2001-07-15",
+             "Stock C-2001-08-15","Stock C-2001-09-15","Stock D-2001-03-15",
+             "Stock D-2001-04-15","Stock D-2001-05-15",
+             "Stock D-2001-06-15","Stock D-2001-07-15","Stock D-2001-08-15",
+             "Stock D-2001-09-15","Stock E-2001-03-15","Stock E-2001-04-15",
+             "Stock E-2001-05-15","Stock E-2001-06-15",
+             "Stock E-2001-07-15","Stock E-2001-08-15","Stock E-2001-09-15"),
+      tickers = c("Stock A","Stock A","Stock A",
+                  "Stock A","Stock A","Stock A","Stock A","Stock B",
+                  "Stock B","Stock B","Stock B","Stock B","Stock B",
+                  "Stock B","Stock C","Stock C","Stock C","Stock C",
+                  "Stock C","Stock C","Stock C","Stock D","Stock D",
+                  "Stock D","Stock D","Stock D","Stock D","Stock D",
+                  "Stock E","Stock E","Stock E","Stock E","Stock E","Stock E",
+                  "Stock E"),
+      dates = as.Date(c("2001-03-15","2001-04-15",
+                        "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                        "2001-09-15","2001-03-15","2001-04-15","2001-05-15",
+                        "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                        "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
+                        "2001-07-15","2001-08-15","2001-09-15","2001-03-15",
+                        "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
+                        "2001-08-15","2001-09-15","2001-03-15","2001-04-15",
+                        "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                        "2001-09-15"), format = "%Y-%m-%d"),
+      Alpha = c(3,-20,-450,5,-2,1,6,1,7,
+                4,2,20,1,1,2,9,9,-20,-150,-20,8,5,-2,2,
+                -1,-50,-25,1,5,3,-1,2,-1,-20,-1),
+      Beta = c(4,7,5,3,13,10,4,5,2,4,
+               1,-12,-10,3,6,-3,-2,1,1,4,24,0,-2,5,2,5,
+               1,2,2,-9,3,1,2,1,-1),
+      Gamma = c(800,11,4,20,0,-523,2,9,
+                -2,4,-15,3,4,4,10,-3,2,6,20,12,13,-9,5,2,
+                3,3,-10,0,3,1,-500,6,4,405,0)
+    ), meta_dataframe_name = "features_processed")
+
+  target_m_df = create_meta_dataframe(
+    data.frame(
+      stringsAsFactors = FALSE,
+      id = c("Stock A-2001-03-15",
+             "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
+             "Stock A-2001-07-15","Stock A-2001-08-15",
+             "Stock A-2001-09-15","Stock B-2001-03-15","Stock B-2001-04-15",
+             "Stock B-2001-05-15","Stock B-2001-06-15",
+             "Stock B-2001-07-15","Stock B-2001-08-15","Stock B-2001-09-15",
+             "Stock C-2001-03-15","Stock C-2001-04-15","Stock C-2001-05-15",
+             "Stock C-2001-06-15","Stock C-2001-07-15",
+             "Stock C-2001-08-15","Stock C-2001-09-15","Stock D-2001-03-15",
+             "Stock D-2001-04-15","Stock D-2001-05-15",
+             "Stock D-2001-06-15","Stock D-2001-07-15","Stock D-2001-08-15",
+             "Stock D-2001-09-15","Stock E-2001-03-15","Stock E-2001-04-15",
+             "Stock E-2001-05-15","Stock E-2001-06-15",
+             "Stock E-2001-07-15","Stock E-2001-08-15","Stock E-2001-09-15"),
+      tickers = c("Stock A","Stock A","Stock A",
+                  "Stock A","Stock A","Stock A","Stock A","Stock B",
+                  "Stock B","Stock B","Stock B","Stock B","Stock B",
+                  "Stock B","Stock C","Stock C","Stock C","Stock C",
+                  "Stock C","Stock C","Stock C","Stock D","Stock D",
+                  "Stock D","Stock D","Stock D","Stock D","Stock D",
+                  "Stock E","Stock E","Stock E","Stock E","Stock E","Stock E",
+                  "Stock E"),
+      dates = as.Date(c("2001-03-15","2001-04-15",
+                        "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                        "2001-09-15","2001-03-15","2001-04-15","2001-05-15",
+                        "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                        "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
+                        "2001-07-15","2001-08-15","2001-09-15","2001-03-15",
+                        "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
+                        "2001-08-15","2001-09-15","2001-03-15","2001-04-15",
+                        "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                        "2001-09-15"), format = "%Y-%m-%d"),
+      fwd_premium_1m = c(0,6,7,1,2,1,10,1,8,2,
+                         3,5,-1,35,2,3,7,5,1,-9,2,8,8,8,7,2,-2,
+                         -10,5,1,8,1,2,1,4),
+      fwd_premium_3m = c(4,4,2,0,6,5,-5,5,3,7,
+                         3,8,2,5,0,5,2,8,3,5,3,1,3,8,3,1,1,11,9,
+                         9,1,2,3,-9,-4),
+      fwd_sharpe_1m = c(7,7,3,1,1,3,1,4,2,8,5,
+                        4,1,1,2,6,4,6,5,1,1,4,9,0,10,1,4,12,7,
+                        1,3,3,0,1,3)
+    ), meta_dataframe_name = "target_unprocessed")
 
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df =
-        create_meta_dataframe(
-        data.frame(
-          stringsAsFactors = FALSE,
-          id = c("Stock A-2001-03-15",
-                 "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
-                 "Stock A-2001-07-15","Stock A-2001-08-15",
-                 "Stock A-2001-09-15","Stock B-2001-03-15","Stock B-2001-04-15",
-                 "Stock B-2001-05-15","Stock B-2001-06-15",
-                 "Stock B-2001-07-15","Stock B-2001-08-15","Stock B-2001-09-15",
-                 "Stock C-2001-03-15","Stock C-2001-04-15","Stock C-2001-05-15",
-                 "Stock C-2001-06-15","Stock C-2001-07-15",
-                 "Stock C-2001-08-15","Stock C-2001-09-15","Stock D-2001-03-15",
-                 "Stock D-2001-04-15","Stock D-2001-05-15",
-                 "Stock D-2001-06-15","Stock D-2001-07-15","Stock D-2001-08-15",
-                 "Stock D-2001-09-15","Stock E-2001-03-15","Stock E-2001-04-15",
-                 "Stock E-2001-05-15","Stock E-2001-06-15",
-                 "Stock E-2001-07-15","Stock E-2001-08-15","Stock E-2001-09-15"),
-          tickers = c("Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock D","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E"),
-          dates = as.Date(c("2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-03-15",
-                    "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
-                    "2001-08-15","2001-09-15","2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15"), format = "%Y-%m-%d"),
-          Alpha = c(3,-20,-450,5,-2,1,6,1,7,
-                    4,2,20,1,1,2,9,9,-20,-150,-20,8,5,-2,2,
-                    -1,-50,-25,1,5,3,-1,2,-1,-20,-1),
-          Beta = c(4,7,5,3,13,10,4,5,2,4,
-                   1,-12,-10,3,6,-3,-2,1,1,4,24,0,-2,5,2,5,
-                   1,2,2,-9,3,1,2,1,-1),
-          Gamma = c(800,11,4,20,0,-523,2,9,
-                    -2,4,-15,3,4,4,10,-3,2,6,20,12,13,-9,5,2,
-                    3,3,-10,0,3,1,-500,6,4,405,0)
-        ))
-      ,
-      target_m_df =
-        create_meta_dataframe(
-        data.frame(
-          stringsAsFactors = FALSE,
-          id = c("Stock A-2001-03-15",
-                 "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
-                 "Stock A-2001-07-15","Stock A-2001-08-15",
-                 "Stock A-2001-09-15","Stock B-2001-03-15","Stock B-2001-04-15",
-                 "Stock B-2001-05-15","Stock B-2001-06-15",
-                 "Stock B-2001-07-15","Stock B-2001-08-15","Stock B-2001-09-15",
-                 "Stock C-2001-03-15","Stock C-2001-04-15","Stock C-2001-05-15",
-                 "Stock C-2001-06-15","Stock C-2001-07-15",
-                 "Stock C-2001-08-15","Stock C-2001-09-15","Stock D-2001-03-15",
-                 "Stock D-2001-04-15","Stock D-2001-05-15",
-                 "Stock D-2001-06-15","Stock D-2001-07-15","Stock D-2001-08-15",
-                 "Stock D-2001-09-15","Stock E-2001-03-15","Stock E-2001-04-15",
-                 "Stock E-2001-05-15","Stock E-2001-06-15",
-                 "Stock E-2001-07-15","Stock E-2001-08-15","Stock E-2001-09-15"),
-          tickers = c("Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock D","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E"),
-          dates = as.Date(c("2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-03-15",
-                    "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
-                    "2001-08-15","2001-09-15","2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15"), format = "%Y-%m-%d"),
-          fwd_premium_1m = c(0,6,7,1,2,1,10,1,8,2,
-                             3,5,-1,35,2,3,7,5,1,-9,2,8,8,8,7,2,-2,
-                             -10,5,1,8,1,2,1,4),
-          fwd_premium_3m = c(4,4,2,0,6,5,-5,5,3,7,
-                             3,8,2,5,0,5,2,8,3,5,3,1,3,8,3,1,1,11,9,
-                             9,1,2,3,-9,-4),
-          fwd_sharpe_1m = c(7,7,3,1,1,3,1,4,2,8,5,
-                            4,1,1,2,6,4,6,5,1,1,4,9,0,10,1,4,12,7,
-                            1,3,3,0,1,3)
-        )),
-      config = ols_config,
-      target_fwd_name = "fwd_premium_1m")
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = ols_config)
   }))
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(c(`Stock A` = 4.86203815251015, `Stock B` = 5.00190010698946, `Stock C` = 4.96435541423554, `Stock D` = 4.94818709592051, `Stock E` = 4.86967646823366),
                           c(`Stock A` = 5.48519825741933, `Stock B` = 4.20386094336353, `Stock C` = 5.43567282083367, `Stock D` = 5.29919524341379, `Stock E` = 4.94189073217023),
                           c(`Stock A` = 8.62515342023342, `Stock B` = 4.37275430239549, `Stock C` = 5.06670954495026, `Stock D` = 5.08661517651311, `Stock E` = 2.45210627787541),
                           c(`Stock A` = 2.85051501368175, `Stock B` = 2.92383509749049, `Stock C` = 1.69537399669303, `Stock D` = 2.99425108348875, `Stock E` = 3.16999900967429))
   names(prediction_list) <- c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <-  list(c(`Stock A` = -3.86203815251015, `Stock B` = -2.00190010698946, `Stock C` = 0.0356445857644596, `Stock D` = 2.05181290407949, `Stock E` = -3.86967646823366),
                       c(`Stock A` = -3.48519825741933, `Stock B` = 0.796139056636471, `Stock C` = -4.43567282083367, `Stock D` = -3.29919524341379, `Stock E` = -2.94189073217023),
                       c(`Stock A` = -7.62515342023342, `Stock B` = -5.37275430239549, `Stock C` = -14.0667095449503, `Stock D` = -7.08661517651311, `Stock E` = -1.45210627787541),
                       c(`Stock A` = 7.14948498631825, `Stock B` = 32.0761649025095, `Stock C` = 0.30462600330697, `Stock D` = -12.9942510834887, `Stock E` = 0.830000990325713))
   names(error_list) <- c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(c(`Stock A` = 1, `Stock B` = 3, `Stock C` = 5, `Stock D` = 7, `Stock E` = 1),
                  c(`Stock A` = 2, `Stock B` = 5, `Stock C` = 1, `Stock D` = 2, `Stock E` = 2),
                  c(`Stock A` = 1, `Stock B` = -1, `Stock C` = -9, `Stock D` = -2, `Stock E` = 1),
                  c(`Stock A` = 10, `Stock B` = 35, `Stock C` = 2, `Stock D` = -10, `Stock E` = 4))
   names(y_list) <- c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
   #Eval metrics
-  eval_metrics <- data.frame(#out_of_sample_rsquared_ols
+  eval_metrics <- xts::xts(data.frame(#out_of_sample_rsquared_ols
     rss = c(0.551664171429985, -0.368290736807804, -2.8319374795481, 0.135205709142454),
     #out-of-sample_crossproduct
     cp = c(16.8393003368667, 11.5815092007316, -9.81382217237304, 23.3935223492361),
@@ -572,33 +653,59 @@ test_that("OLS - run_sb_backtest works with rebalancing occuring at last month a
     hr = c(1, 1, 0.4, 0.8),
     #mb
     mb = c(-1.5292, -2.6732, -7.1207, 5.4732)
+  ), order.by = as.Date(c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15"))
   )
-  #Rename
-  rownames(eval_metrics) <-  c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15")
 
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-5)
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
 
-  results$outputs[[4]] <- eval_metrics
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
 
-  #final_sb_model
-  results$outputs[[5]] <- sb_backtest_results@final_sb_model
+  #gsm 1
+  gsm_df <- features_m_df@data %>% dplyr::filter(dates <= "2001-05-15") #Data used to feed the last global surrogate model
+  target <- target_m_df@data %>% dplyr::filter(dates <= "2001-05-15") %>% dplyr::pull(fwd_premium_1m)
+  lm_mod_1 <- lm(target ~., gsm_df %>% dplyr::select(-id, -tickers, -dates))
+  preds <- predict(lm_mod_1, new_features_m_df = gsm_df)
+  gsm <- lm(preds ~ Alpha + Beta + Gamma, data = gsm_df) #Date used to fit lm model
 
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
+  feature_importance_m_df1 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df1) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df1$normalized_importance <-
+    (feature_importance_m_df1$importance - mean(feature_importance_m_df1$importance))/sd(feature_importance_m_df1$importance)
+  feature_importance_m_df1$dates <- as.Date("2001-06-15") #Rebalance date
+  feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates, importance, normalized_importance,
+                                                                         std_error, t_value, p_value)
+  feature_importance_m_df1$is_eligible <- c(0, 1, 1, 1)
+  feature_importance_m_df1 <- feature_importance_m_df1[order(feature_importance_m_df1$id),]
+  #gsm 2
+  gsm_df <- features_m_df@data %>% dplyr::filter(dates <= "2001-08-15") #Data used to feed the last global surrogate model
+  preds <- predict(sb_backtest_results@final_sb_model, new_features_m_df = gsm_df)
+  gsm <- lm(preds ~ Alpha + Beta + Gamma, data = gsm_df) #Date used to fit lm model
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
+  feature_importance_m_df2 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df2) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df2$normalized_importance <-
+    (feature_importance_m_df2$importance - mean(feature_importance_m_df2$importance))/sd(feature_importance_m_df2$importance)
+  feature_importance_m_df2$dates <- as.Date("2001-09-15") #Rebalance date
+  feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates, importance, normalized_importance,
+                                                                         std_error, t_value, p_value)
+  feature_importance_m_df2$is_eligible <- c(0, 1, 1, 1)
+  feature_importance_m_df2 <- feature_importance_m_df2[order(feature_importance_m_df2$id),]
 
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-05
-  )
+  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
+
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
+
+  expected_results$outputs[[5]] <- feature_importance_m_df2
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
 
 })
 
@@ -608,154 +715,180 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 3m target", {
   ols_config <- create_sb_backtest_config(
     sb_algorithm = "ols",
     training_sample_size = 7,
-    rebalancing_months = 9
+    rebalancing_months = 9,
+    target_fwd_name = "fwd_premium_3m"
   )
+
+  features_m_df =
+    create_meta_dataframe(
+      data.frame(
+        stringsAsFactors = FALSE,
+        id = c("Stock A-2001-03-15",
+               "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
+               "Stock A-2001-07-15","Stock A-2001-08-15",
+               "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
+               "Stock B-2001-03-15","Stock B-2001-04-15",
+               "Stock B-2001-05-15","Stock B-2001-06-15","Stock B-2001-07-15",
+               "Stock B-2001-08-15","Stock B-2001-09-15","Stock B-2001-10-15",
+               "Stock B-2001-11-15","Stock C-2001-03-15",
+               "Stock C-2001-04-15","Stock C-2001-05-15","Stock C-2001-06-15",
+               "Stock C-2001-07-15","Stock C-2001-08-15",
+               "Stock C-2001-09-15","Stock C-2001-10-15","Stock C-2001-11-15",
+               "Stock D-2001-03-15","Stock D-2001-04-15","Stock D-2001-05-15",
+               "Stock D-2001-06-15","Stock D-2001-07-15",
+               "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
+               "Stock D-2001-11-15","Stock E-2001-03-15",
+               "Stock E-2001-04-15","Stock E-2001-05-15","Stock E-2001-06-15",
+               "Stock E-2001-07-15","Stock E-2001-08-15",
+               "Stock E-2001-09-15","Stock E-2001-10-15","Stock E-2001-11-15"),
+        tickers = c("Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock A","Stock A","Stock A",
+                    "Stock A","Stock B","Stock B","Stock B","Stock B",
+                    "Stock B","Stock B","Stock B","Stock B","Stock B",
+                    "Stock C","Stock C","Stock C","Stock C","Stock C",
+                    "Stock C","Stock C","Stock C","Stock C","Stock D",
+                    "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
+                    "Stock D","Stock D","Stock E","Stock E","Stock E",
+                    "Stock E","Stock E","Stock E","Stock E","Stock E",
+                    "Stock E"),
+        dates = as.Date(c("2001-03-15","2001-04-15",
+                          "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                          "2001-09-15","2001-10-15","2001-11-15","2001-03-15",
+                          "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
+                          "2001-08-15","2001-09-15","2001-10-15","2001-11-15",
+                          "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
+                          "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
+                          "2001-11-15","2001-03-15","2001-04-15","2001-05-15",
+                          "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                          "2001-10-15","2001-11-15","2001-03-15","2001-04-15","2001-05-15",
+                          "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                          "2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
+        Alpha = c(3,-20,-450,5,-2,1,6,1,
+                  -9,1,7,4,2,20,1,1,-2,-2,2,9,9,-20,-150,-20,
+                  8,17,1,5,-2,2,-1,-50,-25,1,4,2,5,3,-1,2,
+                  -1,-20,-1,4,4),
+        Beta = c(4,7,5,3,13,10,4,-5,1,5,
+                 2,4,1,-12,-10,3,4,1,6,-3,-2,1,1,4,24,19,
+                 -1,0,-2,5,2,5,1,2,5,3,2,-9,3,1,2,1,-1,
+                 -20,2),
+        Gamma = c(800,11,4,20,0,-523,2,3,
+                  27,9,-2,4,-15,3,4,4,3,7,10,-3,2,6,20,12,
+                  13,-4,105,-9,5,2,3,3,-10,0,-1,4,3,1,-500,6,
+                  4,405,0,1,31)
+      ))
+
+  target_m_df =
+    create_meta_dataframe(
+      data.frame(
+        stringsAsFactors = FALSE,
+        id = c("Stock A-2001-03-15",
+               "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
+               "Stock A-2001-07-15","Stock A-2001-08-15",
+               "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
+               "Stock B-2001-03-15","Stock B-2001-04-15",
+               "Stock B-2001-05-15","Stock B-2001-06-15","Stock B-2001-07-15",
+               "Stock B-2001-08-15","Stock B-2001-09-15","Stock B-2001-10-15",
+               "Stock B-2001-11-15","Stock C-2001-03-15",
+               "Stock C-2001-04-15","Stock C-2001-05-15","Stock C-2001-06-15",
+               "Stock C-2001-07-15","Stock C-2001-08-15",
+               "Stock C-2001-09-15","Stock C-2001-10-15","Stock C-2001-11-15",
+               "Stock D-2001-03-15","Stock D-2001-04-15","Stock D-2001-05-15",
+               "Stock D-2001-06-15","Stock D-2001-07-15",
+               "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
+               "Stock D-2001-11-15","Stock E-2001-03-15",
+               "Stock E-2001-04-15","Stock E-2001-05-15","Stock E-2001-06-15",
+               "Stock E-2001-07-15","Stock E-2001-08-15",
+               "Stock E-2001-09-15","Stock E-2001-10-15","Stock E-2001-11-15"),
+        tickers = c("Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock A","Stock A","Stock A",
+                    "Stock A","Stock B","Stock B","Stock B","Stock B",
+                    "Stock B","Stock B","Stock B","Stock B","Stock B",
+                    "Stock C","Stock C","Stock C","Stock C","Stock C",
+                    "Stock C","Stock C","Stock C","Stock C","Stock D",
+                    "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
+                    "Stock D","Stock D","Stock E","Stock E","Stock E",
+                    "Stock E","Stock E","Stock E","Stock E","Stock E",
+                    "Stock E"),
+        dates = as.Date(c("2001-03-15","2001-04-15",
+                          "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                          "2001-09-15","2001-10-15","2001-11-15","2001-03-15",
+                          "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
+                          "2001-08-15","2001-09-15","2001-10-15","2001-11-15",
+                          "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
+                          "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
+                          "2001-11-15","2001-03-15","2001-04-15","2001-05-15",
+                          "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                          "2001-10-15","2001-11-15","2001-03-15","2001-04-15","2001-05-15",
+                          "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
+                          "2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
+        fwd_premium_1m = c(0,6,7,1,2,1,10,3,1,1,
+                           8,2,3,5,-1,35,-152,3,2,3,7,5,1,-9,2,4,-20,
+                           8,8,8,7,2,-2,-10,-45,-3,5,1,8,1,2,1,4,
+                           -5,0),
+        fwd_premium_3m = c(4,4,2,0,6,5,-5,-1,4,5,
+                           3,7,3,8,2,5,1,2,0,5,2,8,3,5,3,40,2,1,3,
+                           8,3,1,1,11,4,2,9,9,1,2,3,-9,-4,4,3),
+        fwd_sharpe_1m = c(7,7,3,1,1,3,1,0,10,4,
+                          2,8,5,4,1,1,4,-5,2,6,4,6,5,1,1,5,3,4,9,
+                          0,10,1,4,12,1,92,7,1,3,3,0,1,3,1,9)
+      ))
 
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df =
-        create_meta_dataframe(
-        data.frame(
-          stringsAsFactors = FALSE,
-          id = c("Stock A-2001-03-15",
-                 "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
-                 "Stock A-2001-07-15","Stock A-2001-08-15",
-                 "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
-                 "Stock B-2001-03-15","Stock B-2001-04-15",
-                 "Stock B-2001-05-15","Stock B-2001-06-15","Stock B-2001-07-15",
-                 "Stock B-2001-08-15","Stock B-2001-09-15","Stock B-2001-10-15",
-                 "Stock B-2001-11-15","Stock C-2001-03-15",
-                 "Stock C-2001-04-15","Stock C-2001-05-15","Stock C-2001-06-15",
-                 "Stock C-2001-07-15","Stock C-2001-08-15",
-                 "Stock C-2001-09-15","Stock C-2001-10-15","Stock C-2001-11-15",
-                 "Stock D-2001-03-15","Stock D-2001-04-15","Stock D-2001-05-15",
-                 "Stock D-2001-06-15","Stock D-2001-07-15",
-                 "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
-                 "Stock D-2001-11-15","Stock E-2001-03-15",
-                 "Stock E-2001-04-15","Stock E-2001-05-15","Stock E-2001-06-15",
-                 "Stock E-2001-07-15","Stock E-2001-08-15",
-                 "Stock E-2001-09-15","Stock E-2001-10-15","Stock E-2001-11-15"),
-          tickers = c("Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock C","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock C","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock D","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E"),
-          dates = as.Date(c("2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-03-15",
-                    "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
-                    "2001-08-15","2001-09-15","2001-10-15","2001-11-15",
-                    "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
-                    "2001-11-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-10-15","2001-11-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
-          Alpha = c(3,-20,-450,5,-2,1,6,1,
-                    -9,1,7,4,2,20,1,1,-2,-2,2,9,9,-20,-150,-20,
-                    8,17,1,5,-2,2,-1,-50,-25,1,4,2,5,3,-1,2,
-                    -1,-20,-1,4,4),
-          Beta = c(4,7,5,3,13,10,4,-5,1,5,
-                   2,4,1,-12,-10,3,4,1,6,-3,-2,1,1,4,24,19,
-                   -1,0,-2,5,2,5,1,2,5,3,2,-9,3,1,2,1,-1,
-                   -20,2),
-          Gamma = c(800,11,4,20,0,-523,2,3,
-                    27,9,-2,4,-15,3,4,4,3,7,10,-3,2,6,20,12,
-                    13,-4,105,-9,5,2,3,3,-10,0,-1,4,3,1,-500,6,
-                    4,405,0,1,31)
-        ))
-      ,
-      target_m_df =
-        create_meta_dataframe(
-        data.frame(
-          stringsAsFactors = FALSE,
-          id = c("Stock A-2001-03-15",
-                 "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
-                 "Stock A-2001-07-15","Stock A-2001-08-15",
-                 "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
-                 "Stock B-2001-03-15","Stock B-2001-04-15",
-                 "Stock B-2001-05-15","Stock B-2001-06-15","Stock B-2001-07-15",
-                 "Stock B-2001-08-15","Stock B-2001-09-15","Stock B-2001-10-15",
-                 "Stock B-2001-11-15","Stock C-2001-03-15",
-                 "Stock C-2001-04-15","Stock C-2001-05-15","Stock C-2001-06-15",
-                 "Stock C-2001-07-15","Stock C-2001-08-15",
-                 "Stock C-2001-09-15","Stock C-2001-10-15","Stock C-2001-11-15",
-                 "Stock D-2001-03-15","Stock D-2001-04-15","Stock D-2001-05-15",
-                 "Stock D-2001-06-15","Stock D-2001-07-15",
-                 "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
-                 "Stock D-2001-11-15","Stock E-2001-03-15",
-                 "Stock E-2001-04-15","Stock E-2001-05-15","Stock E-2001-06-15",
-                 "Stock E-2001-07-15","Stock E-2001-08-15",
-                 "Stock E-2001-09-15","Stock E-2001-10-15","Stock E-2001-11-15"),
-          tickers = c("Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock C","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock C","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock D","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E"),
-          dates = as.Date(c("2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-03-15",
-                    "2001-04-15","2001-05-15","2001-06-15","2001-07-15",
-                    "2001-08-15","2001-09-15","2001-10-15","2001-11-15",
-                    "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
-                    "2001-11-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-10-15","2001-11-15","2001-03-15","2001-04-15","2001-05-15",
-                    "2001-06-15","2001-07-15","2001-08-15","2001-09-15",
-                    "2001-10-15","2001-11-15"), format = "%Y-%m-%d"),
-          fwd_premium_1m = c(0,6,7,1,2,1,10,3,1,1,
-                             8,2,3,5,-1,35,-152,3,2,3,7,5,1,-9,2,4,-20,
-                             8,8,8,7,2,-2,-10,-45,-3,5,1,8,1,2,1,4,
-                             -5,0),
-          fwd_premium_3m = c(4,4,2,0,6,5,-5,-1,4,5,
-                             3,7,3,8,2,5,1,2,0,5,2,8,3,5,3,40,2,1,3,
-                             8,3,1,1,11,4,2,9,9,1,2,3,-9,-4,4,3),
-          fwd_sharpe_1m = c(7,7,3,1,1,3,1,0,10,4,
-                            2,8,5,4,1,1,4,-5,2,6,4,6,5,1,1,5,3,4,9,
-                            0,10,1,4,12,1,92,7,1,3,3,0,1,3,1,9)
-        )),
-      config = ols_config,
-      target_fwd_name = "fwd_premium_3m")
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = ols_config)
   }))
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(c(`Stock A` = 3.55789756999617, `Stock B` = 3.74027366687273, `Stock C` = -0.229832241432107, `Stock D` = 3.92320884322248, `Stock E` = 4.49042135903706),
                           c(`Stock A` = 5.26391645008663, `Stock B` = 3.54031311371724, `Stock C` = 0.712631497540624, `Stock D` = 3.3564962811891, `Stock E` = 8.12782601207548),
                           c(`Stock A` = 4.14189895984849, `Stock B` = 4.12016967369082, `Stock C` = 4.69907503590588, `Stock D` = 3.74271431008669, `Stock E` = 3.99069214528025))
   names(prediction_list) <- c("2001-09-15", "2001-10-15", "2001-11-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(c(`Stock A` = -8.55789756999616, `Stock B` = 1.25972633312727, `Stock C` = 3.22983224143211, `Stock D` = 7.07679115677752, `Stock E` = -8.49042135903706),
                      c(`Stock A` = -6.26391645008663, `Stock B` = -2.54031311371724, `Stock C` = 39.2873685024594, `Stock D` = 0.643503718810904, `Stock E` = -4.12782601207548),
                      c(`Stock A` = -0.141898959848494, `Stock B` = -2.12016967369082, `Stock C` = -2.69907503590588, `Stock D` = -1.74271431008669, `Stock E` = -0.990692145280251))
   names(error_list) <- c("2001-09-15", "2001-10-15", "2001-11-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(c(`Stock A` = -5, `Stock B` = 5, `Stock C` = 3, `Stock D` = 11, `Stock E` = -4),
                  c(`Stock A` = -1, `Stock B` = 1, `Stock C` = 40, `Stock D` = 4, `Stock E` = 4),
                  c(`Stock A` = 4, `Stock B` = 2, `Stock C` = 2, `Stock D` = 2, `Stock E` = 3))
   names(y_list) <- c("2001-09-15", "2001-10-15", "2001-11-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
   #Eval metrics
-  eval_metrics <- data.frame(#out_of_sample_rsquared_ols
+  eval_metrics <- xts::xts(data.frame(#out_of_sample_rsquared_ols
     rss = c(-0.0582885994456739, 0.016744058458068, 0.572465272897418),
     #out-of-sample_crossproduct
     cp = c(5.08319911987711, 14.5437891476628, 10.7327180629203),
@@ -773,32 +906,40 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 3m target", {
     hr = c(0.4, 0.8, 1),
     #oos mb
     mb = c(-1.0964, 5.3998, -1.5389)
-  )
-  #Rename
-  rownames(eval_metrics) <-  c("2001-09-15", "2001-10-15", "2001-11-15")
-
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
-
-  results$outputs[[4]] <- eval_metrics
-  #final_sb_model
-  results$outputs[[5]] <- sb_backtest_results@final_sb_model
-
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
+  ), order.by = as.Date(c("2001-09-15", "2001-10-15", "2001-11-15")))
 
 
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-05
-  )
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-5)
+
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
+
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
+
+ #gsm
+  gsm_df <- features_m_df@data %>% dplyr::filter(dates <= "2001-06-15") #Data used to feed the last global surrogate model
+  preds <- predict(sb_backtest_results@final_sb_model, new_features_m_df = gsm_df)
+  gsm <- lm(preds ~ Alpha + Beta + Gamma, data = gsm_df) #Date used to fit lm model
+
+  feature_importance_m_df <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df$normalized_importance <-
+    (feature_importance_m_df$importance - mean(feature_importance_m_df$importance))/sd(feature_importance_m_df$importance)
+  feature_importance_m_df$dates <- as.Date("2001-09-15") #Rebalance date
+  feature_importance_m_df$id <- paste0(feature_importance_m_df$tickers, "-", feature_importance_m_df$dates)
+  feature_importance_m_df <- feature_importance_m_df %>% dplyr::select(id, tickers, dates, importance, normalized_importance,
+                                                                       std_error, t_value, p_value)
+  feature_importance_m_df$is_eligible <- c(0, 1, 1, 1)
+  feature_importance_m_df <- feature_importance_m_df[order(feature_importance_m_df$id),]
+
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
+
+  expected_results$outputs[[5]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@feature_importance_m_df@data)
 
 })
 
@@ -806,238 +947,239 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 3m target", {
 test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced panel and a 3m target", {
 
   ols_config <- create_sb_backtest_config(sb_algorithm = "ols",
-                                          training_sample_size = 7, rebalancing_months = 9, quantile_tau = 0.25)
+                                          training_sample_size = 7, rebalancing_months = 9, quantile_tau = 0.25,
+                                          target_fwd_name = "fwd_premium_3m")
 
+  features_m_df =
+    create_meta_dataframe(
+      data.frame(
+        stringsAsFactors = FALSE,
+        id = c("Stock A-2001-03-15",
+               "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
+               "Stock A-2001-07-15","Stock A-2001-08-15",
+               "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
+               "Stock A-2001-12-15","Stock A-2002-01-15",
+               "Stock A-2002-02-15","Stock A-2002-03-15","Stock A-2002-04-15",
+               "Stock A-2002-05-15","Stock A-2002-06-15","Stock A-2002-07-15",
+               "Stock A-2002-08-15","Stock A-2002-09-15",
+               "Stock A-2002-10-15","Stock B-2001-03-15","Stock B-2001-04-15",
+               "Stock B-2001-05-15","Stock B-2001-06-15",
+               "Stock B-2001-07-15","Stock B-2001-08-15","Stock B-2001-09-15",
+               "Stock B-2001-10-15","Stock B-2001-11-15","Stock B-2001-12-15",
+               "Stock B-2002-01-15","Stock B-2002-02-15",
+               "Stock B-2002-03-15","Stock B-2002-04-15","Stock B-2002-06-15",
+               "Stock B-2002-07-15","Stock B-2002-08-15",
+               "Stock B-2002-09-15","Stock B-2002-10-15","Stock C-2001-07-15",
+               "Stock C-2001-08-15","Stock C-2001-09-15",
+               "Stock C-2001-10-15","Stock C-2001-11-15","Stock C-2001-12-15",
+               "Stock C-2002-01-15","Stock C-2002-02-15","Stock C-2002-03-15",
+               "Stock C-2002-04-15","Stock C-2002-05-15",
+               "Stock C-2002-06-15","Stock C-2002-09-15","Stock C-2002-10-15",
+               "Stock D-2001-03-15","Stock D-2001-04-15",
+               "Stock D-2001-05-15","Stock D-2001-06-15","Stock D-2001-07-15",
+               "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
+               "Stock D-2001-11-15","Stock D-2001-12-15",
+               "Stock D-2002-01-15","Stock D-2002-02-15","Stock D-2002-03-15",
+               "Stock D-2002-04-15","Stock D-2002-07-15",
+               "Stock D-2002-08-15","Stock D-2002-09-15","Stock D-2002-10-15",
+               "Stock E-2001-03-15","Stock E-2001-04-15","Stock E-2001-05-15",
+               "Stock E-2001-06-15","Stock E-2001-07-15",
+               "Stock E-2001-08-15","Stock E-2001-09-15","Stock E-2001-10-15",
+               "Stock E-2001-11-15","Stock E-2001-12-15",
+               "Stock E-2002-01-15","Stock E-2002-02-15","Stock E-2002-04-15",
+               "Stock E-2002-05-15","Stock E-2002-06-15","Stock E-2002-07-15",
+               "Stock E-2002-08-15","Stock E-2002-09-15",
+               "Stock E-2002-10-15"),
+        tickers = c("Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock B","Stock B","Stock B",
+                    "Stock B","Stock B","Stock B","Stock B","Stock B",
+                    "Stock B","Stock B","Stock B","Stock B","Stock B","Stock B",
+                    "Stock B","Stock B","Stock B","Stock B","Stock B",
+                    "Stock C","Stock C","Stock C","Stock C","Stock C",
+                    "Stock C","Stock C","Stock C","Stock C","Stock C",
+                    "Stock C","Stock C","Stock C","Stock C","Stock D",
+                    "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
+                    "Stock D","Stock D","Stock D","Stock D","Stock D",
+                    "Stock D","Stock D","Stock D","Stock D","Stock D",
+                    "Stock D","Stock E","Stock E","Stock E","Stock E",
+                    "Stock E","Stock E","Stock E","Stock E","Stock E",
+                    "Stock E","Stock E","Stock E","Stock E","Stock E",
+                    "Stock E","Stock E","Stock E","Stock E","Stock E"),
+        dates = as.Date(c("2001-03-15","2001-04-15",
+                          "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                          "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
+                          "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
+                          "2002-05-15","2002-06-15","2002-07-15","2002-08-15",
+                          "2002-09-15","2002-10-15","2001-03-15","2001-04-15",
+                          "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                          "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
+                          "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
+                          "2002-06-15","2002-07-15","2002-08-15","2002-09-15","2002-10-15",
+                          "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
+                          "2001-11-15","2001-12-15","2002-01-15","2002-02-15",
+                          "2002-03-15","2002-04-15","2002-05-15","2002-06-15",
+                          "2002-09-15","2002-10-15","2001-03-15","2001-04-15",
+                          "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                          "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
+                          "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
+                          "2002-07-15","2002-08-15","2002-09-15","2002-10-15",
+                          "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
+                          "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
+                          "2001-11-15","2001-12-15","2002-01-15","2002-02-15",
+                          "2002-04-15","2002-05-15","2002-06-15","2002-07-15",
+                          "2002-08-15","2002-09-15","2002-10-15"), format = "%Y-%m-%d"),
+        Alpha = c(3,-20,-450,5,-2,1,6,1,
+                  -9,-4,-323,28,-353,-286,-326,-267,-53,-345,-69,
+                  4,1,7,4,2,20,1,1,-2,-2,4.27400664537767,
+                  9.90111375510975,1.21804327509852,8.32715720168221,
+                  3.70432267828307,7.2317432168442,3.33191727050546,
+                  2.41477701144831,8.0849555836344,0.4910346478647,-150,-20,8,17,
+                  1,41,287,13,258,299,148,269,235,109,5,-2,2,
+                  -1,-50,-25,1,4,2,5,-2,2,-1,-50,4,2,4,1,5,3,
+                  -1,2,-1,-20,-1,4,4,-8.28542807338087,
+                  -8.41223063600313,-8.28203098022789,-3.41237860621712,
+                  -3.42824802875889,-3.47800362458764,-3.58449804733582,
+                  -3.63600926135083,-3.5757397024896,-3.57097273285465),
+        Beta = c(4,7,5,3,13,10,4,-5,1,
+                 -400,-310,-191,-72,-155,-261,-245,-186,-280,-89,
+                 3,5,2,4,1,-12,-10,3,4,1,8.63501867386761,
+                 9.54615007212824,7.07054870478622,5.45538081701934,
+                 7.44293739786216,4.75960433883533,1.86372973373474,
+                 2.5534474505921,5.12860795961973,6.07623856836013,1,4,24,19,
+                 -1,88,69,66,296,-13,246,146,109,17,0,-2,5,2,
+                 5,1,2,5,3,0,-2,5,2,5,5,3,5,-5,2,-9,3,1,
+                 2,1,-1,-20,2,-9.12835429041764,40,4,
+                 -9.05020448837052,-1,5,6,7,52,0),
+        Gamma = c(800,11,4,20,0,-523,2,3,
+                  27,-42,-110,-250,-215,-460,-163,-470,-106,-430,
+                  11,1,9,-2,4,-15,3,4,4,3,7,1.6487109735006,
+                  7.10583100801392,2.93834894706739,9.69526295862682,
+                  6.87855210290332,9.06761681428307,7.13200228721206,
+                  9.31419677379033,5.30983154273534,8.91635543435034,20,12,13,
+                  -4,105,86,202,122,5,226,212,190,208,104,-9,5,
+                  2,3,3,-10,0,-1,4,-9,5,2,3,3,-1,4,3,0,3,
+                  1,-500,6,4,405,0,1,31,-1.58703386660033,20,1,
+                  45,4,-412,40,56,6,41)
+      )
+    )
 
+  target_m_df =
+    create_meta_dataframe(
+      data.frame(
+        stringsAsFactors = FALSE,
+        id = c("Stock A-2001-03-15",
+               "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
+               "Stock A-2001-07-15","Stock A-2001-08-15",
+               "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
+               "Stock A-2001-12-15","Stock A-2002-01-15",
+               "Stock A-2002-02-15","Stock A-2002-03-15","Stock A-2002-04-15",
+               "Stock A-2002-05-15","Stock A-2002-06-15","Stock A-2002-07-15",
+               "Stock A-2002-08-15","Stock A-2002-09-15",
+               "Stock A-2002-10-15","Stock B-2001-03-15","Stock B-2001-04-15",
+               "Stock B-2001-05-15","Stock B-2001-06-15",
+               "Stock B-2001-07-15","Stock B-2001-08-15","Stock B-2001-09-15",
+               "Stock B-2001-10-15","Stock B-2001-11-15","Stock B-2001-12-15",
+               "Stock B-2002-01-15","Stock B-2002-02-15",
+               "Stock B-2002-03-15","Stock B-2002-04-15","Stock B-2002-06-15",
+               "Stock B-2002-07-15","Stock B-2002-08-15",
+               "Stock B-2002-09-15","Stock B-2002-10-15","Stock C-2001-07-15",
+               "Stock C-2001-08-15","Stock C-2001-09-15",
+               "Stock C-2001-10-15","Stock C-2001-11-15","Stock C-2001-12-15",
+               "Stock C-2002-01-15","Stock C-2002-02-15","Stock C-2002-03-15",
+               "Stock C-2002-04-15","Stock C-2002-05-15",
+               "Stock C-2002-06-15","Stock C-2002-09-15","Stock C-2002-10-15",
+               "Stock D-2001-03-15","Stock D-2001-04-15",
+               "Stock D-2001-05-15","Stock D-2001-06-15","Stock D-2001-07-15",
+               "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
+               "Stock D-2001-11-15","Stock D-2001-12-15",
+               "Stock D-2002-01-15","Stock D-2002-02-15","Stock D-2002-03-15",
+               "Stock D-2002-04-15","Stock D-2002-07-15",
+               "Stock D-2002-08-15","Stock D-2002-09-15","Stock D-2002-10-15",
+               "Stock E-2001-03-15","Stock E-2001-04-15","Stock E-2001-05-15",
+               "Stock E-2001-06-15","Stock E-2001-07-15",
+               "Stock E-2001-08-15","Stock E-2001-09-15","Stock E-2001-10-15",
+               "Stock E-2001-11-15","Stock E-2001-12-15",
+               "Stock E-2002-01-15","Stock E-2002-02-15","Stock E-2002-04-15",
+               "Stock E-2002-05-15","Stock E-2002-06-15","Stock E-2002-07-15",
+               "Stock E-2002-08-15","Stock E-2002-09-15",
+               "Stock E-2002-10-15"),
+        tickers = c("Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock A","Stock A","Stock A",
+                    "Stock A","Stock A","Stock B","Stock B","Stock B",
+                    "Stock B","Stock B","Stock B","Stock B","Stock B",
+                    "Stock B","Stock B","Stock B","Stock B","Stock B","Stock B",
+                    "Stock B","Stock B","Stock B","Stock B","Stock B",
+                    "Stock C","Stock C","Stock C","Stock C","Stock C",
+                    "Stock C","Stock C","Stock C","Stock C","Stock C",
+                    "Stock C","Stock C","Stock C","Stock C","Stock D",
+                    "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
+                    "Stock D","Stock D","Stock D","Stock D","Stock D",
+                    "Stock D","Stock D","Stock D","Stock D","Stock D",
+                    "Stock D","Stock E","Stock E","Stock E","Stock E",
+                    "Stock E","Stock E","Stock E","Stock E","Stock E",
+                    "Stock E","Stock E","Stock E","Stock E","Stock E",
+                    "Stock E","Stock E","Stock E","Stock E","Stock E"),
+        dates = as.Date(c("2001-03-15","2001-04-15",
+                          "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                          "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
+                          "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
+                          "2002-05-15","2002-06-15","2002-07-15","2002-08-15",
+                          "2002-09-15","2002-10-15","2001-03-15","2001-04-15",
+                          "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                          "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
+                          "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
+                          "2002-06-15","2002-07-15","2002-08-15","2002-09-15","2002-10-15",
+                          "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
+                          "2001-11-15","2001-12-15","2002-01-15","2002-02-15",
+                          "2002-03-15","2002-04-15","2002-05-15","2002-06-15",
+                          "2002-09-15","2002-10-15","2001-03-15","2001-04-15",
+                          "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
+                          "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
+                          "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
+                          "2002-07-15","2002-08-15","2002-09-15","2002-10-15",
+                          "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
+                          "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
+                          "2001-11-15","2001-12-15","2002-01-15","2002-02-15",
+                          "2002-04-15","2002-05-15","2002-06-15","2002-07-15",
+                          "2002-08-15","2002-09-15","2002-10-15"), format = "%Y-%m-%d"),
+        fwd_premium_1m = c(0,6,7,1,2,1,10,3,1,1,
+                           30,10,3,1,1,8,2,3,5,2,1,8,2,3,5,-1,35,
+                           -152,3,3,0,0,-9,-18,-6,1,1,6,-7,1,-9,2,4,
+                           -20,4,5,-8,0,4,5,1,30,2,8,8,8,7,2,-2,-10,
+                           -45,-3,5,1,8,1,2,-5,0,-10,-45,5,1,8,1,2,1,
+                           4,-5,0,5,1,8,2,1,-9,401,1,1,4),
+        fwd_premium_3m = c(4,4,2,0,6,5,-5,-1,4,5,
+                           8,-5,-1,4,5,3,7,3,8,7,5,3,7,3,8,2,5,1,
+                           2,2,-17,-3,6,-5,-16,1,-2,-17,-8,3,5,3,40,2,
+                           -9,8,4,50,150,4,50,30,100,1,3,8,3,1,1,11,
+                           4,2,9,9,1,2,3,4,3,11,4,9,9,1,2,3,-9,-4,
+                           4,3,9,9,1,3,3,5,51152582,40,2,-9),
+        fwd_sharpe_1m = c(7,7,3,1,1,3,1,0,10,3,
+                          9,1,0,10,3,2,8,5,4,8,4,2,8,5,4,1,1,4,-5,
+                          -8,-1,-5,-15,4,-9,-9,9,-19,-8,5,1,1,5,3,
+                          0,1,2,11,1,-909,11,5,5,4,9,0,10,1,4,12,1,
+                          92,7,1,3,3,0,1,9,12,1,7,1,3,3,0,1,3,1,
+                          9,7,1,3,0,5,1,1,5,3,40)
+      )
+    )
 
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df =
-        create_meta_dataframe(
-        data.frame(
-          stringsAsFactors = FALSE,
-          id = c("Stock A-2001-03-15",
-                 "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
-                 "Stock A-2001-07-15","Stock A-2001-08-15",
-                 "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
-                 "Stock A-2001-12-15","Stock A-2002-01-15",
-                 "Stock A-2002-02-15","Stock A-2002-03-15","Stock A-2002-04-15",
-                 "Stock A-2002-05-15","Stock A-2002-06-15","Stock A-2002-07-15",
-                 "Stock A-2002-08-15","Stock A-2002-09-15",
-                 "Stock A-2002-10-15","Stock B-2001-03-15","Stock B-2001-04-15",
-                 "Stock B-2001-05-15","Stock B-2001-06-15",
-                 "Stock B-2001-07-15","Stock B-2001-08-15","Stock B-2001-09-15",
-                 "Stock B-2001-10-15","Stock B-2001-11-15","Stock B-2001-12-15",
-                 "Stock B-2002-01-15","Stock B-2002-02-15",
-                 "Stock B-2002-03-15","Stock B-2002-04-15","Stock B-2002-06-15",
-                 "Stock B-2002-07-15","Stock B-2002-08-15",
-                 "Stock B-2002-09-15","Stock B-2002-10-15","Stock C-2001-07-15",
-                 "Stock C-2001-08-15","Stock C-2001-09-15",
-                 "Stock C-2001-10-15","Stock C-2001-11-15","Stock C-2001-12-15",
-                 "Stock C-2002-01-15","Stock C-2002-02-15","Stock C-2002-03-15",
-                 "Stock C-2002-04-15","Stock C-2002-05-15",
-                 "Stock C-2002-06-15","Stock C-2002-09-15","Stock C-2002-10-15",
-                 "Stock D-2001-03-15","Stock D-2001-04-15",
-                 "Stock D-2001-05-15","Stock D-2001-06-15","Stock D-2001-07-15",
-                 "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
-                 "Stock D-2001-11-15","Stock D-2001-12-15",
-                 "Stock D-2002-01-15","Stock D-2002-02-15","Stock D-2002-03-15",
-                 "Stock D-2002-04-15","Stock D-2002-07-15",
-                 "Stock D-2002-08-15","Stock D-2002-09-15","Stock D-2002-10-15",
-                 "Stock E-2001-03-15","Stock E-2001-04-15","Stock E-2001-05-15",
-                 "Stock E-2001-06-15","Stock E-2001-07-15",
-                 "Stock E-2001-08-15","Stock E-2001-09-15","Stock E-2001-10-15",
-                 "Stock E-2001-11-15","Stock E-2001-12-15",
-                 "Stock E-2002-01-15","Stock E-2002-02-15","Stock E-2002-04-15",
-                 "Stock E-2002-05-15","Stock E-2002-06-15","Stock E-2002-07-15",
-                 "Stock E-2002-08-15","Stock E-2002-09-15",
-                 "Stock E-2002-10-15"),
-          tickers = c("Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock C","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock C","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E"),
-          dates = as.Date(c("2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
-                    "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
-                    "2002-05-15","2002-06-15","2002-07-15","2002-08-15",
-                    "2002-09-15","2002-10-15","2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
-                    "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
-                    "2002-06-15","2002-07-15","2002-08-15","2002-09-15","2002-10-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
-                    "2001-11-15","2001-12-15","2002-01-15","2002-02-15",
-                    "2002-03-15","2002-04-15","2002-05-15","2002-06-15",
-                    "2002-09-15","2002-10-15","2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
-                    "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
-                    "2002-07-15","2002-08-15","2002-09-15","2002-10-15",
-                    "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
-                    "2001-11-15","2001-12-15","2002-01-15","2002-02-15",
-                    "2002-04-15","2002-05-15","2002-06-15","2002-07-15",
-                    "2002-08-15","2002-09-15","2002-10-15"), format = "%Y-%m-%d"),
-          Alpha = c(3,-20,-450,5,-2,1,6,1,
-                    -9,-4,-323,28,-353,-286,-326,-267,-53,-345,-69,
-                    4,1,7,4,2,20,1,1,-2,-2,4.27400664537767,
-                    9.90111375510975,1.21804327509852,8.32715720168221,
-                    3.70432267828307,7.2317432168442,3.33191727050546,
-                    2.41477701144831,8.0849555836344,0.4910346478647,-150,-20,8,17,
-                    1,41,287,13,258,299,148,269,235,109,5,-2,2,
-                    -1,-50,-25,1,4,2,5,-2,2,-1,-50,4,2,4,1,5,3,
-                    -1,2,-1,-20,-1,4,4,-8.28542807338087,
-                    -8.41223063600313,-8.28203098022789,-3.41237860621712,
-                    -3.42824802875889,-3.47800362458764,-3.58449804733582,
-                    -3.63600926135083,-3.5757397024896,-3.57097273285465),
-          Beta = c(4,7,5,3,13,10,4,-5,1,
-                   -400,-310,-191,-72,-155,-261,-245,-186,-280,-89,
-                   3,5,2,4,1,-12,-10,3,4,1,8.63501867386761,
-                   9.54615007212824,7.07054870478622,5.45538081701934,
-                   7.44293739786216,4.75960433883533,1.86372973373474,
-                   2.5534474505921,5.12860795961973,6.07623856836013,1,4,24,19,
-                   -1,88,69,66,296,-13,246,146,109,17,0,-2,5,2,
-                   5,1,2,5,3,0,-2,5,2,5,5,3,5,-5,2,-9,3,1,
-                   2,1,-1,-20,2,-9.12835429041764,40,4,
-                   -9.05020448837052,-1,5,6,7,52,0),
-          Gamma = c(800,11,4,20,0,-523,2,3,
-                    27,-42,-110,-250,-215,-460,-163,-470,-106,-430,
-                    11,1,9,-2,4,-15,3,4,4,3,7,1.6487109735006,
-                    7.10583100801392,2.93834894706739,9.69526295862682,
-                    6.87855210290332,9.06761681428307,7.13200228721206,
-                    9.31419677379033,5.30983154273534,8.91635543435034,20,12,13,
-                    -4,105,86,202,122,5,226,212,190,208,104,-9,5,
-                    2,3,3,-10,0,-1,4,-9,5,2,3,3,-1,4,3,0,3,
-                    1,-500,6,4,405,0,1,31,-1.58703386660033,20,1,
-                    45,4,-412,40,56,6,41)
-        )
-      )
-      ,
-      target_m_df =
-        create_meta_dataframe(
-        data.frame(
-          stringsAsFactors = FALSE,
-          id = c("Stock A-2001-03-15",
-                 "Stock A-2001-04-15","Stock A-2001-05-15","Stock A-2001-06-15",
-                 "Stock A-2001-07-15","Stock A-2001-08-15",
-                 "Stock A-2001-09-15","Stock A-2001-10-15","Stock A-2001-11-15",
-                 "Stock A-2001-12-15","Stock A-2002-01-15",
-                 "Stock A-2002-02-15","Stock A-2002-03-15","Stock A-2002-04-15",
-                 "Stock A-2002-05-15","Stock A-2002-06-15","Stock A-2002-07-15",
-                 "Stock A-2002-08-15","Stock A-2002-09-15",
-                 "Stock A-2002-10-15","Stock B-2001-03-15","Stock B-2001-04-15",
-                 "Stock B-2001-05-15","Stock B-2001-06-15",
-                 "Stock B-2001-07-15","Stock B-2001-08-15","Stock B-2001-09-15",
-                 "Stock B-2001-10-15","Stock B-2001-11-15","Stock B-2001-12-15",
-                 "Stock B-2002-01-15","Stock B-2002-02-15",
-                 "Stock B-2002-03-15","Stock B-2002-04-15","Stock B-2002-06-15",
-                 "Stock B-2002-07-15","Stock B-2002-08-15",
-                 "Stock B-2002-09-15","Stock B-2002-10-15","Stock C-2001-07-15",
-                 "Stock C-2001-08-15","Stock C-2001-09-15",
-                 "Stock C-2001-10-15","Stock C-2001-11-15","Stock C-2001-12-15",
-                 "Stock C-2002-01-15","Stock C-2002-02-15","Stock C-2002-03-15",
-                 "Stock C-2002-04-15","Stock C-2002-05-15",
-                 "Stock C-2002-06-15","Stock C-2002-09-15","Stock C-2002-10-15",
-                 "Stock D-2001-03-15","Stock D-2001-04-15",
-                 "Stock D-2001-05-15","Stock D-2001-06-15","Stock D-2001-07-15",
-                 "Stock D-2001-08-15","Stock D-2001-09-15","Stock D-2001-10-15",
-                 "Stock D-2001-11-15","Stock D-2001-12-15",
-                 "Stock D-2002-01-15","Stock D-2002-02-15","Stock D-2002-03-15",
-                 "Stock D-2002-04-15","Stock D-2002-07-15",
-                 "Stock D-2002-08-15","Stock D-2002-09-15","Stock D-2002-10-15",
-                 "Stock E-2001-03-15","Stock E-2001-04-15","Stock E-2001-05-15",
-                 "Stock E-2001-06-15","Stock E-2001-07-15",
-                 "Stock E-2001-08-15","Stock E-2001-09-15","Stock E-2001-10-15",
-                 "Stock E-2001-11-15","Stock E-2001-12-15",
-                 "Stock E-2002-01-15","Stock E-2002-02-15","Stock E-2002-04-15",
-                 "Stock E-2002-05-15","Stock E-2002-06-15","Stock E-2002-07-15",
-                 "Stock E-2002-08-15","Stock E-2002-09-15",
-                 "Stock E-2002-10-15"),
-          tickers = c("Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock A","Stock A","Stock A",
-                      "Stock A","Stock A","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock B","Stock B","Stock B","Stock B","Stock B",
-                      "Stock C","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock C","Stock C",
-                      "Stock C","Stock C","Stock C","Stock C","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock D","Stock D","Stock D","Stock D",
-                      "Stock D","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E",
-                      "Stock E","Stock E","Stock E","Stock E","Stock E"),
-          dates = as.Date(c("2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
-                    "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
-                    "2002-05-15","2002-06-15","2002-07-15","2002-08-15",
-                    "2002-09-15","2002-10-15","2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
-                    "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
-                    "2002-06-15","2002-07-15","2002-08-15","2002-09-15","2002-10-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
-                    "2001-11-15","2001-12-15","2002-01-15","2002-02-15",
-                    "2002-03-15","2002-04-15","2002-05-15","2002-06-15",
-                    "2002-09-15","2002-10-15","2001-03-15","2001-04-15",
-                    "2001-05-15","2001-06-15","2001-07-15","2001-08-15",
-                    "2001-09-15","2001-10-15","2001-11-15","2001-12-15",
-                    "2002-01-15","2002-02-15","2002-03-15","2002-04-15",
-                    "2002-07-15","2002-08-15","2002-09-15","2002-10-15",
-                    "2001-03-15","2001-04-15","2001-05-15","2001-06-15",
-                    "2001-07-15","2001-08-15","2001-09-15","2001-10-15",
-                    "2001-11-15","2001-12-15","2002-01-15","2002-02-15",
-                    "2002-04-15","2002-05-15","2002-06-15","2002-07-15",
-                    "2002-08-15","2002-09-15","2002-10-15"), format = "%Y-%m-%d"),
-          fwd_premium_1m = c(0,6,7,1,2,1,10,3,1,1,
-                             30,10,3,1,1,8,2,3,5,2,1,8,2,3,5,-1,35,
-                             -152,3,3,0,0,-9,-18,-6,1,1,6,-7,1,-9,2,4,
-                             -20,4,5,-8,0,4,5,1,30,2,8,8,8,7,2,-2,-10,
-                             -45,-3,5,1,8,1,2,-5,0,-10,-45,5,1,8,1,2,1,
-                             4,-5,0,5,1,8,2,1,-9,401,1,1,4),
-          fwd_premium_3m = c(4,4,2,0,6,5,-5,-1,4,5,
-                             8,-5,-1,4,5,3,7,3,8,7,5,3,7,3,8,2,5,1,
-                             2,2,-17,-3,6,-5,-16,1,-2,-17,-8,3,5,3,40,2,
-                             -9,8,4,50,150,4,50,30,100,1,3,8,3,1,1,11,
-                             4,2,9,9,1,2,3,4,3,11,4,9,9,1,2,3,-9,-4,
-                             4,3,9,9,1,3,3,5,51152582,40,2,-9),
-          fwd_sharpe_1m = c(7,7,3,1,1,3,1,0,10,3,
-                            9,1,0,10,3,2,8,5,4,8,4,2,8,5,4,1,1,4,-5,
-                            -8,-1,-5,-15,4,-9,-9,9,-19,-8,5,1,1,5,3,
-                            0,1,2,11,1,-909,11,5,5,4,9,0,10,1,4,12,1,
-                            92,7,1,3,3,0,1,9,12,1,7,1,3,3,0,1,3,1,
-                            9,7,1,3,0,5,1,1,5,3,40)
-          )
-        ),
-      target_fwd_name = "fwd_premium_3m",
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
       config = ols_config)
   }))
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(c(`Stock A` = 3.78862791736474, `Stock B` = 3.92623410843985, `Stock C` = 0.780971123439226, `Stock D` = 4.07060643723063, `Stock E` = 4.51873468717562),
                           c(`Stock A` = 5.13842620526882, `Stock B` = 3.76192997405441, `Stock C` = 1.54048103585349, `Stock D` = 3.62420053396751, `Stock E` = 7.42175951448791),
@@ -1057,7 +1199,6 @@ test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced pa
                               "2002-01-15", "2002-02-15", "2002-03-15", "2002-04-15",
                               "2002-05-15", "2002-06-15", "2002-07-15", "2002-08-15",
                               "2002-09-15", "2002-10-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(c(`Stock A` = -8.78862791736474, `Stock B` = 1.07376589156015, `Stock C` = 2.21902887656077, `Stock D` = 6.92939356276937, `Stock E` = -8.51873468717562),
                      c(`Stock A` = -6.13842620526882, `Stock B` = -2.76192997405441, `Stock C` = 38.4595189641465, `Stock D` = 0.375799466032491, `Stock E` = -3.42175951448791),
@@ -1077,7 +1218,6 @@ test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced pa
                          "2002-01-15", "2002-02-15", "2002-03-15", "2002-04-15",
                          "2002-05-15", "2002-06-15", "2002-07-15", "2002-08-15",
                          "2002-09-15", "2002-10-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(c(`Stock A` = -5, `Stock B` = 5, `Stock C` = 3, `Stock D` = 11, `Stock E` = -4),
                  c(`Stock A` = -1, `Stock B` = 1, `Stock C` = 40, `Stock D` = 4, `Stock E` = 4),
@@ -1095,9 +1235,35 @@ test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced pa
                       "2002-01-15", "2002-02-15", "2002-03-15", "2002-04-15",
                       "2002-05-15", "2002-06-15", "2002-07-15", "2002-08-15",
                       "2002-09-15", "2002-10-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
   #Eval metrics
-  eval_metrics <- data.frame(#out_of_sample_rsquared_ols
+  eval_metrics <- xts::xts(data.frame(
+    #out_of_sample_rsquared_ols
     rss = c(-0.0403182593520917, 0.0597963305836505, 0.529146178248986, -12.3496361983755, -3.25249027201797, -29.4917512234603,
                  -2.24912080996351, 0.0791010590851802, -53.1730886211644, -1.20805395476737, 1.37668452748763e-07, -0.927861575822606,
                  0.501670297555347, 0.259054258079456),
@@ -1127,39 +1293,64 @@ test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced pa
     #mb
     mb = c(-1.417, 5.3026, -1.6498, -10.6951, -6.8618, -8.0572, 18.8298,
            21.7258, -0.9967, 3.0538, 12788137.6324, -3.0437, -2.8079, 9.8761
-    )
-
-
+    )), order.by =  as.Date(c("2001-09-15", "2001-10-15", "2001-11-15", "2001-12-15",
+                      "2002-01-15", "2002-02-15", "2002-03-15", "2002-04-15",
+                      "2002-05-15", "2002-06-15", "2002-07-15", "2002-08-15",
+                      "2002-09-15", "2002-10-15"))
   )
-  #Rename
-  rownames(eval_metrics) <-  c("2001-09-15", "2001-10-15", "2001-11-15", "2001-12-15",
-                               "2002-01-15", "2002-02-15", "2002-03-15", "2002-04-15",
-                               "2002-05-15", "2002-06-15", "2002-07-15", "2002-08-15",
-                               "2002-09-15", "2002-10-15")
 
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list),
-                                                      quantile_tau = 0.25)
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-1)
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
-  results$outputs[[4]] <- eval_metrics
-  #final_sb_model
-  results$outputs[[5]] <- sb_backtest_results@final_sb_model
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
+
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
+
+  #gsm 1
+  gsm_df <- features_m_df@data %>% dplyr::filter(dates <= "2001-06-15") #Data used to feed the last global surrogate model
+  target <- target_m_df@data %>% dplyr::filter(dates <= "2001-06-15") %>% dplyr::pull(fwd_premium_3m)
+  lm_mod_1 <- lm(target ~., gsm_df %>% dplyr::select(-id, -tickers, -dates))
+  preds <- predict(lm_mod_1, new_features_m_df = gsm_df)
+  gsm <- lm(preds ~ Alpha + Beta + Gamma, data = gsm_df) #Date used to fit lm model
+
+  feature_importance_m_df1 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df1) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df1$normalized_importance <-
+    (feature_importance_m_df1$importance - mean(feature_importance_m_df1$importance))/sd(feature_importance_m_df1$importance)
+  feature_importance_m_df1$dates <- as.Date("2001-09-15") #Rebalance date
+  feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates, importance, normalized_importance,
+                                                                         std_error, t_value, p_value)
+  feature_importance_m_df1$is_eligible <- c(0, 1, 1, 1)
+  feature_importance_m_df1 <- feature_importance_m_df1[order(feature_importance_m_df1$id),]
+  #gsm 2
+  gsm_df <- features_m_df@data %>% dplyr::filter(dates <= "2002-06-15") #Data used to feed the last global surrogate model
+  preds <- predict(sb_backtest_results@final_sb_model, new_features_m_df = gsm_df)
+  gsm <- lm(preds ~ Alpha + Beta + Gamma, data = gsm_df) #Date used to fit lm model
+
+  feature_importance_m_df2 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df2) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df2$normalized_importance <-
+    (feature_importance_m_df2$importance - mean(feature_importance_m_df2$importance))/sd(feature_importance_m_df2$importance)
+  feature_importance_m_df2$dates <- as.Date("2002-09-15") #Rebalance date
+  feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates, importance, normalized_importance,
+                                                                         std_error, t_value, p_value)
+  feature_importance_m_df2$is_eligible <- c(0, 1, 1, 1)
+  feature_importance_m_df2 <- feature_importance_m_df2[order(feature_importance_m_df2$id),]
+
+  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
+
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
+
+  expected_results$outputs[[5]] <- feature_importance_m_df2
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
 
 
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-03
-  )
 
 })
 
@@ -1168,37 +1359,91 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", rebalancing_months = 7, training_sample_size = 5)
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates))
 
-  features_m_df <- create_meta_dataframe(toy_preprocessed_features)
-  target_m_df <- create_meta_dataframe(toy_preprocessed_targets)
+  #Benchmark Returns XTS
+  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+    IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+    SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+  ),  order.by = unique(toy_preprocessed_features$dates))
+
+
+  #Chosen Signals and Positions
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long", sectors_c1Agro = "force",
+                                    `sectors_c1Bancos e Serviços Financeiros` = "force", `sectors_c1Consumo Cíclico` = "force",
+                                    `sectors_c1Consumo Não-Cíclico` = "force", `sectors_c1Indústria` = "force",
+                                    `sectors_c1Materiais Básicos` = "force", `sectors_c1Petróleo gás e biocombustíveis` = "force",
+                                    `sectors_c1Utilidade Pública` = "force")
+
+  #Mocked Signal Themes
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_xts),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+                      ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type =  "groups")
+
+  ##SS Config
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.15, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
+                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    verbose = TRUE
+    )
+  )
+
+  ##SS Config
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", rebalancing_months = 7, training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
+    add_ss_backtest_obj(ss_results)
+
+  target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target")
 
   #Apply FUN
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = features_m_df,
       target_m_df = target_m_df,
-      target_fwd_name = "fwd_premium_3m",
       config = ols_config)
   }))
 
 
 
-  #Apply function
-  #suppressMessages(suppressWarnings({
-  #  sb_backtest_results <- run_sb_backtest(
-  #    features_m_df = toy_preprocessed_features,
-  #    target_m_df = toy_preprocessed_targets,
-  #    rebalancing_months = 7,
-  #    training_sample_size = 5,
-  #    sb_algorithm = "ols",
-  #    target_fwd_name = "fwd_premium_3m"
-  #    )
-  #}))
-
   #1st rebalancing
   #Features Objects
-  features_first_rebal <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+  toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma)
+
+  features_first_rebal <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),] %>%
+    dplyr::select(ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2022-09-15") %>% dplyr::pull(tickers))
+
   #Targets
   targets_first_rebal <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
   #Full data
@@ -1206,7 +1451,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
     fwd_premium_3m = targets_first_rebal$fwd_premium_3m,
     features_first_rebal)
   #Fitting
-  first_model <- stats::lm(formula = fwd_premium_3m~., data = full_data_first_rebal[,-c(2:4)])
+  first_model <- stats::lm(formula = fwd_premium_3m~., data = full_data_first_rebal)
   #Predict
   dates_first_prediction <- c("2022-11-15", "2022-12-15", "2023-01-15",
                               "2023-02-15", "2023-03-15", "2023-04-15",
@@ -1275,7 +1520,9 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
   features_second_rebal <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                   "2022-10-15",
                                                                                                   "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                  "2023-02-15", "2023-03-15", "2023-04-15")),]
+                                                                                                  "2023-02-15", "2023-03-15", "2023-04-15")),]  %>%
+    dplyr::select(ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2023-06-15") %>% dplyr::pull(tickers))
+
   #Targets
   targets_second_rebal <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                 "2022-10-15",
@@ -1286,7 +1533,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
     fwd_premium_3m = targets_second_rebal$fwd_premium_3m,
     features_second_rebal)
   #Fitting
-  second_model <- stats::lm(formula = fwd_premium_3m~., data = full_data_second_rebal[,-c(2:4)])
+  second_model <- stats::lm(formula = fwd_premium_3m~., data = full_data_second_rebal)
   #Predict
   dates_second_prediction <- c("2023-07-15")
   #Resulting obj
@@ -1350,27 +1597,52 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 
 
   #Create final objects
-  results <- list()
+  expected_results <- list()
   outputs <- list()
 
-  results[[1]] <- outputs
+  expected_results[[1]] <- outputs
   #Prediction list
   prediction_list <- c(prediction_list_first_prediction, prediction_list_second_prediction)
   names(prediction_list) <- c(names(prediction_list_first_prediction), names(prediction_list_second_prediction))
-  results$outputs[[1]] <- prediction_list
+
 
   #Error list
   error_list <- c(error_list_first_prediction, error_list_second_prediction)
   names(error_list) <- c(names(error_list_first_prediction), names(error_list_second_prediction))
-  results$outputs[[2]] <- error_list
+
 
   #Y list
   y_list <- c(y_list_first_prediction, y_list_second_prediction)
   names(y_list) <- c(names(y_list_first_prediction), names(y_list_second_prediction))
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
 
   #Eval metrics
-  eval_metrics <- data.frame(rss = c(r_oos_first_prediction, r_oos_second_prediction),
+  eval_metrics <- xts::xts(data.frame(rss = c(r_oos_first_prediction, r_oos_second_prediction),
                              cp = c(cp_oos_first_prediction, cp_oos_second_prediction),
                              rmse = c(rmse_oos_first_prediction, rmse_oos_second_prediction),
                              mae = c(mae_oos_first_prediction, mae_oos_second_prediction),
@@ -1378,31 +1650,78 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
                              mpe = c(pinball_oos_first_prediction, pinball_oos_second_prediction),
                              mape = c(mape_oos_first_prediction, mape_oos_second_prediction),
                              hr = c(hr_oos_first_prediction, hr_oos_second_prediction),
-                             mb = c(mb_oos_first_prediction, mb_oos_second_prediction)
-  )
-  rownames(eval_metrics) <- c(names(y_list_first_prediction), names(y_list_second_prediction))
+                             mb = c(mb_oos_first_prediction, mb_oos_second_prediction)),
+                    order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
 
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  eval_metrics <- rbind(eval_metrics, consolidated_eval_metrics)
-  results$outputs[[4]] <- eval_metrics
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
-  if(all(coefficients(second_model) == coefficients(sb_backtest_results@final_sb_model@model))){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
+
+  #gsm 1
+  preds <- predict(first_model, new_features_m_df = features_first_rebal)
+  gsm <- lm(preds ~ ., data = features_first_rebal) #Date used to fit lm model
+
+  feature_importance_m_df1 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df1) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(tickers, importance)
+  feature_importance_m_df1$normalized_importance <-
+    (feature_importance_m_df1$importance - mean(feature_importance_m_df1$importance))/sd(feature_importance_m_df1$importance)
+  non_eligible <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15", is_eligible == 0) %>% dplyr::select(tickers)
+  feature_importance_m_df1 <- dplyr::bind_rows(non_eligible, feature_importance_m_df1) #Include non elected
+
+  feature_importance_m_df1$dates <- as.Date("2022-11-15") #Rebalance date
+  feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates, importance, normalized_importance)
+  feature_importance_m_df1$tickers <- gsub("`", "", feature_importance_m_df1$tickers)
+  feature_importance_m_df1$id <- gsub("`", "", feature_importance_m_df1$id)
+  feature_importance_m_df1$importance[c(1:3)] <- c(0,0,0)
+  feature_importance_m_df1$normalized_importance[c(1:3)] <- c(0,0,0)
+
+  feature_importance_m_df1$is_eligible <- c(0, 0, 0, 0, ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15",
+                                                                                                      tickers %in% colnames(features_first_rebal)) %>% dplyr::pull(is_eligible))
+
+  feature_importance_m_df1 <- feature_importance_m_df1[order(feature_importance_m_df1$id),]
+
+  #gsm 2
+  preds <- predict(second_model, new_features_m_df = features_second_rebal)
+  gsm <- lm(preds ~ ., data = features_second_rebal) #Date used to fit lm model
+
+  feature_importance_m_df2 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
+  colnames(feature_importance_m_df2) <- c("tickers", "importance", "std_error", "t_value", "p_value")
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(tickers, importance)
+  feature_importance_m_df2$normalized_importance <-
+    (feature_importance_m_df2$importance - mean(feature_importance_m_df2$importance))/sd(feature_importance_m_df2$importance)
+  non_eligible <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15", is_eligible == 0) %>% dplyr::select(tickers)
+  feature_importance_m_df2 <- dplyr::bind_rows(non_eligible,
+                                               feature_importance_m_df2) #Include non elected
+  feature_importance_m_df2$dates <- as.Date("2023-07-15") #Rebalance date
+  feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates, importance, normalized_importance)
+  feature_importance_m_df2$tickers <- gsub("`", "", feature_importance_m_df2$tickers)
+  feature_importance_m_df2$id <- gsub("`", "", feature_importance_m_df2$id)
+
+  feature_importance_m_df2$is_eligible <- c(0, 0,0, ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15",
+                                                                                                      tickers %in% colnames(features_second_rebal)) %>% dplyr::pull(is_eligible))
+  feature_importance_m_df2$importance[c(1:2)] <- 0
+  feature_importance_m_df2$normalized_importance[c(1:2)] <- 0
+  feature_importance_m_df2 <- feature_importance_m_df2[order(feature_importance_m_df2$id),]
+
+  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
 
 
-  names(results$outputs) <- c('oos_prediction_list', 'oos_error_list', 'oos_y_list', 'oos_testing_eval_metrics', 'final_sb_model')
-  #Compare
-  expect_equal(sb_backtest_results,
-               results$outputs,
-               tolerance = 1e-05)
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
+
+  expected_results$outputs[[5]] <- feature_importance_m_df2
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
+
+
 })
 
 ###################

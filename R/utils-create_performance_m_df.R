@@ -28,6 +28,11 @@
 #' @export
 create_performance_m_df <- function(selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, active_returns, verbose = TRUE){
 
+  #Check for selected_market_factor_proxy if active_returns is TRUE
+  if(is.null(selected_market_factor_proxy_xts_upd_ref) & active_returns){
+    stop("The selected_market_factor_proxy_xts_upd_ref object can't be NULL when active_returns is TRUE.")
+  }
+
   #Initial Preparations
   ##################
   ###Get objects from selected_backtest_returns_corrected_positions_xts_upd_ref

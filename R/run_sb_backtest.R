@@ -253,6 +253,13 @@ setMethod("run_sb_backtest",
               if(!is.null(cov_matrix_benchmark) && ss_backtest_results@ss_backtest_workflow$market_factor_proxy != cov_matrix_benchmark){
                 message(crayon::yellow("market_factor_proxy and cov_matrix_benchmark in ss_backtest_results differ."))
               }
+              if(ss_backtest_results@ss_backtest_workflow$signals_object_name != features_object_name){
+                message(crayon::yellow("Object names of signals_m_df (ss_backtest) and of features_m_df (sb_backtest) differ."))
+              }
+              if(!is.null(signal_themes_m_df) && ss_backtest_results@ss_backtest_workflow$signal_themes_object_name != signal_themes_m_df@meta_dataframe_name){
+                message(crayon::yellow("Object names of signal_themes_m_df differ accross ss_backtest_results and sb_backtest."))
+              }
+
 
               #Extract signal_universe_m_df
               signal_universe_m_df <- ss_backtest_results@signal_universe_m_df@data
@@ -314,14 +321,14 @@ setMethod("run_sb_backtest",
               paste0("c:",config@config_name, "_f:", features_object_name, "_t:", target_object_name,"-",target_fwd_name)
             sb_backtest_results@backtest_identifier <- sb_backtest_results@sb_backtest_workflow$backtest_identifier
 
-            ###Workflow and names for feature_importance_m_df
+            ###Workflow and names for feature_importance_m_df and oos_sb_outputs_m_df
               ####Workflow
               sb_backtest_results@feature_importance_m_df@workflow <- list(paste0("feature_importance_m_df result of ", sb_backtest_results@backtest_identifier))
               sb_backtest_results@final_feature_importance_m_d_ref@workflow <- list(paste0("final_feature_importance_m_d_ref result of ", sb_backtest_results@backtest_identifier))
               ####Names
-              sb_backtest_results@feature_importance_m_df@meta_dataframe_name <- paste0("sb_backtest___:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
-              sb_backtest_results@final_feature_importance_m_d_ref@meta_dataframe_name <- paste0("sb_backtest___:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
-
+              sb_backtest_results@feature_importance_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              sb_backtest_results@final_feature_importance_m_d_ref@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
 
             ###Call
             sb_backtest_results@sb_backtest_workflow$call <- sys.call(-2)
@@ -705,7 +712,10 @@ run_sb_backtest_internal <- function(
 
     #Initial Setup: Making some changes to metrics if needed and displaying initial setup
     ##Adjust custom obj and chosen eval metric
-    if(verbose) cat("=============================\n")
+    if(verbose){
+      cat("=============================\n")
+      cat(crayon::cyan(paste("Predictive ML algo:", sb_algorithm)))
+    }
     adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
 
@@ -716,12 +726,12 @@ run_sb_backtest_internal <- function(
 
     #Prints for initial setup
     if(verbose){
-      cat(crayon::green(paste("Predictive ML algo:", sb_algorithm)))
       cat("\n")
       cat(paste("Custom objective:", custom_objective, "\n"))
-      cat(paste("Eval Metric:", chosen_eval_metric, "\n"))
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) cat(paste("Eval Metric:", chosen_eval_metric, "\n"))
       cat(paste("Training sample size:", training_sample_size, "\n"))
-      cat(paste("Validation sample size:", validation_sample_size, "\n"))
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) cat(paste("Validation sample size:", validation_sample_size, "\n"))
+      cat(paste("Split method:", split_method, "\n"))
     }
 
     ##################
@@ -744,12 +754,13 @@ run_sb_backtest_internal <- function(
     #Rebalancing Dates
     dates_testing_sample <- dates_m_vector[(training_sample_size + validation_sample_size):
                                            (training_sample_size + validation_sample_size + testing_sample_size - 1)] #These are dates inside testing sample
-
-    first_rebalance_date <- min(dates_testing_sample) #Get first rebalancing date
-    rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
-      c(first_rebalance_date, dates_testing_sample[which(lubridate::month(dates_testing_sample) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
-    )
-    rebalance_dates <- rebalance_dates[order(rebalance_dates)] #Re-order
+      ##Get first rebalancing date
+      first_rebalance_date <- min(dates_testing_sample)
+      ##Get all rebalance dates
+      rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
+        c(first_rebalance_date, dates_testing_sample[which(lubridate::month(dates_testing_sample) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
+      )
+      rebalance_dates <- rebalance_dates[order(rebalance_dates)] #Re-order
 
     #Eligible signals dates
     eligible_signals_dates <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(dates) %>% unique() %>% dplyr::pull()
@@ -765,7 +776,7 @@ run_sb_backtest_internal <- function(
       #Store validation chosen eval
       chosen_eval_metric_validation <- list()
       #Store validation eval
-      validation_eval_metrics_hyper_choice <- data.frame(
+      validation_eval_metrics_hyper_choice_xts <- xts::xts(data.frame(
         rss = as.vector(rep(NA, n_rebalance_months)), #R2
         cp = as.vector(rep(NA, n_rebalance_months)), #CP
         rmse = as.vector(rep(NA, n_rebalance_months)), #Root Mean Squared Error
@@ -774,23 +785,24 @@ run_sb_backtest_internal <- function(
         mpe = as.vector(rep(NA, n_rebalance_months)), #Mean Pinball Error
         mape = as.vector(rep(NA, n_rebalance_months)), #Mean Absolute Percentage Error
         hr = as.vector(rep(NA, n_rebalance_months)), #Hit Rate
-        mb = as.vector(rep(NA, n_rebalance_months)), #Mean Bias
-        row.names = rebalance_dates
-      )
+        mb = as.vector(rep(NA, n_rebalance_months)) #Mean Bias
+      ), order.by = rebalance_dates)
 
-      #Store hyper_choice_df based on existence of early stop and best_lam
-      hyper_choice_df <- as.data.frame(matrix(NA, nrow = n_rebalance_months, ncol = length(hyper_grid_domain_list)))
-      rownames(hyper_choice_df) <- rebalance_dates #Set rownames as rebalance dates
-      colnames(hyper_choice_df) <- names(hyper_grid_domain_list) #Set colnames as hyperparameters
+      #Store hyper_choice_xts based on existence of early stop and best_lam
+      hyper_choice_xts <- xts::xts(as.data.frame(
+        matrix(NA, nrow = n_rebalance_months, ncol = (length(hyper_grid_domain_list)) + 1)),
+        order.by = rebalance_dates)
+      colnames(hyper_choice_xts) <- names(hyper_grid_domain_list) #Set colnames as hyperparameters
+
       #Add best-lam and best-iteration
-      hyper_choice_df$best_lam <- if(sb_algorithm == "glmnet") NA
-      hyper_choice_df$best_iteration <- if(!is.null(early_stop)) NA
+      hyper_choice_xts$best_lam <- if(sb_algorithm == "glmnet") NA
+      hyper_choice_xts$best_iteration <- if(!is.null(early_stop)) NA
 
     }
 
     #Time expanding test
     #Store test eval
-    oos_testing_eval_metrics <- data.frame(
+    oos_testing_eval_metrics_xts <- xts::xts(data.frame(
       rss = as.vector(rep(NA, testing_sample_size)), #+1 bco first date is also a testing date
       cp = as.vector(rep(NA, testing_sample_size)),
       rmse = as.vector(rep(NA, testing_sample_size)),
@@ -800,9 +812,8 @@ run_sb_backtest_internal <- function(
       mape = as.vector(rep(NA, testing_sample_size)),
       hr = as.vector(rep(NA, testing_sample_size)),
       mb = as.vector(rep(NA, testing_sample_size))
+    ), order.by = dates_testing_sample
     )
-
-    rownames(oos_testing_eval_metrics) <- dates_testing_sample
 
 
     #Prediction, error and Y objects
@@ -836,21 +847,21 @@ run_sb_backtest_internal <- function(
         ###Select and correct signals
         ##################
 
-        ####Get current_eligible_signals
-        most_recent_eligible_signals_date <- eligible_signals_dates[which(eligible_signals_dates <= current_date)] %>% max()
-        most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == most_recent_eligible_signals_date)
-        current_eligible_signals <- most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+          ####Get current_eligible_signals
+          most_recent_eligible_signals_date <- eligible_signals_dates[which(eligible_signals_dates <= current_date)] %>% max()
+          most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == most_recent_eligible_signals_date)
+          current_eligible_signals <- most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-        ####Reconstruct chosen_signals_and_positions
-        chosen_signals_and_positions <- ifelse(stringr::str_detect(current_eligible_signals, pattern = "low_"), "short", "long")
-        names(chosen_signals_and_positions) <- stringr::str_remove_all(current_eligible_signals, pattern = "low_")
+          ####Reconstruct chosen_signals_and_positions
+          chosen_signals_and_positions <- ifelse(stringr::str_detect(current_eligible_signals, pattern = "low_"), "short", "long")
+          names(chosen_signals_and_positions) <- stringr::str_remove_all(current_eligible_signals, pattern = "low_")
 
-        ####Select and correct signals and backtests
-        selected_signals_and_backtest_list <- select_and_correct_signals(
-          signals_m_df = features_m_df, #Extract eligible signals from features_m_df and then correct them (multiply short signal by -1)
-          chosen_signals_and_positions = chosen_signals_and_positions, #Get instruction on what to change features
-          backtest_returns_xts = backtest_returns_xts #Backtest returns to be corrected
-        )
+          ####Select and correct signals and backtests
+          selected_signals_and_backtest_list <- select_and_correct_signals(
+            signals_m_df = features_m_df, #Extract eligible signals from features_m_df and then correct them (multiply short signal by -1)
+            chosen_signals_and_positions = chosen_signals_and_positions, #Get instruction on what to change features
+            backtest_returns_xts = backtest_returns_xts #Backtest returns to be corrected
+          )
 
         ####Get results
           ####Selected features_m_df with corrected positions
@@ -873,13 +884,11 @@ run_sb_backtest_internal <- function(
             ###Print message
             if(verbose){
               cat("\n")
-              cat("Selecting and correcting signals:")
+              cat(crayon::green("Selecting and correcting signals:"))
               cat("\n")
               cat("Most recent signal universe:\n")
-              print(most_recent_signal_universe_m_d_ref)
+              print(most_recent_signal_universe_m_d_ref %>% dplyr::select(dplyr::any_of(c("id", "theme", "is_eligible"))))
               cat("\n")
-              cat("Eligible signals and positions:\n")
-              print(chosen_signals_and_positions)
             }
 
 
@@ -901,7 +910,7 @@ run_sb_backtest_internal <- function(
 
         ####No tuning warning
         if(verbose & sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
-          cat(sb_algorithm, " chosen as sb_algorithm. Data will be split only in training and test sets")
+          cat(sb_algorithm, "chosen as sb_algorithm. Data will be split only in training and test sets.\n")
         }
 
         ###backtest and selected market factor proxy split (get up to date references)
@@ -977,14 +986,14 @@ run_sb_backtest_internal <- function(
           chosen_eval_metric_validation[[which(rebalance_dates == current_date)]] <- #Get correct position for list
             hyper_tune_results$chosen_eval_metric_validation_current_date
 
-          #Get Optimal Hypers and fill hyper_choice_df
+          #Get Optimal Hypers and fill hyper_choice_xts
           optimal_hyper <- hyper_tune_results$optimal_hyper
-          hyper_choice_df[paste(current_date),] <-  #Get the row corresponding to the rebalancing date
-            optimal_hyper[names(hyper_choice_df)] #Replace hyper_choice_df with correct order
+          hyper_choice_xts[current_date, ] <- optimal_hyper[colnames(hyper_choice_xts)] #Get the row corresponding to the rebalancing date and replace hyper_choice_xts with correct order
 
-          #Fill validation_eval_metrics_hyper_choice
-          validation_eval_metrics_hyper_choice[paste(current_date),] <-
-            hyper_tune_results$validation_eval_metrics_hyper_choice_current_date[,colnames(validation_eval_metrics_hyper_choice)] #Take rights columns
+          #Fill validation_eval_metrics_hyper_choice_xts
+          validation_eval_metrics_hyper_choice_xts[current_date, ] <- hyper_tune_results$validation_eval_metrics_hyper_choice_current_date %>%
+            dplyr::select(colnames(validation_eval_metrics_hyper_choice_xts)) #Take right columns
+
           ###################
         } else {
           optimal_hyper <- NULL #Set optimal hyper as NULL for methods that do not depend on hyper tuning
@@ -1027,6 +1036,7 @@ run_sb_backtest_internal <- function(
         ###################
 
         ##Interpretate
+
         ###################
           ##Join predictions to design matrix X
           selected_features_corrected_positions_and_predictions_m_refit <- dplyr::mutate(selected_features_corrected_positions_m_refit,
@@ -1039,21 +1049,48 @@ run_sb_backtest_internal <- function(
                                            )
 
           ##Get feature importance_m_d_ref
-          feature_importance_m_d_ref <- dplyr::full_join(#Full join to get both intercept and all signals (eligible or not)
+          feature_importance_m_d_ref <- dplyr::full_join(
+            # Full join to get both intercept and all signals (eligible or not)
             switch(gsm_algorithm,
-              ols = summary(global_surrogate_model)$coef %>% as.data.frame() %>%
-                dplyr::mutate(tickers = rownames(.), .before = Estimate) %>% tibble::remove_rownames() %>% #Place rownames as columns
-                dplyr::rename(importance = Estimate, std_error = `Std. Error`, t_value = `t value`, p_value = `Pr(>|t|)`), #Rename columns
-              tree = data.frame(importance = global_surrogate_model$variable.importance) %>% dplyr::mutate(tickers = rownames(.), .before = importance) %>% tibble::remove_rownames()
+              ols = withCallingHandlers({
+                  summary(global_surrogate_model)$coef %>%
+                    as.data.frame() %>%
+                    dplyr::mutate(tickers = rownames(.), .before = Estimate) %>%
+                    dplyr::mutate(tickers = gsub("`", "", tickers)) %>% #Remove ` from tickers to avoid double counting
+                    tibble::remove_rownames() %>% # Place rownames as columns
+                    dplyr::select(tickers, Estimate) %>% #Get only tickers and coefs
+                    dplyr::rename(importance = Estimate) # Rename columns
+                },
+                warning = function(w) {
+                  #Supress this warning, which is intrinsic to using ols to explain ols
+                  if (grepl("essentially perfect fit: summary may be unreliable", conditionMessage(w))) {
+                    invokeRestart("muffleWarning")
+                  }
+                }),
+              tree = data.frame(importance = global_surrogate_model$variable.importance) %>%
+                dplyr::mutate(tickers = rownames(.), .before = importance) %>%
+                tibble::remove_rownames()
             ),
-            dplyr::select(most_recent_signal_universe_m_d_ref, #Join with only relevant columns from most_recent_signal_universe_m_d_ref
-                          dplyr::any_of(c("tickers", "theme", "theme_ss_bench_weights", "theme_sb_bench_weights", "is_eligible"))),
+            dplyr::select(
+              most_recent_signal_universe_m_d_ref,
+              # Join with only relevant columns from most_recent_signal_universe_m_d_ref
+              dplyr::any_of(
+                c("tickers", "theme", "theme_ss_bench_weights", "theme_sb_bench_weights", "is_eligible")
+              )
+            ),
             by = "tickers"
-          ) %>% dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ tidyr::replace_na(., 0))) %>%  #Replace NAs with 0s
-                dplyr::mutate(normalized_importance = (importance - mean(importance)) / sd(importance), .after = importance) %>% #Normalize importance
-                dplyr::mutate(dates = current_date, .before = importance) %>% #Add current date
-                dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>% #Add id
-                dplyr::arrange(id) #Arrange by id
+          ) %>%
+            dplyr::mutate(
+              normalized_importance = (importance - mean(importance, na.rm = TRUE)) / sd(importance, na.rm = TRUE),
+              .after = importance
+            ) %>% # Normalize importance
+            dplyr::mutate(
+              dplyr::across(dplyr::where(is.numeric), ~ tidyr::replace_na(., 0))
+            ) %>% # Replace NAs with 0s
+            dplyr::mutate(dates = current_date, .before = importance) %>% # Add current date
+            dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>% # Add id
+            dplyr::arrange(id) # Arrange by id
+
 
           ##Save feature_importance_m_d_ref
           feature_importance_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- feature_importance_m_d_ref
@@ -1063,7 +1100,7 @@ run_sb_backtest_internal <- function(
       #Prediction
       ############
       #d stands for the date in which the features are being calculated. Therefore, in d, we have new features, but we still don't have the target, as it is in future.
-      d_ref <- which(as.Date(features_m_df%>% dplyr::pull(dates),  format = "%Y-%m-%d") == current_date) #What references correspond to this date?
+      d_ref <- which(as.Date(features_m_df %>% dplyr::pull(dates),  format = "%Y-%m-%d") == current_date) #What references correspond to this date?
 
       #Subsets for date
       target_vector_ref <- target_vector[d_ref] #targets for new date
@@ -1078,7 +1115,7 @@ run_sb_backtest_internal <- function(
 
       #Inform targets
       oos_y_list[[testing_lists_ref]] <- as.numeric(target_vector_ref)
-      names(oos_y_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref%>% dplyr::pull(tickers)  #Rename
+      names(oos_y_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref %>% dplyr::pull(tickers)  #Rename
 
       #Calculate eval metrics and error on testing sample
       testing_metrics <- calculate_eval_metrics(pred = oos_prediction_list[[testing_lists_ref]], target = oos_y_list[[testing_lists_ref]],
@@ -1089,87 +1126,12 @@ run_sb_backtest_internal <- function(
       names(oos_error_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref%>% dplyr::pull(tickers)  #Rename
 
       #Test Eval Metrics
-      oos_testing_eval_metrics[testing_lists_ref,] <- testing_metrics$df_eval_metrics[,colnames(oos_testing_eval_metrics)]
-
+      oos_testing_eval_metrics_xts[testing_lists_ref, ] <- as.numeric(testing_metrics$df_eval_metrics %>%
+                                                                      dplyr::select(colnames(oos_testing_eval_metrics_xts))) #Eliminate Score
 
     }
 
     #################
-
-    ###Init Results List
-    ##################
-
-    #initialize result list
-    result_list <- list()
-
-    #OOS SB Outputs
-
-    #Turn all oos_lists to a single meta_dataframe
-      ##Rename with testing dates
-      names(oos_y_list) <- dates_testing_sample
-      names(oos_prediction_list) <- dates_testing_sample
-      names(oos_error_list) <- dates_testing_sample
-
-      ##Turn y, preds and error in a oos_sb_outputs_m_df
-      oos_y_m_df <- convert_oos_list_to_m_df(oos_y_list) #Convert list to meta dataframe
-      colnames(oos_y_m_df)[4] <- "target"
-      oos_prediction_m_df <- convert_oos_list_to_m_df(oos_prediction_list) #Convert list to meta dataframe
-      colnames(oos_prediction_m_df)[4] <- "pred"
-      oos_error_m_df <- convert_oos_list_to_m_df(oos_error_list) #Convert list to meta dataframe
-      colnames(oos_error_m_df)[4] <- "error"
-
-      ##Join into a single meta dataframe
-      oos_sb_outputs_m_df <- dplyr::left_join(oos_y_m_df, dplyr::select(oos_prediction_m_df, -tickers, -dates)) %>%
-        dplyr::left_join(dplyr::select(oos_error_m_df, -tickers, -dates)) %>%
-        dplyr::arrange(id)
-
-    result_list[[1]] <- oos_sb_outputs_m_df
-
-    #OOS Testing Eval-metrics
-      ##Create consolidated row
-      consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(oos_prediction_list), target = unlist(oos_y_list),
-                                                          huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
-      rownames(consolidated_eval_metrics) <- "consolidated"
-
-    result_list[[2]] <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-    #SB Model
-    result_list[[3]] <- sb_model_fit
-
-    #GSM
-    result_list[[4]] <- global_surrogate_model
-
-    #Feature Importance
-    feature_importance_m_df <- do.call(rbind, feature_importance_m_d_ref_list) %>% dplyr::arrange(id)
-    rownames(feature_importance_m_df) <- NULL
-    result_list[[5]] <- feature_importance_m_df
-
-    result_list[[6]] <- feature_importance_m_d_ref
-
-    if(!sb_algorithm == "ols"){
-
-      #Validation eval for all hyperparameters
-      names(chosen_eval_metric_validation) <- rebalance_dates #Change names
-      result_list[[7]] <- chosen_eval_metric_validation
-      #Hyper_choice
-      result_list[[8]] <- hyper_choice_df
-
-      #Validation eval-metrics
-        ##Create average row
-        avg_validation_eval_metrics_hyper_choice <- as.data.frame(t(colMeans(validation_eval_metrics_hyper_choice)))
-        rownames(avg_validation_eval_metrics_hyper_choice) <- "average"
-
-      result_list[[9]] <- rbind(validation_eval_metrics_hyper_choice, avg_validation_eval_metrics_hyper_choice)
-
-      #Fill names
-      names(result_list) <- c("oos_sb_outputs_m_df", "oos_testing_eval_metrics", "final_sb_model", "final_gsm", "feature_importance_m_df", "final_feature_importance_m_d_ref",
-                              "chosen_eval_metric_validation","best_hyperparameters", "validation_eval_metrics_hyper_choice") #ML Specific
-
-    } else {
-      #Fill names
-      names(result_list) <- c("oos_sb_outputs_m_df", "oos_testing_eval_metrics", "final_sb_model", "final_gsm", "feature_importance_m_df", "final_feature_importance_m_d_ref")
-    }
-
 
   })
 
@@ -1177,8 +1139,60 @@ run_sb_backtest_internal <- function(
   print(elapsed_time)
   if(verbose) cat("=============================\n")
 
+  ###Calculate Final Results
+  ##################
+
+  #OOS SB Outputs
+  ##Turn all oos_lists to a single meta_dataframe
+    ###Rename with testing dates
+    names(oos_y_list) <- dates_testing_sample
+    names(oos_prediction_list) <- dates_testing_sample
+    names(oos_error_list) <- dates_testing_sample
+
+    ##Turn y, preds and error in a oos_sb_outputs_m_df
+    oos_y_m_df <- convert_oos_list_to_m_df(oos_y_list) #Convert list to meta dataframe
+    colnames(oos_y_m_df)[4] <- "target"
+    oos_prediction_m_df <- convert_oos_list_to_m_df(oos_prediction_list) #Convert list to meta dataframe
+    colnames(oos_prediction_m_df)[4] <- "pred"
+    oos_error_m_df <- convert_oos_list_to_m_df(oos_error_list) #Convert list to meta dataframe
+    colnames(oos_error_m_df)[4] <- "error"
+
+    ##Join into a single meta dataframe
+    oos_sb_outputs_m_df <- dplyr::left_join(oos_y_m_df, dplyr::select(oos_prediction_m_df, -tickers, -dates), by = "id") %>%
+      dplyr::left_join(dplyr::select(oos_error_m_df, -tickers, -dates), by = "id") %>%
+      dplyr::arrange(id)
+
+
+  #Testing Performance Summary
+    ##Create consolidated row
+    consolidated_eval_metrics_row <- calculate_eval_metrics(pred = unlist(oos_prediction_list), target = unlist(oos_y_list),
+                                                        huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
+
+    consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics_row), cons_oos = as.numeric(consolidated_eval_metrics_row),
+                                               row.names = NULL)
+
+  #Feature Importance
+    ##Bing individual feature importance
+    feature_importance_m_df <- do.call(rbind, feature_importance_m_d_ref_list) %>% dplyr::arrange(id)
+    rownames(feature_importance_m_df) <- NULL
+
+  #Validation metrics
+  if(!sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")){
+
+    #Validation eval for all hyperparameters
+    names(chosen_eval_metric_validation) <- rebalance_dates #Change names
+
+    #Validation Performance Summary
+      ##Create average row
+      avg_validation_eval_metrics_hyper_choice_df <- data.frame(metric = colnames(validation_eval_metrics_hyper_choice_xts),
+                                                                avg_val = t(colMeans(validation_eval_metrics_hyper_choice_xts)))
+
+      ##Join with consolidated_eval_metrics_df
+      consolidated_eval_metrics_df <- dplyr::left_join(consolidated_eval_metrics_df, avg_validation_eval_metrics_hyper_choice_df, by = "metric")
+  }
+
   #sb_backtest_workflow
-  result_list$sb_backtest_workflow <- list(
+  sb_backtest_workflow <- list(
     #Algo
     sb_algorithm = sb_algorithm,
     config_name = "not_identified",
@@ -1248,48 +1262,42 @@ run_sb_backtest_internal <- function(
     call = match.call()
   )
 
-  ##Create meta_dataframes
-  browser()
-    ###oos_sb_outputs_m_df
-    oos_sb_outputs_m_df <- create_meta_dataframe(oos_sb_outputs_m_df, type = "oos_sb_outputs", sb_backtest_workflow = result_list$sb_backtest_workflow)
-    ###feature_importance_m_df
-    feature_importance_m_df <- withCallingHandlers({
-      create_meta_dataframe(feature_importance_m_df)
-    },
-    warning = function(w) {
-      warning("Feature importance creation warning: ", conditionMessage(w))
-      invokeRestart("muffleWarning")
-    })
-    ###final_feature_importance_m_d_ref
-    final_feature_importance_m_d_ref <- withCallingHandlers({
-      create_meta_dataframe(feature_importance_m_d_ref)
-    },
-    warning = function(w) {
-      warning("Final feature importance creation warning: ", conditionMessage(w))
-      invokeRestart("muffleWarning")
-    })
+  #Create meta_dataframes
+  ###oos_sb_outputs_m_df
+  oos_sb_outputs_m_df <- create_meta_dataframe(oos_sb_outputs_m_df, type = "oos_sb_outputs", sb_backtest_workflow = sb_backtest_workflow)
+  ###feature_importance_m_df
+  feature_importance_m_df <- suppressWarnings(
+    create_meta_dataframe(feature_importance_m_df)
+  )
+  ###final_feature_importance_m_d_ref
+  final_feature_importance_m_d_ref <- suppressWarnings(
+    create_meta_dataframe(feature_importance_m_d_ref)
+  )
+
 
   #Get S4 object
   sb_backtest_results_object <-
     new("sb_backtest_results",
         oos_sb_outputs_m_df = oos_sb_outputs_m_df,
-        oos_testing_eval_metrics = result_list$oos_testing_eval_metrics,
-        final_sb_model = result_list$final_sb_model,
-        final_gsm = result_list$final_gsm,
-        chosen_eval_metric_validation = result_list$chosen_eval_metric_validation,
-        best_hyperparameters = result_list$best_hyperparameters,
-        validation_eval_metrics_hyper_choice = result_list$validation_eval_metrics_hyper_choice,
+        oos_testing_eval_metrics_xts = oos_testing_eval_metrics_xts,
+        consolidated_eval_metrics = consolidated_eval_metrics_df,
+        final_sb_model = sb_model_fit,
+        final_gsm = global_surrogate_model,
+        chosen_eval_metric_validation = if(sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")) NULL else chosen_eval_metric_validation,
+        best_hyperparameters_xts = if(sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")) NULL else hyper_choice_xts,
+        validation_eval_metrics_hyper_choice_xts = if(sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")) NULL else validation_eval_metrics_hyper_choice_xts,
         feature_importance_m_df = feature_importance_m_df,
         final_feature_importance_m_d_ref = final_feature_importance_m_d_ref,
         ss_backtest_results = NULL,
-        sb_backtest_workflow = result_list$sb_backtest_workflow,
-        backtest_identifier = result_list$sb_backtest_workflow$backtest_identifier
+        sb_backtest_workflow = sb_backtest_workflow,
+        backtest_identifier = sb_backtest_workflow$backtest_identifier
         )
 
 
   #Return List
   return(sb_backtest_results_object)
 
+  #################
 }
 
 
@@ -1363,15 +1371,15 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, target_fwd_name, b
     # Show some results
     cat("Consolidated OOS Testing Eval Metrics:\n")
     # Create consolidated OOS Testing Eval Metrics
-    all_consolidated_oos_testing_eval_metrics <- data.frame(
+    all_consolidated_oos_testing_eval_metrics_xts <- data.frame(
       t(sapply(
         base_sb_backtest_results_list,
-        function(x) x@oos_testing_eval_metrics[which(rownames(x@oos_testing_eval_metrics) == "consolidated"), ]
+        function(x) x@oos_testing_eval_metrics_xts[which(rownames(x@oos_testing_eval_metrics_xts) == "consolidated"), ]
       )),
       row.names = base_sb_backtest_configs_names
     )
     # Print results
-    print(all_consolidated_oos_testing_eval_metrics)
+    print(all_consolidated_oos_testing_eval_metrics_xts)
     cat("\n")
   }
 

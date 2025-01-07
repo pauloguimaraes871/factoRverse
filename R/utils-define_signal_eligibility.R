@@ -264,93 +264,93 @@ define_signal_eligibility <- function(
   }
   #################################
 
-  #P-adjust!
-  ############################
+    #P-adjust!
+    ############################
 
-  #Frequentist version
-  ######################
-  if(!p_correction_method == "bayesian"){
+    #Frequentist version
+    ######################
+    if(!p_correction_method == "bayesian"){
 
-    ##Frequentist adjustment
-    p_value_df <- data.frame(p_value = unique(signal_universe_m_d_ref$p_value))
-    p_value_df$adjusted_p_value <- p.adjust(p_value_df$p_value, method = p_correction_method) #Adjust
-    ##Join
-    signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(p_value_df, by = "p_value") #Join p-value adjust
+      ##Frequentist adjustment
+      p_value_df <- data.frame(p_value = unique(signal_universe_m_d_ref$p_value))
+      p_value_df$adjusted_p_value <- p.adjust(p_value_df$p_value, method = p_correction_method) #Adjust
+      ##Join
+      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(p_value_df, by = "p_value") #Join p-value adjust
 
-    #Elect final signal for signal_universe_m_d_ref
-    signal_universe_m_d_ref[, "exp_ret_score"] <- signal_transform(
-      signal_universe_m_d_ref[, "alpha_t_stat"],
-      upper_quantile_winsorization = upper_quantile_winsorization,
-      lower_quantile_winsorization = lower_quantile_winsorization
+      #Elect final signal for signal_universe_m_d_ref
+      signal_universe_m_d_ref[, "exp_ret_score"] <- signal_transform(
+        signal_universe_m_d_ref[, "alpha_t_stat"],
+        upper_quantile_winsorization = upper_quantile_winsorization,
+        lower_quantile_winsorization = lower_quantile_winsorization
+      )
+      #######################
+
+
+    } else {
+      #Beware of the ALMIGHTY Bayesian model
+      ######################################
+
+      #Get parameters of brms_control
+      chains <- if(is.null(brms_control$chains)) 4 else brms_control$chains
+      iter <- if(is.null(brms_control$iter)) 2000 else brms_control$iter
+      warmup <- if(is.null(brms_control$warmup)) round(iter/2) else brms_control$warmup
+      thin <- if(is.null(brms_control$thin)) 1 else brms_control$thin
+      seed <- if(is.null(brms_control$seed)) NA else brms_control$seed
+      adapt_delta <- if(is.null(brms_control$adapt_delta)) 0.80 else brms_control$adapt_delta
+
+      #Get parameters of prior_derivation_control
+      half_t_df <- if(is.null(prior_derivation_control$half_t_df)) 30 else prior_derivation_control$half_t_df
+      lmer_optimizer <- if(is.null(lmer_control$lmer_optimizer)) "nloptwrap" else lmer_control$lmer_optimizer
+      lmer_optimization_objective <- if(is.null(lmer_control$lmer_optimization_objective)) "REML" else lmer_control$lmer_optimization_objective
+
+      #Bayesian adjustment
+      bayesian_adjustment_results_list <- bayesian_adjustment(
+        #Signals and benchmark
+        signal_universe_m_d_ref = signal_universe_m_d_ref,
+        selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+        selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+        #Priors
+        priors_m_upd_ref = priors_m_upd_ref,
+        user_priors = user_priors,
+        model_spec_theme_level = model_spec_theme_level,
+        #lmer control
+        half_t_df = half_t_df, lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective,
+        #brms control
+        chains = chains, iter = iter, warmup = warmup, thin = thin, seed = seed, adapt_delta = adapt_delta,
+        #Groups
+        selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+        parallel = parallel, verbose = verbose
+      )
+
+      ##Get results from bayesian adjustment
+      signal_universe_m_d_ref <- bayesian_adjustment_results_list$posterior_signal_universe_m_d_ref
+      bayesian_results <- bayesian_adjustment_results_list[-1]
+
+
+      #Elect final signal for signal_universe_m_d_ref
+      signal_universe_m_d_ref[, "exp_ret_score"] <- signal_transform(
+        signal_universe_m_d_ref[, paste0("posterior_", "alpha_t_stat")], #Final signal
+        #Winsorization quantiles
+        upper_quantile_winsorization = upper_quantile_winsorization,
+        lower_quantile_winsorization = lower_quantile_winsorization
+      )
+      ######################################
+
+    }
+    ############################
+
+    #Classify it!
+    ###################################
+    signal_universe_m_d_ref <- classify_investment_universe(
+      signals_m_d_ref = signal_universe_m_d_ref, #Signal Universe
+      signal_significance_threshold = signal_significance_threshold, #Signal Significance Threshold
+      groups_m_d_ref = selected_signal_themes_m_d_ref, #Groups to select
+      #Build concentration constraint policy for signals
+      concentration_constraint_policy =  list(
+        benchmark = c("theme_ss", "theme_sb"), #Reference benchmark
+        max_abs_active_group_weight = if(enable_theme_representativeness) 0.1 else NULL), #Set an arbitrary value to enable theme representativeness
+      asset_object = "signals"
     )
-    #######################
-
-
-  } else {
-    #Beware of the ALMIGHTY Bayesian model
-    ######################################
-
-    #Get parameters of brms_control
-    chains <- if(is.null(brms_control$chains)) 4 else brms_control$chains
-    iter <- if(is.null(brms_control$iter)) 2000 else brms_control$iter
-    warmup <- if(is.null(brms_control$warmup)) round(iter/2) else brms_control$warmup
-    thin <- if(is.null(brms_control$thin)) 1 else brms_control$thin
-    seed <- if(is.null(brms_control$seed)) NA else brms_control$seed
-    adapt_delta <- if(is.null(brms_control$adapt_delta)) 0.80 else brms_control$adapt_delta
-
-    #Get parameters of prior_derivation_control
-    half_t_df <- if(is.null(prior_derivation_control$half_t_df)) 30 else prior_derivation_control$half_t_df
-    lmer_optimizer <- if(is.null(lmer_control$lmer_optimizer)) "nloptwrap" else lmer_control$lmer_optimizer
-    lmer_optimization_objective <- if(is.null(lmer_control$lmer_optimization_objective)) "REML" else lmer_control$lmer_optimization_objective
-
-    #Bayesian adjustment
-    bayesian_adjustment_results_list <- bayesian_adjustment(
-      #Signals and benchmark
-      signal_universe_m_d_ref = signal_universe_m_d_ref,
-      selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-      selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
-      #Priors
-      priors_m_upd_ref = priors_m_upd_ref,
-      user_priors = user_priors,
-      model_spec_theme_level = model_spec_theme_level,
-      #lmer control
-      half_t_df = half_t_df, lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective,
-      #brms control
-      chains = chains, iter = iter, warmup = warmup, thin = thin, seed = seed, adapt_delta = adapt_delta,
-      #Groups
-      selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-      parallel = parallel, verbose = verbose
-    )
-
-    ##Get results from bayesian adjustment
-    signal_universe_m_d_ref <- bayesian_adjustment_results_list$posterior_signal_universe_m_d_ref
-    bayesian_results <- bayesian_adjustment_results_list[-1]
-
-
-    #Elect final signal for signal_universe_m_d_ref
-    signal_universe_m_d_ref[, "exp_ret_score"] <- signal_transform(
-      signal_universe_m_d_ref[, paste0("posterior_", "alpha_t_stat")], #Final signal
-      #Winsorization quantiles
-      upper_quantile_winsorization = upper_quantile_winsorization,
-      lower_quantile_winsorization = lower_quantile_winsorization
-    )
-    ######################################
-
-  }
-  ############################
-
-  #Classify it!
-  ###################################
-  signal_universe_m_d_ref <- classify_investment_universe(
-    signals_m_d_ref = signal_universe_m_d_ref, #Signal Universe
-    signal_significance_threshold = signal_significance_threshold, #Signal Significance Threshold
-    groups_m_d_ref = selected_signal_themes_m_d_ref, #Groups to select
-    #Build concentration constraint policy for signals
-    concentration_constraint_policy =  list(
-      benchmark = c("theme_ss", "theme_sb"), #Reference benchmark
-      max_abs_active_group_weight = if(enable_theme_representativeness) 0.1 else NULL), #Set an arbitrary value to enable theme representativeness
-    asset_object = "signals"
-  )
   ################################
 
   signal_eligibility_results_list <- list()
