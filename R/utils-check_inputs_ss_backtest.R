@@ -83,7 +83,7 @@
 #'
 #' @export
 check_inputs_ss_backtest <- function(
-  #Dates
+    #Dates
   initial_sample_size, rebalancing_months, data_availability_cutoff, split_method,
   #Signals
   signals_m_df, chosen_signals_and_positions, forced_signals,
@@ -101,7 +101,7 @@ check_inputs_ss_backtest <- function(
   signal_themes_m_df,
   #Winsorization
   lower_quantile_winsorization, upper_quantile_winsorization
-  ){
+){
 
   #Structure
   #########################
@@ -127,18 +127,18 @@ check_inputs_ss_backtest <- function(
   }
 
   ###Check if categorical variables are being selected
-    ####Get categorical signals (which are elected by default)
-    categorical_signals <- signals_m_df %>% dplyr::select_if(function(x){
-      # Convert column to character to unify comparison
-      vals <- unique(as.character(x))
-      all(vals %in% c("0", "1"))
-    }) %>% colnames()
+  ####Get categorical signals (which are elected by default)
+  categorical_signals <- signals_m_df %>% dplyr::select_if(function(x){
+    # Convert column to character to unify comparison
+    vals <- unique(as.character(x))
+    all(vals %in% c("0", "1"))
+  }) %>% colnames()
 
   if(any(names(chosen_signals_and_positions) %in% categorical_signals)){
     warning("Categorical signals included in chosen_signals_and_positions.")
   }
 
- ###Check for forced_signals presence in signals_m_df
+  ###Check for forced_signals presence in signals_m_df
   if(!is.null(forced_signals)){
     if(any(!forced_signals %in% colnames(signals_m_df))){
       warning("forced_signals not available in signals_m_df")
@@ -146,95 +146,95 @@ check_inputs_ss_backtest <- function(
   }
 
   #initial_sample_size and data_availability_cutoff
-    if(any(!is.numeric(initial_sample_size), !is.numeric(data_availability_cutoff))){
-      stop("initial_sample_size and data_availability_cutoff must be numeric")
-    }
+  if(any(!is.numeric(initial_sample_size), !is.numeric(data_availability_cutoff))){
+    stop("initial_sample_size and data_availability_cutoff must be numeric")
+  }
 
-    if(initial_sample_size < data_availability_cutoff){
-      stop("initial_sample_size must be greater than or equal to data_availability_cutoff")
-    }
+  if(initial_sample_size < data_availability_cutoff){
+    stop("initial_sample_size must be greater than or equal to data_availability_cutoff")
+  }
 
-    #backtest_returns_xts
-    if(!xts::is.xts(backtest_returns_xts)){
-      stop("backtest_returns_xts must be a xts object")
-    }
-    #get dates
-    backtest_returns_dates <- zoo::index(backtest_returns_xts)
+  #backtest_returns_xts
+  if(!xts::is.xts(backtest_returns_xts)){
+    stop("backtest_returns_xts must be a xts object")
+  }
+  #get dates
+  backtest_returns_dates <- zoo::index(backtest_returns_xts)
 
-    if(class(backtest_returns_dates) != "Date"){
-      stop("dates in backtest_returns_xts must be of class Date")
-    }
+  if(class(backtest_returns_dates) != "Date"){
+    stop("dates in backtest_returns_xts must be of class Date")
+  }
 
-    chosen_signals_corrected_positions <- chosen_signals_and_positions
-    names(chosen_signals_corrected_positions)[which(chosen_signals_corrected_positions == "short")] <- paste0("low_", names(chosen_signals_and_positions)[which(chosen_signals_and_positions == "short")])
+  chosen_signals_corrected_positions <- chosen_signals_and_positions
+  names(chosen_signals_corrected_positions)[which(chosen_signals_corrected_positions == "short")] <- paste0("low_", names(chosen_signals_and_positions)[which(chosen_signals_and_positions == "short")])
 
-    if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_xts))){
-      stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_xts")
-    }
+  if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_xts))){
+    stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_xts")
+  }
 
-    if(nrow(backtest_returns_xts) < data_availability_cutoff){
-      stop("backtest_returns_xts must have at least data_availability_cutoff rows")
-    }
+  if(nrow(backtest_returns_xts) < data_availability_cutoff){
+    stop("backtest_returns_xts must have at least data_availability_cutoff rows")
+  }
 
-    if(nrow(backtest_returns_xts) < initial_sample_size){
-      stop("backtest_returns_xts must have at least initial_sample_size rows")
-    }
+  if(nrow(backtest_returns_xts) < initial_sample_size){
+    stop("backtest_returns_xts must have at least initial_sample_size rows")
+  }
 
-    if(any(!backtest_returns_dates %in% (signals_m_df %>% dplyr::pull(dates)))){
-      stop("all dates in backtest_returns_xts must be present in signals_m_df")
-    }
+  if(any(!backtest_returns_dates %in% (signals_m_df %>% dplyr::pull(dates)))){
+    stop("all dates in backtest_returns_xts must be present in signals_m_df")
+  }
 
-    if(any(!signals_m_df %>% dplyr::pull(dates) %>% unique() %in% backtest_returns_dates)){
-      stop("all dates in signals_m_df must be present in backtest_returns_xts")
-    }
+  if(any(!signals_m_df %>% dplyr::pull(dates) %>% unique() %in% backtest_returns_dates)){
+    stop("all dates in signals_m_df must be present in backtest_returns_xts")
+  }
 
-    if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 +
-                 as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
-      stop("backtest_returns_xts must have consecutive dates")
-    }
+  if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 +
+               as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
+    stop("backtest_returns_xts must have consecutive dates")
+  }
 
 
-    #benchmark_returns_xts
-    if(!xts::is.xts(benchmark_returns_xts)){
-      stop("benchmark_returns_xts must be a xts object")
-    }
-    #get dates
-    benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
-    if(class(benchmark_returns_dates) != "Date"){
-      stop("dates in benchmark_returns_xts must be of class Date")
-    }
+  #benchmark_returns_xts
+  if(!xts::is.xts(benchmark_returns_xts)){
+    stop("benchmark_returns_xts must be a xts object")
+  }
+  #get dates
+  benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
+  if(class(benchmark_returns_dates) != "Date"){
+    stop("dates in benchmark_returns_xts must be of class Date")
+  }
 
-    if(any(benchmark_returns_dates != backtest_returns_dates)){
-      stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
-    }
+  if(any(benchmark_returns_dates != backtest_returns_dates)){
+    stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+  }
 
-    if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
-      stop("benchmark_returns_xts must not have any NA values")
-    }
+  if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
+    stop("benchmark_returns_xts must not have any NA values")
+  }
 
-    if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
-                 as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
-      stop("benchmark_returns_xts must have consecutive dates")
-    }
+  if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
+               as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
+    stop("benchmark_returns_xts must have consecutive dates")
+  }
 
-    if(!market_factor_proxy %in% colnames(benchmark_returns_xts)){
-      stop("market_factor_proxy must be present in benchmark_returns_xts")
-    }
+  if(!market_factor_proxy %in% colnames(benchmark_returns_xts)){
+    stop("market_factor_proxy must be present in benchmark_returns_xts")
+  }
 
-    #signal_themes_m_df
-    ###Check if signal_themes_m_df contemplates theme column
-    if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
-      stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
-    }
+  #signal_themes_m_df
+  ###Check if signal_themes_m_df contemplates theme column
+  if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
+    stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
+  }
 
-    if(enable_theme_representativeness & is.null(signal_themes_m_df)){
-      stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
-    }
+  if(enable_theme_representativeness & is.null(signal_themes_m_df)){
+    stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
+  }
 
-    ##Check if all signals of signals_m_df are covered and vice-versa
-    if(any(!names(chosen_signals_corrected_positions) %in% (signal_themes_m_df %>% dplyr::pull(tickers)))){
-      stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
-    }
+  ##Check if all signals of signals_m_df are covered and vice-versa
+  if(any(!names(chosen_signals_corrected_positions) %in% (signal_themes_m_df %>% dplyr::pull(tickers)))){
+    stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
+  }
 
     ###Check if theme column is character
     if(!is.character(signal_themes_m_df %>% dplyr::pull(theme))){

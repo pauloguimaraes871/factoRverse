@@ -127,9 +127,6 @@ check_inputs_sb_backtest <- function(
         message("The following final dates from target_m_df are expected to be NA in an up-to-date backtest, but are not: ", paste(dates_allowed_to_be_NA_but_are_not_na, collapse = " "))
       }
 
-
-
-
       #Check structure between target_m_df and feature_m_df
       if(nrow(target_m_df) != nrow(features_m_df)){
         stop("features_m_df and target_m_df must possess same number of rows.")
@@ -354,6 +351,18 @@ check_inputs_sb_backtest <- function(
                paste(eligible_signals[check_signal_presence], collapse = ", ")
           )
         }
+
+        ###Get all signals.
+        #For signal_themes, it is important for one to have all signals in signal_themes_m_df. This is because of benchmark group weights calculation.
+        all_signals <- signal_universe_m_df %>% dplyr::pull(tickers) %>% unique()
+        check_signal_presence <- !all_signals %in% (signal_themes_m_df %>% dplyr::pull(tickers))
+        if (any(check_signal_presence)) {
+          stop("There is a signal mismatch between signals (eligible or not) and signal_themes_m_df: ",
+               paste(eligible_signals[check_signal_presence], collapse = ", ")
+          )
+        }
+
+
       }
 
       ##Check signal presence in backtest_returns_xts

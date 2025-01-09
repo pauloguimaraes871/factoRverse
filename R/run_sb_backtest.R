@@ -234,15 +234,38 @@ setMethod("run_sb_backtest",
               } else {
                 #Generate an artificial signal_universe_m_df
 
+                  ##Check for signal themes
+                  if(is.null(signal_themes_m_df)){
+                    stop("Please provide signal_themes_m_df")
+                  }
+
                   ##Get columns values
-                  dates <- unique(features_m_df%>% dplyr::pull(dates))
+                  dates <- unique(features_m_df %>% dplyr::pull(dates))
                   tickers <- colnames(features_m_df[,-c(1:3)])
+
+                  ##Check if all tickers have themes
+                  if(!any(tickers %in% (signal_themes_m_df %>% dplyr::pull(tickers)))){
+                    stop("All signals in features_m_df should have themes in signal_themes_m_df")
+                  }
 
                   ##Create signal_universe_m_df
                   signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
-                    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+                    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>% #Create a id
                     dplyr::rename(tickers = Var1, dates = Var2) %>%
-                    dplyr::mutate(is_eligible = 1) %>%
+                    dplyr::mutate(top_assets = 1, is_eligible = 1) %>% #Create top and eligible
+                    dplyr::left_join(signal_themes_m_df %>% dplyr::select(id, theme), by = "id")
+
+                  ##Create artificial theme_ss and theme_sb
+                  se_benchmark_weights_m_df <- signal_universe_m_df %>%
+                    dplyr::group_by(dates) %>%
+                    dplyr::group_split() %>%
+                    purrr::map_dfr(~ create_se_benchmarks(.x, signal_themes_m_df %>%
+                                                            dplyr::filter(tickers %in% tickers)))
+
+                  ##Add objects and corret
+                  signal_universe_m_df <- signal_universe_m_df %>%
+                    dplyr::left_join(se_benchmark_weights_m_df %>% dplyr::select(id, theme_ss, theme_sb)) %>%
+                    dplyr::rename(theme_ss_bench_weights = theme_ss_bench_weights, theme_sb_bench_weights = theme_sb_bench_weights) %>%
                     dplyr::arrange(id)
 
                   if(!is_coercible_to_meta_dataframe(signal_universe_m_df)) stop("signal_universe_m_df not coercible to meta_dataframe.")
@@ -825,7 +848,13 @@ run_sb_backtest_internal <- function(
 
     #Prediction, error and Y objects
     oos_prediction_list <- list() #initialize prediction list. Each element will be a vector of predictions for that date
+    oos_prediction_list_theme_sb <- list()
+    oos_prediction_list_theme_ss <- list()
+
     oos_error_list <- list() #Initialize error list.
+    oos_error_list_theme_sb <- list()
+    oos_error_list_Theme_ss <- list()
+
     oos_y_list <- list() #Initialize y list.
 
     #Feature importance
@@ -870,6 +899,7 @@ run_sb_backtest_internal <- function(
             backtest_returns_xts = backtest_returns_xts #Backtest returns to be corrected
           )
 
+
         ####Get results
           ####Selected features_m_df with corrected positions
           selected_features_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
@@ -887,6 +917,18 @@ run_sb_backtest_internal <- function(
               stop("all selected signals in backtests (with corrected positions) should have a theme classification in signal_themes_m_df")
              }
             }
+
+          ####Get a features_m_df only for theme_ss
+            ####Reconstruct chosen_signals_and_positions_theme_ss
+            chosen_signals_and_positions_theme_ss <- ifelse(stringr::str_detect(most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers),
+                                                                                pattern = "low_"), "short", "long")
+            names(chosen_signals_and_positions_theme_ss) <- stringr::str_remove_all(current_signals, pattern = "low_")
+
+            ####Select, correct and get results
+            selected_theme_ss_features_corrected_positions_m_df <- select_and_correct_signals(
+              signals_m_df = features_m_df,
+              chosen_signals_and_positions = chosen_signals_and_positions_theme_ss
+            )$selected_signals_corrected_positions_m_df
 
             ###Print message
             if(verbose){
@@ -1010,13 +1052,12 @@ run_sb_backtest_internal <- function(
         ###################
 
         ###Set objects for regression-type algos
-        ####Refit new model using data from d - target_fwd
+          ####Refit new model using data from d - target_fwd
           selected_features_corrected_positions_m_refit <- ts_splits$refit$features_m_refit #Subset -> Signal Ports do not depend on features_m_refit. Therefore, they are fit with most avaiable signal universe data.
           target_m_refit <- ts_splits$refit$target_m_refit #Subset
           selected_full_data_corrected_positions_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
 
-
-        #(RE)Fit SB Model
+        ###(RE)Fit SB Model
         sb_model_fit <- fit_sb_model(
           #General Parameters
           sb_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
@@ -1039,6 +1080,25 @@ run_sb_backtest_internal <- function(
           verbose = verbose
         )
 
+        ###Fit Benchmark Models
+          #####Create custom_weights_m_df
+            ###Theme SB
+            theme_sb_bench_weights_m_df <- most_recent_signal_universe_m_d_ref %>% dplyr::select(id, tickers, dates, theme_sb_bench_weights) %>%
+              dplyr::rename(weights = theme_sb_bench_weights)
+            ###Theme SS
+            theme_ss_bench_weights_m_df <- most_recent_signal_universe_m_d_ref %>% dplyr::select(id, tickers, dates, theme_ss_bench_weights) %>%
+              dplyr::rename(weights = theme_ss_bench_weights)
+
+          #####Fit Benchmark Models
+            ###Theme SB
+            theme_sb_model_fit <- fit_sb_model(sb_algorithm = "custom_weights",
+                                               most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref, custom_weights_m_d_ref = theme_sb_bench_weights_m_df)
+            theme_sb_model_fit@model@port_name = "theme_sb"
+
+            ###Theme SS
+            theme_ss_model_fit <- fit_sb_model(sb_algorithm = "custom_weights",
+                                               most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref, custom_weights_m_d_ref = theme_ss_bench_weights_m_df)
+            theme_ss_model_fit@model@port_name = "theme_ss"
 
         ###################
 
@@ -1112,25 +1172,53 @@ run_sb_backtest_internal <- function(
       #Subsets for date
       target_vector_ref <- target_vector[d_ref] #targets for new date
       selected_features_corrected_positions_m_d_ref <- selected_features_corrected_positions_m_df[d_ref,] #features for new date.
+      selected_theme_ss_features_corrected_positions_m_d_ref <- selected_theme_ss_features_corrected_positions_m_df[d_ref,] #features for new date.
 
       #Reference for input in testing list
       testing_lists_ref <- d - training_sample_size - validation_sample_size + 1
 
       #Make predictions
-      oos_prediction_list[[testing_lists_ref]] <- predict(sb_model_fit, new_features_m_df = selected_features_corrected_positions_m_d_ref)
-      names(oos_prediction_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref %>% dplyr::pull(tickers) #Rename
+        ##SB Model
+        oos_prediction_list[[testing_lists_ref]] <- predict(sb_model_fit, new_features_m_df = selected_features_corrected_positions_m_d_ref)
+        names(oos_prediction_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref %>% dplyr::pull(tickers) #Rename
+        ##Benchmarks
+          ###theme_ss
+          oos_prediction_list_theme_ss[[testing_lists_ref]] <- predict(sb_model_fit, new_features_m_df = selected_theme_ss_features_corrected_positions_m_d_ref)
+          names(oos_prediction_list_theme_ss[[testing_lists_ref]]) <- selected_theme_ss_features_corrected_positions_m_d_ref %>% dplyr::pull(tickers) #Rename
+          ###theme_sb
+          oos_prediction_list_theme_sb[[testing_lists_ref]] <- predict(sb_model_fit, new_features_m_df = selected_features_corrected_positions_m_d_ref)
+          names(oos_prediction_list_theme_sb[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref %>% dplyr::pull(tickers) #Rename
+
 
       #Inform targets
       oos_y_list[[testing_lists_ref]] <- as.numeric(target_vector_ref)
       names(oos_y_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref %>% dplyr::pull(tickers)  #Rename
 
       #Calculate eval metrics and error on testing sample
-      testing_metrics <- calculate_eval_metrics(pred = oos_prediction_list[[testing_lists_ref]], target = oos_y_list[[testing_lists_ref]],
-                                                huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric, return_error = TRUE)
+        ##SB Model
+        testing_metrics <- calculate_eval_metrics(pred = oos_prediction_list[[testing_lists_ref]], target = oos_y_list[[testing_lists_ref]],
+                                                  huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric, return_error = TRUE)
+        ##Benchmarks
+          ###theme_ss
+          testing_metrics_theme_ss <- calculate_eval_metrics(pred = oos_prediction_list_theme_ss[[testing_lists_ref]], target = oos_y_list[[testing_lists_ref]],
+                                                             huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric, return_error = TRUE)
+          ###theme_sb
+          testing_metrics_theme_sb <- calculate_eval_metrics(pred = oos_prediction_list_theme_sb[[testing_lists_ref]], target = oos_y_list[[testing_lists_ref]],
+                                                             huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric, return_error = TRUE)
 
-      #Fill error
-      oos_error_list[[testing_lists_ref]] <- as.numeric(testing_metrics$error) #Calculate error
-      names(oos_error_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref%>% dplyr::pull(tickers)  #Rename
+
+      #Fill error list
+          ##SB Model
+          oos_error_list[[testing_lists_ref]] <- as.numeric(testing_metrics$error) #Calculate error
+          names(oos_error_list[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref%>% dplyr::pull(tickers)  #Rename
+
+          ##Benchmarks
+            ###theme_ss
+            oos_error_list_theme_ss[[testing_lists_ref]] <- as.numeric(testing_metrics_theme_ss$error) #Calculate error
+            names(oos_error_list_theme_ss[[testing_lists_ref]]) <- selected_theme_ss_features_corrected_positions_m_d_ref%>% dplyr::pull(tickers)  #Rename
+            ###theme_sb
+            oos_error_list_theme_sb[[testing_lists_ref]] <- as.numeric(testing_metrics_theme_sb$error) #Calculate error
+            names(oos_error_list_theme_sb[[testing_lists_ref]]) <- selected_features_corrected_positions_m_d_ref%>% dplyr::pull(tickers)  #Rename
 
       #Test Eval Metrics
       oos_testing_eval_metrics_xts[testing_lists_ref, ] <- as.numeric(testing_metrics$df_eval_metrics %>%
@@ -1152,11 +1240,19 @@ run_sb_backtest_internal <- function(
   #OOS SB Outputs
   ##Turn all oos_lists to a single meta_dataframe
     ###Rename with testing dates
+    ###SB Model
     names(oos_y_list) <- dates_testing_sample
     names(oos_prediction_list) <- dates_testing_sample
     names(oos_error_list) <- dates_testing_sample
 
-    ##Turn y, preds and error in a oos_sb_outputs_m_df
+    ###Benchmarks
+    names(oos_prediction_list_theme_sb) <- dates_testing_sample
+    names(oos_prediction_list_theme_ss) <- dates_testing_sample
+    names(oos_error_list_theme_ss) <- dates_testing_sample
+    names(oos_error_list_theme_sb) <- dates_testing_sample
+
+  ##Turn y, preds and error in a oos_sb_outputs_m_df
+    ###SB Model
     oos_y_m_df <- convert_oos_list_to_m_df(oos_y_list) #Convert list to meta dataframe
     colnames(oos_y_m_df)[4] <- "target"
     oos_prediction_m_df <- convert_oos_list_to_m_df(oos_prediction_list) #Convert list to meta dataframe
@@ -1164,18 +1260,41 @@ run_sb_backtest_internal <- function(
     oos_error_m_df <- convert_oos_list_to_m_df(oos_error_list) #Convert list to meta dataframe
     colnames(oos_error_m_df)[4] <- "error"
 
+    ###For benchmarks
+    oos_prediction_m_df_theme_ss <- convert_oos_list_to_m_df(oos_prediction_list_theme_ss) #Convert list to meta dataframe
+    oos_prediction_m_df_theme_sb <- convert_oos_list_to_m_df(oos_prediction_list_theme_sb) #Convert list to meta dataframe
+    colnames(oos_prediction_m_df_theme_ss)[4] <- "pred_theme_ss"
+    colnames(oos_prediction_m_df_theme_sb)[4] <- "pred_theme_sb"
+    oos_error_m_df_theme_ss <- convert_oos_list_to_m_df(oos_error_list_theme_ss) #Convert list to meta dataframe
+    oos_error_m_df_theme_sb <- convert_oos_list_to_m_df(oos_error_list_theme_sb) #Convert list to meta dataframe
+    colnames(oos_error_m_df_theme_ss)[4] <- "error_theme_ss"
+    colnames(oos_error_m_df_theme_sb)[4] <- "error_theme_sb"
+
     ##Join into a single meta dataframe
     oos_sb_outputs_m_df <- dplyr::left_join(oos_y_m_df, dplyr::select(oos_prediction_m_df, -tickers, -dates), by = "id") %>%
       dplyr::left_join(dplyr::select(oos_error_m_df, -tickers, -dates), by = "id") %>%
+      dplyr::left_join(dplyr::select(oos_prediction_m_df_theme_ss, -tickers, -dates), by = "id") %>%
+      dplyr::left_join(dplyr::select(oos_error_m_df_theme_ss, -tickers, -dates), by = "id") %>%
+      dplyr::left_join(dplyr::select(oos_prediction_m_df_theme_sb, -tickers, -dates), by = "id") %>%
+      dplyr::left_join(dplyr::select(oos_error_m_df_theme_sb, -tickers, -dates), by = "id") %>%
       dplyr::arrange(id)
-
 
   #Testing Performance Summary
     ##Create consolidated row
-    consolidated_eval_metrics_row <- calculate_eval_metrics(pred = unlist(oos_prediction_list), target = unlist(oos_y_list),
-                                                        huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
+      ###SB Model
+      consolidated_eval_metrics_row <- calculate_eval_metrics(pred = unlist(oos_prediction_list), target = unlist(oos_y_list),
+                                                              huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
+      ###For benchmarks
+      consolidated_eval_metrics_row_theme_ss <- calculate_eval_metrics(pred = unlist(oos_prediction_list_theme_ss), target = unlist(oos_y_list),
+                                                              huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
+      consolidated_eval_metrics_row_theme_sb <- calculate_eval_metrics(pred = unlist(oos_prediction_list_theme_sb), target = unlist(oos_y_list),
+                                                              huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
 
-    consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics_row), cons_oos = as.numeric(consolidated_eval_metrics_row),
+    ##Consolidate
+    consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics_row),
+                                               cons_oos = as.numeric(consolidated_eval_metrics_row),
+                                               cons_oos_theme_ss = as.numeric(consolidated_eval_metrics_row_theme_ss),
+                                               cons_oos_theme_sb = as.numeric(consolidated_eval_metrics_row_theme_sb),
                                                row.names = NULL)
 
   #Feature Importance
@@ -1273,13 +1392,9 @@ run_sb_backtest_internal <- function(
   ###oos_sb_outputs_m_df
   oos_sb_outputs_m_df <- create_meta_dataframe(oos_sb_outputs_m_df, type = "oos_sb_outputs", sb_backtest_workflow = sb_backtest_workflow)
   ###feature_importance_m_df
-  feature_importance_m_df <- suppressWarnings(
-    create_meta_dataframe(feature_importance_m_df)
-  )
+  feature_importance_m_df <- suppressWarnings(create_meta_dataframe(feature_importance_m_df))
   ###final_feature_importance_m_d_ref
-  final_feature_importance_m_d_ref <- suppressWarnings(
-    create_meta_dataframe(feature_importance_m_d_ref)
-  )
+  final_feature_importance_m_d_ref <- suppressWarnings(create_meta_dataframe(feature_importance_m_d_ref))
 
 
   #Get S4 object

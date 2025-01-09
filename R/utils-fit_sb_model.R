@@ -137,6 +137,11 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                           verbose = verbose
                      )$model_nn, #This is a wrapper for keras
 
+                     ##Custom Weights
+                     custom_weights = set_portfolio_weights(port_construction_method = "custom_weights",
+                                                            universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                                            custom_weights_m_d_ref = custom_weights_m_d_ref),
+
                      ##Equal-Weighted Signals
                      ew = set_portfolio_weights(port_construction_method = "ew",
                                                 universe_m_d_ref = most_recent_signal_universe_m_d_ref), #Universe of signals

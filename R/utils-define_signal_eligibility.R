@@ -187,7 +187,7 @@
 #'
 #' @export
 define_signal_eligibility <- function(
-  #Backtests
+    #Backtests
   selected_backtest_returns_corrected_positions_xts_upd_ref,
   selected_market_factor_proxy_xts_upd_ref,
   #Data Avaialability

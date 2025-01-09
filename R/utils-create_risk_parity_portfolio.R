@@ -27,6 +27,11 @@ create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix, rp
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
 
+  #Check for weights different from 1
+  if (abs(sum(universe_m_d_ref$weights) - 1) > 0.02){
+    stop("Weights do not sum to 1")
+  }
+
   #Message
   if(verbose){
     cat("\n")

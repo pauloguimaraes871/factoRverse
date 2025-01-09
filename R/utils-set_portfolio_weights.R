@@ -36,6 +36,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   cov_estimation_method = "sample", cov_matrix_sample_size = if(is.null(returns_xts_upd_ref)) NULL else nrow(returns_xts_upd_ref), #How to estimate covariance matrix?
                                   liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL, #Policies
                                   n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", rp_method = "cyclical-spinu",
+                                  custom_weights_m_d_ref = NULL, #Custom Weights
                                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975
 ){
 
@@ -67,6 +68,12 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   ###################
   port_results_list <- switch( #Chose port construction method
     port_construction_method,
+
+    #Custom-Weighted Portfolio
+    custom_weights = create_custom_weighted_portfolio(
+      universe_m_d_ref = universe_m_d_ref, #Signal Universe
+      custom_weights_m_d_ref = custom_weights_m_d_ref #Custom weights
+    ),
 
     #Equal-Weighted Portfolio
     ew = create_equal_weighted_portfolio(
@@ -130,9 +137,18 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
     universe_m_d_ref$rel_risk_contr[which(is.na(universe_m_d_ref$rel_risk_contr))] <- 0 #Fill NAs with 0
   }
 
-  #Create PORT Objec
-  eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
-  port_obj <- new("port",
+  #Create PORT Object
+    ##Define eligible universe
+    if(!port_construction_method == "custom_weights"){
+      #For general port_construction_methods, only eligible assets can have weights different from zero.
+      eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
+    } else {
+      #In case of custom weights, it is possible that non-eligible assets have weights (eg. theme_ss_bench_weights)
+      eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(weights != 0)
+    }
+
+    ##Create the s4 obj
+    port_obj <- new("port",
                   universe_m_d_ref = suppressWarnings(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                   port_construction_method = port_construction_method,
                   eligible_assets = eligible_universe_m_d_ref %>% dplyr::pull(tickers),

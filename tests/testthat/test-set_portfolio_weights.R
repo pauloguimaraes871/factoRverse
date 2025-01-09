@@ -1,4 +1,67 @@
 #Signals
+test_that("set portfolio weights work for Custom Weights (signals)", {
+
+  #Load
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_results.RData", sep =""))
+
+  current_date <- "2023-03-15"
+
+  #Select and correct signals
+  signal_universe_m_df <- results@signal_universe_m_df@data
+  most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == "2023-03-15")
+  current_eligible_signals <- most_recent_signal_universe_m_d_ref$tickers
+  signals_positions <- ifelse(stringr::str_detect(current_eligible_signals, "low_"), "short", "long")
+  chosen_signals_and_positions <- signals_positions
+  names(chosen_signals_and_positions) <- stringr::str_remove(current_eligible_signals, "low_")
+
+  select_and_correct_signals_backtest_list <- select_and_correct_signals(signals_m_df = signals_m_df@data,
+                                                                         chosen_signals_and_positions = chosen_signals_and_positions,
+                                                                         backtest_returns_xts = mocked_backtest_returns_xts)
+
+  selected_signals_corrected_positions_m_df <- select_and_correct_signals_backtest_list$selected_signals_corrected_positions_m_df
+  selected_backtest_returns_corrected_positions_xts <- select_and_correct_signals_backtest_list$selected_backtest_returns_corrected_positions_xts
+
+  expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
+  expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
+
+
+  #ts_splits
+  features_m_refit <- signals_m_df@data %>% dplyr::filter(dates <= "2023-03-15") #this is to mimick ts_split behavior with a target_fwd of 3
+
+
+  #Create custom weights according to theme_sb
+  most_recent_signal_universe_m_d_ref$weights <- most_recent_signal_universe_m_d_ref$theme_sb_bench_weights
+
+  theme_sb_bench_weights_m_df <- most_recent_signal_universe_m_d_ref %>% dplyr::select(id, tickers, dates, theme_sb_bench_weights) %>% dplyr::rename(weights = theme_sb_bench_weights)
+
+  results <- set_portfolio_weights(port_construction_method = "custom_weights",
+                                   universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights),
+                                   custom_weights_m_d_ref = theme_sb_bench_weights_m_df
+  )
+
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
+  expect_equal(results@eligible_assets, most_recent_signal_universe_m_d_ref %>% dplyr::filter(theme_sb_bench_weights > 0) %>% dplyr::pull(tickers))
+  expect_equal(results@weights, most_recent_signal_universe_m_d_ref %>% dplyr::filter(theme_sb_bench_weights > 0) %>% dplyr::pull(weights))
+
+  #Create custom weights according to theme_ss
+  most_recent_signal_universe_m_d_ref$weights <- most_recent_signal_universe_m_d_ref$theme_ss_bench_weights
+
+  theme_ss_bench_weights_m_df <- most_recent_signal_universe_m_d_ref %>% dplyr::select(id, tickers, dates, theme_ss_bench_weights) %>% dplyr::rename(weights = theme_ss_bench_weights)
+
+  results <- set_portfolio_weights(port_construction_method = "custom_weights",
+                                   universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights),
+                                   custom_weights_m_d_ref = theme_ss_bench_weights_m_df
+  )
+
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
+  expect_equal(results@eligible_assets, most_recent_signal_universe_m_d_ref %>% dplyr::filter(theme_ss_bench_weights > 0) %>% dplyr::pull(tickers))
+  expect_equal(results@weights, most_recent_signal_universe_m_d_ref %>% dplyr::filter(theme_ss_bench_weights > 0) %>% dplyr::pull(weights))
+
+
+})
+
+
 test_that("set portfolio weights work for EW (signals)", {
 
   #Load
@@ -86,8 +149,8 @@ test_that("set portfolio weights work for SW (signals) ", {
   weights <- signal_transform(most_recent_signal_universe_m_d_ref$info_ratio, upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05)/sum(signal_transform(most_recent_signal_universe_m_d_ref$info_ratio, upper_quantile_winsorization = 0.95, lower_quantile_winsorization =  0.05))
 
   most_recent_signal_universe_m_d_ref[, "exp_ret_score"] <- signal_transform(most_recent_signal_universe_m_d_ref$info_ratio ,
-                                                                            upper_quantile_winsorization = 0.95,
-                                                                            lower_quantile_winsorization =  0.05)
+                                                                             upper_quantile_winsorization = 0.95,
+                                                                             lower_quantile_winsorization =  0.05)
   most_recent_signal_universe_m_d_ref$weights <- weights
 
   results <- set_portfolio_weights(port_construction_method = "sw", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights))
@@ -283,10 +346,10 @@ test_that("set portfolio weights work for MVO (signals) - unconstrained", {
 
   set.seed(123)
   results <- set_portfolio_weights(port_construction_method = "mvo", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>%
-                                      dplyr::select(-rel_risk_contr, -weights),
-                                    cov_matrix_sample_size = 9, cov_estimation_method = "ewma", groups_m_d_ref = NULL, active_returns = TRUE,
-                                    returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                    selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref)
+                                     dplyr::select(-rel_risk_contr, -weights),
+                                   cov_matrix_sample_size = 9, cov_estimation_method = "ewma", groups_m_d_ref = NULL, active_returns = TRUE,
+                                   returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+                                   selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref)
 
   expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
   expect_equal(results@groups, NULL)
@@ -436,7 +499,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df@data, chosen_signals_and_positions = chosen_signals_and_positions,
     backtest_returns_xts = mocked_backtest_returns_xts
-    )
+  )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
   selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
@@ -473,18 +536,18 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   portfolio_spec <- PortfolioAnalytics::portfolio.spec(assets = current_eligible_signals)
   portfolio_spec <- PortfolioAnalytics::add.constraint(portfolio_spec, type = "full_investment")
   portfolio_spec <- PortfolioAnalytics::add.constraint(portfolio_spec, type = "box",
-                                                  min = pmax(most_recent_signal_universe_m_d_ref$theme_ss_bench_weights[-2] - 0.2,
-                                                             0),
-                                                  max = most_recent_signal_universe_m_d_ref$theme_ss_bench_weights[-2] + 0.2) #eliminate eps
+                                                       min = pmax(most_recent_signal_universe_m_d_ref$theme_ss_bench_weights[-2] - 0.2,
+                                                                  0),
+                                                       max = most_recent_signal_universe_m_d_ref$theme_ss_bench_weights[-2] + 0.2) #eliminate eps
 
   portfolio_spec <- PortfolioAnalytics::add.constraint(portfolio_spec, type = "group",
-                                                  groups = list(
-                                                    theme.defensive = c(2,4),
-                                                    theme.momentum = 3,
-                                                    theme.value = c(1)
-                                                  ),
-                                                  group_min = c(0.133, 0.133, 0.133),
-                                                  group_max = c(0.533, 0.533, 0.533))
+                                                       groups = list(
+                                                         theme.defensive = c(2,4),
+                                                         theme.momentum = 3,
+                                                         theme.value = c(1)
+                                                       ),
+                                                       group_min = c(0.133, 0.133, 0.133),
+                                                       group_max = c(0.533, 0.533, 0.533))
 
   most_recent_signal_universe_m_d_ref$max_weight <- most_recent_signal_universe_m_d_ref$theme_ss_bench_weights + 0.2
   most_recent_signal_universe_m_d_ref$min_weight <- pmax(most_recent_signal_universe_m_d_ref$theme_ss_bench_weights - 0.2,

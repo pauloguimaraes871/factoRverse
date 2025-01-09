@@ -5177,6 +5177,9 @@ setMethod(
     if (type == "Random Weights Distribution"){
       # Extract relevant slots
       random_port_weights <- x@random_port_weights
+      if(any(is.null(x@ind_max_weights), is.null(x@ind_min_weights))){
+        stop("Random Weights Distribution is only avaiable when max_abs_active_individual_weight is set.")
+      }
       ind_max_weights <- x@ind_max_weights
       ind_min_weights <- x@ind_min_weights
       asset_names <- x@eligible_assets
@@ -5263,8 +5266,27 @@ setMethod(
       groups_merged <- dplyr::left_join(port_alloc, groups_df, by = "tickers")
       groups_merged <- dplyr::filter(groups_merged, !is.na(.data$id))
 
-      # For simplicity, pick the first group column
-      main_group_col <- group_cols[1]
+      # Ask for which group to plot
+      if (length(group_cols) == 1){
+        main_group_col <- group_cols[1]
+      }
+      if (length(group_cols) == 0){
+        main_group_col <- NULL
+      }
+      if (length(group_cols) > 1){
+        for (i in seq_along(group_cols)) {
+          cat(paste0(i, ": ", group_cols[i], "\n"))
+        }
+        selection <- readline(prompt = "Please choose the number correspondig to the group classification of your choice: ")
+        selection <- as.numeric(selection)
+        if (is.na(selection) || length(selection) != 1) {
+          stop("Invalid selection.")
+        }
+        main_group_col <- group_cols[selection]
+        if (!main_group_col %in% group_cols){
+          stop("Invalid group selected.")
+        }
+      }
 
       df_by_group <- groups_merged %>%
         dplyr::group_by(.data[[main_group_col]]) %>%
@@ -5272,11 +5294,33 @@ setMethod(
 
       # Attempt to detect a benchmark column in the universe df
       bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
-      bench_col  <- if (length(bench_cols) > 0) bench_cols[1] else NULL
+
+      # Ask for which bench to plot
+      if (length(bench_cols) == 1){
+        bench_col <- bench_cols[1]
+      }
+      if (length(bench_cols) == 0){
+        bench_col <- NULL
+      }
+      if (length(bench_cols) > 1){
+        for (i in seq_along(bench_cols)) {
+          cat(paste0(i, ": ", bench_cols[i], "\n"))
+        }
+        selection <- readline(prompt = "Please choose the number correspondig to the benchmark of your choice:: ")
+        selection <- as.numeric(selection)
+        if (is.na(selection) || length(selection) != 1) {
+          stop("Invalid selection.")
+        }
+        bench_col <- bench_cols[selection]
+        if (!bench_col %in% bench_cols){
+          stop("Invalid benchmark selected.")
+        }
+      }
+
 
       if (!is.null(bench_col) && bench_col %in% colnames(universe_df)) {
         # Merge group info with the universe benchmark column
-        bench_merged <- dplyr::left_join(groups_df, dplyr::select(universe_df, -group_cols), by = c("tickers", "dates"))
+        bench_merged <- dplyr::left_join(groups_df, dplyr::select(universe_df, -group_cols), by = c("tickers"))
 
         df_bench <- bench_merged %>%
           dplyr::group_by(.data[[main_group_col]]) %>%
@@ -5347,6 +5391,16 @@ setMethod(
 )
 
 
+#' Plot Method for 'sb_model' Objects
+#'
+#' This method generates plots for a \code{sb_model} object, depending on the \code{model} slot.
+#' @export
+setMethod(
+  "plot",
+  signature(x = "sb_model", y = "missing"),
+  function(x, type = NULL, ...) {
 
+    plot(x@model)
 
-
+}
+)

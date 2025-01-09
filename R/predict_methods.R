@@ -100,21 +100,21 @@ setMethod("predict", "sb_model", function(object, new_features_m_df,
 
   #Choose predict method base on sb_algorithm
   ################
-    ###Make a general case for signal port
-    if(sb_algorithm %in% c("ew", "sw", "mvo", "rp")) sb_algorithm <- "signal_port"
+  ###Make a general case for signal port
+  if(sb_algorithm %in% c("ew", "sw", "mvo", "rp")) sb_algorithm <- "signal_port"
 
-    ###Generate predictions
-    predictions <- switch(
-      sb_algorithm, #Depending on the algorithm
-      ols = as.numeric(predict(sb_model_fit, newdata = as.data.frame(new_data))), #prediction for new data OLS
-      glmnet = as.numeric(predict(sb_model_fit, newx = as.matrix(new_data), s = best_lam)), #prediction for new data GLM
-      rf = as.numeric(predict(sb_model_fit, data = janitor::clean_names(new_data))$predictions), #prediction for RF
-      xgb = as.numeric(predict(sb_model_fit, newdata = as.matrix(new_data))), #predictions for XGB
-      nn = as.numeric(predict(sb_model_fit, x = as.matrix(new_data))), #predictions for NN
-      signal_port = as.numeric(predict(sb_model_fit, new_features_m_df_clean = new_data,
-                                       lower_quantile_winsorization = lower_quantile_winsorization,
-                                       upper_quantile_winsorization = upper_quantile_winsorization)) #Predictions for signal ports
-    )
+  ###Generate predictions
+  predictions <- switch(
+    sb_algorithm, #Depending on the algorithm
+    ols = as.numeric(predict(sb_model_fit, newdata = as.data.frame(new_data))), #prediction for new data OLS
+    glmnet = as.numeric(predict(sb_model_fit, newx = as.matrix(new_data), s = best_lam)), #prediction for new data GLM
+    rf = as.numeric(predict(sb_model_fit, data = janitor::clean_names(new_data))$predictions), #prediction for RF
+    xgb = as.numeric(predict(sb_model_fit, newdata = as.matrix(new_data))), #predictions for XGB
+    nn = as.numeric(predict(sb_model_fit, x = as.matrix(new_data))), #predictions for NN
+    signal_port = as.numeric(predict(sb_model_fit, new_features_m_df_clean = new_data,
+                                     lower_quantile_winsorization = lower_quantile_winsorization,
+                                     upper_quantile_winsorization = upper_quantile_winsorization)) #Predictions for signal ports
+  )
   ################
 
   return(predictions)

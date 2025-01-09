@@ -19,8 +19,8 @@ create_equal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
 
   #Calculate Equal-Weights
   ew_weights <- universe_m_d_ref %>% dplyr::select(tickers, is_eligible) %>% #Select only two colums
-        dplyr::filter(is_eligible == 1) %>% #Filter only eligibles
-        dplyr::mutate(weights = 1/sum(is_eligible)) %>% #Calculate equal-weights
+    dplyr::filter(is_eligible == 1) %>% #Filter only eligibles
+    dplyr::mutate(weights = 1/sum(is_eligible)) %>% #Calculate equal-weights
     dplyr::select(-is_eligible) #Drop
 
   #Left Join back to portfolio
@@ -28,6 +28,11 @@ create_equal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
 
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+
+  #Check for weights different from 1
+  if (abs(sum(universe_m_d_ref$weights) - 1) > 0.02){
+    stop("Weights do not sum to 1")
+  }
 
   #Message
   if(verbose){

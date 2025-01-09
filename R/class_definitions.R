@@ -1947,7 +1947,7 @@ setClass(
   validity = function(object) {
 
     # port_construction_method must be one of the allowed
-    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo")) {
+    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights")) {
       stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'.")
     }
 
@@ -2039,13 +2039,12 @@ setClass(
   "signal_port",
   contains = "port",
   slots = list(
-    universe_m_df = "signal_universe_m_df",
     heuristic_sb_metric = "ANY"
   ),
   validity = function(object) {
 
     # Restrict port_construction_method
-    if (!object@port_construction_method %in% c("ew","sw","rp","mvo")) {
+    if (!object@port_construction_method %in% c("ew","sw","rp","mvo","custom_weights")) {
       stop("For signal_port, port_construction_method must be one of 'ew','sw','rp','mvo'.")
     }
 

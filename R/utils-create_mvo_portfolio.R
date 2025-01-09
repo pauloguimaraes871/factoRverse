@@ -96,6 +96,7 @@ create_mvo_portfolio <- function(universe_m_d_ref,
     }
     ###Generate group constraints
     group_constraints_list <- generate_group_constraints(universe_m_d_ref = universe_m_d_ref, #Current Stock Universe
+                                                         #Universe_m_d_ref is used instead of eligible_universe as there might be benchmark assets that are not eligible.
                                                          concentration_constraint_policy = concentration_constraint_policy, #Concentration Constraints Policy
                                                          groups_m_d_ref = groups_m_d_ref #group data
     )
@@ -171,6 +172,11 @@ create_mvo_portfolio <- function(universe_m_d_ref,
 
   #Replace NAs with zeros
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+
+  #Check for weights different from 1
+  if (abs(sum(universe_m_d_ref$weights) - 1) > 0.02){
+    stop("Weights do not sum to 1")
+  }
 
   #Message
   if(verbose){

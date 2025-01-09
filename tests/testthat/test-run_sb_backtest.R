@@ -1823,14 +1823,14 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
   #1st rebalancing
   #Most recent xts
-  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2022-09-15")
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
   selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2022-11-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
   selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2022-11-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
-    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers))
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
 
   selected_features_first_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
 
@@ -1912,14 +1912,14 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
 
   #2nd rebalancing
-  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2023-06-15")
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
   selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2023-07-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
   selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2023-07-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
-    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers))
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
 
   selected_features_second_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                              "2022-10-15",
@@ -2218,11 +2218,12 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
   target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target")
 
   #Apply FUN
+  set.seed(123)
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = features_m_df,
       target_m_df = target_m_df,
-      gsm_algorithm = "tree",
+      gsm_algorithm = "ols",
       backtest_returns_xts = mocked_backtest_returns_xts,
       benchmark_returns_xts = mocked_benchmark_returns_xts,
       signal_themes_m_df = mocked_signal_themes_m_df,
@@ -2232,14 +2233,14 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #1st rebalancing
   #Most recent xts
-  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2022-09-15")
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
   selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2022-11-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
   selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2022-11-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
-    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers))
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
 
   selected_features_first_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
 
@@ -2247,11 +2248,13 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
   targets_first_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
 
   #Fitting
+  set.seed(123)
   first_sb_port <- fit_sb_model(sb_algorithm = "mvo", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                                 selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
-                                cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = mocked_signal_themes_m_df@data,
+                                cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE,
+                                groups_m_d_ref = mocked_signal_themes_m_df@data %>% dplyr::filter(dates == "2022-11-15"),
                                 custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 opt_objective = "return", n_random_ports = 100,
                                 concentration_constraint_policy =
@@ -2261,6 +2264,33 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
                                 selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
                                 rp_method = "cyclical-spinu"
   )
+
+  #Check for group constraints
+  bench_w <- first_sb_port@model@universe_m_d_ref@data %>% dplyr::group_by(theme) %>% dplyr::summarize(bench_weight = sum(theme_sb_bench_weights)) %>%
+    dplyr::mutate(max_w = bench_weight + 0.2, min_w = pmax(bench_weight - 0.2, 0))
+  random_w <- first_sb_port@model@random_port_weights %>% dplyr::left_join(first_sb_port@model@universe_m_d_ref@data %>% dplyr::select(tickers, theme), by = "tickers")
+  expect_equal(first_sb_port@model@mvo_port_spec$constraints[[2]]$cLO, c(0, 0.3, 0.3), tolerance = 1e-6)
+  expect_equal(first_sb_port@model@mvo_port_spec$constraints[[2]]$cUP, c(0.2, 0.7, 0.7), tolerance = 1e-6)
+  expect_equal(first_sb_port@model@mvo_port_spec$constraints[[2]]$groups$theme.defensive, 2)
+  expect_equal(first_sb_port@model@mvo_port_spec$constraints[[2]]$groups$theme.value, 1)
+  expect_equal(first_sb_port@model@mvo_port_spec$constraints[[2]]$groups$theme.momentum, 3)
+
+
+
+  value_weight <- random_w[1, c(-1, -9)]
+  defensive_weight <- random_w[2, c(-1, -9)]
+  mom_weight <- random_w[3, c(-1, -9)]
+
+  expect_true(all(value_weight >= bench_w$min_w[3]))
+  expect_true(all(value_weight <= bench_w$max_w[3]))
+  expect_true(all(defensive_weight >= bench_w$min_w[1]))
+  expect_true(all(defensive_weight <= bench_w$max_w[1]))
+  expect_true(all(mom_weight >= bench_w$min_w[2]))
+  expect_true(all(mom_weight <= bench_w$max_w[2]))
+
+
+
+
   #Predict
   dates_first_prediction <- c("2022-11-15", "2022-12-15", "2023-01-15",
                               "2023-02-15", "2023-03-15", "2023-04-15",
@@ -2325,14 +2355,14 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
 
   #2nd rebalancing
-  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2023-06-15")
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
   selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2023-07-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
   selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2023-07-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
-    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers))
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
 
   selected_features_second_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                              "2022-10-15",
@@ -2347,17 +2377,44 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
 
   #Fitting
-  second_sb_port <- fit_sb_model(sb_algorithm = "rp", target_fwd_name = "fwd_premium_3m",
+  second_sb_port <- fit_sb_model(sb_algorithm = "mvo", target_fwd_name = "fwd_premium_3m",
                                  selected_features_corrected_positions_m_refit = selected_features_second_rebal,
                                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                                  selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
-                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
-                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE,
+                                 groups_m_d_ref = mocked_signal_themes_m_df@data %>% dplyr::filter(dates == "2023-07-15"),
+                                 custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                 opt_objective = "return", n_random_ports = 100,
+                                 concentration_constraint_policy = list(benchmark = "theme_sb", max_abs_active_group_weight = c(theme = 0.2),
+                                                                        max_abs_active_individual_weight = NULL),
                                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
                                  selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
                                  rp_method = "cyclical-spinu"
   )
 
+
+  #Check for group constraints
+  bench_w <- second_sb_port@model@universe_m_d_ref@data %>% dplyr::group_by(theme) %>% dplyr::summarize(bench_weight = sum(theme_sb_bench_weights)) %>%
+    dplyr::mutate(max_w = bench_weight + 0.2, min_w = pmax(bench_weight - 0.2, 0))
+  random_w <- second_sb_port@model@random_port_weights %>% dplyr::left_join(second_sb_port@model@universe_m_d_ref@data %>% dplyr::select(tickers, theme), by = "tickers")
+
+  expect_equal(second_sb_port@model@mvo_port_spec$constraints[[2]]$cLO, rep(0.1333333, 3), tolerance = 1e-6)
+  expect_equal(second_sb_port@model@mvo_port_spec$constraints[[2]]$cUP, rep(0.5333333, 3), tolerance = 1e-6)
+  expect_equal(second_sb_port@model@mvo_port_spec$constraints[[2]]$groups$theme.defensive, 3)
+  expect_equal(second_sb_port@model@mvo_port_spec$constraints[[2]]$groups$theme.value, c(1,2))
+  expect_equal(second_sb_port@model@mvo_port_spec$constraints[[2]]$groups$theme.momentum, 4)
+
+  value_weight <- random_w[1, c(-1, -20)] + random_w[2, c(-1, -20)]
+  defensive_weight <- random_w[3, c(-1, -20)]
+  mom_weight <- random_w[4, c(-1, -20)]
+
+
+  expect_true(all(value_weight >= bench_w$min_w[3]))
+  expect_true(all(value_weight <= bench_w$max_w[3]))
+  expect_true(all(defensive_weight >= bench_w$min_w[1]))
+  expect_true(all(defensive_weight <= bench_w$max_w[1]))
+  expect_true(all(mom_weight >= bench_w$min_w[2]))
+  expect_true(all(mom_weight <= bench_w$max_w[2]))
 
 
   #Predict
@@ -2491,17 +2548,17 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #gsm 1
   preds <- predict(first_sb_port, new_features_m_df = selected_features_first_rebal)
-  gsm <- rpart::rpart(preds ~ ., data = selected_features_first_rebal[,-c(1:3)]) #Date used to fit lm model
+  gsm <- lm(preds ~ ., data = selected_features_first_rebal[,-c(1:3)]) #Date used to fit lm model
 
   #Start object
   feature_importance_m_df1 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15") %>%
     dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
   #Get coefs
-  tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
+  ols_coefs <- data.frame(tickers = rownames(coef(summary(gsm))), importance = coef(summary(gsm))[,1], row.names = NULL)
 
-  tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
+  ols_coefs$normalized_importance <- (ols_coefs$importance - mean(ols_coefs$importance))/sd(ols_coefs$importance)
   #Join and adjust
-  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::full_join(tree_coefs, by = "tickers")
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::full_join(ols_coefs, by = "tickers")
   feature_importance_m_df1$dates <- as.Date("2022-11-15") #Rebalance date
   feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
   #Reorder
@@ -2519,18 +2576,18 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #gsm 2
   preds <- predict(second_sb_port, new_features_m_df = selected_features_second_rebal)
-  gsm <- rpart::rpart(preds ~ ., data = selected_features_second_rebal[,-c(1:3)]) #Date used to fit lm model
+  gsm <- lm(preds ~ ., data = selected_features_second_rebal[,-c(1:3)]) #Date used to fit lm model
 
 
   #Start object
   feature_importance_m_df2 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15") %>%
     dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
   #Get coefs
-  tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
+  ols_coefs <- data.frame(tickers = rownames(coef(summary(gsm))), importance = coef(summary(gsm))[,1], row.names = NULL)
 
-  tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
+  ols_coefs$normalized_importance <- (ols_coefs$importance - mean(ols_coefs$importance))/sd(ols_coefs$importance)
   #Join and adjust
-  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::full_join(tree_coefs, by = "tickers")
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::full_join(ols_coefs, by = "tickers")
   feature_importance_m_df2$dates <- as.Date("2023-07-15") #Rebalance date
   feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
   #Reorder
