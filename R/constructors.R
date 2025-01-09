@@ -2193,7 +2193,7 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 
   #Create default parameters for signal_port_parameters depending on sb_algo
   if(sb_algorithm %in% c("mvo", "rp") && is.null(signal_port_parameters)){
-    cov_est_method <- create_cov_est_method(cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE)
+    cov_est_method <- create_cov_est_method(cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = "IBOV")
     mvo_parameters <- if(sb_algorithm == "mvo") create_mvo_parameters(opt_method = "random", random_ports_method = "sample", n_random_ports = 1000, opt_objective = "sharpe") else NULL
     rp_parameters <- if(sb_algorithm == "rp") create_rp_parameters(rp_method = "cyclical-spinu") else NULL
 
@@ -3201,9 +3201,9 @@ setMethod("add_concentration_constraint_policy",
           signature(object = "port_backtest_config", policy = "missing"),
           function(object,
                    policy,
-                   benchmark = character(0),
-                   max_abs_active_individual_weight = NA_real_,
-                   max_abs_active_group_weight = numeric(0),
+                   benchmark,
+                   max_abs_active_individual_weight = NULL,
+                   max_abs_active_group_weight = NULL,
                    ...) {
 
             # Build a new policy on the fly
@@ -3247,9 +3247,9 @@ setMethod("add_concentration_constraint_policy",
           signature(object = "sb_backtest_config", policy = "missing"),
           function(object,
                    policy,
-                   benchmark = character(0),
-                   max_abs_active_individual_weight = NA_real_,
-                   max_abs_active_group_weight = numeric(0),
+                   benchmark,
+                   max_abs_active_individual_weight = NULL,
+                   max_abs_active_group_weight = NULL,
                    ...) {
 
             # Build a new policy
@@ -3264,12 +3264,7 @@ setMethod("add_concentration_constraint_policy",
               object@signal_port_parameters <- methods::new("signal_port_parameters")
             }
 
-            #No group constraints for signal port
-            if(length(max_abs_active_group_weight) > 0){
-              stop("Group constraints are not supported for signal port")
-            }
-
-            # Assign
+             # Assign
             object@signal_port_parameters@concentration_constraint_policy <- new_policy
             methods::validObject(object)
             return(object)

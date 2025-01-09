@@ -626,9 +626,6 @@ run_ss_backtest_internal <- function(
     signal_universe_m_df <- do.call(rbind, signal_universe_m_d_ref_list)
     rownames(signal_universe_m_df) <- NULL #erase rownames
 
-
-
-
     #End timer
   })
   print(elapsed_time)
@@ -686,7 +683,7 @@ run_ss_backtest_internal <- function(
   ##Create meta_dataframes
   ###Create signal_universe_m_df
   signal_universe_m_df <- withCallingHandlers({
-    signal_universe_m_df <- signal_universe_m_df[order(signal_universe_m_df$id),]
+    signal_universe_m_df <- signal_universe_m_df %>% dplyr::arrange(id)
     create_meta_dataframe(signal_universe_m_df, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
   },
   warning = function(w) {
@@ -695,7 +692,7 @@ run_ss_backtest_internal <- function(
   })
   ###Create final_signal_universe_m_d_ref
   final_signal_universe_m_d_ref <- withCallingHandlers({
-    signal_universe_m_d_ref <- signal_universe_m_d_ref[order(signal_universe_m_d_ref$id),]
+    signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::arrange(id)
     create_meta_dataframe(signal_universe_m_d_ref, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
   },
   warning = function(w) {

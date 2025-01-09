@@ -61,7 +61,7 @@ create_mvo_portfolio <- function(universe_m_d_ref,
   port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "full_investment")
 
   ##Box Constraints
-  if(!is.null(concentration_constraint_policy)){
+  if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight)){
     ###Message
     if(verbose){
       cat("\n")
@@ -148,8 +148,8 @@ create_mvo_portfolio <- function(universe_m_d_ref,
       sqrt(t(col) %*% covariance_matrix %*% col) #Calculate tracking error
     })
 
-    ##Get Sharpe Ratio
-    expected_sharpe <- expected_returns/expected_risk
+  ##Get Sharpe Ratio
+  expected_sharpe <- expected_returns/expected_risk
 
   ####################
 

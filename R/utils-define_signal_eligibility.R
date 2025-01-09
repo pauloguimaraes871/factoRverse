@@ -351,13 +351,13 @@ define_signal_eligibility <- function(
         max_abs_active_group_weight = if(enable_theme_representativeness) 0.1 else NULL), #Set an arbitrary value to enable theme representativeness
       asset_object = "signals"
     )
-  ################################
+    ################################
 
-  signal_eligibility_results_list <- list()
-  signal_eligibility_results_list$signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::select(-exp_ret_score)
-  signal_eligibility_results_list$frequentist_results <- frequentist_results
-  try(signal_eligibility_results_list$bayesian_results <- bayesian_results, silent = TRUE)
+    signal_eligibility_results_list <- list()
+    signal_eligibility_results_list$signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::select(-exp_ret_score)
+    signal_eligibility_results_list$frequentist_results <- frequentist_results
+    try(signal_eligibility_results_list$bayesian_results <- bayesian_results, silent = TRUE)
 
-  return(signal_eligibility_results_list)
+    return(signal_eligibility_results_list)
 
 }

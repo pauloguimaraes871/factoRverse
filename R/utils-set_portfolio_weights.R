@@ -44,23 +44,23 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
   #Calculate covariance matrix
   ###################
-    ##Check if there is returns data
-    if(!is.null(returns_xts_upd_ref)){
+  ##Check if there is returns data
+  if(!is.null(returns_xts_upd_ref)){
 
-      ##Run estimation function
-      covariance_matrix <- estimate_covariance_matrix(
-        tickers = eligible_tickers, #Eligible universe
-        returns_xts_upd_ref = returns_xts_upd_ref, #Return sample
-        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Cov estimation
-        selected_benchmark_xts_upd_ref = selected_benchmark_xts_upd_ref, #Benchmark for calculating active returns
-        groups_m_d_ref = groups_m_d_ref #Groups for correcting NAs
-      )
-    } else {
-      covariance_matrix <- NULL
-      if(port_construction_method %in% c("rp", "mvo")){
-        stop("Covariance matrix estimation requires returns data.")
-      }
+    ##Run estimation function
+    covariance_matrix <- estimate_covariance_matrix(
+      tickers = eligible_tickers, #Eligible universe
+      returns_xts_upd_ref = returns_xts_upd_ref, #Return sample
+      cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Cov estimation
+      selected_benchmark_xts_upd_ref = selected_benchmark_xts_upd_ref, #Benchmark for calculating active returns
+      groups_m_d_ref = groups_m_d_ref #Groups for correcting NAs
+    )
+  } else {
+    covariance_matrix <- NULL
+    if(port_construction_method %in% c("rp", "mvo")){
+      stop("Covariance matrix estimation requires returns data.")
     }
+  }
   ###################
 
   #Attach weights to universe_m_d_ref object
@@ -119,10 +119,10 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
   #Calculate relative risk contribution
   if(!is.null(covariance_matrix)){
-  relative_risk_contribution_df <- relative_risk_contribution(
-    weights = universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights), #Weights
-    covariance_matrix = covariance_matrix #Covariance
-  )
+    relative_risk_contribution_df <- relative_risk_contribution(
+      weights = universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights), #Weights
+      covariance_matrix = covariance_matrix #Covariance
+    )
 
     ##Attach relative risk contribution to universe_m_d_ref object
     universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(relative_risk_contribution_df, by = "tickers") %>%
@@ -133,7 +133,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   #Create PORT Objec
   eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
   port_obj <- new("port",
-                  universe_m_d_ref = suppressWarnings(create_meta_dataframe(universe_m_d_ref)),
+                  universe_m_d_ref = suppressWarnings(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                   port_construction_method = port_construction_method,
                   eligible_assets = eligible_universe_m_d_ref %>% dplyr::pull(tickers),
                   exp_ret_score = if(port_construction_method %in% c("sw", "cs", "mvo")) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
@@ -143,11 +143,11 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                   rel_risk_contr = if(!is.null(covariance_matrix)) eligible_universe_m_d_ref %>% dplyr::pull(rel_risk_contr) else NULL,
                   mvo_port_spec = if(port_construction_method == "mvo") port_results_list$port_spec else NULL,
                   random_port_weights = if(port_construction_method == "mvo" & opt_method == "random") port_results_list$random_portfolios_weights_df %>% dplyr::select(-exp_ret_score) else NULL,
-                  ind_max_weights = if(!is.null(concentration_constraint_policy) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(max_weight) else NULL,
-                  ind_min_weights = if(!is.null(concentration_constraint_policy) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(min_weight) else NULL,
+                  ind_max_weights = if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(max_weight) else NULL,
+                  ind_min_weights = if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(min_weight) else NULL,
                   groups = if(!is.null(groups_m_d_ref)) groups_m_d_ref else NULL,
                   port_name = "not_identified"
-                  )
+  )
 
   #Return portfolio results
   ###################

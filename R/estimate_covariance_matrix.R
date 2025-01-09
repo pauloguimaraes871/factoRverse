@@ -45,6 +45,11 @@ estimate_covariance_matrix <- function(tickers, returns_xts_upd_ref,
   returns_xts_upd_ref_dates <- zoo::index(returns_xts_upd_ref)
   n_dates <- length(returns_xts_upd_ref_dates)
 
+    ##check
+    if(n_dates < cov_matrix_sample_size){
+      stop("Not enough dates to estimate covariance matrix")
+    }
+
   if(is.null(cov_matrix_sample_size)){
     dates_to_sample <- returns_xts_upd_ref_dates #In case of cov_matrix_sample_size = NULL, use whole period
   } else {

@@ -1808,10 +1808,10 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @export
 setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y){
 
-  if(!x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
+  if(!x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")){
     plot(x@tuning_strategy)
   } else {
-    message("Plot method not avaiable for `ols`, `sw`, `ew`, `rp` or `mto` sb_algorithm.")
+    message("Plot method not avaiable for `ols`, `sw`, `ew`, `rp` or `mvo` sb_algorithm.")
   }
 
 })
@@ -1977,6 +1977,7 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
 #'     - `"All Evaluation Metrics Over Time"`
 #'     - `"Consolidated OOS Testing Metrics"`
 #'     - `"Average Validation Metrics"`
+#'     - `"Signal Portfolio"`
 #'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
 #'   If `NULL` (default), the method lists available plots.
 #'
@@ -1985,19 +1986,41 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
 setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
 
   # List of available plots
+  if(x@sb_backtest_workflow$sb_algorithm %in% c("glmnet", "rf", "xgb", "nn")){
   available_plots <- c(
     "Chosen Evaluation Metric Over Time",
     "Test vs Validation Chosen Evaluation Metric Over Time",
     "Best Hyperparameters Over Time",
     "Hyperparameters vs Error",
     "All Evaluation Metrics Over Time",
-    "Average Validation vs Consolidated OOS Testing Metrics"
+    "Average Validation vs Consolidated OOS Testing Metrics",
+    "Final Signal-Blending Model",
+    "Time-Series Feature Importance by Signal",
+    "Average Time-Series Feature Importance by Theme",
+    "Compare Feature Importance Side-by-Side by Signal",
+    "Compare Feature Importance Side-by-Side by Theme",
+    "Feature Importance Box-Plot by Signal",
+    "Feature Importance Box-Plot by Theme",
+    "Feature Importance Heatmap by Signal",
+    "Feature Importance Heatmap by Theme"
   )
-
-  if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "rp", "mvo", "sw", "ew_ensemble", "optimal_ensemble")){
-    plot_id <- 5
-    message("'All Evaluation Metrics Over Time' is the only available plot for OLS, EW Ensemble, and Optimal Ensemble. Plotting 'All Evaluation Metrics Over Time'...")
   }
+
+  if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo")){
+    available_plots <- c(
+      "All Evaluation Metrics Over Time",
+      "Final Signal-Blending Model",
+      "Time-Series Feature Importance by Signal",
+      "Average Time-Series Feature Importance by Theme",
+      "Compare Feature Importance Side-by-Side by Signal",
+      "Compare Feature Importance Side-by-Side by Theme",
+      "Feature Importance Box-Plot by Signal",
+      "Feature Importance Box-Plot by Theme",
+      "Feature Importance Heatmap by Signal",
+      "Feature Importance Heatmap by Theme"
+    )
+  }
+
 
   if (is.null(plot_id)) {
     cat("\nPlease choose a plot to display:\n")
@@ -2742,7 +2765,84 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
 
       print(plots_list$comparison_avg_val_oos)
     }
+  } else if (plot_name == "Final Signal-Blending Model"){
+
+    plot(x@final_sb_model@model)
+
+  #Feature Importance Plots
+  ########################
+  } else if (plot_name == "Time-Series Feature Importance by Signal"){
+
+    plot_type <- "time_series"
+    clustering_variables <- "tickers"
+    calc_stat <- "mean"
+    variable <- "normalized_importance"
+
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables)
+
+  } else if (plot_name == "Average Time-Series Feature Importance by Theme"){
+
+    plot_type <- "time_series"
+    clustering_variables <- "theme"
+    calc_stat <- "mean"
+    variable <- "normalized_importance"
+
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables)
+
+  } else if (plot_name == "Compare Feature Importance Side-by-Side by Signal"){
+
+    plot_type <- "cross_sectional"
+    clustering_variables <- "tickers"
+    calc_stat <- "mean"
+    variable <- "normalized_importance"
+
+    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+  } else if (plot_name == "Compare Feature Importance Side-by-Side by Theme"){
+
+    plot_type <- "cross_sectional"
+    clustering_variables <- "theme"
+    calc_stat <- "mean"
+    variable <- "normalized_importance"
+
+    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+  } else if (plot_name == "Feature Importance Box-Plot by Signal"){
+
+    plot_type <- "boxplot"
+    clustering_variables <- "tickers"
+    variable <- "normalized_importance"
+
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables)
+
+  } else if (plot_name == "Feature Importance Box-Plot by Theme"){
+
+    plot_type <- "boxplot"
+    clustering_variables <- "theme"
+    variable <- "normalized_importance"
+
+    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables)
+
+  } else if (plot_name == "Feature Importance Heatmap by Signal"){
+
+    plot_type <- "tile_heatmap"
+    clustering_variables <- "tickers"
+    variable <- "normalized_importance"
+    calc_stat <- "mean"
+
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+  } else if (plot_name == "Feature Importance Heatmap by Theme"){
+
+    plot_type <- "tile_heatmap"
+    clustering_variables <- "theme"
+    variable <- "normalized_importance"
+    calc_stat <- "mean"
+
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
   }
+
 
 
   invisible(x)
@@ -3465,13 +3565,13 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   # List of available plots
   if(x@ss_backtest_workflow$p_correction_method == "bayesian"){
   available_plots <- c(
-    "Time-Series Metrics by Ticker",
+    "Time-Series Metrics by Signal",
     "Average Time-Series Metrics by Theme",
-    "Compare Metrics Side-by-Side by Tickers",
+    "Compare Metrics Side-by-Side by Signals",
     "Compare Metrics Side-by-Side by Theme",
     "Box-Plot by Theme",
     "Box-Plot by Eligibility",
-    "Waterfall Plot by Ticker",
+    "Waterfall Plot by Signal",
     "Waterfall Plot by Theme",
     "Eligibility by Theme",
     "Posterior Individual Alphas",
@@ -3479,18 +3579,18 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     "Posterior Random Effects",
     "Waterfall Plot of Posterior Variance Components",
     "Posterior Regression Lines",
-    "Waterfall Plot of Return Decomposition by Ticker",
-    "Posterior Individual Alpha Distributions by Theme and Ticker"
+    "Waterfall Plot of Return Decomposition by Signal",
+    "Posterior Individual Alpha Distributions by Theme and Signal"
   )
   } else {
     available_plots <- c(
-      "Time-Series Metrics by Ticker",
+      "Time-Series Metrics by Signal",
       "Average Time-Series Metrics by Theme",
-      "Compare Metrics Side-by-Side by Tickers",
+      "Compare Metrics Side-by-Side by Signals",
       "Compare Metrics Side-by-Side by Theme",
       "Box-Plot by Theme",
       "Box-Plot by Eligibility",
-      "Waterfall Plot by Ticker",
+      "Waterfall Plot by Signal",
       "Waterfall Plot by Theme",
       "Eligibility by Theme"
     )
@@ -3551,7 +3651,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   }
 
   # Plot 1: Time-Series Metrics by Ticker
-  if (plot_name == "Time-Series Metrics by Ticker") {
+  if (plot_name == "Time-Series Metrics by Signal") {
 
     plot_type <- "time_series"
     clustering_variables <- "tickers"
@@ -3570,7 +3670,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables)
 
 
-  } else if (plot_name == "Compare Metrics Side-by-Side by Tickers") {
+  } else if (plot_name == "Compare Metrics Side-by-Side by Signals") {
     # Plot 3: Compare Metrics Side-by-Side by Tickers
 
     plot_type <- "cross_sectional"
@@ -3605,7 +3705,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables)
 
-  } else if (plot_name == "Waterfall Plot by Ticker") {
+  } else if (plot_name == "Waterfall Plot by Signal") {
     # Plot 7: Waterfall Plot by Ticker
     final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
       dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_xts),
@@ -4326,7 +4426,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       ggplot2::geom_line(alpha = 0.6, size = 1) +  # Increased alpha and line size for better visibility
       ggplot2::scale_color_manual(values = neon_colors[1:num_selected]) +  # Assign neon colors
       ggplot2::labs(
-        title = "Posterior Regression Lines by Ticker",
+        title = "Posterior Regression Lines by Signal",
         subtitle = "Using Posterior Individual Alpha and Beta",
         x = "Market Factor Proxy",
         y = "Predicted Outcome",
@@ -4350,7 +4450,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Display the Plot
     print(regression_plot)
 
-  } else if (plot_name == "Waterfall Plot of Return Decomposition by Ticker"){
+  } else if (plot_name == "Waterfall Plot of Return Decomposition by Signal"){
 
     # Get alpha and beta
     tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
@@ -4527,7 +4627,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
           values = c("Positive" = "#39FF14", "Negative" = "#FF5F1F")
         ) +
         ggplot2::labs(
-          title = "Waterfall Plot of Return Decomposition by Ticker",
+          title = "Waterfall Plot of Return Decomposition by Signal",
           x = "Components",
           y = "Cumulative Contribution"
         ) +

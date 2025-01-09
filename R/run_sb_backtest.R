@@ -170,13 +170,13 @@ setMethod("run_sb_backtest",
 
                 ###Signal Port Parameters
                 if(sb_algorithm %in% c("rp", "mvo")){
-                  signal_port_parameters <- object@signal_port_parameters
+                  signal_port_parameters <- config@signal_port_parameters
                     ####Covariance
                     cov_est_method <- signal_port_parameters@cov_est_method
-                      cov_estimation_method <- signal_port_parameters@cov_estimation_method
-                      cov_matrix_sample_size <- signal_port_parameters@cov_matrix_sample_size
-                      active_returns <- signal_port_parameters@active_returns
-                      cov_matrix_benchmark <- signal_port_parameters@cov_matrix_benchmark
+                      cov_estimation_method <- cov_est_method@cov_estimation_method
+                      cov_matrix_sample_size <- cov_est_method@cov_matrix_sample_size
+                      active_returns <- cov_est_method@active_returns
+                      cov_matrix_benchmark <- cov_est_method@cov_matrix_benchmark
 
                     ###RP
                     if(sb_algorithm == "rp"){
@@ -187,7 +187,7 @@ setMethod("run_sb_backtest",
                     ###MVO
                     if(sb_algorithm == "mvo"){
                       mvo_parameters <- signal_port_parameters@mvo_parameters
-                        random_ports_method <- mvo_parameters$random_ports_method
+                        random_ports_method <- mvo_parameters@random_ports_method
                         n_random_ports <- mvo_parameters@n_random_ports
                         opt_method <- mvo_parameters@opt_method
                         opt_objective <- mvo_parameters@opt_objective
@@ -261,8 +261,14 @@ setMethod("run_sb_backtest",
               }
 
 
-              #Extract signal_universe_m_df
+              #Extract signal_universe_m_df, signal_theme_m_df and backtests
               signal_universe_m_df <- ss_backtest_results@signal_universe_m_df@data
+              if(!is.null(signal_themes_m_df)){
+                signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name #Signal Themes Obj Name
+                signal_themes_workflow <- signal_themes_m_df@workflow #Workflow
+                signal_themes_m_df <- signal_themes_m_df@data
+              }
+
 
             }
 
@@ -311,8 +317,8 @@ setMethod("run_sb_backtest",
 
             ###Covariance objects
             if(!is.null(signal_themes_m_df)){
-            sb_backtest_results@sb_backtest_workflow$signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name
-            sb_backtest_results@sb_backtest_workflow$signal_themes_workflow <- signal_themes_m_df@workflow #Get workflow
+            sb_backtest_results@sb_backtest_workflow$signal_themes_object_name <- signal_themes_object_name
+            sb_backtest_results@sb_backtest_workflow$signal_themes_workflow <- signal_themes_workflow  #Get workflow
             }
 
             ###IDs
@@ -321,7 +327,7 @@ setMethod("run_sb_backtest",
               paste0("c:",config@config_name, "_f:", features_object_name, "_t:", target_object_name,"-",target_fwd_name)
             sb_backtest_results@backtest_identifier <- sb_backtest_results@sb_backtest_workflow$backtest_identifier
 
-            ###Workflow and names for feature_importance_m_df and oos_sb_outputs_m_df
+            ###Workflow and names for feature_importance_m_df, oos_sb_outputs_m_df and final_sb_model
               ####Workflow
               sb_backtest_results@feature_importance_m_df@workflow <- list(paste0("feature_importance_m_df result of ", sb_backtest_results@backtest_identifier))
               sb_backtest_results@final_feature_importance_m_d_ref@workflow <- list(paste0("final_feature_importance_m_d_ref result of ", sb_backtest_results@backtest_identifier))
@@ -329,6 +335,7 @@ setMethod("run_sb_backtest",
               sb_backtest_results@feature_importance_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               sb_backtest_results@final_feature_importance_m_d_ref@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              if(sb_algorithm %in% c("ew", "sw", "rp", "mvo")) sb_backtest_results@final_sb_model@model@port_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
 
             ###Call
             sb_backtest_results@sb_backtest_workflow$call <- sys.call(-2)
@@ -673,7 +680,7 @@ run_sb_backtest_internal <- function(
   signal_universe_m_df,
   cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, #COV (for RP and MVO)
   backtest_returns_xts = NULL, benchmark_returns_xts = NULL, cov_matrix_benchmark = "IBOV", #COV (for RP and MVO)
-  rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", #RP/MVO
+  rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
   concentration_constraint_policy = NULL, signal_themes_m_df = NULL, #Group constraints and returns sample clean
   #Choice of SB algorithm
   sb_algorithm = "ols", gsm_algorithm = "ols",
@@ -727,7 +734,7 @@ run_sb_backtest_internal <- function(
     #Prints for initial setup
     if(verbose){
       cat("\n")
-      cat(paste("Custom objective:", custom_objective, "\n"))
+      if(!sb_algorithm %in% c("ew", "rp")) cat(paste("Custom objective:", custom_objective, "\n"))
       if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) cat(paste("Eval Metric:", chosen_eval_metric, "\n"))
       cat(paste("Training sample size:", training_sample_size, "\n"))
       if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) cat(paste("Validation sample size:", validation_sample_size, "\n"))
@@ -746,7 +753,7 @@ run_sb_backtest_internal <- function(
     target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
 
     #Print for target
-    if(verbose)   cat("Predicting a", target_fwd, "months ahead target: ", target_fwd_name, "\n")
+    if(verbose)   cat("Predicting a", target_fwd, "months ahead target:", target_fwd_name, "\n")
 
     #Testing Sample Size
     testing_sample_size <- length(dates_m_vector) - training_sample_size - validation_sample_size + 1 #calculate testing sample size
@@ -771,7 +778,7 @@ run_sb_backtest_internal <- function(
     #Last rebalance date
     last_rebalance_date <- max(rebalance_dates)
     #Time expanding validation
-    if(!sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
+    if(!sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")){
       #Store hyperparameters choice (model complexity)
       #Store validation chosen eval
       chosen_eval_metric_validation <- list()
@@ -876,7 +883,7 @@ run_sb_backtest_internal <- function(
             if(any(!colnames(dplyr::select(selected_features_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(signal_themes_m_df %>% dplyr::pull(tickers)))){
               stop("all selected signals (with corrected positions) should have a theme classification in signal_themes_m_df")
             }
-            if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% signal_themes_m_df%>% dplyr::pull(tickers))){
+            if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% (signal_themes_m_df%>% dplyr::pull(tickers)))){
               stop("all selected signals in backtests (with corrected positions) should have a theme classification in signal_themes_m_df")
              }
             }
@@ -909,7 +916,7 @@ run_sb_backtest_internal <- function(
         )
 
         ####No tuning warning
-        if(verbose & sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
+        if(verbose & sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")){
           cat(sb_algorithm, "chosen as sb_algorithm. Data will be split only in training and test sets.\n")
         }
 
@@ -922,7 +929,7 @@ run_sb_backtest_internal <- function(
 
         ###Hyperparameter tuning!
         #########################
-        if(!sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){ #If sb_algorithm is OLS or heuristic, one just need to fit model do traininig + validation samples
+        if(!sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")){ #If sb_algorithm is OLS or heuristic, one just need to fit model do traininig + validation samples
 
           #Training Sample
           #################
@@ -1024,7 +1031,7 @@ run_sb_backtest_internal <- function(
           #Signal Ports Parameters
           most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
           selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref, selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
-          cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns,
+          cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, groups_m_d_ref = signal_themes_m_d_ref,
           rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
           concentration_constraint_policy = concentration_constraint_policy,
           upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization,

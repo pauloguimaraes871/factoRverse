@@ -43,7 +43,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                          custom_objective_translated, huber_delta, quantile_tau, early_stop, keras_architecture_parameters, #Model Parameters
                          optimal_hyper = NULL, chosen_eval_metric_translated, #Validation Parameters
                          most_recent_signal_universe_m_d_ref, selected_backtest_returns_corrected_positions_xts_upd_ref, #Signal Universe
-                         cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, selected_cov_matrix_benchmark_xts_upd_ref, #COV (for RP and MVO)
+                         cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, selected_cov_matrix_benchmark_xts_upd_ref, groups_m_d_ref, #COV (for RP and MVO)
                          rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO Methods
                          concentration_constraint_policy, #Concentration Constraint
                          upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose){ #MISC
@@ -153,6 +153,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                                 cov_matrix_sample_size = cov_matrix_sample_size,
                                                 cov_estimation_method = cov_estimation_method,
                                                 active_returns = active_returns,
+                                                groups_m_d_ref = groups_m_d_ref,
                                                 rp_method = rp_method
                      ),
                      ##MVO
@@ -163,6 +164,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                                  cov_matrix_sample_size = cov_matrix_sample_size,
                                                  cov_estimation_method = cov_estimation_method,
                                                  active_returns = active_returns,
+                                                 groups_m_d_ref = groups_m_d_ref,
                                                  random_ports_method = random_ports_method,
                                                  n_random_ports = n_random_ports,
                                                  opt_objective = opt_objective,
@@ -176,24 +178,24 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
   ###Transform port_obj into signal_port
   ######################
   if(sb_algorithm %in% c("ew", "sw", "rp", "mvo")){
-      sb_model <- new( # Convert port_obj to signal_port
-        "signal_port",
-        universe_m_d_ref = sb_model@universe_m_d_ref,
-        port_construction_method = sb_model@port_construction_method,
-        eligible_assets = sb_model@eligible_assets,
-        exp_ret_score = sb_model@exp_ret_score,
-        covariance_matrix = sb_model@covariance_matrix,
-        correlation_matrix = sb_model@correlation_matrix,
-        weights = sb_model@weights,
-        rel_risk_contr = sb_model@rel_risk_contr,
-        mvo_port_spec = sb_model@mvo_port_spec,
-        random_port_weights = sb_model@random_port_weights,
-        ind_max_weights = sb_model@ind_max_weights,
-        ind_min_weights = sb_model@ind_min_weights,
-        groups = sb_model@groups,
-        port_name = sb_model@port_name,
-        heuristic_sb_metric = if (sb_model@port_construction_method %in% c("sw", "mvo")) custom_objective_translated else NULL
-      )
+    sb_model <- new( # Convert port_obj to signal_port
+      "signal_port",
+      universe_m_d_ref = sb_model@universe_m_d_ref,
+      port_construction_method = sb_model@port_construction_method,
+      eligible_assets = sb_model@eligible_assets,
+      exp_ret_score = sb_model@exp_ret_score,
+      covariance_matrix = sb_model@covariance_matrix,
+      correlation_matrix = sb_model@correlation_matrix,
+      weights = sb_model@weights,
+      rel_risk_contr = sb_model@rel_risk_contr,
+      mvo_port_spec = sb_model@mvo_port_spec,
+      random_port_weights = sb_model@random_port_weights,
+      ind_max_weights = sb_model@ind_max_weights,
+      ind_min_weights = sb_model@ind_min_weights,
+      groups = sb_model@groups,
+      port_name = sb_model@port_name,
+      heuristic_sb_metric = if (sb_model@port_construction_method %in% c("sw", "mvo")) custom_objective_translated else NULL
+    )
   }
 
 

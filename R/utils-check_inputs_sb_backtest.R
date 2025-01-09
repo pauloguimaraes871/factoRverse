@@ -9,7 +9,7 @@
 #' @param validation_sample_size Numeric, size of the validation sample.
 #' @param rebalancing_months Numeric, number of months for rebalancing.
 #' @param split_method Character, method of data splitting (currently only "expanding" is supported).
-#' @param sb_algorithm Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto").
+#' @param sb_algorithm Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo").
 #' @param custom_objective Character, custom objective function for loss.
 #' @param chosen_eval_metric Character, chosen evaluation metric ("rmse", "mae", "cp", "rss", "mphe", "mpe", "hr", "mape").
 #' @param huber_delta Numeric, delta parameter for Huber loss (for "pseudo_huber_error" custom objective).
@@ -181,12 +181,6 @@ check_inputs_sb_backtest <- function(
           stop("dates in backtest_returns_xts must be of class Date")
         }
 
-        signals <- signal_universe_m_df %>% dplyr::pull(tickers) %>% unique()
-
-        if(any(!signals %in% colnames(backtest_returns_xts))){
-          stop("all signals in signal_universe_m_df must be present in backtest_returns_xts")
-        }
-
         if(nrow(backtest_returns_xts) < (training_sample_size + validation_sample_size)){
           stop("backtest_returns_xts must have at least training_sample_size + validation_sample_size rows")
         }
@@ -203,8 +197,8 @@ check_inputs_sb_backtest <- function(
           stop("backtest_returns_xts must have consecutive dates")
         }
 
-        if(length(backtest_returns_dates) <= covariance_matrix_sample_size){
-          stop("backtest_returns_xts must have more dates than covariance_matrix_sample_size")
+        if(length(backtest_returns_dates) <= cov_matrix_sample_size){
+          stop("backtest_returns_xts must have more dates than cov_matrix_sample_size")
         }
       }
 
@@ -241,17 +235,18 @@ check_inputs_sb_backtest <- function(
       }
 
       #signal_themes_m_df
-      if(sb_algorithm %in% c("rp", "mvo") && is.null(signal_themes_m_df)){
-        stop("signal_themes_m_df are strictly needed when sb_algorithm is either rp or mvo.")
+      if(!sb_algorithm %in% c("rp", "mvo") && !is.null(signal_themes_m_df)){
+        stop("signal_themes_m_df is only needed when sb_algorithm is either rp or mvo.")
       }
+
+      if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) & is.null(signal_themes_m_df)){
+        stop("signal_themes_m_df must be provided if max_abs_active_group_weight is given.")
+      }
+
       if(!is.null(signal_themes_m_df)){
         ##Check if signal_themes_m_df contemplates theme column
         if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
           stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
-        }
-
-        if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) & is.null(signal_themes_m_df)){
-          stop("signal_themes_m_df must be provided if max_abs_active_group_weight is given.")
         }
 
         ##Check if theme column is character
@@ -308,7 +303,7 @@ check_inputs_sb_backtest <- function(
         stop("validation_sample_size should be positive.")
       }
 
-      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") & validation_sample_size != 0){
+      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & validation_sample_size != 0){
         stop("ols and heuristic sb algorithms do not support validation split.")
       }
 
@@ -341,21 +336,19 @@ check_inputs_sb_backtest <- function(
         stop("First date of signal_universe_m_df should be before first training date.")
       }
 
-      ###Get signals
-      eligible_and_noneligible_signals <- signal_universe_m_df %>% dplyr::pull(tickers) %>% unique()
+      ###Get elected signals
+      eligible_signals <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers) %>% unique()
       ##Check signal presence in features_m_df
-      check_eligible_signals_presence_in_features_m_df <- !stringr::str_remove_all(eligible_and_noneligible_signals, pattern = "low_") %in% colnames(features_m_df)
+      check_eligible_signals_presence_in_features_m_df <- !stringr::str_remove_all(eligible_signals, pattern = "low_") %in% colnames(features_m_df)
       if (any(check_eligible_signals_presence_in_features_m_df)) {
         stop("There are eligible signals not present in features_m_df: ",
-             paste(stringr::str_remove_all(eligible_and_noneligible_signals, pattern = "low_")[check_eligible_signals_presence_in_features_m_df], collapse = ", ")
+             paste(stringr::str_remove_all(eligible_signals, pattern = "low_")[check_eligible_signals_presence_in_features_m_df], collapse = ", ")
         )
       }
 
       ##Check signal presence in signal_themes_m_df
-      ###Get elected signals
-      eligible_signals <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers) %>% unique()
       if(!is.null(signal_themes_m_df)){
-        check_signal_presence <- !eligible_signals %in% signal_themes_m_df %>% dplyr::pull(tickers)
+        check_signal_presence <- !eligible_signals %in% (signal_themes_m_df %>% dplyr::pull(tickers))
         if (any(check_signal_presence)) {
           stop("There is a signal mismatch between eligible_signals and signal_themes_m_df: ",
                paste(eligible_signals[check_signal_presence], collapse = ", ")
@@ -393,12 +386,12 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for correct hyperparameters names in hyper_grid_domain_list
-      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") & !is.null(hyper_grid_domain_list)){
+      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & !is.null(hyper_grid_domain_list)){
         stop("ols and heuristic sb algorithms do not support hyperparameters.")
       }
 
 
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") & is.null(hyper_grid_domain_list)){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & is.null(hyper_grid_domain_list)){
         stop("hyper_grid_domain must be set when sb_algorithm is different from ols.")
       }
 
@@ -406,12 +399,12 @@ check_inputs_sb_backtest <- function(
       #GLMNET
       if(sb_algorithm == "glmnet" && !all(names(hyper_grid_domain_list) == c("alpha", "lambda.min.ratio"))){
         stop("hyperparameters do not match sb_algorithm choice")
-      } else {}
+      }
 
       #RF
       if(sb_algorithm == "rf" && !all(names(hyper_grid_domain_list) == c("mtry", "num.trees", "max.depth", "min.bucket"))){
         stop("hyperparameters do not match sb_algorithm choice")
-      } else {}
+      }
 
       #XGB
       if(sb_algorithm == "xgb" && !all(names(hyper_grid_domain_list) == c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
@@ -427,12 +420,12 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for valid format in tuning method
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
         stop("tuning_method should be one of random_search, grid_search or bayesian_opt.")
-      } else {}
+      }
 
       #Check for correct format in case tuning method is grid_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") && tuning_method == c("grid_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("grid_search")){
         if(any(
           #Check if hyper_grid_domain_list is a list
           !(class(hyper_grid_domain_list) == "list"),
@@ -443,15 +436,15 @@ check_inputs_sb_backtest <- function(
         )
         ){
           stop("hyper_grid_domain_list not in correct format for grid_search tuning.")
-        } else {}
-      } else {}
+        }
+      }
 
-      if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto"), tuning_method == "grid_search",!is.null(n_iter))){
+      if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo"), tuning_method == "grid_search",!is.null(n_iter))){
         warning("When tuning_method is grid_search, hyperparameters are combined exhaustively. Ignoring any user set n_iter value")
       }
 
       #Check for correct format in case tuning method is random_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto")&& tuning_method == c("random_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")&& tuning_method == c("random_search")){
 
 
         tryCatch({
@@ -487,12 +480,12 @@ check_inputs_sb_backtest <- function(
           stop("n_iter must be numeric.")
         }
 
-      } else {}
+      }
 
 
 
       #Check for correct format in case tuning method is Bayesian Optimization
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mto") && tuning_method == c("bayesian_opt")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("bayesian_opt")){
         if(any(
           #Check if hyper_grid_domain_list is a list
           !is.list(hyper_grid_domain_list),
@@ -505,14 +498,14 @@ check_inputs_sb_backtest <- function(
         )
         ){
           stop("hyper_grid_domain_list not in correct format for bayesian_opt tuning.")
-        } else {}
+        }
 
         if(!acq %in% c("ucb", "ei", "poi")){
           stop("acq should be one of ucb, ei or poi")
-        } else {}
+        }
         if(any(!is.numeric(init_points), !is.numeric(n_iter), !is.numeric(k_iter))){
           stop("n_iter, k_iter and init_points must be numeric.")
-        } else {}
+        }
         if(init_points <= length(hyper_grid_domain_list)){
           stop("init_points must be greater than number of hyperparameters")
         }
@@ -527,17 +520,17 @@ check_inputs_sb_backtest <- function(
       #SB algorithms
       ################
       #Check for correct choice in sb_algorithm
-      if(!sb_algorithm %in% c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto")){
+      if(!sb_algorithm %in% c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo")){
         stop("sb_algorithm choice not supported.")
-      } else {}
+      }
 
       #Check for correct choice in custom_objective
-      if(all(!sb_algorithm %in% c("xgb", "nn", "sw", "mto") && custom_objective != "squared_error")){
-        stop("Custom objective functions are only allowed for xgb, nn, sw or mto sb_algorithm choices")
+      if(all(!sb_algorithm %in% c("xgb", "nn", "sw", "mvo") && custom_objective != "squared_error")){
+        stop("Custom objective functions are only allowed for xgb, nn, sw or mvo sb_algorithm choices")
       }
 
       #Check for custom objective
-      if(!sb_algorithm %in% c("sw", "mto")){
+      if(!sb_algorithm %in% c("sw", "mvo")){
         valid_heuristic_sb_metrics <- c(
           "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
           "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
@@ -609,7 +602,7 @@ check_inputs_sb_backtest <- function(
           stop("batch_norm_option should be logical")
         }
 
-        if(parallel == TRUE){
+        if(parallel){
           warning("keras models have some limitations regarding parallel computations. Use with care.")
         }
 
@@ -620,12 +613,17 @@ check_inputs_sb_backtest <- function(
       #Check for RP and MVO
       if(sb_algorithm %in% c("rp", "mvo")){
 
-        if(is.null(covariance_estimation_method)){
-          stop("covariance_estimation_method should be set for rp and mvo algorithms")
+        if(is.null(cov_estimation_method)){
+          stop("cov_estimation_method should be set for rp and mvo algorithms")
         }
-        if(!is.numeric(covariance_matrix_sample_size)){
-          stop("covariance_matrix_sample_size should be numeric")
+        if(!is.numeric(cov_matrix_sample_size)){
+          stop("cov_matrix_sample_size should be numeric")
         }
+
+        if(cov_matrix_sample_size > training_sample_size){
+          stop("cov_matrix_sample_size should be greater than or equal to training_sample_size")
+        }
+
         if(!is.logical(active_returns)){
           stop("active_returns should be logical")
         }
@@ -685,7 +683,7 @@ check_inputs_sb_backtest <- function(
         #Check domain
         if(!all(0 <= hyper_domain, hyper_domain <= 1)){
           stop("alpha should be set in interval [0,1]")
-        } else {}
+        }
         ##########
 
         #lambda.min.ratio
@@ -704,7 +702,7 @@ check_inputs_sb_backtest <- function(
         #Check domain
         if(!all(0 <= hyper_domain, hyper_domain < 1)){
           stop("lambda.min.ratio should be set in interval [0,1)")
-        } else {}
+        }
         ##########
       }
       ###############
@@ -733,12 +731,12 @@ check_inputs_sb_backtest <- function(
         } else {
           if(!all(is.integer(hyper_domain))){
             stop("num.trees should be integer")
-          } else {}
+          }
         }
 
         if(!all(hyper_domain > 0)){
           stop("num.trees should be positive")
-        } else {}
+        }
         ##########
 
         #mtry

@@ -31,6 +31,8 @@ test_that("set portfolio weights work for EW (signals)", {
 
   most_recent_signal_universe_m_d_ref$weights <- rep(0.20, 5)
 
+  most_recent_signal_universe_m_d_ref <- most_recent_signal_universe_m_d_ref
+
   cov_matrix <- cov(selected_backtest_returns_corrected_positions_xts[1:9,])
 
   #RRC
@@ -42,7 +44,7 @@ test_that("set portfolio weights work for EW (signals)", {
                                    returns_xts_upd_ref = mocked_backtest_returns_xts[1:9,]
   )
 
-  expect_equal(most_recent_signal_universe_m_d_ref, results@universe_m_d_ref@data)
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
   expect_equal(results@groups, NULL)
   expect_equal(results@eligible_assets, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
   expect_equal(results@groups, NULL)
@@ -91,7 +93,7 @@ test_that("set portfolio weights work for SW (signals) ", {
   results <- set_portfolio_weights(port_construction_method = "sw", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights))
 
 
-  expect_equal(most_recent_signal_universe_m_d_ref, results@universe_m_d_ref@data)
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
 
   expect_equal(results@groups, NULL)
   expect_equal(results@eligible_assets, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
@@ -112,7 +114,7 @@ test_that("set portfolio weights work for SW (signals) ", {
 
   results <- set_portfolio_weights(port_construction_method = "sw", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights))
 
-  expect_equal(most_recent_signal_universe_m_d_ref,results@universe_m_d_ref@data)
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id),results@universe_m_d_ref@data)
   expect_equal(results@groups, NULL)
   expect_equal(results@eligible_assets, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
   expect_equal(results@groups, NULL)
@@ -185,7 +187,7 @@ test_that("set portfolio weights work for RP (signals) ", {
                                    selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref
   )
 
-  expect_equal(most_recent_signal_universe_m_d_ref, results@universe_m_d_ref@data)
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
   expect_equal(results@groups, NULL)
   expect_equal(results@eligible_assets, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
   expect_equal(results@groups, NULL)
@@ -286,7 +288,7 @@ test_that("set portfolio weights work for MVO (signals) - unconstrained", {
                                     returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
                                     selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref)
 
-  expect_equal(most_recent_signal_universe_m_d_ref, results@universe_m_d_ref@data)
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
   expect_equal(results@groups, NULL)
   expect_equal(results@eligible_assets, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
   expect_equal(results@groups, NULL)
@@ -410,7 +412,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
                                    lower_quantile_winsorization = 0.05, upper_quantile_winsorization = 0.95
   )
 
-  expect_equal(most_recent_signal_universe_m_d_ref, results@universe_m_d_ref@data)
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
 
 
 })
@@ -521,7 +523,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   concentration_constraint_policy <- list(
     benchmark = "theme_ss",
     max_abs_active_individual_weight = 0.2,
-    max_abs_active_group_weight = 0.2
+    max_abs_active_group_weight = c(theme = 0.2)
   )
 
   set.seed(123)
@@ -538,7 +540,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   )
 
 
-  expect_equal(most_recent_signal_universe_m_d_ref, results@universe_m_d_ref@data)
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
 
   #Port Spec theme SB
   most_recent_signal_universe_m_d_ref <- most_recent_signal_universe_m_d_ref %>% dplyr::select(-max_weight, -min_weight,
@@ -598,7 +600,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   concentration_constraint_policy <- list(
     benchmark = "theme_sb",
     max_abs_active_individual_weight = 0.1,
-    max_abs_active_group_weight = 0.2
+    max_abs_active_group_weight = c(theme = 0.2)
   )
 
   set.seed(123)
@@ -614,7 +616,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
                                     lower_quantile_winsorization = 0.05, upper_quantile_winsorization = 0.95
   )
 
-  expect_equal(most_recent_signal_universe_m_d_ref, results@universe_m_d_ref@data)
+  expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
 
 
 })

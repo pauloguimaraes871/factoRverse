@@ -205,10 +205,10 @@ test_that("OLS - run_sb_backtest works with no rebalancing and a 1m target", {
                                                                        std_error, t_value, p_value)
   feature_importance_m_df$is_eligible <- c(0, 1, 1, 1)
   feature_importance_m_df <- feature_importance_m_df[order(feature_importance_m_df$id),]
-  expected_results$outputs[[4]] <- feature_importance_m_df
+  expected_results$outputs[[4]] <- feature_importance_m_df  %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
 
-  feature_importance_m_d_ref <- feature_importance_m_df #only one date in feature_importance_m_df
+  feature_importance_m_d_ref <- feature_importance_m_df %>% dplyr::select(-std_error, -t_value, -p_value) #only one date in feature_importance_m_df
   expected_results$outputs[[5]] <- feature_importance_m_d_ref
   expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
 
@@ -465,10 +465,10 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 1m target", {
 
   feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
 
-  expected_results$outputs[[4]] <- feature_importance_m_df
+  expected_results$outputs[[4]] <- feature_importance_m_df %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
 
-  expected_results$outputs[[5]] <- feature_importance_m_df2
+  expected_results$outputs[[5]] <- feature_importance_m_df2 %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
 
 
@@ -701,10 +701,10 @@ test_that("OLS - run_sb_backtest works with rebalancing occuring at last month a
 
   feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
 
-  expected_results$outputs[[4]] <- feature_importance_m_df
+  expected_results$outputs[[4]] <- feature_importance_m_df  %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
 
-  expected_results$outputs[[5]] <- feature_importance_m_df2
+  expected_results$outputs[[5]] <- feature_importance_m_df2 %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
 
 })
@@ -935,10 +935,10 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 3m target", {
   feature_importance_m_df$is_eligible <- c(0, 1, 1, 1)
   feature_importance_m_df <- feature_importance_m_df[order(feature_importance_m_df$id),]
 
-  expected_results$outputs[[4]] <- feature_importance_m_df
+  expected_results$outputs[[4]] <- feature_importance_m_df %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
 
-  expected_results$outputs[[5]] <- feature_importance_m_df
+  expected_results$outputs[[5]] <- feature_importance_m_df %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(expected_results$outputs[[5]], sb_backtest_results@feature_importance_m_df@data)
 
 })
@@ -1344,10 +1344,10 @@ test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced pa
 
   feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
 
-  expected_results$outputs[[4]] <- feature_importance_m_df
+  expected_results$outputs[[4]] <- feature_importance_m_df %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
 
-  expected_results$outputs[[5]] <- feature_importance_m_df2
+  expected_results$outputs[[5]] <- feature_importance_m_df2 %>% dplyr::select(-std_error, -t_value, -p_value)
   expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
 
 
@@ -1667,65 +1667,899 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
   preds <- predict(first_model, new_features_m_df = features_first_rebal)
   gsm <- lm(preds ~ ., data = features_first_rebal) #Date used to fit lm model
 
-  feature_importance_m_df1 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
-  colnames(feature_importance_m_df1) <- c("tickers", "importance", "std_error", "t_value", "p_value")
-  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(tickers, importance)
-  feature_importance_m_df1$normalized_importance <-
-    (feature_importance_m_df1$importance - mean(feature_importance_m_df1$importance))/sd(feature_importance_m_df1$importance)
-  non_eligible <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15", is_eligible == 0) %>% dplyr::select(tickers)
-  feature_importance_m_df1 <- dplyr::bind_rows(non_eligible, feature_importance_m_df1) #Include non elected
-
+  #Start object
+  feature_importance_m_df1 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15") %>%
+    dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
+  #Get coefs
+  ols_coefs <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column() %>%
+    dplyr::rename(tickers = rowname, importance = Estimate) %>% dplyr::select(tickers, importance) %>%
+    dplyr::mutate(tickers = gsub("`", "", tickers))
+  ols_coefs$normalized_importance <- (ols_coefs$importance - mean(ols_coefs$importance))/sd(ols_coefs$importance)
+  #Join and adjust
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::full_join(ols_coefs, by = "tickers")
   feature_importance_m_df1$dates <- as.Date("2022-11-15") #Rebalance date
   feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
-  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates, importance, normalized_importance)
-  feature_importance_m_df1$tickers <- gsub("`", "", feature_importance_m_df1$tickers)
-  feature_importance_m_df1$id <- gsub("`", "", feature_importance_m_df1$id)
-  feature_importance_m_df1$importance[c(1:3)] <- c(0,0,0)
-  feature_importance_m_df1$normalized_importance[c(1:3)] <- c(0,0,0)
-
-  feature_importance_m_df1$is_eligible <- c(0, 0, 0, 0, ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15",
-                                                                                                      tickers %in% colnames(features_first_rebal)) %>% dplyr::pull(is_eligible))
+  #Reorder
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates,
+                                                                         importance, normalized_importance, theme, theme_ss_bench_weights, theme_sb_bench_weights, is_eligible)
+  #Force non-elected to be zero
+  feature_importance_m_df1$importance[which(is.na(feature_importance_m_df1$importance))] <- 0
+  feature_importance_m_df1$normalized_importance[which(is.na(feature_importance_m_df1$normalized_importance))] <- 0
+  feature_importance_m_df1$theme_ss_bench_weights[which(is.na(feature_importance_m_df1$theme_ss_bench_weights))] <- 0
+  feature_importance_m_df1$theme_sb_bench_weights[which(is.na(feature_importance_m_df1$theme_sb_bench_weights))] <- 0
+  feature_importance_m_df1$is_eligible[which(is.na(feature_importance_m_df1$is_eligible))] <- 0
 
   feature_importance_m_df1 <- feature_importance_m_df1[order(feature_importance_m_df1$id),]
+
 
   #gsm 2
   preds <- predict(second_model, new_features_m_df = features_second_rebal)
   gsm <- lm(preds ~ ., data = features_second_rebal) #Date used to fit lm model
 
-  feature_importance_m_df2 <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column()
-  colnames(feature_importance_m_df2) <- c("tickers", "importance", "std_error", "t_value", "p_value")
-  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(tickers, importance)
-  feature_importance_m_df2$normalized_importance <-
-    (feature_importance_m_df2$importance - mean(feature_importance_m_df2$importance))/sd(feature_importance_m_df2$importance)
-  non_eligible <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15", is_eligible == 0) %>% dplyr::select(tickers)
-  feature_importance_m_df2 <- dplyr::bind_rows(non_eligible,
-                                               feature_importance_m_df2) #Include non elected
+  #Start object
+  feature_importance_m_df2 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15") %>%
+    dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
+  #Get coefs
+  ols_coefs <- suppressWarnings(coef(summary(gsm))) %>% as.data.frame() %>% tibble::rownames_to_column() %>%
+    dplyr::rename(tickers = rowname, importance = Estimate) %>% dplyr::select(tickers, importance) %>%
+    dplyr::mutate(tickers = gsub("`", "", tickers))
+  ols_coefs$normalized_importance <- (ols_coefs$importance - mean(ols_coefs$importance))/sd(ols_coefs$importance)
+  #Join and adjust
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::full_join(ols_coefs, by = "tickers")
   feature_importance_m_df2$dates <- as.Date("2023-07-15") #Rebalance date
   feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
-  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates, importance, normalized_importance)
-  feature_importance_m_df2$tickers <- gsub("`", "", feature_importance_m_df2$tickers)
-  feature_importance_m_df2$id <- gsub("`", "", feature_importance_m_df2$id)
+  #Reorder
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates,
+                                                                         importance, normalized_importance, theme, theme_ss_bench_weights, theme_sb_bench_weights, is_eligible)
+  #Force non-elected to be zero
+  feature_importance_m_df2$importance[which(is.na(feature_importance_m_df2$importance))] <- 0
+  feature_importance_m_df2$normalized_importance[which(is.na(feature_importance_m_df2$normalized_importance))] <- 0
+  feature_importance_m_df2$theme_ss_bench_weights[which(is.na(feature_importance_m_df2$theme_ss_bench_weights))] <- 0
+  feature_importance_m_df2$theme_sb_bench_weights[which(is.na(feature_importance_m_df2$theme_sb_bench_weights))] <- 0
+  feature_importance_m_df2$is_eligible[which(is.na(feature_importance_m_df2$is_eligible))] <- 0
 
-  feature_importance_m_df2$is_eligible <- c(0, 0,0, ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15",
-                                                                                                      tickers %in% colnames(features_second_rebal)) %>% dplyr::pull(is_eligible))
-  feature_importance_m_df2$importance[c(1:2)] <- 0
-  feature_importance_m_df2$normalized_importance[c(1:2)] <- 0
   feature_importance_m_df2 <- feature_importance_m_df2[order(feature_importance_m_df2$id),]
 
-  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
 
+  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
 
   expected_results$outputs[[4]] <- feature_importance_m_df
   expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
 
   expected_results$outputs[[5]] <- feature_importance_m_df2
+  rownames(expected_results$outputs[[5]]) <- NULL
+  rownames(sb_backtest_results@final_feature_importance_m_d_ref@data) <- NULL
   expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
-
 
 })
 
 ###################
 #END OLS TESTS
+
+#BEGIN SIGNAL PORT TESTS (TRAINING + TESTING)
+####################
+#Define your test
+test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates))
+
+  #Benchmark Returns XTS
+  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+    IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+    SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+  ),  order.by = unique(toy_preprocessed_features$dates))
+
+
+  #Chosen Signals and Positions
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  #Mocked Signal Themes
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_xts),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  ##SS Config
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.15, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
+                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    verbose = TRUE
+    )
+  )
+
+  ##RP Config
+  rp_config <- create_sb_backtest_config(sb_algorithm = "rp", rebalancing_months = 7, training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
+    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 4, active_returns = TRUE, cov_matrix_benchmark = "IBOV") %>%
+    add_rp_parameters(rp_method = "cyclical-spinu") %>%
+    add_ss_backtest_obj(ss_results)
+
+  target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target")
+
+  #Apply FUN
+  suppressMessages(suppressWarnings({
+    sb_backtest_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      gsm_algorithm = "tree",
+      backtest_returns_xts = mocked_backtest_returns_xts,
+      benchmark_returns_xts = mocked_benchmark_returns_xts,
+      config = rp_config)
+  }))
+
+
+  #1st rebalancing
+  #Most recent xts
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2022-09-15")
+  selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2022-11-15",
+                                                                              most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+  selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2022-11-15", "IBOV"]
+
+  #Features Objects
+  selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers))
+
+  selected_features_first_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+
+  #Targets
+  targets_first_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+
+  #Fitting
+  first_sb_port <- fit_sb_model(sb_algorithm = "rp", target_fwd_name = "fwd_premium_3m",
+                                selected_features_corrected_positions_m_refit = selected_features_first_rebal,
+                                most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
+                                custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
+                                selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                rp_method = "cyclical-spinu"
+                                )
+  #Predict
+  dates_first_prediction <- c("2022-11-15", "2022-12-15", "2023-01-15",
+                              "2023-02-15", "2023-03-15", "2023-04-15",
+                              "2023-05-15", "2023-06-15")
+  #Resulting vectors
+  prediction_list_first_prediction <- list()
+  y_list_first_prediction <- list()
+  error_list_first_prediction <- list()
+  y_list_first_prediction <- list()
+  r_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  cp_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  rmse_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mae_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  pseudo_huber_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  pinball_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mape_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  hr_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mb_oos_first_prediction <- vector(length = length(dates_first_prediction))
+
+
+  #First Predictions
+  for(i in 1:length(dates_first_prediction)){
+
+    #Subset for each date
+    features_first_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_first_prediction[i]),]
+    target_first_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_first_prediction[i])]
+
+    #Fill obj
+    prediction_list_first_prediction[[i]] <- predict(first_sb_port, features_first_prediction)
+    error_list_first_prediction[[i]] <- target_first_prediction - prediction_list_first_prediction[[i]]
+    y_list_first_prediction[[i]] <- target_first_prediction
+
+    #Rename
+    names(prediction_list_first_prediction[[i]]) <- features_first_prediction$tickers
+    names(error_list_first_prediction[[i]]) <- features_first_prediction$tickers
+    names(y_list_first_prediction[[i]]) <- features_first_prediction$tickers
+
+    r_oos_first_prediction[i] <- 1 - (sum(error_list_first_prediction[[i]]^(2))/sum(y_list_first_prediction[[i]]^2))
+    cp_oos_first_prediction[i] <- sum((y_list_first_prediction[[i]])*(prediction_list_first_prediction[[i]]))/length(y_list_first_prediction[[i]])
+    rmse_oos_first_prediction[i] <- sqrt(sum(error_list_first_prediction[[i]]^(2))/length(y_list_first_prediction[[i]]))
+    mae_oos_first_prediction[i] <- sum(abs(error_list_first_prediction[[i]]))/length(y_list_first_prediction[[i]])
+    pseudo_huber_oos_first_prediction[i] <- mean(1^2*(sqrt(1+(error_list_first_prediction[[i]])^2)-1))
+    pinball_oos_first_prediction[i] <- mean(ifelse(error_list_first_prediction[[i]] >= 0, 0.5*error_list_first_prediction[[i]], (1-0.5)*(-1)*error_list_first_prediction[[i]]))
+    mape_oos_first_prediction[i] <- mean(abs(error_list_first_prediction[[i]]/y_list_first_prediction[[i]]))
+    hr_oos_first_prediction[i] <- length(which(sign(y_list_first_prediction[[i]]) == sign(prediction_list_first_prediction[[i]])))/length(y_list_first_prediction[[i]])
+    mb_oos_first_prediction[i] <- mean(error_list_first_prediction[[i]])
+
+  }
+  #Set dates
+  names(prediction_list_first_prediction) <- dates_first_prediction
+  names(error_list_first_prediction) <- dates_first_prediction
+  names(y_list_first_prediction) <- dates_first_prediction
+  names(r_oos_first_prediction) <- dates_first_prediction
+  names(cp_oos_first_prediction) <- dates_first_prediction
+  names(rmse_oos_first_prediction) <- dates_first_prediction
+  names(mae_oos_first_prediction) <- dates_first_prediction
+  names(pseudo_huber_oos_first_prediction) <- dates_first_prediction
+  names(pinball_oos_first_prediction) <- dates_first_prediction
+  names(mape_oos_first_prediction) <- dates_first_prediction
+  names(hr_oos_first_prediction) <- dates_first_prediction
+  names(mb_oos_first_prediction) <- dates_first_prediction
+
+
+  #2nd rebalancing
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2023-06-15")
+  selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2023-07-15",
+                                                                              most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+  selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2023-07-15", "IBOV"]
+
+  #Features Objects
+  selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers))
+
+  selected_features_second_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                                             "2022-10-15",
+                                                                                                                             "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                                             "2023-02-15", "2023-03-15", "2023-04-15")),]
+
+  #Targets
+  targets_second_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                     "2022-10-15",
+                                                                                                     "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                     "2023-02-15", "2023-03-15", "2023-04-15")),]
+
+
+  #Fitting
+  second_sb_port <- fit_sb_model(sb_algorithm = "rp", target_fwd_name = "fwd_premium_3m",
+                                selected_features_corrected_positions_m_refit = selected_features_second_rebal,
+                                most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
+                                custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
+                                selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                rp_method = "cyclical-spinu"
+  )
+
+
+
+  #Predict
+  dates_second_prediction <- c("2023-07-15")
+  #Resulting obj
+  prediction_list_second_prediction <- list()
+  y_list_second_prediction <- list()
+  error_list_second_prediction <- list()
+  r_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  cp_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  rmse_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mae_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  pseudo_huber_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  pinball_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mape_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  hr_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mb_oos_second_prediction <- vector(length = length(dates_second_prediction))
+
+
+
+
+  for(i in 1:length(dates_second_prediction)){
+
+    #Subset for each date
+    features_second_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_second_prediction[i]),]
+    target_second_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_second_prediction[i])]
+
+    #Fill obj
+    prediction_list_second_prediction[[i]] <- predict(second_sb_port, features_second_prediction)
+    error_list_second_prediction[[i]] <- target_second_prediction - prediction_list_second_prediction[[i]]
+    y_list_second_prediction[[i]] <- target_second_prediction
+
+    #Rename
+    names(prediction_list_second_prediction[[i]]) <- features_second_prediction$tickers
+    names(error_list_second_prediction[[i]]) <- features_second_prediction$tickers
+    names(y_list_second_prediction[[i]]) <- features_second_prediction$tickers
+
+    r_oos_second_prediction[i] <- 1 - (sum(error_list_second_prediction[[i]]^(2))/sum(y_list_second_prediction[[i]]^2))
+    cp_oos_second_prediction[i] <- sum((y_list_second_prediction[[i]])*(prediction_list_second_prediction[[i]]))/length(y_list_second_prediction[[i]])
+    rmse_oos_second_prediction[i] <- sqrt(sum(error_list_second_prediction[[i]]^(2))/length(y_list_second_prediction[[i]]))
+    mae_oos_second_prediction[i] <- sum(abs(error_list_second_prediction[[i]]))/length(y_list_second_prediction[[i]])
+    pseudo_huber_oos_second_prediction[i] <- mean(1^2*(sqrt(1+(error_list_second_prediction[[i]])^2)-1))
+    pinball_oos_second_prediction[i] <- mean(ifelse(error_list_second_prediction[[i]] >= 0, 0.5*error_list_second_prediction[[i]], (1-0.5)*(-1)*error_list_second_prediction[[i]]))
+    mape_oos_second_prediction[i] <- mean(abs(error_list_second_prediction[[i]]/y_list_second_prediction[[i]]))
+    hr_oos_second_prediction[i] <- length(which(sign(y_list_second_prediction[[i]]) == sign(prediction_list_second_prediction[[i]])))/length(y_list_second_prediction[[i]])
+    mb_oos_second_prediction[i] <- mean(error_list_second_prediction[[i]])
+
+
+  }
+  #Set dates
+  names(prediction_list_second_prediction) <- dates_second_prediction
+  names(error_list_second_prediction) <- dates_second_prediction
+  names(y_list_second_prediction) <- dates_second_prediction
+  names(r_oos_second_prediction) <- dates_second_prediction
+  names(cp_oos_second_prediction) <- dates_second_prediction
+  names(rmse_oos_second_prediction) <- dates_second_prediction
+  names(mae_oos_second_prediction) <- dates_second_prediction
+  names(pseudo_huber_oos_second_prediction) <- dates_second_prediction
+  names(pinball_oos_second_prediction) <- dates_second_prediction
+  names(mape_oos_second_prediction) <- dates_second_prediction
+  names(hr_oos_second_prediction) <- dates_second_prediction
+  names(mb_oos_second_prediction) <- dates_second_prediction
+
+
+  #Create final objects
+  expected_results <- list()
+  outputs <- list()
+
+  expected_results[[1]] <- outputs
+  #Prediction list
+  prediction_list <- c(prediction_list_first_prediction, prediction_list_second_prediction)
+  names(prediction_list) <- c(names(prediction_list_first_prediction), names(prediction_list_second_prediction))
+
+
+  #Error list
+  error_list <- c(error_list_first_prediction, error_list_second_prediction)
+  names(error_list) <- c(names(error_list_first_prediction), names(error_list_second_prediction))
+
+
+  #Y list
+  y_list <- c(y_list_first_prediction, y_list_second_prediction)
+  names(y_list) <- c(names(y_list_first_prediction), names(y_list_second_prediction))
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
+
+  #Eval metrics
+  eval_metrics <- xts::xts(data.frame(rss = c(r_oos_first_prediction, r_oos_second_prediction),
+                                      cp = c(cp_oos_first_prediction, cp_oos_second_prediction),
+                                      rmse = c(rmse_oos_first_prediction, rmse_oos_second_prediction),
+                                      mae = c(mae_oos_first_prediction, mae_oos_second_prediction),
+                                      mphe = c(pseudo_huber_oos_first_prediction, pseudo_huber_oos_second_prediction),
+                                      mpe = c(pinball_oos_first_prediction, pinball_oos_second_prediction),
+                                      mape = c(mape_oos_first_prediction, mape_oos_second_prediction),
+                                      hr = c(hr_oos_first_prediction, hr_oos_second_prediction),
+                                      mb = c(mb_oos_first_prediction, mb_oos_second_prediction)),
+                           order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
+
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
+
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
+
+  #gsm 1
+  preds <- predict(first_sb_port, new_features_m_df = selected_features_first_rebal)
+  gsm <- rpart::rpart(preds ~ ., data = selected_features_first_rebal[,-c(1:3)]) #Date used to fit lm model
+
+  #Start object
+  feature_importance_m_df1 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15") %>%
+    dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
+  #Get coefs
+  tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
+
+  tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
+  #Join and adjust
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::full_join(tree_coefs, by = "tickers")
+  feature_importance_m_df1$dates <- as.Date("2022-11-15") #Rebalance date
+  feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
+  #Reorder
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates,
+                                                                         importance, normalized_importance, theme, theme_ss_bench_weights, theme_sb_bench_weights, is_eligible)
+  #Force non-elected to be zero
+  feature_importance_m_df1$importance[which(is.na(feature_importance_m_df1$importance))] <- 0
+  feature_importance_m_df1$normalized_importance[which(is.na(feature_importance_m_df1$normalized_importance))] <- 0
+  feature_importance_m_df1$theme_ss_bench_weights[which(is.na(feature_importance_m_df1$theme_ss_bench_weights))] <- 0
+  feature_importance_m_df1$theme_sb_bench_weights[which(is.na(feature_importance_m_df1$theme_sb_bench_weights))] <- 0
+  feature_importance_m_df1$is_eligible[which(is.na(feature_importance_m_df1$is_eligible))] <- 0
+
+  feature_importance_m_df1 <- feature_importance_m_df1[order(feature_importance_m_df1$id),]
+
+
+  #gsm 2
+  preds <- predict(second_sb_port, new_features_m_df = selected_features_second_rebal)
+  gsm <- rpart::rpart(preds ~ ., data = selected_features_second_rebal[,-c(1:3)]) #Date used to fit lm model
+
+
+  #Start object
+  feature_importance_m_df2 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15") %>%
+    dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
+  #Get coefs
+  tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
+
+  tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
+  #Join and adjust
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::full_join(tree_coefs, by = "tickers")
+  feature_importance_m_df2$dates <- as.Date("2023-07-15") #Rebalance date
+  feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
+  #Reorder
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates,
+                                                                         importance, normalized_importance, theme, theme_ss_bench_weights, theme_sb_bench_weights, is_eligible)
+  #Force non-elected to be zero
+  feature_importance_m_df2$importance[which(is.na(feature_importance_m_df2$importance))] <- 0
+  feature_importance_m_df2$normalized_importance[which(is.na(feature_importance_m_df2$normalized_importance))] <- 0
+  feature_importance_m_df2$theme_ss_bench_weights[which(is.na(feature_importance_m_df2$theme_ss_bench_weights))] <- 0
+  feature_importance_m_df2$theme_sb_bench_weights[which(is.na(feature_importance_m_df2$theme_sb_bench_weights))] <- 0
+  feature_importance_m_df2$is_eligible[which(is.na(feature_importance_m_df2$is_eligible))] <- 0
+
+  feature_importance_m_df2 <- feature_importance_m_df2[order(feature_importance_m_df2$id),]
+
+
+  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
+
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
+
+  expected_results$outputs[[5]] <- feature_importance_m_df2
+  rownames(expected_results$outputs[[5]]) <- NULL
+  rownames(sb_backtest_results@final_feature_importance_m_d_ref@data) <- NULL
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
+
+})
+
+test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_targets", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates))
+
+  #Benchmark Returns XTS
+  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+    IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+    SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+  ),  order.by = unique(toy_preprocessed_features$dates))
+
+
+  #Chosen Signals and Positions
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  #Mocked Signal Themes
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_xts),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  mocked_signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  ##SS Config
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.15, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
+                    signal_themes_m_df = mocked_signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    verbose = TRUE
+    )
+  )
+
+  ##MVO Config
+  mvo_config <- create_sb_backtest_config(sb_algorithm = "mvo", rebalancing_months = 7, training_sample_size = 5, target_fwd_name = "fwd_premium_3m",
+                                          custom_objective = "max_info_ratio") %>%
+    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 4, active_returns = TRUE, cov_matrix_benchmark = "IBOV") %>%
+    add_mvo_parameters(n_random_ports = 100, opt_objective = "return") %>%
+    add_concentration_constraint_policy(benchmark = "theme_sb", max_abs_active_group_weight = c(theme = 0.2)) %>%
+    add_ss_backtest_obj(ss_results)
+
+  target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target")
+
+  #Apply FUN
+  suppressMessages(suppressWarnings({
+    sb_backtest_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      gsm_algorithm = "tree",
+      backtest_returns_xts = mocked_backtest_returns_xts,
+      benchmark_returns_xts = mocked_benchmark_returns_xts,
+      signal_themes_m_df = mocked_signal_themes_m_df,
+      config = mvo_config)
+  }))
+
+
+  #1st rebalancing
+  #Most recent xts
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2022-09-15")
+  selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2022-11-15",
+                                                                              most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+  selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2022-11-15", "IBOV"]
+
+  #Features Objects
+  selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers))
+
+  selected_features_first_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+
+  #Targets
+  targets_first_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+
+  #Fitting
+  first_sb_port <- fit_sb_model(sb_algorithm = "mvo", target_fwd_name = "fwd_premium_3m",
+                                selected_features_corrected_positions_m_refit = selected_features_first_rebal,
+                                most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = mocked_signal_themes_m_df@data,
+                                custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                opt_objective = "return", n_random_ports = 100,
+                                concentration_constraint_policy =
+                                  list(benchmark = "theme_sb", max_abs_active_group_weight = c(theme = 0.2),
+                                       max_abs_active_individual_weight = NULL),
+                                keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
+                                selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                rp_method = "cyclical-spinu"
+  )
+  #Predict
+  dates_first_prediction <- c("2022-11-15", "2022-12-15", "2023-01-15",
+                              "2023-02-15", "2023-03-15", "2023-04-15",
+                              "2023-05-15", "2023-06-15")
+  #Resulting vectors
+  prediction_list_first_prediction <- list()
+  y_list_first_prediction <- list()
+  error_list_first_prediction <- list()
+  y_list_first_prediction <- list()
+  r_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  cp_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  rmse_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mae_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  pseudo_huber_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  pinball_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mape_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  hr_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mb_oos_first_prediction <- vector(length = length(dates_first_prediction))
+
+
+  #First Predictions
+  for(i in 1:length(dates_first_prediction)){
+
+    #Subset for each date
+    features_first_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_first_prediction[i]),]
+    target_first_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_first_prediction[i])]
+
+    #Fill obj
+    prediction_list_first_prediction[[i]] <- predict(first_sb_port, features_first_prediction)
+    error_list_first_prediction[[i]] <- target_first_prediction - prediction_list_first_prediction[[i]]
+    y_list_first_prediction[[i]] <- target_first_prediction
+
+    #Rename
+    names(prediction_list_first_prediction[[i]]) <- features_first_prediction$tickers
+    names(error_list_first_prediction[[i]]) <- features_first_prediction$tickers
+    names(y_list_first_prediction[[i]]) <- features_first_prediction$tickers
+
+    r_oos_first_prediction[i] <- 1 - (sum(error_list_first_prediction[[i]]^(2))/sum(y_list_first_prediction[[i]]^2))
+    cp_oos_first_prediction[i] <- sum((y_list_first_prediction[[i]])*(prediction_list_first_prediction[[i]]))/length(y_list_first_prediction[[i]])
+    rmse_oos_first_prediction[i] <- sqrt(sum(error_list_first_prediction[[i]]^(2))/length(y_list_first_prediction[[i]]))
+    mae_oos_first_prediction[i] <- sum(abs(error_list_first_prediction[[i]]))/length(y_list_first_prediction[[i]])
+    pseudo_huber_oos_first_prediction[i] <- mean(1^2*(sqrt(1+(error_list_first_prediction[[i]])^2)-1))
+    pinball_oos_first_prediction[i] <- mean(ifelse(error_list_first_prediction[[i]] >= 0, 0.5*error_list_first_prediction[[i]], (1-0.5)*(-1)*error_list_first_prediction[[i]]))
+    mape_oos_first_prediction[i] <- mean(abs(error_list_first_prediction[[i]]/y_list_first_prediction[[i]]))
+    hr_oos_first_prediction[i] <- length(which(sign(y_list_first_prediction[[i]]) == sign(prediction_list_first_prediction[[i]])))/length(y_list_first_prediction[[i]])
+    mb_oos_first_prediction[i] <- mean(error_list_first_prediction[[i]])
+
+  }
+  #Set dates
+  names(prediction_list_first_prediction) <- dates_first_prediction
+  names(error_list_first_prediction) <- dates_first_prediction
+  names(y_list_first_prediction) <- dates_first_prediction
+  names(r_oos_first_prediction) <- dates_first_prediction
+  names(cp_oos_first_prediction) <- dates_first_prediction
+  names(rmse_oos_first_prediction) <- dates_first_prediction
+  names(mae_oos_first_prediction) <- dates_first_prediction
+  names(pseudo_huber_oos_first_prediction) <- dates_first_prediction
+  names(pinball_oos_first_prediction) <- dates_first_prediction
+  names(mape_oos_first_prediction) <- dates_first_prediction
+  names(hr_oos_first_prediction) <- dates_first_prediction
+  names(mb_oos_first_prediction) <- dates_first_prediction
+
+
+  #2nd rebalancing
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1, dates == "2023-06-15")
+  selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2023-07-15",
+                                                                              most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+  selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2023-07-15", "IBOV"]
+
+  #Features Objects
+  selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers))
+
+  selected_features_second_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                                             "2022-10-15",
+                                                                                                                             "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                                             "2023-02-15", "2023-03-15", "2023-04-15")),]
+
+  #Targets
+  targets_second_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                     "2022-10-15",
+                                                                                                     "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                     "2023-02-15", "2023-03-15", "2023-04-15")),]
+
+
+  #Fitting
+  second_sb_port <- fit_sb_model(sb_algorithm = "rp", target_fwd_name = "fwd_premium_3m",
+                                 selected_features_corrected_positions_m_refit = selected_features_second_rebal,
+                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                 selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
+                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
+                                 selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                 rp_method = "cyclical-spinu"
+  )
+
+
+
+  #Predict
+  dates_second_prediction <- c("2023-07-15")
+  #Resulting obj
+  prediction_list_second_prediction <- list()
+  y_list_second_prediction <- list()
+  error_list_second_prediction <- list()
+  r_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  cp_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  rmse_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mae_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  pseudo_huber_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  pinball_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mape_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  hr_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mb_oos_second_prediction <- vector(length = length(dates_second_prediction))
+
+
+
+
+  for(i in 1:length(dates_second_prediction)){
+
+    #Subset for each date
+    features_second_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_second_prediction[i]),]
+    target_second_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_second_prediction[i])]
+
+    #Fill obj
+    prediction_list_second_prediction[[i]] <- predict(second_sb_port, features_second_prediction)
+    error_list_second_prediction[[i]] <- target_second_prediction - prediction_list_second_prediction[[i]]
+    y_list_second_prediction[[i]] <- target_second_prediction
+
+    #Rename
+    names(prediction_list_second_prediction[[i]]) <- features_second_prediction$tickers
+    names(error_list_second_prediction[[i]]) <- features_second_prediction$tickers
+    names(y_list_second_prediction[[i]]) <- features_second_prediction$tickers
+
+    r_oos_second_prediction[i] <- 1 - (sum(error_list_second_prediction[[i]]^(2))/sum(y_list_second_prediction[[i]]^2))
+    cp_oos_second_prediction[i] <- sum((y_list_second_prediction[[i]])*(prediction_list_second_prediction[[i]]))/length(y_list_second_prediction[[i]])
+    rmse_oos_second_prediction[i] <- sqrt(sum(error_list_second_prediction[[i]]^(2))/length(y_list_second_prediction[[i]]))
+    mae_oos_second_prediction[i] <- sum(abs(error_list_second_prediction[[i]]))/length(y_list_second_prediction[[i]])
+    pseudo_huber_oos_second_prediction[i] <- mean(1^2*(sqrt(1+(error_list_second_prediction[[i]])^2)-1))
+    pinball_oos_second_prediction[i] <- mean(ifelse(error_list_second_prediction[[i]] >= 0, 0.5*error_list_second_prediction[[i]], (1-0.5)*(-1)*error_list_second_prediction[[i]]))
+    mape_oos_second_prediction[i] <- mean(abs(error_list_second_prediction[[i]]/y_list_second_prediction[[i]]))
+    hr_oos_second_prediction[i] <- length(which(sign(y_list_second_prediction[[i]]) == sign(prediction_list_second_prediction[[i]])))/length(y_list_second_prediction[[i]])
+    mb_oos_second_prediction[i] <- mean(error_list_second_prediction[[i]])
+
+
+  }
+  #Set dates
+  names(prediction_list_second_prediction) <- dates_second_prediction
+  names(error_list_second_prediction) <- dates_second_prediction
+  names(y_list_second_prediction) <- dates_second_prediction
+  names(r_oos_second_prediction) <- dates_second_prediction
+  names(cp_oos_second_prediction) <- dates_second_prediction
+  names(rmse_oos_second_prediction) <- dates_second_prediction
+  names(mae_oos_second_prediction) <- dates_second_prediction
+  names(pseudo_huber_oos_second_prediction) <- dates_second_prediction
+  names(pinball_oos_second_prediction) <- dates_second_prediction
+  names(mape_oos_second_prediction) <- dates_second_prediction
+  names(hr_oos_second_prediction) <- dates_second_prediction
+  names(mb_oos_second_prediction) <- dates_second_prediction
+
+
+  #Create final objects
+  expected_results <- list()
+  outputs <- list()
+
+  expected_results[[1]] <- outputs
+  #Prediction list
+  prediction_list <- c(prediction_list_first_prediction, prediction_list_second_prediction)
+  names(prediction_list) <- c(names(prediction_list_first_prediction), names(prediction_list_second_prediction))
+
+
+  #Error list
+  error_list <- c(error_list_first_prediction, error_list_second_prediction)
+  names(error_list) <- c(names(error_list_first_prediction), names(error_list_second_prediction))
+
+
+  #Y list
+  y_list <- c(y_list_first_prediction, y_list_second_prediction)
+  names(y_list) <- c(names(y_list_first_prediction), names(y_list_second_prediction))
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
+
+  #Eval metrics
+  eval_metrics <- xts::xts(data.frame(rss = c(r_oos_first_prediction, r_oos_second_prediction),
+                                      cp = c(cp_oos_first_prediction, cp_oos_second_prediction),
+                                      rmse = c(rmse_oos_first_prediction, rmse_oos_second_prediction),
+                                      mae = c(mae_oos_first_prediction, mae_oos_second_prediction),
+                                      mphe = c(pseudo_huber_oos_first_prediction, pseudo_huber_oos_second_prediction),
+                                      mpe = c(pinball_oos_first_prediction, pinball_oos_second_prediction),
+                                      mape = c(mape_oos_first_prediction, mape_oos_second_prediction),
+                                      hr = c(hr_oos_first_prediction, hr_oos_second_prediction),
+                                      mb = c(mb_oos_first_prediction, mb_oos_second_prediction)),
+                           order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
+
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
+
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
+
+  #gsm 1
+  preds <- predict(first_sb_port, new_features_m_df = selected_features_first_rebal)
+  gsm <- rpart::rpart(preds ~ ., data = selected_features_first_rebal[,-c(1:3)]) #Date used to fit lm model
+
+  #Start object
+  feature_importance_m_df1 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15") %>%
+    dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
+  #Get coefs
+  tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
+
+  tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
+  #Join and adjust
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::full_join(tree_coefs, by = "tickers")
+  feature_importance_m_df1$dates <- as.Date("2022-11-15") #Rebalance date
+  feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
+  #Reorder
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates,
+                                                                         importance, normalized_importance, theme, theme_ss_bench_weights, theme_sb_bench_weights, is_eligible)
+  #Force non-elected to be zero
+  feature_importance_m_df1$importance[which(is.na(feature_importance_m_df1$importance))] <- 0
+  feature_importance_m_df1$normalized_importance[which(is.na(feature_importance_m_df1$normalized_importance))] <- 0
+  feature_importance_m_df1$theme_ss_bench_weights[which(is.na(feature_importance_m_df1$theme_ss_bench_weights))] <- 0
+  feature_importance_m_df1$theme_sb_bench_weights[which(is.na(feature_importance_m_df1$theme_sb_bench_weights))] <- 0
+  feature_importance_m_df1$is_eligible[which(is.na(feature_importance_m_df1$is_eligible))] <- 0
+
+  feature_importance_m_df1 <- feature_importance_m_df1[order(feature_importance_m_df1$id),]
+
+
+  #gsm 2
+  preds <- predict(second_sb_port, new_features_m_df = selected_features_second_rebal)
+  gsm <- rpart::rpart(preds ~ ., data = selected_features_second_rebal[,-c(1:3)]) #Date used to fit lm model
+
+
+  #Start object
+  feature_importance_m_df2 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15") %>%
+    dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
+  #Get coefs
+  tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
+
+  tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
+  #Join and adjust
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::full_join(tree_coefs, by = "tickers")
+  feature_importance_m_df2$dates <- as.Date("2023-07-15") #Rebalance date
+  feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
+  #Reorder
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates,
+                                                                         importance, normalized_importance, theme, theme_ss_bench_weights, theme_sb_bench_weights, is_eligible)
+  #Force non-elected to be zero
+  feature_importance_m_df2$importance[which(is.na(feature_importance_m_df2$importance))] <- 0
+  feature_importance_m_df2$normalized_importance[which(is.na(feature_importance_m_df2$normalized_importance))] <- 0
+  feature_importance_m_df2$theme_ss_bench_weights[which(is.na(feature_importance_m_df2$theme_ss_bench_weights))] <- 0
+  feature_importance_m_df2$theme_sb_bench_weights[which(is.na(feature_importance_m_df2$theme_sb_bench_weights))] <- 0
+  feature_importance_m_df2$is_eligible[which(is.na(feature_importance_m_df2$is_eligible))] <- 0
+
+  feature_importance_m_df2 <- feature_importance_m_df2[order(feature_importance_m_df2$id),]
+
+
+  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
+
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
+
+  expected_results$outputs[[5]] <- feature_importance_m_df2
+  rownames(expected_results$outputs[[5]]) <- NULL
+  rownames(sb_backtest_results@final_feature_importance_m_d_ref@data) <- NULL
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
+
+})
+
+
+####################
 
 #BEGIN ML TESTS (TRAINING + VALIDATION + TESTING)
 ####################

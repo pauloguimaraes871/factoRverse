@@ -25,7 +25,7 @@ setMethod("predict", "signal_port", function(object, new_features_m_df_clean,
   }
 
   #Eliminate signals not in eligible_signals
-  selected_signals_corrected_positions_m_df <- new_features_m_df_clean[, dplyr::all_of(object@eligible_assets)]
+  selected_signals_corrected_positions_m_df <- new_features_m_df_clean %>% dplyr::select(dplyr::all_of(object@eligible_assets))
 
   #Get signal weights
   signal_weights <- object@weights

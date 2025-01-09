@@ -305,9 +305,6 @@ setMethod("show", "grid_search_strategy", function(object) {
       cat("    Values:", paste(hyperparam, collapse = ", "), "\n")
     }
   }
-
-
-
 })
 
 
@@ -328,7 +325,6 @@ setMethod("show", "grid_search_strategy", function(object) {
 #' show(random_search_obj)
 #' @export
 setMethod("show", "random_search_strategy", function(object) {
-
 
   cat("Random Search Tuning Strategy\n")
   callNextMethod()  # Calls the base show method for common slots
@@ -416,70 +412,6 @@ setMethod("show", "keras_architecture_parameters", function(object) {
   cat("------------------------------\n")
 })
 
-#' @title Show Signal Portfolio Parameters
-#' @description Prints the contents of a `signal_port_parameters` object, detailing
-#' the various parameters (covariance estimation, MVO, RP, and concentration constraints).
-#'
-#' @param object A `signal_port_parameters` object to be displayed.
-#'
-#' @method show signal_port_parameters
-#' @export
-setMethod("show", "signal_port_parameters", function(object) {
-  cat("====================================\n")
-  cat("Signal Portfolio Parameters\n")
-  cat("====================================\n\n")
-
-  # Cov Est Method
-  cat("Covariance Estimation Method:\n")
-  cat("  Method: ")
-  if (!is.null(object@cov_est_method)) {
-    cat(object@cov_est_method@cov_estimation_method, "\n")
-    cat("  Sample Size:", object@cov_est_method@cov_matrix_sample_size, "\n")
-    cat("  Active Returns:", object@cov_est_method@active_returns, "\n")
-  } else {
-    cat("  (No cov_est_method set)\n")
-  }
-
-  cat("\n------------------------------------\n")
-
-  # MVO parameters
-  cat("MVO Parameters:\n")
-  if (!is.null(object@mvo_parameters) && methods::is(object@mvo_parameters, "mvo_parameters")) {
-    cat("  Optimization Method:", object@mvo_parameters@opt_method, "\n")
-    cat("  Random Ports Method:", object@mvo_parameters@random_ports_method, "\n")
-    cat("  n_random_ports:", object@mvo_parameters@n_random_ports, "\n")
-    cat("  Objective:", object@mvo_parameters@opt_objective, "\n")
-  } else {
-    cat("  (No MVO parameters set)\n")
-  }
-
-  cat("\n------------------------------------\n")
-
-  # RP parameters
-  cat("RP Parameters:\n")
-  if (!is.null(object@rp_parameters) && methods::is(object@rp_parameters, "rp_parameters")) {
-    cat("  RP Method:", object@rp_parameters@rp_method, "\n")
-  } else {
-    cat("  (No RP parameters set)\n")
-  }
-
-  cat("\n------------------------------------\n")
-
-  # Concentration Constraint Policy
-  cat("Concentration Constraint Policy:\n")
-  if (!is.null(object@concentration_constraint_policy) &&
-      methods::is(object@concentration_constraint_policy, "concentration_constraint_policy")) {
-
-    cat("  Benchmark:", object@concentration_constraint_policy@benchmark, "\n")
-    cat("  Max Abs Active Individual Weight:", object@concentration_constraint_policy@max_abs_active_individual_weight, "\n")
-    cat("  Max Abs Active Group Weight:", object@concentration_constraint_policy@max_abs_active_group_weight, "\n")
-
-  } else {
-    cat("  (No concentration constraint policy set)\n")
-  }
-
-  cat("\n====================================\n")
-})
 
 
 #' @title Show SB Backtest Config
@@ -509,9 +441,7 @@ setMethod("show", "sb_backtest_config", function(object) {
   # Display Custom Objective Information
   cat("Objective Function:\n")
 
-  cat("  Custom Objective:", object@custom_objective, "\n")
-
-
+  if(!object@sb_algorithm %in% c("ew","rp"))  cat("  Custom Objective:", object@custom_objective, "\n")
 
   # Display Miscellaneous Parameters
   cat("  Function Parameters:")
@@ -588,12 +518,60 @@ setMethod("show", "sb_backtest_config", function(object) {
   }
 
   #Display signal port
-  if(!object@sb_algorithm %in% c("rp", "mvo")){
+  if(object@sb_algorithm %in% c("rp", "mvo")){
     if (!is.null(object@signal_port_parameters)) {
       cat("\n------------------------------\n")
       cat("Signal Portfolio Parameters:\n")
-      cat("------------------------------\n\n")
-      show(object@signal_port_parameters)
+      cat("------------------------------\n")
+      signal_port_parameters <- object@signal_port_parameters
+
+      # Cov Est Method
+        cat("Covariance Estimation Method:\n")
+        cat("  Method: ")
+        cat(signal_port_parameters@cov_est_method@cov_estimation_method, "\n")
+        cat("  Sample Size:", signal_port_parameters@cov_est_method@cov_matrix_sample_size, "\n")
+        cat("  Active Returns:", signal_port_parameters@cov_est_method@active_returns, "\n")
+        if(signal_port_parameters@cov_est_method@active_returns){
+          cat("  Cov Matrix Benchmark:", signal_port_parameters@cov_est_method@cov_matrix_benchmark, "\n")
+        }
+
+      cat("\n------------------------------\n")
+
+      # RP parameters
+      if (object@sb_algorithm == "rp"){
+        cat("RP Parameters:\n")
+        cat("  RP Method:", signal_port_parameters@rp_parameters@rp_method, "\n")
+
+        cat("\n------------------------------\n")
+      }
+
+      # MVO parameters
+      if (object@sb_algorithm == "mvo"){
+        cat("MVO Parameters:\n")
+        cat("  Optimization Method:", signal_port_parameters@mvo_parameters@opt_method, "\n")
+        cat("  Random Ports Method:", signal_port_parameters@mvo_parameters@random_ports_method, "\n")
+        cat("  n_random_ports:", signal_port_parameters@mvo_parameters@n_random_ports, "\n")
+        cat("  Objective:", signal_port_parameters@mvo_parameters@opt_objective, "\n")
+
+        cat("\n------------------------------\n")
+      }
+
+      # Concentration Constraint Policy
+      if (!is.null(signal_port_parameters@concentration_constraint_policy) &&
+          methods::is(signal_port_parameters@concentration_constraint_policy, "concentration_constraint_policy")) {
+        cat("Concentration Constraint Policy:\n")
+        cat("  Benchmark:", signal_port_parameters@concentration_constraint_policy@benchmark, "\n")
+        if (!is.null(signal_port_parameters@concentration_constraint_policy@max_abs_active_individual_weight)){
+          cat("  Max Abs Active Individual Weight:", signal_port_parameters@concentration_constraint_policy@max_abs_active_individual_weight, "\n")
+        }
+        if (!is.null(signal_port_parameters@concentration_constraint_policy@max_abs_active_group_weight)){
+        cat("  Max Abs Active Group Weight:", signal_port_parameters@concentration_constraint_policy@max_abs_active_group_weight, "\n")
+        }
+      } else {
+        cat("  (No concentration constraint policy set)\n")
+      }
+      cat("\n------------------------------\n")
+
     }
   }
 
@@ -983,6 +961,8 @@ setMethod("show", "sb_backtest_results", function(object) {
 
   cat("Feature Selection Backtest Information:\n")
   if(!is.null(object@ss_backtest_results)){
+    cat("\n")
+    cat("=================================\n")
     print(object@ss_backtest_results)
   } else {
     cat("  No feature selection backtest results available.\n")
@@ -992,7 +972,7 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("=================================\n")
 
   # Display Tuning Information
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
+  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo")){
     cat("Tuning Information:\n")
     cat("  Tuning Method:", sb_backtest_workflow$tuning_method, "\n")
     if(sb_backtest_workflow$tuning_method == "random_search" || sb_backtest_workflow$tuning_method == "bayesian_opt"){

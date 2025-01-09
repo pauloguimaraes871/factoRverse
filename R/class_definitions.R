@@ -578,15 +578,28 @@ setClass(
   "concentration_constraint_policy",
   slots = c(
     benchmark = "character",
-    max_abs_active_individual_weight = "numeric",
+    max_abs_active_individual_weight = "ANY",
     max_abs_active_group_weight = "ANY"
   ),
-  prototype = list(
-    benchmark = character(0),
-    max_abs_active_individual_weight = NA_real_,
-    max_abs_active_group_weight = numeric(0)  # e.g., named numeric(0)
-  ),
   validity = function(object){
+
+    #Check if numeric if not null
+    if(!is.null(object@max_abs_active_individual_weight)){
+      if(!is.numeric(object@max_abs_active_individual_weight)){
+        return("max_abs_active_individual_weight must be numeric")
+      }
+    }
+
+    if(!is.null(object@max_abs_active_group_weight)){
+      if(!is.numeric(object@max_abs_active_group_weight)){
+        return("max_abs_active_group_weight must be numeric")
+      }
+    }
+
+    if(is.null(object@max_abs_active_individual_weight) && is.null(object@max_abs_active_group_weight)){
+      return("At least one of max_abs_active_individual_weight or max_abs_active_group_weight must be provided.")
+    }
+
     # Check that max_abs_active_group_weight is named if it's non-empty
     if (length(object@max_abs_active_group_weight) > 0 &&
         is.null(names(object@max_abs_active_group_weight))) {
@@ -628,21 +641,21 @@ setClass(
     concentration_constraint_policy = "ANY"
   ),
   validity = function(object){
-    if (!is.null(mvo_parameters)) {
-      if (!inherits(mvo_parameters, "mvo_parameters")) {
+    if (!is.null(object@mvo_parameters)) {
+      if (!inherits(object@mvo_parameters, "mvo_parameters")) {
         stop("mvo_parameters must be of class 'mvo_parameters'")
       }
     }
-    if (!is.null(rp_parameters)) {
-      if (!inherits(rp_parameters, "rp_parameters")) {
+    if (!is.null(object@rp_parameters)) {
+      if (!inherits(object@rp_parameters, "rp_parameters")) {
         stop("rp_parameters must be of class 'rp_parameters'")
       }
     }
-    if (!is.null(concentration_constraint_policy)) {
-      if (!inherits(concentration_constraint_policy, "concentration_constraint_policy")) {
+    if (!is.null(object@concentration_constraint_policy)) {
+      if (!inherits(object@concentration_constraint_policy, "concentration_constraint_policy")) {
         stop("concentration_constraint_policy must be of class 'concentration_constraint_policy'")
       }
-      if(!concentration_constraint_policy@benchmark %in% c("theme_ss", "theme_sb")){
+      if(!object@concentration_constraint_policy@benchmark %in% c("theme_ss", "theme_sb")){
           stop("Only allowed benchmarks for concentration_constraint_policy in 'signal_port_parameters' are 'theme_ss' and 'theme_sb'")
       }
 
@@ -1126,7 +1139,7 @@ setClass(
     }
 
     #Check for custom objective
-    if(!object@sb_algorithm %in% c("sw", "mvo")){
+    if(object@sb_algorithm %in% c("sw", "mvo")){
       valid_heuristic_sb_metrics <- c(
         "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
         "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
@@ -1146,9 +1159,9 @@ setClass(
         "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
         "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
       )
-      if (grepl("^max_|^min_", object@custom_objective) && substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
+      if (!grepl("^max_|^min_", object@custom_objective) || !substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
         return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
-               To see complete list of valid heuristic performance metrics, use ''.")
+               To see complete list of valid heuristic performance metrics, use 'display_valid_custom_objectives()'")
       }
     } else {
       if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {

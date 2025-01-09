@@ -44,12 +44,12 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
 
 
   #Translate custom_objective and chosen_eval_metric for early stop
-  if(sb_algorithm %in% c("ols","glmnet","rf")){
+  if(sb_algorithm %in% c("ols","glmnet","rf","ew","rp")){
     custom_objective_translated <- NULL
     chosen_eval_metric_translated <- NULL
   }
 
-  if(sb_algorithm %in% c("sw", "mto")){
+  if(sb_algorithm %in% c("sw", "mvo")){
     custom_objective_translated <- custom_objective
     chosen_eval_metric_translated <- NULL
   }
