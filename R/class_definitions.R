@@ -1133,9 +1133,9 @@ setClass(
     }
 
     #Check for valid sb_algorithm
-    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo")
+    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo", "custom_weights")
     if(!(object@sb_algorithm %in% valid_sb_algorithms)) {
-      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'mvo', 'ols', 'glmnet', 'rf', 'xgb', or 'nn'.")
+      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'mvo', 'ols', 'glmnet', 'rf', 'xgb', 'nn' or 'custom_weights'.")
     }
 
     #Check for custom objective
@@ -1175,7 +1175,7 @@ setClass(
       return("Invalid early_stop. Early stop is only allowed for 'xgb' or 'nn' algorithms.")
     }
     #Check for tuning strategy
-    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "mvo", "ols") && is.null(object@tuning_strategy)){
+    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "mvo", "ols", "custom_weights") && is.null(object@tuning_strategy)){
       message("when sb_algorithm is not 'ew', 'sw', 'rp', 'mvo' or 'ols', a tuning_strategy must be set")
     }
     #ETC
@@ -1206,23 +1206,20 @@ setClass(
         return("signal_port_parameters is only needed when sb_algorithm is rp or mvo")
       }
     }
-
-
+    ##Quantile tau and huber delta
     if (!is.null(object@quantile_tau) && (object@quantile_tau <= 0 || object@quantile_tau >= 1)) {
       return("quantile_tau must be between 0 and 1.")
     }
     if (!is.null(object@huber_delta) && object@huber_delta <= 0) {
       return("huber_delta must be greater than 0.")
     }
-
-
     #Check if hypers are correctly set
     if(!is.null(object@tuning_strategy)){
       if(!is_tuning_strategy(object@tuning_strategy)){
         return("Invalid tuning_strategy. Should be of class tuning_strategy")
       }
-      if(object@sb_algorithm %in% c("ew", "sw", "rp", "mvo", "ols")){
-        return("ew, sw, rp, mvo and ols do not support hyperparameter tuning")
+      if(object@sb_algorithm %in% c("ew", "sw", "rp", "mvo", "ols", "custom_weights")){
+        return("ew, sw, rp, mvo, ols and custom_weights do not support hyperparameter tuning")
       }
 
       # Check hyperparameters validity based on sb_algorithm

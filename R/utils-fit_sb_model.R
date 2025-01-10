@@ -42,7 +42,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                          selected_full_data_corrected_positions_m_refit_clean = NULL, #Data
                          custom_objective_translated, huber_delta, quantile_tau, early_stop, keras_architecture_parameters, #Model Parameters
                          optimal_hyper = NULL, chosen_eval_metric_translated, #Validation Parameters
-                         most_recent_signal_universe_m_d_ref, selected_backtest_returns_corrected_positions_xts_upd_ref, #Signal Universe
+                         most_recent_signal_universe_m_d_ref, most_recent_custom_signal_weights_m_d_ref = NULL, selected_backtest_returns_corrected_positions_xts_upd_ref, #Signal Universe
                          cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, selected_cov_matrix_benchmark_xts_upd_ref, groups_m_d_ref, #COV (for RP and MVO)
                          rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO Methods
                          concentration_constraint_policy, #Concentration Constraint
@@ -140,7 +140,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                      ##Custom Weights
                      custom_weights = set_portfolio_weights(port_construction_method = "custom_weights",
                                                             universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                                            custom_weights_m_d_ref = custom_weights_m_d_ref),
+                                                            custom_weights_m_d_ref = most_recent_custom_signal_weights_m_d_ref),
 
                      ##Equal-Weighted Signals
                      ew = set_portfolio_weights(port_construction_method = "ew",

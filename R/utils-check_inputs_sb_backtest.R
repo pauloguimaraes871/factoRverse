@@ -54,6 +54,7 @@ check_inputs_sb_backtest <- function(
     signal_universe_m_df, backtest_returns_xts, benchmark_returns_xts, cov_matrix_benchmark,
     cov_matrix_sample_size, cov_estimation_method, active_returns, signal_themes_m_df,
     rp_method, n_random_ports, random_ports_method, opt_objective, concentration_constraint_policy,
+    custom_signal_weights_m_df,
     #SB algorithm
     sb_algorithm, gsm_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
     #Tuning
@@ -264,6 +265,44 @@ check_inputs_sb_backtest <- function(
         }
       }
 
+      #custom_signal_weights_m_df
+      if(sb_algorithm == "custom_weights" && is.null(custom_signal_weights_m_df)){
+        stop("custom_signal_weights_m_df must be provided if sb_algorithm is custom_weights.")
+      }
+      if(!is.null(custom_signal_weights_m_df)){
+        ##Check coercibility
+        if(!is_coercible_to_meta_dataframe(custom_signal_weights_m_df)){
+          stop("custom_signal_weights_m_df is not coercible to meta dataframe")
+        }
+
+        ##Check if there is a weight column
+        if(!"weights" == colnames(custom_signal_weights_m_df)[4]){
+          stop("custom_signal_weights_m_df must have a 'weights' column")
+        }
+        ##Check if weight column is numeric
+        if(!is.numeric(custom_signal_weights_m_df %>% dplyr::pull(weights))){
+          stop("weights column in custom_signal_weights_m_df must be numeric")
+        }
+        ##Check if ids in custom_signal_weights_m_df and signal_universe_m_df are the same
+        if(any(!(signal_universe_m_df %>% dplyr::pull(id)) %in% (custom_signal_weights_m_df %>% dplyr::pull(id)))){
+          stop("all ids in signal_universe_m_df should have a correspondence in custom_signal_weights_m_df")
+        }
+        ##Check if any weight belong to a non-eligible ticker
+        non_zero_weight_id <- custom_signal_weights_m_df %>% dplyr::filter(weights != 0) %>% dplyr::pull(id)
+        non_eligible_id <- signal_universe_m_df %>% dplyr::filter(eligible == 0) %>% dplyr::pull(id)
+        if(any(non_zero_weight_id %in% non_eligible_id)){
+          message("Some ids in custom_signal_weights_m_df are not eligible: ",
+                  paste(non_zero_weight_id[non_zero_weight_id %in% non_eligible_id], collapse = ", "))
+        }
+
+        ##Check if non_zero_weight_tickers match features_m_df
+        non_zero_weight_signals <- custom_signal_weights_m_df %>% dplyr::filter(weights != 0) %>% dplyr::pull(tickers)
+        check_signal_presence <- !stringr::str_remove_all(non_zero_weight_signals, pattern = "low_") %in% colnames(features_m_df)
+        if (any(check_signal_presence)) {
+          stop("There is a signal mismatch between non zero-weight signals in custom_signal_weights_m_df and features_m_df: ",
+               paste(non_zero_weight_signals[check_signal_presence], collapse = ", ")
+          )
+      }
 
       #Check structure of rebalancing_months
       if(!is.numeric(rebalancing_months)){
@@ -343,26 +382,26 @@ check_inputs_sb_backtest <- function(
         )
       }
 
+      ##Get elected ids
+      eligible_ids <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(id)
       ##Check signal presence in signal_themes_m_df
       if(!is.null(signal_themes_m_df)){
-        check_signal_presence <- !eligible_signals %in% (signal_themes_m_df %>% dplyr::pull(tickers))
-        if (any(check_signal_presence)) {
-          stop("There is a signal mismatch between eligible_signals and signal_themes_m_df: ",
-               paste(eligible_signals[check_signal_presence], collapse = ", ")
+        check_id_presence <- !eligible_ids %in% (signal_themes_m_df %>% dplyr::pull(id))
+        if (any(check_id_presence)) {
+          stop("There is a id mismatch between eligible_ids and signal_themes_m_df: ",
+               paste(eligible_ids[check_id_presence], collapse = ", ")
           )
         }
 
-        ###Get all signals.
+        ###Get all ids
         #For signal_themes, it is important for one to have all signals in signal_themes_m_df. This is because of benchmark group weights calculation.
-        all_signals <- signal_universe_m_df %>% dplyr::pull(tickers) %>% unique()
-        check_signal_presence <- !all_signals %in% (signal_themes_m_df %>% dplyr::pull(tickers))
-        if (any(check_signal_presence)) {
-          stop("There is a signal mismatch between signals (eligible or not) and signal_themes_m_df: ",
-               paste(eligible_signals[check_signal_presence], collapse = ", ")
+        all_ids <- signal_universe_m_df %>% dplyr::pull(id)
+        check_id_presence <- !all_ids %in% (signal_themes_m_df %>% dplyr::pull(id))
+        if (any(check_id_presence)) {
+          stop("There is a signal mismatch between ids (eligible or not) and signal_themes_m_df: ",
+               paste(all_ids[check_id_presence], collapse = ", ")
           )
         }
-
-
       }
 
       ##Check signal presence in backtest_returns_xts
@@ -371,6 +410,17 @@ check_inputs_sb_backtest <- function(
         if (any(check_signal_presence)) {
           stop("There is a signal mismatch between eligible_signals and backtest_returns_xts: ",
                paste(eligible_signals[check_signal_presence], collapse = ", ")
+          )
+        }
+      }
+
+      ##Check signal presence in custom signal weights
+      if(!is.null(custom_signal_weights_m_df)){
+        all_ids <- signal_universe_m_df %>% dplyr::pull(id)
+        check_id_presence <- !all_ids %in% (custom_signal_weights_m_df %>% dplyr::pull(id))
+        if (any(check_id_presence)) {
+          stop("There is a signal mismatch between ids (eligible or not) and custom_signal_weights_m_df: ",
+               paste(all_ids[check_id_presence], collapse = ", ")
           )
         }
       }
@@ -524,12 +574,10 @@ check_inputs_sb_backtest <- function(
 
       }
 
-
-
       #SB algorithms
       ################
       #Check for correct choice in sb_algorithm
-      if(!sb_algorithm %in% c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo")){
+      if(!sb_algorithm %in% c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo", "custom_weights")){
         stop("sb_algorithm choice not supported.")
       }
 
@@ -614,8 +662,6 @@ check_inputs_sb_backtest <- function(
         if(parallel){
           warning("keras models have some limitations regarding parallel computations. Use with care.")
         }
-
-
 
       }
 
