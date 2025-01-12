@@ -100,8 +100,9 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             type <- list(...)
             if(length(type) > 0){
               #Check if it is correct
-              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target")){
-                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups' or 'target'.")
+              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights")){
+                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
+                     'weights'.")
               }
             } else {
               type <- "generic"
@@ -198,6 +199,20 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
 
               return(
                 new("target_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name)
+              )
+            }
+
+            if(type == "weights"){
+
+              return(
+                new("weights_m_df",
                     data = data,
                     workflow = NULL,
                     signals = names(data)[-c(1:3)],
@@ -1824,6 +1839,11 @@ setGeneric("add_cov_est_method", function(object, cov_est_method, ...) {
 setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "cov_est_method"),
           function(object, cov_est_method, ...) {
 
+            #Check for sb algo
+            if(!object@sb_algorithm %in% c("rp", "mvo")){
+              stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+            }
+
             object@signal_port_parameters@cov_est_method <- cov_est_method
 
             return(object)
@@ -1839,6 +1859,11 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
 #' @export
 setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "missing"),
           function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
+
+            #Check for sb algo
+            if(!object@sb_algorithm %in% c("rp", "mvo")){
+              stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+            }
 
             object@signal_port_parameters@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
                                                                                   cov_matrix_sample_size = cov_matrix_sample_size,
@@ -1862,6 +1887,11 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
 setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "cov_est_method"),
           function(object, cov_est_method, ...) {
 
+            #Check for sb algo
+            if(!object@port_construction_method %in% c("rp", "mvo")){
+              stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+            }
+
             object@cov_est_method <- cov_est_method
 
             return(object)
@@ -1877,6 +1907,11 @@ setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_e
 #' @export
 setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
           function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
+
+            #Check for sb algo
+            if(!object@port_construction_method %in% c("rp", "mvo")){
+              stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+            }
 
             object@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
                                                            cov_matrix_sample_size = cov_matrix_sample_size,
@@ -1990,6 +2025,13 @@ setMethod("add_mvo_parameters",
                    opt_objective = "sharpe",
                    ...) {
 
+
+            #Check for sb
+            if(!object@sb_algorithm == c("mvo")){
+              stop("MVO parameters is only available for 'mvo' strategies.")
+            }
+
+
             object@signal_port_parameters@mvo_parameters <- create_mvo_parameters(
               opt_method = opt_method,
               random_ports_method = random_ports_method,
@@ -2009,6 +2051,11 @@ setMethod("add_mvo_parameters",
           signature(object = "port_backtest_config", mvo_params = "mvo_parameters"),
           function(object, mvo_params, ...) {
 
+            #Check for port construction method
+            if(!object@port_construction_method == c("mvo")){
+              stop("MVO parameters is only available for 'mvo' strategies.")
+            }
+
             object@mvo_parameters <- mvo_params
 
             return(object)
@@ -2026,6 +2073,12 @@ setMethod("add_mvo_parameters",
                    n_random_ports = 1000,
                    opt_objective = "sharpe",
                    ...) {
+
+            #Check for port construction method
+            if(!object@port_construction_method == c("mvo")){
+              stop("MVO parameters is only available for 'mvo' strategies.")
+            }
+
 
             object@mvo_parameters <- create_mvo_parameters(
               opt_method = opt_method,
@@ -2096,6 +2149,11 @@ setMethod("add_rp_parameters",
           signature(object = "sb_backtest_config", rp_params = "rp_parameters"),
           function(object, rp_params, ...) {
 
+            #Check for sb
+            if(!object@sb_algorithm == c("rp")){
+              stop("RP parameters is only available for 'rp' strategies.")
+            }
+
             # Suppose you store rp_parameters within signal_port_parameters:
             object@signal_port_parameters@rp_parameters <- rp_params
 
@@ -2112,6 +2170,12 @@ setMethod("add_rp_parameters",
                    rp_method = "cyclical-spinu",
                    ...) {
 
+            #Check for sb
+            if(!object@sb_algorithm == c("rp")){
+              stop("RP parameters is only available for 'rp' strategies.")
+            }
+
+
             object@signal_port_parameters@rp_parameters <- create_rp_parameters(
               rp_method = rp_method
             )
@@ -2125,6 +2189,12 @@ setMethod("add_rp_parameters",
 setMethod("add_rp_parameters",
           signature(object = "port_backtest_config", rp_params = "rp_parameters"),
           function(object, rp_params, ...) {
+
+            #Check for pcm
+            if(!object@port_construction_method == c("rp")){
+              stop("RP parameters is only available for 'rp' strategies.")
+            }
+
 
             object@rp_parameters <- rp_params
 
@@ -2140,6 +2210,11 @@ setMethod("add_rp_parameters",
                    rp_params,
                    rp_method = "cyclical-spinu",
                    ...) {
+
+            #Check for pcm
+            if(!object@port_construction_method == c("rp")){
+              stop("RP parameters is only available for 'rp' strategies.")
+            }
 
             object@rp_parameters <- create_rp_parameters(
               rp_method = rp_method

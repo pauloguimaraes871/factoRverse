@@ -182,7 +182,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
 
   ###Transform port_obj into signal_port
   ######################
-  if(sb_algorithm %in% c("ew", "sw", "rp", "mvo")){
+  if(sb_algorithm %in% c("ew", "sw", "rp", "mvo","custom_weights")){
     sb_model <- new( # Convert port_obj to signal_port
       "signal_port",
       universe_m_d_ref = sb_model@universe_m_d_ref,
@@ -208,12 +208,19 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
 
   ###Create S4 Sb Model Object
   #Create S4 Object
+  if(!sb_algorithm == "custom_weights"){
+    eligible_signals <- most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  } else {
+    eligible_signals <- most_recent_custom_signal_weights_m_d_ref %>% dplyr::filter(weights > 0) %>% dplyr::pull(tickers)
+  }
+
+
   sb_model_fit <- new("sb_model",
                       model = sb_model,
-                      eligible_signals = most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers),
+                      eligible_signals = eligible_signals,
                       model_class = class(sb_model),
                       sb_algorithm = sb_algorithm,
-                      best_hyperparameters = if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) NULL else optimal_hyper,
+                      best_hyperparameters = if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")) NULL else optimal_hyper,
                       custom_objective = custom_objective_translated,
                       huber_delta = huber_delta,
                       keras_architecture_parameters = keras_architecture_parameters

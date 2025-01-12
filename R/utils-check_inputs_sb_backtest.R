@@ -195,7 +195,7 @@ check_inputs_sb_backtest <- function(
           stop("backtest_returns_xts must have consecutive dates")
         }
 
-        if(length(backtest_returns_dates) <= cov_matrix_sample_size){
+        if(sb_algorithm %in% c("rp", "mvo") && length(backtest_returns_dates) <= cov_matrix_sample_size){
           stop("backtest_returns_xts must have more dates than cov_matrix_sample_size")
         }
       }
@@ -227,7 +227,7 @@ check_inputs_sb_backtest <- function(
           stop("benchmark_returns_xts must have consecutive dates")
         }
 
-        if(!cov_matrix_benchmark %in% colnames(benchmark_returns_xts)){
+        if(sb_algorithm %in% c("rp", "mvo") && !cov_matrix_benchmark %in% colnames(benchmark_returns_xts)){
           stop("cov_matrix_benchmark must be present in benchmark_returns_xts")
         }
       }
@@ -302,6 +302,17 @@ check_inputs_sb_backtest <- function(
           stop("There is a signal mismatch between non zero-weight signals in custom_signal_weights_m_df and features_m_df: ",
                paste(non_zero_weight_signals[check_signal_presence], collapse = ", ")
           )
+        }
+
+        #Check if weights sum to 1
+        custom_signal_weights_m_df %>%
+          dplyr::group_by(dates) %>%
+          dplyr::summarise(sum_w = sum(weights)) %>%
+          dplyr::mutate(check_sum_1 = abs(sum_w - 1) < 0.02)
+        if(any(custom_signal_weights_m_df$check_sum_1 == FALSE)){
+          stop(paste("Weights do not sum to 1 at dates:", custom_signal_weights_m_df$dates[which(custom_signal_weights_m_df$check_sum_1 == FALSE)], collapse = ", "))
+        }
+
       }
 
       #Check structure of rebalancing_months
@@ -503,7 +514,7 @@ check_inputs_sb_backtest <- function(
       }
 
       #Check for correct format in case tuning method is random_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")&& tuning_method == c("random_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("random_search")){
 
 
         tryCatch({

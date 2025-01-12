@@ -62,7 +62,8 @@ setMethod("run_sb_backtest",
 
           function(features_m_df, target_m_df, config, #SB Backtest
                    backtest_returns_xts = NULL, benchmark_returns_xts = NULL, signal_themes_m_df = NULL, #SS Backtest
-                   winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE) {
+                   custom_signal_weights_m_df = NULL, #Custom weights
+                   winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
 
             #Assign default values for internal function
@@ -145,7 +146,7 @@ setMethod("run_sb_backtest",
                 ss_backtest_results <- config@ss_backtest_results #Get ss_backtest_results
 
                 ###Tuning Strategy
-                if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")){
+                if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
                   tuning_strategy <- config@tuning_strategy #Get tuning strategy
                   ###Get objects inside tuning strategy
                   tuning_method <- tuning_strategy@tuning_method #Get tuning method
@@ -210,13 +211,13 @@ setMethod("run_sb_backtest",
                 }
                   ##Checks
                   if(is.null(backtest_returns_xts)){
-                    stop("Please provide backtest_returns_xts")
+                    stop("A backtest_returns_xts must be provided when providing a ss_backtest_config")
                   }
                   if(is.null(benchmark_returns_xts)){
-                    stop("Please provide benchmark_returns_xts")
+                    stop("A benchmark_returns_xts must be provided when providing a ss_backtest_config")
                   }
                   if(is.null(signal_themes_m_df)){
-                    stop("Please provide signal_themes_m_df")
+                    stop("A signal_themes_m_df must be provided when providing a ss_backtest_config")
                   }
                   if(!is.null(cov_matrix_benchmark) && ss_backtest_config@alpha_test_strategy$market_factor_proxy != cov_matrix_benchmark){
                     message(crayon::yellow("market_factor_proxy and cov_matrix_benchmark in ss_backtest_config differ."))
@@ -245,11 +246,21 @@ setMethod("run_sb_backtest",
                     dplyr::mutate(is_eligible = 1) %>%
                     dplyr::arrange(id)
 
+                  ##Add a signal themes
+                  if(!is.null(signal_themes_m_df)){
+                    if(!any(signal_themes_m_df %>% dplyr::pull(id) %in% signal_universe_m_df %>% dplyr::pull(id))){
+                      message("signal_themes_m_df does not contain all the id's in signal_universe_m_df.")
+                    }
+                      #Join anyway
+                      signal_universe_m_df <- signal_universe_m_df %>%
+                        dplyr::left_join(signal_themes_m_df %>% dplyr::select(-tickers, -dates), by = "id")
+                  }
+
                   if(!is_coercible_to_meta_dataframe(signal_universe_m_df)) stop("signal_universe_m_df not coercible to meta_dataframe.")
 
               }
             } else {
-              #Check
+              #Check for compatibility between ss and sb objects
               if(!is.null(cov_matrix_benchmark) && ss_backtest_results@ss_backtest_workflow$market_factor_proxy != cov_matrix_benchmark){
                 message(crayon::yellow("market_factor_proxy and cov_matrix_benchmark in ss_backtest_results differ."))
               }
@@ -260,17 +271,56 @@ setMethod("run_sb_backtest",
                 message(crayon::yellow("Object names of signal_themes_m_df differ accross ss_backtest_results and sb_backtest."))
               }
 
-
-              #Extract signal_universe_m_df, signal_theme_m_df and backtests
+              ###Extract signal_universe_m_df
               signal_universe_m_df <- ss_backtest_results@signal_universe_m_df@data
+
+            }
+            ###########################
+
+            #Get signal themes, backtest returns and so on
+              ##Signal themes
               if(!is.null(signal_themes_m_df)){
                 signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name #Signal Themes Obj Name
                 signal_themes_workflow <- signal_themes_m_df@workflow #Workflow
                 signal_themes_m_df <- signal_themes_m_df@data
+              } else {
+                if(sb_algorithm == "mvo" & !is.null(concentration_constraint_policy$max_abs_active_group_weight)){
+                  stop("A signal_themes_m_df must be provided when setting group constraints")
+                }
+              }
+              ##Backtest and benchmark (for heuristic portfolios)
+              if(sb_algorithm %in% c("rp", "mvo")){
+                if(is.null(backtest_returns_xts)){
+                  stop("A backtest_returns_xts must be provided when using sb_algorithm = 'rp' or 'mvo'")
+                }
+                if(is.null(benchmark_returns_xts)){
+                  stop("A benchmark_returns_xts must be provided when using sb_algorithm = 'rp' or 'mvo'")
+                }
+              } else {
+                if(!is.null(backtest_returns_xts)){
+                  message("backtest_returns_xts provided but not used in sb_algorithm choice")
+                }
+                if(!is.null(benchmark_returns_xts)){
+                  message("benchmark_returns_xts provided but not used in sb_algorithm choice")
+                }
+              }
+
+              ##Custom signal weights
+              if(sb_algorithm == "custom_weights"){
+                #Check if a custom_signal_weights is provided
+                if(is.null(custom_signal_weights_m_df)){
+                  stop("A custom_signal_weights_m_df must be provided when using sb_algorithm = 'custom_weights'")
+                }
+
+                #Get objects
+                custom_signal_weights_object_name <- custom_signal_weights_m_df@meta_dataframe_name
+                custom_signal_weights_workflow <- custom_signal_weights_m_df@workflow
+                custom_signal_weights_m_df <- custom_signal_weights_m_df@data
+
               }
 
 
-            }
+
 
             ###########################
 
@@ -288,6 +338,7 @@ setMethod("run_sb_backtest",
               backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark, #Covariance Matrix
               rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective,  #RP/MVO
               concentration_constraint_policy = concentration_constraint_policy, signal_themes_m_df = signal_themes_m_df, #MVO (Group constraints) and returns_sample_clean
+              custom_signal_weights_m_df = custom_signal_weights_m_df, #Custom Weights
               #Choice of SB algorithm
               sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm,
               #Loss/Eval Functions and Related
@@ -297,7 +348,8 @@ setMethod("run_sb_backtest",
               #Keras architecture parameters
               keras_architecture_parameters = keras_architecture_parameters,
               #Misc
-              verbose = verbose, parallel = parallel, lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization
+              verbose = verbose, parallel = parallel, lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
+              .test_seed = .test_seed
             )
             ###########################
 
@@ -335,7 +387,11 @@ setMethod("run_sb_backtest",
               sb_backtest_results@feature_importance_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               sb_backtest_results@final_feature_importance_m_d_ref@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
-              if(sb_algorithm %in% c("ew", "sw", "rp", "mvo")) sb_backtest_results@final_sb_model@model@port_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              if(sb_algorithm %in% c("ew", "sw", "rp", "mvo", "custom_weights")) sb_backtest_results@final_sb_model@model@port_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              if(sb_algorithm == "custom_weights"){
+                sb_backtest_results@sb_backtest_workflow$custom_signal_weights_object_name <- custom_signal_weights_object_name
+                sb_backtest_results@sb_backtest_workflow$custom_signal_weights_workflow <- custom_signal_weights_workflow
+              }
 
             ###Call
             sb_backtest_results@sb_backtest_workflow$call <- sys.call(-2)
@@ -694,7 +750,7 @@ run_sb_backtest_internal <- function(
   #Misc
   verbose = FALSE, parallel = TRUE,
   #Winsorization
-  upper_quantile_winsorization = 0.975, lower_quantile_winsorization = 0.025
+  upper_quantile_winsorization = 0.975, lower_quantile_winsorization = 0.025, .test_seed = NULL
 ){
 
   #Measure time to run and run gc
@@ -799,7 +855,7 @@ run_sb_backtest_internal <- function(
 
       #Store hyper_choice_xts based on existence of early stop and best_lam
       hyper_choice_xts <- xts::xts(as.data.frame(
-        matrix(NA, nrow = n_rebalance_months, ncol = (length(hyper_grid_domain_list)) + 1)),
+        matrix(NA, nrow = n_rebalance_months, ncol = length(hyper_grid_domain_list))),
         order.by = rebalance_dates)
       colnames(hyper_choice_xts) <- names(hyper_grid_domain_list) #Set colnames as hyperparameters
 
@@ -947,6 +1003,9 @@ run_sb_backtest_internal <- function(
         #########################
         if(!sb_algorithm %in% non_tuning_algos){ #If sb_algorithm is OLS or heuristic, one just need to fit model do traininig + validation samples
 
+          #Set seed for testing purposes
+          if (!is.null(.test_seed) && is.numeric(.test_seed)) set.seed(.test_seed)
+
           #Training Sample
           #################
           #Get training sample objects
@@ -981,7 +1040,7 @@ run_sb_backtest_internal <- function(
 
           hyper_tune_results <- hyper_tune(
             #General Parameters
-            tuning_method = tuning_method, sb_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
+            tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
             #Data
             full_data_training_sample_clean = full_data_training_sample_clean,
             features_validation_sample = features_validation_sample, target_validation_sample = target_validation_sample,
@@ -1015,7 +1074,8 @@ run_sb_backtest_internal <- function(
 
           #Fill validation_eval_metrics_hyper_choice_xts
           validation_eval_metrics_hyper_choice_xts[current_date, ] <- hyper_tune_results$validation_eval_metrics_hyper_choice_current_date %>%
-            dplyr::select(colnames(validation_eval_metrics_hyper_choice_xts)) #Take right columns
+                                                                      dplyr::select(colnames(validation_eval_metrics_hyper_choice_xts)) %>% #Take right columns
+                                                                      as.numeric() #Turn into numeric
 
           ###################
         } else {
@@ -1030,6 +1090,7 @@ run_sb_backtest_internal <- function(
           selected_features_corrected_positions_m_refit <- ts_splits$refit$features_m_refit #Subset -> Signal Ports do not depend on features_m_refit. Therefore, they are fit with most avaiable signal universe data.
           target_m_refit <- ts_splits$refit$target_m_refit #Subset
           selected_full_data_corrected_positions_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
+
 
         #(RE)Fit SB Model
         sb_model_fit <- fit_sb_model(
@@ -1053,6 +1114,7 @@ run_sb_backtest_internal <- function(
           #etc
           verbose = verbose
         )
+
 
 
         ###################
@@ -1207,7 +1269,9 @@ run_sb_backtest_internal <- function(
     #Validation Performance Summary
       ##Create average row
       avg_validation_eval_metrics_hyper_choice_df <- data.frame(metric = colnames(validation_eval_metrics_hyper_choice_xts),
-                                                                avg_val = t(colMeans(validation_eval_metrics_hyper_choice_xts)))
+                                                                avg_val = colMeans(validation_eval_metrics_hyper_choice_xts),
+                                                                row.names = NULL
+                                                                )
 
       ##Join with consolidated_eval_metrics_df
       consolidated_eval_metrics_df <- dplyr::left_join(consolidated_eval_metrics_df, avg_validation_eval_metrics_hyper_choice_df, by = "metric")
@@ -1288,13 +1352,9 @@ run_sb_backtest_internal <- function(
   ###oos_sb_outputs_m_df
   oos_sb_outputs_m_df <- create_meta_dataframe(oos_sb_outputs_m_df, type = "oos_sb_outputs", sb_backtest_workflow = sb_backtest_workflow)
   ###feature_importance_m_df
-  feature_importance_m_df <- suppressWarnings(
-    create_meta_dataframe(feature_importance_m_df)
-  )
+  feature_importance_m_df <- suppressWarnings(create_meta_dataframe(feature_importance_m_df))
   ###final_feature_importance_m_d_ref
-  final_feature_importance_m_d_ref <- suppressWarnings(
-    create_meta_dataframe(feature_importance_m_d_ref)
-  )
+  final_feature_importance_m_d_ref <- suppressWarnings(create_meta_dataframe(feature_importance_m_d_ref))
 
 
   #Get S4 object

@@ -1808,7 +1808,7 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @export
 setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y){
 
-  if(!x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")){
+  if(!x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")){
     plot(x@tuning_strategy)
   } else {
     message("Plot method not avaiable for `ols`, `sw`, `ew`, `rp` or `mvo` sb_algorithm.")
@@ -1983,7 +1983,7 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
 #'
 #' @return Invisibly returns the input \code{x}.
 #' @export
-setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
+setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_df = NULL) {
 
   # List of available plots
   if(x@sb_backtest_workflow$sb_algorithm %in% c("glmnet", "rf", "xgb", "nn")){
@@ -1993,7 +1993,9 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
     "Best Hyperparameters Over Time",
     "Hyperparameters vs Error",
     "All Evaluation Metrics Over Time",
-    "Average Validation vs Consolidated OOS Testing Metrics",
+    "Consolidated OOS Testing Metrics",
+    "OOS Predictions, Errors and Targets",
+    "Consolidated OOS Testing Metrics vs Average Validation",
     "Final Signal-Blending Model",
     "Time-Series Feature Importance by Signal",
     "Average Time-Series Feature Importance by Theme",
@@ -2002,13 +2004,16 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
     "Feature Importance Box-Plot by Signal",
     "Feature Importance Box-Plot by Theme",
     "Feature Importance Heatmap by Signal",
-    "Feature Importance Heatmap by Theme"
+    "Feature Importance Heatmap by Theme",
+    "Explain Prediction"
   )
   }
 
-  if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo")){
+  if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo", "custom_weights")){
     available_plots <- c(
       "All Evaluation Metrics Over Time",
+      "Consolidated OOS Testing Metrics",
+      "OOS Predictions, Errors and Targets",
       "Final Signal-Blending Model",
       "Time-Series Feature Importance by Signal",
       "Average Time-Series Feature Importance by Theme",
@@ -2017,7 +2022,8 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
       "Feature Importance Box-Plot by Signal",
       "Feature Importance Box-Plot by Theme",
       "Feature Importance Heatmap by Signal",
-      "Feature Importance Heatmap by Theme"
+      "Feature Importance Heatmap by Theme",
+      "Explain Prediction"
     )
   }
 
@@ -2108,7 +2114,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
   oos_testing_eval_metrics <- oos_testing_eval_metrics %>% dplyr::mutate(dates = rownames(oos_testing_eval_metrics))
   oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") # Coerce to dates
 
-  if (!sb_algorithm %in% c("ols", "rp", "sw", "ew", "mvo", "ew_ensemble", "optimal_ensemble")) {
+  if (!sb_algorithm %in% c("ols", "rp", "sw", "ew", "mvo", "custom_weights", "ew_ensemble", "optimal_ensemble")) {
     # Some treatments to validation_eval_metrics_hyper_choice
     # Change colnames
     colnames(validation_eval_metrics_hyper_choice) <- paste("validation_", colnames(validation_eval_metrics_hyper_choice), sep = "")
@@ -2173,7 +2179,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
         data = chosen_eval_testing_data %>%
           dplyr::select(year, overall_mean, yearly_mean) %>%
           dplyr::distinct(),
-        aes(yintercept = overall_mean),
+        ggplot2::aes(yintercept = overall_mean),
         color = neon_pink,
         linetype = "dashed"
       ) +
@@ -2181,11 +2187,11 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
         data = chosen_eval_testing_data %>%
           dplyr::select(year, overall_mean, yearly_mean) %>%
           dplyr::distinct(),
-        aes(yintercept = yearly_mean),
+        ggplot2::aes(yintercept = yearly_mean),
         color = neon_purple,
         linetype = "dashed"
       ) +
-      ggplot2::scale_color_manual(values = c("Metric" = neon_blue)) +
+      #ggplot2::scale_color_manual(values = c("Metric" = neon_blue)) +
       ggplot2::guides(color = ggplot2::guide_legend(title = "")) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
@@ -2668,7 +2674,88 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
 
     print(plots_list$all_eval_metrics_over_time)
 
-  } else if (plot_name == "Average Validation vs Consolidated OOS Testing Metrics") {
+  } else if (plot_name == "Consolidated OOS Testing Metrics") {
+
+    #Palette
+    my_colors <- c(
+      neon_blue,
+      neon_pink,
+      neon_yellow,
+      neon_purple,
+      neon_orange,
+      neon_green,
+      neon_hot_pink,
+      neon_lime_green,
+      neon_bright_orange
+    )
+
+    # Add an ID column
+    consolidated_oos_testing_metrics$id <- "Consolidated OOS"
+
+    # Melt the consolidated data
+    consolidated_data <- reshape2::melt(
+      consolidated_oos_testing_metrics,
+      id.vars = c("metric", "id"),
+      variable.name = "Discard_Column",
+      value.name = "Value"
+    )
+    # Remove the unneeded column
+    consolidated_data$Discard_Column <- NULL
+
+    # Rename columns for clarity
+    colnames(consolidated_data) <- c("Metric", "Type", "Value")
+
+    # Convert Type to a factor with only "Consolidated OOS"
+    consolidated_data$Metric <- factor(
+      consolidated_data$Metric,
+      levels = unique(consolidated_data$Metric)
+    )
+
+    # Create the facetted bar chart using only consolidated_data
+    plots_list$consolidated_oos_faceted <- ggplot2::ggplot(
+      consolidated_data,
+      # Notice we use fill = Metric so each metric gets a different color
+      ggplot2::aes(x = Type, y = Value, fill = Metric)
+    ) +
+      ggplot2::geom_bar(stat = "identity", alpha = 0.9) +
+      ggplot2::facet_wrap(
+        ~ Metric,
+        scales = "free_y",
+        strip.position = "bottom"
+      ) +
+      ggplot2::labs(
+        title = "Consolidated OOS Testing Metrics",
+        x = NULL,
+        y = "Metric Value",
+        fill = "Metric"
+      ) +
+      # Manual color scale with your neon palette
+      ggplot2::scale_fill_manual(values = my_colors) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        strip.placement = "outside",  # Put metric labels below the facets
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold", hjust = 0.5),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        legend.position = "bottom",
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    print(plots_list$consolidated_oos_faceted)
+
+
+  } else if (plot_name == "OOS Predictions, Errors and Targets"){
+
+    plot(x@oos_sb_outputs_m_df)
+
+
+  } else if (plot_name == "Consolidated OOS Testing Metrics vs Average Validation") {
     # PLOT 6: Compare Average Validation Metrics with Consolidated OOS Testing Metrics
 
     # Check if both metrics are available
@@ -2676,70 +2763,64 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
       cat("Both consolidated OOS testing metrics and average validation metrics are required for this plot.\n")
     } else {
       # Add an id column to prevent the melt warning
-      consolidated_oos_testing_metrics$id <- "Consolidated"
-      average_validation_metrics$id <- "Average"
+      consolidated_oos_testing_metrics$id <- "Consolidated OOS"
+      average_validation_metrics$id <- "Average Validation"
+
 
       # Melt both data frames to long format with specified id.vars
       consolidated_data <- reshape2::melt(
         consolidated_oos_testing_metrics,
-        id.vars = "id",
-        variable.name = "Metric",
-        value.name = "OOS_Testing_Value"
+        id.vars = c("metric", "id"),
+        variable.name = "Discard_Column",
+        value.name = "Value"
       )
-      consolidated_data$Metric <- gsub("^oos_testing_", "", consolidated_data$Metric)
-
       average_data <- reshape2::melt(
         average_validation_metrics,
-        id.vars = "id",
-        variable.name = "Metric",
-        value.name = "Average_Validation_Value"
-      )
-      average_data$Metric <- gsub("^validation_", "", average_data$Metric)
-
-      # Merge the two data frames on Metric
-      combined_data <- merge(
-        consolidated_data,
-        average_data,
-        by = "Metric",
-        all = TRUE
+        id.vars = c("metric", "id"),
+        variable.name = "Discard_Column",
+        value.name = "Value"
       )
 
-      # Reshape to long format for plotting
-      plot_data <- combined_data %>%
-        tidyr::pivot_longer(
-          cols = c("OOS_Testing_Value", "Average_Validation_Value"),
-          names_to = "Type",
-          values_to = "Value"
-        )
+      consolidated_data$Discard_Column <- NULL
+      average_data$Discard_Column <- NULL
 
-      # Replace Type names for clarity
-      plot_data$Type <- dplyr::case_when(
-        plot_data$Type == "OOS_Testing_Value" ~ "OOS Testing",
-        plot_data$Type == "Average_Validation_Value" ~ "Average Validation",
-        TRUE ~ plot_data$Type
-      )
+      # Bind the two data frames together
+      plot_data <- dplyr::bind_rows(consolidated_data, average_data)
+      colnames(plot_data) <- c("Metric", "Type", "Value")
 
-      # Create the combined plot
-      plots_list$comparison_avg_val_oos <- ggplot2::ggplot(
+      # Create the facetted bar chart
+      plots_list$comparison_avg_val_oos_faceted <- ggplot2::ggplot(
         plot_data,
-        ggplot2::aes(x = Metric, y = Value, fill = Type)
+        ggplot2::aes(x = Type, y = Value, fill = Type)
       ) +
         ggplot2::geom_bar(
           stat = "identity",
           position = ggplot2::position_dodge(width = 0.8),
           alpha = 0.8
         ) +
+        # Facet by Metric, with the strip label on the bottom:
+        ggplot2::facet_wrap(
+          ~ Metric,
+          scales = "free_y",
+          strip.position = "bottom"  # put the metric label beneath each plot
+        ) +
         ggplot2::labs(
-          title = "Average Validation vs Consolidated OOS Testing Metrics",
-          x = "Metric",
+          title = "Consolidated OOS Testing Metrics vs Average Validation",
+          # We remove the x-axis label to avoid duplication with the facet label
+          x = NULL,
           y = "Metric Value",
           fill = "Metric Type"
         ) +
         ggplot2::scale_fill_manual(
-          values = extended_neon_palette[1:2]  # Assuming two types
+          # Adjust to your custom color palette:
+          values = extended_neon_palette[1:2]
         ) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
+          # Ensure the facet labels are placed outside the panel:
+          strip.placement = "outside",
+
+          # Keep your existing background and text coloring:
           plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
           panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
           plot.title = ggplot2::element_text(
@@ -2752,22 +2833,23 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
           axis.title = ggplot2::element_text(color = white),
           legend.title = ggplot2::element_text(color = white),
           legend.text = ggplot2::element_text(color = white),
-          legend.position = "bottom",  # Place legend below the plot
-          panel.grid.major = ggplot2::element_line(
-            color = faint_blue,
-            size = 0.2
-          ),
-          panel.grid.minor = ggplot2::element_line(
-            color = faint_blue,
-            size = 0.1
-          )
+          legend.position = "bottom",
+          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
         )
 
-      print(plots_list$comparison_avg_val_oos)
+      print(plots_list$comparison_avg_val_oos_faceted)
     }
   } else if (plot_name == "Final Signal-Blending Model"){
 
-    plot(x@final_sb_model@model)
+    tryCatch(
+      {
+      plot(x@final_sb_model@model)
+      }, error = function(e){
+        warning("Error when plotting subjacent final signal-blending model. The following message was displayed by subjacent function: \n",
+            e$message, "\n")
+      })
 
   #Feature Importance Plots
   ########################
@@ -2781,6 +2863,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
     plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables)
 
   } else if (plot_name == "Average Time-Series Feature Importance by Theme"){
+
+    if(!"theme" %in% colnames(x@feature_importance_m_df)){
+      stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
+    }
 
     plot_type <- "time_series"
     clustering_variables <- "theme"
@@ -2800,6 +2886,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Compare Feature Importance Side-by-Side by Theme"){
 
+    if(!"theme" %in% colnames(x@feature_importance_m_df)){
+      stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
+    }
+
     plot_type <- "cross_sectional"
     clustering_variables <- "theme"
     calc_stat <- "mean"
@@ -2816,6 +2906,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
     plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables)
 
   } else if (plot_name == "Feature Importance Box-Plot by Theme"){
+
+    if(!"theme" %in% colnames(x@feature_importance_m_df)){
+      stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
+    }
 
     plot_type <- "boxplot"
     clustering_variables <- "theme"
@@ -2834,6 +2928,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Feature Importance Heatmap by Theme"){
 
+    if(!"theme" %in% colnames(x@feature_importance_m_df)){
+      stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
+    }
+
     plot_type <- "tile_heatmap"
     clustering_variables <- "theme"
     variable <- "normalized_importance"
@@ -2841,9 +2939,42 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL) {
 
     plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
 
+  } else if (plot_name == "Explain Prediction"){
+
+    #Check for features_m_df
+    if (is.null(features_m_df)){
+      stop("The 'features_m_df' argument is required for this plot. Please provide a meta dataframe with the features used to implement the backtest \n")
+    } else {
+      if (!is_meta_dataframe(features_m_df)){
+        stop("The 'features_m_df' argument must be a meta dataframe. Please review the documentation for more information \n")
+      }
+    }
+
+    # Prompt for 'ticker'
+      cat("Which ticker predictions do you want to explain? (Please select just one) \n")
+      selection <- readline(prompt = "Enter your choice: ")
+      if (length(selection) == 1 && nzchar(selection)) {
+        selected_ticker <- selection
+      } else {
+        stop("Invalid ticker selection. Please select just one ticker. \n")
+      }
+
+    # Prompt for 'date'
+     cat("Which date? (Please select just one in format YYYY-MM-DD) \n")
+     selection <- readline(prompt = "Enter your choice: ")
+     if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", selection)) {
+       stop("Invalid date format. Use 'YYYY-MM-DD'.")
+     }
+     if (length(selection) == 1 && nzchar(selection)) {
+       selected_date <- selection
+     } else {
+       stop("Invalid date selection. Please select just one date. \n")
+     }
+
+     #Explain
+     explain_prediction(x, features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
+
   }
-
-
 
   invisible(x)
 })

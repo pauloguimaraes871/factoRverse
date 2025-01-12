@@ -725,7 +725,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   cat("SB Algorithm:", object@sb_backtest_workflow$sb_algorithm, "\n")
   cat("Final Model Object Class:", object@final_sb_model@model_class, "\n")
   cat("Custom Objective:", object@sb_backtest_workflow$custom_objective, "\n")
-  if(!object@sb_backtest_workflow$sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo")) cat("Chosen Evaluation Metric:", object@sb_backtest_workflow$chosen_eval_metric, "\n")
+  if(!object@sb_backtest_workflow$sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")) cat("Chosen Evaluation Metric:", object@sb_backtest_workflow$chosen_eval_metric, "\n")
   cat("Testing Sample Dates:", format(as.Date(object@sb_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")
   cat("Rebalancing Dates:", format(as.Date(object@sb_backtest_workflow$rebalance_dates), "%d-%m-%Y"), "\n")
 
@@ -911,13 +911,13 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
       sb_algorithm <- object@sb_backtest_workflow$sb_algorithm
 
       if (sb_algorithm == "glmnet") {
-        chosen_eval_metric_validation_df$concatenation <- paste(
+        chosen_eval_metric_validation_df$hyperparameters_combination <- paste(
           chosen_eval_metric_validation_df$alpha,
           chosen_eval_metric_validation_df$lambda.min.ratio,
           sep = "_"
         )
       } else if (sb_algorithm == "rf") {
-        chosen_eval_metric_validation_df$concatenation <- paste(
+        chosen_eval_metric_validation_df$hyperparameters_combination <- paste(
           chosen_eval_metric_validation_df$mtry,
           chosen_eval_metric_validation_df$num.trees,
           chosen_eval_metric_validation_df$max.depth,
@@ -925,7 +925,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
           sep = "_"
         )
       } else if (sb_algorithm == "xgb") {
-        chosen_eval_metric_validation_df$concatenation <- paste(
+        chosen_eval_metric_validation_df$hyperparameters_combination <- paste(
           chosen_eval_metric_validation_df$min_child_weight,
           chosen_eval_metric_validation_df$max_depth,
           chosen_eval_metric_validation_df$subsample,
@@ -937,7 +937,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
           sep = "_"
         )
       } else if (sb_algorithm == "nn") {
-        chosen_eval_metric_validation_df$concatenation <- paste(
+        chosen_eval_metric_validation_df$hyperparameters_combination <- paste(
           chosen_eval_metric_validation_df$regularizer_l1,
           chosen_eval_metric_validation_df$regularizer_l2,
           chosen_eval_metric_validation_df$droprate,
@@ -946,12 +946,12 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
         )
       } else {
         # For other algorithms, concatenate all hyperparameters
-        chosen_eval_metric_validation_df$concatenation <- do.call(paste, c(chosen_eval_metric_validation_df[hyperparameter_columns], sep = "_"))
+        chosen_eval_metric_validation_df$hyperparameters_combination <- do.call(paste, c(chosen_eval_metric_validation_df[hyperparameter_columns], sep = "_"))
       }
 
       # Summarize the chosen evaluation metric by hyperparameter combinations
       chosen_eval_metric_validation_summary <- chosen_eval_metric_validation_df %>%
-        dplyr::group_by(concatenation) %>%
+        dplyr::group_by(hyperparameters_combination) %>%
         dplyr::summarise(
           Mean_Chosen_Eval_Metric = mean(chosen_eval_metric, na.rm = TRUE),
           Median_Chosen_Eval_Metric = median(chosen_eval_metric, na.rm = TRUE),

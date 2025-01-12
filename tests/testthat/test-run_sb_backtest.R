@@ -1739,6 +1739,418 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 #BEGIN SIGNAL PORT TESTS (TRAINING + TESTING)
 ####################
 #Define your test
+test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features_and_targets", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates))
+
+  #Benchmark Returns XTS
+  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+    IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+    SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+  ),  order.by = unique(toy_preprocessed_features$dates))
+
+
+  #Chosen Signals and Positions
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  #Mocked Signal Themes
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_xts),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  ##SS Config
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.15, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
+                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    verbose = TRUE
+    )
+  )
+
+  ##Custom Weights Config
+  custom_weights_config <- create_sb_backtest_config(sb_algorithm = "custom_weights", rebalancing_months = 7, training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
+    add_ss_backtest_obj(ss_results)
+
+  target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target")
+
+  #Custom Weights
+  theme_ss_weights_m_df <- ss_results@signal_universe_m_df@data %>% dplyr::select(id, tickers, dates, theme_ss_bench_weights) %>%
+    dplyr::rename(weights = theme_ss_bench_weights) %>%
+    create_meta_dataframe(meta_dataframe_name = "theme_ss_weights_123", type = "weights")
+
+  #Apply FUN
+  suppressMessages(suppressWarnings({
+    sb_backtest_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      gsm_algorithm = "tree",
+      custom_signal_weights_m_df = theme_ss_weights_m_df,
+      config = custom_weights_config)
+  }))
+
+
+  #1st rebalancing
+  #Most recent
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
+  most_recent_custom_weights_m_d_ref <- theme_ss_weights_m_df@data %>% dplyr::filter(dates == "2022-09-15")
+
+  #Features Objects
+  selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
+    dplyr::select(id, tickers, dates, most_recent_custom_weights_m_d_ref %>% dplyr::filter(weights > 0) %>% dplyr::pull(tickers))
+
+  selected_features_first_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+
+  #Targets
+  targets_first_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+
+  #Fitting
+  first_sb_port <- fit_sb_model(sb_algorithm = "custom_weights", target_fwd_name = "fwd_premium_3m",
+                                selected_features_corrected_positions_m_refit = selected_features_first_rebal,
+                                most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
+                                custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
+                                selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                most_recent_custom_signal_weights_m_d_ref = most_recent_custom_weights_m_d_ref, verbose = TRUE,
+                                rp_method = "cyclical-spinu"
+  )
+  #Predict
+  dates_first_prediction <- c("2022-11-15", "2022-12-15", "2023-01-15",
+                              "2023-02-15", "2023-03-15", "2023-04-15",
+                              "2023-05-15", "2023-06-15")
+  #Resulting vectors
+  prediction_list_first_prediction <- list()
+  y_list_first_prediction <- list()
+  error_list_first_prediction <- list()
+  y_list_first_prediction <- list()
+  r_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  cp_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  rmse_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mae_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  pseudo_huber_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  pinball_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mape_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  hr_oos_first_prediction <- vector(length = length(dates_first_prediction))
+  mb_oos_first_prediction <- vector(length = length(dates_first_prediction))
+
+
+  #First Predictions
+  for(i in 1:length(dates_first_prediction)){
+
+    #Subset for each date
+    features_first_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_first_prediction[i]),]
+    target_first_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_first_prediction[i])]
+
+    #Fill obj
+    prediction_list_first_prediction[[i]] <- predict(first_sb_port, features_first_prediction)
+    error_list_first_prediction[[i]] <- target_first_prediction - prediction_list_first_prediction[[i]]
+    y_list_first_prediction[[i]] <- target_first_prediction
+
+    #Rename
+    names(prediction_list_first_prediction[[i]]) <- features_first_prediction$tickers
+    names(error_list_first_prediction[[i]]) <- features_first_prediction$tickers
+    names(y_list_first_prediction[[i]]) <- features_first_prediction$tickers
+
+    r_oos_first_prediction[i] <- 1 - (sum(error_list_first_prediction[[i]]^(2))/sum(y_list_first_prediction[[i]]^2))
+    cp_oos_first_prediction[i] <- sum((y_list_first_prediction[[i]])*(prediction_list_first_prediction[[i]]))/length(y_list_first_prediction[[i]])
+    rmse_oos_first_prediction[i] <- sqrt(sum(error_list_first_prediction[[i]]^(2))/length(y_list_first_prediction[[i]]))
+    mae_oos_first_prediction[i] <- sum(abs(error_list_first_prediction[[i]]))/length(y_list_first_prediction[[i]])
+    pseudo_huber_oos_first_prediction[i] <- mean(1^2*(sqrt(1+(error_list_first_prediction[[i]])^2)-1))
+    pinball_oos_first_prediction[i] <- mean(ifelse(error_list_first_prediction[[i]] >= 0, 0.5*error_list_first_prediction[[i]], (1-0.5)*(-1)*error_list_first_prediction[[i]]))
+    mape_oos_first_prediction[i] <- mean(abs(error_list_first_prediction[[i]]/y_list_first_prediction[[i]]))
+    hr_oos_first_prediction[i] <- length(which(sign(y_list_first_prediction[[i]]) == sign(prediction_list_first_prediction[[i]])))/length(y_list_first_prediction[[i]])
+    mb_oos_first_prediction[i] <- mean(error_list_first_prediction[[i]])
+
+  }
+  #Set dates
+  names(prediction_list_first_prediction) <- dates_first_prediction
+  names(error_list_first_prediction) <- dates_first_prediction
+  names(y_list_first_prediction) <- dates_first_prediction
+  names(r_oos_first_prediction) <- dates_first_prediction
+  names(cp_oos_first_prediction) <- dates_first_prediction
+  names(rmse_oos_first_prediction) <- dates_first_prediction
+  names(mae_oos_first_prediction) <- dates_first_prediction
+  names(pseudo_huber_oos_first_prediction) <- dates_first_prediction
+  names(pinball_oos_first_prediction) <- dates_first_prediction
+  names(mape_oos_first_prediction) <- dates_first_prediction
+  names(hr_oos_first_prediction) <- dates_first_prediction
+  names(mb_oos_first_prediction) <- dates_first_prediction
+
+
+  #2nd rebalancing
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
+  most_recent_custom_weights_m_d_ref <- theme_ss_weights_m_df@data %>% dplyr::filter(dates == "2023-06-15")
+
+  #Features Objects
+  selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
+    dplyr::select(id, tickers, dates, most_recent_custom_weights_m_d_ref %>% dplyr::filter(weights > 0) %>% dplyr::pull(tickers))
+
+  selected_features_second_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                                             "2022-10-15",
+                                                                                                                             "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                                             "2023-02-15", "2023-03-15", "2023-04-15")),]
+
+  #Targets
+  targets_second_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                     "2022-10-15",
+                                                                                                     "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                     "2023-02-15", "2023-03-15", "2023-04-15")),]
+
+
+  #Fitting
+  second_sb_port <- fit_sb_model(sb_algorithm = "custom_weights", target_fwd_name = "fwd_premium_3m",
+                                 selected_features_corrected_positions_m_refit = selected_features_second_rebal,
+                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                 most_recent_custom_signal_weights_m_d_ref = most_recent_custom_weights_m_d_ref,
+                                 selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
+                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
+                                 selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                 rp_method = "cyclical-spinu"
+  )
+
+
+
+  #Predict
+  dates_second_prediction <- c("2023-07-15")
+  #Resulting obj
+  prediction_list_second_prediction <- list()
+  y_list_second_prediction <- list()
+  error_list_second_prediction <- list()
+  r_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  cp_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  rmse_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mae_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  pseudo_huber_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  pinball_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mape_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  hr_oos_second_prediction <- vector(length = length(dates_second_prediction))
+  mb_oos_second_prediction <- vector(length = length(dates_second_prediction))
+
+
+
+
+  for(i in 1:length(dates_second_prediction)){
+
+    #Subset for each date
+    features_second_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_second_prediction[i]),]
+    target_second_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_second_prediction[i])]
+
+    #Fill obj
+    prediction_list_second_prediction[[i]] <- predict(second_sb_port, features_second_prediction)
+    error_list_second_prediction[[i]] <- target_second_prediction - prediction_list_second_prediction[[i]]
+    y_list_second_prediction[[i]] <- target_second_prediction
+
+    #Rename
+    names(prediction_list_second_prediction[[i]]) <- features_second_prediction$tickers
+    names(error_list_second_prediction[[i]]) <- features_second_prediction$tickers
+    names(y_list_second_prediction[[i]]) <- features_second_prediction$tickers
+
+    r_oos_second_prediction[i] <- 1 - (sum(error_list_second_prediction[[i]]^(2))/sum(y_list_second_prediction[[i]]^2))
+    cp_oos_second_prediction[i] <- sum((y_list_second_prediction[[i]])*(prediction_list_second_prediction[[i]]))/length(y_list_second_prediction[[i]])
+    rmse_oos_second_prediction[i] <- sqrt(sum(error_list_second_prediction[[i]]^(2))/length(y_list_second_prediction[[i]]))
+    mae_oos_second_prediction[i] <- sum(abs(error_list_second_prediction[[i]]))/length(y_list_second_prediction[[i]])
+    pseudo_huber_oos_second_prediction[i] <- mean(1^2*(sqrt(1+(error_list_second_prediction[[i]])^2)-1))
+    pinball_oos_second_prediction[i] <- mean(ifelse(error_list_second_prediction[[i]] >= 0, 0.5*error_list_second_prediction[[i]], (1-0.5)*(-1)*error_list_second_prediction[[i]]))
+    mape_oos_second_prediction[i] <- mean(abs(error_list_second_prediction[[i]]/y_list_second_prediction[[i]]))
+    hr_oos_second_prediction[i] <- length(which(sign(y_list_second_prediction[[i]]) == sign(prediction_list_second_prediction[[i]])))/length(y_list_second_prediction[[i]])
+    mb_oos_second_prediction[i] <- mean(error_list_second_prediction[[i]])
+
+
+  }
+  #Set dates
+  names(prediction_list_second_prediction) <- dates_second_prediction
+  names(error_list_second_prediction) <- dates_second_prediction
+  names(y_list_second_prediction) <- dates_second_prediction
+  names(r_oos_second_prediction) <- dates_second_prediction
+  names(cp_oos_second_prediction) <- dates_second_prediction
+  names(rmse_oos_second_prediction) <- dates_second_prediction
+  names(mae_oos_second_prediction) <- dates_second_prediction
+  names(pseudo_huber_oos_second_prediction) <- dates_second_prediction
+  names(pinball_oos_second_prediction) <- dates_second_prediction
+  names(mape_oos_second_prediction) <- dates_second_prediction
+  names(hr_oos_second_prediction) <- dates_second_prediction
+  names(mb_oos_second_prediction) <- dates_second_prediction
+
+
+  #Create final objects
+  expected_results <- list()
+  outputs <- list()
+
+  expected_results[[1]] <- outputs
+  #Prediction list
+  prediction_list <- c(prediction_list_first_prediction, prediction_list_second_prediction)
+  names(prediction_list) <- c(names(prediction_list_first_prediction), names(prediction_list_second_prediction))
+
+
+  #Error list
+  error_list <- c(error_list_first_prediction, error_list_second_prediction)
+  names(error_list) <- c(names(error_list_first_prediction), names(error_list_second_prediction))
+
+
+  #Y list
+  y_list <- c(y_list_first_prediction, y_list_second_prediction)
+  names(y_list) <- c(names(y_list_first_prediction), names(y_list_second_prediction))
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
+
+  #Eval metrics
+  eval_metrics <- xts::xts(data.frame(rss = c(r_oos_first_prediction, r_oos_second_prediction),
+                                      cp = c(cp_oos_first_prediction, cp_oos_second_prediction),
+                                      rmse = c(rmse_oos_first_prediction, rmse_oos_second_prediction),
+                                      mae = c(mae_oos_first_prediction, mae_oos_second_prediction),
+                                      mphe = c(pseudo_huber_oos_first_prediction, pseudo_huber_oos_second_prediction),
+                                      mpe = c(pinball_oos_first_prediction, pinball_oos_second_prediction),
+                                      mape = c(mape_oos_first_prediction, mape_oos_second_prediction),
+                                      hr = c(hr_oos_first_prediction, hr_oos_second_prediction),
+                                      mb = c(mb_oos_first_prediction, mb_oos_second_prediction)),
+                           order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
+
+  expected_results$outputs[[2]] <- eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
+
+  consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics), cons_oos = as.numeric(consolidated_eval_metrics))
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics
+  expect_equal(expected_results$outputs[[3]], consolidated_eval_metrics)
+
+  #gsm 1
+  preds <- predict(first_sb_port, new_features_m_df = selected_features_first_rebal)
+  gsm <- rpart::rpart(preds ~ ., data = selected_features_first_rebal[,-c(1:3)]) #Date used to fit lm model
+
+  #Start object
+  feature_importance_m_df1 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15") %>%
+    dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
+  #Get coefs
+  tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
+
+  tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
+  #Join and adjust
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::full_join(tree_coefs, by = "tickers")
+  feature_importance_m_df1$dates <- as.Date("2022-11-15") #Rebalance date
+  feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
+  #Reorder
+  feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates,
+                                                                         importance, normalized_importance, theme, theme_ss_bench_weights, theme_sb_bench_weights, is_eligible)
+  #Force non-elected to be zero
+  feature_importance_m_df1$importance[which(is.na(feature_importance_m_df1$importance))] <- 0
+  feature_importance_m_df1$normalized_importance[which(is.na(feature_importance_m_df1$normalized_importance))] <- 0
+  feature_importance_m_df1$theme_ss_bench_weights[which(is.na(feature_importance_m_df1$theme_ss_bench_weights))] <- 0
+  feature_importance_m_df1$theme_sb_bench_weights[which(is.na(feature_importance_m_df1$theme_sb_bench_weights))] <- 0
+  feature_importance_m_df1$is_eligible[which(is.na(feature_importance_m_df1$is_eligible))] <- 0
+
+  feature_importance_m_df1 <- feature_importance_m_df1[order(feature_importance_m_df1$id),]
+
+
+  #gsm 2
+  preds <- predict(second_sb_port, new_features_m_df = selected_features_second_rebal)
+  gsm <- rpart::rpart(preds ~ ., data = selected_features_second_rebal[,-c(1:3)]) #Date used to fit lm model
+
+
+  #Start object
+  feature_importance_m_df2 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15") %>%
+    dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
+  #Get coefs
+  tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
+
+  tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
+  #Join and adjust
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::full_join(tree_coefs, by = "tickers")
+  feature_importance_m_df2$dates <- as.Date("2023-07-15") #Rebalance date
+  feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
+  #Reorder
+  feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates,
+                                                                         importance, normalized_importance, theme, theme_ss_bench_weights, theme_sb_bench_weights, is_eligible)
+  #Force non-elected to be zero
+  feature_importance_m_df2$importance[which(is.na(feature_importance_m_df2$importance))] <- 0
+  feature_importance_m_df2$normalized_importance[which(is.na(feature_importance_m_df2$normalized_importance))] <- 0
+  feature_importance_m_df2$theme_ss_bench_weights[which(is.na(feature_importance_m_df2$theme_ss_bench_weights))] <- 0
+  feature_importance_m_df2$theme_sb_bench_weights[which(is.na(feature_importance_m_df2$theme_sb_bench_weights))] <- 0
+  feature_importance_m_df2$is_eligible[which(is.na(feature_importance_m_df2$is_eligible))] <- 0
+
+  feature_importance_m_df2 <- feature_importance_m_df2[order(feature_importance_m_df2$id),]
+
+
+  feature_importance_m_df <- feature_importance_m_df1 %>% dplyr::bind_rows(feature_importance_m_df2) %>% dplyr::arrange(id)
+
+  expected_results$outputs[[4]] <- feature_importance_m_df
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@feature_importance_m_df@data)
+
+  expected_results$outputs[[5]] <- feature_importance_m_df2
+  rownames(expected_results$outputs[[5]]) <- NULL
+  rownames(sb_backtest_results@final_feature_importance_m_d_ref@data) <- NULL
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
+
+
+  #Test if weights match
+  expect_equal(sb_backtest_results@final_sb_model@model@weights, theme_ss_weights_m_df@data %>% dplyr::filter(dates == "2023-06-15") %>% dplyr::pull(weights))
+  expect_equal(sb_backtest_results@final_sb_model@model@eligible_assets, theme_ss_weights_m_df@data %>% dplyr::filter(dates == "2023-06-15") %>% dplyr::pull(tickers))
+
+
+})
+#Define your test
 test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
@@ -2144,7 +2556,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data, expected_results$outputs[[5]])
 
 })
-
+#Define your test
 test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_targets", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
@@ -2624,107 +3036,111 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 #Define your test Excel sheet test glmnet 1
 test_that("GLMNET - run_sb_backtest works with no rebalancing, 1m target, grid_search as tuning method and rss as chosen eval metric",{
 
+ #SB Config
   glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 12,
-                                             quantile_tau = 0.75) %>%
+                                             quantile_tau = 0.75, target_fwd_name = "fwd_premium_1m") %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rss", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                           grid = list(c(0, 0.5, 1), seq(0, 0.9, length=10)))
 
+  features_m_df = create_meta_dataframe(
+    structure(
+      list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                  "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                  "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                  "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                  "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                  "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                  "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                  "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                  "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                  "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                  "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                  "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                  "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                  "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                  "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                  "Stock E-2001-11-15"),
+           tickers = c("Stock A", "Stock A", "Stock A",
+                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                       "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                       "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
+           dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400),
+                                     class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+           Alpha = c(3, -20, -450, 5, -2, 1,
+                     6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
+                     8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
+                     -1, 4, 4),
+           Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
+                    -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
+                    2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
+           Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
+                     -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
+                     3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame"))
+
+  target_m_df =
+    create_meta_dataframe(
+      structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                            "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                            "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                            "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                            "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                            "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                            "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                            "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                            "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                            "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                            "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                            "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                            "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                            "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                            "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                            "Stock E-2001-11-15"),
+                     tickers = c("Stock A", "Stock A", "Stock A",
+                                 "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                                 "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                                 "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                                 "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                                 "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                                 "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                                 "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
+                     ),
+                     dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                                 995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+                     fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
+                                        2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
+                     fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
+                                        3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
+                     fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
+                                       10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)),
+                row.names = c(NA, -45L), class = "data.frame"))
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(
-        structure(
-        list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                    "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                    "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                    "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                    "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                    "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                    "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                    "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                    "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                    "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                    "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                    "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                    "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                    "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                    "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                    "Stock E-2001-11-15"),
-             tickers = c("Stock A", "Stock A", "Stock A",
-                         "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                         "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                         "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                         "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                         "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                         "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                         "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
-             dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400),
-                               class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-             Alpha = c(3, -20, -450, 5, -2, 1,
-                       6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
-                       8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
-                       -1, 4, 4),
-             Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
-                      -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
-                      2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
-             Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
-                       -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
-                       3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame")),
-      target_m_df =
-        create_meta_dataframe(
-        structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                              "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                              "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                              "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                              "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                              "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                              "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                              "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                              "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                              "Stock E-2001-11-15"),
-                       tickers = c("Stock A", "Stock A", "Stock A",
-                                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                                   "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                                   "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
-                       ),
-                       dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-                       fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
-                                          2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
-                       fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
-                                          3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
-                       fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
-                                         10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)),
-                  row.names = c(NA, -45L), class = "data.frame")),
-     target_fwd_name = c("fwd_premium_1m"),
-     config = glmnet_config,
+      features_m_df = features_m_df, target_m_df = target_m_df,
+      config = glmnet_config,
       verbose = FALSE,
       parallel = FALSE
-     )}))
+     )
+    }))
 
   #Define initial objects
   hyper_expanded_grid <- expand.grid(list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0, 0.9, length=10)))
@@ -2884,27 +3300,52 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 1m target, grid_s
 
   coef(glm.mod.refit)
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(`2001-09-15` = c(`Stock A` = 3.1, `Stock B` = 3.1, `Stock C` = 3.1, `Stock D` = 3.1, `Stock E` = 3.1),
                           `2001-10-15` = c(`Stock A` = 3.1, `Stock B` = 3.1, `Stock C` = 3.1, `Stock D` = 3.1, `Stock E` = 3.1),
                           `2001-11-15` = c(`Stock A` = 3.1, `Stock B` = 3.1, `Stock C` = 3.1, `Stock D` = 3.1, `Stock E` = 3.1))
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(`2001-09-15` = c(`Stock A` = 6.9, `Stock B` = 31.9, `Stock C` = -1.1, `Stock D` = -13.1, `Stock E` = 0.9),
                      `2001-10-15` = c(`Stock A` = -0.1,`Stock B` = -155.1, `Stock C` = 0.9, `Stock D` = -48.1, `Stock E` = -8.1),
                      `2001-11-15` = c(`Stock A` = -2.1, `Stock B` = -0.1, `Stock C` = -23.1, `Stock D` = -6.1, `Stock E` = -3.1))
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(`2001-09-15` = c(`Stock A` = 10, `Stock B` = 35, `Stock C` = 2, `Stock D` = -10, `Stock E` = 4),
                  `2001-10-15` = c(`Stock A` = 3, `Stock B` = -152, `Stock C` = 4, `Stock D` = -45, `Stock E` = -5),
                  `2001-11-15` = c(`Stock A` = 1, `Stock B` = 3, `Stock C` = -20, `Stock D` = -3, `Stock E` = 0))
-  results$outputs[[3]] <- y_list
+
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
+
   #Eval metrics
-  oos_testing_eval_metrics <-structure(list(rss =c(0.142664359861592, -0.0499245402915127, -0.39582338902148),
+  oos_testing_eval_metrics <-xts::xts(data.frame(rss =c(0.142664359861592, -0.0499245402915127, -0.39582338902148),
                                             cp = c(25.42, -120.9, -11.78),
                                             rmse = c(15.7407115468139, 72.7132037528261, 10.8152669869957),
                                             mae = c(10.78, 42.46, 6.9),
@@ -2913,53 +3354,57 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 1m target, grid_s
                                             mape = c(0.737286, 0.793523, Inf),
                                             hr = c(0.8, 0.4, 0.4),
                                             mb = c(5.1, -42.1, -6.9)
-                                            ), class = "data.frame", row.names = c("2001-09-15", "2001-10-15", "2001-11-15"))
+                                            ), order.by = as.Date(c("2001-09-15", "2001-10-15", "2001-11-15")))
 
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+
+  #Consolidated
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
                                                       target = unlist(y_list),
-                                                      quantile_tau = 0.75)
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- c("2001-09-15")
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = c("2001-09-15"),
-                                     alpha = hyper_expanded_grid$alpha[hyper_choice],
-                                     lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[hyper_choice],
-                                     best_lam = best_lam[hyper_choice])
-
+                                                      quantile_tau = 0.75)[-1]
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+                                             )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
 
 
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-05
-  )
+  #Final Model
+  expect_equal(coef(sb_backtest_results@final_sb_model@model), coef(glm.mod.refit))
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <- c("2001-09-15")
+  expected_results$outputs[[6]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@chosen_eval_metric_validation)
+
+
+  #Best Hyoer
+  expected_results$outputs[[7]] <- xts::xts(
+    data.frame(alpha = hyper_expanded_grid$alpha[hyper_choice],
+               lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[hyper_choice],
+               best_lam = best_lam[hyper_choice]),
+               order.by = as.Date("2001-09-15"))
+
+  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_xts)
+
+  #Validation loss metrics for hyper choice
+
+  expected_results$outputs[[8]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15")))
+  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+
+
+  #Check for importance based on coefs
+  expect_equal(sb_backtest_results@feature_importance_m_df@data %>% dplyr::arrange(normalized_importance) %>% dplyr::pull(tickers),
+               names(coef(glm.mod.refit)[,1][order(coef(glm.mod.refit)[,1])])
+               )
 
 })
 
@@ -2967,102 +3412,109 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 1m target, grid_s
 test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, grid_search as tuning method and hr as chosen eval metric",{
 
   glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11,
-                                             huber_delta = 1.35) %>%
+                                             huber_delta = 1.35,  target_fwd_name = "fwd_premium_1m") %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "hr", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
 
+
+  features_m_df = create_meta_dataframe(
+    structure(
+      list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                  "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                  "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                  "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                  "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                  "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                  "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                  "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                  "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                  "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                  "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                  "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                  "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                  "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                  "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                  "Stock E-2001-11-15"),
+           tickers = c("Stock A", "Stock A", "Stock A",
+                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                       "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                       "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
+           dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400),
+                                     class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+           Alpha = c(3, -20, -450, 5, -2, 1,
+                     6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
+                     8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
+                     -1, 4, 4),
+           Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
+                    -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
+                    2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
+           Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
+                     -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
+                     3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame"))
+
+  target_m_df = create_meta_dataframe(
+    structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                          "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                          "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                          "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                          "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                          "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                          "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                          "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                          "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                          "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                          "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                          "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                          "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                          "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                          "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                          "Stock E-2001-11-15"),
+                   tickers = c("Stock A", "Stock A", "Stock A",
+                               "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                               "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                               "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                               "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                               "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                               "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                               "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
+                   ),
+                   dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                               987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                               1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                               987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                               1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+                                   format = "%Y-%m-%d"),
+                   fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
+                                      2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
+                   fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
+                                      3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
+                   fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
+                                     10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)),
+              row.names = c(NA, -45L), class = "data.frame"))
+
+
+
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(
-        structure(
-        list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                    "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                    "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                    "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                    "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                    "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                    "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                    "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                    "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                    "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                    "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                    "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                    "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                    "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                    "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                    "Stock E-2001-11-15"),
-             tickers = c("Stock A", "Stock A", "Stock A",
-                         "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                         "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                         "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                         "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                         "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                         "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                         "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
-             dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400),
-                               class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-             Alpha = c(3, -20, -450, 5, -2, 1,
-                       6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
-                       8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
-                       -1, 4, 4),
-             Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
-                      -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
-                      2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
-             Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
-                       -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
-                       3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame")),
-      target_m_df = create_meta_dataframe(
-        structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                              "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                              "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                              "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                              "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                              "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                              "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                              "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                              "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                              "Stock E-2001-11-15"),
-                       tickers = c("Stock A", "Stock A", "Stock A",
-                                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                                   "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                                   "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
-                       ),
-                       dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                       format = "%Y-%m-%d"),
-                       fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
-                                          2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
-                       fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
-                                          3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
-                       fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
-                                         10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)),
-                  row.names = c(NA, -45L), class = "data.frame")),
-      target_fwd_name = c("fwd_premium_1m"),
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
       verbose = FALSE,
       config = glmnet_config,
       parallel = FALSE
@@ -3362,13 +3814,13 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
                                   alpha = hyper_expanded_grid$alpha[hyper_choice2],
                                   lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[hyper_choice2])
 
-  coef(glm.mod.refit)
+  coef(glm.mod.refit, s = 1146.231)
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(
     `2001-09-15` = c(`Stock A` = 3.09999999999021, `Stock B` = 3.09999999999021,
@@ -3378,7 +3830,6 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
     ), `2001-11-15` = c(`Stock A` = -1.5250000, `Stock B` = -1.5250000,
                         `Stock C` = -1.5250000, `Stock D` = -1.5250000, `Stock E` = -1.5250000
     ))
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(`2001-09-15` = c(`Stock A` = 6.90000000000979, `Stock B` = 31.9000000000098,
                                       `Stock C` = -1.09999999999021, `Stock D` = -13.0999999999902,
@@ -3386,14 +3837,39 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
                      `2001-10-15` = c(`Stock A` = -0.0999999999902101, `Stock B` = -155.09999999999,
                                       `Stock C` = 0.90000000000979, `Stock D` = -48.0999999999902, `Stock E` = -8.09999999999021),
                      `2001-11-15` = c(`Stock A` = 2.525, `Stock B` = 4.525, `Stock C` = -18.475, `Stock D` = -1.475, `Stock E` = 1.525))
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(`2001-09-15` = c(`Stock A` = 10, `Stock B` = 35, `Stock C` = 2, `Stock D` = -10, `Stock E` = 4),
                  `2001-10-15` = c(`Stock A` = 3, `Stock B` = -152, `Stock C` = 4, `Stock D` = -45, `Stock E` = -5),
                  `2001-11-15` = c(`Stock A` = 1, `Stock B` = 3, `Stock C` = -20, `Stock D` = -3, `Stock E` = 0))
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data, tolerance = 1e-2)
+
+
   #Eval metrics
-  oos_testing_eval_metrics <-structure(list(rss =c(0.14266435986, -0.04992454029, 0.110553401),
+  oos_testing_eval_metrics <-xts::xts(data.frame(rss =c(0.14266435986, -0.04992454029, 0.110553401),
                                             cp = c(25.4199999999197, -120.899999999618,
                                                              5.795),
                                             rmse = c(15.7407115, 72.7132038, 8.6334017),
@@ -3403,56 +3879,54 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
                                             mape = c(0.737286, 0.793523, Inf),
                                             hr = c(0.8, 0.4, 0.4),
                                             mb = c(5.1, -42.1, -2.275)
-                                            ),
+                                            ), order.by =as.Date(c("2001-09-15", "2001-10-15", "2001-11-15")))
 
-                                       class = "data.frame", row.names = c("2001-09-15", "2001-10-15", "2001-11-15"))
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-2)
 
+  #Consolidated
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
                                                       target = unlist(y_list),
-                                                      huber_delta = 1.35)
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- c("2001-09-15", "2001-11-15")
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = c("2001-09-15", "2001-11-15"),
-                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
-                                     lambda.min.ratio = c(hyper_expanded_grid$lambda.min.ratio[hyper_choice1], hyper_expanded_grid$lambda.min.ratio[hyper_choice2]),
-                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])
-                                     )
+                                                      huber_delta = 1.35)[-1]
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-2
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
   )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics, tolerance = 1e-2)
+
+  #Final Model
+  expect_equal(coef(sb_backtest_results@final_sb_model@model), coef(glm.mod.refit))
+
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <-  c("2001-09-15", "2001-11-15")
+  expected_results$outputs[[6]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@chosen_eval_metric_validation)
+
+  #Best Hyoer
+  expected_results$outputs[[7]] <- xts::xts(data.frame(
+                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
+                                     lambda.min.ratio = c(hyper_expanded_grid$lambda.min.ratio[hyper_choice1], hyper_expanded_grid$lambda.min.ratio[hyper_choice2]),
+                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])
+                                     ), order.by =  as.Date(c("2001-09-15", "2001-11-15")))
+
+  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_xts)
+
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[8]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15", "2001-11-15")))
+  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+
+  #Check for importance based on coefs
+  expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data %>% dplyr::arrange(normalized_importance) %>% dplyr::pull(tickers),
+               names(coef(glm.mod.refit)[,1][order(coef(glm.mod.refit)[,1])])
+  )
+
 
 })
 
@@ -3460,103 +3934,106 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
 test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method and rss as chosen eval metric",{
 
   glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11,
-                                             huber_delta = 0.5) %>%
+                                             huber_delta = 0.5, target_fwd_name = "fwd_premium_3m") %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rss", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        grid = list(c(0, 0.5, 1), seq(0, 0.9, length=10)))
+
+  features_m_df = create_meta_dataframe(
+    structure(
+      list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                  "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                  "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                  "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                  "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                  "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                  "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                  "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                  "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                  "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                  "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                  "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                  "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                  "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                  "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                  "Stock E-2001-11-15"),
+           tickers = c("Stock A", "Stock A", "Stock A",
+                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                       "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                       "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
+           dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400),
+                                     class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+           Alpha = c(3, -20, -450, 5, -2, 1,
+                     6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
+                     8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
+                     -1, 4, 4),
+           Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
+                    -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
+                    2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
+           Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
+                     -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
+                     3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame"))
+
+  target_m_df = create_meta_dataframe(
+    structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                          "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                          "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                          "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                          "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                          "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                          "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                          "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                          "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                          "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                          "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                          "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                          "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                          "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                          "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                          "Stock E-2001-11-15"),
+                   tickers = c("Stock A", "Stock A", "Stock A",
+                               "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                               "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                               "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                               "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                               "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                               "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                               "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
+                   ),
+                   dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                               987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                               1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                               987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                               1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+                                   format = "%Y-%m-%d"),
+                   fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
+                                      2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
+                   fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
+                                      3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
+                   fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
+                                     10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)),
+              row.names = c(NA, -45L), class = "data.frame"))
 
 
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(
-        structure(
-        list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                    "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                    "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                    "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                    "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                    "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                    "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                    "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                    "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                    "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                    "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                    "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                    "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                    "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                    "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                    "Stock E-2001-11-15"),
-             tickers = c("Stock A", "Stock A", "Stock A",
-                         "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                         "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                         "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                         "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                         "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                         "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                         "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
-             dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400),
-                               class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-             Alpha = c(3, -20, -450, 5, -2, 1,
-                       6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
-                       8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
-                       -1, 4, 4),
-             Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
-                      -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
-                      2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
-             Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
-                       -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
-                       3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame")),
-      target_m_df = create_meta_dataframe(
-        structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                              "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                              "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                              "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                              "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                              "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                              "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                              "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                              "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                              "Stock E-2001-11-15"),
-                       tickers = c("Stock A", "Stock A", "Stock A",
-                                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                                   "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                                   "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
-                       ),
-                       dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                       format = "%Y-%m-%d"),
-                       fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
-                                          2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
-                       fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
-                                          3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
-                       fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
-                                         10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)),
-                  row.names = c(NA, -45L), class = "data.frame")),
-      target_fwd_name = c("fwd_premium_3m"),
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
       config = glmnet_config,
       parallel = FALSE,
       verbose = FALSE
@@ -3871,10 +4348,10 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
 
   coef(glm.mod.refit)
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(`2001-09-15` = c(`Stock A` = 3.95, `Stock B` = 3.95, `Stock C` = 3.95,
                                            `Stock D` = 3.95, `Stock E` = 3.95), `2001-10-15` = c(`Stock A` = 3.95,
@@ -3882,14 +4359,12 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
                                            ), `2001-11-15` = c(`Stock A` = 3.4666667, `Stock B` = 3.4666667,
                                                                `Stock C` = 3.4666667, `Stock D` = 3.4666667, `Stock E` = 3.4666667
                                            ))
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(`2001-09-15` = c(`Stock A` = -8.95, `Stock B` = 1.05, `Stock C` = -0.95,
                                       `Stock D` = 7.05, `Stock E` = -7.95),
                      `2001-10-15` = c(`Stock A` = -4.95, `Stock B` = -2.95, `Stock C` = 36.05, `Stock D` = 0.0499999999999998,
                                       `Stock E` = 0.0499999999999998),
                      `2001-11-15` = c(`Stock A` = 0.53333333, `Stock B` = -1.46666667, `Stock C` = -1.46666667, `Stock D` = -1.46666667, `Stock E` = -0.46666667))
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(`2001-09-15` = c(`Stock A` = -5, `Stock B` = 5, `Stock C` = 3,
                                   `Stock D` = 11, `Stock E` = -4),
@@ -3897,230 +4372,259 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
                                   `Stock D` = 4, `Stock E` = 4),
                  `2001-11-15` = c(`Stock A` = 4, `Stock B` = 2, `Stock C` = 2,
                                   `Stock D` = 2, `Stock E` = 3))
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
+
   #Eval metrics
-  oos_testing_eval_metrics <-structure(list(rss =c(0.0050382653061225, 0.184325275397797,
-                                                         0.812012012), cp = c(7.9, 37.92, 9.0133333),
-                                            rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145
-                                            ), mae = c(5.19, 8.81, 1.0800002),
-                                            mphe = c(2.37338875, 4.25257161, 0.35636565),
-                                            mpe = c(2.595, 4.405, 0.54),
-                                            mape = c(0.989015, 1.76525, 0.497778),
-                                            hr = c(0.6, 0.8, 1),
-                                            mb = c(-1.95, 5.65, -0.866667)
-                                            ), class = "data.frame", row.names = c("2001-09-15","2001-10-15", "2001-11-15"))
+  oos_testing_eval_metrics <- xts::xts(
+    data.frame(rss =c(0.0050382653061225, 0.184325275397797, 0.812012012),
+               cp = c(7.9, 37.92, 9.0133333),
+               rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145),
+               mae = c(5.19, 8.81, 1.0800002),
+               mphe = c(2.37338875, 4.25257161, 0.35636565),
+               mpe = c(2.595, 4.405, 0.54),
+               mape = c(0.989015, 1.76525, 0.497778),
+               hr = c(0.6, 0.8, 1),
+               mb = c(-1.95, 5.65, -0.866667)), as.Date(c("2001-09-15","2001-10-15", "2001-11-15")))
+
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-3)
+
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
                                                       target = unlist(y_list),
-                                                      huber_delta = .5)
+                                                      huber_delta = .5)[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
+  #Validation loss metrics for hyper choice
+  validation_eval_hyper_choice_avg <- colMeans(validation_eval_hyper_choice)
+
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+  )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
 
 
-  results$outputs[[4]] <- oos_testing_eval_metrics
+  expected_results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
+  expect_equal(coef(sb_backtest_results@final_sb_model@model), coef(glm.mod.refit))
 
 
-    #Validation lossess for chosen metric
+  #Validation lossess for chosen metric
   names(chosen_eval_metric_val) <- c("2001-09-15", "2001-11-15")
-  results$outputs[[6]] <- chosen_eval_metric_val
+  expected_results$outputs[[6]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@chosen_eval_metric_validation)
 
   #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = c("2001-09-15", "2001-11-15"),
-                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
-                                     lambda.min.ratio = c(hyper_expanded_grid$lambda[hyper_choice1], hyper_expanded_grid$lambda[hyper_choice2]),
-                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2]))
+  expected_results$outputs[[7]] <- xts::xts(
+    data.frame(alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
+               lambda.min.ratio = c(hyper_expanded_grid$lambda[hyper_choice1], hyper_expanded_grid$lambda[hyper_choice2]),
+               best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])),
+    order.by = as.Date(c("2001-09-15", "2001-11-15")))
+  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_xts)
 
 
   #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-03
-  )
+  expected_results$outputs[[8]] <- xts::xts(validation_eval_hyper_choice,
+                                            order.by = as.Date(c("2001-09-15", "2001-11-15")))
+  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
 })
 
 #Define your test  Excel sheet test glmnet 4
 test_that("GLMNET - run_sb_backtest works with no rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric - bigger sample",{
 
-  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 8, rebalancing_months = 11) %>%
+  glmnet_config <-
+    create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 8, rebalancing_months = 11,
+                              target_fwd_name = "fwd_premium_3m") %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rmse", validation_sample_size = 5) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
 
 
+  features_m_df = create_meta_dataframe(
+    structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                          "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                          "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                          "Stock A-2001-11-15", "Stock A-2001-12-15", "Stock A-2002-01-15",
+                          "Stock A-2002-02-15", "Stock A-2002-03-15", "Stock A-2002-04-15",
+                          "Stock A-2002-05-15", "Stock A-2002-06-15", "Stock B-2001-03-15",
+                          "Stock B-2001-04-15", "Stock B-2001-05-15", "Stock B-2001-06-15",
+                          "Stock B-2001-07-15", "Stock B-2001-08-15", "Stock B-2001-09-15",
+                          "Stock B-2001-10-15", "Stock B-2001-11-15", "Stock B-2001-12-15",
+                          "Stock B-2002-01-15", "Stock B-2002-02-15", "Stock B-2002-03-15",
+                          "Stock B-2002-04-15", "Stock B-2002-05-15", "Stock B-2002-06-15",
+                          "Stock C-2001-03-15", "Stock C-2001-04-15", "Stock C-2001-05-15",
+                          "Stock C-2001-06-15", "Stock C-2001-07-15", "Stock C-2001-08-15",
+                          "Stock C-2001-09-15", "Stock C-2001-10-15", "Stock C-2001-11-15",
+                          "Stock C-2001-12-15", "Stock C-2002-01-15", "Stock C-2002-02-15",
+                          "Stock C-2002-03-15", "Stock C-2002-04-15", "Stock C-2002-05-15",
+                          "Stock C-2002-06-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                          "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                          "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                          "Stock D-2001-11-15", "Stock D-2001-12-15", "Stock D-2002-01-15",
+                          "Stock D-2002-02-15", "Stock D-2002-03-15", "Stock D-2002-04-15",
+                          "Stock D-2002-05-15", "Stock D-2002-06-15", "Stock E-2001-03-15",
+                          "Stock E-2001-04-15", "Stock E-2001-05-15", "Stock E-2001-06-15",
+                          "Stock E-2001-07-15", "Stock E-2001-08-15", "Stock E-2001-09-15",
+                          "Stock E-2001-10-15", "Stock E-2001-11-15", "Stock E-2001-12-15",
+                          "Stock E-2002-01-15", "Stock E-2002-02-15", "Stock E-2002-03-15",
+                          "Stock E-2002-04-15", "Stock E-2002-05-15", "Stock E-2002-06-15"
+    ), tickers = c("Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock B",
+                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                   "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                   "Stock C", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock E",
+                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E",
+                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E",
+                   "Stock E", "Stock E", "Stock E"), dates =
+      as.Date(structure(c(984614400,
+                          987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                          1003104000, 1005782400, 1008374400, 1011052800, 1013731200, 1016150400,
+                          1018828800, 1021420800, 1024099200, 984614400, 987292800, 989884800,
+                          992563200, 995155200, 997833600, 1000512000, 1003104000, 1005782400,
+                          1008374400, 1011052800, 1013731200, 1016150400, 1018828800, 1021420800,
+                          1024099200, 984614400, 987292800, 989884800, 992563200, 995155200,
+                          997833600, 1000512000, 1003104000, 1005782400, 1008374400, 1011052800,
+                          1013731200, 1016150400, 1018828800, 1021420800, 1024099200, 984614400,
+                          987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                          1003104000, 1005782400, 1008374400, 1011052800, 1013731200, 1016150400,
+                          1018828800, 1021420800, 1024099200, 984614400, 987292800, 989884800,
+                          992563200, 995155200, 997833600, 1000512000, 1003104000, 1005782400,
+                          1008374400, 1011052800, 1013731200, 1016150400, 1018828800, 1021420800,
+                          1024099200), class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+    Alpha = c(3, -20, -450, 5, -2, 1, 6, 1, -9, 3, 1, -2, 3,
+              20, 2, 3, 1, 7, 4, 2, 20, 1, 1, -2, -2, 8, -3, 3, 3, 12,
+              23, -7, 2, 9, 9, -20, -150, -20, 8, 17, 1, -3, 7, -9, 8,
+              30, 3, -2, 5, -2, 2, -1, -50, -25, 1, 4, 2, 307, 0, 3, 9,
+              19, 3, 0, 5, 3, -1, 2, -1, -20, -1, 4, 4, 8, -20, 13, 0,
+              50, 3, 2),
+    Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 0, 0, -1,
+             1, 5, 9, 1, 5, 2, 4, 1, -12, -10, 3, 4, 1, 7, 3, 9, 1, 3,
+             -9, 3, 6, -3, -2, 1, 1, 4, 24, 19, -1, 10, 6, -40, 7, 0,
+             8, 0, 0, -2, 5, 2, 5, 1, 2, 5, 3, -2, -10, 8, 2, 8, 7, 1,
+             2, -9, 3, 1, 2, 1, -1, -20, 2, 7, 9, 9, 8, 20, 2, -10),
+    Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, 3, 2, 2, 8, -2, 5, 9, -2,
+              4, -15, 3, 4, 4, 3, 7, 2, -3, 0, 10, 0, -8, 104, 10, -3,
+              2, 6, 20, 12, 13, -4, 105, 30, 12, 20, -105, 1, 7, 9, -9,
+              5, 2, 3, 3, -10, 0, -1, 4, 1, -2, -10, 1, -2, -19, 0, 3,
+              1, -500, 6, 4, 405, 0, 1, 31, 5, 87, 8, 92, 70, 0, 19)),
+    row.names = c(NA, -80L), class = "data.frame"))
+
+  target_m_df =
+    create_meta_dataframe(
+      structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                            "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                            "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                            "Stock A-2001-11-15", "Stock A-2001-12-15", "Stock A-2002-01-15",
+                            "Stock A-2002-02-15", "Stock A-2002-03-15", "Stock A-2002-04-15",
+                            "Stock A-2002-05-15", "Stock A-2002-06-15", "Stock B-2001-03-15",
+                            "Stock B-2001-04-15", "Stock B-2001-05-15", "Stock B-2001-06-15",
+                            "Stock B-2001-07-15", "Stock B-2001-08-15", "Stock B-2001-09-15",
+                            "Stock B-2001-10-15", "Stock B-2001-11-15", "Stock B-2001-12-15",
+                            "Stock B-2002-01-15", "Stock B-2002-02-15", "Stock B-2002-03-15",
+                            "Stock B-2002-04-15", "Stock B-2002-05-15", "Stock B-2002-06-15",
+                            "Stock C-2001-03-15", "Stock C-2001-04-15", "Stock C-2001-05-15",
+                            "Stock C-2001-06-15", "Stock C-2001-07-15", "Stock C-2001-08-15",
+                            "Stock C-2001-09-15", "Stock C-2001-10-15", "Stock C-2001-11-15",
+                            "Stock C-2001-12-15", "Stock C-2002-01-15", "Stock C-2002-02-15",
+                            "Stock C-2002-03-15", "Stock C-2002-04-15", "Stock C-2002-05-15",
+                            "Stock C-2002-06-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                            "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                            "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                            "Stock D-2001-11-15", "Stock D-2001-12-15", "Stock D-2002-01-15",
+                            "Stock D-2002-02-15", "Stock D-2002-03-15", "Stock D-2002-04-15",
+                            "Stock D-2002-05-15", "Stock D-2002-06-15", "Stock E-2001-03-15",
+                            "Stock E-2001-04-15", "Stock E-2001-05-15", "Stock E-2001-06-15",
+                            "Stock E-2001-07-15", "Stock E-2001-08-15", "Stock E-2001-09-15",
+                            "Stock E-2001-10-15", "Stock E-2001-11-15", "Stock E-2001-12-15",
+                            "Stock E-2002-01-15", "Stock E-2002-02-15", "Stock E-2002-03-15",
+                            "Stock E-2002-04-15", "Stock E-2002-05-15", "Stock E-2002-06-15"
+      ), tickers = c("Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                     "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                     "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock B",
+                     "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                     "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                     "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                     "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                     "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                     "Stock C", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                     "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                     "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock E",
+                     "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E",
+                     "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E",
+                     "Stock E", "Stock E", "Stock E"), dates = as.Date(structure(c(984614400,
+                                                                                   987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                                                                   1003104000, 1005782400, 1008374400, 1011052800, 1013731200, 1016150400,
+                                                                                   1018828800, 1021420800, 1024099200, 984614400, 987292800, 989884800,
+                                                                                   992563200, 995155200, 997833600, 1000512000, 1003104000, 1005782400,
+                                                                                   1008374400, 1011052800, 1013731200, 1016150400, 1018828800, 1021420800,
+                                                                                   1024099200, 984614400, 987292800, 989884800, 992563200, 995155200,
+                                                                                   997833600, 1000512000, 1003104000, 1005782400, 1008374400, 1011052800,
+                                                                                   1013731200, 1016150400, 1018828800, 1021420800, 1024099200, 984614400,
+                                                                                   987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                                                                   1003104000, 1005782400, 1008374400, 1011052800, 1013731200, 1016150400,
+                                                                                   1018828800, 1021420800, 1024099200, 984614400, 987292800, 989884800,
+                                                                                   992563200, 995155200, 997833600, 1000512000, 1003104000, 1005782400,
+                                                                                   1008374400, 1011052800, 1013731200, 1016150400, 1018828800, 1021420800,
+                                                                                   1024099200), class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+      fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 8, 2, 9, -30,
+                         -15, 2, 9, 1, 8, 2, 3, 5, -1, 35, -152, 3, 10, 1, 2, 28,
+                         0, 60, 0, 2, 3, 7, 5, 1, -9, 2, 4, -20, 9, 10, 2, 2, 20,
+                         9, 1, 8, 8, 8, 7, 2, -2, -10, -45, -3, 7, 192, -8, 2, -21,
+                         21, 2, 5, 1, 8, 1, 2, 1, 4, -5, 0, 8, -20, 22, 15, -30, -12,
+                         9),
+      fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 9, 10,
+                         7, 90, 7, -3, 81, 5, 3, 7, 3, 8, 2, 5, 1, 2, 9, 1, 9, 7,
+                         8, 2, 8, 0, 5, 2, 8, 3, 5, 3, 40, 2, 7, 18, 3, 0, -29, 82,
+                         2, 1, 3, 8, 3, 1, 1, 11, 4, 2, 7, 1, 7, 3, 94, 1, -3, 9,
+                         9, 1, 2, 3, -9, -4, 4, 3, 9, 1, 23, 9, 3, 9, 8),
+      fwd_sharpe_1m = c(7, 7, 3, 1, 1, 3, 1, 0, 10, -2, 3, -20, 2, 3, 2, 9, 4, 2, 8,
+                        5, 4, 1, 1, 4, -5, 8, -8, -3, 92, 2, 3, -12, 2, 6, 4, 6,
+                        5, 1, 1, 5, 3, 9, -29, -18, 8, 39, 0, -8, 4, 9, 0, 10, 1,
+                        4, 12, 1, 92, 0, 2, 0, 85, 93, 83, 1, 7, 1, 3, 3, 0, 1, 3,
+                        1, 9, 10, 0, -19, 0, 1, 1, 109)), row.names = c(NA, -80L), class = "data.frame"))
+
 
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(
-        structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock A-2001-12-15", "Stock A-2002-01-15",
-                              "Stock A-2002-02-15", "Stock A-2002-03-15", "Stock A-2002-04-15",
-                              "Stock A-2002-05-15", "Stock A-2002-06-15", "Stock B-2001-03-15",
-                              "Stock B-2001-04-15", "Stock B-2001-05-15", "Stock B-2001-06-15",
-                              "Stock B-2001-07-15", "Stock B-2001-08-15", "Stock B-2001-09-15",
-                              "Stock B-2001-10-15", "Stock B-2001-11-15", "Stock B-2001-12-15",
-                              "Stock B-2002-01-15", "Stock B-2002-02-15", "Stock B-2002-03-15",
-                              "Stock B-2002-04-15", "Stock B-2002-05-15", "Stock B-2002-06-15",
-                              "Stock C-2001-03-15", "Stock C-2001-04-15", "Stock C-2001-05-15",
-                              "Stock C-2001-06-15", "Stock C-2001-07-15", "Stock C-2001-08-15",
-                              "Stock C-2001-09-15", "Stock C-2001-10-15", "Stock C-2001-11-15",
-                              "Stock C-2001-12-15", "Stock C-2002-01-15", "Stock C-2002-02-15",
-                              "Stock C-2002-03-15", "Stock C-2002-04-15", "Stock C-2002-05-15",
-                              "Stock C-2002-06-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock D-2001-12-15", "Stock D-2002-01-15",
-                              "Stock D-2002-02-15", "Stock D-2002-03-15", "Stock D-2002-04-15",
-                              "Stock D-2002-05-15", "Stock D-2002-06-15", "Stock E-2001-03-15",
-                              "Stock E-2001-04-15", "Stock E-2001-05-15", "Stock E-2001-06-15",
-                              "Stock E-2001-07-15", "Stock E-2001-08-15", "Stock E-2001-09-15",
-                              "Stock E-2001-10-15", "Stock E-2001-11-15", "Stock E-2001-12-15",
-                              "Stock E-2002-01-15", "Stock E-2002-02-15", "Stock E-2002-03-15",
-                              "Stock E-2002-04-15", "Stock E-2002-05-15", "Stock E-2002-06-15"
-        ), tickers = c("Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock B",
-                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                       "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                       "Stock C", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock E",
-                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E",
-                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E",
-                       "Stock E", "Stock E", "Stock E"), dates =
-          as.Date(structure(c(984614400,
-          987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-          1003104000, 1005782400, 1008374400, 1011052800, 1013731200, 1016150400,
-          1018828800, 1021420800, 1024099200, 984614400, 987292800, 989884800,
-          992563200, 995155200, 997833600, 1000512000, 1003104000, 1005782400,
-          1008374400, 1011052800, 1013731200, 1016150400, 1018828800, 1021420800,
-          1024099200, 984614400, 987292800, 989884800, 992563200, 995155200,
-          997833600, 1000512000, 1003104000, 1005782400, 1008374400, 1011052800,
-          1013731200, 1016150400, 1018828800, 1021420800, 1024099200, 984614400,
-          987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-          1003104000, 1005782400, 1008374400, 1011052800, 1013731200, 1016150400,
-          1018828800, 1021420800, 1024099200, 984614400, 987292800, 989884800,
-          992563200, 995155200, 997833600, 1000512000, 1003104000, 1005782400,
-          1008374400, 1011052800, 1013731200, 1016150400, 1018828800, 1021420800,
-          1024099200), class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-        Alpha = c(3, -20, -450, 5, -2, 1, 6, 1, -9, 3, 1, -2, 3,
-                  20, 2, 3, 1, 7, 4, 2, 20, 1, 1, -2, -2, 8, -3, 3, 3, 12,
-                  23, -7, 2, 9, 9, -20, -150, -20, 8, 17, 1, -3, 7, -9, 8,
-                  30, 3, -2, 5, -2, 2, -1, -50, -25, 1, 4, 2, 307, 0, 3, 9,
-                  19, 3, 0, 5, 3, -1, 2, -1, -20, -1, 4, 4, 8, -20, 13, 0,
-                  50, 3, 2),
-        Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 0, 0, -1,
-                 1, 5, 9, 1, 5, 2, 4, 1, -12, -10, 3, 4, 1, 7, 3, 9, 1, 3,
-                 -9, 3, 6, -3, -2, 1, 1, 4, 24, 19, -1, 10, 6, -40, 7, 0,
-                 8, 0, 0, -2, 5, 2, 5, 1, 2, 5, 3, -2, -10, 8, 2, 8, 7, 1,
-                 2, -9, 3, 1, 2, 1, -1, -20, 2, 7, 9, 9, 8, 20, 2, -10),
-        Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, 3, 2, 2, 8, -2, 5, 9, -2,
-                  4, -15, 3, 4, 4, 3, 7, 2, -3, 0, 10, 0, -8, 104, 10, -3,
-                  2, 6, 20, 12, 13, -4, 105, 30, 12, 20, -105, 1, 7, 9, -9,
-                  5, 2, 3, 3, -10, 0, -1, 4, 1, -2, -10, 1, -2, -19, 0, 3,
-                  1, -500, 6, 4, 405, 0, 1, 31, 5, 87, 8, 92, 70, 0, 19)), row.names = c(NA, -80L), class = "data.frame")),
-      target_m_df =
-        create_meta_dataframe(
-        structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock A-2001-12-15", "Stock A-2002-01-15",
-                              "Stock A-2002-02-15", "Stock A-2002-03-15", "Stock A-2002-04-15",
-                              "Stock A-2002-05-15", "Stock A-2002-06-15", "Stock B-2001-03-15",
-                              "Stock B-2001-04-15", "Stock B-2001-05-15", "Stock B-2001-06-15",
-                              "Stock B-2001-07-15", "Stock B-2001-08-15", "Stock B-2001-09-15",
-                              "Stock B-2001-10-15", "Stock B-2001-11-15", "Stock B-2001-12-15",
-                              "Stock B-2002-01-15", "Stock B-2002-02-15", "Stock B-2002-03-15",
-                              "Stock B-2002-04-15", "Stock B-2002-05-15", "Stock B-2002-06-15",
-                              "Stock C-2001-03-15", "Stock C-2001-04-15", "Stock C-2001-05-15",
-                              "Stock C-2001-06-15", "Stock C-2001-07-15", "Stock C-2001-08-15",
-                              "Stock C-2001-09-15", "Stock C-2001-10-15", "Stock C-2001-11-15",
-                              "Stock C-2001-12-15", "Stock C-2002-01-15", "Stock C-2002-02-15",
-                              "Stock C-2002-03-15", "Stock C-2002-04-15", "Stock C-2002-05-15",
-                              "Stock C-2002-06-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock D-2001-12-15", "Stock D-2002-01-15",
-                              "Stock D-2002-02-15", "Stock D-2002-03-15", "Stock D-2002-04-15",
-                              "Stock D-2002-05-15", "Stock D-2002-06-15", "Stock E-2001-03-15",
-                              "Stock E-2001-04-15", "Stock E-2001-05-15", "Stock E-2001-06-15",
-                              "Stock E-2001-07-15", "Stock E-2001-08-15", "Stock E-2001-09-15",
-                              "Stock E-2001-10-15", "Stock E-2001-11-15", "Stock E-2001-12-15",
-                              "Stock E-2002-01-15", "Stock E-2002-02-15", "Stock E-2002-03-15",
-                              "Stock E-2002-04-15", "Stock E-2002-05-15", "Stock E-2002-06-15"
-        ), tickers = c("Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock B",
-                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                       "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                       "Stock C", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock E",
-                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E",
-                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E",
-                       "Stock E", "Stock E", "Stock E"), dates = as.Date(structure(c(984614400,
-                                                                             987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                                                             1003104000, 1005782400, 1008374400, 1011052800, 1013731200, 1016150400,
-                                                                             1018828800, 1021420800, 1024099200, 984614400, 987292800, 989884800,
-                                                                             992563200, 995155200, 997833600, 1000512000, 1003104000, 1005782400,
-                                                                             1008374400, 1011052800, 1013731200, 1016150400, 1018828800, 1021420800,
-                                                                             1024099200, 984614400, 987292800, 989884800, 992563200, 995155200,
-                                                                             997833600, 1000512000, 1003104000, 1005782400, 1008374400, 1011052800,
-                                                                             1013731200, 1016150400, 1018828800, 1021420800, 1024099200, 984614400,
-                                                                             987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                                                             1003104000, 1005782400, 1008374400, 1011052800, 1013731200, 1016150400,
-                                                                             1018828800, 1021420800, 1024099200, 984614400, 987292800, 989884800,
-                                                                             992563200, 995155200, 997833600, 1000512000, 1003104000, 1005782400,
-                                                                             1008374400, 1011052800, 1013731200, 1016150400, 1018828800, 1021420800,
-                                                                             1024099200), class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-        fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 8, 2, 9, -30,
-                           -15, 2, 9, 1, 8, 2, 3, 5, -1, 35, -152, 3, 10, 1, 2, 28,
-                           0, 60, 0, 2, 3, 7, 5, 1, -9, 2, 4, -20, 9, 10, 2, 2, 20,
-                           9, 1, 8, 8, 8, 7, 2, -2, -10, -45, -3, 7, 192, -8, 2, -21,
-                           21, 2, 5, 1, 8, 1, 2, 1, 4, -5, 0, 8, -20, 22, 15, -30, -12,
-                           9),
-        fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 9, 10,
-                           7, 90, 7, -3, 81, 5, 3, 7, 3, 8, 2, 5, 1, 2, 9, 1, 9, 7,
-                           8, 2, 8, 0, 5, 2, 8, 3, 5, 3, 40, 2, 7, 18, 3, 0, -29, 82,
-                           2, 1, 3, 8, 3, 1, 1, 11, 4, 2, 7, 1, 7, 3, 94, 1, -3, 9,
-                           9, 1, 2, 3, -9, -4, 4, 3, 9, 1, 23, 9, 3, 9, 8),
-        fwd_sharpe_1m = c(7, 7, 3, 1, 1, 3, 1, 0, 10, -2, 3, -20, 2, 3, 2, 9, 4, 2, 8,
-                          5, 4, 1, 1, 4, -5, 8, -8, -3, 92, 2, 3, -12, 2, 6, 4, 6,
-                          5, 1, 1, 5, 3, 9, -29, -18, 8, 39, 0, -8, 4, 9, 0, 10, 1,
-                          4, 12, 1, 92, 0, 2, 0, 85, 93, 83, 1, 7, 1, 3, 3, 0, 1, 3,
-                          1, 9, 10, 0, -19, 0, 1, 1, 109)), row.names = c(NA, -80L), class = "data.frame")),
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
       config = glmnet_config,
-      target_fwd_name = c("fwd_premium_3m"),
       verbose = FALSE
     )}))
 
@@ -4347,12 +4851,10 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 3m target, grid_s
   coef(glm.mod.refit, s = best_lam[hyper_choice1])
 
 
-
-
   #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(`2002-03-15` = c(`Stock A` = 4.31812, `Stock B` = 4.31789,
                                            `Stock C` = 4.335536, `Stock D` = 4.32093, `Stock E` = 4.33127
@@ -4365,7 +4867,6 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 3m target, grid_s
                       `Stock C` = 4.31523075, `Stock D` = 4.317940781, `Stock E` = 4.292395093
 
   ))
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(`2002-03-15` = c(`Stock A` = 85.6800000003359, `Stock B` = 2.68000000033586,
                                       `Stock C` = -4.34, `Stock D` = -1.32,
@@ -4378,7 +4879,6 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 3m target, grid_s
                                                                                       `Stock B` = 3.68000000033586, `Stock C` = -2.31999999966414,
                                                                                       `Stock D` = -7.31999999966414, `Stock E` = 3.71000000033586
                                       ))
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(`2002-03-15` = c(`Stock A` = 90, `Stock B` = 7, `Stock C` = 0,
                                   `Stock D` = 3, `Stock E` = 9), `2002-04-15` = c(`Stock A` = 7,
@@ -4386,171 +4886,198 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 3m target, grid_s
                                   ), `2002-05-15` = c(`Stock A` = -3, `Stock B` = 2, `Stock C` = 82,
                                                       `Stock D` = 1, `Stock E` = 9), `2002-06-15` = c(`Stock A` = 81,
                                                                                                       `Stock B` = 8, `Stock C` = 2, `Stock D` = -3, `Stock E` = 8))
-  results$outputs[[3]] <- y_list
-  #Eval metrics
-  oos_testing_eval_metrics <-structure(list(rss =c(0.102979487794792, 0.0636603735032917,
-                                                         0.101617245923652, 0.109837063555658),
-                                            cp = c(94.1759999926782,
-                                                             72.06, 78.84, 82.865),
-                                            rmse = c(38.4462013729802,42.8373481906648, 35.0030627232721, 34.542356607649),
-                                            mae = c(19.7360000000672,26.1360000000672, 19.0639999999328, 18.7360000000672),
-                                            mphe = c(18.88444399, 25.27010730, 18.17074927, 17.84555031),
-                                            mpe = c(9.868, 13.068, 9.532, 9.368),
-                                            mape = c(Inf, 0.67717, 1.678, 1.09333),
-                                            hr = c(0.8, 0.8, 0.8, 0.8),
-                                            mb = c(17.48, 12.28, 13.88, 14.88)
-                                            )
-                                       , class = "data.frame", row.names = c("2002-03-15", "2002-04-15", "2002-05-15", "2002-06-15"))
 
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
   }
 
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data, tolerance = 1e-2)
 
 
+  #Eval metrics
+  oos_testing_eval_metrics <-
+    xts::xts(data.frame(rss =c(0.102979487794792, 0.0636603735032917, 0.101617245923652, 0.109837063555658),
+                  cp = c(94.1759999926782, 72.06, 78.84, 82.865),
+                  rmse = c(38.4462013729802,42.8373481906648, 35.0030627232721, 34.542356607649),
+                  mae = c(19.7360000000672,26.1360000000672, 19.0639999999328, 18.7360000000672),
+                  mphe = c(18.88444399, 25.27010730, 18.17074927, 17.84555031),
+                  mpe = c(9.868, 13.068, 9.532, 9.368),
+                  mape = c(Inf, 0.67717, 1.678, 1.09333),
+                  hr = c(0.8, 0.8, 0.8, 0.8),
+                  mb = c(17.48, 12.28, 13.88, 14.88)
+                  ),
+             order.by = as.Date(c("2002-03-15", "2002-04-15", "2002-05-15", "2002-06-15")))
 
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- c("2002-03-15")
-  results$outputs[[6]] <- chosen_eval_metric_val
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-2)
 
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = c("2002-03-15"),
-                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1]),
-                                     lambda.min.ratio = c(hyper_expanded_grid$lambda.min.ratio[hyper_choice1]),
-                                     best_lam = best_lam[hyper_choice1])
+  #Consolidated
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
+                                                      target = unlist(y_list))[-1]
+
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-1
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
   )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics, tolerance = 1e-2)
+
+
+  #Final Model
+  expect_equal(coef(sb_backtest_results@final_sb_model@model), coef(glm.mod.refit))
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <-  c("2002-03-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
+
+
+  #Best Hyoer
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
+                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1]),
+                                     lambda.min.ratio = c(hyper_expanded_grid$lambda.min.ratio[hyper_choice1]),
+                                     best_lam = best_lam[hyper_choice1]),
+                                     order.by = as.Date(c("2002-03-15")))
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+
+
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2002-03-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
 })
 
 #Define your test Excel sheet test glmnet 5
 test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, grid_search as tuning method and rmse as chosen eval metric",{
 
-  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11,
+                                             target_fwd_name = "fwd_premium_3m") %>%
     add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rmse", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
 
+  features_m_df = create_meta_dataframe(
+    structure(
+      list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                  "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                  "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                  "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                  "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                  "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                  "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                  "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                  "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                  "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                  "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                  "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                  "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                  "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                  "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                  "Stock E-2001-11-15"),
+           tickers = c("Stock A", "Stock A", "Stock A",
+                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                       "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                       "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
+           dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400),
+                                     class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+           Alpha = c(3, -20, -450, 5, -2, 1,
+                     6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
+                     8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
+                     -1, 4, 4),
+           Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
+                    -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
+                    2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
+           Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
+                     -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
+                     3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame"))
+
+  target_m_df = create_meta_dataframe(
+    structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                          "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                          "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                          "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                          "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                          "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                          "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                          "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                          "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                          "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                          "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                          "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                          "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                          "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                          "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                          "Stock E-2001-11-15"),
+                   tickers = c("Stock A", "Stock A", "Stock A",
+                               "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                               "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                               "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                               "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                               "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                               "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                               "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
+                   ),
+                   dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                               987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                               1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                               987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                               1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                               995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+                                   format = "%Y-%m-%d"),
+                   fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
+                                      2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
+                   fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
+                                      3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
+                   fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
+                                     10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)),
+              row.names = c(NA, -45L), class = "data.frame"))
+
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(
-        structure(
-        list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                    "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                    "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                    "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                    "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                    "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                    "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                    "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                    "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                    "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                    "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                    "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                    "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                    "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                    "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                    "Stock E-2001-11-15"),
-             tickers = c("Stock A", "Stock A", "Stock A",
-                         "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                         "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                         "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                         "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                         "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                         "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                         "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
-             dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400),
-                               class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-             Alpha = c(3, -20, -450, 5, -2, 1,
-                       6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
-                       8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
-                       -1, 4, 4),
-             Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
-                      -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
-                      2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
-             Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
-                       -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
-                       3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame")),
-      target_m_df = create_meta_dataframe(
-        structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                              "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                              "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                              "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                              "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                              "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                              "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                              "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                              "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                              "Stock E-2001-11-15"),
-                       tickers = c("Stock A", "Stock A", "Stock A",
-                                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                                   "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                                   "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
-                       ),
-                       dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                       format = "%Y-%m-%d"),
-                       fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
-                                          2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
-                       fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
-                                          3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
-                       fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
-                                         10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)),
-                  row.names = c(NA, -45L), class = "data.frame")),
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
       config = glmnet_config,
-      target_fwd_name = c("fwd_premium_3m"),
       parallel = FALSE,
       verbose = FALSE
     )}))
@@ -4859,10 +5386,10 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, grid_sear
 
   coef(glm.mod.refit)
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(`2001-09-15` = c(`Stock A` = 3.95, `Stock B` = 3.95, `Stock C` = 3.95,
                                            `Stock D` = 3.95, `Stock E` = 3.95), `2001-10-15` = c(`Stock A` = 3.95,
@@ -4870,26 +5397,49 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, grid_sear
                                            ), `2001-11-15` = c(`Stock A` = 3.466667, `Stock B` = 3.466667,
                                                                `Stock C` = 3.466667, `Stock D` = 3.466667, `Stock E` = 3.466667
                                            ))
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(`2001-09-15` = c(`Stock A` = -8.95, `Stock B` = 1.05, `Stock C` = -0.95,
                                       `Stock D` = 7.05, `Stock E` = -7.95),
                      `2001-10-15` = c(`Stock A` = -4.95, `Stock B` = -2.95, `Stock C` = 36.05, `Stock D` = 0.0499999999999998,
                                       `Stock E` = 0.0499999999999998),
                      `2001-11-15` = c(`Stock A` = 0.533333,  `Stock B` = -1.466667, `Stock C` = -1.466667, `Stock D` = -1.466667,  `Stock E` = -0.466667))
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(`2001-09-15` = c(`Stock A` = -5, `Stock B` = 5, `Stock C` = 3,
                                   `Stock D` = 11, `Stock E` = -4), `2001-10-15` = c(`Stock A` = -1,
                                                                                     `Stock B` = 1, `Stock C` = 40, `Stock D` = 4, `Stock E` = 4),
                  `2001-11-15` = c(`Stock A` = 4, `Stock B` = 2, `Stock C` = 2,
                                   `Stock D` = 2, `Stock E` = 3))
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data, tolerance = 1e-2)
+
   #Eval metrics
-  oos_testing_eval_metrics <-structure(list(rss =c(0.0050382653061225, 0.184325275397797,
-                                                         0.812011933933919), cp = c(7.9, 37.92, 9.0133342),
-                                            rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145
-                                            ),
+  oos_testing_eval_metrics <- xts::xts(data.frame(
+                                            rss =c(0.0050382653061225, 0.184325275397797, 0.812011933933919),
+                                            cp = c(7.9, 37.92, 9.0133342),
+                                            rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145),
                                             mae = c(5.19, 8.81, 1.0800002),
                                             mphe = c(4.39364382, 8.2462498, 0.51245492),
                                             mpe = c(2.595, 4.405, 0.540),
@@ -4897,160 +5447,159 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, grid_sear
                                             hr = c(0.6, 0.8, 1),
                                             mb = c(-1.95, 5.65, -0.87)
 
-  ),
-  class = "data.frame", row.names = c("2001-09-15","2001-10-15", "2001-11-15"))
+  ), order.by = as.Date(c("2001-09-15","2001-10-15", "2001-11-15")))
 
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-2)
+
+  #Consolidated
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
+                                                      target = unlist(y_list))[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- c("2001-09-15", "2001-11-15")
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = c("2001-09-15", "2001-11-15"),
-                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
-                                     lambda.min.ratio = c(hyper_expanded_grid$lambda.min.ratio[hyper_choice1], hyper_expanded_grid$lambda.min.ratio[hyper_choice2]),
-                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice1])
-                                     )
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                               "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-1
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
   )
+
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics, tolerance = 1e-2)
+
+
+
+  #Final Model
+  expect_equal(coef(sb_backtest_results@final_sb_model@model), coef(glm.mod.refit))
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <- c("2001-09-15", "2001-11-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
+
+  #Best Hyoer
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
+                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
+                                     lambda.min.ratio = c(hyper_expanded_grid$lambda.min.ratio[hyper_choice1], hyper_expanded_grid$lambda.min.ratio[hyper_choice2]),
+                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice1])
+                                     ), order.by = as.Date(c("2001-09-15", "2001-11-15")))
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15", "2001-11-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
 })
 
 #Define your test Excel sheet test glmnet 6
 test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method and cp as chosen eval metric",{
 
-  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
+  glmnet_config <-
+    create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11,target_fwd_name = "fwd_premium_3m") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3, chosen_eval_metric = "cp") %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length = 10)))
 
+
+  features_m_df = create_meta_dataframe(
+    structure(
+      list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                  "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                  "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                  "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                  "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                  "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                  "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                  "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                  "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                  "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                  "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                  "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                  "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                  "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                  "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                  "Stock E-2001-11-15"),
+           tickers = c("Stock A", "Stock A", "Stock A",
+                       "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                       "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                       "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                       "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                       "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                       "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                       "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
+           dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                       987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                       1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                       995155200, 997833600, 1000512000, 1003104000, 1005782400),
+                                     class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+           Alpha = c(3, -20, -450, 5, -2, 1,
+                     6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
+                     8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
+                     -1, 4, 4),
+           Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
+                    -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
+                    2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
+           Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
+                     -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
+                     3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame")
+  )
+
+  target_m_df =
+    create_meta_dataframe(
+      structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                            "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                            "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                            "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                            "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                            "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                            "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                            "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                            "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                            "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                            "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                            "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                            "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                            "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                            "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                            "Stock E-2001-11-15"),
+                     tickers = c("Stock A", "Stock A", "Stock A",
+                                 "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                                 "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                                 "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                                 "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                                 "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                                 "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                                 "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
+                     ),
+                     dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                                 995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+                                     format = "%Y-%m-%d"),
+                     fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
+                                        2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
+                     fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
+                                        3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
+                     fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
+                                       10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame")
+    )
 
 
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(
-        structure(
-        list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                    "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                    "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                    "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                    "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                    "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                    "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                    "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                    "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                    "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                    "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                    "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                    "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                    "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                    "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                    "Stock E-2001-11-15"),
-             tickers = c("Stock A", "Stock A", "Stock A",
-                         "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                         "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                         "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                         "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                         "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                         "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                         "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
-             dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400),
-                               class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-             Alpha = c(3, -20, -450, 5, -2, 1,
-                       6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
-                       8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
-                       -1, 4, 4),
-             Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
-                      -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
-                      2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
-             Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
-                       -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
-                       3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame")
-        ),
-      target_m_df =
-        create_meta_dataframe(
-        structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                              "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                              "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                              "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                              "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                              "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                              "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                              "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                              "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                              "Stock E-2001-11-15"),
-                       tickers = c("Stock A", "Stock A", "Stock A",
-                                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                                   "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                                   "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
-                       ),
-                       dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                       format = "%Y-%m-%d"),
-                       fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
-                                          2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
-                       fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
-                                          3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
-                       fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
-                                         10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame")
-        ),
-      target_fwd_name = "fwd_premium_3m",
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
       config = glmnet_config,
       verbose = FALSE
     )}))
@@ -5355,10 +5904,10 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
 
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
   #Pred list
   prediction_list <- list(`2001-09-15` = c(`Stock A` = 3.95, `Stock B` = 3.95, `Stock C` = 3.95,
                                            `Stock D` = 3.95, `Stock E` = 3.95), `2001-10-15` = c(`Stock A` = 3.95,
@@ -5366,7 +5915,6 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
                                            ), `2001-11-15` = c(`Stock A` = 3.466667, `Stock B` = 3.466667,
                                                                `Stock C` = 3.466667, `Stock D` = 3.466667, `Stock E` = 3.466667
                                            ))
-  results$outputs[[1]] <- prediction_list
   #Error list
   error_list <- list(`2001-09-15` = c(`Stock A` = -8.95, `Stock B` = 1.05, `Stock C` = -0.95,
                                       `Stock D` = 7.05, `Stock E` = -7.95), `2001-10-15` = c(`Stock A` = -4.95,
@@ -5374,19 +5922,44 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
                                                                                              `Stock E` = 0.0499999999999998), `2001-11-15` = c(`Stock A` = 0.533333,
                                                                                                                                                `Stock B` = -1.466667, `Stock C` = -1.466667, `Stock D` = -1.466667,
                                                                                                                                                `Stock E` = -0.466667))
-  results$outputs[[2]] <- error_list
   #Y-list
   y_list <- list(`2001-09-15` = c(`Stock A` = -5, `Stock B` = 5, `Stock C` = 3,
                                   `Stock D` = 11, `Stock E` = -4), `2001-10-15` = c(`Stock A` = -1,
                                                                                     `Stock B` = 1, `Stock C` = 40, `Stock D` = 4, `Stock E` = 4),
                  `2001-11-15` = c(`Stock A` = 4, `Stock B` = 2, `Stock C` = 2,
                                   `Stock D` = 2, `Stock E` = 3))
-  results$outputs[[3]] <- y_list
+
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data, tolerance = 1e-2)
+
+
   #Eval metrics
-  oos_testing_eval_metrics <-structure(list(rss =c(0.0050382653061225, 0.184325275397797,
-                                                         0.812011933933919), cp = c(7.9, 37.92, 9.0133342),
-                                            rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145
-                                            ),
+  oos_testing_eval_metrics <-xts::xts(data.frame(rss =c(0.0050382653061225, 0.184325275397797,0.812011933933919),
+                                            cp = c(7.9, 37.92, 9.0133342),
+                                            rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145),
                                             mae = c(5.19, 8.81, 1.0800002),
                                             mphe = c(4.39364382, 8.2462498, 0.51245492),
                                             mpe = c(2.595, 4.405, 0.54),
@@ -5394,52 +5967,47 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
                                             hr = c(0.6, 0.8, 1),
                                             mb = c(-1.95, 5.65, -0.87)
 
-  ), class = "data.frame", row.names = c("2001-09-15","2001-10-15", "2001-11-15"))
+  ), order.by = as.Date(c("2001-09-15","2001-10-15", "2001-11-15")))
 
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-2)
+
+  #Consolidated
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
+                                                      target = unlist(y_list))[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- c("2001-09-15", "2001-11-15")
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = c("2001-09-15", "2001-11-15"),
-                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
-                                     lambda.min.ratio = c(hyper_expanded_grid$lambda.min.ratio[hyper_choice1], hyper_expanded_grid$lambda.min.ratio[hyper_choice2]),
-                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2]))
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-3
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
   )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics, tolerance = 1e-2)
+
+  #Final Model
+  expect_equal(coef(sb_backtest_results@final_sb_model@model), coef(glm.mod.refit))
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <-  c("2001-09-15", "2001-11-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
+  #Best Hyoer
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
+                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
+                                     lambda.min.ratio = c(hyper_expanded_grid$lambda.min.ratio[hyper_choice1], hyper_expanded_grid$lambda.min.ratio[hyper_choice2]),
+                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])),
+                                     order.by = as.Date(c("2001-09-15", "2001-11-15")))
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15", "2001-11-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
 })
 
@@ -5453,6 +6021,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
 
   rf_config <- create_sb_backtest_config(
     sb_algorithm = "rf",
+    target_fwd_name = c("fwd_premium_3m"),
     training_sample_size = 7,
     rebalancing_months = 6
   ) %>% add_tuning_strategy(
@@ -5464,15 +6033,17 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
     grid = list(c(0, 0.5, 1), c(200, 500), c(2, 4, 6), c(1, 5, 10))
   )
 
-  set.seed(123)
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features)
+  target_m_df <- create_meta_dataframe(toy_preprocessed_targets)
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(toy_preprocessed_features),
-      target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-      target_fwd_name = c("fwd_premium_3m"),
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
       config = rf_config,
-      verbose = FALSE
+      verbose = FALSE,
+      .test_seed = 123
     )}))
 
 
@@ -5494,10 +6065,17 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
 
   chosen_eval_metric_val <- list()
 
+  features_order <- c("id", "tickers", "dates", colnames(toy_preprocessed_features)[-c(1:3)] %>% sort())
+
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features[
+    which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),
+    features_order
+    ]
+
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),
+                                                  features_order]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -5578,12 +6156,15 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
 
 
   #Refit
-  features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+  features_first_training_and_validation <-
+    toy_preprocessed_features[
+      which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),
+      features_order
+      ]
 
 
-  target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                               "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+  target_first_training_and_validation <-
+    toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
 
   #Full data
   full_data_first_training_and_validation <- cbind(target_first_training_and_validation$fwd_premium_3m, features_first_training_and_validation[,-c(1:3)])
@@ -5598,7 +6179,8 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),
+                                                   features_order]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -5626,9 +6208,17 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
 
   #2nd rebal!
   #Features obj
-  features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+  features_second_train <- toy_preprocessed_features[
+    which(toy_preprocessed_features$dates %in%
+            c("2022-07-15","2022-08-15","2022-09-15","2022-10-15","2022-11-15", "2022-12-15")),
+    features_order
+    ]
+
+  features_second_val <- toy_preprocessed_features[
+    which(toy_preprocessed_features$dates %in% c("2023-03-15")),
+    features_order
+    ]
+
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -5643,6 +6233,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
                                               max.depth = hyper_expanded_grid$max.depth, min.bucket = hyper_expanded_grid$min.bucket,
                                               chosen_eval_metric = rep(NA, nrow(hyper_expanded_grid)))
 
+  set.seed(123)
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <-
     foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
@@ -5727,9 +6318,12 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
 
 
   #Refit
-  features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                    "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+  features_second_training_and_validation <- toy_preprocessed_features[
+    which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                 "2022-10-15", "2022-11-15", "2022-12-15",
+                                                 "2023-01-15", "2023-02-15", "2023-03-15")),
+    features_order
+    ]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -5751,7 +6345,11 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features[
+    which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),
+    features_order
+    ]
+
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
 
 
@@ -5775,27 +6373,51 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA)),
+                                       order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -5810,55 +6432,54 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
     oos_testing_eval_metrics$hr[l] <- mean((y_list[[l]] * prediction_list[[l]])>0)
     oos_testing_eval_metrics$mb[l] <- mean(y_list[[l]] - prediction_list[[l]])
 
-
-
   }
 
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
-                                     mtry = c(hyper_expanded_grid$mtry[hyper_choice1], hyper_expanded_grid$mtry[hyper_choice2]),
-                                     num.trees = c(hyper_expanded_grid$num.trees[hyper_choice1], hyper_expanded_grid$num.trees[hyper_choice2]),
-                                     max.depth = c(hyper_expanded_grid$max.depth[hyper_choice1], hyper_expanded_grid$max.depth[hyper_choice2]),
-                                     min.bucket = c(hyper_expanded_grid$min.bucket[hyper_choice1], hyper_expanded_grid$min.bucket[hyper_choice2]))
+                                                      target = unlist(y_list))[-1]
 
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
   )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
+
+  #Final Model
+  expect_equal(sb_backtest_results@final_sb_model@model$mtry, rf.mod.refit$mtry)
+  expect_equal(sb_backtest_results@final_sb_model@model$num.trees, rf.mod.refit$num.trees)
+  expect_equal(sb_backtest_results@final_sb_model@model$num.independent.variables, rf.mod.refit$num.independent.variables)
+  expect_equal(sb_backtest_results@final_sb_model@model$min.node.size, rf.mod.refit$min.node.size)
+  expect_equal(sb_backtest_results@final_sb_model@model$r.squared, rf.mod.refit$r.squared)
+
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
+
+  #Best Hyoer
+  expected_results$outputs[[5]] <- xts::xts(data.frame(row.names = rebalance_dates,
+                                     mtry = c(hyper_expanded_grid$mtry[hyper_choice1], hyper_expanded_grid$mtry[hyper_choice2]),
+                                     num.trees = c(hyper_expanded_grid$num.trees[hyper_choice1], hyper_expanded_grid$num.trees[hyper_choice2]),
+                                     max.depth = c(hyper_expanded_grid$max.depth[hyper_choice1], hyper_expanded_grid$max.depth[hyper_choice2]),
+                                     min.bucket = c(hyper_expanded_grid$min.bucket[hyper_choice1], hyper_expanded_grid$min.bucket[hyper_choice2])),
+  order.by = as.Date(c("2023-04-15", "2023-06-15")))
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
   future::plan("sequential")
 

@@ -36,7 +36,7 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
       quantile_error = "mpe",
       "rmse"
     )
-    if(verbose && !sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")){
+    if(verbose && !sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
       cat(crayon::yellow("chosen_eval_metric not declared. Choice will be based on custom_objective"))
       cat("\n")
     }
@@ -44,7 +44,7 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
 
 
   #Translate custom_objective and chosen_eval_metric for early stop
-  if(sb_algorithm %in% c("ols","glmnet","rf","ew","rp")){
+  if(sb_algorithm %in% c("ols","glmnet","rf","ew","rp","custom_weights")){
     custom_objective_translated <- NULL
     chosen_eval_metric_translated <- NULL
   }

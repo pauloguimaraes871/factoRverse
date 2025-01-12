@@ -347,7 +347,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
                                c("Score", "rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr", "mb")] #Take the row that maximizes the score
 
 
-    } else {}
+    }
 
   #Print Results
   if(verbose){

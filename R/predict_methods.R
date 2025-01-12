@@ -101,7 +101,7 @@ setMethod("predict", "sb_model", function(object, new_features_m_df,
   #Choose predict method base on sb_algorithm
   ################
   ###Make a general case for signal port
-  if(sb_algorithm %in% c("ew", "sw", "mvo", "rp")) sb_algorithm <- "signal_port"
+  if(sb_algorithm %in% c("ew", "sw", "mvo", "rp", "custom_weights")) sb_algorithm <- "signal_port"
 
   ###Generate predictions
   predictions <- switch(

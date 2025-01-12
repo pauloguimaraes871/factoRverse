@@ -441,7 +441,7 @@ setMethod("show", "sb_backtest_config", function(object) {
   # Display Custom Objective Information
   cat("Objective Function:\n")
 
-  if(!object@sb_algorithm %in% c("ew","rp"))  cat("  Custom Objective:", object@custom_objective, "\n")
+  if(!object@sb_algorithm %in% c("ew","rp","custom_weights"))  cat("  Custom Objective:", object@custom_objective, "\n")
 
   # Display Miscellaneous Parameters
   cat("  Function Parameters:")
@@ -972,7 +972,7 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("=================================\n")
 
   # Display Tuning Information
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo")){
+  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo", "custom_weights")){
     cat("Tuning Information:\n")
     cat("  Tuning Method:", sb_backtest_workflow$tuning_method, "\n")
     if(sb_backtest_workflow$tuning_method == "random_search" || sb_backtest_workflow$tuning_method == "bayesian_opt"){
@@ -1725,7 +1725,7 @@ setMethod(
     }
     cat("Portfolio Name:       ", object@port_name, "\n")
     cat("Method:               ", object@port_construction_method, "\n")
-    if(subclass == "signal_port"){
+    if(subclass == "signal_port" && object@port_construction_method %in% c("sw", "mvo")){
     cat("Heuristic SB Metric:  ", object@heuristic_sb_metric, "\n")
     }
     cat("Eligible Assets:      ", paste(object@eligible_assets, collapse = ", "), "\n")

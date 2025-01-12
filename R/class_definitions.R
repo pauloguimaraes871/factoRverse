@@ -207,6 +207,35 @@ setClass(
   }
 )
 
+#' Define the weights_m_df S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a weights_meta_dataframe
+#'
+#' @export
+setClass(
+  "weights_m_df",
+  contains = "meta_dataframe",
+  validity = function(object) {
+    #Colnames adherence
+    if(!any(colnames(object@data) == c("id", "tickers", "dates", "weights"))){
+      stop("Column names do not adhere to expected weights_m_df object")
+    }
+
+    #Check if weights sum to 1
+    object@data %>%
+      dplyr::group_by(dates) %>%
+      dplyr::summarise(sum_w = sum(weights)) %>%
+      dplyr::mutate(check_sum_1 = abs(sum_w - 1) < 0.02)
+    if(any(object@data$check_sum_1 == FALSE)){
+      stop(paste("Weights do not sum to 1 at dates:", object@data$dates[which(object@data$check_sum_1 == FALSE)], collapse = ", "))
+    }
+
+
+  }
+)
+
+
+
 #-----------------------------------------------------------------------
 # hyperparams
 #-----------------------------------------------------------------------
@@ -1945,7 +1974,7 @@ setClass(
 
     # port_construction_method must be one of the allowed
     if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights")) {
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'.")
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo' or 'custom_weights'.")
     }
 
     #weights and eligible_assets
@@ -2042,7 +2071,7 @@ setClass(
 
     # Restrict port_construction_method
     if (!object@port_construction_method %in% c("ew","sw","rp","mvo","custom_weights")) {
-      stop("For signal_port, port_construction_method must be one of 'ew','sw','rp','mvo'.")
+      stop("For signal_port, port_construction_method must be one of 'ew','sw','rp','mvo' or 'custom_weights'.")
     }
 
     # If sw or mvo => heuristic_sb_metric should not be NULL
