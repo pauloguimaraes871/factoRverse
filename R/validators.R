@@ -45,7 +45,6 @@ is_coercible_to_meta_dataframe <- function(obj) {
       return(FALSE)
     }
 
-
     expected_id <- paste0(obj$tickers, "-", obj$dates)
     if (!all(obj$id == expected_id)) {
       message("The 'id' column does not match the expected format 'tickers-dates'.")

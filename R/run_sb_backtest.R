@@ -769,7 +769,7 @@ run_sb_backtest_internal <- function(
       rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
       custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
       chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
-      init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel
+      init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
     )
 
     ################
@@ -1004,7 +1004,14 @@ run_sb_backtest_internal <- function(
         if(!sb_algorithm %in% non_tuning_algos){ #If sb_algorithm is OLS or heuristic, one just need to fit model do traininig + validation samples
 
           #Set seed for testing purposes
-          if (!is.null(.test_seed) && is.numeric(.test_seed)) set.seed(.test_seed)
+          if (!is.null(.test_seed) && is.numeric(.test_seed)){
+            if (!sb_algorithm == "nn"){
+              set.seed(.test_seed)
+            } else {
+              set.seed(.test_seed)
+              tensorflow::set_random_seed(.test_seed)
+            }
+          }
 
           #Training Sample
           #################
@@ -1037,6 +1044,8 @@ run_sb_backtest_internal <- function(
             cat(paste("Starting", tuning_method, "hyperparameter tuning at:", current_date))
             cat("\n")
           }
+
+          browser()
 
           hyper_tune_results <- hyper_tune(
             #General Parameters

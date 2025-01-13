@@ -211,7 +211,6 @@
           #Additional NN arguments
           args <- list(...) #Get extra aguments
 
-
           #Network
           keras_architecture_parameters <- args$keras_architecture_parameters
 

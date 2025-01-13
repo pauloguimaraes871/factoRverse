@@ -5,7 +5,7 @@ test_that("set_eval_function correctly sets a glmnet model", {
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "glmnet"
+  sb_algorithm = "glmnet"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -25,25 +25,49 @@ test_that("set_eval_function correctly sets a glmnet model", {
   rebalancing_months <- 6
   hyper_grid_domain_list <- list(alpha = c(0.1, 1), lambda.min.ratio = c(0.1, 0.2))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
 
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -60,11 +84,11 @@ test_that("set_eval_function correctly sets a glmnet model", {
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
@@ -74,7 +98,7 @@ test_that("set_eval_function correctly sets a glmnet model", {
                               features_validation_sample = ts_splits$validation$features_validation_sample,
                               target_validation_sample = ts_splits$validation$target_validation_sample,
                               target_fwd_name = target_fwd_name, #User defined
-                              ml_algorithm = ml_algorithm, #User defined
+                              sb_algorithm = sb_algorithm, #User defined
                               tuning_method = tuning_method, #User defined
                               chosen_eval_metric_translated = chosen_eval_metric_translated,
                               chosen_eval_metric = chosen_eval_metric, #User defined
@@ -161,7 +185,7 @@ test_that("set_eval_function correctly sets a ranger model", {
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "rf"
+  sb_algorithm = "rf"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -182,25 +206,49 @@ test_that("set_eval_function correctly sets a ranger model", {
   hyper_grid_domain_list <- list(mtry = c(0.1, 1), num.trees = c(200, 500),
                                  max.depth = c(2), min.bucket = c(1, 10,15))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
 
 
   #Check Inputs
   expect_no_error(
-  suppressWarnings(
-  check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                         training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                         chosen_eval_metric = chosen_eval_metric,
-                         ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                         hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                         n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                         parallel = parallel
-                         )
-  )
+    suppressWarnings(
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
+      )
+    )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -217,21 +265,21 @@ test_that("set_eval_function correctly sets a ranger model", {
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
   #Checks tuning
   set.seed(123)
-  ml_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+  sb_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                               features_validation_sample = ts_splits$validation$features_validation_sample,
                               target_validation_sample = ts_splits$validation$target_validation_sample,
                               target_fwd_name = target_fwd_name, #User defined
-                              ml_algorithm = ml_algorithm, #User defined
+                              sb_algorithm = sb_algorithm, #User defined
                               tuning_method = tuning_method, #User defined
                               chosen_eval_metric_translated = chosen_eval_metric_translated,
                               chosen_eval_metric = chosen_eval_metric, #User defined
@@ -250,22 +298,22 @@ test_that("set_eval_function correctly sets a ranger model", {
 
 
   #Check if set_eval_function correctly sets a ranger model
-  check_if_ml_algo_is_used <- class(ml_model_fit_results$ml_model) == "ranger"
-  expect_true(check_if_ml_algo_is_used)
+  check_if_sb_algo_is_used <- class(sb_model_fit_results$ml_model) == "ranger"
+  expect_true(check_if_sb_algo_is_used)
 
   #Check if hyperparameters are correctly set
   check_if_hyperparameters_have_been_applied <-
-    all(c(hyperparameters_grid$num.trees[1] == ml_model_fit_results$ml_model$num.trees,
-          as.integer(hyperparameters_grid$mtry[1]*ml_model_fit_results$ml_model$num.independent.variables) == ml_model_fit_results$ml_model$mtry))
+    all(c(hyperparameters_grid$num.trees[1] == sb_model_fit_results$ml_model$num.trees,
+          as.integer(hyperparameters_grid$mtry[1]*sb_model_fit_results$ml_model$num.independent.variables) == sb_model_fit_results$ml_model$mtry))
   expect_true(check_if_hyperparameters_have_been_applied)
 
 
   #Check if all features are used
-  check_number_of_features_used <- ml_model_fit_results$ml_model$num.independent.variables == ncol(ts_splits$training$full_data_training_sample_clean) - 1
+  check_number_of_features_used <- sb_model_fit_results$ml_model$num.independent.variables == ncol(ts_splits$training$full_data_training_sample_clean) - 1
   expect_true(check_number_of_features_used)
 
   #Check if dependent_variable is adequately set
-  check_dependent_variable_used <- ml_model_fit_results$ml_model$dependent.variable.name == target_fwd_name
+  check_dependent_variable_used <- sb_model_fit_results$ml_model$dependent.variable.name == target_fwd_name
   expect_true(check_dependent_variable_used)
 
   #Checks with another ranger model
@@ -276,19 +324,19 @@ test_that("set_eval_function correctly sets a ranger model", {
                                       num.trees = hyperparameters_grid$num.trees[1])
 
   benchmark_model$call <- NULL
-  ml_model_fit_results$ml_model$call <- NULL
+  sb_model_fit_results$ml_model$call <- NULL
 
-  expect_equal(ml_model_fit_results$ml_model,benchmark_model)
+  expect_equal(sb_model_fit_results$ml_model,benchmark_model)
 
 
   #Check if predictions and errors are correctly made
   check_if_predictions_are_correctly_made <-
-    all(ml_model_fit_results$pred == as.numeric(predict(ml_model_fit_results$ml_model, data = janitor::clean_names(ts_splits$validation$features_validation_sample[,-c(1:3)]))$predictions))
+    all(sb_model_fit_results$pred == as.numeric(predict(sb_model_fit_results$ml_model, data = janitor::clean_names(ts_splits$validation$features_validation_sample[,-c(1:3)]))$predictions))
 
   expect_true(check_if_predictions_are_correctly_made)
 
   #Check if metrics are correctly made
-  check_if_metrics_are_correctly_made <- all(ml_model_fit_results$df_eval_metrics == calculate_eval_metrics(pred = ml_model_fit_results$pred,
+  check_if_metrics_are_correctly_made <- all(sb_model_fit_results$df_eval_metrics == calculate_eval_metrics(pred = sb_model_fit_results$pred,
                                                                                                         target = ts_splits$validation$target_validation_sample,
                                                                                                         huber_delta = huber_delta,
                                                                                                         quantile_tau = quantile_tau,
@@ -305,7 +353,7 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "xgb"
+  sb_algorithm = "xgb"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -325,26 +373,52 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
   rebalancing_months <- 6
   hyper_grid_domain_list <- list(min_child_weight = c(2), max_depth = c(2), subsample = c(1), colsample_bytree = c(0.5, 0.8), eta = c(0.02),
                                  alpha = c(1), gamma = c(0), nrounds = c(50))
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
 
-  keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
+  keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
+
+
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -359,18 +433,18 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
   #Checks tuning
   set.seed(123)
   suppressWarnings(
-  ml_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+  sb_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                               features_validation_sample = ts_splits$validation$features_validation_sample,
                               target_validation_sample = ts_splits$validation$target_validation_sample,
                               target_fwd_name = target_fwd_name, #User defined
@@ -396,30 +470,30 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
 
   #Check if set_eval_function correctly sets a ranger model
-  check_if_ml_algo_is_used <- class(ml_model_fit_results$ml_model) == "xgb.Booster"
-  expect_true(check_if_ml_algo_is_used)
+  check_if_sb_algo_is_used <- class(sb_model_fit_results$ml_model) == "xgb.Booster"
+  expect_true(check_if_sb_algo_is_used)
 
   #Check if hyperparameters are correctly set
   check_if_hyperparameters_have_been_applied <-
-    all(c(hyperparameters_grid$nrounds[1] == ml_model_fit_results$ml_model$niter,
-          hyperparameters_grid$eta[1] == ml_model_fit_results$ml_model$params$eta,
-          hyperparameters_grid$alpha[1] == ml_model_fit_results$ml_model$params$alpha,
-          hyperparameters_grid$gamma[1] == ml_model_fit_results$ml_model$params$gamma,
-          hyperparameters_grid$subsample[1] == ml_model_fit_results$ml_model$params$subsample,
-          hyperparameters_grid$colsample_bytree[1] == ml_model_fit_results$ml_model$params$colsample_bytree,
-          hyperparameters_grid$min_child_weight[1] == ml_model_fit_results$ml_model$params$min_child_weight,
-          hyperparameters_grid$max_depth[1] == ml_model_fit_results$ml_model$params$max_depth))
+    all(c(hyperparameters_grid$nrounds[1] == sb_model_fit_results$ml_model$niter,
+          hyperparameters_grid$eta[1] == sb_model_fit_results$ml_model$params$eta,
+          hyperparameters_grid$alpha[1] == sb_model_fit_results$ml_model$params$alpha,
+          hyperparameters_grid$gamma[1] == sb_model_fit_results$ml_model$params$gamma,
+          hyperparameters_grid$subsample[1] == sb_model_fit_results$ml_model$params$subsample,
+          hyperparameters_grid$colsample_bytree[1] == sb_model_fit_results$ml_model$params$colsample_bytree,
+          hyperparameters_grid$min_child_weight[1] == sb_model_fit_results$ml_model$params$min_child_weight,
+          hyperparameters_grid$max_depth[1] == sb_model_fit_results$ml_model$params$max_depth))
 
 
   expect_true(check_if_hyperparameters_have_been_applied)
 
 
   #Check if all features are used
-  check_features_used <- all(ml_model_fit_results$ml_model$feature_names == colnames(ts_splits$training$full_data_training_sample_clean)[-1])
+  check_features_used <- all(sb_model_fit_results$ml_model$feature_names == colnames(ts_splits$training$full_data_training_sample_clean)[-1])
   expect_true(check_features_used)
 
   #Check if early stop is correctly
-  check_early_stop_usage <- ml_model_fit_results$ml_model$best_iter
+  check_early_stop_usage <- sb_model_fit_results$ml_model$best_iter
   expect_null(check_early_stop_usage)
 
   #Checks with another xgb model
@@ -440,23 +514,23 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
 
   benchmark_model$call <- NULL
-  ml_model_fit_results$ml_model$call <- NULL
+  sb_model_fit_results$ml_model$call <- NULL
 
-  expect_equal(ml_model_fit_results$ml_model$raw,benchmark_model$raw)
-  expect_equal(ml_model_fit_results$ml_model$evaluation_log$train_rmse,
+  expect_equal(sb_model_fit_results$ml_model$raw,benchmark_model$raw)
+  expect_equal(sb_model_fit_results$ml_model$evaluation_log$train_rmse,
                benchmark_model$evaluation_log$train_rmse)
-  expect_equal(ml_model_fit_results$ml_model$evaluation_log$train_rmse,
+  expect_equal(sb_model_fit_results$ml_model$evaluation_log$train_rmse,
                benchmark_model$evaluation_log$train_rmse)
 
 
   #Check if predictions and errors are correctly made
   check_if_predictions_are_correctly_made <-
-    all(ml_model_fit_results$pred == as.numeric(predict(ml_model_fit_results$ml_model, newdata = as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))))
+    all(sb_model_fit_results$pred == as.numeric(predict(sb_model_fit_results$ml_model, newdata = as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))))
 
   expect_true(check_if_predictions_are_correctly_made)
 
   #Check if metrics are correctly made
-  check_if_metrics_are_correctly_made <- all(ml_model_fit_results$df_eval_metrics == calculate_eval_metrics(pred = ml_model_fit_results$pred,
+  check_if_metrics_are_correctly_made <- all(sb_model_fit_results$df_eval_metrics == calculate_eval_metrics(pred = sb_model_fit_results$pred,
                                                                                                             target = ts_splits$validation$target_validation_sample,
                                                                                                             huber_delta = huber_delta,
                                                                                                             quantile_tau = quantile_tau,
@@ -473,7 +547,7 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "xgb"
+  sb_algorithm = "xgb"
   tuning_method = "grid_search"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -496,24 +570,49 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -528,18 +627,18 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
   #Checks tuning
   set.seed(123)
   suppressWarnings(
-    ml_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+    sb_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
                                 target_fwd_name = target_fwd_name, #User defined
@@ -565,45 +664,45 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
 
   #Check if set_eval_function correctly sets a ranger model
-  check_if_ml_algo_is_used <- class(ml_model_fit_results$ml_model) == "xgb.Booster"
-  expect_true(check_if_ml_algo_is_used)
+  check_if_sb_algo_is_used <- class(sb_model_fit_results$ml_model) == "xgb.Booster"
+  expect_true(check_if_sb_algo_is_used)
 
   #Check if hyperparameters are correctly set
   check_if_hyperparameters_have_been_applied <-
-    all(c(hyperparameters_grid$eta[1] == ml_model_fit_results$ml_model$params$eta,
-          hyperparameters_grid$alpha[1] == ml_model_fit_results$ml_model$params$alpha,
-          hyperparameters_grid$gamma[1] == ml_model_fit_results$ml_model$params$gamma,
-          hyperparameters_grid$subsample[1] == ml_model_fit_results$ml_model$params$subsample,
-          hyperparameters_grid$colsample_bytree[1] == ml_model_fit_results$ml_model$params$colsample_bytree,
-          hyperparameters_grid$min_child_weight[1] == ml_model_fit_results$ml_model$params$min_child_weight,
-          hyperparameters_grid$max_depth[1] == ml_model_fit_results$ml_model$params$max_depth))
+    all(c(hyperparameters_grid$eta[1] == sb_model_fit_results$ml_model$params$eta,
+          hyperparameters_grid$alpha[1] == sb_model_fit_results$ml_model$params$alpha,
+          hyperparameters_grid$gamma[1] == sb_model_fit_results$ml_model$params$gamma,
+          hyperparameters_grid$subsample[1] == sb_model_fit_results$ml_model$params$subsample,
+          hyperparameters_grid$colsample_bytree[1] == sb_model_fit_results$ml_model$params$colsample_bytree,
+          hyperparameters_grid$min_child_weight[1] == sb_model_fit_results$ml_model$params$min_child_weight,
+          hyperparameters_grid$max_depth[1] == sb_model_fit_results$ml_model$params$max_depth))
 
 
   expect_true(check_if_hyperparameters_have_been_applied)
 
 
   #Check if all features are used
-  check_features_used <- all(ml_model_fit_results$ml_model$feature_names == colnames(ts_splits$training$full_data_training_sample_clean)[-1])
+  check_features_used <- all(sb_model_fit_results$ml_model$feature_names == colnames(ts_splits$training$full_data_training_sample_clean)[-1])
   expect_true(check_features_used)
 
   #Check if early stop is correctly implemented
-  check_early_stop_usage <- !is.null(ml_model_fit_results$ml_model$best_iter) #Best iter should no be null
+  check_early_stop_usage <- !is.null(sb_model_fit_results$ml_model$best_iter) #Best iter should no be null
   expect_true(check_early_stop_usage)
 
-  check_best_iter_lower_nrounds <- ml_model_fit_results$ml_model$best_iteration < hyperparameters_grid$nrounds[1] #Best iter should be lower than nrounds when nrounds is big
+  check_best_iter_lower_nrounds <- sb_model_fit_results$ml_model$best_iteration < hyperparameters_grid$nrounds[1] #Best iter should be lower than nrounds when nrounds is big
   expect_true(check_best_iter_lower_nrounds)
 
-  check_train_validation_are_different <- all(ml_model_fit_results$ml_model$evaluation_log$validation_mphe != ml_model_fit_results$ml_model$evaluation_log$train_mphe) #Validaiton and train should be diff
+  check_train_validation_are_different <- all(sb_model_fit_results$ml_model$evaluation_log$validation_mphe != sb_model_fit_results$ml_model$evaluation_log$train_mphe) #Validaiton and train should be diff
   expect_true(check_train_validation_are_different)
 
-  check_early_stop_is_at_lowest_val <- which.min(ml_model_fit_results$ml_model$evaluation_log$validation_mphe) == ml_model_fit_results$ml_model$best_iter #Best iter should min val mphe
-  check_best_iter_has_best_score <- ml_model_fit_results$ml_model$best_score == min(ml_model_fit_results$ml_model$evaluation_log$validation_mphe) #Best score is min of val list
+  check_early_stop_is_at_lowest_val <- which.min(sb_model_fit_results$ml_model$evaluation_log$validation_mphe) == sb_model_fit_results$ml_model$best_iter #Best iter should min val mphe
+  check_best_iter_has_best_score <- sb_model_fit_results$ml_model$best_score == min(sb_model_fit_results$ml_model$evaluation_log$validation_mphe) #Best score is min of val list
   expect_true(check_best_iter_has_best_score)
 
-  check_train_lower_val <- length(which(ml_model_fit_results$ml_model$evaluation_log$train_mphe <= ml_model_fit_results$ml_model$evaluation_log$validation_mphe))/ml_model_fit_results$ml_model$niter
+  check_train_lower_val <- length(which(sb_model_fit_results$ml_model$evaluation_log$train_mphe <= sb_model_fit_results$ml_model$evaluation_log$validation_mphe))/sb_model_fit_results$ml_model$niter
   expect_gt(check_train_lower_val, 0.50) #At least 50% of training eval metric should be lower than validation
 
-  check_best_iter_train_greater_best_iter <- which.min(ml_model_fit_results$ml_model$evaluation_log$train_mphe) >= ml_model_fit_results$ml_model$best_iteration #Lowest train eval should happen after best val
+  check_best_iter_train_greater_best_iter <- which.min(sb_model_fit_results$ml_model$evaluation_log$train_mphe) >= sb_model_fit_results$ml_model$best_iteration #Lowest train eval should happen after best val
   expect_true(check_best_iter_train_greater_best_iter)
 
 
@@ -637,21 +736,21 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 
 
 
-  expect_equal(ml_model_fit_results$ml_model$evaluation_log$train_mphe,benchmark_model$evaluation_log$train_mphe)
+  expect_equal(sb_model_fit_results$ml_model$evaluation_log$train_mphe,benchmark_model$evaluation_log$train_mphe)
 
-  expect_equal(ml_model_fit_results$ml_model$evaluation_log$validation_mphe, benchmark_model$evaluation_log$validation_mphe)
+  expect_equal(sb_model_fit_results$ml_model$evaluation_log$validation_mphe, benchmark_model$evaluation_log$validation_mphe)
 
-  expect_equal(ml_model_fit_results$ml_model$best_iteration, benchmark_model$best_iteration)
+  expect_equal(sb_model_fit_results$ml_model$best_iteration, benchmark_model$best_iteration)
 
 
   #Check if predictions and errors are correctly made
   check_if_predictions_are_correctly_made <-
-    all(ml_model_fit_results$pred == as.numeric(predict(ml_model_fit_results$ml_model, newdata = as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))))
+    all(sb_model_fit_results$pred == as.numeric(predict(sb_model_fit_results$ml_model, newdata = as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))))
 
   expect_true(check_if_predictions_are_correctly_made)
 
   #Check if metrics are correctly made
-  check_if_metrics_are_correctly_made <- all(ml_model_fit_results$df_eval_metrics[1:10] == calculate_eval_metrics(pred = ml_model_fit_results$pred,
+  check_if_metrics_are_correctly_made <- all(sb_model_fit_results$df_eval_metrics[1:10] == calculate_eval_metrics(pred = sb_model_fit_results$pred,
                                                                                                             target = ts_splits$validation$target_validation_sample,
                                                                                                             huber_delta = huber_delta,
                                                                                                             quantile_tau = quantile_tau,
@@ -668,7 +767,7 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -689,26 +788,49 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
   hyper_grid_domain_list <- list(regularizer_l1 = c(2), regularizer_l2 = c(5), droprate = c(0.5), lr = c(0.2), size_of_batch = 512, number_of_epochs = 100)
   keras_architecture_parameters <- list(units = 32, n_layers = 1, activation = 'relu',  nn_optimizer = 'Adam', batch_norm_option = TRUE)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop,
-                             keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -725,11 +847,11 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
@@ -737,7 +859,7 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
   set.seed(123)
   tensorflow::set_random_seed(123)
   suppressWarnings(
-    ml_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+    sb_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
                                 target_fwd_name = target_fwd_name, #User defined
@@ -768,13 +890,13 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
 
 
   #Check if set_eval_function correctly sets a nn model
-  check_if_ml_algo_is_used <- class(ml_model_fit_results$fit_nn) == "keras_training_history"
-  expect_true(check_if_ml_algo_is_used)
+  check_if_sb_algo_is_used <- class(sb_model_fit_results$fit_nn) == "keras_training_history"
+  expect_true(check_if_sb_algo_is_used)
 
   #Check if architecture is correctly set
-  config <- ml_model_fit_results$model_nn$get_config()
-  compile_config <- ml_model_fit_results$model_nn$get_compile_config()
-  config_string <- as.character(keras::get_config(ml_model_fit_results$model_nn))
+  config <- sb_model_fit_results$model_nn$get_config()
+  compile_config <- sb_model_fit_results$model_nn$get_compile_config()
+  config_string <- as.character(keras::get_config(sb_model_fit_results$model_nn))
   #Input shape
   n_feat <- ncol(ts_splits$training$full_data_training_sample_clean) - 1
   check_if_n_feat_is_correct <- config$layers[[1]]$config$batch_input_shape[[2]] == n_feat
@@ -801,11 +923,11 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
   expect_true(check_if_droprate_is_correct)
   check_if_lr_is_correct <- all.equal(compile_config$optimizer$config$learning_rate, as.numeric(hyperparameters_grid$lr))
   expect_true(check_if_lr_is_correct)
-  check_if_number_epochs_is_correct <- ml_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs
+  check_if_number_epochs_is_correct <- sb_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs
   expect_true(check_if_number_epochs_is_correct)
   check_if_batch_size_is_correct <- (hyperparameters_grid$size_of_batch -
-    nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
-    nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch
+    nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
+    nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch
   expect_true(check_if_batch_size_is_correct)
 
   #Check if custom objective is set
@@ -813,7 +935,7 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
 
 
   #Check if early stop is correctly
-  check_early_stop_usage <- ml_model_fit_results$df_eval_metrics$best_iter
+  check_early_stop_usage <- sb_model_fit_results$df_eval_metrics$best_iter
   expect_null(check_early_stop_usage)
 
   #Checks with another nn model
@@ -863,7 +985,7 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
                  config$layers[[2]]$config$kernel_regularizer$config$l2,
                  config$layers[[4]]$config$rate,
                  compile_config$optimizer$config$learning_rate,
-                 ml_model_fit_results$fit_nn$params$epochs),
+                 sb_model_fit_results$fit_nn$params$epochs),
 
               c(benchmark_config$layers[[2]]$config$kernel_regularizer$config$l1,
                 benchmark_config$layers[[2]]$config$kernel_regularizer$config$l2,
@@ -878,14 +1000,14 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
   expect_equal(compile_config$metrics, benchmark_compile_config$metrics)
 
   #Compare loss metrics
-  expect_equal(ml_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
 
 
   #Check if predictions and errors are correctly made
   check_if_predictions_are_correctly_made <-
-    all(ml_model_fit_results$pred ==
+    all(sb_model_fit_results$pred ==
           as.numeric(
-            predict(ml_model_fit_results$model_nn,
+            predict(sb_model_fit_results$model_nn,
                     as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))
             )
         )
@@ -893,7 +1015,7 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
   expect_true(check_if_predictions_are_correctly_made)
 
   #Check if metrics are correctly made
-  check_if_metrics_are_correctly_made <- all(ml_model_fit_results$df_eval_metrics == calculate_eval_metrics(pred = ml_model_fit_results$pred,
+  check_if_metrics_are_correctly_made <- all(sb_model_fit_results$df_eval_metrics == calculate_eval_metrics(pred = sb_model_fit_results$pred,
                                                                                                             target = ts_splits$validation$target_validation_sample,
                                                                                                             huber_delta = huber_delta,
                                                                                                             quantile_tau = quantile_tau,
@@ -911,7 +1033,7 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "random_search"
   chosen_eval_metric = "mphe"
   custom_objective = "squared_error"
@@ -939,25 +1061,49 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
   keras_architecture_parameters <- list(units = c(32,16), n_layers = 2, activation = c('relu', 'relu'),  nn_optimizer = 'Adam', batch_norm_option = c(TRUE, TRUE))
 
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop,
-                             keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -974,11 +1120,11 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
@@ -986,7 +1132,7 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
   set.seed(123)
   tensorflow::set_random_seed(123)
   suppressWarnings(
-    ml_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+    sb_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
                                 target_fwd_name = target_fwd_name, #User defined
@@ -1014,13 +1160,13 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
 
 
   #Check if set_eval_function correctly sets a nn model
-  check_if_ml_algo_is_used <- class(ml_model_fit_results$fit_nn) == "keras_training_history"
-  expect_true(check_if_ml_algo_is_used)
+  check_if_sb_algo_is_used <- class(sb_model_fit_results$fit_nn) == "keras_training_history"
+  expect_true(check_if_sb_algo_is_used)
 
   #Check if architecture is correctly set
-  config <- ml_model_fit_results$model_nn$get_config()
-  compile_config <- ml_model_fit_results$model_nn$get_compile_config()
-  config_string <- as.character(keras::get_config(ml_model_fit_results$model_nn))
+  config <- sb_model_fit_results$model_nn$get_config()
+  compile_config <- sb_model_fit_results$model_nn$get_compile_config()
+  config_string <- as.character(keras::get_config(sb_model_fit_results$model_nn))
   #Input shape
   n_feat <- ncol(ts_splits$training$full_data_training_sample_clean) - 1
   check_if_n_feat_is_correct <- config$layers[[1]]$config$batch_input_shape[[2]] == n_feat
@@ -1051,11 +1197,11 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
   expect_true(check_if_droprate_is_correct)
   check_if_lr_is_correct <- all.equal(compile_config$optimizer$config$learning_rate, as.numeric(hyperparameters_grid$lr[1]), tolerance = 1e-03)
   expect_true(check_if_lr_is_correct)
-  check_if_number_epochs_is_correct <- ml_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs[1]
+  check_if_number_epochs_is_correct <- sb_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs[1]
   expect_true(check_if_number_epochs_is_correct)
   check_if_batch_size_is_correct <- all((hyperparameters_grid$size_of_batch[1] -
-                                       nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
-                                       nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch)
+                                       nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
+                                       nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch)
   expect_true(check_if_batch_size_is_correct)
 
 
@@ -1065,18 +1211,18 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
 
 
   #Check if early stop is correctly used
-  check_early_stop_usage <- ml_model_fit_results$df_eval_metrics$best_iteration
+  check_early_stop_usage <- sb_model_fit_results$df_eval_metrics$best_iteration
   expect_true(!is.null(check_early_stop_usage))
-  expect_gt(range(ml_model_fit_results$fit_nn$metrics$loss)[2] - range(ml_model_fit_results$fit_nn$metrics$loss)[1],
-            range(ml_model_fit_results$fit_nn$metrics$val_loss)[2] - range(ml_model_fit_results$fit_nn$metrics$val_loss)[1]
+  expect_gt(range(sb_model_fit_results$fit_nn$metrics$loss)[2] - range(sb_model_fit_results$fit_nn$metrics$loss)[1],
+            range(sb_model_fit_results$fit_nn$metrics$val_loss)[2] - range(sb_model_fit_results$fit_nn$metrics$val_loss)[1]
   )
 
-  expect_gt(range(ml_model_fit_results$fit_nn$metrics$huber_loss)[2] - range(ml_model_fit_results$fit_nn$metrics$huber_loss)[1],
-            range(ml_model_fit_results$fit_nn$metrics$val_huber_loss)[2] - range(ml_model_fit_results$fit_nn$metrics$val_huber_loss)[1]
+  expect_gt(range(sb_model_fit_results$fit_nn$metrics$huber_loss)[2] - range(sb_model_fit_results$fit_nn$metrics$huber_loss)[1],
+            range(sb_model_fit_results$fit_nn$metrics$val_huber_loss)[2] - range(sb_model_fit_results$fit_nn$metrics$val_huber_loss)[1]
   )
   #Monitored metrics is lower for best iteration
-  expect_gt(ml_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][1],
-            ml_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][ml_model_fit_results$df_eval_metrics$best_iteration])
+  expect_gt(sb_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][1],
+            sb_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][sb_model_fit_results$df_eval_metrics$best_iteration])
 
 
   #Checks with another nn model
@@ -1147,7 +1293,7 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
                  config$layers[[5]]$config$kernel_regularizer$config$l2,
                  config$layers[[7]]$config$rate,
                  compile_config$optimizer$config$learning_rate,
-                 ml_model_fit_results$fit_nn$params$epochs),
+                 sb_model_fit_results$fit_nn$params$epochs),
 
                c(benchmark_config$layers[[2]]$config$kernel_regularizer$config$l1,
                  benchmark_config$layers[[2]]$config$kernel_regularizer$config$l2,
@@ -1165,17 +1311,17 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
   expect_equal(compile_config$metrics, benchmark_compile_config$metrics)
 
   #Compare loss metrics
-  expect_equal(ml_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$huber_loss, benchmark_fit$metrics$huber_loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$val_huber_loss, benchmark_fit$metrics$val_huber_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$huber_loss, benchmark_fit$metrics$huber_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_huber_loss, benchmark_fit$metrics$val_huber_loss)
 
 
   #Check if predictions and errors are correctly made
   check_if_predictions_are_correctly_made <-
-    all(ml_model_fit_results$pred ==
+    all(sb_model_fit_results$pred ==
           as.numeric(
-            predict(ml_model_fit_results$model_nn,
+            predict(sb_model_fit_results$model_nn,
                     as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))
           )
     )
@@ -1183,8 +1329,8 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
   expect_true(check_if_predictions_are_correctly_made)
 
   #Check if metrics are correctly made
-  check_if_metrics_are_correctly_made <- all(ml_model_fit_results$df_eval_metrics ==
-                                               calculate_eval_metrics(pred = ml_model_fit_results$pred,
+  check_if_metrics_are_correctly_made <- all(sb_model_fit_results$df_eval_metrics ==
+                                               calculate_eval_metrics(pred = sb_model_fit_results$pred,
                                                                       target = ts_splits$validation$target_validation_sample,
                                                                       huber_delta = huber_delta,
                                                                       quantile_tau = quantile_tau,
@@ -1205,7 +1351,7 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "random_search"
   custom_objective = "pseudo_huber_error"
   chosen_eval_metric <- NULL
@@ -1235,25 +1381,50 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
                                         batch_norm_option = c(TRUE, TRUE, TRUE))
 
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop,
-                             keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
 
+
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -1270,11 +1441,11 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
@@ -1282,7 +1453,7 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
   set.seed(123)
   tensorflow::set_random_seed(123)
   suppressWarnings(
-    ml_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+    sb_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
                                 target_fwd_name = target_fwd_name, #User defined
@@ -1310,13 +1481,13 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
 
 
   #Check if set_eval_function correctly sets a nn model
-  check_if_ml_algo_is_used <- class(ml_model_fit_results$fit_nn) == "keras_training_history"
-  expect_true(check_if_ml_algo_is_used)
+  check_if_sb_algo_is_used <- class(sb_model_fit_results$fit_nn) == "keras_training_history"
+  expect_true(check_if_sb_algo_is_used)
 
   #Check if architecture is correctly set
-  config <- ml_model_fit_results$model_nn$get_config()
-  compile_config <- ml_model_fit_results$model_nn$get_compile_config()
-  config_string <- as.character(keras::get_config(ml_model_fit_results$model_nn))
+  config <- sb_model_fit_results$model_nn$get_config()
+  compile_config <- sb_model_fit_results$model_nn$get_compile_config()
+  config_string <- as.character(keras::get_config(sb_model_fit_results$model_nn))
   #Input shape
   n_feat <- ncol(ts_splits$training$full_data_training_sample_clean) - 1
   check_if_n_feat_is_correct <- config$layers[[1]]$config$batch_input_shape[[2]] == n_feat
@@ -1360,11 +1531,11 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
   check_if_lr_is_correct <- all.equal(compile_config$optimizer$config$learning_rate,
                                       as.numeric(hyperparameters_grid$lr[1]), tolerance = 1e-03)
   expect_true(check_if_lr_is_correct)
-  check_if_number_epochs_is_correct <- ml_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs[1]
+  check_if_number_epochs_is_correct <- sb_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs[1]
   expect_true(check_if_number_epochs_is_correct)
   check_if_batch_size_is_correct <- all((hyperparameters_grid$size_of_batch[1] -
-                                           nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
-                                           nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch)
+                                           nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
+                                           nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch)
   expect_true(check_if_batch_size_is_correct)
 
 
@@ -1375,18 +1546,18 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
 
 
   #Check if early stop is correctly used
-  check_early_stop_usage <- ml_model_fit_results$df_eval_metrics$best_iteration
+  check_early_stop_usage <- sb_model_fit_results$df_eval_metrics$best_iteration
   expect_true(!is.null(check_early_stop_usage))
-  expect_gt(range(ml_model_fit_results$fit_nn$metrics$loss)[2] - range(ml_model_fit_results$fit_nn$metrics$loss)[1],
-            range(ml_model_fit_results$fit_nn$metrics$val_loss)[2] - range(ml_model_fit_results$fit_nn$metrics$val_loss)[1]
+  expect_gt(range(sb_model_fit_results$fit_nn$metrics$loss)[2] - range(sb_model_fit_results$fit_nn$metrics$loss)[1],
+            range(sb_model_fit_results$fit_nn$metrics$val_loss)[2] - range(sb_model_fit_results$fit_nn$metrics$val_loss)[1]
   )
 
-  expect_gt(range(ml_model_fit_results$fit_nn$metrics$huber_loss)[2] - range(ml_model_fit_results$fit_nn$metrics$huber_loss)[1],
-            range(ml_model_fit_results$fit_nn$metrics$val_huber_loss)[2] - range(ml_model_fit_results$fit_nn$metrics$val_huber_loss)[1]
+  expect_gt(range(sb_model_fit_results$fit_nn$metrics$huber_loss)[2] - range(sb_model_fit_results$fit_nn$metrics$huber_loss)[1],
+            range(sb_model_fit_results$fit_nn$metrics$val_huber_loss)[2] - range(sb_model_fit_results$fit_nn$metrics$val_huber_loss)[1]
   )
   #Monitored metrics is lower for best iteration
-  expect_gt(ml_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][1],
-            ml_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][ml_model_fit_results$df_eval_metrics$best_iteration])
+  expect_gt(sb_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][1],
+            sb_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][sb_model_fit_results$df_eval_metrics$best_iteration])
 
 
   #Checks with another nn model
@@ -1481,7 +1652,7 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
                  config$layers[[10]]$config$rate,
 
                  compile_config$optimizer$config$learning_rate,
-                 ml_model_fit_results$fit_nn$params$epochs),
+                 sb_model_fit_results$fit_nn$params$epochs),
 
                c(benchmark_config$layers[[2]]$config$kernel_regularizer$config$l1,
                  benchmark_config$layers[[2]]$config$kernel_regularizer$config$l2,
@@ -1504,17 +1675,17 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
   expect_equal(compile_config$metrics, benchmark_compile_config$metrics)
 
   #Compare loss metrics
-  expect_equal(ml_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$huber_loss, benchmark_fit$metrics$huber_loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$val_huber_loss, benchmark_fit$metrics$val_huber_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$huber_loss, benchmark_fit$metrics$huber_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_huber_loss, benchmark_fit$metrics$val_huber_loss)
 
 
   #Check if predictions and errors are correctly made
   check_if_predictions_are_correctly_made <-
-    all(ml_model_fit_results$pred ==
+    all(sb_model_fit_results$pred ==
           as.numeric(
-            predict(ml_model_fit_results$model_nn,
+            predict(sb_model_fit_results$model_nn,
                     as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))
           )
     )
@@ -1522,8 +1693,8 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
   expect_true(check_if_predictions_are_correctly_made)
 
   #Check if metrics are correctly made
-  check_if_metrics_are_correctly_made <- all(ml_model_fit_results$df_eval_metrics ==
-                                               calculate_eval_metrics(pred = ml_model_fit_results$pred,
+  check_if_metrics_are_correctly_made <- all(sb_model_fit_results$df_eval_metrics ==
+                                               calculate_eval_metrics(pred = sb_model_fit_results$pred,
                                                                       target = ts_splits$validation$target_validation_sample,
                                                                       huber_delta = huber_delta,
                                                                       quantile_tau = quantile_tau,
@@ -1544,7 +1715,7 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "random_search"
   custom_objective = "squared_error"
   chosen_eval_metric <- NULL
@@ -1574,25 +1745,49 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
                                         batch_norm_option = c(TRUE, TRUE, TRUE, TRUE))
 
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop,
-                             keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -1609,11 +1804,11 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
@@ -1621,7 +1816,7 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
   set.seed(123)
   tensorflow::set_random_seed(123)
   suppressWarnings(
-    ml_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+    sb_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
                                 target_fwd_name = target_fwd_name, #User defined
@@ -1649,13 +1844,13 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
 
 
   #Check if set_eval_function correctly sets a nn model
-  check_if_ml_algo_is_used <- class(ml_model_fit_results$fit_nn) == "keras_training_history"
-  expect_true(check_if_ml_algo_is_used)
+  check_if_sb_algo_is_used <- class(sb_model_fit_results$fit_nn) == "keras_training_history"
+  expect_true(check_if_sb_algo_is_used)
 
   #Check if architecture is correctly set
-  config <- ml_model_fit_results$model_nn$get_config()
-  compile_config <- ml_model_fit_results$model_nn$get_compile_config()
-  config_string <- as.character(keras::get_config(ml_model_fit_results$model_nn))
+  config <- sb_model_fit_results$model_nn$get_config()
+  compile_config <- sb_model_fit_results$model_nn$get_compile_config()
+  config_string <- as.character(keras::get_config(sb_model_fit_results$model_nn))
   #Input shape
   n_feat <- ncol(ts_splits$training$full_data_training_sample_clean) - 1
   check_if_n_feat_is_correct <- config$layers[[1]]$config$batch_input_shape[[2]] == n_feat
@@ -1708,11 +1903,11 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
   check_if_lr_is_correct <- all.equal(compile_config$optimizer$config$learning_rate,
                                       as.numeric(hyperparameters_grid$lr[1]), tolerance = 1e-03)
   expect_true(check_if_lr_is_correct)
-  check_if_number_epochs_is_correct <- ml_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs[1]
+  check_if_number_epochs_is_correct <- sb_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs[1]
   expect_true(check_if_number_epochs_is_correct)
   check_if_batch_size_is_correct <- all((hyperparameters_grid$size_of_batch[1] -
-                                           nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
-                                           nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch)
+                                           nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
+                                           nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch)
   expect_true(check_if_batch_size_is_correct)
 
 
@@ -1722,18 +1917,18 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
 
 
   #Check if early stop is correctly used
-  check_early_stop_usage <- ml_model_fit_results$df_eval_metrics$best_iteration
+  check_early_stop_usage <- sb_model_fit_results$df_eval_metrics$best_iteration
   expect_true(!is.null(check_early_stop_usage))
-  expect_gt(range(ml_model_fit_results$fit_nn$metrics$loss)[2] - range(ml_model_fit_results$fit_nn$metrics$loss)[1],
-            range(ml_model_fit_results$fit_nn$metrics$val_loss)[2] - range(ml_model_fit_results$fit_nn$metrics$val_loss)[1]
+  expect_gt(range(sb_model_fit_results$fit_nn$metrics$loss)[2] - range(sb_model_fit_results$fit_nn$metrics$loss)[1],
+            range(sb_model_fit_results$fit_nn$metrics$val_loss)[2] - range(sb_model_fit_results$fit_nn$metrics$val_loss)[1]
   )
 
-  expect_gt(range(ml_model_fit_results$fit_nn$metrics$mean_squared_error)[2] - range(ml_model_fit_results$fit_nn$metrics$mean_squared_error)[1],
-            range(ml_model_fit_results$fit_nn$metrics$val_mean_squared_error)[2] - range(ml_model_fit_results$fit_nn$metrics$val_mean_squared_error)[1]
+  expect_gt(range(sb_model_fit_results$fit_nn$metrics$mean_squared_error)[2] - range(sb_model_fit_results$fit_nn$metrics$mean_squared_error)[1],
+            range(sb_model_fit_results$fit_nn$metrics$val_mean_squared_error)[2] - range(sb_model_fit_results$fit_nn$metrics$val_mean_squared_error)[1]
   )
   #Monitored metrics is lower for best iteration
-  expect_gt(ml_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][1],
-            ml_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][ml_model_fit_results$df_eval_metrics$best_iteration])
+  expect_gt(sb_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][1],
+            sb_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][sb_model_fit_results$df_eval_metrics$best_iteration])
 
 
   #Checks with another nn model
@@ -1852,7 +2047,7 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
 
 
                  compile_config$optimizer$config$learning_rate,
-                 ml_model_fit_results$fit_nn$params$epochs),
+                 sb_model_fit_results$fit_nn$params$epochs),
 
                c(benchmark_config$layers[[2]]$config$kernel_regularizer$config$l1,
                  benchmark_config$layers[[2]]$config$kernel_regularizer$config$l2,
@@ -1879,17 +2074,17 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
   expect_equal(compile_config$metrics, benchmark_compile_config$metrics)
 
   #Compare loss metrics
-  expect_equal(ml_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$mean_squared_error, benchmark_fit$metrics$mean_squared_error)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$val_mean_squared_error, benchmark_fit$metrics$val_mean_squared_error)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$mean_squared_error, benchmark_fit$metrics$mean_squared_error)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_mean_squared_error, benchmark_fit$metrics$val_mean_squared_error)
 
 
   #Check if predictions and errors are correctly made
   check_if_predictions_are_correctly_made <-
-    all(ml_model_fit_results$pred ==
+    all(sb_model_fit_results$pred ==
           as.numeric(
-            predict(ml_model_fit_results$model_nn,
+            predict(sb_model_fit_results$model_nn,
                     as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))
           )
     )
@@ -1897,8 +2092,8 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
   expect_true(check_if_predictions_are_correctly_made)
 
   #Check if metrics are correctly made
-  check_if_metrics_are_correctly_made <- all(ml_model_fit_results$df_eval_metrics ==
-                                               calculate_eval_metrics(pred = ml_model_fit_results$pred,
+  check_if_metrics_are_correctly_made <- all(sb_model_fit_results$df_eval_metrics ==
+                                               calculate_eval_metrics(pred = sb_model_fit_results$pred,
                                                                       target = ts_splits$validation$target_validation_sample,
                                                                       huber_delta = huber_delta,
                                                                       quantile_tau = quantile_tau,
@@ -1919,7 +2114,7 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "random_search"
   custom_objective = "squared_error"
   chosen_eval_metric <- NULL
@@ -1949,25 +2144,49 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
                                         batch_norm_option = c(TRUE, TRUE, TRUE, TRUE, TRUE))
 
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop,
-                             keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -1984,11 +2203,11 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
 
@@ -1996,7 +2215,7 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
   set.seed(123)
   tensorflow::set_random_seed(123)
   suppressWarnings(
-    ml_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+    sb_model_fit_results <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
                                 target_fwd_name = target_fwd_name, #User defined
@@ -2024,13 +2243,13 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
 
 
   #Check if set_eval_function correctly sets a nn model
-  check_if_ml_algo_is_used <- class(ml_model_fit_results$fit_nn) == "keras_training_history"
-  expect_true(check_if_ml_algo_is_used)
+  check_if_sb_algo_is_used <- class(sb_model_fit_results$fit_nn) == "keras_training_history"
+  expect_true(check_if_sb_algo_is_used)
 
   #Check if architecture is correctly set
-  config <- ml_model_fit_results$model_nn$get_config()
-  compile_config <- ml_model_fit_results$model_nn$get_compile_config()
-  config_string <- as.character(keras::get_config(ml_model_fit_results$model_nn))
+  config <- sb_model_fit_results$model_nn$get_config()
+  compile_config <- sb_model_fit_results$model_nn$get_compile_config()
+  config_string <- as.character(keras::get_config(sb_model_fit_results$model_nn))
   #Input shape
   n_feat <- ncol(ts_splits$training$full_data_training_sample_clean) - 1
   check_if_n_feat_is_correct <- config$layers[[1]]$config$batch_input_shape[[2]] == n_feat
@@ -2097,11 +2316,11 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
   check_if_lr_is_correct <- all.equal(compile_config$optimizer$config$learning_rate,
                                       as.numeric(hyperparameters_grid$lr[1]), tolerance = 1e-03)
   expect_true(check_if_lr_is_correct)
-  check_if_number_epochs_is_correct <- ml_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs[1]
+  check_if_number_epochs_is_correct <- sb_model_fit_results$fit_nn$params$epochs == hyperparameters_grid$number_of_epochs[1]
   expect_true(check_if_number_epochs_is_correct)
   check_if_batch_size_is_correct <- all((hyperparameters_grid$size_of_batch[1] -
-                                           nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
-                                           nrow(ts_splits$training$full_data_training_sample_clean)/ml_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch)
+                                           nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps + #Number of samples in each step if training sample was size_of_batch * 2
+                                           nrow(ts_splits$training$full_data_training_sample_clean)/sb_model_fit_results$fit_nn$params$steps) == hyperparameters_grid$size_of_batch)
   expect_true(check_if_batch_size_is_correct)
 
 
@@ -2111,18 +2330,18 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
 
 
   #Check if early stop is correctly used
-  check_early_stop_usage <- ml_model_fit_results$df_eval_metrics$best_iteration
+  check_early_stop_usage <- sb_model_fit_results$df_eval_metrics$best_iteration
   expect_true(!is.null(check_early_stop_usage))
-  expect_gt(range(ml_model_fit_results$fit_nn$metrics$loss)[2] - range(ml_model_fit_results$fit_nn$metrics$loss)[1],
-            range(ml_model_fit_results$fit_nn$metrics$val_loss)[2] - range(ml_model_fit_results$fit_nn$metrics$val_loss)[1]
+  expect_gt(range(sb_model_fit_results$fit_nn$metrics$loss)[2] - range(sb_model_fit_results$fit_nn$metrics$loss)[1],
+            range(sb_model_fit_results$fit_nn$metrics$val_loss)[2] - range(sb_model_fit_results$fit_nn$metrics$val_loss)[1]
   )
 
-  expect_gt(range(ml_model_fit_results$fit_nn$metrics$mean_squared_error)[2] - range(ml_model_fit_results$fit_nn$metrics$mean_squared_error)[1],
-            range(ml_model_fit_results$fit_nn$metrics$val_mean_squared_error)[2] - range(ml_model_fit_results$fit_nn$metrics$val_mean_squared_error)[1]
+  expect_gt(range(sb_model_fit_results$fit_nn$metrics$mean_squared_error)[2] - range(sb_model_fit_results$fit_nn$metrics$mean_squared_error)[1],
+            range(sb_model_fit_results$fit_nn$metrics$val_mean_squared_error)[2] - range(sb_model_fit_results$fit_nn$metrics$val_mean_squared_error)[1]
   )
   #Monitored metrics is lower for best iteration
-  expect_gt(ml_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][1],
-            ml_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][ml_model_fit_results$df_eval_metrics$best_iteration])
+  expect_gt(sb_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][1],
+            sb_model_fit_results$fit_nn$metrics[chosen_eval_metric_translated$name][[1]][sb_model_fit_results$df_eval_metrics$best_iteration])
 
 
   #Checks with another nn model
@@ -2261,7 +2480,7 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
 
 
                  compile_config$optimizer$config$learning_rate,
-                 ml_model_fit_results$fit_nn$params$epochs),
+                 sb_model_fit_results$fit_nn$params$epochs),
 
                c(benchmark_config$layers[[2]]$config$kernel_regularizer$config$l1,
                  benchmark_config$layers[[2]]$config$kernel_regularizer$config$l2,
@@ -2292,17 +2511,17 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
   expect_equal(compile_config$metrics, benchmark_compile_config$metrics)
 
   #Compare loss metrics
-  expect_equal(ml_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$mean_squared_error, benchmark_fit$metrics$mean_squared_error)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
-  expect_equal(ml_model_fit_results$fit_nn$metrics$val_mean_squared_error, benchmark_fit$metrics$val_mean_squared_error)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$mean_squared_error, benchmark_fit$metrics$mean_squared_error)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_mean_squared_error, benchmark_fit$metrics$val_mean_squared_error)
 
 
   #Check if predictions and errors are correctly made
   check_if_predictions_are_correctly_made <-
-    all(ml_model_fit_results$pred ==
+    all(sb_model_fit_results$pred ==
           as.numeric(
-            predict(ml_model_fit_results$model_nn,
+            predict(sb_model_fit_results$model_nn,
                     as.matrix(ts_splits$validation$features_validation_sample[,-c(1:3)]))
           )
     )
@@ -2310,8 +2529,8 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
   expect_true(check_if_predictions_are_correctly_made)
 
   #Check if metrics are correctly made
-  check_if_metrics_are_correctly_made <- all(ml_model_fit_results$df_eval_metrics ==
-                                               calculate_eval_metrics(pred = ml_model_fit_results$pred,
+  check_if_metrics_are_correctly_made <- all(sb_model_fit_results$df_eval_metrics ==
+                                               calculate_eval_metrics(pred = sb_model_fit_results$pred,
                                                                       target = ts_splits$validation$target_validation_sample,
                                                                       huber_delta = huber_delta,
                                                                       quantile_tau = quantile_tau,

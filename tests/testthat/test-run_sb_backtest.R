@@ -6493,11 +6493,11 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
   xgb_config <- create_sb_backtest_config(sb_algorithm = "xgb", huber_delta = 1.3,
                                           training_sample_size = 7,
                                           rebalancing_months = 6,
-                                          custom_objective = "pseudo_huber_error") %>%
+                                          custom_objective = "pseudo_huber_error",
+                                          target_fwd_name = "fwd_premium_3m") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3, early_stop = 25, chosen_eval_metric = "mphe") %>%
     add_hyperparameter(hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
-                       grid = list(1, c(3,6), c(0.5, 0.75), c(0.50, 1), c(0.05, 0.1), c(2, 5), 0, 500)
-                       )
+                       grid = list(1, c(3,6), c(0.5, 0.75), c(0.50, 1), c(0.05, 0.1), c(2, 5), 0, 500))
 
   suppressWarnings({
     future::plan("multisession")
@@ -6509,8 +6509,8 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
     sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-      target_fwd_name = "fwd_premium_3m",
       config = xgb_config,
+      .test_seed = 123,
       verbose = FALSE
     )}))
 
@@ -6532,10 +6532,14 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
 
   chosen_eval_metric_val <- list()
 
+  features_order <- c("id", "tickers", "dates", colnames(toy_preprocessed_features)[-c(1:3)] %>% sort())
+
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),
+                                                    features_order]
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),
+                                                  features_order]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -6646,7 +6650,8 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
 
   #Refit
   features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),
+                                                                      features_order]
 
 
   target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -6675,7 +6680,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),features_order]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -6704,8 +6709,8 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
   #2nd rebal!
   #Features obj
   features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+                                                                                                  "2022-11-15", "2022-12-15")),features_order]
+  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),features_order]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -6717,7 +6722,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
 
 
   #Second val
-
+  set.seed(123)
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <-
     foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
@@ -6819,7 +6824,8 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
   #Refit
   features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+                                                                                                                    "2023-02-15", "2023-03-15")),
+                                                                       features_order]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -6848,12 +6854,8 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),features_order]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
-
-
-
-
 
   #Predict!
   prediction_list[[3]] <- as.numeric(predict(xgb.mod.refit, newdata = as.matrix(features_second_test[which(features_second_test$dates %in% c("2023-06-15")),-c(1:3)])))
@@ -6874,27 +6876,50 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA)),
+                                       order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -6908,30 +6933,45 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
     oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
     oos_testing_eval_metrics$hr[l] <- mean((y_list[[l]] * prediction_list[[l]])>0)
     oos_testing_eval_metrics$mb[l] <- mean(y_list[[l]] - prediction_list[[l]])
-
-
-
   }
+
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list), huber_delta = 1.3)
+                                                      target = unlist(y_list), huber_delta = 1.3)[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
+  #Validation loss metrics for hyper choice
+  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
 
-  results$outputs[[4]] <- oos_testing_eval_metrics
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+  )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
+  expect_equal(sb_backtest_results@final_sb_model@model$feature_names, colnames(features_second_training_and_validation)[-c(1:3)])
+  expect_equal(sb_backtest_results@final_sb_model@model$params$huber_slope, 1.3)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$min_child_weight), xgb.mod.refit$params$min_child_weight)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$max_depth), xgb.mod.refit$params$max_depth)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$subsample), xgb.mod.refit$params$subsample)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$colsample_bytree), xgb.mod.refit$params$colsample_bytree)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$eta), xgb.mod.refit$params$eta)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$alpha), xgb.mod.refit$params$alpha)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$gamma), xgb.mod.refit$params$gamma)
+
 
   #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
+  names(chosen_eval_metric_val) <-  rebalance_dates
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
 
   #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+  expected_results$outputs[[5]] <- xts::xts(data.frame(row.names = rebalance_dates,
                                      min_child_weight = c(hyper_expanded_grid$min_child_weight[hyper_choice1], hyper_expanded_grid$min_child_weight[hyper_choice2]),
                                      max_depth = c(hyper_expanded_grid$max_depth[hyper_choice1], hyper_expanded_grid$max_depth[hyper_choice2]),
                                      subsample = c(hyper_expanded_grid$subsample[hyper_choice1], hyper_expanded_grid$subsample[hyper_choice2]),
@@ -6943,28 +6983,14 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
                                      best_iteration = c(chosen_eval_metric_val[[1]]$best_iteration[hyper_choice1],
                                                         chosen_eval_metric_val[[2]]$best_iteration[hyper_choice2])
 
-  )
+  ), order.by = as.Date(rebalance_dates))
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
 
 
 
   #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
-  )
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
   suppressWarnings({
     future::plan("sequential")
@@ -6979,7 +7005,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   future::plan("sequential")
 
   nn_config <-
-  create_sb_backtest_config(sb_algorithm = "nn", training_sample_size = 7, rebalancing_months = 6) %>%
+  create_sb_backtest_config(sb_algorithm = "nn", training_sample_size = 7, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m") %>%
 
     add_keras_architecture(nn_optimizer = "Adam", units = 32, activation = "relu", batch_norm_option = TRUE) %>%
 
@@ -6989,13 +7015,12 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                        grid = list(10^-seq(2,5,length=2), 0, c(0.5, 0.75), 10^-seq(4,5,length=2), 512, 100)
                        )
 
-  tensorflow::set_random_seed(100)
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-      target_fwd_name = "fwd_premium_3m",
+      .test_seed = 100,
       config = nn_config,
       verbose = TRUE
     )}))
@@ -7004,7 +7029,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   max_epochs <- 100
   batch_size <- 512
   n_ensemble <- 10
-  units = 32
+  units <- 32
   early_stop <- 25
 
 
@@ -7027,10 +7052,13 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
 
   chosen_eval_metric_val <- list()
 
+  features_order <- c("id", "tickers", "dates", colnames(toy_preprocessed_features)[-c(1:3)] %>% sort())
+
+
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),features_order]
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),features_order]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -7039,6 +7067,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   colnames(full_data_first_train)[1] <- c("fwd_premium_3m")
 
 
+  set.seed(100)
   tensorflow::set_random_seed(100)
   #Use foreach to simulate result of parallelized hyper tuning
   first_rebal <-
@@ -7048,7 +7077,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
       model_nn_1 %>%
         keras::layer_dense(units = units[1], activation = 'relu', input_shape =  ncol(features_first_train[,-c(1:3)]), #Shape = # of features
                            kernel_regularizer = keras::regularizer_l1_l2(
-                             l1 = hyper_expanded_grid$l1[s], l2 =  hyper_expanded_grid$l2[s])) %>% #L1 and L2 Regularization
+                             l1 = hyper_expanded_grid$regularizer_l1[s], l2 =  hyper_expanded_grid$regularizer_l2[s])) %>% #L1 and L2 Regularization
                              keras::layer_batch_normalization() %>% #Batch normalization
       keras::layer_dropout(rate = hyper_expanded_grid$droprate[s]) %>% #Adds dropout
       keras::layer_dense(units = 1) #No activation means linear: f(x) = x
@@ -7151,7 +7180,8 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
 
   #Refit
   features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),
+                                                                      features_order]
 
 
   target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -7166,7 +7196,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   model_nn_1 %>%
     keras::layer_dense(units = units[1], activation = 'relu', input_shape =  ncol(features_first_training_and_validation[,-c(1:3)]), #Shape = # of features
                        kernel_regularizer = keras::regularizer_l1_l2(
-                         l1 = hyper_expanded_grid$l1[hyper_choice1], l2 =  hyper_expanded_grid$l2[hyper_choice1])) %>% #L1 and L2 Regularization
+                         l1 = hyper_expanded_grid$regularizer_l1[hyper_choice1], l2 =  hyper_expanded_grid$regularizer_l2[hyper_choice1])) %>% #L1 and L2 Regularization
     keras::layer_batch_normalization() %>% #Batch normalization
     keras::layer_dropout(rate = hyper_expanded_grid$droprate[hyper_choice1]) %>% #Adds dropout
     keras::layer_dense(units = 1) #No activation means linear: f(x) = x
@@ -7194,7 +7224,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),features_order]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -7225,8 +7255,8 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   #2nd rebal!
   #Features obj
   features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+                                                                                                  "2022-11-15", "2022-12-15")),features_order]
+  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),features_order]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -7236,8 +7266,8 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   full_data_second_train <- cbind(targets_second_train$fwd_premium_3m, features_second_train[,-c(1:3)])
   colnames(full_data_second_train)[1] <- c("fwd_premium_3m")
 
-
-  tictoc::tic()
+  set.seed(100)
+  tensorflow::set_random_seed(100)
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <-
     foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
@@ -7246,7 +7276,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
       model_nn_2 %>%
         keras::layer_dense(units = units[1], activation = 'relu', input_shape =  ncol(features_second_train[,-c(1:3)]), #Shape = # of features
                            kernel_regularizer = keras::regularizer_l1_l2(
-                             l1 = hyper_expanded_grid$l1[s], l2 =  hyper_expanded_grid$l2[s])) %>% #L1 and L2 Regularization
+                             l1 = hyper_expanded_grid$regularizer_l1[s], l2 =  hyper_expanded_grid$regularizer_l2[s])) %>% #L1 and L2 Regularization
         keras::layer_batch_normalization() %>% #Batch normalization
         keras::layer_dropout(rate = hyper_expanded_grid$droprate[s]) %>% #Adds dropout
         keras::layer_dense(units = 1) #No activation means linear: f(x) = x
@@ -7294,7 +7324,6 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                   best_epoch = which.min(fit_nn_2$metrics$val_loss)))
 
     }
-  tictoc::toc()
 
   #Pass objects
   #Features val
@@ -7367,7 +7396,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   #Refit
   features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+                                                                                                                    "2023-02-15", "2023-03-15")),features_order]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -7385,7 +7414,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   model_nn_2 %>%
     keras::layer_dense(units = units[1], activation = 'relu', input_shape =  ncol(features_first_training_and_validation[,-c(1:3)]), #Shape = # of features
                        kernel_regularizer = keras::regularizer_l1_l2(
-                         l1 = hyper_expanded_grid$l1[hyper_choice2], l2 =  hyper_expanded_grid$l2[hyper_choice2])) %>% #L1 and L2 Regularization
+                         l1 = hyper_expanded_grid$regularizer_l1[hyper_choice2], l2 = hyper_expanded_grid$regularizer_l2[hyper_choice2])) %>% #L1 and L2 Regularization ###ADJUST
     keras::layer_batch_normalization() %>% #Batch normalization
     keras::layer_dropout(rate = hyper_expanded_grid$droprate[hyper_choice2]) %>% #Adds dropout
     keras::layer_dense(units = 1) #No activation means linear: f(x) = x
@@ -7414,7 +7443,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),features_order]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
 
 
@@ -7440,27 +7469,50 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA)),
+                                       order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -7478,25 +7530,70 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
 
 
   }
+
+
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
+                                                      target = unlist(y_list))[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
 
-  results$outputs[[4]] <- oos_testing_eval_metrics
+  #Validation loss metrics for hyper choice
+  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
+
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+  )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
 
   #Final Model
-  results$outputs[[5]] <- sb_backtest_results@final_sb_model
+  expect_equal(sb_backtest_results@final_sb_model@model$layers[[1]]$units, model_nn_2$layers[[1]]$units)
+  expect_equal(sb_backtest_results@final_sb_model@model$layers[[1]]$activation, model_nn_2$layers[[1]]$activation)
+  results_config <- sb_backtest_results@final_sb_model@model$get_config()
+  expected_config <- model_nn_2$get_config()
 
+  #Input shape
+  n_feat <- ncol(full_data_second_training_and_validation) - 1
+  check_if_n_feat_is_correct <- results_config$layers[[1]]$config$batch_input_shape[[2]] == expected_config$layers[[1]]$config$batch_input_shape[[2]]
+  expect_true(check_if_n_feat_is_correct)
+  #Activation
+  check_if_activation_is_correct <- results_config$layers[[2]]$config$activation == expected_config$layers[[2]]$config$activation
+  expect_true(check_if_activation_is_correct)
+  #Units
+  check_if_units_is_correct <- results_config$layers[[2]]$config$units == expected_config$layers[[2]]$config$units
+  expect_true(check_if_units_is_correct)
+  #BatchNorm
+  check_if_batchnorm_is_on <- results_config$layers[[3]]$class_name == expected_config$layers[[3]]$class_name
+  expect_true(check_if_batchnorm_is_on)
+
+  results_compile_config <- sb_backtest_results@final_sb_model@model$get_compile_config()
+  expected_compile_config <- model_nn_2$get_compile_config()
+  #Optimizer
+  check_if_optimizer_is_correct <- results_compile_config$optimizer$class_name == expected_compile_config$optimizer$class_name
+  expect_true(check_if_optimizer_is_correct)
+
+  #Check if hyperparametesr are correctly set
+  check_if_reg_l1_is_correct <- results_config$layers[[2]]$config$kernel_regularizer$config$l1 == expected_config$layers[[2]]$config$kernel_regularizer$config$l1
+  expect_true(check_if_reg_l1_is_correct)
+  check_if_reg_l2_is_correct <- results_config$layers[[2]]$config$kernel_regularizer$config$l2 == expected_config$layers[[2]]$config$kernel_regularizer$config$l2
+  expect_true(check_if_reg_l2_is_correct)
+  check_if_droprate_is_correct <- results_config$layers[[4]]$config$rate == expected_config$layers[[4]]$config$rate
+  expect_true(check_if_droprate_is_correct)
+  check_if_lr_is_correct <- results_compile_config$optimizer$config$learning_rate == expected_compile_config$optimizer$config$learning_rate
+  expect_true(check_if_lr_is_correct)
 
   #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
 
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+  #Best Hyoerparameters
+  expected_results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
                                      regularizer_l1 = c(hyper_expanded_grid$regularizer_l1[hyper_choice1], hyper_expanded_grid$regularizer_l1[hyper_choice2]),
                                      regularizer_l2 = c(hyper_expanded_grid$regularizer_l2[hyper_choice1], hyper_expanded_grid$regularizer_l2[hyper_choice2]),
                                      droprate = c(hyper_expanded_grid$droprate[hyper_choice1], hyper_expanded_grid$droprate[hyper_choice2]),
@@ -7510,21 +7607,21 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
   rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
+  expected_results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
+  names(expected_results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_expected_results <- as.list(sb_backtest_expected_results)
+  sb_backtest_expected_results$ml_backtest_workflow <- NULL
 
 
   expect_equal(
-    sb_backtest_results,
-    results$outputs,
+    sb_backtest_expected_results,
+    expected_results$outputs,
     tolerance = 1e-3
   )
 

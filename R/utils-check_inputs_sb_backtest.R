@@ -60,7 +60,7 @@ check_inputs_sb_backtest <- function(
     #Tuning
     hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
     #Etc
-    early_stop, keras_architecture_parameters, parallel, verbose = TRUE
+    early_stop, keras_architecture_parameters, parallel, verbose = TRUE, .test_seed
 ){
 
   ###Initial Checks###
@@ -289,7 +289,7 @@ check_inputs_sb_backtest <- function(
         }
         ##Check if any weight belong to a non-eligible ticker
         non_zero_weight_id <- custom_signal_weights_m_df %>% dplyr::filter(weights != 0) %>% dplyr::pull(id)
-        non_eligible_id <- signal_universe_m_df %>% dplyr::filter(eligible == 0) %>% dplyr::pull(id)
+        non_eligible_id <- signal_universe_m_df %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(id)
         if(any(non_zero_weight_id %in% non_eligible_id)){
           message("Some ids in custom_signal_weights_m_df are not eligible: ",
                   paste(non_zero_weight_id[non_zero_weight_id %in% non_eligible_id], collapse = ", "))
@@ -350,7 +350,7 @@ check_inputs_sb_backtest <- function(
         stop("validation_sample_size should be positive.")
       }
 
-      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & validation_sample_size != 0){
+      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & validation_sample_size != 0){
         stop("ols and heuristic sb algorithms do not support validation split.")
       }
 
@@ -456,12 +456,12 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for correct hyperparameters names in hyper_grid_domain_list
-      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & !is.null(hyper_grid_domain_list)){
+      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & !is.null(hyper_grid_domain_list)){
         stop("ols and heuristic sb algorithms do not support hyperparameters.")
       }
 
 
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & is.null(hyper_grid_domain_list)){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & is.null(hyper_grid_domain_list)){
         stop("hyper_grid_domain must be set when sb_algorithm is different from ols.")
       }
 
@@ -490,12 +490,12 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for valid format in tuning method
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
         stop("tuning_method should be one of random_search, grid_search or bayesian_opt.")
       }
 
       #Check for correct format in case tuning method is grid_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("grid_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("grid_search")){
         if(any(
           #Check if hyper_grid_domain_list is a list
           !(class(hyper_grid_domain_list) == "list"),
@@ -509,12 +509,12 @@ check_inputs_sb_backtest <- function(
         }
       }
 
-      if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo"), tuning_method == "grid_search",!is.null(n_iter))){
+      if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights"), tuning_method == "grid_search",!is.null(n_iter))){
         warning("When tuning_method is grid_search, hyperparameters are combined exhaustively. Ignoring any user set n_iter value")
       }
 
       #Check for correct format in case tuning method is random_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("random_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("random_search")){
 
 
         tryCatch({
@@ -555,7 +555,7 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for correct format in case tuning method is Bayesian Optimization
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("bayesian_opt")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("bayesian_opt")){
         if(any(
           #Check if hyper_grid_domain_list is a list
           !is.list(hyper_grid_domain_list),
@@ -1026,7 +1026,33 @@ check_inputs_sb_backtest <- function(
         ##########
 
 
+
       }
       ###############
+
+      #Misc
+
+      if (!is.null(parallel)){
+        if(!is.logical(parallel)){
+          stop("parallel should be logical")
+        }
+      }
+
+      if (!is.null(.test_seed)){
+        if (!is.numeric(.test_seed)){
+          stop(".test_seed should be numeric")
+        }
+        if(round(.test_seed) != .test_seed){
+          stop(".test_seed should have no decimals")
+        }
+      }
+
+      if (!is.null(verbose)){
+        if (!is.logical(verbose)){
+          stop("verbose should be logical")
+        }
+      }
+
+
 
 }
