@@ -1045,8 +1045,6 @@ run_sb_backtest_internal <- function(
             cat("\n")
           }
 
-          browser()
-
           hyper_tune_results <- hyper_tune(
             #General Parameters
             tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,

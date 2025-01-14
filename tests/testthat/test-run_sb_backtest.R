@@ -1355,7 +1355,7 @@ test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced pa
 })
 
 #Define your test
-test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_targets", {
+test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_targets + signal_selection", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -1739,7 +1739,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 #BEGIN SIGNAL PORT TESTS (TRAINING + TESTING)
 ####################
 #Define your test
-test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features_and_targets", {
+test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features_and_targets + signal_selection", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -2151,7 +2151,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
 
 })
 #Define your test
-test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets", {
+test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets + signal_selection", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -2557,7 +2557,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
 })
 #Define your test
-test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_targets", {
+test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_targets + signal_selection", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -6011,6 +6011,541 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
 
 })
 
+#Define your test Excel sheet test glmnet 7
+test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
+
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", huber_delta = 1.25, training_sample_size = 4,
+                                             rebalancing_months = 11, target_fwd_name = "fwd_premium_3m"
+  ) %>%
+    add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "mphe", validation_sample_size = 3) %>%
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length = 10)))
+
+
+  features_m_df = create_meta_dataframe(structure(
+    list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                "Stock E-2001-11-15"),
+         tickers = c("Stock A", "Stock A", "Stock A",
+                     "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                     "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                     "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                     "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                     "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                     "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                     "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
+         dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                     995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                     987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                     1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                     995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                     987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                     1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                     995155200, 997833600, 1000512000, 1003104000, 1005782400),
+                                   class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
+         Alpha = c(3, -20, -450, 5, -2, 1,
+                   6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
+                   8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
+                   -1, 4, 4),
+         Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
+                  -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
+                  2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
+         Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
+                   -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
+                   3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame"))
+
+
+  target_m_df =
+    create_meta_dataframe(structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
+                                                "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
+                                                "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
+                                                "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
+                                                "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
+                                                "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
+                                                "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
+                                                "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
+                                                "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
+                                                "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
+                                                "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
+                                                "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
+                                                "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
+                                                "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
+                                                "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
+                                                "Stock E-2001-11-15"),
+                                         tickers = c("Stock A", "Stock A", "Stock A",
+                                                     "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
+                                                     "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
+                                                     "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
+                                                     "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
+                                                     "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
+                                                     "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
+                                                     "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
+                                         ),
+                                         dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
+                                                                     995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                                                     987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                                                     1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                                                     995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
+                                                                     987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
+                                                                     1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
+                                                                     995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+                                                         format = "%Y-%m-%d"),
+                                         fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
+                                                            2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
+                                         fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
+                                                            3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
+                                         fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
+                                                           10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame"))
+
+
+
+  #Apply function
+  suppressMessages(suppressWarnings({
+    sb_backtest_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = glmnet_config,
+      verbose = FALSE
+    )}))
+
+  #Define initial objects
+  hyper_expanded_grid <- expand.grid(list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)))
+
+  validation_eval_hyper_choice <- data.frame(rss =c(NA, NA),  #Validation loss df
+                                             cp = c(NA, NA),
+                                             rmse = c(NA, NA),
+                                             mae = c(NA, NA),
+                                             mphe = c(NA,NA),
+                                             mpe = c(NA,NA),
+                                             row.names = c("2001-09-15", "2001-11-15"))
+  rebalance_dates <- c("2001-09-15", "2001-11-15")
+  n_rebalance_dates <- 2
+
+  chosen_eval_metric_val <- list()
+
+  #Start first rebalancing
+
+  #Get objects to train and validate model
+  features_training <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
+                                             "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15"
+  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
+  ), dates = structure(c(984614400, 984614400, 984614400, 984614400,
+                         984614400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+  Alpha = c(3,  1, 2, 5, 5), Beta = c(4, 5, 6, 0, 2), Gamma = c(800, 9, 10, -9, 3)), row.names = c(NA, -5L), class = "data.frame")
+
+  target_training <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5),
+                                    fwd_premium_3m = c(4, 5, 0, 1, 9),
+                                    fwd_sharpe_1m = c(7, 4, 2, 4, 7)), row.names = c(NA, -5L), class = "data.frame")
+
+  features_validation <- structure(list(id = c("Stock A-2001-06-15", "Stock B-2001-06-15",
+                                               "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15"
+  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
+  ), dates = structure(c(992563200, 992563200, 992563200, 992563200,
+                         992563200), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+  Alpha = c(5,  2, -20, -1, 2), Beta = c(3, 1, 1, 2, 1), Gamma = c(20, -15, 6,  3, 6)), row.names = c(NA, -5L), class = "data.frame")
+
+  target_validation <- structure(list(fwd_premium_1m = c(1, 3, 5, 7, 1),
+                                      fwd_premium_3m = c(0, 3, 8, 3, 2),
+                                      fwd_sharpe_1m = c(1, 5, 6, 10, 3)), row.names = c(NA,  -5L), class = "data.frame")
+
+
+  #Start first rebalancing
+  chosen_eval_metric_val[[1]] <- data.frame(alpha = hyper_expanded_grid$alpha,
+                                            lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio,
+                                            best_lam = rep(NA,30), chosen_eval_metric = rep(NA, 30))
+
+  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(target_validation$fwd_premium_3m),
+                                         ncol = nrow(hyper_expanded_grid)))
+  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
+  best_lam1 <- vector(length =  nrow(hyper_expanded_grid))
+
+  for(s in 1:length(hyper_expanded_grid$alpha)){
+    #Train Model
+    glm.mod1 <- glmnet::glmnet(
+      x = features_training[,-c(1:3)],
+      y = target_training$fwd_premium_3m,
+      alpha = hyper_expanded_grid$alpha[s], #Alpha
+      lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[s] #Lambda
+    )
+
+    #Get best lam
+    best_lam1[s] <- glm.mod1$lambda[
+      which.min(
+        colMeans(1.25^2 * (sqrt((1 + ((target_validation$fwd_premium_3m -
+                                         predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)])))/1.25)^2)) - 1
+        )
+        ))
+    ]
+
+
+    #Predict to validation data
+    shrinkage.pred_df[,s] <-
+      predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)]), s = best_lam1[s])
+
+    #MPHE CHOSEN
+    chosen_eval_metric_val[[1]]$chosen_eval_metric[which(chosen_eval_metric_val[[1]]$alpha == unique(hyper_expanded_grid$alpha)[s])] <-
+      mean(1.25^2 * (sqrt((1 + ((target_validation$fwd_premium_3m - shrinkage.pred_df[,s])/1.25)^2)) - 1))
+
+  }
+
+  chosen_eval_metric_val[[1]]$best_lam <- best_lam1
+
+  #MPHE IS MIN: PAY ATTENTION
+  hyper_choice1 <- which.min(chosen_eval_metric_val[[1]]$chosen_eval_metric)
+
+  #Calculate val losses for best hyper choice
+  validation_eval_hyper_choice$rss[1] <- (1 - (sum((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2)/sum(target_validation$fwd_premium_3m^2)))
+
+  validation_eval_hyper_choice$rmse[1] <- sqrt(mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2))
+
+  validation_eval_hyper_choice$cp[1] <- mean(target_validation$fwd_premium_3m*shrinkage.pred_df[,hyper_choice1])
+
+  validation_eval_hyper_choice$mae[1] <- mean(abs(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]))
+
+  validation_eval_hyper_choice$mphe[1] <- mean((1.25)^2*(sqrt(1+((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/
+                                                                   (1.25))^2)-1))
+
+  validation_eval_hyper_choice$mpe[1] <- mean(ifelse((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]) >= 0,
+                                                     0.5*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]),
+                                                     (1-0.5)*(-1)*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])))
+
+  validation_eval_hyper_choice$mape[1] <- mean(abs((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/target_validation$fwd_premium_3m))
+
+  validation_eval_hyper_choice$hr[1] <- mean((target_validation$fwd_premium_3m * shrinkage.pred_df[,hyper_choice1]) > 0)
+
+  validation_eval_hyper_choice$mb[1] <- mean(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])
+
+
+
+
+
+  #Refit
+  features_training_and_validation <-structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
+                                                           "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
+                                                           "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
+                                                           "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
+                                                           "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
+                                                           "Stock E-2001-05-15", "Stock A-2001-06-15", "Stock B-2001-06-15",
+                                                           "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15"
+  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E",
+                 "Stock A", "Stock B", "Stock C", "Stock D", "Stock E", "Stock A",
+                 "Stock B", "Stock C", "Stock D", "Stock E", "Stock A", "Stock B",
+                 "Stock C", "Stock D", "Stock E"), dates = structure(c(984614400,
+                                                                       984614400, 984614400, 984614400, 984614400, 987292800, 987292800,
+                                                                       987292800, 987292800, 987292800, 989884800, 989884800, 989884800,
+                                                                       989884800, 989884800, 992563200, 992563200, 992563200, 992563200,
+                                                                       992563200), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+  Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1, 5, 2, -20, -1, 2), Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3,  3, 1, 1, 2, 1),
+  Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500, 20, -15, 6, 3, 6)), row.names = c(NA, -20L), class = "data.frame")
+
+  target_training_and_validation <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
+                                                                      1, 7, 2, 7, 8, 8, 1, 3, 5, 7, 1),
+                                                   fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1, 0, 3, 8, 3, 2),
+                                                   fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3, 1, 5, 6, 10, 3)),
+                                              row.names = c(NA, -20L), class = "data.frame")
+
+
+  #Refitted model
+  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
+                                  y = target_training_and_validation$fwd_premium_3m,
+                                  alpha = hyper_expanded_grid$alpha[hyper_choice1],
+                                  lambda = hyper_expanded_grid$lambda[hyper_choice1])
+  coef(glm.mod.refit)
+
+  #2nd Rebalancing
+
+  #Get objects to train and validate model
+  features_training <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
+                                             "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
+                                             "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
+                                             "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
+                                             "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
+                                             "Stock E-2001-05-15"),
+                                      tickers = c("Stock A", "Stock B", "Stock C",
+                                                  "Stock D", "Stock E", "Stock A", "Stock B", "Stock C", "Stock D",
+                                                  "Stock E", "Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
+                                      ),
+                                      dates = structure(c(984614400, 984614400, 984614400, 984614400,
+                                                          984614400, 987292800, 987292800, 987292800, 987292800, 987292800,
+                                                          989884800, 989884800, 989884800, 989884800, 989884800), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+                                      Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1), Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3),
+                                      Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500)), row.names = c(NA, -15L), class = "data.frame")
+
+
+  target_training <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
+                                                       1, 7, 2, 7, 8, 8),
+                                    fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1),
+                                    fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3)), row.names = c(NA, -15L), class = "data.frame")
+
+  features_validation <- structure(list(id = c("Stock A-2001-08-15", "Stock B-2001-08-15",
+                                               "Stock C-2001-08-15", "Stock D-2001-08-15", "Stock E-2001-08-15"
+  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
+  ), dates = structure(c(997833600, 997833600, 997833600, 997833600,
+                         997833600), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+  Alpha = c(1, 1, -20, -25, -20), Beta = c(10, -10, 4, 1, 1), Gamma = c(-523, 4, 12, -10, 405)), row.names = c(NA, -5L), class = "data.frame")
+
+  target_validation <-structure(list(fwd_premium_1m = c(1, -1, -9, -2, 1),
+                                     fwd_premium_3m = c(5, 2, 5, 1, -9),
+                                     fwd_sharpe_1m = c(3, 1, 1, 4, 1)), row.names = c(NA,  -5L), class = "data.frame")
+
+
+
+  #Start 2nd rebalancing
+  chosen_eval_metric_val[[2]] <- data.frame(alpha = hyper_expanded_grid$alpha,
+                                            lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio,
+                                            best_lam = rep(NA,30), chosen_eval_metric = rep(NA, 30))
+
+  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(target_validation$fwd_premium_3m),
+                                         ncol = nrow(hyper_expanded_grid)))
+  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
+  best_lam2 <- vector(length =  nrow(hyper_expanded_grid))
+
+  for(s in 1:length(hyper_expanded_grid$alpha)){
+    #Train Model
+    glm.mod1 <- glmnet::glmnet(
+      x = features_training[,-c(1:3)],
+      y = target_training$fwd_premium_3m,
+      alpha = hyper_expanded_grid$alpha[s], #Alpha
+      lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[s] #Lambda
+    )
+
+    #Get best lam
+    best_lam2[s] <- glm.mod1$lambda[
+      which.min(
+        colMeans(1.25^2 * (sqrt((1 + ((target_validation$fwd_premium_3m -
+                                         predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)])))/1.25)^2)) - 1
+        )
+        ))
+    ]
+
+
+    #Predict to validation data
+    shrinkage.pred_df[,s] <-
+      predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)]), s = best_lam2[s])
+
+    #MPHE CHOSEN
+    chosen_eval_metric_val[[2]]$chosen_eval_metric[which(chosen_eval_metric_val[[2]]$alpha == unique(hyper_expanded_grid$alpha)[s])] <-
+      mean(1.25^2 * (sqrt((1 + ((target_validation$fwd_premium_3m - shrinkage.pred_df[,s])/1.25)^2)) - 1))
+
+  }
+
+  chosen_eval_metric_val[[2]]$best_lam <- best_lam2
+
+
+  #mphe IS MIN: PAY ATTENTION
+  hyper_choice2 <- which.min(chosen_eval_metric_val[[2]]$chosen_eval_metric)
+
+  #Calculate val losses for best hyper choice
+  validation_eval_hyper_choice$rss[2] <- (1 - (sum((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2)/sum(target_validation$fwd_premium_3m^2)))
+
+  validation_eval_hyper_choice$rmse[2] <- sqrt(mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2))
+
+  validation_eval_hyper_choice$cp[2] <- mean(target_validation$fwd_premium_3m*shrinkage.pred_df[,hyper_choice2])
+
+  validation_eval_hyper_choice$mae[2] <- mean(abs(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]))
+
+  validation_eval_hyper_choice$mphe[2] <- mean((1.25)^2*(sqrt(1+((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/
+                                                                   (1.25))^2)-1))
+
+  validation_eval_hyper_choice$mpe[2] <- mean(ifelse((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]) >= 0,
+                                                     0.5*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]),
+                                                     (1-0.5)*(-1)*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])))
+
+  validation_eval_hyper_choice$mape[2] <- mean(abs((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/target_validation$fwd_premium_3m))
+
+  validation_eval_hyper_choice$hr[2] <- mean((target_validation$fwd_premium_3m * shrinkage.pred_df[,hyper_choice2]) > 0)
+
+  validation_eval_hyper_choice$mb[2] <- mean(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])
+
+  #Refit
+  features_training_and_validation <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
+                                                            "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
+                                                            "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
+                                                            "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
+                                                            "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
+                                                            "Stock E-2001-05-15", "Stock A-2001-06-15", "Stock B-2001-06-15",
+                                                            "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15",
+                                                            "Stock A-2001-07-15", "Stock B-2001-07-15", "Stock C-2001-07-15",
+                                                            "Stock D-2001-07-15", "Stock E-2001-07-15", "Stock A-2001-08-15",
+                                                            "Stock B-2001-08-15", "Stock C-2001-08-15", "Stock D-2001-08-15",
+                                                            "Stock E-2001-08-15"),
+                                                     tickers = c("Stock A", "Stock B", "Stock C","Stock D", "Stock E", "Stock A", "Stock B", "Stock C", "Stock D",
+                                                                 "Stock E", "Stock A", "Stock B", "Stock C", "Stock D", "Stock E",
+                                                                 "Stock A", "Stock B", "Stock C", "Stock D", "Stock E", "Stock A",
+                                                                 "Stock B", "Stock C", "Stock D", "Stock E", "Stock A", "Stock B",
+                                                                 "Stock C", "Stock D", "Stock E"),
+                                                     dates = structure(c(984614400, 984614400, 984614400, 984614400, 984614400, 987292800, 987292800,
+                                                                         987292800, 987292800, 987292800, 989884800, 989884800, 989884800,
+                                                                         989884800, 989884800, 992563200, 992563200, 992563200, 992563200,
+                                                                         992563200, 995155200, 995155200, 995155200, 995155200, 995155200,
+                                                                         997833600, 997833600, 997833600, 997833600, 997833600), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
+                                                     Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1, 5, 2, -20, -1, 2, -2, 20, -150, -50, -1, 1, 1, -20, -25, -20),
+                                                     Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3, 3, 1, 1, 2, 1, 13, -12, 1, 5, 2, 10, -10, 4, 1, 1),
+                                                     Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500, 20, -15, 6, 3, 6, 0, 3, 20, 3, 4, -523, 4, 12, -10, 405)),
+                                                row.names = c(NA, -30L), class = "data.frame")
+
+  target_training_and_validation <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
+                                                                      1, 7, 2, 7, 8, 8, 1, 3, 5, 7, 1, 2, 5, 1, 2, 2, 1, -1, -9, -2,
+                                                                      1),
+                                                   fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1, 0, 3, 8, 3, 2, 6, 8, 3, 1, 3, 5, 2, 5, 1, -9),
+                                                   fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3, 1, 5, 6, 10, 3, 1,  4, 5, 1, 0, 3, 1, 1, 4, 1)),
+                                              row.names = c(NA, -30L), class = "data.frame")
+
+  #Refitted model
+  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
+                                  y = target_training_and_validation$fwd_premium_3m,
+                                  alpha = hyper_expanded_grid$alpha[hyper_choice2],
+                                  lambda = hyper_expanded_grid$lambda[hyper_choice2])
+
+
+  coef(glm.mod.refit)
+
+  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
+                                  y = target_training_and_validation$fwd_premium_3m,
+                                  alpha = hyper_expanded_grid$alpha[hyper_choice2],
+                                  lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[hyper_choice2])
+
+
+  coef(glm.mod.refit)
+
+
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
+  #Pred list
+  prediction_list <- list(`2001-09-15` = c(`Stock A` = 3.95, `Stock B` = 3.95, `Stock C` = 3.95,
+                                           `Stock D` = 3.95, `Stock E` = 3.95), `2001-10-15` = c(`Stock A` = 3.95,
+                                                                                                 `Stock B` = 3.95, `Stock C` = 3.95, `Stock D` = 3.95, `Stock E` = 3.95
+                                           ), `2001-11-15` = c(`Stock A` = 3.466667, `Stock B` = 3.466667,
+                                                               `Stock C` = 3.466667, `Stock D` = 3.466667, `Stock E` = 3.466667
+                                           ))
+  #Error list
+  error_list <- list(`2001-09-15` = c(`Stock A` = -8.95, `Stock B` = 1.05, `Stock C` = -0.95,
+                                      `Stock D` = 7.05, `Stock E` = -7.95), `2001-10-15` = c(`Stock A` = -4.95,
+                                                                                             `Stock B` = -2.95, `Stock C` = 36.05, `Stock D` = 0.0499999999999998,
+                                                                                             `Stock E` = 0.0499999999999998), `2001-11-15` = c(`Stock A` = 0.533333,
+                                                                                                                                               `Stock B` = -1.466667, `Stock C` = -1.466667, `Stock D` = -1.466667,
+                                                                                                                                               `Stock E` = -0.466667))
+  #Y-list
+  y_list <- list(`2001-09-15` = c(`Stock A` = -5, `Stock B` = 5, `Stock C` = 3,
+                                  `Stock D` = 11, `Stock E` = -4), `2001-10-15` = c(`Stock A` = -1,
+                                                                                    `Stock B` = 1, `Stock C` = 40, `Stock D` = 4, `Stock E` = 4),
+                 `2001-11-15` = c(`Stock A` = 4, `Stock B` = 2, `Stock C` = 2,
+                                  `Stock D` = 2, `Stock E` = 3))
+
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data, tolerance = 1e-3)
+
+
+
+  #Eval metrics
+  oos_testing_eval_metrics <-xts::xts(data.frame(rss =c(0.0050382653061225, 0.184325275397797,
+                                                   0.812011933933919), cp = c(7.9, 37.92, 9.0133342),
+                                            rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145
+                                            ), mae = c(5.19, 8.81, 1.0800002),
+                                            mphe = c(5.29925, 10.15824, 0.55613),
+                                            mpe = c(2.595, 4.405, 0.54),
+                                            mape = c(0.98902, 1.76525, 0.49778),
+                                            hr = c(0.6, 0.8, 1),
+                                            mb = c(-1.95, 5.65, -0.87)
+  ),
+  order.by = as.Date(c("2001-09-15", "2001-10-15", "2001-11-15")))
+
+  for(l in 1:length(prediction_list)){
+    oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
+    oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
+    oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
+    oos_testing_eval_metrics$mae[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])))
+    oos_testing_eval_metrics$mphe[l] <- mean(1.25^2*(sqrt(1+((y_list[[l]] - prediction_list[[l]])/1.25)^2)-1))
+    oos_testing_eval_metrics$mpe[l] <- mean(ifelse((y_list[[l]] - prediction_list[[l]]) >= 0,
+                                                   0.5*(y_list[[l]] - prediction_list[[l]]),
+                                                   (1-0.5)*(-1)*(y_list[[l]] - prediction_list[[l]])))
+    oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
+    oos_testing_eval_metrics$hr[l] <- mean((y_list[[l]] * prediction_list[[l]])>0)
+    oos_testing_eval_metrics$mb[l] <- mean(y_list[[l]] - prediction_list[[l]])
+
+  }
+
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-3)
+
+  #Eval metrics
+  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
+                                                      target = unlist(y_list),
+                                                      huber_delta = 1.25)[-1]
+
+  #Validation loss metrics for hyper choice
+  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
+
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+  )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
+
+  #Final Model
+  expect_equal(coef(glm.mod.refit), coef(sb_backtest_results@final_sb_model@model))
+
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <- c("2001-09-15", "2001-11-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
+  #Best Hyoer
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
+                                             alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
+                                             lambda.min.ratio = c(hyper_expanded_grid$lambda[hyper_choice1], hyper_expanded_grid$lambda[hyper_choice2]),
+                                             best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])
+  ), order.by = as.Date(c("2001-09-15", "2001-11-15")))
+
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15", "2001-11-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+
+})
+
 #Define your test
 test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
 
@@ -7102,7 +7637,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                    epochs = hyper_expanded_grid$number_of_epochs[s], #Number of epochs
                    batch_size = hyper_expanded_grid$size_of_batch[s], #Batch size (should be a multiple of 2)
                    verbose = TRUE,
-                   callbacks = list(keras::callback_early_stopping(monitor = "val_loss",
+                   callbacks = list(keras::callback_early_stopping(monitor = "val_mean_squared_error",
                                                             patience = early_stop, #Early stop (nº epochs with no improvement)
                                                             restore_best_weights = TRUE, #Restore best weights after stopping
                                                             mode = "min")), #Min for RMSE, MAE and HUBER
@@ -7112,21 +7647,18 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
       #Create objs
       out <- data.frame(matrix(NA, nrow = length(targets_first_val$fwd_premium_3m),
                                ncol = nrow(hyper_expanded_grid)))
-      best_epoch <- vector(length = nrow(hyper_expanded_grid))
-
 
 
       #Predict vlidation data
       out[,s] <-
         stats::predict(model_nn_1, as.matrix(features_first_val[,-c(1:3)]))
 
-      best_epoch[s] <- which.min(fit_nn_1$metrics$val_loss)
 
 
       #RMSE CHOSEN
       return(list(predictions = as.numeric(out[,s]),
                   metric = sqrt(mean((out[,s] - targets_first_val$fwd_premium_3m)^2)),
-                  best_epoch = best_epoch))
+                  best_epoch = which.min(fit_nn_1$metrics$val_mean_squared_error)))
 
     }
 
@@ -7139,7 +7671,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                                             lr = hyper_expanded_grid$lr,
                                             size_of_batch = hyper_expanded_grid$size_of_batch,
                                             number_of_epochs = hyper_expanded_grid$number_of_epochs,
-                                            best_iteration = sapply(first_rebal, function(x) x$best_epoch) %>% diag(),
+                                            best_iteration = sapply(first_rebal, function(x) x$best_epoch),
                                             chosen_eval_metric = rep(NA, nrow(hyper_expanded_grid)))
 
   shrinkage.pred_df <- sapply(first_rebal, function(x) as.numeric(x$predictions)) #Transform to df
@@ -7301,7 +7833,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                    epochs = max_epochs, #Number of epochs
                    batch_size = batch_size, #Batch size (should be a multiple of 2)
                    verbose = TRUE,
-                   callbacks = list(keras::callback_early_stopping(monitor = "val_loss",
+                   callbacks = list(keras::callback_early_stopping(monitor = "val_mean_squared_error",
                                                                    patience = early_stop, #Early stop (nº epochs with no improvement)
                                                                    restore_best_weights = TRUE, #Restore best weights after stopping
                                                                    mode = "min")), #Min for RMSE, MAE and HUBER
@@ -7321,7 +7853,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
       #RMSE CHOSEN
       return(list(predictions = as.numeric(out[,s]),
                   metric = sqrt(mean((out[,s] - targets_second_val$fwd_premium_3m)^2)),
-                  best_epoch = which.min(fit_nn_2$metrics$val_loss)))
+                  best_epoch = which.min(fit_nn_2$metrics$val_mean_squared_error)))
 
     }
 
@@ -7593,7 +8125,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
 
   #Best Hyoerparameters
-  expected_results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
                                      regularizer_l1 = c(hyper_expanded_grid$regularizer_l1[hyper_choice1], hyper_expanded_grid$regularizer_l1[hyper_choice2]),
                                      regularizer_l2 = c(hyper_expanded_grid$regularizer_l2[hyper_choice1], hyper_expanded_grid$regularizer_l2[hyper_choice2]),
                                      droprate = c(hyper_expanded_grid$droprate[hyper_choice1], hyper_expanded_grid$droprate[hyper_choice2]),
@@ -7601,55 +8133,101 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                                      size_of_batch = c(hyper_expanded_grid$size_of_batch[hyper_choice1], hyper_expanded_grid$size_of_batch[hyper_choice2]),
                                      number_of_epochs = c(hyper_expanded_grid$number_of_epochs[hyper_choice1], hyper_expanded_grid$number_of_epochs[hyper_choice2]),
                                      best_iteration = c(chosen_eval_metric_val[[1]]$best_iteration[hyper_choice1], chosen_eval_metric_val[[2]]$best_iteration[hyper_choice2])
-                                     )
+                                     ), order.by = as.Date(c("2023-04-15", "2023-06-15")))
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
 
 
   #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  expected_results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-
-  #Rename
-  names(expected_results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-
-  sb_backtest_expected_results <- as.list(sb_backtest_expected_results)
-  sb_backtest_expected_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_expected_results,
-    expected_results$outputs,
-    tolerance = 1e-3
-  )
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
   future::plan("sequential")
 
 })
 
 #Define your test
-test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric + signal_selection -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates))
+
+  #Benchmark Returns XTS
+  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+    IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+    SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+  ),  order.by = unique(toy_preprocessed_features$dates))
+
+
+  #Chosen Signals and Positions
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  #Mocked Signal Themes
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_xts),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  ##SS Config
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "partial_pooled",
+                            theme_level_intercept = "theme_specific", theme_level_slope = "fixed",
+                            signal_significance_threshold = 0.50, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
+                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    verbose = TRUE
+    )
+  )
+
   future::plan("sequential")
 
-  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", quantile_tau = 0.25,
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", quantile_tau = 0.25, target_fwd_name = "fwd_premium_3m",
                                          training_sample_size = 7,
                                          rebalancing_months = 6) %>%
                                          add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "cp", validation_sample_size = 3) %>%
                                          add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
-                                                            list(c(0, 0.5, 1), c(200, 500), c(2,4,6), c(1, 5, 10)))
+                                                            list(c(0, 0.5, 1), c(200, 500), c(2,4,6), c(1, 5, 10))) %>%
+    add_ss_backtest_obj(ss_results)
 
-  set.seed(123)
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-      target_fwd_name = "fwd_premium_3m",
       config = rf_config,
+      .test_seed = 123,
       verbose = FALSE
     )}))
 
@@ -7669,10 +8247,20 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   chosen_eval_metric_val <- list()
 
+  #Adjust features
+  toy_preprocessed_features_corrected <- select_and_correct_signals(toy_preprocessed_features,
+                                                                    chosen_signals = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
+
   #1st rebalancing
+  #Chosen eligible
+  ##most recent
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
+  current_eligible <- c("id", "tickers", "dates", most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
+
+
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),current_eligible]
+  features_first_val <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-01-15")),current_eligible]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -7688,7 +8276,6 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   set.seed(123)
 
   #Use foreach to simulate result of parallelized hyper tuning
-
   first_rebal <- suppressWarnings({
     foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
       #Train Model
@@ -7750,11 +8337,10 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   validation_eval_hyper_choice$mb[1] <- mean(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])
 
 
-
-
   #Refit
-  features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+  features_first_training_and_validation <- toy_preprocessed_features_corrected[
+    which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15","2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),
+    current_eligible]
 
 
   target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -7773,7 +8359,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-04-15","2023-05-15")),current_eligible]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -7800,10 +8386,14 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
+  ##most recent
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
+  current_eligible <- c("id", "tickers", "dates", most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
+
   #Features obj
-  features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+  features_second_train <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
+                                                                                                  "2022-11-15", "2022-12-15")), current_eligible]
+  features_second_val <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-03-15")),current_eligible]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -7818,7 +8408,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
                                               max.depth = hyper_expanded_grid$max.depth, min.bucket = hyper_expanded_grid$min.bucket,
                                               chosen_eval_metric = rep(NA, nrow(hyper_expanded_grid)))
 
-
+  set.seed(123)
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <- suppressWarnings({
     foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
@@ -7909,9 +8499,9 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
 
   #Refit
-  features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+  features_second_training_and_validation <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+                                                                                                                    "2023-02-15", "2023-03-15")), current_eligible]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -7933,7 +8523,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-06-15","2023-07-15")), current_eligible]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
 
 
@@ -7957,27 +8547,49 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA)), order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -7992,1468 +8604,87 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
     oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
     oos_testing_eval_metrics$hr[l] <- length(which(sign(y_list[[l]]) == sign(prediction_list[[l]])))/length(y_list[[l]])
     oos_testing_eval_metrics$mb[l] <- mean((y_list[[l]] - prediction_list[[l]]))
-
-
   }
 
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
                                                       target = unlist(y_list),
-                                                      quantile_tau = 0.25)
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-    #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
-                                     mtry = c(hyper_expanded_grid$mtry[hyper_choice1], hyper_expanded_grid$mtry[hyper_choice2]),
-                                     num.trees = c(hyper_expanded_grid$num.trees[hyper_choice1], hyper_expanded_grid$num.trees[hyper_choice2]),
-                                     max.depth = c(hyper_expanded_grid$max.depth[hyper_choice1], hyper_expanded_grid$max.depth[hyper_choice2]),
-                                     min.bucket = c(hyper_expanded_grid$min.bucket[hyper_choice1], hyper_expanded_grid$min.bucket[hyper_choice2]))
+                                                      quantile_tau = 0.25)[-1]
 
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
   )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
+
+
+  #Final Model
+  expect_equal(sb_backtest_results@final_sb_model@model$mtry, rf.mod.refit$mtry)
+  expect_equal(sb_backtest_results@final_sb_model@model$num.trees, rf.mod.refit$num.trees)
+  expect_equal(sb_backtest_results@final_sb_model@model$num.independent.variables, rf.mod.refit$num.independent.variables)
+  expect_equal(sb_backtest_results@final_sb_model@model$min.node.size, rf.mod.refit$min.node.size)
+  expect_equal(sb_backtest_results@final_sb_model@model$r.squared, rf.mod.refit$r.squared)
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
+
+  #Best Hyoer
+  expected_results$outputs[[5]] <- xts::xts(data.frame(row.names = rebalance_dates,
+                                                       mtry = c(hyper_expanded_grid$mtry[hyper_choice1], hyper_expanded_grid$mtry[hyper_choice2]),
+                                                       num.trees = c(hyper_expanded_grid$num.trees[hyper_choice1], hyper_expanded_grid$num.trees[hyper_choice2]),
+                                                       max.depth = c(hyper_expanded_grid$max.depth[hyper_choice1], hyper_expanded_grid$max.depth[hyper_choice2]),
+                                                       min.bucket = c(hyper_expanded_grid$min.bucket[hyper_choice1], hyper_expanded_grid$min.bucket[hyper_choice2])),
+                                            order.by = as.Date(c("2023-04-15", "2023-06-15")))
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+
+
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
   future::plan("sequential")
 
-})
-
-#Define your test
-test_that("RF (Sequential - Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
-
-  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
-
-  rf_config <- create_sb_backtest_config(
-    rebalancing_months = 6, sb_algorithm = "rf", training_sample_size = 7) %>%
-    add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "hr", validation_sample_size = 3) %>%
-    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"), grid = list(c(0, 0.5, 1), c(200, 500), c(2, 4, 6), c(1, 5, 10)))
-
-  set.seed(123)
-  #Apply function
-  suppressMessages(suppressWarnings({
-    sb_backtest_results <- run_sb_backtest(
-      features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
-      target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
-      target_fwd_name = "fwd_premium_3m",
-      config = rf_config,
-      verbose = FALSE,
-      parallel = FALSE
-    )}))
-
-
-
-  #Define initial objects
-  hyper_expanded_grid <- expand.grid(list(mtry = c(0, 0.5, 1), num.trees = c(200, 500),
-                                          max.depth = c(2, 4, 6), min.bucket = c(1, 5, 10)))
-
-
-  validation_eval_hyper_choice <- data.frame(rss =c(NA,NA),  #Validation loss df
-                                             cp = c(NA,NA),
-                                             rmse = c(NA,NA),
-                                             mae = c(NA,NA),
-                                             mphe = c(NA,NA),
-                                             mpe = c(NA,NA),
-                                             row.names = c("2023-04-15", "2023-06-15"))
-  rebalance_dates <- c("2023-04-15", "2023-06-15")
-  n_rebalance_dates <- 2
-
-  chosen_eval_metric_val <- list()
-
-  #1st rebalancing
-  #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
-  #Targets
-  targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
-  targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
-  #Full data
-  full_data_first_train <- cbind(targets_first_train$fwd_premium_3m, features_first_train[,-c(1:3)])
-  colnames(full_data_first_train)[1] <- c("fwd_premium_3m")
-
-  #Features val
-  chosen_eval_metric_val[[1]] <- data.frame(mtry = hyper_expanded_grid$mtry, num.trees = hyper_expanded_grid$num.trees,
-                                              max.depth = hyper_expanded_grid$max.depth, min.bucket = hyper_expanded_grid$min.bucket,
-                                              chosen_eval_metric = rep(NA, nrow(hyper_expanded_grid)))
-
-   shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(targets_first_val$fwd_premium_3m),
-                                         ncol = nrow(hyper_expanded_grid)))
-
-  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
-
-  set.seed(123)
-  for(s in 1:nrow(hyper_expanded_grid)){
-    #Train Model
-    rf.mod1 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_first_train),
-                              mtry = hyper_expanded_grid$mtry[s] * (ncol(full_data_first_train) - 1),
-                              num.trees = hyper_expanded_grid$num.trees[s],
-                              max.depth = hyper_expanded_grid$max.depth[s],
-                              min.bucket = hyper_expanded_grid$min.bucket[s])
-
-    #Predict to validation data
-
-    shrinkage.pred_df[,s] <-
-      stats::predict(rf.mod1, data = janitor::clean_names(features_first_val[,-c(1:3)]))$predictions
-
-
-    #HR CHOSEN
-    chosen_eval_metric_val[[1]]$chosen_eval_metric[s] <- mean((shrinkage.pred_df[,s] * targets_first_val$fwd_premium_3m) > 0)
-  }
-
-
-
-
-  #HR IS MAX: PAY ATTENTION
-  hyper_choice1 <- which.max(chosen_eval_metric_val[[1]]$chosen_eval_metric)
-
-  #Calculate val losses for best hyper choice
-  validation_eval_hyper_choice$rss[1] <- (1 - (sum((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2)/sum(targets_first_val$fwd_premium_3m^2)))
-
-  validation_eval_hyper_choice$rmse[1] <- sqrt(mean((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2))
-
-  validation_eval_hyper_choice$cp[1] <- mean(targets_first_val$fwd_premium_3m*shrinkage.pred_df[,hyper_choice1])
-
-  validation_eval_hyper_choice$mae[1] <- mean(abs(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]))
-
-  validation_eval_hyper_choice$mphe[1] <- mean((1)^2*(sqrt(1+((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/
-                                                                        (1))^2)-1))
-
-  validation_eval_hyper_choice$mpe[1] <- mean(ifelse((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]) >= 0,
-                                                         0.5*(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]),
-                                                         (1-0.5)*(-1)*(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])))
-
-  validation_eval_hyper_choice$mape[1] <- mean(abs((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/targets_first_val$fwd_premium_3m))
-
-  validation_eval_hyper_choice$hr[1] <- mean((targets_first_val$fwd_premium_3m*shrinkage.pred_df[,hyper_choice1])>0)
-
-  validation_eval_hyper_choice$mb[1] <- mean(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])
-
-
-
-  #Refit
-  features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
-
-
-  target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                               "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
-
-  #Full data
-  full_data_first_training_and_validation <- cbind(target_first_training_and_validation$fwd_premium_3m, features_first_training_and_validation[,-c(1:3)])
-  colnames(full_data_first_training_and_validation)[1] <- c("fwd_premium_3m")
-
-  #Refitted model
-  rf.mod.refit <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_first_training_and_validation),
-                                 mtry = hyper_expanded_grid$mtry[hyper_choice1] * (ncol(full_data_first_training_and_validation) - 1),
-                                 num.trees = hyper_expanded_grid$num.trees[hyper_choice1],
-                                 max.depth = hyper_expanded_grid$max.depth[hyper_choice1],
-                                 min.bucket = hyper_expanded_grid$min.bucket[hyper_choice1])
-
-
-  #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
-
-
-
-  #Predict!
-  prediction_list <- list()
-  prediction_list[[1]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)]))$predictions)
-  names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]))$predictions)
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
-
-  #Calc error
-  error_list <- list()
-  error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
-  names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
-
-  #Y
-  y_list <- list()
-  y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
-  names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
-
-  #2nd rebal!
-  #Features obj
-  features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
-  #Targets
-  targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                               "2022-11-15", "2022-12-15")),]
-  targets_second_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-03-15")),]
-
-  #Full data
-  full_data_second_train <- cbind(targets_second_train$fwd_premium_3m, features_second_train[,-c(1:3)])
-  colnames(full_data_second_train)[1] <- c("fwd_premium_3m")
-
-  #Features val
-  chosen_eval_metric_val[[2]] <- data.frame(mtry = hyper_expanded_grid$mtry, num.trees = hyper_expanded_grid$num.trees,
-                                              max.depth = hyper_expanded_grid$max.depth, min.bucket = hyper_expanded_grid$min.bucket,
-                                              chosen_eval_metric = rep(NA, nrow(hyper_expanded_grid)))
-
-  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(targets_second_val$fwd_premium_3m),
-                                         ncol = nrow(hyper_expanded_grid)))
-
-  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
-
-
-  for(s in 1:nrow(hyper_expanded_grid)){
-    #Train Model
-    rf.mod2 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_second_train),
-                              mtry = hyper_expanded_grid$mtry[s] * (ncol(full_data_second_train) - 1),
-                              num.trees = hyper_expanded_grid$num.trees[s],
-                              max.depth = hyper_expanded_grid$max.depth[s],
-                              min.bucket = hyper_expanded_grid$min.bucket[s])
-
-
-    #Predict vlidation data
-    shrinkage.pred_df[,s] <-
-      stats::predict(rf.mod2, data = janitor::clean_names(features_second_val[,-c(1:3)]))$predictions
-
-
-    #HR CHOSEN
-    chosen_eval_metric_val[[2]]$chosen_eval_metric[s] <- mean((shrinkage.pred_df[,s] * targets_second_val$fwd_premium_3m)>0)
-
-  }
-
-
-  #old option for sequential implementation
-  #for(s in 1:nrow(hyper_expanded_grid)){
-  #Train Model
-  #rf.mod2 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_second_train),
-  #                          mtry = hyper_expanded_grid$mtry[s] * (ncol(full_data_second_train) - 1),
-  #                          num.trees = hyper_expanded_grid$num.trees[s],
-  #                          max.depth = hyper_expanded_grid$max.depth[s],
-  #                          min.bucket = hyper_expanded_grid$min.bucket[s])
-
-  #Predict to validation data
-
-  #shrinkage.pred_df[,s] <-
-  # stats::predict(rf.mod2, data = janitor::clean_names(features_second_val[,-c(1:3)]))$predictions
-
-
-  #CROSSPRODUCT CHOSEN
-  #chosen_eval_metric_val[[2]]$chosen_eval_metric[s] <- mean(shrinkage.pred_df[,s] * targets_second_val$fwd_premium_3m)
-
-  #}
-
-
-
-  #CP IS MAX: PAY ATTENTION
-  hyper_choice2 <- which.max(chosen_eval_metric_val[[2]]$chosen_eval_metric)
-
-  #Calculate val losses for best hyper choice
-  validation_eval_hyper_choice$rss[2] <- (1 - (sum((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2)/sum(targets_second_val$fwd_premium_3m^2)))
-
-  validation_eval_hyper_choice$rmse[2] <- sqrt(mean((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2))
-
-  validation_eval_hyper_choice$cp[2] <- mean(targets_second_val$fwd_premium_3m*shrinkage.pred_df[,hyper_choice2])
-
-  validation_eval_hyper_choice$mae[2] <- mean(abs(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]))
-
-  validation_eval_hyper_choice$mphe[2] <- mean((1)^2*(sqrt(1+((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/
-                                                                        (1))^2)-1))
-
-  validation_eval_hyper_choice$mpe[2] <- mean(ifelse((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]) >= 0,
-                                                         0.5*(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]),
-                                                         (1-0.5)*(-1)*(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])))
-
-  validation_eval_hyper_choice$mape[2] <- mean(abs((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/targets_second_val$fwd_premium_3m))
-
-  validation_eval_hyper_choice$hr[2] <- mean((targets_second_val$fwd_premium_3m*shrinkage.pred_df[,hyper_choice2])>0)
-
-  validation_eval_hyper_choice$mb[2] <- mean(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])
-
-
-  #Refit
-  features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                    "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
-
-
-  target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                "2023-02-15", "2023-03-15")),]
-
-  #Full data
-  full_data_second_training_and_validation <- cbind(target_second_training_and_validation$fwd_premium_3m, features_second_training_and_validation[,-c(1:3)])
-  colnames(full_data_second_training_and_validation)[1] <- c("fwd_premium_3m")
-
-
-  #Refitted model
-  rf.mod.refit <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_second_training_and_validation),
-                                 mtry = hyper_expanded_grid$mtry[hyper_choice2] * (ncol(full_data_second_training_and_validation) - 1),
-                                 num.trees = hyper_expanded_grid$num.trees[hyper_choice2],
-                                 max.depth = hyper_expanded_grid$max.depth[hyper_choice2],
-                                 min.bucket = hyper_expanded_grid$min.bucket[hyper_choice2])
-
-
-
-  #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
-  target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
-
-
-
-  #Predict!
-  prediction_list[[3]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_second_test[which(features_second_test$dates %in% c("2023-06-15")),-c(1:3)]))$predictions)
-  names(prediction_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
-  prediction_list[[4]] <- as.numeric(predict(rf.mod.refit, data = janitor::clean_names(features_second_test[which(features_second_test$dates %in% c("2023-07-15")),-c(1:3)]))$predictions)
-  names(prediction_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
-
-  #Calc error
-  error_list[[3]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-06-15"))] - as.numeric(prediction_list[[3]])
-  names(error_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
-  error_list[[4]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-07-15"))] - as.numeric(prediction_list[[4]])
-  names(error_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
-
-  #Y
-  y_list[[3]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-06-15"))] %>% as.numeric()
-  names(y_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
-  y_list[[4]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-07-15"))] %>% as.numeric()
-  names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
-
-
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
-
-  #Create results object
-  #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
-  #Error list
-  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
-  #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
-
-  #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
-                                         cp = c(NA,NA,NA,NA),
-                                         rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
-
-  for(l in 1:length(prediction_list)){
-    oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
-    oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
-    oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
-    oos_testing_eval_metrics$mae[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])))
-    oos_testing_eval_metrics$mphe[l] <- mean(1^2*(sqrt(1+(y_list[[l]] - prediction_list[[l]])^2)-1))
-    oos_testing_eval_metrics$mpe[l] <- mean(ifelse((y_list[[l]] - prediction_list[[l]]) >= 0,
-                                                       0.5*(y_list[[l]] - prediction_list[[l]]),
-                                                       (1-0.5)*(-1)*(y_list[[l]] - prediction_list[[l]])))
-
-    oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
-
-    oos_testing_eval_metrics$hr[l] <- mean((y_list[[l]] * prediction_list[[l]]) > 0)
-
-    oos_testing_eval_metrics$mb[l] <- mean(y_list[[l]] - prediction_list[[l]])
-
-
-  }
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-   #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
-                                     mtry = c(hyper_expanded_grid$mtry[hyper_choice1], hyper_expanded_grid$mtry[hyper_choice2]),
-                                     num.trees = c(hyper_expanded_grid$num.trees[hyper_choice1], hyper_expanded_grid$num.trees[hyper_choice2]),
-                                     max.depth = c(hyper_expanded_grid$max.depth[hyper_choice1], hyper_expanded_grid$max.depth[hyper_choice2]),
-                                     min.bucket = c(hyper_expanded_grid$min.bucket[hyper_choice1], hyper_expanded_grid$min.bucket[hyper_choice2]))
-
-
-  #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-3
-  )
-
 
 })
 
-#Define your test Excel sheet test glmnet 7
-test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
 
-  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", huber_delta = 1.25, training_sample_size = 4,
-                                              rebalancing_months = 11,
-  ) %>%
-    add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "mphe", validation_sample_size = 3) %>%
-    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length = 10)))
-
-  #Apply function
-  suppressMessages(suppressWarnings({
-    sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(structure(
-        list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                    "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                    "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                    "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                    "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                    "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                    "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                    "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                    "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                    "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                    "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                    "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                    "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                    "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                    "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                    "Stock E-2001-11-15"),
-             tickers = c("Stock A", "Stock A", "Stock A",
-                         "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                         "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                         "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                         "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                         "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                         "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                         "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
-             dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400),
-                               class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-             Alpha = c(3, -20, -450, 5, -2, 1,
-                       6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
-                       8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
-                       -1, 4, 4),
-             Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
-                      -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
-                      2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
-             Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
-                       -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
-                       3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame")),
-      target_m_df =
-        create_meta_dataframe(structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                              "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                              "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                              "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                              "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                              "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                              "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                              "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                              "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                              "Stock E-2001-11-15"),
-                       tickers = c("Stock A", "Stock A", "Stock A",
-                                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                                   "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                                   "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
-                       ),
-                       dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                       format = "%Y-%m-%d"),
-                       fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
-                                          2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
-                       fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
-                                          3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
-                       fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
-                                         10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame")),
-
-      target_fwd_name = "fwd_premium_3m",
-      config = glmnet_config,
-      verbose = FALSE
-    )}))
-
-  #Define initial objects
-  hyper_expanded_grid <- expand.grid(list(alpha = c(0, 0.5, 1), lambda.min.ratio = seq(0.1, 0.9, length=10)))
-
-  validation_eval_hyper_choice <- data.frame(rss =c(NA, NA),  #Validation loss df
-                                             cp = c(NA, NA),
-                                             rmse = c(NA, NA),
-                                             mae = c(NA, NA),
-                                             mphe = c(NA,NA),
-                                             mpe = c(NA,NA),
-                                             row.names = c("2001-09-15", "2001-11-15"))
-  rebalance_dates <- c("2001-09-15", "2001-11-15")
-  n_rebalance_dates <- 2
-
-  chosen_eval_metric_val <- list()
-
-  #Start first rebalancing
-
-  #Get objects to train and validate model
-  features_training <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
-                                             "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15"
-  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
-  ), dates = structure(c(984614400, 984614400, 984614400, 984614400,
-                         984614400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-  Alpha = c(3,  1, 2, 5, 5), Beta = c(4, 5, 6, 0, 2), Gamma = c(800, 9, 10, -9, 3)), row.names = c(NA, -5L), class = "data.frame")
-
-  target_training <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5),
-                                    fwd_premium_3m = c(4, 5, 0, 1, 9),
-                                    fwd_sharpe_1m = c(7, 4, 2, 4, 7)), row.names = c(NA, -5L), class = "data.frame")
-
-  features_validation <- structure(list(id = c("Stock A-2001-06-15", "Stock B-2001-06-15",
-                                               "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15"
-  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
-  ), dates = structure(c(992563200, 992563200, 992563200, 992563200,
-                         992563200), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-  Alpha = c(5,  2, -20, -1, 2), Beta = c(3, 1, 1, 2, 1), Gamma = c(20, -15, 6,  3, 6)), row.names = c(NA, -5L), class = "data.frame")
-
-  target_validation <- structure(list(fwd_premium_1m = c(1, 3, 5, 7, 1),
-                                      fwd_premium_3m = c(0, 3, 8, 3, 2),
-                                      fwd_sharpe_1m = c(1, 5, 6, 10, 3)), row.names = c(NA,  -5L), class = "data.frame")
-
-
-  #Start first rebalancing
-  chosen_eval_metric_val[[1]] <- data.frame(alpha = hyper_expanded_grid$alpha,
-                                            lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio,
-                                            best_lam = rep(NA,30), chosen_eval_metric = rep(NA, 30))
-
-  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(target_validation$fwd_premium_3m),
-                                         ncol = nrow(hyper_expanded_grid)))
-  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
-  best_lam1 <- vector(length =  nrow(hyper_expanded_grid))
-
-  for(s in 1:length(hyper_expanded_grid$alpha)){
-    #Train Model
-    glm.mod1 <- glmnet::glmnet(
-      x = features_training[,-c(1:3)],
-      y = target_training$fwd_premium_3m,
-      alpha = hyper_expanded_grid$alpha[s], #Alpha
-      lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[s] #Lambda
-    )
-
-    #Get best lam
-    best_lam1[s] <- glm.mod1$lambda[
-      which.min(
-        colMeans(1.25^2 * (sqrt((1 + ((target_validation$fwd_premium_3m -
-                             predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)])))/1.25)^2)) - 1
-                )
-      ))
-    ]
-
-
-    #Predict to validation data
-    shrinkage.pred_df[,s] <-
-      predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)]), s = best_lam1[s])
-
-    #MPHE CHOSEN
-    chosen_eval_metric_val[[1]]$chosen_eval_metric[which(chosen_eval_metric_val[[1]]$alpha == unique(hyper_expanded_grid$alpha)[s])] <-
-      mean(1.25^2 * (sqrt((1 + ((target_validation$fwd_premium_3m - shrinkage.pred_df[,s])/1.25)^2)) - 1))
-
-  }
-
-  chosen_eval_metric_val[[1]]$best_lam <- best_lam1
-
-  #MPHE IS MIN: PAY ATTENTION
-  hyper_choice1 <- which.min(chosen_eval_metric_val[[1]]$chosen_eval_metric)
-
-  #Calculate val losses for best hyper choice
-  validation_eval_hyper_choice$rss[1] <- (1 - (sum((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2)/sum(target_validation$fwd_premium_3m^2)))
-
-  validation_eval_hyper_choice$rmse[1] <- sqrt(mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2))
-
-  validation_eval_hyper_choice$cp[1] <- mean(target_validation$fwd_premium_3m*shrinkage.pred_df[,hyper_choice1])
-
-  validation_eval_hyper_choice$mae[1] <- mean(abs(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]))
-
-  validation_eval_hyper_choice$mphe[1] <- mean((1.25)^2*(sqrt(1+((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/
-                                                                        (1.25))^2)-1))
-
-  validation_eval_hyper_choice$mpe[1] <- mean(ifelse((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]) >= 0,
-                                                         0.5*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]),
-                                                         (1-0.5)*(-1)*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])))
-
-  validation_eval_hyper_choice$mape[1] <- mean(abs((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/target_validation$fwd_premium_3m))
-
-  validation_eval_hyper_choice$hr[1] <- mean((target_validation$fwd_premium_3m * shrinkage.pred_df[,hyper_choice1]) > 0)
-
-  validation_eval_hyper_choice$mb[1] <- mean(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])
-
-
-
-
-
-  #Refit
-  features_training_and_validation <-structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
-                                                           "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
-                                                           "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
-                                                           "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
-                                                           "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
-                                                           "Stock E-2001-05-15", "Stock A-2001-06-15", "Stock B-2001-06-15",
-                                                           "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15"
-  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E",
-                 "Stock A", "Stock B", "Stock C", "Stock D", "Stock E", "Stock A",
-                 "Stock B", "Stock C", "Stock D", "Stock E", "Stock A", "Stock B",
-                 "Stock C", "Stock D", "Stock E"), dates = structure(c(984614400,
-                                                                       984614400, 984614400, 984614400, 984614400, 987292800, 987292800,
-                                                                       987292800, 987292800, 987292800, 989884800, 989884800, 989884800,
-                                                                       989884800, 989884800, 992563200, 992563200, 992563200, 992563200,
-                                                                       992563200), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-  Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1, 5, 2, -20, -1, 2), Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3,  3, 1, 1, 2, 1),
-  Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500, 20, -15, 6, 3, 6)), row.names = c(NA, -20L), class = "data.frame")
-
-  target_training_and_validation <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
-                                                                      1, 7, 2, 7, 8, 8, 1, 3, 5, 7, 1),
-                                                   fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1, 0, 3, 8, 3, 2),
-                                                   fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3, 1, 5, 6, 10, 3)),
-                                              row.names = c(NA, -20L), class = "data.frame")
-
-
-  #Refitted model
-  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
-                                  y = target_training_and_validation$fwd_premium_3m,
-                                  alpha = hyper_expanded_grid$alpha[hyper_choice1],
-                                  lambda = hyper_expanded_grid$lambda[hyper_choice1])
-  coef(glm.mod.refit)
-
-  #2nd Rebalancing
-
-  #Get objects to train and validate model
-  features_training <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
-                                             "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
-                                             "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
-                                             "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
-                                             "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
-                                             "Stock E-2001-05-15"),
-                                      tickers = c("Stock A", "Stock B", "Stock C",
-                                                  "Stock D", "Stock E", "Stock A", "Stock B", "Stock C", "Stock D",
-                                                  "Stock E", "Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
-                                      ),
-                                      dates = structure(c(984614400, 984614400, 984614400, 984614400,
-                                                          984614400, 987292800, 987292800, 987292800, 987292800, 987292800,
-                                                          989884800, 989884800, 989884800, 989884800, 989884800), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                      Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1), Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3),
-                                      Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500)), row.names = c(NA, -15L), class = "data.frame")
-
-
-  target_training <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
-                                                       1, 7, 2, 7, 8, 8),
-                                    fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1),
-                                    fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3)), row.names = c(NA, -15L), class = "data.frame")
-
-  features_validation <- structure(list(id = c("Stock A-2001-08-15", "Stock B-2001-08-15",
-                                               "Stock C-2001-08-15", "Stock D-2001-08-15", "Stock E-2001-08-15"
-  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
-  ), dates = structure(c(997833600, 997833600, 997833600, 997833600,
-                         997833600), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-  Alpha = c(1, 1, -20, -25, -20), Beta = c(10, -10, 4, 1, 1), Gamma = c(-523, 4, 12, -10, 405)), row.names = c(NA, -5L), class = "data.frame")
-
-  target_validation <-structure(list(fwd_premium_1m = c(1, -1, -9, -2, 1),
-                                     fwd_premium_3m = c(5, 2, 5, 1, -9),
-                                     fwd_sharpe_1m = c(3, 1, 1, 4, 1)), row.names = c(NA,  -5L), class = "data.frame")
-
-
-
-  #Start 2nd rebalancing
-  chosen_eval_metric_val[[2]] <- data.frame(alpha = hyper_expanded_grid$alpha,
-                                            lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio,
-                                            best_lam = rep(NA,30), chosen_eval_metric = rep(NA, 30))
-
-  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(target_validation$fwd_premium_3m),
-                                         ncol = nrow(hyper_expanded_grid)))
-  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
-  best_lam2 <- vector(length =  nrow(hyper_expanded_grid))
-
-  for(s in 1:length(hyper_expanded_grid$alpha)){
-    #Train Model
-    glm.mod1 <- glmnet::glmnet(
-      x = features_training[,-c(1:3)],
-      y = target_training$fwd_premium_3m,
-      alpha = hyper_expanded_grid$alpha[s], #Alpha
-      lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[s] #Lambda
-    )
-
-    #Get best lam
-    best_lam2[s] <- glm.mod1$lambda[
-      which.min(
-        colMeans(1.25^2 * (sqrt((1 + ((target_validation$fwd_premium_3m -
-                                         predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)])))/1.25)^2)) - 1
-        )
-        ))
-    ]
-
-
-    #Predict to validation data
-    shrinkage.pred_df[,s] <-
-      predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)]), s = best_lam2[s])
-
-    #MPHE CHOSEN
-    chosen_eval_metric_val[[2]]$chosen_eval_metric[which(chosen_eval_metric_val[[2]]$alpha == unique(hyper_expanded_grid$alpha)[s])] <-
-      mean(1.25^2 * (sqrt((1 + ((target_validation$fwd_premium_3m - shrinkage.pred_df[,s])/1.25)^2)) - 1))
-
-  }
-
-  chosen_eval_metric_val[[2]]$best_lam <- best_lam2
-
-
-  #mphe IS MIN: PAY ATTENTION
-  hyper_choice2 <- which.min(chosen_eval_metric_val[[2]]$chosen_eval_metric)
-
-  #Calculate val losses for best hyper choice
-  validation_eval_hyper_choice$rss[2] <- (1 - (sum((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2)/sum(target_validation$fwd_premium_3m^2)))
-
-  validation_eval_hyper_choice$rmse[2] <- sqrt(mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2))
-
-  validation_eval_hyper_choice$cp[2] <- mean(target_validation$fwd_premium_3m*shrinkage.pred_df[,hyper_choice2])
-
-  validation_eval_hyper_choice$mae[2] <- mean(abs(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]))
-
-  validation_eval_hyper_choice$mphe[2] <- mean((1.25)^2*(sqrt(1+((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/
-                                                                        (1.25))^2)-1))
-
-  validation_eval_hyper_choice$mpe[2] <- mean(ifelse((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]) >= 0,
-                                                         0.5*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]),
-                                                         (1-0.5)*(-1)*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])))
-
-  validation_eval_hyper_choice$mape[2] <- mean(abs((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/target_validation$fwd_premium_3m))
-
-  validation_eval_hyper_choice$hr[2] <- mean((target_validation$fwd_premium_3m * shrinkage.pred_df[,hyper_choice2]) > 0)
-
-  validation_eval_hyper_choice$mb[2] <- mean(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])
-
-  #Refit
-  features_training_and_validation <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
-                                                            "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
-                                                            "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
-                                                            "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
-                                                            "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
-                                                            "Stock E-2001-05-15", "Stock A-2001-06-15", "Stock B-2001-06-15",
-                                                            "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15",
-                                                            "Stock A-2001-07-15", "Stock B-2001-07-15", "Stock C-2001-07-15",
-                                                            "Stock D-2001-07-15", "Stock E-2001-07-15", "Stock A-2001-08-15",
-                                                            "Stock B-2001-08-15", "Stock C-2001-08-15", "Stock D-2001-08-15",
-                                                            "Stock E-2001-08-15"),
-                                                     tickers = c("Stock A", "Stock B", "Stock C","Stock D", "Stock E", "Stock A", "Stock B", "Stock C", "Stock D",
-                                                                 "Stock E", "Stock A", "Stock B", "Stock C", "Stock D", "Stock E",
-                                                                 "Stock A", "Stock B", "Stock C", "Stock D", "Stock E", "Stock A",
-                                                                 "Stock B", "Stock C", "Stock D", "Stock E", "Stock A", "Stock B",
-                                                                 "Stock C", "Stock D", "Stock E"),
-                                                     dates = structure(c(984614400, 984614400, 984614400, 984614400, 984614400, 987292800, 987292800,
-                                                                         987292800, 987292800, 987292800, 989884800, 989884800, 989884800,
-                                                                         989884800, 989884800, 992563200, 992563200, 992563200, 992563200,
-                                                                         992563200, 995155200, 995155200, 995155200, 995155200, 995155200,
-                                                                         997833600, 997833600, 997833600, 997833600, 997833600), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                                     Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1, 5, 2, -20, -1, 2, -2, 20, -150, -50, -1, 1, 1, -20, -25, -20),
-                                                     Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3, 3, 1, 1, 2, 1, 13, -12, 1, 5, 2, 10, -10, 4, 1, 1),
-                                                     Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500, 20, -15, 6, 3, 6, 0, 3, 20, 3, 4, -523, 4, 12, -10, 405)),
-                                                row.names = c(NA, -30L), class = "data.frame")
-
-  target_training_and_validation <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
-                                                                      1, 7, 2, 7, 8, 8, 1, 3, 5, 7, 1, 2, 5, 1, 2, 2, 1, -1, -9, -2,
-                                                                      1),
-                                                   fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1, 0, 3, 8, 3, 2, 6, 8, 3, 1, 3, 5, 2, 5, 1, -9),
-                                                   fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3, 1, 5, 6, 10, 3, 1,  4, 5, 1, 0, 3, 1, 1, 4, 1)),
-                                              row.names = c(NA, -30L), class = "data.frame")
-
-  #Refitted model
-  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
-                                  y = target_training_and_validation$fwd_premium_3m,
-                                  alpha = hyper_expanded_grid$alpha[hyper_choice2],
-                                  lambda = hyper_expanded_grid$lambda[hyper_choice2])
-
-
-  coef(glm.mod.refit)
-
-  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
-                                  y = target_training_and_validation$fwd_premium_3m,
-                                  alpha = hyper_expanded_grid$alpha[hyper_choice2],
-                                  lambda.min.ratio = hyper_expanded_grid$lambda.min.ratio[hyper_choice2])
-
-
-  coef(glm.mod.refit)
-
-
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
-  #Pred list
-  prediction_list <- list(`2001-09-15` = c(`Stock A` = 3.95, `Stock B` = 3.95, `Stock C` = 3.95,
-                                           `Stock D` = 3.95, `Stock E` = 3.95), `2001-10-15` = c(`Stock A` = 3.95,
-                                                                                                 `Stock B` = 3.95, `Stock C` = 3.95, `Stock D` = 3.95, `Stock E` = 3.95
-                                           ), `2001-11-15` = c(`Stock A` = 3.466667, `Stock B` = 3.466667,
-                                                               `Stock C` = 3.466667, `Stock D` = 3.466667, `Stock E` = 3.466667
-                                           ))
-  results$outputs[[1]] <- prediction_list
-  #Error list
-  error_list <- list(`2001-09-15` = c(`Stock A` = -8.95, `Stock B` = 1.05, `Stock C` = -0.95,
-                                      `Stock D` = 7.05, `Stock E` = -7.95), `2001-10-15` = c(`Stock A` = -4.95,
-                                                                                             `Stock B` = -2.95, `Stock C` = 36.05, `Stock D` = 0.0499999999999998,
-                                                                                             `Stock E` = 0.0499999999999998), `2001-11-15` = c(`Stock A` = 0.533333,
-                                                                                                                                               `Stock B` = -1.466667, `Stock C` = -1.466667, `Stock D` = -1.466667,
-                                                                                                                                               `Stock E` = -0.466667))
-  results$outputs[[2]] <- error_list
-  #Y-list
-  y_list <- list(`2001-09-15` = c(`Stock A` = -5, `Stock B` = 5, `Stock C` = 3,
-                                  `Stock D` = 11, `Stock E` = -4), `2001-10-15` = c(`Stock A` = -1,
-                                                                                    `Stock B` = 1, `Stock C` = 40, `Stock D` = 4, `Stock E` = 4),
-                 `2001-11-15` = c(`Stock A` = 4, `Stock B` = 2, `Stock C` = 2,
-                                  `Stock D` = 2, `Stock E` = 3))
-  results$outputs[[3]] <- y_list
-  #Eval metrics
-  oos_testing_eval_metrics <-structure(list(rss =c(0.0050382653061225, 0.184325275397797,
-                                                         0.812011933933919), cp = c(7.9, 37.92, 9.0133342),
-                                            rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145
-                                            ), mae = c(5.19, 8.81, 1.0800002),
-                                            mphe = c(5.29925, 10.15824, 0.55613),
-                                            mpe = c(2.595, 4.405, 0.54),
-                                            mape = c(0.98902, 1.76525, 0.49778),
-                                            hr = c(0.6, 0.8, 1),
-                                            mb = c(-1.95, 5.65, -0.87)
-                                            ),
-                                       class = "data.frame", row.names = c("2001-09-15", "2001-10-15", "2001-11-15"))
-
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list),
-                                                      huber_delta = 1.25)
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- c("2001-09-15", "2001-11-15")
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = c("2001-09-15", "2001-11-15"),
-                                     alpha = c(hyper_expanded_grid$alpha[hyper_choice1], hyper_expanded_grid$alpha[hyper_choice2]),
-                                     lambda.min.ratio = c(hyper_expanded_grid$lambda[hyper_choice1], hyper_expanded_grid$lambda[hyper_choice2]),
-                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])
-                                     )
-
-  #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-3
-  )
-
-})
 
 ###Random Search
-#Define your test Excel sheet test glmnet 8
-test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, random_search (uniform) as tuning method and rmse as chosen eval metric",{
-
-
-  ################Uniform Distribution
-  #########################################
-  set.seed(123)
-  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 11) %>%
-    add_tuning_strategy(validation_sample_size = 3, chosen_eval_metric = "rmse", tuning_method = "random_search", n_iter = 5) %>%
-    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), distribution_choice = c("uniform", "uniform"),
-                       pars = list(c(min=0, max=1), c(min=0.1, max=0.99)))
-
-  #Apply function
-  suppressMessages(suppressWarnings({
-    sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(
-        structure(
-        list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                    "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                    "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                    "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                    "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                    "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                    "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                    "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                    "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                    "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                    "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                    "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                    "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                    "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                    "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                    "Stock E-2001-11-15"),
-             tickers = c("Stock A", "Stock A", "Stock A",
-                         "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                         "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                         "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                         "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                         "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                         "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                         "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"),
-             dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                 987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                 1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                 995155200, 997833600, 1000512000, 1003104000, 1005782400),
-                               class = c("POSIXct", "POSIXt"), tzone = "UTC"), format = "%Y-%m-%d"),
-             Alpha = c(3, -20, -450, 5, -2, 1,
-                       6, 1, -9, 1, 7, 4, 2, 20, 1, 1, -2, -2, 2, 9, 9, -20, -150, -20,
-                       8, 17, 1, 5, -2, 2, -1, -50, -25, 1, 4, 2, 5, 3, -1, 2, -1, -20,
-                       -1, 4, 4),
-             Beta = c(4, 7, 5, 3, 13, 10, 4, -5, 1, 5, 2, 4, 1,
-                      -12, -10, 3, 4, 1, 6, -3, -2, 1, 1, 4, 24, 19, -1, 0, -2, 5,
-                      2, 5, 1, 2, 5, 3, 2, -9, 3, 1, 2, 1, -1, -20, 2),
-             Gamma = c(800, 11, 4, 20, 0, -523, 2, 3, 27, 9, -2, 4, -15, 3, 4, 4, 3, 7, 10,
-                       -3, 2, 6, 20, 12, 13, -4, 105, -9, 5, 2, 3, 3, -10, 0, -1, 4,
-                       3, 1, -500, 6, 4, 405, 0, 1, 31)), row.names = c(NA, -45L), class = "data.frame")),
-      target_m_df =
-        create_meta_dataframe(
-        structure(list(id = c("Stock A-2001-03-15", "Stock A-2001-04-15",
-                              "Stock A-2001-05-15", "Stock A-2001-06-15", "Stock A-2001-07-15",
-                              "Stock A-2001-08-15", "Stock A-2001-09-15", "Stock A-2001-10-15",
-                              "Stock A-2001-11-15", "Stock B-2001-03-15", "Stock B-2001-04-15",
-                              "Stock B-2001-05-15", "Stock B-2001-06-15", "Stock B-2001-07-15",
-                              "Stock B-2001-08-15", "Stock B-2001-09-15", "Stock B-2001-10-15",
-                              "Stock B-2001-11-15", "Stock C-2001-03-15", "Stock C-2001-04-15",
-                              "Stock C-2001-05-15", "Stock C-2001-06-15", "Stock C-2001-07-15",
-                              "Stock C-2001-08-15", "Stock C-2001-09-15", "Stock C-2001-10-15",
-                              "Stock C-2001-11-15", "Stock D-2001-03-15", "Stock D-2001-04-15",
-                              "Stock D-2001-05-15", "Stock D-2001-06-15", "Stock D-2001-07-15",
-                              "Stock D-2001-08-15", "Stock D-2001-09-15", "Stock D-2001-10-15",
-                              "Stock D-2001-11-15", "Stock E-2001-03-15", "Stock E-2001-04-15",
-                              "Stock E-2001-05-15", "Stock E-2001-06-15", "Stock E-2001-07-15",
-                              "Stock E-2001-08-15", "Stock E-2001-09-15", "Stock E-2001-10-15",
-                              "Stock E-2001-11-15"),
-                       tickers = c("Stock A", "Stock A", "Stock A",
-                                   "Stock A", "Stock A", "Stock A", "Stock A", "Stock A", "Stock A",
-                                   "Stock B", "Stock B", "Stock B", "Stock B", "Stock B", "Stock B",
-                                   "Stock B", "Stock B", "Stock B", "Stock C", "Stock C", "Stock C",
-                                   "Stock C", "Stock C", "Stock C", "Stock C", "Stock C", "Stock C",
-                                   "Stock D", "Stock D", "Stock D", "Stock D", "Stock D", "Stock D",
-                                   "Stock D", "Stock D", "Stock D", "Stock E", "Stock E", "Stock E",
-                                   "Stock E", "Stock E", "Stock E", "Stock E", "Stock E", "Stock E"
-                       ),
-                       dates = as.Date(structure(c(984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400, 984614400,
-                                           987292800, 989884800, 992563200, 995155200, 997833600, 1000512000,
-                                           1003104000, 1005782400, 984614400, 987292800, 989884800, 992563200,
-                                           995155200, 997833600, 1000512000, 1003104000, 1005782400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                       format = "%Y-%m-%d"),
-                       fwd_premium_1m = c(0, 6, 7, 1, 2, 1, 10, 3, 1, 1, 8, 2, 3, 5, -1, 35, -152, 3, 2, 3, 7, 5, 1, -9,
-                                          2, 4, -20, 8, 8, 8, 7, 2, -2, -10, -45, -3, 5, 1, 8, 1, 2, 1, 4, -5, 0),
-                       fwd_premium_3m = c(4, 4, 2, 0, 6, 5, -5, -1, 4, 5, 3, 7, 3, 8, 2, 5, 1, 2, 0, 5, 2, 8, 3, 5, 3, 40, 2, 1, 3, 8,
-                                          3, 1, 1, 11, 4, 2, 9, 9, 1, 2, 3, -9, -4, 4, 3),
-                       fwd_sharpe_1m = c(7,  7, 3, 1, 1, 3, 1, 0, 10, 4, 2, 8, 5, 4, 1, 1, 4, -5, 2, 6, 4,  6, 5, 1, 1, 5, 3, 4, 9, 0,
-                                         10, 1, 4, 12, 1, 92, 7, 1, 3, 3, 0, 1, 3, 1, 9)), row.names = c(NA, -45L), class = "data.frame")),
-      config = glmnet_config,
-      target_fwd_name = "fwd_premium_3m",
-      verbose = FALSE,
-      parallel = FALSE
-    )}))
-
-  #Define initial objects
-  set.seed(123)
-  hyper_expanded_grid1 <- list(alpha = runif(n = 5, min = 0, max = 1), lambda.min.ratio = runif(n = 5, min = 0.1, max = 0.99))
-  hyper_expanded_grid1 <- expand.grid(alpha = hyper_expanded_grid1$alpha, lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio)
-
-
-
-  validation_eval_hyper_choice <- data.frame(rss =c(NA, NA),  #Validation loss df
-                                             cp = c(NA, NA),
-                                             rmse = c(NA, NA),
-                                             mae = c(NA, NA),
-                                             mphe = c(NA,NA),
-                                             mpe = c(NA,NA),
-                                             row.names = c("2001-09-15", "2001-11-15"))
-  rebalance_dates <- c("2001-09-15", "2001-11-15")
-  n_rebalance_dates <- 2
-
-  chosen_eval_metric_val <- list()
-
-  #Start first rebalancing
-
-  #Get objects to train and validate model
-  features_training <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
-                                             "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15"
-  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
-  ), dates = structure(c(984614400, 984614400, 984614400, 984614400,
-                         984614400), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-  Alpha = c(3,  1, 2, 5, 5), Beta = c(4, 5, 6, 0, 2), Gamma = c(800, 9, 10, -9, 3)), row.names = c(NA, -5L), class = "data.frame")
-
-  target_training <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5),
-                                    fwd_premium_3m = c(4, 5, 0, 1, 9),
-                                    fwd_sharpe_1m = c(7, 4, 2, 4, 7)), row.names = c(NA, -5L), class = "data.frame")
-
-  features_validation <- structure(list(id = c("Stock A-2001-06-15", "Stock B-2001-06-15",
-                                               "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15"
-  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
-  ), dates = structure(c(992563200, 992563200, 992563200, 992563200,
-                         992563200), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-  Alpha = c(5,  2, -20, -1, 2), Beta = c(3, 1, 1, 2, 1), Gamma = c(20, -15, 6,  3, 6)), row.names = c(NA, -5L), class = "data.frame")
-
-  target_validation <- structure(list(fwd_premium_1m = c(1, 3, 5, 7, 1),
-                                      fwd_premium_3m = c(0, 3, 8, 3, 2),
-                                      fwd_sharpe_1m = c(1, 5, 6, 10, 3)), row.names = c(NA,  -5L), class = "data.frame")
-
-
-
-  #Start first rebalancing
-  chosen_eval_metric_val[[1]] <- data.frame(alpha = hyper_expanded_grid1$alpha,
-                                            lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio,
-                                            best_lam = rep(NA,25), chosen_eval_metric = rep(NA, 25))
-
-  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(target_validation$fwd_premium_3m),
-                                         ncol = nrow(hyper_expanded_grid1)))
-
-  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
-  best_lam1 <- vector(length =  nrow(hyper_expanded_grid1))
-
-  for(s in 1:length(hyper_expanded_grid1$alpha)){
-    #Train Model
-    glm.mod1 <- glmnet::glmnet(
-      x = features_training[,-c(1:3)],
-      y = target_training$fwd_premium_3m,
-      alpha = hyper_expanded_grid1$alpha[s], #Alpha
-      lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio[s] #Lambda
-    )
-
-    #Get best lam
-    best_lam1[s] <- glm.mod1$lambda[
-      which.min(sqrt(colMeans((target_validation$fwd_premium_3m - predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)])))^2)))
-    ]
-
-
-    #Predict to validation data
-    shrinkage.pred_df[,s] <- predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)]), s = best_lam1[s])
-
-    #RMSE CHOSEN
-    chosen_eval_metric_val[[1]]$chosen_eval_metric[which(chosen_eval_metric_val[[1]]$alpha == unique(hyper_expanded_grid1$alpha)[s])] <-
-      sqrt(mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,s])^2))
-
-
-
-  }
-
-  chosen_eval_metric_val[[1]]$best_lam <- best_lam1
-
-
-  #RMSE IS MIN: PAY ATTENTION
-  hyper_choice1 <- which.min(chosen_eval_metric_val[[1]]$chosen_eval_metric)
-
-  #Calculate val losses for best hyper choice
-  validation_eval_hyper_choice$rss[1] <- (1 - (sum((target_validation$fwd_premium_3m - shrinkage.pred_df[, hyper_choice1])^2)/sum(target_validation$fwd_premium_3m^2)))
-
-  validation_eval_hyper_choice$rmse[1] <- sqrt(mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2))
-
-  validation_eval_hyper_choice$cp[1] <- mean(target_validation$fwd_premium_3m*shrinkage.pred_df[,hyper_choice1])
-
-  validation_eval_hyper_choice$mae[1] <- mean(abs(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]))
-
-  validation_eval_hyper_choice$mphe[1] <- mean((1)^2*(sqrt(1+((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/
-                                                                        (1))^2)-1))
-
-  validation_eval_hyper_choice$mpe[1] <- mean(ifelse((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]) >= 0,
-                                                         0.5*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]),
-                                                         (1-0.5)*(-1)*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])))
-
-  validation_eval_hyper_choice$mape[1] <- mean(abs((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/
-                                                     target_validation$fwd_premium_3m))
-
-  validation_eval_hyper_choice$hr[1] <- mean((target_validation$fwd_premium_3m * shrinkage.pred_df[,hyper_choice1]) > 0)
-
-  validation_eval_hyper_choice$mb[1] <- mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]))
-
-
-
-
-
-  #Refit
-  features_training_and_validation <-structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
-                                                           "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
-                                                           "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
-                                                           "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
-                                                           "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
-                                                           "Stock E-2001-05-15", "Stock A-2001-06-15", "Stock B-2001-06-15",
-                                                           "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15"
-  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E",
-                 "Stock A", "Stock B", "Stock C", "Stock D", "Stock E", "Stock A",
-                 "Stock B", "Stock C", "Stock D", "Stock E", "Stock A", "Stock B",
-                 "Stock C", "Stock D", "Stock E"), dates = structure(c(984614400,
-                                                                       984614400, 984614400, 984614400, 984614400, 987292800, 987292800,
-                                                                       987292800, 987292800, 987292800, 989884800, 989884800, 989884800,
-                                                                       989884800, 989884800, 992563200, 992563200, 992563200, 992563200,
-                                                                       992563200), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-  Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1, 5, 2, -20, -1, 2), Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3,  3, 1, 1, 2, 1),
-  Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500, 20, -15, 6, 3, 6)), row.names = c(NA, -20L), class = "data.frame")
-
-  target_training_and_validation <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
-                                                                      1, 7, 2, 7, 8, 8, 1, 3, 5, 7, 1),
-                                                   fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1, 0, 3, 8, 3, 2),
-                                                   fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3, 1, 5, 6, 10, 3)),
-                                              row.names = c(NA, -20L), class = "data.frame")
-
-
-  #Refitted model
-  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
-                                  y = target_training_and_validation$fwd_premium_3m,
-                                  alpha = hyper_expanded_grid1$alpha[hyper_choice1],
-                                  lambda = hyper_expanded_grid1$lambda[hyper_choice1])
-  coef(glm.mod.refit)
-
-  #2nd Rebalancing
-
-  #Get objects to train and validate model
-  features_training <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
-                                             "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
-                                             "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
-                                             "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
-                                             "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
-                                             "Stock E-2001-05-15"),
-                                      tickers = c("Stock A", "Stock B", "Stock C",
-                                                  "Stock D", "Stock E", "Stock A", "Stock B", "Stock C", "Stock D",
-                                                  "Stock E", "Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
-                                      ),
-                                      dates = structure(c(984614400, 984614400, 984614400, 984614400,
-                                                          984614400, 987292800, 987292800, 987292800, 987292800, 987292800,
-                                                          989884800, 989884800, 989884800, 989884800, 989884800), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                      Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1), Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3),
-                                      Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500)), row.names = c(NA, -15L), class = "data.frame")
-
-
-  target_training <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
-                                                       1, 7, 2, 7, 8, 8),
-                                    fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1),
-                                    fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3)), row.names = c(NA, -15L), class = "data.frame")
-
-  features_validation <- structure(list(id = c("Stock A-2001-08-15", "Stock B-2001-08-15",
-                                               "Stock C-2001-08-15", "Stock D-2001-08-15", "Stock E-2001-08-15"
-  ), tickers = c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E"
-  ), dates = structure(c(997833600, 997833600, 997833600, 997833600,
-                         997833600), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-  Alpha = c(1, 1, -20, -25, -20), Beta = c(10, -10, 4, 1, 1), Gamma = c(-523, 4, 12, -10, 405)), row.names = c(NA, -5L), class = "data.frame")
-
-  target_validation <-structure(list(fwd_premium_1m = c(1, -1, -9, -2, 1),
-                                     fwd_premium_3m = c(5, 2, 5, 1, -9),
-                                     fwd_sharpe_1m = c(3, 1, 1, 4, 1)), row.names = c(NA,  -5L), class = "data.frame")
-
-  hyper_expanded_grid2 <- list(alpha = runif(n = 5, min = 0, max = 1), lambda.min.ratio = runif(n = 5, min = 0.1, max = 0.99))
-  hyper_expanded_grid2 <- expand.grid(alpha = hyper_expanded_grid2$alpha, lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio)
-
-  #Start first rebalancing
-  chosen_eval_metric_val[[2]] <- data.frame(alpha = hyper_expanded_grid2$alpha,
-                                            lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio,
-                                            best_lam = rep(NA,25), chosen_eval_metric = rep(NA, 25))
-
-  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(target_validation$fwd_premium_3m),
-                                         ncol = nrow(hyper_expanded_grid2)))
-
-  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
-  best_lam2 <- vector(length =  nrow(hyper_expanded_grid2))
-
-  for(s in 1:length(hyper_expanded_grid2$alpha)){
-    #Train Model
-    glm.mod1 <- glmnet::glmnet(
-      x = features_training[,-c(1:3)],
-      y = target_training$fwd_premium_3m,
-      alpha = hyper_expanded_grid2$alpha[s], #Alpha
-      lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio[s] #Lambda
-    )
-
-    #Get best lam
-    best_lam2[s] <- glm.mod1$lambda[
-      which.min(sqrt(colMeans((target_validation$fwd_premium_3m - predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)])))^2)))
-    ]
-
-
-    #Predict to validation data
-    shrinkage.pred_df[,s] <- predict(glm.mod1, newx = as.matrix(features_validation[,-c(1:3)]), s = best_lam2[s])
-
-    #RMSE CHOSEN
-    chosen_eval_metric_val[[2]]$chosen_eval_metric[which(chosen_eval_metric_val[[2]]$alpha == unique(hyper_expanded_grid2$alpha)[s])] <-
-      sqrt(mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,s])^2))
-
-
-
-  }
-
-  chosen_eval_metric_val[[2]]$best_lam <- best_lam2
-
-
-
-  #RMSE IS MIN: PAY ATTENTION
-  hyper_choice2 <- which.min(chosen_eval_metric_val[[2]]$chosen_eval_metric)
-
-  #Calculate val losses for best hyper choice
-  validation_eval_hyper_choice$rss[2] <- (1 - (sum((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2)/sum(target_validation$fwd_premium_3m^2)))
-
-  validation_eval_hyper_choice$rmse[2] <- sqrt(mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2))
-
-  validation_eval_hyper_choice$cp[2] <- mean(target_validation$fwd_premium_3m*shrinkage.pred_df[,hyper_choice2])
-
-  validation_eval_hyper_choice$mae[2] <- mean(abs(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]))
-
-  validation_eval_hyper_choice$mphe[2] <- mean((1)^2*(sqrt(1+((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/
-                                                                        (1))^2)-1))
-
-  validation_eval_hyper_choice$mpe[2] <- mean(ifelse((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]) >= 0,
-                                                         0.5*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]),
-                                                         (1-0.5)*(-1)*(target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])))
-
-
-  validation_eval_hyper_choice$mape[2] <- mean(abs((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/
-                                                     target_validation$fwd_premium_3m))
-
-  validation_eval_hyper_choice$hr[2] <- mean((target_validation$fwd_premium_3m * shrinkage.pred_df[,hyper_choice2]) > 0)
-
-  validation_eval_hyper_choice$mb[2] <- mean((target_validation$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]))
-
-
-  #Refit
-  features_training_and_validation <- structure(list(id = c("Stock A-2001-03-15", "Stock B-2001-03-15",
-                                                            "Stock C-2001-03-15", "Stock D-2001-03-15", "Stock E-2001-03-15",
-                                                            "Stock A-2001-04-15", "Stock B-2001-04-15", "Stock C-2001-04-15",
-                                                            "Stock D-2001-04-15", "Stock E-2001-04-15", "Stock A-2001-05-15",
-                                                            "Stock B-2001-05-15", "Stock C-2001-05-15", "Stock D-2001-05-15",
-                                                            "Stock E-2001-05-15", "Stock A-2001-06-15", "Stock B-2001-06-15",
-                                                            "Stock C-2001-06-15", "Stock D-2001-06-15", "Stock E-2001-06-15",
-                                                            "Stock A-2001-07-15", "Stock B-2001-07-15", "Stock C-2001-07-15",
-                                                            "Stock D-2001-07-15", "Stock E-2001-07-15", "Stock A-2001-08-15",
-                                                            "Stock B-2001-08-15", "Stock C-2001-08-15", "Stock D-2001-08-15",
-                                                            "Stock E-2001-08-15"),
-                                                     tickers = c("Stock A", "Stock B", "Stock C","Stock D", "Stock E", "Stock A", "Stock B", "Stock C", "Stock D",
-                                                                 "Stock E", "Stock A", "Stock B", "Stock C", "Stock D", "Stock E",
-                                                                 "Stock A", "Stock B", "Stock C", "Stock D", "Stock E", "Stock A",
-                                                                 "Stock B", "Stock C", "Stock D", "Stock E", "Stock A", "Stock B",
-                                                                 "Stock C", "Stock D", "Stock E"),
-                                                     dates = structure(c(984614400, 984614400, 984614400, 984614400, 984614400, 987292800, 987292800,
-                                                                         987292800, 987292800, 987292800, 989884800, 989884800, 989884800,
-                                                                         989884800, 989884800, 992563200, 992563200, 992563200, 992563200,
-                                                                         992563200, 995155200, 995155200, 995155200, 995155200, 995155200,
-                                                                         997833600, 997833600, 997833600, 997833600, 997833600), class = c("POSIXct", "POSIXt"), tzone = "UTC"),
-                                                     Alpha = c(3, 1, 2, 5, 5, -20, 7, 9, -2, 3, -450, 4, 9, 2, -1, 5, 2, -20, -1, 2, -2, 20, -150, -50, -1, 1, 1, -20, -25, -20),
-                                                     Beta = c(4, 5, 6, 0, 2, 7, 2, -3, -2, -9, 5, 4, -2, 5, 3, 3, 1, 1, 2, 1, 13, -12, 1, 5, 2, 10, -10, 4, 1, 1),
-                                                     Gamma = c(800, 9, 10, -9, 3, 11, -2, -3, 5, 1, 4, 4, 2, 2, -500, 20, -15, 6, 3, 6, 0, 3, 20, 3, 4, -523, 4, 12, -10, 405)),
-                                                row.names = c(NA, -30L), class = "data.frame")
-
-  target_training_and_validation <- structure(list(fwd_premium_1m = c(0, 1, 2, 8, 5, 6, 8, 3, 8,
-                                                                      1, 7, 2, 7, 8, 8, 1, 3, 5, 7, 1, 2, 5, 1, 2, 2, 1, -1, -9, -2,
-                                                                      1),
-                                                   fwd_premium_3m = c(4, 5, 0, 1, 9, 4, 3, 5, 3, 9, 2, 7, 2, 8, 1, 0, 3, 8, 3, 2, 6, 8, 3, 1, 3, 5, 2, 5, 1, -9),
-                                                   fwd_sharpe_1m = c(7, 4, 2, 4, 7, 7, 2, 6, 9, 1, 3, 8, 4, 0, 3, 1, 5, 6, 10, 3, 1,  4, 5, 1, 0, 3, 1, 1, 4, 1)),
-                                              row.names = c(NA, -30L), class = "data.frame")
-
-  #Refitted model
-  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
-                                  y = target_training_and_validation$fwd_premium_3m,
-                                  alpha = hyper_expanded_grid2$alpha[hyper_choice2],
-                                  lambda = hyper_expanded_grid2$lambda[hyper_choice2])
-
-
-  coef(glm.mod.refit)
-
-  glm.mod.refit <- glmnet::glmnet(x = features_training_and_validation[,-c(1:3)],
-                                  y = target_training_and_validation$fwd_premium_3m,
-                                  alpha = hyper_expanded_grid2$alpha[hyper_choice2],
-                                  lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio[hyper_choice2])
-
-
-  coef(glm.mod.refit)
-
-
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
-  #Pred list
-  prediction_list <- list(`2001-09-15` = c(`Stock A` = 3.95, `Stock B` = 3.95, `Stock C` = 3.95,
-                                           `Stock D` = 3.95, `Stock E` = 3.95), `2001-10-15` = c(`Stock A` = 3.95,
-                                                                                                 `Stock B` = 3.95, `Stock C` = 3.95, `Stock D` = 3.95, `Stock E` = 3.95
-                                           ), `2001-11-15` = c(`Stock A` = 3.466667, `Stock B` = 3.466667,
-                                                               `Stock C` = 3.466667, `Stock D` = 3.466667, `Stock E` = 3.466667
-                                           ))
-  results$outputs[[1]] <- prediction_list
-  #Error list
-  error_list <- list(`2001-09-15` = c(`Stock A` = -8.95, `Stock B` = 1.05, `Stock C` = -0.95,
-                                      `Stock D` = 7.05, `Stock E` = -7.95), `2001-10-15` = c(`Stock A` = -4.95,
-                                                                                             `Stock B` = -2.95, `Stock C` = 36.05, `Stock D` = 0.0499999999999998,
-                                                                                             `Stock E` = 0.0499999999999998), `2001-11-15` = c(`Stock A` = 0.533333,
-                                                                                                                                               `Stock B` = -1.466667, `Stock C` = -1.466667, `Stock D` = -1.466667,
-                                                                                                                                               `Stock E` = -0.466667))
-  results$outputs[[2]] <- error_list
-  #Y-list
-  y_list <- list(`2001-09-15` = c(`Stock A` = -5, `Stock B` = 5, `Stock C` = 3,
-                                  `Stock D` = 11, `Stock E` = -4), `2001-10-15` = c(`Stock A` = -1,
-                                                                                    `Stock B` = 1, `Stock C` = 40, `Stock D` = 4, `Stock E` = 4),
-                 `2001-11-15` = c(`Stock A` = 4, `Stock B` = 2, `Stock C` = 2,
-                                  `Stock D` = 2, `Stock E` = 3))
-  results$outputs[[3]] <- y_list
-  #Eval metrics
-  oos_testing_eval_metrics <-structure(list(rss =c(0.0050382653061225, 0.184325275397797,
-                                                         0.812011933933919), cp = c(7.9, 37.92, 9.0133342),
-                                            rmse = c(6.24519815538306, 16.3267418672557, 1.17945397913145
-                                            ), mae = c(5.19, 8.81, 1.0800002),
-                                            mphe = c(4.39364382, 8.2462498, 0.51245492),
-                                            mpe = c(2.595, 4.405, 0.54),
-                                            mape = c(0.98902, 1.76525, 0.49778),
-                                            hr = c(0.6, 0.8, 1.0),
-                                            mb = c(-1.95, 5.65, -0.86667))
-                                       , class = "data.frame", row.names = c("2001-09-15", "2001-10-15", "2001-11-15"))
-
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- c("2001-09-15", "2001-11-15")
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = c("2001-09-15", "2001-11-15"),
-                                     alpha = c(hyper_expanded_grid1$alpha[hyper_choice1], hyper_expanded_grid2$alpha[hyper_choice2]),
-                                     lambda.min.ratio = c(hyper_expanded_grid1$lambda.min.ratio[hyper_choice1], hyper_expanded_grid2$lambda.min.ratio[hyper_choice2]),
-                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2]))
-
-  #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
-  )
-
-})
-
 #Define your test
 test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, random_search (uniform and lognormal) as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   future::plan("multisession")
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 7, rebalancing_months = 6,
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 7, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m",
                                          huber_delta = 1.5) %>%
     add_tuning_strategy(tuning_method = "random_search", chosen_eval_metric = "rmse", n_iter = 3, validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
                        distribution_choice = c("uniform", "lognormal", "uniform", "uniform"),
                        pars = list(c(min = 0.1, max = 1), c(meanlog = 6L, sdlog = 1L), c(min = 2L, max = 8L), c(min = 1, max = 10)))
 
-  set.seed(123)
+  features_order <- c("id", "tickers", "dates", colnames(toy_preprocessed_features)[-c(1:3)] %>% sort())
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       config = rf_config,
-      target_fwd_name = "fwd_premium_3m",
+      .test_seed = 123,
       verbose = FALSE
     )}))
 
@@ -9485,8 +8716,8 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
 
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),features_order]
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),features_order]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -9591,7 +8822,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
 
   #Refit
   features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),features_order]
 
 
   target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -9610,7 +8841,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),features_order]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -9642,6 +8873,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
   names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
+  set.seed(123)
   hyper_expanded_grid2 <- list(mtry = runif(n = 3, min = 0.1, max = 1), num.trees = round(rlnorm(n = 3, meanlog = 6, sdlog = 1),0),
                                max.depth = round(runif(n = 3, min = 2, max = 8),0), min.bucket = runif(n = 3, min = 1, max = 10))
 
@@ -9653,8 +8885,8 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
 
   #Features obj
   features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+                                                                                                  "2022-11-15", "2022-12-15")),features_order]
+  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),features_order]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -9735,7 +8967,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
   #Refit
   features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+                                                                                                                    "2023-02-15", "2023-03-15")),features_order]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -9757,7 +8989,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),features_order]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
 
 
@@ -9786,30 +9018,53 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
+
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
                                          mae = c(NA,NA,NA,NA),
                                          mphe = c(NA,NA,NA,NA),
-                                         mpe = c(NA,NA,NA,NA),
-                                         row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+                                         mpe = c(NA,NA,NA,NA)),
+                                         order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -9824,438 +9079,58 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
     oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
     oos_testing_eval_metrics$hr[l] <- mean((y_list[[l]] * prediction_list[[l]])>=0)
     oos_testing_eval_metrics$mb[l] <- mean((y_list[[l]] - prediction_list[[l]]))
-
-
-
   }
-  consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list),
-                                                      huber_delta = 1.5)
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  results$outputs[[5]] <- sb_backtest_results@final_sb_model
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
-                                     mtry = c(hyper_expanded_grid1$mtry[hyper_choice1], hyper_expanded_grid2$mtry[hyper_choice2]),
-                                     num.trees = c(hyper_expanded_grid1$num.trees[hyper_choice1], hyper_expanded_grid2$num.trees[hyper_choice2]),
-                                     max.depth = c(hyper_expanded_grid1$max.depth[hyper_choice1], hyper_expanded_grid2$max.depth[hyper_choice2]),
-                                     min.bucket = c(hyper_expanded_grid1$min.bucket[hyper_choice1], hyper_expanded_grid2$min.bucket[hyper_choice2]))
-
-
-  #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
-  )
-
-  future::plan("sequential")
-
-})
-
-#Define your test
-test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, random_search as tuning method and rss as chosen eval metric -toy_preprocessed_features_and_targets",{
-
-  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
-
-  set.seed(123)
-
-  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 7, rebalancing_months = 6) %>%
-    add_tuning_strategy(tuning_method = "random_search", chosen_eval_metric = "rss", n_iter = 5, validation_sample_size = 3) %>%
-    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), distribution_choice = c("uniform", "uniform"), pars = list(c(min = 0, max = 1), c(min = 0.1, max = 0.9)))
-
-  #hyper_grid_domain <- create_hyper_grid_domain(tuning_method = "random_search", sb_algorithm = "glmnet")
-  #hyper_grid_domain <- add_hyperparameter(hyper_grid_domain,
-  #                                        new_hyperparameters = list(alpha = list(distribution_choice = "uniform", pars = c(min = 0,max = 1)),
-  #                                                                   lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0.1, max = 0.9))))
-
-  #Apply function
-  suppressMessages(suppressWarnings({
-    sb_backtest_results <- run_sb_backtest(
-      features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
-      target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
-      target_fwd_name = "fwd_premium_3m",
-      config = glmnet_config,
-      parallel = FALSE,
-      verbose = FALSE
-    )}))
-
-
-  #Define initial objects
-  set.seed(123)
-  hyper_expanded_grid1 <- list(alpha = runif(n = 5, min = 0, max = 1), lambda.min.ratio = runif(n = 5, min = 0.1, max = 0.9))
-  hyper_expanded_grid1$alpha <- unique(hyper_expanded_grid1$alpha)
-  hyper_expanded_grid1$lambda.min.ratio <- unique(hyper_expanded_grid1$lambda.min.ratio)
-  hyper_expanded_grid1 <- expand.grid(hyper_expanded_grid1)
-
-  hyper_expanded_grid2 <- list(alpha = runif(n = 5, min = 0, max = 1), lambda.min.ratio = runif(n = 5, min = 0.1, max = 0.9))
-  hyper_expanded_grid2$alpha <- unique(hyper_expanded_grid2$alpha)
-  hyper_expanded_grid2$lambda.min.ratio <- unique(hyper_expanded_grid2$lambda.min.ratio)
-  hyper_expanded_grid2 <- expand.grid(hyper_expanded_grid2)
-
-
-  validation_eval_hyper_choice <- data.frame(rss =c(NA,NA),  #Validation loss df
-                                             cp = c(NA,NA),
-                                             rmse = c(NA,NA),
-                                             mae = c(NA,NA),
-                                             row.names = c("2023-04-15", "2023-06-15"))
-  rebalance_dates <- c("2023-04-15", "2023-06-15")
-  n_rebalance_dates <- 2
-
-  chosen_eval_metric_val <- list()
-
-  #1st rebalancing
-  #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
-  #Targets
-  targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
-  targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
-  #Features val
-  #Start first rebalancing
-  chosen_eval_metric_val[[1]] <- data.frame(alpha = hyper_expanded_grid1$alpha,
-                                            lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio,
-                                            best_lam = rep(NA,25), chosen_eval_metric = rep(NA, 25))
-
-  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(targets_first_val$fwd_premium_3m),
-                                         ncol = nrow(hyper_expanded_grid1)))
-
-  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
-  best_lam1 <- vector(length =  nrow(hyper_expanded_grid1))
-
-  for(s in 1:length(hyper_expanded_grid1$alpha)){
-    #Train Model
-    glm.mod1 <- glmnet::glmnet(
-      x = features_first_train[,-c(1:3)],
-      y = targets_first_train$fwd_premium_3m,
-      alpha = hyper_expanded_grid1$alpha[s], #Alpha
-      lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio[s] #Lambda
-    )
-
-    #Get best lam
-    best_lam1[s] <- glm.mod1$lambda[
-      which.max(1 - (colSums((targets_first_val$fwd_premium_3m -
-                                predict(glm.mod1, newx = as.matrix(features_first_val[,-c(1:3)])))^2)/sum(targets_first_val$fwd_premium_3m^2)))
-    ]
-
-
-    #Predict to validation data
-    shrinkage.pred_df[,s] <-
-      predict(glm.mod1, newx = as.matrix(features_first_val[,-c(1:3)]), s = best_lam1[s])
-
-    #RSQUARED CHOSEN
-    chosen_eval_metric_val[[1]]$chosen_eval_metric[s] <-
-      (1 - (sum((targets_first_val$fwd_premium_3m -
-                   shrinkage.pred_df[,s])^2)/sum(targets_first_val$fwd_premium_3m^2)))
-
-
-
-  }
-  chosen_eval_metric_val[[1]]$best_lam <- best_lam1
-
-  #rsquared IS MAX: PAY ATTENTION
-  hyper_choice1 <- which.max(chosen_eval_metric_val[[1]]$chosen_eval_metric)
-
-  #Calculate val losses for best hyper choice
-  validation_eval_hyper_choice$rss[1] <- (1 - (sum((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2)/sum(targets_first_val$fwd_premium_3m^2)))
-
-  validation_eval_hyper_choice$rmse[1] <- sqrt(mean((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])^2))
-
-  validation_eval_hyper_choice$cp[1] <- mean(targets_first_val$fwd_premium_3m*shrinkage.pred_df[,hyper_choice1])
-
-  validation_eval_hyper_choice$mae[1] <- mean(abs(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]))
-
-  validation_eval_hyper_choice$mphe[1] <- mean((1)^2*(sqrt(1+((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/
-                                                                        (1))^2)-1))
-
-  validation_eval_hyper_choice$mpe[1] <- mean(ifelse((targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]) >= 0,
-                                                         0.5*(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1]),
-                                                         (1-0.5)*(-1)*(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])))
-
-  validation_eval_hyper_choice$mape[1] <- mean(abs(
-    (targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])/targets_first_val$fwd_premium_3m))
-
-  validation_eval_hyper_choice$hr[1] <- length(which(sign(targets_first_val$fwd_premium_3m) == sign(shrinkage.pred_df[,hyper_choice1])))/
-    length(targets_first_val$fwd_premium_3m)
-
-  validation_eval_hyper_choice$mb[1] <- mean(targets_first_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice1])
-
-
-
-
-  #Refit
-  features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
-
-
-  target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                               "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
-
-
-  #Refitted model
-  glm.mod.refit <- glmnet::glmnet(x = features_first_training_and_validation[,-c(1:3)],
-                                  y = target_first_training_and_validation$fwd_premium_3m,
-                                  alpha = hyper_expanded_grid1$alpha[hyper_choice1],
-                                  lambda.min.ratio = hyper_expanded_grid1$lambda.min.ratio[hyper_choice1])
-  coef(glm.mod.refit)
-
-
-  #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
-
-
-
-  #Predict!
-  prediction_list <- list()
-  prediction_list[[1]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-04-15")),-c(1:3)]),
-                                             s = best_lam1[hyper_choice1]))
-  names(prediction_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  prediction_list[[2]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_first_test[which(features_first_test$dates %in% c("2023-05-15")),-c(1:3)]),
-                                     s = best_lam1[hyper_choice1]))
-  names(prediction_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
-
-  #Calc error
-  error_list <- list()
-  error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
-  names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
-  names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
-
-  #Y
-  y_list <- list()
-  y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
-  names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
-  names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
-
-  #2nd rebal!
-  #Features obj
-  features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
-  #Targets
-  targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                               "2022-11-15", "2022-12-15")),]
-  targets_second_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-03-15")),]
-
-
-
-  chosen_eval_metric_val[[2]] <- data.frame(alpha = hyper_expanded_grid2$alpha,
-                                            lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio,
-                                            best_lam = rep(NA,25), chosen_eval_metric = rep(NA, 25))
-
-  shrinkage.pred_df <- data.frame(matrix(NA, nrow = length(targets_second_val$fwd_premium_3m),
-                                         ncol = nrow(hyper_expanded_grid2)))
-
-  colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
-  best_lam2 <- vector(length =  nrow(hyper_expanded_grid2))
-
-  for(s in 1:length(hyper_expanded_grid2$alpha)){
-    #Train Model
-    glm.mod1 <- glmnet::glmnet(
-      x = features_second_train[,-c(1:3)],
-      y = targets_second_train$fwd_premium_3m,
-      alpha = hyper_expanded_grid2$alpha[s], #Alpha
-      lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio[s] #Lambda
-    )
-
-    #Get best lam
-    best_lam2[s] <- glm.mod1$lambda[
-      which.max(1 - (colSums((targets_second_val$fwd_premium_3m -
-                                predict(glm.mod1, newx = as.matrix(features_second_val[,-c(1:3)])))^2)/sum(targets_second_val$fwd_premium_3m^2)))
-    ]
-
-
-    #Predict to validation data
-    shrinkage.pred_df[,s] <-
-      predict(glm.mod1, newx = as.matrix(features_second_val[,-c(1:3)]), s = best_lam2[s])
-
-    #RSQUARED CHOSEN
-    chosen_eval_metric_val[[2]]$chosen_eval_metric[s] <-
-      (1 - (sum((targets_second_val$fwd_premium_3m -
-                   shrinkage.pred_df[,s])^2)/sum(targets_second_val$fwd_premium_3m^2)))
-
-
-
-  }
-  chosen_eval_metric_val[[2]]$best_lam <- best_lam2
-
-  #r2 IS MAX: PAY ATTENTION
-  hyper_choice2 <- which.max(chosen_eval_metric_val[[2]]$chosen_eval_metric)
-
-  #Calculate val losses for best hyper choice
-  validation_eval_hyper_choice$rss[2] <- (1 - (sum((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2)/sum(targets_second_val$fwd_premium_3m^2)))
-
-  validation_eval_hyper_choice$rmse[2] <- sqrt(mean((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])^2))
-
-  validation_eval_hyper_choice$cp[2] <- mean(targets_second_val$fwd_premium_3m*shrinkage.pred_df[,hyper_choice2])
-
-  validation_eval_hyper_choice$mae[2] <- mean(abs(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]))
-
-  validation_eval_hyper_choice$mphe[2] <- mean((1)^2*(sqrt(1+((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/
-                                                                        (1))^2)-1))
-
-  validation_eval_hyper_choice$mpe[2] <- mean(ifelse((targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]) >= 0,
-                                                         0.5*(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2]),
-                                                         (1-0.5)*(-1)*(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])))
-
-  validation_eval_hyper_choice$mape[2] <- mean(abs(
-    (targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])/targets_second_val$fwd_premium_3m))
-
-  validation_eval_hyper_choice$hr[2] <- length(which(sign(targets_second_val$fwd_premium_3m) == sign(shrinkage.pred_df[,hyper_choice2])))/
-    length(targets_second_val$fwd_premium_3m)
-
-  validation_eval_hyper_choice$mb[2] <- mean(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])
-
-
-
-  #Refit
-  features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                    "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
-
-
-  target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                "2023-02-15", "2023-03-15")),]
-
-
-  #Refitted model
-  glm.mod.refit <- glmnet::glmnet(x = features_second_training_and_validation[,-c(1:3)],
-                                  y = target_second_training_and_validation$fwd_premium_3m,
-                                  alpha = hyper_expanded_grid2$alpha[hyper_choice2],
-                                  lambda.min.ratio = hyper_expanded_grid2$lambda.min.ratio[hyper_choice2])
-  coef(glm.mod.refit)
-
-
-
-  #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
-  target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
-
-
-
-  #Predict!
-  prediction_list[[3]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_second_test[which(features_second_test$dates %in% c("2023-06-15")),-c(1:3)]),
-                                             s = best_lam2[hyper_choice2]))
-  names(prediction_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
-  prediction_list[[4]] <- as.numeric(predict(glm.mod.refit, newx = as.matrix(features_second_test[which(features_second_test$dates %in% c("2023-07-15")),-c(1:3)]),
-                                             s = best_lam2[hyper_choice2]))
-  names(prediction_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
-
-  #Calc error
-  error_list[[3]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-06-15"))] - as.numeric(prediction_list[[3]])
-  names(error_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
-  error_list[[4]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-07-15"))] - as.numeric(prediction_list[[4]])
-  names(error_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
-
-  #Y
-  y_list[[3]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-06-15"))] %>% as.numeric()
-  names(y_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
-  y_list[[4]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-07-15"))] %>% as.numeric()
-  names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
-
-
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
-
-  #Create results object
-  #Pred list
-  names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
-  #Error list
-  names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
-  #Y-list
-  names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
-                                         cp = c(NA,NA,NA,NA),
-                                         rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names = c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
-
-  for(l in 1:length(prediction_list)){
-    oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
-    oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
-    oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
-    oos_testing_eval_metrics$mae[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])))
-    oos_testing_eval_metrics$mphe[l] <- mean(1^2*(sqrt(1+(y_list[[l]] - prediction_list[[l]])^2)-1))
-    oos_testing_eval_metrics$mpe[l] <- mean(ifelse((y_list[[l]] - prediction_list[[l]]) >= 0,
-                                                       0.5*(y_list[[l]] - prediction_list[[l]]),
-                                                       (1-0.5)*(-1)*(y_list[[l]] - prediction_list[[l]])))
-    oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
-    oos_testing_eval_metrics$hr[l] <- mean((y_list[[l]] * prediction_list[[l]])>0)
-    oos_testing_eval_metrics$mb[l] <- mean(y_list[[l]] - prediction_list[[l]])
-
-  }
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list))
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  results$outputs[[5]] <- sb_backtest_results@final_sb_model
-
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
-                                     alpha = c(hyper_expanded_grid1$alpha[hyper_choice1], hyper_expanded_grid2$alpha[hyper_choice2]),
-                                     lambda.min.ratio = c(hyper_expanded_grid1$lambda.min.ratio[hyper_choice1], hyper_expanded_grid2$lambda.min.ratio[hyper_choice2]),
-                                     best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2]))
+                                                      target = unlist(y_list),
+                                                      huber_delta = 1.5)[-1]
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics",
-                              "final_sb_model", "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
   )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
+
+  #Final Model
+  expect_equal(sb_backtest_results@final_sb_model@model$mtry, rf.mod.refit$mtry)
+  expect_equal(sb_backtest_results@final_sb_model@model$num.trees, rf.mod.refit$num.trees)
+  expect_equal(sb_backtest_results@final_sb_model@model$num.independent.variables, rf.mod.refit$num.independent.variables)
+  expect_equal(sb_backtest_results@final_sb_model@model$min.node.size, rf.mod.refit$min.node.size)
+  expect_equal(sb_backtest_results@final_sb_model@model$r.squared, rf.mod.refit$r.squared)
+
+
+  #Validation losses for chosen metric
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
+
+  #Best Hyoer
+  expected_results$outputs[[5]] <- xts::xts(
+    data.frame(
+               mtry = c(hyper_expanded_grid1$mtry[hyper_choice1], hyper_expanded_grid2$mtry[hyper_choice2]),
+               num.trees = c(hyper_expanded_grid1$num.trees[hyper_choice1], hyper_expanded_grid2$num.trees[hyper_choice2]),
+               max.depth = c(hyper_expanded_grid1$max.depth[hyper_choice1], hyper_expanded_grid2$max.depth[hyper_choice2]),
+               min.bucket = c(hyper_expanded_grid1$min.bucket[hyper_choice1], hyper_expanded_grid2$min.bucket[hyper_choice2])),
+    order.by =  as.Date(c("2023-04-15", "2023-06-15")))
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+
+
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+
+  future::plan("sequential")
 
 })
 
@@ -10265,7 +9140,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   xgb_config <- create_sb_backtest_config(sb_algorithm = "xgb", huber_delta = 1.3, custom_objective = "squared_error",
-                                          training_sample_size = 7, rebalancing_months = 6,) %>%
+                                          training_sample_size = 7, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m") %>%
     add_tuning_strategy(tuning_method = "random_search", n_iter = 2, early_stop = 25, validation_sample_size = 3, chosen_eval_metric = "rmse") %>%
     add_hyperparameter(hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
                        distribution_choice = c("constant", "uniform", "uniform", "uniform", "uniform", "uniform", "constant", "uniform"),
@@ -10277,13 +9152,15 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
     future::plan("multisession")
   })
 
-  set.seed(123)
+  features_order <- c("id", "tickers", "dates", colnames(toy_preprocessed_features)[-c(1:3)] %>% sort())
+
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-      target_fwd_name = "fwd_premium_3m",
+      .test_seed = 123,
       config = xgb_config,
       verbose = FALSE
     )}))
@@ -10324,8 +9201,8 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),features_order]
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),features_order]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -10434,7 +9311,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 
   #Refit
   features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),features_order]
 
 
   target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -10464,7 +9341,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),features_order]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -10491,6 +9368,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
   names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
+  set.seed(123)
   hyper_expanded_grid2 <-  list(min_child_weight = c(3),
                                 max_depth = runif(2, 1, 2),
                                 subsample = runif(2, 0.25, 0.50),
@@ -10513,8 +9391,8 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
                                       nrounds = hyper_expanded_grid2$nrounds)
   #Features obj
   features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+                                                                                                  "2022-11-15", "2022-12-15")),features_order]
+  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),features_order]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -10628,12 +9506,12 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
   #Refit
   features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+                                                                                                                    "2023-02-15", "2023-03-15")),features_order]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                 "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                "2023-02-15", "2023-03-15")),]
+                                                                                                                "2023-02-15", "2023-03-15")),features_order]
 
   #Full data
   full_data_second_training_and_validation <- cbind(target_second_training_and_validation$fwd_premium_3m, features_second_training_and_validation[,-c(1:3)])
@@ -10657,7 +9535,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),features_order]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
 
 
@@ -10683,21 +9561,21 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
+
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
+
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
 
   #Eval metrics
   oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
@@ -10730,19 +9608,19 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
   rownames(consolidated_eval_metrics) <- "consolidated"
   oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
 
-  results$outputs[[4]] <- oos_testing_eval_metrics
+  expected_results$outputs[[4]] <- oos_testing_eval_metrics
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
+  if(all(abs(coef(xgb.mod.refit) - coef(sb_backtest_expected_results@final_sb_model@model)) < 0.0001)){
+    expected_results$outputs[[5]] <- sb_backtest_expected_results@final_sb_model
   }
 
   #Validation lossess for chosen metric
   names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
+  expected_results$outputs[[6]] <- chosen_eval_metric_val
 
   #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+  expected_results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
                                      min_child_weight = c(hyper_expanded_grid1$min_child_weight[hyper_choice1], hyper_expanded_grid2$min_child_weight[hyper_choice2]),
                                      max_depth = c(hyper_expanded_grid1$max_depth[hyper_choice1], hyper_expanded_grid2$max_depth[hyper_choice2]),
                                      subsample = c(hyper_expanded_grid1$subsample[hyper_choice1], hyper_expanded_grid2$subsample[hyper_choice2]),
@@ -10761,21 +9639,21 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
   rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
+  expected_results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
   #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
+  names(expected_results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
                               "chosen_eval_metric_validation",
                               "best_hyperparameters", "validation_eval_metrics_hyper_choice")
 
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
+  sb_backtest_expected_results <- as.list(sb_backtest_expected_results)
+  sb_backtest_expected_results$ml_backtest_workflow <- NULL
 
 
 
   expect_equal(
-    sb_backtest_results,
-    results$outputs,
+    sb_backtest_expected_results,
+    expected_results$outputs,
     tolerance = 1e-5
   )
 

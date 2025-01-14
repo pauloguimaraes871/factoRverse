@@ -1590,7 +1590,7 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 
   # Loop through each hyperparameter to generate samples and check predefined limits
   for (hp_name in names(transformed_hyper_list)) {
-    dist_choice <- transformed_hyper_list[[hp_name]]$histogram_choice
+    dist_choice <- transformed_hyper_list[[hp_name]]$distribution_choice
     if (dist_choice == "uniform") {
       pars <- transformed_hyper_list[[hp_name]]$pars
       samples <- runif(n_iter, min = pars["min"], max = pars["max"])

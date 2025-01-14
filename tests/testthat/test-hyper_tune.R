@@ -5,7 +5,7 @@ test_that("all hyperparameters are explored in grid search", {
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "rf"
+  sb_algorithm = "rf"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -26,26 +26,50 @@ test_that("all hyperparameters are explored in grid search", {
   hyper_grid_domain_list <- list(mtry = c(0.1, 1), num.trees = c(200, 500),
                                  max.depth = c(2), min.bucket = c(1, 10,15))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
-
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
 
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
+
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -61,13 +85,13 @@ test_that("all hyperparameters are explored in grid search", {
 
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -103,7 +127,7 @@ test_that("all hyperparameters are explored in random search", {
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "xgb"
+  sb_algorithm = "xgb"
   tuning_method = "random_search"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -133,24 +157,49 @@ test_that("all hyperparameters are explored in random search", {
 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -166,16 +215,16 @@ test_that("all hyperparameters are explored in random search", {
   #Create tuning list
   set.seed(123)
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -223,7 +272,7 @@ test_that("best_iteration is included in chosen_eval_metric_validation", {
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "xgb"
+  sb_algorithm = "xgb"
   tuning_method = "random_search"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -252,25 +301,49 @@ test_that("best_iteration is included in chosen_eval_metric_validation", {
 
 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
 
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -285,12 +358,12 @@ test_that("best_iteration is included in chosen_eval_metric_validation", {
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -320,7 +393,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "glmnet"
+  sb_algorithm = "glmnet"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -341,25 +414,50 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
   hyper_grid_domain_list <- list(alpha = c(0.1, 1), lambda.min.ratio = c(0.01, 0.2, 0.5))
 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
 
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
+
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
   )
 
@@ -379,12 +477,12 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
   )
 
   #Hyper tuning
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -400,7 +498,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
   #Compare hyper tuning
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm
   )
 
 
@@ -459,7 +557,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "rf"
+  sb_algorithm = "rf"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -481,24 +579,49 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
                                  max.depth = c(2), min.bucket = c(1, 10,15))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
                                         )
 
@@ -518,13 +641,13 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
                            )
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -540,7 +663,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   #Compare hyper tuning
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm
   )
 
 
@@ -594,6 +717,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 })
 
 test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel = FALSE", {
+
   #XGB
   ########################
 
@@ -601,7 +725,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "xgb"
+  sb_algorithm = "xgb"
   tuning_method = "random_search"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -631,24 +755,49 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -664,12 +813,12 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -688,7 +837,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
   #Create tuning list
   set.seed(123)
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
   for(i in 1:length(hyperparameters_grid$min_child_weight)){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
@@ -746,7 +895,7 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "random_search"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -775,23 +924,50 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
   keras_architecture_parameters <- list(units = c(32,16), n_layers = 2, activation = c('relu', 'relu'),  nn_optimizer = 'Adam', batch_norm_option = c(TRUE, TRUE))
 
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
+
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
+
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -807,13 +983,13 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
   set.seed(123)
   tensorflow::set_random_seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -833,7 +1009,7 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
   set.seed(123)
   tensorflow::set_random_seed(123)
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
   for(i in 1:length(hyperparameters_grid$regularizer_l1)){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
@@ -895,7 +1071,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "glmnet"
+  sb_algorithm = "glmnet"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -916,24 +1092,50 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
   hyper_grid_domain_list <- list(alpha = c(0.1, 1), lambda.min.ratio = c(0.2, 0.5))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
+
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
   )
 
@@ -953,12 +1155,12 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
   )
 
   #Hyper tuning
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -974,7 +1176,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
   #Compare hyper tuning
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm
   )
 
 
@@ -1037,7 +1239,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "rf"
+  sb_algorithm = "rf"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -1060,23 +1262,49 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
+
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
   )
 
@@ -1096,13 +1324,13 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
   )
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -1118,7 +1346,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   #Compare hyper tuning
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm
   )
 
 
@@ -1183,7 +1411,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "rf"
+  sb_algorithm = "rf"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -1205,24 +1433,49 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
                                  max.depth = c(2), min.bucket = c(1, 10,15))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
   )
 
@@ -1242,13 +1495,13 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
   )
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -1264,7 +1517,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   #Compare hyper tuning
   #Create tuning list
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm
   )
 
 
@@ -1328,7 +1581,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "xgb"
+  sb_algorithm = "xgb"
   tuning_method = "random_search"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -1358,24 +1611,49 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -1391,12 +1669,12 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -1415,7 +1693,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
   #Create tuning list
   set.seed(123)
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
   hyper_eval_test <-
     foreach::foreach(i = 1:length(hyperparameters_grid$min_child_weight), .options.future = list(seed = TRUE)) %dofuture% {
@@ -1477,7 +1755,7 @@ skip()
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "random_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -1505,24 +1783,49 @@ skip()
 
   keras_architecture_parameters <- list(units = c(32,16), n_layers = 2, activation = c('relu', 'relu'),  nn_optimizer = 'Adam', batch_norm_option = c(TRUE, TRUE))
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -1538,13 +1841,13 @@ skip()
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
   set.seed(123)
   tensorflow::set_random_seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -1564,7 +1867,7 @@ skip()
   set.seed(123)
   tensorflow::set_random_seed(123)
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
   suppressMessages(
   hyper_eval_test <-
@@ -1628,7 +1931,7 @@ skip()
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "grid_search"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -1660,7 +1963,7 @@ skip()
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
+      check_inputs_sb_backtest(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
                              training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
                              validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
                              chosen_eval_metric = chosen_eval_metric,
@@ -1673,7 +1976,7 @@ skip()
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -1689,7 +1992,7 @@ skip()
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
@@ -1697,7 +2000,7 @@ skip()
   #Run hyper tune 10 times to check for differences
   tensorflow::set_random_seed(123)
   for(l in 1:10){
-  hyper_tune_results_list[[l]] <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results_list[[l]] <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -1712,7 +2015,7 @@ skip()
   }
 
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                                                          n_iter = n_iter, ml_algorithm = ml_algorithm)
+                                                          n_iter = n_iter, ml_algorithm = sb_algorithm)
 
   #Compare hyper tuning
   list_of_hyper_eval_test <- list()
@@ -1876,7 +2179,7 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "glmnet"
+  sb_algorithm = "glmnet"
   tuning_method = "bayesian_opt"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -1897,24 +2200,49 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
   hyper_grid_domain_list <- list(alpha = c(0.1, 0.7), lambda.min.ratio = c(0.2, 0.3))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
   )
 
@@ -1934,13 +2262,13 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
   )
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- suppressWarnings(hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- suppressWarnings(hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                                     full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                                     features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                                     eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -2069,7 +2397,7 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = FA
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "rf"
+  sb_algorithm = "rf"
   tuning_method = "bayesian_opt"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -2091,24 +2419,49 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = FA
                                  max.depth = c(4L, 6L), min.bucket = c(1, 3))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
   )
 
@@ -2128,13 +2481,13 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = FA
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
   )
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -2256,7 +2609,7 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "xgb"
+  sb_algorithm = "xgb"
   tuning_method = "bayesian_opt"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -2287,24 +2640,49 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -2320,12 +2698,12 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -2499,7 +2877,7 @@ test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber er
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "bayesian_opt"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -2527,24 +2905,49 @@ test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber er
 
   keras_architecture_parameters <- list(units = c(32,16), n_layers = 2, activation = c('relu', 'relu'),  nn_optimizer = 'Adam', batch_norm_option = c(TRUE, TRUE))
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -2560,13 +2963,13 @@ test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber er
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
   set.seed(123)
   tensorflow::set_random_seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -2751,7 +3154,7 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = TRUE", {
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "glmnet"
+  sb_algorithm = "glmnet"
   tuning_method = "bayesian_opt"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -2772,24 +3175,49 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = TRUE", {
   hyper_grid_domain_list <- list(alpha = c(0.1, 0.7), lambda.min.ratio = c(0.2, 0.3))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
   )
 
@@ -2809,13 +3237,13 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = TRUE", {
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
   )
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -2956,7 +3384,7 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = TR
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "rf"
+  sb_algorithm = "rf"
   tuning_method = "bayesian_opt"
   chosen_eval_metric = "rmse"
   custom_objective = "squared_error"
@@ -2978,24 +3406,48 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = TR
                                  max.depth = c(4L, 6L), min.bucket = c(1, 3))
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
-
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose
   )
 
@@ -3015,13 +3467,13 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = TR
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method
   )
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -3147,7 +3599,7 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "xgb"
+  sb_algorithm = "xgb"
   tuning_method = "bayesian_opt"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -3178,24 +3630,49 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 
   keras_architecture_parameters <- list(units = NULL, n_layers = NULL, activation = NULL, batch_norm_option = NULL, nn_optimizer = NULL)
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
 
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -3211,12 +3688,12 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
   set.seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
@@ -3392,7 +3869,7 @@ skip()
 
   #User inputs
   target_fwd_name = "fwd_premium_3m"
-  ml_algorithm = "nn"
+  sb_algorithm = "nn"
   tuning_method = "bayesian_opt"
   chosen_eval_metric = "mphe"
   custom_objective = "pseudo_huber_error"
@@ -3421,23 +3898,49 @@ skip()
   keras_architecture_parameters <- list(units = c(32,16), n_layers = 2, activation = c('relu', 'relu'),  nn_optimizer = 'Adam', batch_norm_option = c(TRUE, TRUE))
 
 
+  #Heuristic SB part
+  cov_matrix_sample_size <- 36
+  cov_estimation_method <- "sample"
+  cov_matrix_benchmark <- NULL
+  active_returns <- TRUE
+  rp_method <- "cyclical-spinu"
+  n_random_ports <- 2000
+  random_ports_method <- "sample"
+  opt_objective <- "sharpe"
+  concentration_constraint_policy <- NULL
+  tickers <- colnames(toy_preprocessed_features)[-c(1:3)]
+  dates <- unique(toy_preprocessed_features$dates) %>% sort()
+  signal_universe_m_df <- expand.grid(tickers, dates, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE) %>%
+    dplyr::mutate(id = paste0(Var1, "-", Var2), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(is_eligible = 1) %>%
+    dplyr::arrange(id)
+  backtest_returns_xts <- NULL
+  benchmark_returns_xts <- NULL
+  signal_themes_m_df <- NULL
+  custom_signal_weights_m_df <- NULL
+  gsm_algorithm <- "ols"
+  .test_seed <- NULL
+
+
   #Check Inputs
   expect_no_error(
     suppressWarnings(
-      check_inputs_ml_wf_val(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                             training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                             validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-                             chosen_eval_metric = chosen_eval_metric,
-                             ml_algorithm = ml_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                             hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                             n_iter = n_iter, k_iter = k_iter, acq = acq, init_points = init_points, early_stop = early_stop, keras_architecture_parameters,
-                             parallel = parallel
+      check_inputs_sb_backtest(
+        features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
+        validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
+        rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+        custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
+        chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
+        init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
     )
   )
 
   #Translate metrics
-  adjusted_metrics <- translate_metrics(ml_algorithm = ml_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
+  adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective,
                                         early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
 
   custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -3453,13 +3956,13 @@ skip()
 
 
   #Sets eval function
-  FUN <- set_eval_function(ml_algorithm = ml_algorithm,
+  FUN <- set_eval_function(ml_algorithm = sb_algorithm,
                            tuning_method = tuning_method)
 
   #Hyper tune
   set.seed(123)
   tensorflow::set_random_seed(123)
-  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = ml_algorithm, target_fwd_name = target_fwd_name,
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,

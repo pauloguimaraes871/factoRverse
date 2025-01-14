@@ -162,7 +162,6 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
         tictoc::toc()
       }
 
-
       ##########
       #Fill best lambda
       try(expanded_hyper_grid_list$best_lam <- as.numeric(sapply(hyper_eval, function(x) x$best_lam)), silent = TRUE)
