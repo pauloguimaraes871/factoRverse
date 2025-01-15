@@ -220,6 +220,8 @@ bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_retur
       cat("\nPriors have been set:\n")
       print(elected_priors_list$priors[,c("prior", "class", "coef", "group")])
     }
+  } else {
+    elected_priors_list <- NULL
   }
   #############################################
 

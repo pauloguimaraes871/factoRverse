@@ -9511,7 +9511,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                 "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                "2023-02-15", "2023-03-15")),features_order]
+                                                                                                                "2023-02-15", "2023-03-15")),]
 
   #Full data
   full_data_second_training_and_validation <- cbind(target_second_training_and_validation$fwd_premium_3m, features_second_training_and_validation[,-c(1:3)])
@@ -9576,12 +9576,36 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
 
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
-                                         cp = c(NA,NA,NA,NA),
-                                         rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss =c(NA,NA,NA,NA),
+                                        cp = c(NA,NA,NA,NA),
+                                        rmse = c(NA,NA,NA,NA),
+                                        mae = c(NA,NA,NA,NA)), order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -9595,32 +9619,46 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
     oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
     oos_testing_eval_metrics$hr[l] <- mean((y_list[[l]] * prediction_list[[l]])>0)
     oos_testing_eval_metrics$mb[l] <- mean(y_list[[l]] - prediction_list[[l]])
-
-
-
   }
 
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
                                                       target = unlist(y_list),
-                                                      huber_delta = 1.3)
+                                                      huber_delta = 1.3)[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
+  #Validation loss metrics for hyper choice
+  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
 
-  expected_results$outputs[[4]] <- oos_testing_eval_metrics
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+  )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit) - coef(sb_backtest_expected_results@final_sb_model@model)) < 0.0001)){
-    expected_results$outputs[[5]] <- sb_backtest_expected_results@final_sb_model
-  }
+  expect_equal(sb_backtest_results@final_sb_model@model$feature_names, colnames(features_second_training_and_validation)[-c(1:3)])
+  expect_equal(sb_backtest_results@final_sb_model@model$params$huber_slope, 1.3)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$min_child_weight), xgb.mod.refit$params$min_child_weight)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$max_depth), xgb.mod.refit$params$max_depth)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$subsample), xgb.mod.refit$params$subsample)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$colsample_bytree), xgb.mod.refit$params$colsample_bytree)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$eta), xgb.mod.refit$params$eta)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$alpha), xgb.mod.refit$params$alpha)
+  expect_equal(as.numeric(sb_backtest_results@final_sb_model@model$params$gamma), xgb.mod.refit$params$gamma)
+
 
   #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  expected_results$outputs[[6]] <- chosen_eval_metric_val
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
 
   #Best Hyoer
-  expected_results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
                                      min_child_weight = c(hyper_expanded_grid1$min_child_weight[hyper_choice1], hyper_expanded_grid2$min_child_weight[hyper_choice2]),
                                      max_depth = c(hyper_expanded_grid1$max_depth[hyper_choice1], hyper_expanded_grid2$max_depth[hyper_choice2]),
                                      subsample = c(hyper_expanded_grid1$subsample[hyper_choice1], hyper_expanded_grid2$subsample[hyper_choice2]),
@@ -9630,36 +9668,19 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
                                      gamma = c(hyper_expanded_grid1$gamma[hyper_choice1], hyper_expanded_grid2$gamma[hyper_choice2]),
                                      nrounds = c(hyper_expanded_grid1$nrounds[hyper_choice1], hyper_expanded_grid2$nrounds[hyper_choice2]),
                                      best_iteration = c(chosen_eval_metric_val[[1]]$best_iteration[hyper_choice1],
-                                                        chosen_eval_metric_val[[2]]$best_iteration[hyper_choice2])
+                                                        chosen_eval_metric_val[[2]]$best_iteration[hyper_choice2])),
+                                     order.by = as.Date(c("2023-04-15", "2023-06-15"))
 
   )
 
-
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
 
   #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  expected_results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
-  #Rename
-  names(expected_results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
+  future::plan("sequential")
 
-  sb_backtest_expected_results <- as.list(sb_backtest_expected_results)
-  sb_backtest_expected_results$ml_backtest_workflow <- NULL
-
-
-
-  expect_equal(
-    sb_backtest_expected_results,
-    expected_results$outputs,
-    tolerance = 1e-5
-  )
-
-  suppressWarnings({
-    future::plan("sequential")
-  })
 
 })
 
@@ -9670,28 +9691,30 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
-  #For second rebalancing, bayesian_opt could not converge because FUN was evaluating same results. So a hypothetical cov is added just to test bayes opt dynamic
+  #For second rebalancing, bayesian_opt could not converge because FUN was evaluating same results. So a hypothetical variable is added just to test bayes opt dynamic
   toy_preprocessed_features$artificial_var <- toy_preprocessed_targets$fwd_return_1m
 
   glmnet_config <- create_sb_backtest_config( sb_algorithm = "glmnet", huber_delta = 0.5,
                                               training_sample_size = 7,
+                                              target_fwd_name = "fwd_premium_3m",
                                               rebalancing_months = 6) %>%
     add_tuning_strategy(tuning_method = "bayesian_opt", n_iter = 10, validation_sample_size = 3, chosen_eval_metric = "rmse", init_points = 5, k_iter = 1, acq = "ucb") %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), bounds = list(c(0,1), c(0, 0.9)))
 
 
-  set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
       target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
       config = glmnet_config,
-      target_fwd_name = "fwd_premium_3m",
+      .test_seed = 123,
       verbose = FALSE,
       parallel = FALSE
     )
   }))
+
+  features_order <- c("id", "tickers", "dates", colnames(toy_preprocessed_features)[-c(1:3)] %>% sort())
 
 
   chosen_loss <- "rmse"
@@ -9713,8 +9736,8 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
 
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),features_order]
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),features_order]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -9755,10 +9778,6 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
       validation_sample_mape <- mean(abs(error/targets_first_val$fwd_premium_3m)) #mae
       validation_sample_hr <- mean(targets_first_val$fwd_premium_3m*pred>=0)
       validation_sample_mb <- mean(error)
-
-
-
-
 
       return(list(Score = -validation_sample_rmse, #RMSE
                   rss =validation_sample_rsquared,
@@ -9848,7 +9867,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
 
   #Refit
   features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),features_order]
 
 
   target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -9865,7 +9884,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),features_order]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -9900,8 +9919,8 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
   #2nd rebal!
   #Features obj
   features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+                                                                                                  "2022-11-15", "2022-12-15")),features_order]
+  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),features_order]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -9963,6 +9982,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
 
     }
 
+  set.seed(123)
   bayes_opt2 <- ParBayesianOptimization::bayesOpt(
     FUN = evaluate_hyper_objective_function, #FUN
     bounds = list(alpha = c(0,1),
@@ -10003,7 +10023,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
   #Refit
   features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+                                                                                                                    "2023-02-15", "2023-03-15")),features_order]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -10020,7 +10040,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),features_order]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
 
 
@@ -10046,27 +10066,50 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
-                                         cp = c(NA,NA,NA,NA),
-                                         rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+  oos_testing_eval_metrics <- xts::xts(data.frame(
+    rss =c(NA,NA,NA,NA),
+    cp = c(NA,NA,NA,NA),
+    rmse = c(NA,NA,NA,NA),
+    mae = c(NA,NA,NA,NA)), order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -10079,82 +10122,148 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
     oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
     oos_testing_eval_metrics$hr[l] <- mean(((y_list[[l]] * prediction_list[[l]])>=0))
     oos_testing_eval_metrics$mb[l] <- mean(((y_list[[l]] - prediction_list[[l]])))
-
-
   }
+
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list), huber_delta = 0.5)
-
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
-  results$outputs[[4]] <- oos_testing_eval_metrics
-
-  #Final Model
-  if(all(abs(coef(glm.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
-
-  #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
-
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
-                                     alpha = c(unlist(ParBayesianOptimization::getBestPars(bayes_opt1))['alpha'],
-                                               unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['alpha']),
-
-                                     lambda.min.ratio = c(unlist(ParBayesianOptimization::getBestPars(bayes_opt1))['lambda.min.ratio'],
-                                                          unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['lambda.min.ratio']),
-
-                                     best_lam = c(best_lam1, best_lam2)
-  )
-
+                                                      target = unlist(y_list), huber_delta = 0.5)[-1]
 
   #Validation loss metrics for hyper choice
   validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
 
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-2
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
   )
 
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
+
+
+  #Final Model
+  expect_equal(coef(glm.mod.refit), coef(sb_backtest_results@final_sb_model@model))
+
+
+  #Validation lossess for chosen metric
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
+  #Best Hyoer
+  expected_results$outputs[[5]] <-
+    xts::xts(data.frame(alpha = c(unlist(ParBayesianOptimization::getBestPars(bayes_opt1))['alpha'],
+                                  unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['alpha']),
+
+                        lambda.min.ratio = c(unlist(ParBayesianOptimization::getBestPars(bayes_opt1))['lambda.min.ratio'],
+                                             unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['lambda.min.ratio']),
+
+                        best_lam = c(best_lam1, best_lam2)
+                        ),order.by = as.Date(rebalance_dates))
+
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+
+
+  #Validation loss metrics for hyper choice
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+
+  future::plan("sequential")
 })
 
 #Define your test
-test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric + bayesian signal_selection -toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  rf_config <- create_sb_backtest_config( sb_algorithm = "rf", huber_delta = 1.3, quantile_tau = 0.25,
-                                          training_sample_size = 7, rebalancing_months = 6) %>%
-    add_tuning_strategy(tuning_method = "bayesian_opt", chosen_eval_metric = "mphe", acq = "ucb", n_iter = 16, k_iter = 8, init_points = 5, validation_sample_size = 3) %>%
-    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"), bounds = list(c(0,1), c(100L, 1000L), c(2L, 8L), c(1,5)))
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates))
+
+  #Benchmark Returns XTS
+  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+    IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+    SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+  ),  order.by = unique(toy_preprocessed_features$dates))
+
+
+  #Chosen Signals and Positions
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  #Mocked Signal Themes
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_xts),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  ##SS Config
+  bayesian_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "partial_pooled",
+                            theme_level_intercept = "theme_specific", theme_level_slope = "fixed",
+                            signal_significance_threshold = 0.50, p_correction_method = "bayesian",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE) %>%
+    add_brms_prior(
+      coef = c("themevalue", "thememomentum", "themedefensive", "market_factor_proxy", "Intercept", "market_factor_proxy", NA, NA),
+      distribution_choice = c("normal", "normal", "normal", "normal", "student_t", "student_t", "student_t", "lkj"),
+      pars = list(
+        c(mean = 0.0012, sd = 0.0016), c(mean = 0.0025,sd = 0.0016),  c(mean = -0.0025,sd = 0.0016), c(mean = 0.0003, sd = 0.0003),
+        c(df = 30, mean = 0, sd = 0.0113),  c(df = 30, mean = 0, sd = 0.0018),  c(df = 30, mean = 0, sd = 0.0256), c(eta = 2)
+      ),
+      class = c("b", "b", "b", "b", "sd", "sd", "sigma", "cor"),
+      group = c(NA, NA, NA, NA, "theme:tickers", "theme:tickers", NA, NA)
+    )
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
 
   doFuture::registerDoFuture()
   future::plan("multisession")
 
-  set.seed(123)
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(bayesian_ss_config,
+                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
+                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    verbose = TRUE
+    )
+  )
+
+  rf_config <- create_sb_backtest_config( sb_algorithm = "rf", huber_delta = 1.3, quantile_tau = 0.25, target_fwd_name = "fwd_premium_3m",
+                                          training_sample_size = 7, rebalancing_months = 6) %>%
+    add_tuning_strategy(tuning_method = "bayesian_opt", chosen_eval_metric = "mphe", acq = "ucb", n_iter = 16, k_iter = 8, init_points = 5, validation_sample_size = 3) %>%
+    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"), bounds = list(c(0,1), c(100L, 1000L), c(2L, 8L), c(1,5))) %>%
+    add_ss_backtest_obj(ss_results)
+
+
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       config = rf_config,
-      target_fwd_name = "fwd_premium_3m",
+      .test_seed = 123,
       verbose = FALSE,
       parallel = TRUE
     )}))
@@ -10174,8 +10283,16 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  current_eligible <- c(ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15", is_eligible == 1) %>% dplyr::pull(tickers))
+
+  chosen_signals_and_positions <- c(ifelse(stringr::str_detect(current_eligible, pattern = "low"), "short", "long"))
+  names(chosen_signals_and_positions) <- stringr::str_remove(current_eligible, pattern = "low_")
+
+  toy_preprocessed_features_corrected <- select_and_correct_signals(toy_preprocessed_features,
+                                                                    chosen_signals_and_positions = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
+
+  features_first_train <- toy_preprocessed_features_corrected[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
+  features_first_val <- toy_preprocessed_features_corrected[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -10299,7 +10416,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
 
   #Refit
-  features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+  features_first_training_and_validation <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                    "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
 
 
@@ -10322,7 +10439,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   )
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-04-15","2023-05-15")),]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -10354,10 +10471,18 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
+  current_eligible <- c(ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15", is_eligible == 1) %>% dplyr::pull(tickers))
+
+  chosen_signals_and_positions <- c(ifelse(stringr::str_detect(current_eligible, pattern = "low"), "short", "long"))
+  names(chosen_signals_and_positions) <- stringr::str_remove(current_eligible, pattern = "low_")
+
+  toy_preprocessed_features_corrected <- select_and_correct_signals(toy_preprocessed_features,
+                                                                    chosen_signals_and_positions = chosen_signals_and_positions)$selected_signals_corrected_positions_m_df
+
   #Features obj
-  features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
+  features_second_train <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                   "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+  features_second_val <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-03-15")),]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -10435,6 +10560,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
   #tictoc::tic()
   #Bayes opt
+  set.seed(123)
   bayes_opt2 <- doFuture::withDoRNG(
     ParBayesianOptimization::bayesOpt(
       FUN = eval_function, #FUN
@@ -10475,7 +10601,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   validation_eval_hyper_choice$mb[2] <- bayes_opt2$scoreSummary$mb[which.max(bayes_opt2$scoreSummary$Score)]
 
   #Refit
-  features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+  features_second_training_and_validation <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
                                                                                                                     "2023-02-15", "2023-03-15")),]
 
@@ -10502,7 +10628,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   )
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-06-15","2023-07-15")),]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
 
 
@@ -10531,30 +10657,53 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss =c(NA,NA,NA,NA),
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss =c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
                                          mae = c(NA,NA,NA,NA),
                                          mphe = c(NA,NA,NA,NA),
-                                         mpe = c(NA,NA,NA,NA),
-                                         row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+                                         mpe = c(NA,NA,NA,NA)),
+                                       order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+  )
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -10568,32 +10717,42 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
     oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
     oos_testing_eval_metrics$hr[l] <- mean(((y_list[[l]] * prediction_list[[l]]) >= 0))
     oos_testing_eval_metrics$mb[l] <- mean(y_list[[l]] - prediction_list[[l]])
-
-
-
   }
+
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
                                                       target = unlist(y_list),
                                                       quantile_tau = 0.25,
-                                                      huber_delta = 1.3)
+                                                      huber_delta = 1.3)[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
+  #Validation loss metrics for hyper choice
+  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
 
-  results$outputs[[4]] <- oos_testing_eval_metrics
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+  )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
 
   #Final Model
-  if(all(abs(coef(rf.mod.refit) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
+  expect_equal(sb_backtest_results@final_sb_model@model$mtry, rf.mod.refit$mtry)
+  expect_equal(sb_backtest_results@final_sb_model@model$num.trees, rf.mod.refit$num.trees)
+  expect_equal(sb_backtest_results@final_sb_model@model$num.independent.variables, rf.mod.refit$num.independent.variables)
+  expect_equal(sb_backtest_results@final_sb_model@model$min.node.size, rf.mod.refit$min.node.size)
+  expect_equal(sb_backtest_results@final_sb_model@model$r.squared, rf.mod.refit$r.squared)
 
   #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
 
   #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
                                      mtry = c(unlist(ParBayesianOptimization::getBestPars(bayes_opt1))['mtry'],
                                               unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['mtry']),
 
@@ -10605,28 +10764,13 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
                                      min.bucket = c(unlist(ParBayesianOptimization::getBestPars(bayes_opt1))['min.bucket'],
                                                     unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['min.bucket'])
+  ), order.by = as.Date(rebalance_dates))
 
-
-  )
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
 
   #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
-  )
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
   future::plan("sequential")
   foreach::registerDoSEQ()
@@ -10639,7 +10783,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   xgb_config  <-
-    create_sb_backtest_config(sb_algorithm = "xgb", custom_objective = "pseudo_huber_error", quantile_tau = 0.25, huber_delta = 1.25,
+    create_sb_backtest_config(sb_algorithm = "xgb", custom_objective = "pseudo_huber_error", quantile_tau = 0.25, huber_delta = 1.25, target_fwd_name = "fwd_premium_3m",
                               training_sample_size = 7, rebalancing_months = 6) %>%
     add_tuning_strategy(tuning_method = "bayesian_opt", n_iter = 16, k_iter = 8, init_points = 10, acq = "ucb", early_stop = 10, validation_sample_size = 3, chosen_eval_metric = "mphe") %>%
     add_hyperparameter(hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
@@ -10649,13 +10793,12 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
   doFuture::registerDoFuture()
   future::plan("multisession")
 
-  set.seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = toy_preprocessed_features %>% create_meta_dataframe(),
       target_m_df = toy_preprocessed_targets %>% create_meta_dataframe(),
-      target_fwd_name = "fwd_premium_3m",
+      .test_seed = 123,
       config = xgb_config,
       verbose = TRUE
     )}))
@@ -10680,10 +10823,12 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
 
   chosen_eval_metric_val <- list()
 
+  features_order <- c("id", "tickers", "dates", colnames(toy_preprocessed_features)[-c(1:3)] %>% sort())
+
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),features_order]
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),features_order]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -10827,7 +10972,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
 
   #Refit
   features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),features_order]
 
 
   target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -10857,7 +11002,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),features_order]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -10884,10 +11029,11 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
   names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
+  set.seed(123)
   #Features obj
   features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+                                                                                                  "2022-11-15", "2022-12-15")),features_order]
+  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),features_order]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -10975,6 +11121,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
   }
 
   #Bayes opt
+  set.seed(123)
   bayes_opt2 <- doFuture::withDoRNG(
     ParBayesianOptimization::bayesOpt(
 
@@ -11025,7 +11172,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
   #Refit
   features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+                                                                                                                    "2023-02-15", "2023-03-15")),features_order]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -11036,7 +11183,6 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
   full_data_second_training_and_validation <- cbind(target_second_training_and_validation$fwd_premium_3m, features_second_training_and_validation[,-c(1:3)])
   colnames(full_data_second_training_and_validation)[2] <- c("fwd_premium_3m")
 
-  #Refitted model
   #Refitted model
   xgb.mod.refit2 <- xgboost::xgb.train(data = xgboost::xgb.DMatrix(data = as.matrix(features_second_training_and_validation[,-c(1:3)]),
                                                                   label = target_second_training_and_validation$fwd_premium_3m),
@@ -11054,7 +11200,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),features_order]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
 
 
@@ -11080,27 +11226,49 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss = c(NA,NA,NA,NA),
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss = c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA)), order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -11114,32 +11282,46 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
     oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
     oos_testing_eval_metrics$hr[l] <- mean(((y_list[[l]] * prediction_list[[l]]) > 0))
     oos_testing_eval_metrics$mb[l] <- mean((y_list[[l]] - prediction_list[[l]]))
-
-
-
   }
 
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list), huber_delta = 1.25, quantile_tau = .25)
+                                                      target = unlist(y_list), huber_delta = 1.25, quantile_tau = .25)[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
+  #Validation loss metrics for hyper choice
+  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
 
-  results$outputs[[4]] <- oos_testing_eval_metrics
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+  )
+
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
 
   #Final Model
-  if(all(abs(coef(xgb.mod.refit2) - coef(sb_backtest_results@final_sb_model@model)) < 0.0001)){
-    results$outputs[[5]] <- sb_backtest_results@final_sb_model
-  }
+  expect_equal(sb_backtest_results@final_sb_model@model$feature_names, colnames(features_second_training_and_validation)[-c(1:3)])
+  expect_equal(sb_backtest_results@final_sb_model@model$params$huber_slope, 1.25)
+  expect_equal(sb_backtest_results@final_sb_model@model$params$min_child_weight, xgb.mod.refit2$params$min_child_weight)
+  expect_equal(sb_backtest_results@final_sb_model@model$params$max_depth, xgb.mod.refit2$params$max_depth)
+  expect_equal(sb_backtest_results@final_sb_model@model$params$subsample, xgb.mod.refit2$params$subsample)
+  expect_equal(sb_backtest_results@final_sb_model@model$params$colsample_bytree, xgb.mod.refit2$params$colsample_bytree)
+  expect_equal(sb_backtest_results@final_sb_model@model$params$eta, xgb.mod.refit2$params$eta)
+  expect_equal(sb_backtest_results@final_sb_model@model$params$alpha, xgb.mod.refit2$params$alpha)
+  expect_equal(sb_backtest_results@final_sb_model@model$params$gamma, xgb.mod.refit2$params$gamma)
+
+
 
   #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
 
   #Best Hyoer
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
                                      min_child_weight = c(unlist(ParBayesianOptimization::getBestPars(bayes_opt1))['min_child_weight'],
                                               unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['min_child_weight']),
 
@@ -11166,29 +11348,14 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
 
                                      best_iteration = c(bayes_opt1$scoreSummary$best_iteration[which.max(bayes_opt1$scoreSummary$Score)],
                                                         bayes_opt2$scoreSummary$best_iteration[which.max(bayes_opt2$scoreSummary$Score)])
-  )
+  ), order.by = as.Date(c("2023-04-15", "2023-06-15")))
 
-
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
 
 
   #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
-  )
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
   future::plan("sequential")
 
@@ -11200,7 +11367,7 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   nn_config <-
-    create_sb_backtest_config(sb_algorithm = "nn", custom_objective = "pseudo_huber_error",
+    create_sb_backtest_config(sb_algorithm = "nn", custom_objective = "pseudo_huber_error", target_fwd_name = "fwd_premium_3m",
                               quantile_tau = 0.25, huber_delta = 1.25, training_sample_size = 7, rebalancing_months = 6) %>%
     add_keras_architecture(nn_optimizer = "Adam", units = c(32, 16, 8), activation = rep("relu", 3), batch_norm_option = rep(TRUE, 3)) %>%
     add_tuning_strategy(tuning_method = "bayesian_opt", n_iter = 3, k_iter = 1, init_points = 8,
@@ -11210,15 +11377,13 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
   future::plan("sequential")
 
-  set.seed(123)
-  tensorflow::set_random_seed(123)
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
       features_m_df = create_meta_dataframe(toy_preprocessed_features),
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-      target_fwd_name = "fwd_premium_3m",
       nn_config,
+      .test_seed = 123,
       verbose = TRUE,
       parallel = FALSE
     )}))
@@ -11242,10 +11407,12 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
   chosen_eval_metric_val <- list()
 
+  features_order <- c("id", "tickers", "dates", colnames(toy_preprocessed_features)[-c(1:3)] %>% sort())
+
   #1st rebalancing
   #Features obj
-  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),]
-  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),]
+  features_first_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),features_order]
+  features_first_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-01-15")),features_order]
   #Targets
   targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
   targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
@@ -11379,7 +11546,7 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
   #Refit
   features_first_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
+                                                                                                                   "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),features_order]
 
 
   target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -11432,7 +11599,7 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
 
   #First test set
-  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),]
+  features_first_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-04-15","2023-05-15")),features_order]
   target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
 
 
@@ -11461,8 +11628,8 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
   #2nd rebal!
   #Features obj
   features_second_train <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
-                                                                                                  "2022-11-15", "2022-12-15")),]
-  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),]
+                                                                                                  "2022-11-15", "2022-12-15")),features_order]
+  features_second_val <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-03-15")),features_order]
   #Targets
   targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
@@ -11548,6 +11715,8 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
 
   #Bayes opt
+  set.seed(123)
+  tensorflow::set_random_seed(123)
   bayes_opt2 <- #doFuture::withDoRNG(
     ParBayesianOptimization::bayesOpt(
       FUN = eval_function, #FUN
@@ -11593,7 +11762,7 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
   #Refit
   features_second_training_and_validation <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                    "2023-02-15", "2023-03-15")),]
+                                                                                                                    "2023-02-15", "2023-03-15")),features_order]
 
 
   target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
@@ -11644,11 +11813,8 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
 
   #second test set
-  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),]
+  features_second_test <- toy_preprocessed_features[which(toy_preprocessed_features$dates %in% c("2023-06-15","2023-07-15")),features_order]
   target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
-
-
-
 
 
   #Predict!
@@ -11670,27 +11836,50 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
-  #Create results object
-  results <- list()
-  results[[1]] <- list()
-  names(results) <- c("outputs")
+  #Create expected_results object
+  expected_results <- list()
+  expected_results[[1]] <- list()
+  names(expected_results) <- c("outputs")
 
-  #Create results object
+  #Create expected_results object
   #Pred list
   names(prediction_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[1]] <- prediction_list
   #Error list
   names(error_list) <- c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[2]] <- error_list
   #Y-list
   names(y_list) <-  c("2023-04-15","2023-05-15", "2023-06-15", "2023-07-15")
-  results$outputs[[3]] <- y_list
+
+  # Combine into a data frame
+  combine_lists_to_df <- function(pred_list, error_list, y_list) {
+    data <- do.call(rbind, lapply(seq_along(pred_list), function(i) {
+      data.frame(
+        id = paste0(names(pred_list[[i]]), "-", names(pred_list)[i]),
+        tickers = names(pred_list[[i]]),
+        dates = as.Date(names(pred_list)[i]),
+        target = y_list[[i]],
+        pred = pred_list[[i]],
+        error = error_list[[i]],
+        row.names = NULL,
+        stringsAsFactors = FALSE
+      )
+    }))
+    return(data)
+  }
+
+  # Create the final data frame
+  final_df <- combine_lists_to_df(prediction_list, error_list, y_list)
+
+  expected_results$outputs[[1]] <- final_df[order(final_df$id),]
+  rownames(expected_results$outputs[[1]]) <- NULL
+
+  expect_equal(expected_results$outputs[[1]], sb_backtest_results@oos_sb_outputs_m_df@data)
 
   #Eval metrics
-  oos_testing_eval_metrics <- data.frame(rss = c(NA,NA,NA,NA),
+  oos_testing_eval_metrics <- xts::xts(data.frame(rss = c(NA,NA,NA,NA),
                                          cp = c(NA,NA,NA,NA),
                                          rmse = c(NA,NA,NA,NA),
-                                         mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
+                                         mae = c(NA,NA,NA,NA)),
+                                       order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
   for(l in 1:length(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
@@ -11704,30 +11893,71 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
     oos_testing_eval_metrics$mape[l] <- mean(abs((y_list[[l]] - prediction_list[[l]])/y_list[[l]]))
     oos_testing_eval_metrics$hr[l] <- mean(((y_list[[l]] * prediction_list[[l]]) > 0))
     oos_testing_eval_metrics$mb[l] <- mean((y_list[[l]] - prediction_list[[l]]))
-
-
-
   }
+
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+
+  #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
-                                                      target = unlist(y_list), huber_delta = 1.25, quantile_tau = 0.25)
+                                                      target = unlist(y_list), huber_delta = 1.25, quantile_tau = 0.25)[-1]
 
-  consolidated_eval_metrics <- consolidated_eval_metrics[-1]
-  rownames(consolidated_eval_metrics) <- "consolidated"
-  oos_testing_eval_metrics <- rbind(oos_testing_eval_metrics, consolidated_eval_metrics)
+  #Validation loss metrics for hyper choice
+  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
 
-  results$outputs[[4]] <- oos_testing_eval_metrics
+  consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics),
+                                             cons_oos = as.numeric(consolidated_eval_metrics),
+                                             avg_val = as.numeric(validation_eval_hyper_choice_avg)
+  )
+  expected_results$outputs[[3]] <- consolidated_eval_metrics_df
+  expect_equal(expected_results$outputs[[3]], sb_backtest_results@consolidated_eval_metrics)
 
   #Final Model
-  results$outputs[[5]] <- sb_backtest_results@final_sb_model
+  expect_equal(sb_backtest_results@final_sb_model@model$layers[[1]]$units, nn.mod.refit2$layers[[1]]$units)
+  expect_equal(sb_backtest_results@final_sb_model@model$layers[[1]]$activation, nn.mod.refit2$layers[[1]]$activation)
+  results_config <- sb_backtest_results@final_sb_model@model$get_config()
+  expected_config <- nn.mod.refit2$get_config()
+
+  #Input shape
+  n_feat <- ncol(full_data_second_training_and_validation) - 1
+  check_if_n_feat_is_correct <- results_config$layers[[1]]$config$batch_input_shape[[2]] == expected_config$layers[[1]]$config$batch_input_shape[[2]]
+  expect_true(check_if_n_feat_is_correct)
+  #Activation
+  check_if_activation_is_correct <- results_config$layers[[2]]$config$activation == expected_config$layers[[2]]$config$activation
+  expect_true(check_if_activation_is_correct)
+  #Units
+  check_if_units_is_correct <- results_config$layers[[2]]$config$units == expected_config$layers[[2]]$config$units
+  expect_true(check_if_units_is_correct)
+  #BatchNorm
+  check_if_batchnorm_is_on <- results_config$layers[[3]]$class_name == expected_config$layers[[3]]$class_name
+  expect_true(check_if_batchnorm_is_on)
+
+  results_compile_config <- sb_backtest_results@final_sb_model@model$get_compile_config()
+  expected_compile_config <- nn.mod.refit2$get_compile_config()
+  #Optimizer
+  check_if_optimizer_is_correct <- results_compile_config$optimizer$class_name == expected_compile_config$optimizer$class_name
+  expect_true(check_if_optimizer_is_correct)
+
+  #Check if hyperparametesr are correctly set
+  check_if_reg_l1_is_correct <- results_config$layers[[2]]$config$kernel_regularizer$config$l1 == expected_config$layers[[2]]$config$kernel_regularizer$config$l1
+  expect_true(check_if_reg_l1_is_correct)
+  check_if_reg_l2_is_correct <- results_config$layers[[2]]$config$kernel_regularizer$config$l2 == expected_config$layers[[2]]$config$kernel_regularizer$config$l2
+  expect_true(check_if_reg_l2_is_correct)
+  check_if_droprate_is_correct <- results_config$layers[[4]]$config$rate == expected_config$layers[[4]]$config$rate
+  expect_true(check_if_droprate_is_correct)
+  check_if_lr_is_correct <- results_compile_config$optimizer$config$learning_rate == expected_compile_config$optimizer$config$learning_rate
+  expect_true(check_if_lr_is_correct)
+
 
 
   #Validation lossess for chosen metric
-  names(chosen_eval_metric_val) <- rebalance_dates
-  results$outputs[[6]] <- chosen_eval_metric_val
+  names(chosen_eval_metric_val) <-  c("2023-04-15", "2023-06-15")
+  expected_results$outputs[[4]] <- chosen_eval_metric_val
+  expect_equal(expected_results$outputs[[4]], sb_backtest_results@chosen_eval_metric_validation)
+
 
   #Best Hyoer
-  #Best Hyoer
-  results$outputs[[7]] <- data.frame(row.names = rebalance_dates,
+  expected_results$outputs[[5]] <- xts::xts(data.frame(
                                      regularizer_l1 = c(unlist(ParBayesianOptimization::getBestPars(bayes_opt1))['regularizer_l1'],
                                                         unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['regularizer_l1']),
 
@@ -11748,30 +11978,13 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
                                      best_iteration = c(bayes_opt1$scoreSummary$best_iteration[which.max(bayes_opt1$scoreSummary$Score)],
                                                         bayes_opt2$scoreSummary$best_iteration[which.max(bayes_opt2$scoreSummary$Score)])
-  )
+  ), order.by = as.Date(rebalance_dates))
 
-
-
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
 
   #Validation loss metrics for hyper choice
-  validation_eval_hyper_choice_avg <- as.data.frame(t(colMeans(validation_eval_hyper_choice)))
-  rownames(validation_eval_hyper_choice_avg) <- "average"
-  results$outputs[[8]] <- rbind(validation_eval_hyper_choice, validation_eval_hyper_choice_avg)
-
-  #Rename
-  names(results$outputs) <- c("oos_prediction_list", "oos_error_list", "oos_y_list", "oos_testing_eval_metrics", "final_sb_model",
-                              "chosen_eval_metric_validation",
-                              "best_hyperparameters", "validation_eval_metrics_hyper_choice")
-
-  sb_backtest_results <- as.list(sb_backtest_results)
-  sb_backtest_results$ml_backtest_workflow <- NULL
-
-
-  expect_equal(
-    sb_backtest_results,
-    results$outputs,
-    tolerance = 1e-5
-  )
+  expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
 
   future::plan("sequential")
 

@@ -318,15 +318,15 @@ check_inputs_ss_backtest <- function(
 
     ###Check if bayesian fit can be run
     if(p_correction_method == "bayesian"){
-      if(is.null(user_priors) && is.null(priors_m_df)){
-        stop("bayesian fit requires priors_m_df or user_priors.")
+      if (is.null(user_priors) && is.null(priors_m_df)){
+        stop("Currently, bayesian fit requires user_priors or priors_m_df.") #This warning is because using uninformative priors has not been tested yet.
       }
 
       if(is.null(user_priors) && is.null(signal_themes_m_df)){
         stop("bayesian fit requires signal_themes_m_df.")
       }
 
-      if(!all(sapply(user_priors, function(x) class(x) == "brmsprior"))){
+      if(!all(class(user_priors) == c("brmsprior", "data.frame"))){
         stop("user_priors should contain only brmsprior objects.")
       }
 
@@ -379,7 +379,7 @@ check_inputs_ss_backtest <- function(
       n_themes <- length(themes)
 
       # Define expected structures based on `model_spec_theme_level`
-      model_spec_theme_level <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+      model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
       if(!model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
         stop("Invalid model specification at theme-level")
       }

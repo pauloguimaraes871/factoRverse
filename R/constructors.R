@@ -916,7 +916,7 @@ setMethod("add_brms_prior",
             theme_level_intercept <- object@theme_level_intercept
             theme_level_slope <- object@theme_level_slope
 
-            chosen_combination <- paste0(theme_level_intercept, "_intercept", theme_level_slope, "_slope")
+            chosen_combination <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
 
             invalid_priors <- switch(
               chosen_combination,

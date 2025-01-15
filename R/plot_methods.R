@@ -3444,135 +3444,65 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 #' @method plot bayesian_model_parameters
 #' @export
 setMethod("plot", "ss_backtest_config", function(x, ...) {
+  # Validate input object
+  if (!inherits(x@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
+    stop("This plot method is only applicable to 'bayesian_alpha_test_strategy' subclass.")
+  }
 
-  # Access the alpha_test_strategy slot
-  alpha_strategy <- x@alpha_test_strategy
-
-  # Check if it contains a bayesian_alpha_test
-  if(is(alpha_strategy, "bayesian_alpha_test_strategy")){
-    #Check if there is user_priors
-    if (is.null(bayesian_ss_config@alpha_test_strategy@bayesian_model_parameters@user_priors)) {
-      cat("No user priors to plot.\n")
-      return(invisible(NULL))
-    }
-  } else {
-    cat("Plot method only avaiable for bayesian_alpha_test_stategy subclass.\n")
+  # Extract user priors
+  user_priors <- x@alpha_test_strategy@bayesian_model_parameters@user_priors
+  if (is.null(user_priors) || nrow(user_priors) == 0) {
+    cat("No user priors available to plot.\n")
     return(invisible(NULL))
   }
 
-  # Convert user_priors to data frame
-  priors_df <- as.data.frame(x@user_priors)
+  # Convert priors to data frame
+  priors_df <- as.data.frame(user_priors, stringsAsFactors = FALSE)
 
-  # Define color palette and theme elements (Cyberpunk style)
-  neon_blue <- "#00BFFF"
-  neon_pink <- "#FF1493"
-  neon_yellow <- "#FFFF00"
-  neon_purple <- "#8A2BE2"
-  neon_orange <- "#FF4500"
-  neon_green <- "#39FF14"
-  blue_bg <- "#001f3f"
-  faint_blue <- "#003366"
-  light_gray <- "#B0B0B0"
-  black <- "#000000"
-  white <- "#FFFFFF"
+  # Define color palette
+  class_colors <- c(
+    b = "#FF1493",  # Neon Pink
+    sd = "#FFFF00", # Neon Yellow
+    sigma = "#8A2BE2" # Neon Purple
+  )
 
   # Helper function to parse prior strings
   parse_prior_string <- function(prior_str) {
-    # Remove spaces
     prior_str <- gsub(" ", "", prior_str)
-
-    # Regular expression to match distribution and parameters
     regex <- "^([a-zA-Z_]+)\\((.*)\\)$"
     matches <- regmatches(prior_str, regexec(regex, prior_str))[[1]]
 
-    if (length(matches) < 3) {
-      return(NULL)
-    }
+    if (length(matches) < 3) return(NULL)
 
     dist_name <- matches[2]
     params_str <- matches[3]
-
-    # Split parameters
     params <- strsplit(params_str, ",")[[1]]
-    param_list <- list()
-    for (param in params) {
-      # Split by '=' if present
-      if (grepl("=", param)) {
-        parts <- strsplit(param, "=")[[1]]
-        name <- parts[1]
-        value <- as.numeric(parts[2])
-        param_list[[name]] <- value
-      } else {
-        # If no name, use positional argument
-        param_list[[length(param_list) + 1]] <- as.numeric(param)
-      }
-    }
+    param_list <- as.numeric(gsub(".*=", "", params))
 
     list(dist = dist_name, params = param_list)
   }
 
-  # Helper function to generate plot data based on distribution
+  # Helper function to generate plot data
   generate_plot_data <- function(dist_name, params) {
-    x_seq <- seq(-10, 10, length.out = 1000)
-    density <- NULL
-
-    switch(dist_name,
-           "normal" = {
-             mean <- params[[1]]
-             sd <- params[[2]]
-             x_seq <- seq(mean - 4 * sd, mean + 4 * sd, length.out = 1000)
-             density <- dnorm(x_seq, mean = mean, sd = sd)
-           },
-           "student_t" = {
-             df <- params[[1]]
-             mean <- params[[2]]
-             sd <- params[[3]]
-             x_seq <- seq(mean - 4 * sd, mean + 4 * sd, length.out = 1000)
-             density <- dt((x_seq - mean) / sd, df = df) / sd
-           },
-           "cauchy" = {
-             location <- params[[1]]
-             scale <- params[[2]]
-             x_seq <- seq(location - 10 * scale, location + 10 * scale, length.out = 1000)
-             density <- dcauchy(x_seq, location = location, scale = scale)
-           },
-           "lognormal" = {
-             meanlog <- params[[1]]
-             sdlog <- params[[2]]
-             x_seq <- seq(0, qlnorm(0.995, meanlog, sdlog), length.out = 1000)
-             density <- dlnorm(x_seq, meanlog = meanlog, sdlog = sdlog)
-           },
-           "inv_gamma" = {
-             if (!requireNamespace("invgamma", quietly = TRUE)) {
-               warning("Package 'invgamma' is required for 'inv_gamma' distribution.")
-               return(NULL)
-             }
-             shape <- params[[1]]
-             scale <- params[[2]]
-             x_seq <- seq(0.0001, invgamma::qinvgamma(0.995, shape, scale = scale), length.out = 1000)
-             density <- invgamma::dinvgamma(x_seq, shape, scale = scale)
-           },
-           "exponential" = {
-             rate <- params[[1]]
-             x_seq <- seq(0, qexp(0.995, rate = rate), length.out = 1000)
-             density <- dexp(x_seq, rate = rate)
-           },
-           "beta" = {
-             shape1 <- params[[1]]
-             shape2 <- params[[2]]
-             x_seq <- seq(0, 1, length.out = 1000)
-             density <- dbeta(x_seq, shape1 = shape1, shape2 = shape2)
-           },
-           {
-             # Unsupported distribution
-             return(NULL)
-           })
-
+    x_seq <- seq(-3, 3, length.out = 1000)
+    density <- switch(
+      dist_name,
+      "normal" = dnorm(x_seq, mean = params[1], sd = params[2]),
+      "student_t" = dt((x_seq - params[2]) / params[3], df = params[1]) / params[3],
+      "cauchy" = dcauchy(x_seq, location = params[1], scale = params[2]),
+      "lognormal" = dlnorm(x_seq, meanlog = params[1], sdlog = params[2]),
+      "beta" = dbeta(x_seq, shape1 = params[1], shape2 = params[2]),
+      "exponential" = dexp(x_seq, rate = params[1]),
+      NULL
+    )
+    if (is.null(density)) return(NULL)
     data.frame(x = x_seq, density = density)
   }
 
   # Prepare an empty list to store plots
   plot_list <- list()
+
+  common_x_range <- seq(-3, 3, length.out = 1000)
 
   # Iterate over each prior
   for (i in seq_len(nrow(priors_df))) {
@@ -3615,23 +3545,27 @@ setMethod("plot", "ss_backtest_config", function(x, ...) {
       next
     }
 
+    # Ensure the x-axis matches the common range
+    plot_data <- merge(data.frame(x = common_x_range), plot_data, by = "x", all.x = TRUE)
+    plot_data$density[is.na(plot_data$density)] <- 0
+
     # Create the plot with cyberpunk style
     p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = x, y = density)) +
-      ggplot2::geom_line(color = neon_blue, size = 1) +
+      ggplot2::geom_line(color = class_colors[class_str], size = 1) +
       ggplot2::labs(
         title = paste0(prior_str, "\n", id_str),
         x = "Value", y = "Density"
       ) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 14, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
+        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 14, face = "bold"),
+        axis.text = ggplot2::element_text(color = "#FFFFFF"),
+        axis.title = ggplot2::element_text(color = "#FFFFFF"),
         legend.position = "none",
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        panel.grid.major = ggplot2::element_line(color = "#003366", size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = "#003366", size = 0.1)
       )
 
     # Store the plot in the list
@@ -3763,18 +3697,22 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   final_signal_universe_m_d_ref <- x@final_signal_universe_m_d_ref
   final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>% dplyr::filter(theme != "forced")
 
-  if(x@p_correction_method == "bayesian"){
+  if (x@p_correction_method == "bayesian"){
     #Reconstruct selected_signal_themes_m_d_ref
     selected_signal_themes_m_d_ref <- final_signal_universe_m_d_ref@data %>% dplyr::select(id, tickers, dates, theme)
     #Get brm_model
     brm_model <- x@bayesian_results$brm_model
     #Get theme-level parameters
-    theme_level_intercept <- results@ss_backtest_workflow$theme_level_intercept
-    theme_level_slope <- results@ss_backtest_workflow$theme_level_slope
+    theme_level_intercept <- x@ss_backtest_workflow$theme_level_intercept
+    theme_level_slope <- x@ss_backtest_workflow$theme_level_slope
     model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
 
     #priors
-    elected_priors <- x@bayesian_results$elected_priors
+    if (is.null(x@bayesian_results$elected_priors)){
+      elected_priors <- x@bayesian_results$brm_model$prior
+    } else {
+      elected_priors <- x@bayesian_results$elected_priors
+    }
     #Extract tidy posteriores
     tidy_posteriors_list <- summarize_posteriors_draws(brm_model = brm_model,
                                                        selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
@@ -3923,7 +3861,6 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
 
     # Extract themes from `elected_priors`
-
       ##Random Intercept or None
       if(model_spec_theme_level %in% c("random_intercept_fixed_slope", "fixed_intercept_fixed_slope")){
         prior_data <- elected_priors %>%
