@@ -1531,23 +1531,57 @@ setClass(
 #' @slot meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner
 #' @slot base_sb_backtest_configs A list of `sb_backtest_config` objects whose oos predictions will be fed to the meta learner.
 #' @slot base_sb_backtest_results A list of `sb_backtest_result` objects whose oos predictions will be fed to the meta learner.
+#' @slot normalize_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
+#' @slot features_passthrough_and_positions A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner.
+#'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
 #' @slot config_name A character string with the name of the configuration
 #' @export
 setClass(
   "sb_metabacktest_config",
   slots = list(
     meta_sb_backtest_config = "sb_backtest_config",
+    meta_ss_backtest_config = "ANY",
+    meta_ss_backtest_results = "ANY",
     base_sb_backtest_configs = "ANY",
     base_sb_backtest_results = "ANY",
+    features_passthrough_and_positions = "character",
+    normalize_predictions = "logical",
     config_name = "character"
   ),
   validity = function(object) {
 
+    #Check for ss_backtest_config OR ss_backtest_results
+    if(!is.null(object@meta_ss_backtest_config) && !is.null(object@meta_ss_backtest_results)) {
+      return("Only one of a meta_ss_backtest_config or a meta_ss_backtest_results object should be provided.")
+    }
+    ##SS Backtest Config Class
+    if(!is.null(object@meta_ss_backtest_config)){
+      if(!inherits(object@meta_ss_backtest_config, "ss_backtest_config")) {
+        return("meta_ss_backtest_config must be of class 'ss_backtest_config'.")
+      }
+    }
+    ##SS Backtest Results Class
+    if(!is.null(object@meta_ss_backtest_results)){
+      if(!inherits(object@meta_ss_backtest_results, "ss_backtest_results")) {
+        return("meta_ss_backtest_results must be of class 'ss_backtest_results'.")
+      }
+    }
+
+    #Check for tuning strat
     if(!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && is.null(object@meta_sb_backtest_config@tuning_strategy)){
       stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for ols and heuristic sb algorithms).")
     }
 
-
+    #feat passthrough
+    if(length(object@features_passthrough_and_positions) == 1){
+      if(!object@features_passthrough_and_positions %in% c("all", "none")){
+        stop("features_passthrough_and_positions should be 'all', 'none' or a named vector with signals and positions")
+      }
+    } else {
+      if(!any(object@features_passthrough_and_positions %in% c("long", "short", "force"))){
+        stop("features_passthrough_and_positions should be either 'long', 'short' or 'force'.")
+      }
+    }
     if(!is.null(object@base_sb_backtest_configs) & !is.null(object@base_sb_backtest_results)){
       stop("base_sb_backtest_configs and base_sb_backtest_results can't be set at the same time.")
     }

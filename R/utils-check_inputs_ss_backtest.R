@@ -83,7 +83,7 @@
 #'
 #' @export
 check_inputs_ss_backtest <- function(
-    #Dates
+  #Dates
   initial_sample_size, rebalancing_months, data_availability_cutoff, split_method,
   #Signals
   signals_m_df, chosen_signals_and_positions, forced_signals,

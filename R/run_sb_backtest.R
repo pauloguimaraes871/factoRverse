@@ -410,7 +410,7 @@ setMethod("run_sb_backtest",
 #' @param winsorize_predictions Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
 #' @param winsorization_probs Numeric vector of length 2 specifying the lower and upper quantiles for winsorization. Default is \code{c(0.025, 0.975)}.
 #' @param normalize_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
-#' @param features_passthrough A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
+#' @param features_passthrough_and_positions A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
 #'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
 #' @return An \code{sb_metabacktest_results} object containing the results of the meta-backtest.
 #' @examples
@@ -419,16 +419,17 @@ setMethod("run_sb_backtest",
 #' results_list <- run_sb_backtest(features_m_df, target_m_df, training_sample_size = 30, rebalacing_months = c(6,12), meta_config)
 #' @export
 setMethod("run_sb_backtest",
-          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe",
-                    config = "sb_metabacktest_config"),
+          signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "sb_metabacktest_config"),
 
-          function(features_m_df, target_m_df,  config, verbose = TRUE, parallel = TRUE,
-                   winsorize_predictions = TRUE, winsorization_probs = c(0.025, 0.975), normalize_predictions = TRUE,
-                   features_passthrough = "none") {
+          function(features_m_df, target_m_df, config,
+                   base_backtest_returns_xts = NULL, base_benchmark_returns_xts = NULL, base_signal_themes_m_df = NULL, #For Base SS Backtest Results
+                   base_custom_signal_weights_m_df = NULL, #Custom weights for base learners
+                   meta_backtest_returns_xts = NULL, meta_benchmark_returns_xts = NULL, meta_signal_themes_m_df = NULL, #For Meta SS Backtest Results
+                   meta_custom_signal_weights_m_df = NULL, #Custom weights for meta learner
+                   winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
             ## Initial Preparations
             #######################
-
             if (is.null(config@base_sb_backtest_results)) {
               # Run base SB backtests
               base_sb_backtest_configs <- config@base_sb_backtest_configs
@@ -438,137 +439,136 @@ setMethod("run_sb_backtest",
                 stop("Base SB backtest configurations must have unique names.")
               }
 
-              #Run Individual Backtests
-              base_sb_backtest_results_list <- run_base_sb_backtests(
-                features_m_df = features_m_df,
-                target_m_df = target_m_df,
-                target_fwd_name = target_fwd_name,
-                base_sb_backtest_configs = base_sb_backtest_configs,
-                verbose = verbose,
-                parallel = parallel
+              ###Check if there is more than one sb_algorithm assigned as custom_weights
+              if(length(which(sapply(base_sb_backtest_configs, function(x) x@sb_algorithm) %in% c("custom_weights"))) > 1){
+                warning("All custom_weights models will be assined the same base_custom_signal_weights_m_df")
+              }
+             #######################
+
+             #Run or Get Individual Backtests
+             #######################
+              ##Run
+               base_sb_backtest_results_list <- run_base_sb_backtests(
+                  #Data
+                  features_m_df = features_m_df, target_m_df = target_m_df,
+                  #Base SB Backtest Configs
+                  base_sb_backtest_configs = base_sb_backtest_configs,
+                  #SS Backtests
+                  base_backtest_returns_xts = base_backtest_returns_xts, base_benchmark_returns_xts = base_benchmark_returns_xts, base_signal_themes_m_df = base_signal_themes_m_df,
+                  #Custom Weights
+                  base_custom_signal_weights_m_df = base_custom_signal_weights_m_df,
+                  #Other
+                  winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel, .test_seed = .test_seed
+              )
+            } else {
+              ##Get
+              base_sb_backtest_results_list <- config@base_sb_backtest_results
+
+                ###Use provided base_sb_backtest_results_list
+                if (verbose) {
+                  cat(crayon::green("Using provided base ML backtest results.\n"))
+                }
+
+                ###Check if is right format
+                if (all(sapply(base_sb_backtest_results_list, function(x) class(x)) != "sb_backtest_results")) {
+                  stop("base_sb_backtest_results must be a list of sb_backtest_results objects.")
+                }
+
+                ###Ensure base_sb_backtest_results_list is correctly named
+                  ####Backtest Identifiers
+                  names(base_sb_backtest_results_list) <- sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)
+                  ####Config Names
+                  base_sb_backtest_configs_names <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$config_name)
+                  for (i in 1:length(base_sb_backtest_results_list)) {
+                    base_sb_backtest_results_list[[i]]@sb_backtest_workflow$config_name <- base_sb_backtest_configs_names[i]
+                  }
+
+                ###Check for name uniqueness
+                if(length(unique(base_sb_backtest_configs_names)) != length(base_sb_backtest_configs_names)){
+                  stop("Base ML backtest configurations must have unique names.")
+                }
+            }
+            #######################
+
+            #Generate oos_predictions_m_df and adapt objects
+            #######################
+
+              ##Create oos_predictions_m_df and join with features_m_df according to features_passthrough_and_positions
+              oos_predictions_m_df <- consolidate_oos_sb_outputs_m_df(
+                base_sb_backtest_results_list,
+                winsorize_predictions = config@winsorize_base_predictions, winsorization_probs = winsorization_probs, # Winsorization
+                normalize_predictions = config@normalize_base_predictions, # Normalization
+                features_passthrough_and_positions = config@features_passthrough_and_positions, # Pass-through features
+                features_m_df = features_m_df #Features to be passed
               )
 
-            } else {
-              base_sb_backtest_results_list <- config@base_sb_backtest_results
-              #Check if is right format
-              if (all(sapply(base_sb_backtest_results_list, function(x) class(x)) != "sb_backtest_results")) {
-                stop("base_sb_backtest_results must be a list of sb_backtest_results objects.")
-              }
-              # Use provided base_sb_backtest_results_list
-              if (verbose == TRUE) {
-                cat(crayon::green("Using provided base ML backtest results.\n"))
-              }
-            }
+              ##Adapt target_m_df
+              adapted_target_m_df <- target_m_df
+              adapted_target_m_df@data <- target_m_df@data %>% dplyr::filter(id %in% oos_predictions_m_df@data%>% dplyr::pull(id))
+              adapted_target_m_df@meta_dataframe_name <- paste0(adapted_target_m_df@meta_dataframe_name, "_adj")
 
-            # Ensure base_sb_backtest_results_list is correctly named
-            names(base_sb_backtest_results_list) <- sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)
-            base_sb_backtest_configs_names <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$config_name)
+              ##Join backtest_returns_xts
+              adapted_backtest_returns_xts <- merge(meta_backtest_returns_xts, base_backtest_returns_xts, join = "left") #Use meta obj as guide
 
-            ###Check for name uniqueness
-            if(length(unique(base_sb_backtest_configs_names)) != length(base_sb_backtest_configs_names)){
-              stop("Base ML backtest configurations must have unique names.")
-            }
+              ##Join benchmark_returns_xts
+              adapted_benchmark_returns_xts <- merge(meta_benchmark_returns_xts, base_benchmark_returns_xts, join = "left") #Use meta obj as guide
 
-            for (i in 1:length(base_sb_backtest_results_list)) {
-              base_sb_backtest_results_list[[i]]@sb_backtest_workflow$config_name <- base_sb_backtest_configs_names[i]
-            }
+              ##Join signal_themes_m_df
+              adapted_signal_themes_m_df <- dplyr::bind_rows(meta_signal_themes_m_df@data, base_signal_themes_m_df@data) %>% dplyr::arrange(id) %>%
+                create_meta_dataframe(meta_dataframe_name = paste0(meta_signal_themes_m_df@meta_dataframe_name, "_", base_signal_themes_m_df@meta_dataframe_name), type = "groups")
 
             #######################
 
-            # Generate oos_predictions_m_df and adapt target_m_df
+
+            #Run sb_backtest with predictions_m_df
             #######################
-            # Create base object
-            oos_predictions_m_df <- convert_oos_predictions_list_to_m_df(base_sb_backtest_results_list,
-                                                                         winsorize_predictions = winsorize_predictions, winsorization_probs = winsorization_probs, # Winsorization
-                                                                         normalize_predictions = normalize_predictions) # Normalization
-
-            # Add Pass-through features
-            if (features_passthrough == "none") {
-              # If none, do nothing
-              oos_predictions_and_features_m_df <- oos_predictions_m_df
-              oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
-              oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, "passthrough_none")
-            } else {
-              if (features_passthrough == "all") {
-                # If all, pass everything except for tickers and dates
-                oos_predictions_and_features_m_df <- oos_predictions_m_df
-                oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data,
-                                                                           dplyr::select(features_m_df@data, -tickers, -dates), by = "id")
-                oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
-                oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, "passthrough_all")
-              } else {
-                # If specific features, pass only those
-                oos_predictions_and_features_m_df <- oos_predictions_m_df
-                oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data,
-                                                                           dplyr::select(features_m_df@data, dplyr::all_of(c("id", features_passthrough))), by = "id")
-                oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
-                oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, features_passthrough)
-              }
-            }
-
-            # Adapt target_m_df
-            adapted_target_m_df <- target_m_df
-            adapted_target_m_df@data <- dplyr::filter(target_m_df@data, id %in% oos_predictions_m_df@data%>% dplyr::pull(id))
-            adapted_target_m_df@meta_dataframe_name <- paste0(adapted_target_m_df@meta_dataframe_name, "_adj")
-
-            #######################
-            # Run sb_backtest with predictions_m_df
-            # Fit Meta Model
+            #Fit Meta Model
             meta_learner_backtest_results <- tryCatch({
 
+              ###Print
               if (verbose) {
                 cat(crayon::cyan("Starting Meta SB backtesting\n"))
                 tictoc::tic(msg = crayon::green("Meta SB backtest finished\n"))
               }
 
+              ##Run SB Backtest
               run_sb_backtest(
                 config = config@meta_sb_backtest_config, # Meta SB Configuration
-                features_m_df = oos_predictions_and_features_m_df, # Features are oos predictions for base models
+                features_m_df = oos_predictions_m_df, # Features are oos predictions for base models
                 target_m_df = adapted_target_m_df, # Target is the original target
-                target_fwd_name = target_fwd_name, # Target forward name
-                verbose = verbose,
-                parallel = parallel
+                backtest_returns_xts = adapted_backtest_returns_xts, benchmark_returns_xts = adapted_benchmark_returns_xts, signal_themes_m_df = adapted_signal_themes_m_df, #SS Backtest
+                custom_signal_weights_m_df = meta_custom_signal_weights_m_df, #Custom Weights
+                winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel, .test_seed = .test_seed
               )
             }, error = function(e) {
               stop("An error occurred while running the meta SB backtest. Please check the configurations and input data. Details: ", e$message)
             })
 
-            # Change SB Metadata
-            # Add workflows, config_name and objects for target and features
-            ### Target
-            target_object_name <- adapted_target_m_df@meta_dataframe_name
-            meta_learner_backtest_results@sb_backtest_workflow$target_object_name <- target_object_name
-            meta_learner_backtest_results@sb_backtest_workflow$target_workflow <- adapted_target_m_df@workflow
+            #Change SB Metadata
+                ### Features Passthrough And Positions
+                meta_learner_backtest_results@sb_backtest_workflow$features_passthrough_and_positions <- features_passthrough_and_positions
+                meta_learner_backtest_results@sb_backtest_workflow$winsorize_base_predictions <- winsorize_base_predictions
+                meta_learner_backtest_results@sb_backtest_workflow$normalize_base_predictions <- normalize_base_predictions
 
-            ### Features
-            features_object_name <- oos_predictions_and_features_m_df@meta_dataframe_name
-            meta_learner_backtest_results@sb_backtest_workflow$features_object_name <- features_object_name
-            meta_learner_backtest_results@sb_backtest_workflow$features_workflow <- oos_predictions_and_features_m_df@workflow
-            meta_learner_backtest_results@sb_backtest_workflow$features_passthrough <- features_passthrough
+                ### Type
+                meta_learner_backtest_results@sb_backtest_workflow$backtest_type <- "meta_learner"
 
-            ### IDs
-            meta_learner_backtest_results@sb_backtest_workflow$config_name <- config@config_name
-            meta_learner_backtest_results@sb_backtest_workflow$backtest_identifier <-
-              paste0("c:", config@config_name, "_f:", features_object_name, "_t:", target_object_name, "-", target_fwd_name)
-            meta_learner_backtest_results@backtest_identifier <- meta_learner_backtest_results@sb_backtest_workflow$backtest_identifier
-            meta_learner_backtest_results@sb_backtest_workflow$backtest_type <- "meta_learner"
+                ### Call
+                meta_learner_backtest_results@sb_backtest_workflow$call <- sys.call(-2)
 
-            ### Call
-            meta_learner_backtest_results@sb_backtest_workflow$call <- sys.call(-2)
-
-            ### Add Base Learners Info
-            meta_learner_backtest_results@sb_backtest_workflow$config_name_bl <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$config_name)
-            meta_learner_backtest_results@sb_backtest_workflow$sb_algorithm_bl <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$sb_algorithm)
-            meta_learner_backtest_results@sb_backtest_workflow$dates_covered_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_covered))
-            meta_learner_backtest_results@sb_backtest_workflow$n_dates_bl <- length(unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_covered)))
-            meta_learner_backtest_results@sb_backtest_workflow$training_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$training_sample_size))
-            meta_learner_backtest_results@sb_backtest_workflow$validation_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$validation_sample_size))
-            meta_learner_backtest_results@sb_backtest_workflow$testing_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$testing_sample_size))
-            meta_learner_backtest_results@sb_backtest_workflow$dates_testing_sample_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_testing_sample))
-            meta_learner_backtest_results@sb_backtest_workflow$rebalance_dates_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$rebalance_dates))
+                ### Add Base Learners Info
+                meta_learner_backtest_results@sb_backtest_workflow$config_name_bl <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$config_name)
+                meta_learner_backtest_results@sb_backtest_workflow$sb_algorithm_bl <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$sb_algorithm)
+                meta_learner_backtest_results@sb_backtest_workflow$dates_covered_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_covered))
+                meta_learner_backtest_results@sb_backtest_workflow$n_dates_bl <- length(unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_covered)))
+                meta_learner_backtest_results@sb_backtest_workflow$training_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$training_sample_size))
+                meta_learner_backtest_results@sb_backtest_workflow$validation_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$validation_sample_size))
+                meta_learner_backtest_results@sb_backtest_workflow$testing_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$testing_sample_size))
+                meta_learner_backtest_results@sb_backtest_workflow$dates_testing_sample_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_testing_sample))
+                meta_learner_backtest_results@sb_backtest_workflow$rebalance_dates_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$rebalance_dates))
 
             # Displays how much time it took
-            if (verbose == TRUE) {
+            if (verbose) {
               tictoc::toc()
             }
 
@@ -577,7 +577,7 @@ setMethod("run_sb_backtest",
 
             ## Extract info
             ### Ensemble Eval Metric
-            ensemble_eval_metric <- if (config@meta_sb_backtest_config@sb_algorithm == "ols") {
+            ensemble_eval_metric <- if (config@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) {
               "rmse"
             } else {
               config@meta_sb_backtest_config@tuning_strategy@chosen_eval_metric # Extract chosen eval metric
@@ -1396,7 +1396,6 @@ run_sb_backtest_internal <- function(
 #'
 #' @param features_m_df A \code{meta_dataframe} object containing the features data.
 #' @param target_m_df A \code{meta_dataframe} object containing the target data.
-#' @param target_fwd_name A character string specifying the name of the target forward variable in \code{target_m_df}.
 #' @param base_sb_backtest_configs A list of \code{sb_backtest_config} objects containing configurations for each base learner.
 #' @param verbose Logical; if \code{TRUE}, prints progress messages. Default is \code{TRUE}.
 #' @param parallel Logical; if \code{TRUE}, runs the backtests in parallel using the future framework. Default is \code{TRUE}.
@@ -1413,11 +1412,14 @@ run_sb_backtest_internal <- function(
 #'   parallel = TRUE
 #' )
 #' @export
-run_base_sb_backtests <- function(features_m_df, target_m_df, target_fwd_name, base_sb_backtest_configs, verbose = TRUE, parallel = TRUE) {
+run_base_sb_backtests <- function(features_m_df, target_m_df, base_sb_backtest_configs, #SB Backtests
+                                  base_backtest_returns_xts = NULL, base_benchmark_returns_xts = NULL, base_signal_themes_m_df = NULL, #SS Backtest
+                                  base_custom_signal_weights_m_df = NULL, #Custom Signal Weights
+                                  winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
   base_sb_backtest_configs_names <- sapply(base_sb_backtest_configs, function(x) x@config_name)
 
-  if (verbose == TRUE) {
+  if (verbose) {
     cat(crayon::green("Starting Base SB backtests:\n"))
     cat(paste("Number of configurations: ", length(base_sb_backtest_configs), "\n"))
     cat(paste("Configuration names: ", paste(base_sb_backtest_configs_names, collapse = ", "), "\n"))
@@ -1432,8 +1434,14 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, target_fwd_name, b
                                                            ...,
                                                            #Data
                                                            features_m_df = features_m_df, target_m_df = target_m_df,
+                                                           #Signal Selection Backtest and Heuristic Ports Information
+                                                           backtest_returns_xts = base_backtest_returns_xts, benchmark_returns_xts = base_benchmark_returns_xts, #Returns
+                                                           signal_themes_m_df = base_signal_themes_m_df, #Themes
+                                                           #Custom Weigts for the base learner
+                                                           custom_signal_weights_m_df = base_custom_signal_weights_m_df,
                                                            #Misc
-                                                           verbose = FALSE, parallel = parallel
+                                                           winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel,
+                                                           .test_seed = .test_seed
                                                          ),
                                                          .options = furrr::furrr_options(seed = TRUE),
                                                          .progress = verbose
@@ -1445,8 +1453,14 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, target_fwd_name, b
                                                    run_sb_backtest, #Backtesting function
                                                    #Data
                                                    features_m_df = features_m_df, target_m_df = target_m_df,
+                                                   #Signal Selection Backtest and Heuristic Ports Information
+                                                   backtest_returns_xts = base_backtest_returns_xts, benchmark_returns_xts = base_benchmark_returns_xts, #Returns
+                                                   signal_themes_m_df = base_signal_themes_m_df, #Themes
+                                                   #Custom Weigts for the base learner
+                                                   custom_signal_weights_m_df = base_custom_signal_weights_m_df,
                                                    #Misc
-                                                   verbose = FALSE, parallel = parallel
+                                                   winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel,
+                                                   .test_seed = .test_seed
       )
     }
   }, error = function(e) {
@@ -1454,33 +1468,71 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, target_fwd_name, b
   })
 
   # Displays how much time it took
-  if (verbose == TRUE) {
+  if (verbose) {
     tictoc::toc()
 
     # Show some results
     cat("Consolidated OOS Testing Eval Metrics:\n")
-    # Create consolidated OOS Testing Eval Metrics
-    all_consolidated_oos_testing_eval_metrics_xts <- data.frame(
-      t(sapply(
-        base_sb_backtest_results_list,
-        function(x) x@oos_testing_eval_metrics_xts[which(rownames(x@oos_testing_eval_metrics_xts) == "consolidated"), ]
-      )),
-      row.names = base_sb_backtest_configs_names
+    # Create Consolidated OOS Testing Eval Metrics Comparison Table
+    all_consolidated_eval_metrics <- purrr::reduce(
+      base_sb_backtest_results_list,
+      function(sb_results_1, sb_results_2) {
+        #Combines data.frames sequentially one-by-one
+        dplyr::bind_cols(
+          sb_results_1,
+          sb_results_2@consolidated_eval_metrics %>%
+            dplyr::select(cons_oos) %>%
+            dplyr::rename_with(~ sb_results_2@backtest_identifier, "_", .)
+        )
+      },
+      .init = sb_backtest_results@consolidated_eval_metrics %>%
+        dplyr::select(metric)
     )
+
     # Print results
-    print(all_consolidated_oos_testing_eval_metrics_xts)
+    print(all_consolidated_eval_metrics)
     cat("\n")
   }
 
   # Name Base Learners in Metadata and also the list
-  names(base_sb_backtest_results_list) <- sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)
-  for (i in 1:length(base_sb_backtest_results_list)) {
-    base_sb_backtest_results_list[[i]]@sb_backtest_workflow$config_name <- base_sb_backtest_configs_names[i]
-  }
+    ####Backtest Identifiers
+    names(base_sb_backtest_results_list) <- sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)
+
+    ####Config names
+    for (i in 1:length(base_sb_backtest_results_list)) {
+      base_sb_backtest_results_list[[i]]@sb_backtest_workflow$config_name <- base_sb_backtest_configs_names[i]
+    }
 
   return(base_sb_backtest_results_list)
 }
 
 
 
+#' Convert OOS Lists to Meta Data Frame
+#' @export
+convert_oos_list_to_m_df <- function(oos_obj_list){
 
+  #Convert to list
+  m_df <- purrr::map_dfr(names(oos_obj_list), function(date_name) {
+    oos_vector <- oos_obj_list[[date_name]]
+
+    # Ensure that oos_vector is a named numeric vector
+    if (!is.numeric(oos_vector) || is.null(names(oos_vector))) {
+      stop(paste("Each element in 'oos_list' must be a named numeric vector. Issue found in date:", date_name))
+    }
+
+    data.frame(
+      tickers = names(oos_vector),
+      dates = as.Date(date_name),  # Adjust the format if necessary
+      value = as.numeric(oos_vector),
+      stringsAsFactors = FALSE
+    )
+  })
+
+  # Create a unique identifier by combining 'tickers' and 'dates'
+  m_df <- m_df %>%
+    dplyr::mutate(id = paste(tickers, dates, sep = "-")) %>%
+    dplyr::select(id, tickers, dates, value)
+
+  return(m_df)
+}
