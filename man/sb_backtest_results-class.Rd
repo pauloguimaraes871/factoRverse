@@ -23,49 +23,10 @@ information about the model, data, tuning process, and performance metrics.
 
 \item{\code{chosen_eval_metric_validation}}{A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.}
 
-\item{\code{best_hyperparameters}}{A data frame containing the best hyperparameters selected during tuning for each rebalancing period.}
+\item{\code{best_hyperparameters_xts}}{A data frame containing the best hyperparameters selected during tuning for each rebalancing period.}
 
 \item{\code{validation_eval_metrics_hyper_choice}}{All evaluation metrics calculated for the set of best hyperparameters.}
 
-\item{\code{sb_backtest_workflow}}{A list containing sb_backtest_workflow about the walk-forward validation process. It includes:
-\itemize{
-\item \strong{sb_algorithm}: A character string specifying the machine learning algorithm used.
-\item \strong{custom_objective}: A character string indicating the custom loss function applied (e.g., "squared_error").
-\item \strong{dates_covered}: A vector of dates representing the time period covered by the analysis.
-\item \strong{n_dates}: An integer indicating the total number of dates in the covered period.
-\item \strong{training_sample_size}: An integer representing the size of the training samples used.
-\item \strong{validation_sample_size}: An integer indicating the size of the validation samples used.
-\item \strong{testing_sample_size}: An integer indicating the size of the testing samples used.
-\item \strong{dates_testing_sample}: A vector of dates corresponding to the testing samples.
-\item \strong{first_rebalance_date}: A date indicating the first date when the model was rebalanced.
-\item \strong{rebalance_dates}: A vector of dates when the model was rebalanced.
-\item \strong{split_method}: A character string indicating the method used for splitting the data (e.g., "expanding" or "rolling").
-\item \strong{ids}: A vector of identifiers from the features data frame.
-\item \strong{nobs}: An integer representing the total number of observations in the features data frame.
-\item \strong{tickers}: A vector of unique stock tickers from the features data frame.
-\item \strong{n_stocks}: An integer indicating the number of unique stocks in the features data frame.
-\item \strong{target_fwd_name}: A character string naming the target variable for forward prediction.
-\item \strong{target_fwd}: A vector of forward target values.
-\item \strong{target_workflow}: A description of the workflow used for the target variable.
-\item \strong{target_object}: A character string capturing the name of the target data frame passed to the function.
-\item \strong{features}: A character vector of feature names extracted from the features data frame.
-\item \strong{features_workflow}: A description of the workflow used for the features.
-\item \strong{features_object}: A character string capturing the name of the features data frame passed to the function.
-\item \strong{tuning_method}: A character string indicating the method used for hyperparameter tuning (e.g., "grid_search").
-\item \strong{n_iter}: An integer specifying the number of iterations for tuning methods that require it.
-\item \strong{k_iter}: An integer indicating the number of times to sample the evaluation function during tuning.
-\item \strong{acq}: A character string specifying the acquisition function used in Bayesian optimization.
-\item \strong{init_points}: An integer indicating the number of initial random points for Bayesian optimization.
-\item \strong{hyper_grid_domain_list}: A list containing hyperparameter definitions for tuning.
-\item \strong{chosen_eval_metric}: A character string representing the evaluation metric chosen for optimization.
-\item \strong{huber_delta}: A numeric value indicating the boundary for the Huber loss function.
-\item \strong{quantile_tau}: A numeric value representing the target quantile for quantile loss.
-\item \strong{early_stop}: A criteria indicating if early stopping was used during training.
-\item \strong{keras_architecture_parameters}: A list containing parameters for the Keras model architecture.
-\item \strong{completion_time}: The system time when the validation process was completed.
-\item \strong{elapsed_time}: A numeric value representing the total time taken for the validation process.
-\item \strong{parallel}: A logical value indicating whether the process was run in parallel (TRUE or FALSE).
-\item \strong{call}: The matched call used to create the S4 object, capturing the function call context.
-}}
+\item{\code{sb_backtest_workflow}}{A list containing sb_backtest_workflow about the walk-forward validation process.}
 }}
 

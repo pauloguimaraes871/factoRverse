@@ -4,6 +4,8 @@ test_that("classify_investment_universe works with no additional rules for signa
   #THEME SB
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
+  signal_significance_threshold <- 0.1
+
   #Create signal_universe_m_d_ref
   set.seed(123)
   signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
@@ -26,7 +28,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   )
 
   signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "none")
-  signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
+  signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$alpha, 0.01, 0.99)
 
   expected_results <- signals_universe_m_d_ref
   expected_results$top_assets <- c(1,0,1)
@@ -50,19 +52,63 @@ test_that("classify_investment_universe works with no additional rules for signa
                                    max_abs_active_group_weight = 0.1
                                  ),
                                  asset_object = "signals"),
-
     expected_results
   )
 
 
 })
 
-test_that("classify_investment_universe works with no additional rules for signals (frequentist),
-          respecting group representativeness when there are two competing unsignificant signals and
+test_that("classify_investment_universe works with no additional rules for signals (frequentist) in presence of NAs", {
+
+  #THEME SB
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  signal_significance_threshold <- 0.1
+
+  #Create signal_universe_m_d_ref
+  set.seed(123)
+  signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+                                         tickers = c("Alpha", "low_Beta", "Gamma"),
+                                         dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                         mean_active_return = rnorm(3, 0, 1),
+                                         tracking_error = runif(3, 0, 1),
+                                         IR = rnorm(3,0,1),
+                                         alpha = rnorm(3,0,1),
+                                         alpha_t_stat = rnorm(3,0,1),
+                                         beta = rnorm(3,0,1),
+                                         treynor = rnorm(3,0,1),
+                                         p_value = c(0.05,0.20,0.03)
+  )
+
+  signals_universe_m_d_ref$alpha[2] <- NA
+  signals_universe_m_d_ref$p_value[2] <- NA
+
+
+  signals_groups_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+                                       tickers = c("Alpha", "low_Beta", "Gamma"),
+                                       dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                       theme = c("Value", "Momentum", "Value")
+  )
+
+  expect_error(
+    classify_investment_universe(signals_m_d_ref = signals_universe_m_d_ref, signal_significance_threshold = signal_significance_threshold,
+                                 groups_m_d_ref = signals_groups_m_d_ref,
+                                 concentration_constraint_policy = list(
+                                   benchmark = c("theme_ss", "theme_sb"),
+                                   max_abs_active_group_weight = NULL
+                                 ),
+                                 asset_object = "signals")
+  )
+
+
+})
+
+test_that("classify_investment_universe works with no additional rules for signals (frequentist),respecting group representativeness when there are two competing unsignificant signals and
           when alpha is negative", {
 
             #THEME SB
             load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+            signal_significance_threshold <- 0.05
 
             #Create signal_universe_m_d_ref
             set.seed(103)
@@ -87,7 +133,7 @@ test_that("classify_investment_universe works with no additional rules for signa
 
 
             signals_universe_m_d_ref$adjusted_p_value <- p.adjust(signals_universe_m_d_ref$p_value, "none")
-            signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$alpha, 0.99, 0.01)
+            signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$alpha, 0.01, 0.99)
 
             expected_results <- signals_universe_m_d_ref
             expected_results$top_assets <- c(0,0,1,0)
@@ -122,6 +168,8 @@ test_that("classify_investment_universe works with no additional rules for signa
   #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
+  signal_significance_threshold <- 0.05
+
   set.seed(123)
   signals_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
                                          tickers = c("Alpha", "low_Beta", "Gamma"),
@@ -154,7 +202,7 @@ test_that("classify_investment_universe works with no additional rules for signa
   )
 
 
-  signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$posterior_alpha, 0.99, 0.01)
+  signals_universe_m_d_ref$exp_ret_score <- signal_transform(signals_universe_m_d_ref$posterior_alpha, 0.01,  0.99)
 
   expected_results <- signals_universe_m_d_ref
   expected_results$top_assets <- c(1,0,1)

@@ -33,13 +33,12 @@ setMethod("run_ss_backtest",
                     signal_themes_m_df = "meta_dataframe"),
 
           function(config, signals_m_df, backtest_returns_xts, benchmark_returns_xts, signal_themes_m_df,
-                   chosen_signals_and_positions, priors_m_df = NULL,
+                   priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
                    verbose = TRUE, parallel = TRUE, winsorization_probs = c(0.025, 0.975)){
 
             ## Initial Preparations
             #######################
             #Assign default values for internal function (to avoid getting vars from global environ)
-            data_availability_cutoff <- 36
             active_returns <- TRUE
             split_method <- "expanding"
             market_factor_proxy <- "IBOV"
@@ -54,12 +53,6 @@ setMethod("run_ss_backtest",
             prior_derivation_control <- list(half_t_df = 30)
             lmer_control <- list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite")
 
-            #Convert 'all' chosen_signals_and_positions
-            if(length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions == "all"){
-              chosen_signals <- colnames(signals_m_df@data)[-c(1:3)] #Get all signals in signals_m_df
-              chosen_signals_and_positions <- rep("long", length(chosen_signals)) #Set all positions as 'long'
-              names(chosen_signals_and_positions) <- chosen_signals
-            }
 
             #Winsorization probs
             lower_quantile_winsorization <- min(winsorization_probs)
@@ -76,6 +69,15 @@ setMethod("run_ss_backtest",
 
             #Get data from S4 objects
             #########################
+            ##chosen_signals_and_positions
+            chosen_signals_and_positions <- config@chosen_signals_and_positions
+              ##Convert 'all' chosen_signals_and_positions
+              if(length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions == "all"){
+                chosen_signals <- colnames(signals_m_df@data)[-c(1:3)] #Get all signals in signals_m_df
+                chosen_signals_and_positions <- rep("long", length(chosen_signals)) #Set all positions as 'long'
+                names(chosen_signals_and_positions) <- chosen_signals
+              }
+
             ##signals_m_df
             signals_workflow <- signals_m_df@workflow #Get workflow
             signals_object_name <- signals_m_df@meta_dataframe_name #Get mdf name
@@ -86,8 +88,14 @@ setMethod("run_ss_backtest",
             signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name #Get mdf name
             signal_themes_m_df <- signal_themes_m_df@data #Get signal_themes_m_df
 
+            ##custom_signal_universe_metrics_m_df
+            if(!is.null(custom_signal_universe_metrics_m_df)){
+              custom_signal_universe_metrics_workflow <- custom_signal_universe_metrics_m_df@workflow #Get workflow
+              custom_signal_universe_metrics_object_name <- custom_signal_universe_metrics_m_df@meta_dataframe_name #Get mdf name
+              custom_signal_universe_metrics_m_df <- custom_signal_universe_metrics_m_df@data #Get custom_signal_universe_metrics_m_df
+            }
+
             ##Get general info from contig
-            data_availability_cutoff <- config@data_availability_cutoff
             initial_sample_size <- config@initial_sample_size
             rebalancing_months <- config@rebalancing_months
             active_returns <- config@active_returns
@@ -129,14 +137,23 @@ setMethod("run_ss_backtest",
             #Run SS Backtest
             #########################
             ss_backtest_results <- run_ss_backtest_internal(
-              initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff, split_method = split_method,
-              signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, active_returns = active_returns,
+              #Signals Data
+              signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
+              #Return Data
               backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, market_factor_proxy = market_factor_proxy,
+              #Signal Themes Data
+              signal_themes_m_df,
+              #Training Scheme
+              initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
+              #Alpha Test Strategy
               p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold, enable_theme_representativeness = enable_theme_representativeness,
               model_structure = model_structure, theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope, lmer_control = lmer_control,
+              active_returns = active_returns,
+              #Bayesian Model Parameters
               priors_m_df = priors_m_df, user_priors = user_priors,
               brms_control = brms_control, prior_derivation_control = prior_derivation_control,
-              signal_themes_m_df, lower_quantile_winsorization =  lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, verbose = verbose, parallel = parallel
+              #Misc
+              lower_quantile_winsorization =  lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, verbose = verbose, parallel = parallel
               )
             #########################
 
@@ -156,6 +173,12 @@ setMethod("run_ss_backtest",
             if(!is.null(priors_m_df)){
             ss_backtest_results@ss_backtest_workflow$priors_object_name <- priors_object_name
             ss_backtest_results@ss_backtest_workflow$priors_workflow <- priors_workflow
+            }
+
+            ###Custom Signal Universe Metrics
+            if(!is.null(custom_signal_universe_metrics_m_df)){
+              ss_backtest_results@ss_backtest_workflow$custom_signal_universe_metrics_object_name <- custom_signal_universe_metrics_object_name
+              ss_backtest_results@ss_backtest_workflow$custom_signal_universe_metrics_workflow <- custom_signal_universe_metrics_workflow
             }
 
             ###Backtest Returns DF
@@ -201,7 +224,7 @@ setMethod("run_ss_backtest",
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
 #' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
-#' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
+#' @param  The minimum number of non-NA observations required for a backtest to be considered.
 #' @param split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
 #' @param rebalancing_months Numeric months when signal selection should be implemented.
 #' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
@@ -368,7 +391,7 @@ setMethod("run_ss_backtest",
 #'   \item Adjusts the signal positions based on whether they are "short" by multiplying their values by -1.
 #'   \item Updates column names in the data frame to reflect the corrected positions of the signals.
 #'   \item Validates that all adjusted signals have corresponding columns in `backtest_returns_xts`.
-#'   \item Calculates time-series metrics from backtested returns, including mean active return, IR, alpha, t-stat, beta, Treynor ratio, and p-value. Signals without adequate data (less than `data_availability_cutoff` periods) are removed.
+#'   \item Calculates time-series metrics from backtested returns, including mean active return, IR, alpha, t-stat, beta, Treynor ratio, and p-value. Signals without adequate data (less than `` periods) are removed.
 #'   \item Adjusts p-values based on the method selected by the user.
 #'   \item Defines which signals are eligible for blending.
 #' }
@@ -376,10 +399,10 @@ setMethod("run_ss_backtest",
 #' @return A list containing eligible signals and signal universes throughout time.
 #' @export
 run_ss_backtest_internal <- function(
-    #Dates
-  initial_sample_size, rebalancing_months, data_availability_cutoff = 60, split_method = "expanding",
+  #Dates
+  initial_sample_size, rebalancing_months, split_method = "expanding",
   #Signals
-  signals_m_df, chosen_signals_and_positions,
+  signals_m_df, chosen_signals_and_positions, custom_signal_universe_metrics_m_df = NULL,
   #Backtests and benchmarks
   backtest_returns_xts, benchmark_returns_xts, market_factor_proxy = "IBOV",
   #P-value
@@ -444,9 +467,9 @@ run_ss_backtest_internal <- function(
     ##Check Parameters
     check_inputs_ss_backtest(
       #Dates
-      initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff, split_method = split_method,
+      initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
       #Signals
-      signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = forced_signals,
+      signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = forced_signals, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
       #Backtest and benchmarks
       backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, market_factor_proxy = market_factor_proxy,
       #P-value
@@ -544,12 +567,13 @@ run_ss_backtest_internal <- function(
           cat("\n")
         }
 
-        #Subset signals, backtest, market factor and priors
+        #Subset signals, backtest, market factor, priors and custom_signal_universe_metrics
         selected_signals_corrected_positions_m_upd_ref <- selected_signals_corrected_positions_m_df[upd_ref,]
         selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[which(zoo::index(selected_backtest_returns_corrected_positions_xts) <= current_date), ]
         selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[which(zoo::index(selected_market_factor_proxy_xts) <= current_date), ]
-        priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
         selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
+        priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
+        custom_signal_universe_metrics_m_upd_ref <- custom_signal_universe_metrics_m_df[which(custom_signal_universe_metrics_m_df$dates <= current_date), ]
 
 
         ###Elect signals0
@@ -557,8 +581,7 @@ run_ss_backtest_internal <- function(
           #Backtests
           selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
           selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
-          #Data Avaialability
-          data_availability_cutoff = data_availability_cutoff,
+          custom_signal_universe_metrics_m_upd_ref = custom_signal_universe_metrics_m_upd_ref,
           #P adjustment
           p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold,
           #Theme Representativeness Eligibiility
@@ -639,7 +662,6 @@ run_ss_backtest_internal <- function(
     p_correction_method = p_correction_method,
     signal_significance_threshold = signal_significance_threshold,
     market_factor_proxy = market_factor_proxy,
-    data_availability_cutoff = data_availability_cutoff,
     active_returns = active_returns,
     model_structure = model_structure,
     enable_theme_representativeness = enable_theme_representativeness,
@@ -671,6 +693,8 @@ run_ss_backtest_internal <- function(
     priors_workflow = NULL,
     priors_object_name = "not_present",
     backtest_returns_object_name = "not_identified",
+    custom_signal_universe_metrics_workflow = NULL,
+    custom_signal_universe_metrics_object_name = "not_identified",
     lower_quantile_winsorization = lower_quantile_winsorization,
     upper_quantile_winsorization = upper_quantile_winsorization,
     #Performance

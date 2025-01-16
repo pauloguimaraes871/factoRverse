@@ -60,7 +60,7 @@ check_inputs_sb_backtest <- function(
     #Tuning
     hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
     #Etc
-    early_stop, keras_architecture_parameters, parallel, verbose = TRUE, .test_seed
+    early_stop, keras_architecture_parameters, parallel, verbose = TRUE
 ){
 
   ###Initial Checks###
@@ -183,6 +183,10 @@ check_inputs_sb_backtest <- function(
           stop("backtest_returns_xts must have at least training_sample_size + validation_sample_size rows")
         }
 
+        if(any(apply(backtest_returns_xts, 2, function(x) any(is.na(x))))){
+          stop("backtest_returns_xts must not have any NA")
+        }
+
         if(any(!signal_universe_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
           stop("all dates in signal_universe_m_df must be present in backtest_returns_xts")
         }
@@ -289,7 +293,7 @@ check_inputs_sb_backtest <- function(
         }
         ##Check if any weight belong to a non-eligible ticker
         non_zero_weight_id <- custom_signal_weights_m_df %>% dplyr::filter(weights != 0) %>% dplyr::pull(id)
-        non_eligible_id <- signal_universe_m_df %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(id)
+        non_eligible_id <- signal_universe_m_df %>% dplyr::filter(eligible == 0) %>% dplyr::pull(id)
         if(any(non_zero_weight_id %in% non_eligible_id)){
           message("Some ids in custom_signal_weights_m_df are not eligible: ",
                   paste(non_zero_weight_id[non_zero_weight_id %in% non_eligible_id], collapse = ", "))
@@ -350,7 +354,7 @@ check_inputs_sb_backtest <- function(
         stop("validation_sample_size should be positive.")
       }
 
-      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & validation_sample_size != 0){
+      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & validation_sample_size != 0){
         stop("ols and heuristic sb algorithms do not support validation split.")
       }
 
@@ -456,12 +460,12 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for correct hyperparameters names in hyper_grid_domain_list
-      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & !is.null(hyper_grid_domain_list)){
+      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & !is.null(hyper_grid_domain_list)){
         stop("ols and heuristic sb algorithms do not support hyperparameters.")
       }
 
 
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & is.null(hyper_grid_domain_list)){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & is.null(hyper_grid_domain_list)){
         stop("hyper_grid_domain must be set when sb_algorithm is different from ols.")
       }
 
@@ -490,12 +494,12 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for valid format in tuning method
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
         stop("tuning_method should be one of random_search, grid_search or bayesian_opt.")
       }
 
       #Check for correct format in case tuning method is grid_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("grid_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("grid_search")){
         if(any(
           #Check if hyper_grid_domain_list is a list
           !(class(hyper_grid_domain_list) == "list"),
@@ -509,12 +513,12 @@ check_inputs_sb_backtest <- function(
         }
       }
 
-      if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights"), tuning_method == "grid_search",!is.null(n_iter))){
+      if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo"), tuning_method == "grid_search",!is.null(n_iter))){
         warning("When tuning_method is grid_search, hyperparameters are combined exhaustively. Ignoring any user set n_iter value")
       }
 
       #Check for correct format in case tuning method is random_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("random_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("random_search")){
 
 
         tryCatch({
@@ -555,7 +559,7 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for correct format in case tuning method is Bayesian Optimization
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("bayesian_opt")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("bayesian_opt")){
         if(any(
           #Check if hyper_grid_domain_list is a list
           !is.list(hyper_grid_domain_list),
@@ -598,29 +602,10 @@ check_inputs_sb_backtest <- function(
       }
 
       #Check for custom objective
-      if(!sb_algorithm %in% c("sw", "mvo")){
-        valid_heuristic_sb_metrics <- c(
-          "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
-          "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
-          "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
-          "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
-          "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
-          "prob_sharpe_ratio", "modigliani", "ann_modigliani",
-          "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
-          "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
-          "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
-          "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
-          "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
-          "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
-          "act_modigliani", "act_ann_modigliani",
-          "alpha", "theme_alpha", "individual_alpha", "alpha_se", "beta", "theme_beta", "individual_beta", "specific_risk",
-          "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
-          "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
-          "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
-        )
-        if (grepl("^max_|^min_", custom_objective) && substr(custom_objective, 5, nchar(custom_objective)) %in% valid_heuristic_sb_metrics){
-          return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
-                 To see complete list of valid heuristic performance metrics, run 'display_valid_custom_objectives()'.")
+      if(sb_algorithm %in% c("sw", "mvo")){
+        if (!custom_objective %>% stringr::str_remove("max_") %>% stringr::str_remove("min_") %in% colnames(signal_universe_m_df)){
+          return("Invalid custom_objective. Should be 'max_' or 'min_' + one of columns in signal_universe_m_df (heuristic performance metrics).
+                 To see complete list of base valid heuristic performance metrics, run 'display_valid_custom_objectives()'.")
         }
       } else {
         if (!is.null(custom_objective) && !(custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
@@ -1026,33 +1011,7 @@ check_inputs_sb_backtest <- function(
         ##########
 
 
-
       }
       ###############
-
-      #Misc
-
-      if (!is.null(parallel)){
-        if(!is.logical(parallel)){
-          stop("parallel should be logical")
-        }
-      }
-
-      if (!is.null(.test_seed)){
-        if (!is.numeric(.test_seed)){
-          stop(".test_seed should be numeric")
-        }
-        if(round(.test_seed) != .test_seed){
-          stop(".test_seed should have no decimals")
-        }
-      }
-
-      if (!is.null(verbose)){
-        if (!is.logical(verbose)){
-          stop("verbose should be logical")
-        }
-      }
-
-
 
 }

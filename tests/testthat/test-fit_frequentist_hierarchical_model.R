@@ -7,7 +7,7 @@ test_that("fit_frequentist_hierarchical_model works for random_intercept_fixed_s
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
-  data_availability_cutoff <- 3
+
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
@@ -92,7 +92,7 @@ test_that("fit_frequentist_hierarchical_model works for theme_specific_intercept
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
-  data_availability_cutoff <- 3
+
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
@@ -177,7 +177,7 @@ test_that("fit_frequentist_hierarchical_model works for theme_specific_intercept
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
-  data_availability_cutoff <- 3
+
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
@@ -262,7 +262,7 @@ test_that("fit_frequentist_hierarchical_model works for fixed_intercept_fixed_sl
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
-  data_availability_cutoff <- 3
+
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(

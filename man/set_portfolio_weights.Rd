@@ -24,6 +24,7 @@ set_portfolio_weights(
   opt_objective = "sharpe",
   opt_method = "random",
   rp_method = "cyclical-spinu",
+  custom_weights_m_d_ref = NULL,
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975
 )

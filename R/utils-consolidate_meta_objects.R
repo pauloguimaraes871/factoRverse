@@ -174,4 +174,28 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
 }
 
 
+#' @title Consolidate backtest_returns_xts
+#' @export
+consolidate_backtest_returns_xts <- function(meta_backtest_returns_xts, base_backtest_returns_xts) {
+  # Return NULL if meta_backtest_returns_xts is NULL
+  if (is.null(meta_backtest_returns_xts)) return(NULL)
+
+  # Return meta_backtest_returns_xts if base_backtest_returns_xts is NULL
+  if (is.null(base_backtest_returns_xts)) return(meta_backtest_returns_xts)
+
+  # Merge meta and base backtest returns using a left join
+  merge(meta_backtest_returns_xts, base_backtest_returns_xts, join = "left")
+}
+
+
+#' @title Consolidate benchmark_returns_xts
+#' @export
+combine_benchmark_returns <- function(meta_benchmark_returns_xts, base_benchmark_returns_xts) {
+  # Case 1 & 2: Return the non-NULL object if either is NULL, or NULL if both are NULL
+  if (is.null(meta_benchmark_returns_xts)) return(base_benchmark_returns_xts)
+  if (is.null(base_benchmark_returns_xts)) return(meta_benchmark_returns_xts)
+
+  # Case 3: Merge both if neither is NULL
+  merge(meta_benchmark_returns_xts, base_benchmark_returns_xts, join = "left")
+}
 

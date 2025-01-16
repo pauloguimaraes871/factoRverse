@@ -4,7 +4,6 @@
 #'
 #' @param selected_backtest_returns_corrected_positions_xts_upd_ref A xts containing backtest returns for various signals.
 #' @param selected_market_factor_proxy_xts_upd_ref A xts containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.
-#' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
 #' @param p_correction_method The method for p-value correction. Possible options are:
 #'\itemize{
 #'  \item{"none"}: No correction.
@@ -187,11 +186,10 @@
 #'
 #' @export
 define_signal_eligibility <- function(
-    #Backtests
+  #Backtests
   selected_backtest_returns_corrected_positions_xts_upd_ref,
   selected_market_factor_proxy_xts_upd_ref,
-  #Data Avaialability
-  data_availability_cutoff = 36,
+  custom_signal_universe_metrics_m_upd_ref,
   #P-Values
   p_correction_method = "none", signal_significance_threshold = 0.05,
   #Theme representativeness
@@ -237,6 +235,7 @@ define_signal_eligibility <- function(
     #Data
     selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
     selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    custom_signal_universe_metrics_m_upd_ref = custom_signal_universe_metrics_m_upd_ref,
     verbose = verbose
     )
 
@@ -244,24 +243,6 @@ define_signal_eligibility <- function(
     signal_universe_m_d_ref <- performance_summary_list$signal_universe_m_d_ref
     frequentist_results <- performance_summary_list$frequentist_fit_results_list
 
-
-  ################
-
-  #Correct based on backtest length
-  ##Check if backtests have enough length to be considered
-  cutted_out_backtests <- selected_backtest_returns_corrected_positions_xts_upd_ref %>% apply(2, function(col){
-    length(which(is.na(col))) >= data_availability_cutoff
-  })
-
-  ##Send warning
-  if(any(cutted_out_backtests)){
-    if(verbose){
-      warning(paste0("The following signals backtests have less periods than data_avaiability_cutoff and will not be used: ",
-                     names(cutted_out_backtests[which(cutted_out_backtests)])))
-    }
-    ##Ignore signals that do not have enough data
-    signal_universe_m_d_ref[which(cutted_out_backtests), -c(1:3)] <- NA #NA reflects lack of knowledge about signal behavior
-  }
   #################################
 
     #P-adjust!

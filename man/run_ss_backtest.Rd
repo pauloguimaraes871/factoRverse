@@ -2,7 +2,7 @@
 % Please edit documentation in R/run_ss_backtest.R
 \name{run_ss_backtest}
 \alias{run_ss_backtest}
-\alias{run_ss_backtest,ss_backtest_config,meta_dataframe,xts,xts,meta_dataframe,character-method}
+\alias{run_ss_backtest,ss_backtest_config,meta_dataframe,xts,xts,meta_dataframe-method}
 \alias{run_ss_backtest_internal}
 \title{Run a Signal Selection Backtest}
 \usage{
@@ -12,18 +12,17 @@ run_ss_backtest(
   backtest_returns_xts,
   benchmark_returns_xts,
   signal_themes_m_df,
-  chosen_signals_and_positions,
   ...
 )
 
-\S4method{run_ss_backtest}{ss_backtest_config,meta_dataframe,xts,xts,meta_dataframe,character}(
+\S4method{run_ss_backtest}{ss_backtest_config,meta_dataframe,xts,xts,meta_dataframe}(
   config,
   signals_m_df,
   backtest_returns_xts,
   benchmark_returns_xts,
   signal_themes_m_df,
-  chosen_signals_and_positions,
   priors_m_df = NULL,
+  custom_signal_universe_metrics_m_df = NULL,
   verbose = TRUE,
   parallel = TRUE,
   winsorization_probs = c(0.025, 0.975)
@@ -32,10 +31,10 @@ run_ss_backtest(
 run_ss_backtest_internal(
   initial_sample_size,
   rebalancing_months,
-  data_availability_cutoff = 60,
   split_method = "expanding",
   signals_m_df,
   chosen_signals_and_positions,
+  custom_signal_universe_metrics_m_df = NULL,
   backtest_returns_xts,
   benchmark_returns_xts,
   market_factor_proxy = "IBOV",
@@ -70,9 +69,6 @@ run_ss_backtest_internal(
 
 \item{signal_themes_m_df}{A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in \code{signals_m_df}, and a "theme" column providing group membership for each signal.}
 
-\item{chosen_signals_and_positions}{A named vector indicating signals and their corresponding positions (long or short).
-For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").}
-
 \item{...}{Additional arguments (not used in this method).}
 
 \item{priors_m_df}{A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
@@ -86,9 +82,10 @@ and values for active_return, bench_return, alpha (mean and se), beta (mean and 
 
 \item{rebalancing_months}{Numeric months when signal selection should be implemented.}
 
-\item{data_availability_cutoff}{The minimum number of non-NA observations required for a backtest to be considered.}
-
 \item{split_method}{The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").}
+
+\item{chosen_signals_and_positions}{A named vector indicating signals and their corresponding positions (long or short).
+For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").}
 
 \item{p_correction_method}{The method for p-value correction. Possible options are:
 \itemize{
@@ -151,6 +148,8 @@ c(brms::set_prior("normal(0,1)", class = "Intercept"), brms::set_prior("normal(0
 \item{lower_quantile_winsorization}{Numeric value for lower winsorization.}
 
 \item{upper_quantile_winsorization}{Numeric value for upper winsorization.}
+
+\item{The}{minimum number of non-NA observations required for a backtest to be considered.}
 }
 \value{
 A list containing eligible signals and signal universes throughout time.
@@ -171,7 +170,7 @@ The function performs the following operations:
 \item Adjusts the signal positions based on whether they are "short" by multiplying their values by -1.
 \item Updates column names in the data frame to reflect the corrected positions of the signals.
 \item Validates that all adjusted signals have corresponding columns in \code{backtest_returns_xts}.
-\item Calculates time-series metrics from backtested returns, including mean active return, IR, alpha, t-stat, beta, Treynor ratio, and p-value. Signals without adequate data (less than \code{data_availability_cutoff} periods) are removed.
+\item Calculates time-series metrics from backtested returns, including mean active return, IR, alpha, t-stat, beta, Treynor ratio, and p-value. Signals without adequate data (less than `` periods) are removed.
 \item Adjusts p-values based on the method selected by the user.
 \item Defines which signals are eligible for blending.
 }
@@ -183,8 +182,7 @@ The function performs the following operations:
   signals_m_df = meta_dataframe,
   backtest_returns_xts = xts,
   benchmark_returns_xts = xts,
-  signal_themes_m_df = meta_dataframe,
-  chosen_signals_and_positions = character
+  signal_themes_m_df = meta_dataframe
 )}: Run Signal Selection Backtest
 
 \item \code{run_ss_backtest_internal()}: Run Signal Selection Backtest

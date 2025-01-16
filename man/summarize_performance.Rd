@@ -11,6 +11,7 @@ summarize_performance(
   model_spec_theme_level,
   lmer_control,
   selected_signal_themes_m_d_ref,
+  custom_signal_universe_metrics_m_upd_ref,
   active_returns = TRUE,
   verbose = TRUE
 )

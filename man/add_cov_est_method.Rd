@@ -21,6 +21,7 @@ add_cov_est_method(object, cov_est_method, ...)
   cov_estimation_method = "sample",
   cov_matrix_sample_size = 36,
   active_returns = TRUE,
+  cov_matrix_benchmark = NULL,
   ...
 )
 
@@ -32,6 +33,7 @@ add_cov_est_method(object, cov_est_method, ...)
   cov_estimation_method = "sample",
   cov_matrix_sample_size = 252,
   active_returns = TRUE,
+  cov_matrix_benchmark = NULL,
   ...
 )
 }

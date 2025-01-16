@@ -63,6 +63,22 @@ setClass("meta_dataframe",
 
          })
 
+#' Define the signals_m_df S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a signals meta_dataframe.
+#'
+#' @export
+setClass(
+  "signals_m_df",
+  contains = "meta_dataframe",
+  validity = function(object) {
+
+  if (any(object@data %>% apply(2, function(x) any(is.na(x))))){
+    stop("Data contains missing values")
+    }
+  }
+)
+
 
 #' Define the groups S4 Class
 #'
@@ -101,9 +117,9 @@ setClass(
 )
 
 
-#' Define the groups S4 Class
+#' Define the tickers S4 Class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a grouping meta_dataframe.
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a tickers meta_dataframe.
 #'
 #' @export
 setClass(
@@ -121,6 +137,26 @@ setClass(
             number is the amount of forward periods and m indicates periods are measured in months.")))
     }
   }
+  }
+)
+
+#' Define the priors_m_df S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a priros meta_dataframe.
+#'
+#' @export
+setClass(
+  "signals_m_df",
+  contains = "meta_dataframe",
+  validity = function(object) {
+
+    if (any(object@data %>% apply(2, function(x) any(is.na(x))))){
+      stop("Data contains missing values")
+    }
+
+    if (!any(colnames(object@data) %in% c("return", "theme", "market_factor_proxy"))){
+      stop("Data does not contain the required columns 'return', 'theme', and 'market_factor_proxy'")
+    }
   }
 )
 
@@ -167,7 +203,7 @@ setClass(
 
     if(any(!colnames %in% c("id", "tickers", "dates", valid_performance_metrics_names, "adjusted_p_value", "top_assets", "is_eligible",
                             "theme", "theme_ss_bench_weights", "theme_sb_bench_weights"))){
-      return("Column names do not adhere to expected signal_universe_m_df object")
+      warning("User-inputed metrics were identified in signal_universe_m_df object")
     }
 
     if(any(!c("top_assets", "is_eligible") %in% colnames)){
@@ -1002,7 +1038,6 @@ setClass("bayesian_alpha_test_strategy",
 #' conducting hypothesis tests regarding CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches. In the
 #' latter, a hierarhical model is fit, with informative priors set according to an exogeneous dataset or by the user, or
 #' default uninformative priors.
-#' @slot data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
 #' @slot initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @slot split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
 #' @slot alpha_test_strategy An `alpha_test_strategy` object with the configuration for the alpha test.
@@ -1012,7 +1047,6 @@ setClass("bayesian_alpha_test_strategy",
 setClass("ss_backtest_config",
          slots = list(
            chosen_signals_and_positions = "character",
-           data_availability_cutoff = "numeric",
            initial_sample_size = "numeric",
            rebalancing_months = "numeric",
            active_returns = "logical",
@@ -1023,9 +1057,7 @@ setClass("ss_backtest_config",
            split_method = "expanding"
          ),
          validity = function(object) {
-           if(object@data_availability_cutoff < 0){
-             stop("data_availability_cutoff can't be negative")
-           }
+
            if(length(object@chosen_signals_and_positions) == 1){
              if(!object@chosen_signals_and_positions == "all"){
                stop("chosen_signals_and_positions should be 'all' or a named vector with signals and positions")
@@ -1038,9 +1070,7 @@ setClass("ss_backtest_config",
            if(object@initial_sample_size < 0){
              stop("initial_sample_size can't be negative")
            }
-           if(object@initial_sample_size < object@data_availability_cutoff){
-             stop("initial_sample_size should be greater than or equal to data_availability_cutoff")
-           }
+
            if (!is.null(object@alpha_test_strategy)){
              if (!inherits(object@alpha_test_strategy, "alpha_test_strategy")) {
                stop("alpha_test_strategy must be an object of class alpha_test_strategy")
@@ -1545,7 +1575,8 @@ setClass(
     base_sb_backtest_configs = "ANY",
     base_sb_backtest_results = "ANY",
     features_passthrough_and_positions = "character",
-    normalize_predictions = "logical",
+    normalize_base_predictions = "logical",
+    winsorize_base_predictions = "logical",
     config_name = "character"
   ),
   validity = function(object) {
@@ -1809,7 +1840,7 @@ setClass(
 setClass(
   "sb_metabacktest_results",
   slots = list(
-    meta_sb_backtest_results_list = "list",
+    meta_sb_backtest_results = "sb_backtest_results",
     base_sb_backtest_results_list = "list",
     base_learners_oos_predictions_meta_dataframe = "meta_dataframe",
     consolidated_oos_testing_metrics = "list",

@@ -13,9 +13,7 @@
 \itemize{
 \item By name: Options are:
 \itemize{
-\item \code{"OOS_Predictions"}
-\item \code{"OOS_Errors"}
-\item \code{"OOS_Y"}
+\item \code{"OOS_SB_Outputs_Summary"} (Delegates to \code{meta_dataframe} summary)
 \item \code{"OOS_Testing_Eval_Metrics"}
 \item \code{"Chosen_Eval_Metric_Validation"}
 }
@@ -30,5 +28,6 @@ Invisibly returns the input \code{object}.
 Provides a detailed summary of an \code{sb_backtest_results} object.
 Users can select which summary table to display by specifying the \code{summary_id} parameter,
 either by name or by number.
-The summary includes interactive tables styled using the \code{DT} package.
+The summary includes interactive tables styled using the \code{DT} package and leverages
+the summary method of the \code{meta_dataframe} class for the \code{oos_sb_outputs_m_df} component.
 }

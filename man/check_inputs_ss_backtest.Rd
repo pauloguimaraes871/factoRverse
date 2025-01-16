@@ -7,10 +7,11 @@
 check_inputs_ss_backtest(
   initial_sample_size,
   rebalancing_months,
-  data_availability_cutoff,
   split_method,
   signals_m_df,
   chosen_signals_and_positions,
+  forced_signals,
+  custom_signal_universe_metrics_m_df,
   backtest_returns_xts,
   benchmark_returns_xts,
   market_factor_proxy,
@@ -35,8 +36,6 @@ check_inputs_ss_backtest(
 \item{initial_sample_size}{A numeric indicating the minimum number of observations required to begin the backtest.}
 
 \item{rebalancing_months}{Months (numeric) when signal selection should be implemented.}
-
-\item{data_availability_cutoff}{The minimum number of non-NA observations required for a backtest to be considered.}
 
 \item{signals_m_df}{A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.}
 

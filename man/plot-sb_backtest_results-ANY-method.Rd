@@ -4,7 +4,7 @@
 \alias{plot,sb_backtest_results,ANY-method}
 \title{Plot Machine Learning Walk-Forward Validation Results}
 \usage{
-\S4method{plot}{sb_backtest_results,ANY}(x, plot_id = NULL)
+\S4method{plot}{sb_backtest_results,ANY}(x, plot_id = NULL, features_m_df = NULL)
 }
 \arguments{
 \item{x}{An object of class \code{sb_backtest_results} containing the results of the walk-forward validation.}
@@ -20,6 +20,7 @@
 \item \code{"All Evaluation Metrics Over Time"}
 \item \code{"Consolidated OOS Testing Metrics"}
 \item \code{"Average Validation Metrics"}
+\item \code{"Signal Portfolio"}
 }
 \item By number: Provide a number corresponding to the plot (as listed when \code{plot_id} is \code{NULL}).
 If \code{NULL} (default), the method lists available plots.

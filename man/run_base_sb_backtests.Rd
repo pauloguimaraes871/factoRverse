@@ -7,18 +7,23 @@
 run_base_sb_backtests(
   features_m_df,
   target_m_df,
-  target_fwd_name,
   base_sb_backtest_configs,
+  base_backtest_returns_xts = NULL,
+  base_benchmark_returns_xts = NULL,
+  base_signal_themes_m_df = NULL,
+  base_priors_m_df = NULL,
+  base_custom_signal_weights_m_df = NULL,
+  winsorization_probs = c(0.025, 0.975),
+  gsm_algorithm = "ols",
   verbose = TRUE,
-  parallel = TRUE
+  parallel = TRUE,
+  .test_seed = NULL
 )
 }
 \arguments{
 \item{features_m_df}{A \code{meta_dataframe} object containing the features data.}
 
 \item{target_m_df}{A \code{meta_dataframe} object containing the target data.}
-
-\item{target_fwd_name}{A character string specifying the name of the target forward variable in \code{target_m_df}.}
 
 \item{base_sb_backtest_configs}{A list of \code{sb_backtest_config} objects containing configurations for each base learner.}
 

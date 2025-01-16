@@ -61,8 +61,8 @@ setMethod("run_sb_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "sb_backtest_config"),
 
           function(features_m_df, target_m_df, config, #SB Backtest
-                   backtest_returns_xts = NULL, benchmark_returns_xts = NULL, signal_themes_m_df = NULL, #SS Backtest
-                   custom_signal_weights_m_df = NULL, #Custom weights
+                   backtest_returns_xts = NULL, benchmark_returns_xts = NULL, signal_themes_m_df = NULL, priors_m_df = NULL, #SS Backtest
+                   custom_signal_weights_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, #Custom objects
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
 
@@ -225,9 +225,11 @@ setMethod("run_sb_backtest",
 
                  #Run Signal Selection Backtest
                   ss_backtest_results <- run_ss_backtest(
-                    config = ss_backtest_config,
-                    signals_m_df = features_m_df,
-                    backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, signal_themes_m_df = signal_themes_m_df
+                    config = ss_backtest_config, #Configuration
+                    signals_m_df = features_m_df, #Data
+                    backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, signal_themes_m_df = signal_themes_m_df, #SS Main Objs
+                    priors_m_df = priors_m_df, #Priors derivation
+                    verbose = verbose, parallel = parallel, winsorization_probs = winsorization_probs #Misc
                   )
                   #Extract signal_universe_m_df
                   signal_universe_m_df <- ss_backtest_results@signal_universe_m_df@data
@@ -273,6 +275,7 @@ setMethod("run_sb_backtest",
 
               ###Extract signal_universe_m_df
               signal_universe_m_df <- ss_backtest_results@signal_universe_m_df@data
+
 
             }
             ###########################
@@ -422,9 +425,9 @@ setMethod("run_sb_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "sb_metabacktest_config"),
 
           function(features_m_df, target_m_df, config,
-                   base_backtest_returns_xts = NULL, base_benchmark_returns_xts = NULL, base_signal_themes_m_df = NULL, #For Base SS Backtest Results
+                   base_backtest_returns_xts = NULL, base_benchmark_returns_xts = NULL, base_signal_themes_m_df = NULL, base_priors_m_df = NULL, #For Base SS Backtest Results
                    base_custom_signal_weights_m_df = NULL, #Custom weights for base learners
-                   meta_backtest_returns_xts = NULL, meta_benchmark_returns_xts = NULL, meta_signal_themes_m_df = NULL, #For Meta SS Backtest Results
+                   meta_backtest_returns_xts = NULL, meta_benchmark_returns_xts = NULL, meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, #For Meta SS Backtest Results
                    meta_custom_signal_weights_m_df = NULL, #Custom weights for meta learner
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
@@ -455,6 +458,7 @@ setMethod("run_sb_backtest",
                   base_sb_backtest_configs = base_sb_backtest_configs,
                   #SS Backtests
                   base_backtest_returns_xts = base_backtest_returns_xts, base_benchmark_returns_xts = base_benchmark_returns_xts, base_signal_themes_m_df = base_signal_themes_m_df,
+                  base_priors_m_df = base_priors_m_df,
                   #Custom Weights
                   base_custom_signal_weights_m_df = base_custom_signal_weights_m_df,
                   #Other
@@ -508,17 +512,50 @@ setMethod("run_sb_backtest",
               adapted_target_m_df@meta_dataframe_name <- paste0(adapted_target_m_df@meta_dataframe_name, "_adj")
 
               ##Join backtest_returns_xts
-              adapted_backtest_returns_xts <- merge(meta_backtest_returns_xts, base_backtest_returns_xts, join = "left") #Use meta obj as guide
+              ###This will bring NULL if meta_backtest_returns_xts is NULL or combine the two, returning meta_backtest_returns_xts if base_backtest_returns_xts is NULL
+              adapted_backtest_returns_xts <- consolidate_backtest_returns_xts(meta_backtest_returns_xts = meta_backtest_returns_xts,
+                                                                               base_backtest_returns_xts = base_backtest_returns_xts)
 
               ##Join benchmark_returns_xts
-              adapted_benchmark_returns_xts <- merge(meta_benchmark_returns_xts, base_benchmark_returns_xts, join = "left") #Use meta obj as guide
-
+              ###This will bring the not-NULL object or the merged object if both are not NULL. The idea is to serve the inner function with selected_market_factor_proxy or benchmark
+              adapted_benchmark_returns_xts <- consolidate_benchmark_returns_xts(meta_benchmark_returns_xts = meta_benchmark_returns_xts,
+                                                                                 base_benchmark_returns_xts = base_benchmark_returns_xts)
               ##Join signal_themes_m_df
-              adapted_signal_themes_m_df <- dplyr::bind_rows(meta_signal_themes_m_df@data, base_signal_themes_m_df@data) %>% dplyr::arrange(id) %>%
-                create_meta_dataframe(meta_dataframe_name = paste0(meta_signal_themes_m_df@meta_dataframe_name, "_", base_signal_themes_m_df@meta_dataframe_name), type = "groups")
+              if (is.null(meta_signal_themes_m_df)){
+                ##If meta_signal_themes_m_df is NULL, just pass NULL
+                adapted_signal_themes_m_df <- NULL
+              } else {
+                ##Else Full Join them. If base is NULL, it will return only meta_signal_themes_m_df
+                adapted_signal_themes_m_df <- dplyr::bind_rows(meta_signal_themes_m_df@data, base_signal_themes_m_df@data) %>% dplyr::arrange(id) %>%
+                  create_meta_dataframe(meta_dataframe_name = paste0(meta_signal_themes_m_df@meta_dataframe_name, "_", base_signal_themes_m_df@meta_dataframe_name), type = "groups")
+              }
 
+              ##Join meta_priors_m_df
+              if (is.null(meta_priors_m_df)){
+                ##If meta_priors_m_df is NULL, just pass NULL
+                adapted_priors_m_df <- NULL
+              } else {
+                ##Else Full Join them. If base is NULL, it will return only meta_priors_m_df
+                adapted_priors_m_df <- dplyr::bind_rows(meta_priors_m_df@data, base_priors_m_df@data) %>% dplyr::arrange(id) %>%
+                  create_meta_dataframe(meta_dataframe_name = paste0(meta_priors_m_df@meta_dataframe_name, "_", base_priors_m_df@meta_dataframe_name), type = "priors")
+              }
+
+                ###Give more informative checks for a signal selection backtest at the meta level
+                if(is.null(config@ss_backtest_results)){
+                  if(!is.null(config@ss_backtest_config)){
+                    ##Checks
+                    if(is.null(adapted_backtest_returns_xts)){
+                      stop("A meta_backtest_returns_xts must be provided when providing a ss_backtest_config for the meta_learner")
+                    }
+                    if(is.null(adapted_benchmark_returns_xts)){
+                      stop("Either meta_benchmark_returns_xts or base_benchmark_returns_xts (the one containing the selected_market_factor_proxy) must be provided when providing a ss_backtest_config for the meta_learner")
+                    }
+                    if(is.null(adapted_signal_themes_m_df)){
+                      stop("A meta_signal_themes_m_df must be provided when providing a ss_backtest_config for the meta_learner")
+                    }
+                  }
+                }
             #######################
-
 
             #Run sb_backtest with predictions_m_df
             #######################
@@ -537,6 +574,7 @@ setMethod("run_sb_backtest",
                 features_m_df = oos_predictions_m_df, # Features are oos predictions for base models
                 target_m_df = adapted_target_m_df, # Target is the original target
                 backtest_returns_xts = adapted_backtest_returns_xts, benchmark_returns_xts = adapted_benchmark_returns_xts, signal_themes_m_df = adapted_signal_themes_m_df, #SS Backtest
+                priors_m_df = adapted_priors_m_df, #Priors
                 custom_signal_weights_m_df = meta_custom_signal_weights_m_df, #Custom Weights
                 winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel, .test_seed = .test_seed
               )
@@ -572,40 +610,9 @@ setMethod("run_sb_backtest",
               tictoc::toc()
             }
 
-            #######################
-            # Get ensemble benchmarks
-
-            ## Extract info
-            ### Ensemble Eval Metric
-            ensemble_eval_metric <- if (config@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) {
-              "rmse"
-            } else {
-              config@meta_sb_backtest_config@tuning_strategy@chosen_eval_metric # Extract chosen eval metric
-            }
-            ### Ensemble Huber Delta
-            ensemble_huber_delta <- mean(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$huber_delta), na.rm = TRUE)
-            ### Ensemble Tau
-            ensemble_quantile_tau <- mean(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$quantile_tau), na.rm = TRUE)
-
-            ### Run Meta Learner Backtest
-            heuristic_ensembles_sb_backtest_results_list <- create_heuristic_ensembles(
-              base_sb_backtest_results_list, # Base Learners results
-              ensemble_eval_metric = ensemble_eval_metric, # Eval metric
-              ensemble_huber_delta = ensemble_huber_delta, ensemble_quantile_tau = ensemble_quantile_tau # Huber delta and tau
-            )
-
-            # Create object with list of sb_metabacktest_results
-            ## List with all ensembles
-            meta_sb_backtest_results_list <- list(
-              meta_learner_backtest_results, # Meta Learner
-              heuristic_ensembles_sb_backtest_results_list$ew_ensemble,
-              heuristic_ensembles_sb_backtest_results_list$optimal_ensemble
-            ) # Heuristic ensembles
-            ## Rename
-            names(meta_sb_backtest_results_list) <- sapply(meta_sb_backtest_results_list, function(x) x@backtest_identifier)
-
+            ######################
             sb_metabacktest_results <- create_sb_metabacktest_results(
-              meta_sb_backtest_results_list = meta_sb_backtest_results_list,
+              meta_sb_backtest_results = meta_learner_backtest_results,
               base_sb_backtest_results_list = base_sb_backtest_results_list,
               oos_predictions_m_df = oos_predictions_m_df
             )
@@ -1413,7 +1420,7 @@ run_sb_backtest_internal <- function(
 #' )
 #' @export
 run_base_sb_backtests <- function(features_m_df, target_m_df, base_sb_backtest_configs, #SB Backtests
-                                  base_backtest_returns_xts = NULL, base_benchmark_returns_xts = NULL, base_signal_themes_m_df = NULL, #SS Backtest
+                                  base_backtest_returns_xts = NULL, base_benchmark_returns_xts = NULL, base_signal_themes_m_df = NULL, base_priors_m_df = NULL,#SS Backtest
                                   base_custom_signal_weights_m_df = NULL, #Custom Signal Weights
                                   winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
@@ -1436,6 +1443,7 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, base_sb_backtest_c
                                                            features_m_df = features_m_df, target_m_df = target_m_df,
                                                            #Signal Selection Backtest and Heuristic Ports Information
                                                            backtest_returns_xts = base_backtest_returns_xts, benchmark_returns_xts = base_benchmark_returns_xts, #Returns
+                                                           priors_m_df = base_priors_m_df, #Priors for bayesian case
                                                            signal_themes_m_df = base_signal_themes_m_df, #Themes
                                                            #Custom Weigts for the base learner
                                                            custom_signal_weights_m_df = base_custom_signal_weights_m_df,
@@ -1455,6 +1463,7 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, base_sb_backtest_c
                                                    features_m_df = features_m_df, target_m_df = target_m_df,
                                                    #Signal Selection Backtest and Heuristic Ports Information
                                                    backtest_returns_xts = base_backtest_returns_xts, benchmark_returns_xts = base_benchmark_returns_xts, #Returns
+                                                   priors_m_df = base_priors_m_df, #Priors for bayesian case
                                                    signal_themes_m_df = base_signal_themes_m_df, #Themes
                                                    #Custom Weigts for the base learner
                                                    custom_signal_weights_m_df = base_custom_signal_weights_m_df,

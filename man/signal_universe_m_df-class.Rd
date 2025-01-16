@@ -12,6 +12,6 @@ This class inherits from \code{meta_dataframe} and enforces that the underlying 
 \describe{
 \item{\code{universe_name}}{A \code{character} string describing the universe name.}
 
-\item{\code{ss_backtest_workflow}}{A \code{list} storing the sb_backtest_workflow that generated the signal_universe_meta_dataframe object.}
+\item{\code{ss_backtest_workflow}}{A \code{list} storing the ss_backtest_workflow that generated the signal_universe_meta_dataframe object.}
 }}
 

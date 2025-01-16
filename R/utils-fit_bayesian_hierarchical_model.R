@@ -94,6 +94,35 @@ fit_bayesian_hierarchical_model <- function(signal_universe_m_d_ref, selected_ba
   selected_backtest_returns_corrected_positions_m_upd_ref <- brm_model_inputs_list$selected_backtest_returns_corrected_positions_m_upd_ref
   brm_formula <- brm_model_inputs_list$formula
 
+  #Check for non-conformity in theme-specific priors and inform user
+  #In case there any exceding priors, brms will warn
+  if (model_spec_theme_level %in% c("theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope")){
+    ##Get current themes
+    current_themes <- selected_signal_themes_m_d_ref %>% dplyr::pull(theme) %>% unique()
+    ##Expected priors
+    expected_theme_priors <- switch(
+      model_spec_theme_level,
+      "theme_specific_intercept_fixed_slope" = paste0("theme", current_themes),
+      "theme_specific_intercept_theme_specific_slope" = c(paste0("theme", current_themes), paste0("theme", current_themes, ":market_factor_proxy"))
+    )
+    ##Check for missing
+    priors_to_check <- elected_priors %>% dplyr::filter(stringr::str_detect(coef, "^theme\\w+(:market_factor_proxy)?$")) %>% dplyr::pull(coef)
+    if (any(!expected_theme_priors %in% priors_to_check)){
+      warning("Some theme-specific priors are missing. Using brms default priors for the following: ",
+              paste(setdiff(expected_theme_priors, priors_to_check), collapse = ", "))
+    }
+    ##Check for extra
+    if (any(!priors_to_check %in% expected_theme_priors)){
+      warning("Some extra theme-specific priors are provided. These will be ignored: ",
+              paste(setdiff(priors_to_check, expected_theme_priors), collapse = ", "))
+
+      ###Exclude extra prior
+      extra_prior <- setdiff(priors_to_check, expected_theme_priors) #Identify extra priors
+      elected_priors <- elected_priors %>% dplyr::filter(!coef %in% extra_prior) #Filter them out
+    }
+  }
+
+
   #Fit brm
   ########################
 

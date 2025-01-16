@@ -190,6 +190,7 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
     #Check if there are eligible signals
     if(all(na.omit(universe_m_d_ref$top_assets) == 0)) stop("No signal was deemed significant.")
 
+
     #Print
     if(verbose){
       cat("The following signals showed statistical significant alphas:",
@@ -405,6 +406,9 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
   #Rearrange
   universe_m_d_ref$is_eligible[universe_m_d_ref$is_eligible > 1] <- 1
   universe_m_d_ref <- universe_m_d_ref[, c(setdiff(colnames(universe_m_d_ref), "is_eligible"), "is_eligible")]
+
+  #Check for NAs in is_eligible
+  if(any(is.na(universe_m_d_ref$is_eligible))) stop("NAs found in is_eligible column")
 
   ##Return results
   return(universe_m_d_ref)

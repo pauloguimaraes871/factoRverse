@@ -20,6 +20,7 @@ add_ss_backtest_obj(object, ss_backtest_obj, ...)
   rebalancing_months,
   active_returns = TRUE,
   split_method = "expanding",
+  chosen_signals_and_positions = "all",
   alpha_test_strategy = NULL,
   config_name = "not_identified"
 )

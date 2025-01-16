@@ -27,6 +27,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
                                   selected_market_factor_proxy_xts_upd_ref,
                                   model_structure, model_spec_theme_level, lmer_control,
                                   selected_signal_themes_m_d_ref,
+                                  custom_signal_universe_metrics_m_upd_ref = NULL,
                                   active_returns = TRUE,
                                   verbose = TRUE
                                   ){
@@ -51,6 +52,27 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   )
 
   #################################
+
+  ##Add Custom Signal Universe Metrics
+  if (!is.null(custom_signal_universe_metrics_m_upd_ref)){
+    ##Get most recent custom signal universe metrics
+    most_recent_custom_signal_universe_metrics_m_d_ref <- custom_signal_universe_metrics_m_upd_ref %>% dplyr::filter(dates == max(dates))
+
+      ###Check if most recent one is not current date and send warning if not
+      if (most_recent_custom_signal_universe_metrics_m_d_ref %>% dplyr::pull(dates) %>% unique() != current_date){
+        warning(paste("custom_signal_universe_metrics_m_d_ref does not contain data for current date. Using most recent date available:",
+                most_recent_custom_signal_universe_metrics_m_d_ref %>% dplyr::pull(dates) %>% unique()))
+      }
+
+      ###Check if all signals are contemplated
+      if (!any((base_signal_universe_m_d_ref %>% dplyr::pull(tickers)) %in% (most_recent_custom_signal_universe_metrics_m_d_ref %>% dplyr::pull(tickers)))){
+        stop("Not all signals are contemplated in custom_signal_universe_metrics_m_d_ref")
+      }
+
+    ###Join by tickers
+    base_signal_universe_m_d_ref <- dplyr::left_join(base_signal_universe_m_d_ref,
+                                                     dplyr::select(most_recent_custom_signal_universe_metrics_m_d_ref, -id, -dates), by = "tickers")
+  }
 
   ##Market-factor related
   #################################

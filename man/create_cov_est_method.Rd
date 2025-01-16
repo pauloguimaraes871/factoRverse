@@ -7,7 +7,8 @@
 create_cov_est_method(
   cov_estimation_method = "sample",
   cov_matrix_sample_size,
-  active_returns = TRUE
+  active_returns = TRUE,
+  cov_matrix_benchmark = NULL
 )
 }
 \arguments{

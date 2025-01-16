@@ -25,7 +25,9 @@ check_inputs_sb_backtest(
   random_ports_method,
   opt_objective,
   concentration_constraint_policy,
+  custom_signal_weights_m_df,
   sb_algorithm,
+  gsm_algorithm,
   custom_objective,
   chosen_eval_metric,
   huber_delta,
@@ -61,7 +63,7 @@ check_inputs_sb_backtest(
 
 \item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
 
-\item{sb_algorithm}{Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mto").}
+\item{sb_algorithm}{Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo").}
 
 \item{custom_objective}{Character, custom objective function for loss.}
 

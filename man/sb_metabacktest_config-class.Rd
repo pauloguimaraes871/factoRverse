@@ -16,6 +16,11 @@ The sb_metabacktest_config class is designed to store and manage a collection of
 
 \item{\code{base_sb_backtest_results}}{A list of \code{sb_backtest_result} objects whose oos predictions will be fed to the meta learner.}
 
+\item{\code{normalize_predictions}}{Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.}
+
+\item{\code{features_passthrough_and_positions}}{A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner.
+Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.}
+
 \item{\code{config_name}}{A character string with the name of the configuration}
 }}
 

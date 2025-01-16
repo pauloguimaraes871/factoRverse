@@ -7,7 +7,7 @@
 define_signal_eligibility(
   selected_backtest_returns_corrected_positions_xts_upd_ref,
   selected_market_factor_proxy_xts_upd_ref,
-  data_availability_cutoff = 36,
+  custom_signal_universe_metrics_m_upd_ref,
   p_correction_method = "none",
   signal_significance_threshold = 0.05,
   enable_theme_representativeness = TRUE,
@@ -32,8 +32,6 @@ define_signal_eligibility(
 \item{selected_backtest_returns_corrected_positions_xts_upd_ref}{A xts containing backtest returns for various signals.}
 
 \item{selected_market_factor_proxy_xts_upd_ref}{A xts containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.}
-
-\item{data_availability_cutoff}{The minimum number of non-NA observations required for a backtest to be considered.}
 
 \item{p_correction_method}{The method for p-value correction. Possible options are:
 \itemize{

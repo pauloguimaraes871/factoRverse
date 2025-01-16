@@ -7,7 +7,7 @@ test_that("create_performance_m_df works with no NAs and active returns", {
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
-  data_availability_cutoff <- 3
+
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
@@ -82,7 +82,7 @@ test_that("create_performance_m_df works with NAs and active returns", {
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
-  data_availability_cutoff <- 3
+
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
@@ -166,7 +166,7 @@ test_that("create_performance_m_df works with NAs and raw returns", {
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
-  data_availability_cutoff <- 3
+
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
@@ -253,7 +253,7 @@ test_that("create_performance_m_df works with NAs (one column only NAs)", {
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
-  data_availability_cutoff <- 3
+
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(

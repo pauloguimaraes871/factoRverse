@@ -7,25 +7,25 @@
 \title{Create an sb_metabacktest_results Object}
 \usage{
 create_sb_metabacktest_results(
-  meta_sb_backtest_results_list,
+  meta_sb_backtest_results,
   base_sb_backtest_results_list,
   ...
 )
 
 create_sb_metabacktest_results(
-  meta_sb_backtest_results_list,
+  meta_sb_backtest_results,
   base_sb_backtest_results_list,
   ...
 )
 
 \S4method{create_sb_metabacktest_results}{list,list}(
-  meta_sb_backtest_results_list,
+  meta_sb_backtest_results,
   base_sb_backtest_results_list,
   oos_predictions_m_df
 )
 }
 \arguments{
-\item{meta_sb_backtest_results_list}{A list containing \code{sb_backtest_results} objects for the meta learner and for the two heuristic ensembles.}
+\item{meta_sb_backtest_results}{A \code{sb_backtest_results} object for the meta learner}
 
 \item{base_sb_backtest_results_list}{A named list of \code{sb_backtest_results} objects for the base learners.}
 }

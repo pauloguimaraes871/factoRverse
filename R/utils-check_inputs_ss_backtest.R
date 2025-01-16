@@ -6,7 +6,6 @@
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
 #' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
-#' @param data_availability_cutoff The minimum number of non-NA observations required for a backtest to be considered.
 #' @param rebalancing_months Months (numeric) when signal selection should be implemented.
 #' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
 #' @param p_correction_method The method for p-value correction. Possible options are:
@@ -84,9 +83,9 @@
 #' @export
 check_inputs_ss_backtest <- function(
   #Dates
-  initial_sample_size, rebalancing_months, data_availability_cutoff, split_method,
+  initial_sample_size, rebalancing_months, split_method,
   #Signals
-  signals_m_df, chosen_signals_and_positions, forced_signals,
+  signals_m_df, chosen_signals_and_positions, forced_signals, custom_signal_universe_metrics_m_df,
   #Backtests and benchmark returns
   backtest_returns_xts, benchmark_returns_xts, market_factor_proxy, active_returns,
   #P-value
@@ -141,17 +140,13 @@ check_inputs_ss_backtest <- function(
   ###Check for forced_signals presence in signals_m_df
   if(!is.null(forced_signals)){
     if(any(!forced_signals %in% colnames(signals_m_df))){
-      warning("forced_signals not available in signals_m_df")
+      stop("forced_signals not available in signals_m_df")
     }
   }
 
-  #initial_sample_size and data_availability_cutoff
-  if(any(!is.numeric(initial_sample_size), !is.numeric(data_availability_cutoff))){
-    stop("initial_sample_size and data_availability_cutoff must be numeric")
-  }
-
-  if(initial_sample_size < data_availability_cutoff){
-    stop("initial_sample_size must be greater than or equal to data_availability_cutoff")
+  #initial_sample_size and
+  if(any(!is.numeric(initial_sample_size))){
+    stop("initial_sample_size and  must be numeric")
   }
 
   #backtest_returns_xts
@@ -172,16 +167,12 @@ check_inputs_ss_backtest <- function(
     stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_xts")
   }
 
-  if(nrow(backtest_returns_xts) < data_availability_cutoff){
-    stop("backtest_returns_xts must have at least data_availability_cutoff rows")
+  if(any(apply(backtest_returns_xts, 2, function(x) any(is.na(x))))){
+    stop("backtest_returns_xts must not have any NA")
   }
 
   if(nrow(backtest_returns_xts) < initial_sample_size){
     stop("backtest_returns_xts must have at least initial_sample_size rows")
-  }
-
-  if(any(!backtest_returns_dates %in% (signals_m_df %>% dplyr::pull(dates)))){
-    stop("all dates in backtest_returns_xts must be present in signals_m_df")
   }
 
   if(any(!signals_m_df %>% dplyr::pull(dates) %>% unique() %in% backtest_returns_dates)){
@@ -193,18 +184,22 @@ check_inputs_ss_backtest <- function(
     stop("backtest_returns_xts must have consecutive dates")
   }
 
-
   #benchmark_returns_xts
   if(!xts::is.xts(benchmark_returns_xts)){
     stop("benchmark_returns_xts must be a xts object")
   }
+
   #get dates
   benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
   if(class(benchmark_returns_dates) != "Date"){
     stop("dates in benchmark_returns_xts must be of class Date")
   }
 
-  if(any(benchmark_returns_dates != backtest_returns_dates)){
+  if(any(!benchmark_returns_dates %in% backtest_returns_dates)){
+    stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+  }
+
+  if(any(!backtest_returns_dates %in% benchmark_returns_dates)){
     stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
   }
 
@@ -231,7 +226,7 @@ check_inputs_ss_backtest <- function(
     stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
   }
 
-  ##Check if all signals of signals_m_df are covered and vice-versa
+  ##Check if all signals of signals_m_df are covere
   if(any(!names(chosen_signals_corrected_positions) %in% (signal_themes_m_df %>% dplyr::pull(tickers)))){
     stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
   }
@@ -253,10 +248,10 @@ check_inputs_ss_backtest <- function(
       stop("dates in signal_themes_m_df and signals_m_df must be the same")
     }
 
-    #model_structure
-    if(!model_structure %in% c("no_pooled", "partial_pooled")){
-      stop("model_structure must be one of 'no_pooled' or 'partial_pooled'")
-    }
+   #model_structure
+   if(!model_structure %in% c("no_pooled", "partial_pooled")){
+     stop("model_structure must be one of 'no_pooled' or 'partial_pooled'")
+   }
     if(model_structure == "partial_pooled"){
       #lmer control
       if(!is.null(lmer_control)){
@@ -309,6 +304,62 @@ check_inputs_ss_backtest <- function(
       }
     }
 
+    #custom_signal_universe_metrics_m_df
+    if (!is.null(custom_signal_universe_metrics_m_df)){
+      ###Coercible
+      if (!(is_coercible_to_meta_dataframe(custom_signal_universe_metrics_m_df))){
+        stop("custom_signal_universe_metrics_m_df should be coercible to meta_dataframe object")
+      }
+
+      ###Check if signals match
+      if (!any(colnames(signals_m_df)[-c(1:3)] %in% dplyr::pull(custom_signal_universe_metrics_m_df, tickers))){
+        stop("all signals should be contemplated in custom_signal_universe_metrics_m_df")
+      }
+
+      ###Check if first rebalancing date is contemplated in custom_signal_universe_metrics_m_df
+      first_rebalancing_date <- signal_dates_m_vector[initial_sample_size]
+      if (!first_rebalancing_date %in% dplyr::pull(custom_signal_universe_metrics_m_df, dates)){
+        stop("first rebalancing date should be contemplated in custom_signal_universe_metrics_m_df")
+      }
+
+      ###Check if nrows match tickers * dates
+      if (custom_signal_universe_metrics_m_df %>% nrow() != length(unique(dplyr::pull(custom_signal_universe_metrics_m_df, tickers))) * length(unique(dplyr::pull(custom_signal_universe_metrics_m_df, dates)))){
+        stop("custom_signal_universe_metrics_m_df should have nrows equal to tickers * dates")
+      }
+
+      ###Check for NAs
+      if (any(is.na(custom_signal_universe_metrics_m_df))){
+        stop("custom_signal_universe_metrics_m_df should not have NAs")
+      }
+
+      ###Check if any colname match the usual output from summarize_performance
+      valid_heuristic_sb_metrics <- c(
+        "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
+        "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
+        "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
+        "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
+        "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
+        "prob_sharpe_ratio", "modigliani", "ann_modigliani",
+        "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
+        "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
+        "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
+        "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
+        "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
+        "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
+        "act_modigliani", "act_ann_modigliani",
+        "alpha", "theme_alpha", "individual_alpha", "alpha_se", "theme_beta", "individual_beta", "specific_risk",
+        "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
+        "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
+        "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
+      )
+
+      if (any(colnames(custom_signal_universe_metrics_m_df)) %in% valid_heuristic_sb_metrics){
+        stop("custom_signal_universe_metrics_m_df should not have colnames that match the usual output from summarize_performance")
+      }
+
+
+    }
+
     #chosen signals and signal positions
     ###Check if there are repeated signals in chosen_signals
     if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
@@ -326,7 +377,7 @@ check_inputs_ss_backtest <- function(
         stop("bayesian fit requires signal_themes_m_df.")
       }
 
-      if(!all(class(user_priors) == c("brmsprior", "data.frame"))){
+      if(is.null(user_priors) && !all(class(user_priors) == c("brmsprior", "data.frame"))){
         stop("user_priors should contain only brmsprior objects.")
       }
 

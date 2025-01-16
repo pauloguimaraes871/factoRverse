@@ -280,7 +280,13 @@ display_valid_custom_objectives <- function(){
     "2. Pseudo-Huber Error - ", crayon::yellow$bold("pseudo_huber_error"), "\n",
     "3. Absolute Error - ", crayon::yellow$bold("absolute_error"), "\n",
 
+    crayon::magenta$bold("## Additionally, user-defined metrics can also be considered, if they have been passed to run_ss_backtest through a custom_signal_universe_metrics_m_df object\n"),
+
     sep = ""
+
+
   )
+
+
 }
 

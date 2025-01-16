@@ -153,7 +153,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   #get selected info
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df,
-    signal_themes_m_df = signal_themes_m_df,
+    signal_themes_m_df = NULL,
     chosen_signals_and_positions = chosen_signals_and_positions,
     backtest_returns_xts = backtest_returns_xts
   )
@@ -161,7 +161,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
   selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
   selected_market_factor_proxy_xts <- xts::as.xts(data.frame(IBOV = rnorm(num_dates, 0, 1)), order.by = dates)
-  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
+  #selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
 
   #current info

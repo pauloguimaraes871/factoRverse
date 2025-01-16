@@ -100,9 +100,9 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             type <- list(...)
             if(length(type) > 0){
               #Check if it is correct
-              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights")){
+              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors")){
                 stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
-                     'weights'.")
+                     'weights', 'priors'.")
               }
             } else {
               type <- "generic"
@@ -142,7 +142,25 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                   meta_dataframe_name = meta_dataframe_name)
               )
             }
-            if(type == "signal_universe"){
+
+            if (type %in% c("signals", "features")){
+
+              if (apply(data, 2, function(x) any(is.na(x)))){
+                stop("Signals type can't contain NA values")
+              }
+
+              return(
+                new("signals_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name)
+              )
+            }
+            if (type == "signal_universe"){
 
               #Check for workflow
               if(is.null(ss_backtest_workflow)){
@@ -185,6 +203,20 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
 
               return(
                 new("groups_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name)
+              )
+            }
+
+            if (type == "priors"){
+
+              return(
+                new("priors_m_df",
                     data = data,
                     workflow = NULL,
                     signals = names(data)[-c(1:3)],
@@ -364,7 +396,6 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 #' @title Create an ss_backtest_config Object
 #' @description This function constructs an object of class `ss_backtest_config`, ensuring the proper initialization
 #' and validation of its slots.
-#' @param data_availability_cutoff A numeric indicating the minimum number of non-NA observations required for a backtest.
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @param rebalancing_months A numeric indicating the number of months for rebalancing.
 #' @param active_returns Logical, whether to calculate active returns when calculating performance metrics, except for CAPM (default is TRUE).
@@ -376,7 +407,6 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 #' @examples
 #' # Example usage:
 #' config <- create_ss_backtest_config(
-#'   data_availability_cutoff = 100,
 #'   initial_sample_size = 200,
 #'   rebalancing_months = 6,
 #'   alpha_test_strategy = alpha_test_strategy_obj,
@@ -384,7 +414,6 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 #' )
 #' @export
 create_ss_backtest_config <- function(
-    data_availability_cutoff,
     initial_sample_size,
     rebalancing_months,
     active_returns = TRUE,
@@ -398,15 +427,10 @@ create_ss_backtest_config <- function(
     message("chosen_signals_and_positions set as 'all'. All signals in signals_m_df will be used and a long position will be assumed to all.")
   }
   # Input validation
-  if (data_availability_cutoff < 0) {
-    stop("data_availability_cutoff cannot be negative.")
-  }
   if (initial_sample_size < 0) {
     stop("initial_sample_size cannot be negative.")
   }
-  if (initial_sample_size < data_availability_cutoff) {
-    stop("initial_sample_size must be greater than or equal to data_availability_cutoff.")
-  }
+
   if (!split_method %in% c("expanding", "rolling")) {
     stop("split_method must be either 'expanding' or 'rolling'.")
   }
@@ -414,7 +438,6 @@ create_ss_backtest_config <- function(
   # Create and return the object
   new("ss_backtest_config",
       chosen_signals_and_positions = chosen_signals_and_positions,
-      data_availability_cutoff = data_availability_cutoff,
       initial_sample_size = initial_sample_size,
       rebalancing_months = rebalancing_months,
       active_returns = active_returns,
@@ -489,7 +512,7 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
 #' @return The updated `sb_backtest_config` object with the created `ss_backtest_config`.
 #' @export
 setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "missing"),
-          function(object, data_availability_cutoff, initial_sample_size, rebalancing_months, active_returns = TRUE, split_method = "expanding",
+          function(object, initial_sample_size, rebalancing_months, active_returns = TRUE, split_method = "expanding",
                    chosen_signals_and_positions = "all",
                    alpha_test_strategy = NULL, config_name = "not_identified") {
 
@@ -499,8 +522,7 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
             }
 
             #create ss_backtest_config
-            ss_backtest_config <- create_ss_backtest_config(data_availability_cutoff = data_availability_cutoff,
-                                                            chosen_signals_and_positions = chosen_signals_and_positions,
+            ss_backtest_config <- create_ss_backtest_config(chosen_signals_and_positions = chosen_signals_and_positions,
                                                             initial_sample_size = initial_sample_size,
                                                             rebalancing_months = rebalancing_months,
                                                             active_returns = active_returns,
@@ -644,7 +666,6 @@ create_alpha_test_strategy <- function(
 #'                        p_correction_method = "holm",
 #'                        market_factor_proxy = "S&P500")
 #' config <- create_ss_backtest_config(
-#'   data_availability_cutoff = 100,
 #'   initial_sample_size = 200,
 #'   rebalancing_months = 6,
 #'   alpha_test_strategy = NULL,
@@ -2617,7 +2638,7 @@ setMethod("remove_sb_backtest_config", "sb_metabacktest_config", function(object
 #' `sb_backtest_results` object for the meta learner.
 #' It computes consolidated and time series evaluation metrics for machine learning backtests.
 #'
-#' @param meta_sb_backtest_results_list A list containing `sb_backtest_results` objects for the meta learner and for the two heuristic ensembles.
+#' @param meta_sb_backtest_results A `sb_backtest_results` object for the meta learner
 #' @param base_sb_backtest_results_list A named list of `sb_backtest_results` objects for the base learners.
 #' @return An object of class `sb_metabacktest_results`.
 #'
@@ -2634,13 +2655,13 @@ setGeneric(
 #' `sb_backtest_results` object for the meta learner.
 #' It computes consolidated and time series evaluation metrics for machine learning backtests.
 #'
-#' @param meta_sb_backtest_results_list A list containing `sb_backtest_results` objects for the meta learner and for the two heuristic ensembles.
+#' @param meta_sb_backtest_results  A `sb_backtest_results` object for the meta learner
 #' @param base_sb_backtest_results_list A named list of `sb_backtest_results` objects for the base learners.
 #' @return An object of class `sb_metabacktest_results`.
 #'
 setGeneric(
   name = "create_sb_metabacktest_results",
-  def = function(meta_sb_backtest_results_list, base_sb_backtest_results_list, ...) {
+  def = function(meta_sb_backtest_results, base_sb_backtest_results_list, ...) {
     standardGeneric("create_sb_metabacktest_results")
   }
 )
@@ -2649,18 +2670,15 @@ setGeneric(
 #' @aliases create_sb_metabacktest_results,list-method
 setMethod(
   f = "create_sb_metabacktest_results",
-  signature = signature(meta_sb_backtest_results_list = "list", base_sb_backtest_results_list = "list"),
-  definition = function(meta_sb_backtest_results_list, base_sb_backtest_results_list, oos_predictions_m_df) {
+  signature = signature(meta_sb_backtest_results = "list", base_sb_backtest_results_list = "list"),
+  definition = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df) {
 
   #Initial Checks
   ##################
 
     # Check that the meta_sb_backtest_results input is a list of 'sb_backtest_results' object
-    if (!all(sapply(meta_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
-      stop("All elements in 'meta_sb_backtest_results_list' must be of class 'sb_backtest_results'")
-    }
-    if(length(meta_sb_backtest_results_list) != 3){
-      stop("The 'meta_sb_backtest_results_list' list must contain exactly 3 elements: one for the meta learner and two for the heuristic ensembles.")
+    if (!is(meta_sb_backtest_results, "sb_backtest_results")){
+      stop("'meta_sb_backtest_results_list' must be of class 'sb_backtest_results'")
     }
 
     # Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
@@ -2674,15 +2692,16 @@ setMethod(
   ###################
 
     #Get ML Workflow from meta learner
-    meta_learner_sb_backtest_workflow <- meta_sb_backtest_results_list[[1]]@sb_backtest_workflow
+    meta_learner_sb_backtest_workflow <- meta_sb_backtest_results@sb_backtest_workflow
 
     # Get the names of the list elements
+    meta_sb_name <- meta_sb_backtest_results@backtest_identifier
     base_sb_names <- names(base_sb_backtest_results_list)
-    meta_sb_names <- names(meta_sb_backtest_results_list)
+
 
     #Consolidate all results
-    all_sb_backtest_results <- c(base_sb_backtest_results_list, meta_sb_backtest_results_list)
-    all_sb_names <- c(base_sb_names, meta_sb_names)
+    all_sb_backtest_results <- c(base_sb_backtest_results_list, meta_sb_backtest_results)
+    all_sb_names <- c(base_sb_names, meta_sb_name)
 
     #Common testing dates range
     common_testing_dates_range <- as.Date(Reduce(
@@ -3385,7 +3404,6 @@ setMethod("add_concentration_constraint_policy",
 #' @param chosen_informative_data A data structure with informative data.
 #' @param chosen_sb_metric A metric chosen for signal blending.
 #' @param priors_type Type of priors to use.
-#' @param data_availability_cutoff A cutoff for data availability.
 #'
 #' @return The updated `port_backtest_config` object with the added signal selection policy.
 #'
@@ -3402,7 +3420,7 @@ setGeneric("add_signal_selection_policy", function(port_backtest_config_obj,
                                                    #Restrictions on weights
                                                    sb_benchmark_weighting_method = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL,
                                                    #How to select signals
-                                                   p_correction_method = "none", signal_significance_threshold = 0.05, data_availability_cutoff = 60,
+                                                   p_correction_method = "none", signal_significance_threshold = 0.05,
                                                    priors_type = NULL, priors_informative_data = NULL) {
 
   standardGeneric("add_signal_selection_policy")
@@ -3417,7 +3435,7 @@ setMethod("add_signal_selection_policy", "port_backtest_config", function(port_b
                                                                           #Restrictions on weights
                                                                           sb_benchmark_weighting_method = "theme_sb", max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL,
                                                                           #How to select signals
-                                                                          p_correction_method = "none", signal_significance_threshold = 0.05, data_availability_cutoff = 60,
+                                                                          p_correction_method = "none", signal_significance_threshold = 0.05,
                                                                           priors_type = NULL, priors_informative_data = NULL
                                                                         ) {
 
@@ -3517,11 +3535,6 @@ setMethod("add_signal_selection_policy", "port_backtest_config", function(port_b
       stop("signal_significance_threshold should be numeric")
     }
 
-    ##data_availability_cutoff
-    if(!is.numeric(data_availability_cutoff)){
-      stop("data_availability_cutoff should be numeric")
-    }
-
     ##priors_type
     if (!is.null(priors_type)){
       ###Character
@@ -3570,7 +3583,6 @@ setMethod("add_signal_selection_policy", "port_backtest_config", function(port_b
       "none"
     },
     signal_significance_threshold = if (!is.null(signal_significance_threshold)) signal_significance_threshold else port_backtest_config_obj@signal_selection_policy$signal_significance_threshold,
-    data_availability_cutoff = if (!is.null(data_availability_cutoff)) data_availability_cutoff else port_backtest_config_obj@signal_selection_policy$data_availability_cutoff,
       priors_type = if (!is.null(p_correction_method) && p_correction_method == "bayesian" && is.null(priors_type)) {
     "uninformative"
   } else if (!is.null(priors_type)) {

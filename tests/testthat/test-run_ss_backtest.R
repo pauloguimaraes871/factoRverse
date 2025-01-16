@@ -17,7 +17,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   mocked_backtest_returns_xts$eps_yield[c(7:9)] <- c(3,3,3)
   chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
 
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6, data_availability_cutoff = 3,
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
                                                      ) %>%
@@ -33,7 +33,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
                              signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
-                             signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                             signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
                              )
   )
@@ -54,8 +54,9 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   bayesian_fit_nested_list <- list()
   dates_m_vector <- unique(signals_m_df$dates)
 
-  check_inputs_ss_backtest(rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff,
+  check_inputs_ss_backtest(rebalancing_months = rebalancing_months,
                            signals_m_df = signals_m_df, initial_sample_size = initial_sample_size, active_returns = active_returns,
+                           custom_signal_universe_metrics_m_df = NULL,
                            chosen_signals_and_positions = chosen_signals_and_positions,  model_structure = model_structure,
                            backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
                            p_correction_method = signal_selection_policy$p_correction_method, forced_signals = NULL,
@@ -213,11 +214,10 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   ]
 
 
-  names(signal_eligibility_results_list) <- c(dates_m_vector[data_availability_cutoff],
-                                              current_date)
-
   expected_signal_universe <- rbind(signal_eligibility_results_list[[1]], signal_eligibility_results_list[[2]])
   expected_signal_universe <- expected_signal_universe[order(expected_signal_universe$id),]
+  rownames(expected_signal_universe) <- NULL
+  rownames(results@signal_universe_m_df@data) <- NULL
   expect_equal(results@signal_universe_m_df@data,expected_signal_universe)
 
   expect_equal(results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers),
@@ -250,7 +250,7 @@ test_that("run_ss_backtest works for inclusion of forced variables", {
   mocked_backtest_returns_xts$eps_yield[c(7:9)] <- c(3,3,3)
   chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short", setorc1 = "force")
 
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6, data_availability_cutoff = 3,
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
   ) %>%
@@ -266,7 +266,7 @@ test_that("run_ss_backtest works for inclusion of forced variables", {
   results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
                     signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
-                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
   )
@@ -283,8 +283,6 @@ test_that("run_ss_backtest works for inclusion of forced variables", {
 
 })
 
-
-
 test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when p_correction is holm", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
@@ -300,8 +298,10 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
     low_vol_36m = rnorm(length(unique(signals_m_df$dates)), mean = 0.0075, sd = 0.0075)
   ), order.by = unique(signals_m_df$dates))
 
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6, data_availability_cutoff = 3,
-                                                     split_method = "expanding", config_name = "frequentist_ss") %>%
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6,
+                                                     split_method = "expanding", config_name = "frequentist_ss", chosen_signals_and_positions = chosen_signals_and_positions) %>%
     add_alpha_test_strategy(signal_significance_threshold = 0.15, p_correction_method = "holm", model_structure = "no_pooled",
                             market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
 
@@ -309,11 +309,10 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   signals_m_df <- create_meta_dataframe(signals_m_df, "signals_123")
   signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11")
 
-  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
 
   results <- run_ss_backtest(frequentist_ss_config,
                              signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,signal_themes_m_df = signal_themes_m_df,
-                             chosen_signals_and_positions,
                              verbose = TRUE
   )
 
@@ -337,8 +336,9 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   eligible_signals_list <- list()
   dates_m_vector <- unique(signals_m_df$dates)
 
-  check_inputs_ss_backtest(rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff,
+  check_inputs_ss_backtest(rebalancing_months = rebalancing_months,
                            signals_m_df = signals_m_df, initial_sample_size = initial_sample_size, active_returns = active_returns,
+                           custom_signal_universe_metrics_m_df = NULL,
                            chosen_signals_and_positions = chosen_signals_and_positions, model_structure = model_structure,
                            backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
                            p_correction_method = signal_selection_policy$p_correction_method, forced_signals = NULL,
@@ -506,20 +506,22 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   eligible_signals_list[[6]] <- data.frame(tickers = eligible_signals_2)
   eligible_signals_list[[7]] <- data.frame(tickers = eligible_signals_2)
 
-
-  names(signal_eligibility_results_list) <- c(dates_m_vector[data_availability_cutoff],
-                                              current_date)
-
-
   names(eligible_signals_list) <- dates_m_vector[initial_sample_size:length(dates_m_vector)]
 
   expected_signal_universe <- rbind(signal_eligibility_results_list[[1]], signal_eligibility_results_list[[2]])
   expected_signal_universe <- expected_signal_universe[order(expected_signal_universe$id),]
 
+  rownames(expected_signal_universe) <- NULL
+  rownames(results@signal_universe_m_df@data) <- NULL
+
   expect_equal(results@signal_universe_m_df@data, expected_signal_universe)
 
-  expect_equal(results@final_signal_universe_m_d_ref@data, signal_universe_m_d_ref_2[order(signal_universe_m_d_ref_2$id),])
+  rownames(signal_universe_m_d_ref_2[order(signal_universe_m_d_ref_2$id),]) <- NULL
+  rownames(results@final_signal_universe_m_d_ref@data) <- NULL
 
+  expect_true(
+  all.equal(results@final_signal_universe_m_d_ref@data, signal_universe_m_d_ref_2[order(signal_universe_m_d_ref_2$id),], check.attributes = FALSE) #Ignore rownames
+  )
 
 })
 
@@ -538,8 +540,10 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
     low_vol_36m = rnorm(length(unique(signals_m_df$dates)), mean = 0.0075, sd = 0.0075)
   ), order.by = unique(signals_m_df$dates))
 
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6, data_availability_cutoff = 3,
-                                                     split_method = "expanding", config_name = "frequentist_ss") %>%
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6,
+                                                     split_method = "expanding", config_name = "frequentist_ss", chosen_signals_and_positions = chosen_signals_and_positions) %>%
     add_alpha_test_strategy(signal_significance_threshold = 0.85, p_correction_method = "fdr", model_structure = "partial_pooled",
                             market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE,
                             theme_level_intercept = "theme_specific", theme_level_slope = "fixed")
@@ -548,11 +552,9 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   signals_m_df <- create_meta_dataframe(signals_m_df, "signals_123")
   signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11")
 
-  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
 
   results <- run_ss_backtest(frequentist_ss_config,
                              signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,signal_themes_m_df = signal_themes_m_df,
-                             chosen_signals_and_positions,
                              verbose = TRUE
   )
 
@@ -575,8 +577,9 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   eligible_signals_list <- list()
   dates_m_vector <- unique(signals_m_df$dates)
 
-  check_inputs_ss_backtest(rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff,
+  check_inputs_ss_backtest(rebalancing_months = rebalancing_months,
                            signals_m_df = signals_m_df, initial_sample_size = initial_sample_size, active_returns = active_returns,
+                           custom_signal_universe_metrics_m_df = NULL,
                            chosen_signals_and_positions = chosen_signals_and_positions, model_structure = model_structure,
                            backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
                            p_correction_method = signal_selection_policy$p_correction_method, lmer_control = lmer_control,
@@ -750,21 +753,20 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   eligible_signals_list[[7]] <- data.frame(tickers = eligible_signals_2)
 
 
-  names(signal_eligibility_results_list) <- c(dates_m_vector[data_availability_cutoff],
-                                              current_date)
-
-
   names(eligible_signals_list) <- dates_m_vector[initial_sample_size:length(dates_m_vector)]
 
   expected_signal_universe <- rbind(signal_eligibility_results_list[[1]], signal_eligibility_results_list[[2]])
   expected_signal_universe <- expected_signal_universe[order(expected_signal_universe$id),]
 
-  expect_equal(results@signal_universe_m_df@data,
-               expected_signal_universe)
+  rownames(results@signal_universe_m_df@data) <- NULL
+  rownames(expected_signal_universe) <- NULL
 
+  expect_equal(results@signal_universe_m_df@data, expected_signal_universe)
 
-  expect_equal(results@final_signal_universe_m_d_ref@data, signal_universe_m_d_ref_2[order(signal_universe_m_d_ref_2$id),])
-
+  expect_true(
+    all.equal(results@final_signal_universe_m_d_ref@data, signal_universe_m_d_ref_2[order(signal_universe_m_d_ref_2$id),],
+              check.attributes = FALSE)
+  )
 
 })
 
@@ -891,9 +893,9 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
   mocked_priors_m_df <- simulated_data[, c("id", "tickers", "dates", "return", "market_factor_proxy", "theme")]
 
   ##############################
-
-  bayesian_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6, data_availability_cutoff = 3,
-                                                  split_method = "expanding", config_name = "bayesian_ss") %>%
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+  bayesian_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6,
+                                                  split_method = "expanding", config_name = "bayesian_ss", chosen_signals_and_positions = chosen_signals_and_positions) %>%
     add_alpha_test_strategy(model_structure = "partial_pooled", theme_level_intercept = "theme_specific", theme_level_slope = "theme_specific",
                             signal_significance_threshold = 0.10, p_correction_method = "bayesian",
                             market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE,
@@ -905,13 +907,12 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
   signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11")
   priors_m_df <- create_meta_dataframe(mocked_priors_m_df[order(mocked_priors_m_df$id),], "priors_123")
 
-  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
 
   future::plan("multisession")
   results <- run_ss_backtest(bayesian_ss_config, priors_m_df = priors_m_df,
                              signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
                              signal_themes_m_df = signal_themes_m_df,
-                             chosen_signals_and_positions = chosen_signals_and_positions,
                              verbose = TRUE
   )
 
@@ -938,9 +939,10 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
   eligible_signals_list <- list()
   dates_m_vector <- unique(signals_m_df$dates)
 
-  check_inputs_ss_backtest(rebalancing_months = rebalancing_months, data_availability_cutoff = data_availability_cutoff,
+  check_inputs_ss_backtest(rebalancing_months = rebalancing_months,
                            signals_m_df = signals_m_df, initial_sample_size = initial_sample_size,
                            chosen_signals_and_positions = chosen_signals_and_positions,
+                           custom_signal_universe_metrics_m_df = NULL,
                            theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope,
                            active_returns = active_returns, model_structure = model_structure, forced_signals = NULL,
                            backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,

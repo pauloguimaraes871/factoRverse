@@ -11,7 +11,8 @@ create_ss_backtest_config(
   active_returns = TRUE,
   split_method = "expanding",
   alpha_test_strategy = NULL,
-  config_name = "not_identified"
+  config_name = "not_identified",
+  chosen_signals_and_positions = "all"
 )
 }
 \arguments{
