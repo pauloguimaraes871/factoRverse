@@ -110,6 +110,11 @@ check_inputs_ss_backtest <- function(
     stop("More than one signal must be provided in order to run a ss_backtest")
   }
 
+  ###Check if there are repeated signals in chosen_signals
+  if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
+    stop("each signal must be chosen only once")
+  }
+
   #signals_m_df
   ###Coercible
   if(!(is_coercible_to_meta_dataframe(signals_m_df))){
@@ -175,13 +180,22 @@ check_inputs_ss_backtest <- function(
     stop("backtest_returns_xts must have at least initial_sample_size rows")
   }
 
-  if(any(!signals_m_df %>% dplyr::pull(dates) %>% unique() %in% backtest_returns_dates)){
-    stop("all dates in signals_m_df must be present in backtest_returns_xts")
+  if(any(!unique(dplyr::pull(signals_m_df, dates))[-c(1:initial_sample_size)] %in% backtest_returns_dates)){
+    stop("all backtest_dates derived from signals_m_df must be present in backtest_returns_xts")
   }
 
-  if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 +
-               as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
+  backtest_returns_dates_before_first_training <- backtest_returns_dates[which(backtest_returns_dates < unique(dplyr::pull(signals_m_df, dates))[initial_sample_size])]
+
+  if (length(backtest_returns_dates_before_first_training) < 2) {
+    stop("There is only one date in backtest_returns_xts before the first training date")
+  }
+
+  if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 + as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
     stop("backtest_returns_xts must have consecutive dates")
+  }
+
+  if(any(seq.Date(from = backtest_returns_dates[1], to = backtest_returns_dates[length(backtest_returns_dates)], by = "month") != backtest_returns_dates)){
+    stop("backtest_returns_xts must have sequential monthly dates")
   }
 
   #benchmark_returns_xts
@@ -218,12 +232,17 @@ check_inputs_ss_backtest <- function(
 
   #signal_themes_m_df
   ###Check if signal_themes_m_df contemplates theme column
+  if(enable_theme_representativeness & is.null(signal_themes_m_df)){
+    stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
+  }
+
   if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
     stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
   }
 
-  if(enable_theme_representativeness & is.null(signal_themes_m_df)){
-    stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
+  ###Check format in signal_themes_m_df
+  if(any(grepl("_", signal_themes_m_df %>% dplyr::pull(theme)))){
+    stop("No underscores allowed in signal_themes_m_df theme names")
   }
 
   ##Check if all signals of signals_m_df are covere
@@ -231,22 +250,24 @@ check_inputs_ss_backtest <- function(
     stop("all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
   }
 
-    ###Check if theme column is character
-    if(!is.character(signal_themes_m_df %>% dplyr::pull(theme))){
-      stop("theme column in signal_themes_m_df must be character")
-    }
+  ##Check if theme column is character
+  if(!is.character(signal_themes_m_df %>% dplyr::pull(theme))){
+    stop("theme column in signal_themes_m_df must be character")
+  }
 
-    ###Check format in signal_themes_m_df
-    if(any(grepl("_", signal_themes_m_df %>% dplyr::pull(theme)))){
-      stop("No underscores allowed in signal_themes_m_df theme names")
-    }
-
-    ###Check if dates in signal_themes_m_df and signals_m_df are the same
+  ##Check if dates in signal_themes_m_df and signals_m_df are the same
     signal_dates_m_vector <- as.Date(unique(signals_m_df %>% dplyr::pull(dates)))
     signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df %>% dplyr::pull(dates)))
     if(any(!signal_dates_m_vector %in% signal_themes_dates_m_vector)){
       stop("dates in signal_themes_m_df and signals_m_df must be the same")
     }
+
+  ##Check if there is a theme classification for every date
+  expected_ids_in_signal_themes <- expand.grid(tickers = names(chosen_signals_corrected_positions), dates = signal_dates_m_vector) %>%
+    dplyr::mutate(id = paste0(tickers, "-", dates)) %>% dplyr::pull(id)
+  if(any(!expected_ids_in_signal_themes %in% signal_themes_m_df$id)){
+    stop("chosen_signals_and_positions must have a theme classification for every date")
+  }
 
    #model_structure
    if(!model_structure %in% c("no_pooled", "partial_pooled")){
@@ -295,6 +316,20 @@ check_inputs_ss_backtest <- function(
       if(!(is_coercible_to_meta_dataframe(priors_m_df))){
         stop("priors_m_df should be coercible to meta_dataframe object")
       }
+      ###Check if all required columns are present
+      if (any(!colnames(priors_m_df) == c("id", "tickers", "dates", "return", "market_factor_proxy", "theme"))) {
+        stop("priors_m_df must have columns 'id', 'tickers', 'dates', 'return', 'market_factor_proxy' and 'theme'")
+      }
+
+      ###Check if priors_m_df has themes for every date
+      chosen_signals_themes <- signal_themes_m_df %>% dplyr::filter(tickers %in% names(chosen_signals_corrected_positions)) %>% dplyr::pull(theme) %>% unique()
+      expected_theme_ids_in_priors <- expand.grid(tickers = chosen_signals_themes, dates = signal_dates_m_vector) %>%
+        dplyr::mutate(id = paste0(tickers, "-", dates)) %>% dplyr::pull(id)
+      actual_theme_ids_in_priors <- priors_m_df %>% dplyr::mutate(theme_id = paste0(theme, "-", dates)) %>% dplyr::pull(theme_id) %>% unique()
+
+      if(any(!expected_theme_ids_in_priors %in% actual_theme_ids_in_priors)){
+        stop("priors_m_df themes must contemplate all themes of chosen_signals_and_positions throughout all backtest dates")
+      }
 
       ###Check if all themes are present
       if(!all(unique(priors_m_df %>% dplyr::pull(theme)) %in% unique(signal_themes_m_df %>% dplyr::pull(theme))) ||
@@ -302,23 +337,25 @@ check_inputs_ss_backtest <- function(
       ){
         stop("themes in priors_m_df and signal_themes_m_df should match")
       }
+
     }
 
     #custom_signal_universe_metrics_m_df
     if (!is.null(custom_signal_universe_metrics_m_df)){
+
       ###Coercible
       if (!(is_coercible_to_meta_dataframe(custom_signal_universe_metrics_m_df))){
         stop("custom_signal_universe_metrics_m_df should be coercible to meta_dataframe object")
       }
 
       ###Check if signals match
-      if (!any(colnames(signals_m_df)[-c(1:3)] %in% dplyr::pull(custom_signal_universe_metrics_m_df, tickers))){
-        stop("all signals should be contemplated in custom_signal_universe_metrics_m_df")
+      if (any(!names(chosen_signals_corrected_positions) %in% dplyr::pull(custom_signal_universe_metrics_m_df, tickers))){
+        stop("all chosen signals should be contemplated in custom_signal_universe_metrics_m_df")
       }
 
       ###Check if first rebalancing date is contemplated in custom_signal_universe_metrics_m_df
       first_rebalancing_date <- signal_dates_m_vector[initial_sample_size]
-      if (!first_rebalancing_date %in% dplyr::pull(custom_signal_universe_metrics_m_df, dates)){
+      if (first_rebalancing_date < min(dplyr::pull(custom_signal_universe_metrics_m_df, dates))){
         stop("first rebalancing date should be contemplated in custom_signal_universe_metrics_m_df")
       }
 
@@ -353,17 +390,11 @@ check_inputs_ss_backtest <- function(
         "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
       )
 
-      if (any(colnames(custom_signal_universe_metrics_m_df)) %in% valid_heuristic_sb_metrics){
+      if (any(colnames(custom_signal_universe_metrics_m_df) %in% valid_heuristic_sb_metrics)){
         stop("custom_signal_universe_metrics_m_df should not have colnames that match the usual output from summarize_performance")
       }
 
 
-    }
-
-    #chosen signals and signal positions
-    ###Check if there are repeated signals in chosen_signals
-    if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
-      stop("each signal must be chosen only once")
     }
 
 

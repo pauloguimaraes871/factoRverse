@@ -556,7 +556,6 @@ run_ss_backtest_internal <- function(
     for(d in initial_sample_size:(initial_sample_size + backtest_length - 1)){
       #Extract date and references
       current_date <- dates_m_vector[d]
-      upd_ref <- which(as.Date(signals_m_df$dates,  format = "%Y-%m-%d") <= current_date) #Get upd_ref
 
       #Check if it's a rebalancing month
       if((lubridate::month(current_date) %in% rebalancing_months) || d == (initial_sample_size)){
@@ -568,12 +567,13 @@ run_ss_backtest_internal <- function(
         }
 
         #Subset signals, backtest, market factor, priors and custom_signal_universe_metrics
-        selected_signals_corrected_positions_m_upd_ref <- selected_signals_corrected_positions_m_df[upd_ref,]
+        selected_signals_corrected_positions_m_upd_ref <- selected_signals_corrected_positions_m_df %>% dplyr::filter(dates <= current_date)
+        selected_signal_themes_m_d_ref <- selected_signal_themes_m_df %>% dplyr::filter(dates == current_date) #Just one date reference needed
+        priors_m_upd_ref <- if (!is.null(priors_m_df)) priors_m_df %>% dplyr::filter(dates <= current_date) else NULL
+        custom_signal_universe_metrics_m_upd_ref <- if (!is.null(custom_signal_universe_metrics_m_df)) custom_signal_universe_metrics_m_df %>% dplyr::filter(dates <= current_date) else NULL
+
         selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[which(zoo::index(selected_backtest_returns_corrected_positions_xts) <= current_date), ]
         selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[which(zoo::index(selected_market_factor_proxy_xts) <= current_date), ]
-        selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
-        priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date), ]
-        custom_signal_universe_metrics_m_upd_ref <- custom_signal_universe_metrics_m_df[which(custom_signal_universe_metrics_m_df$dates <= current_date), ]
 
 
         ###Elect signals0

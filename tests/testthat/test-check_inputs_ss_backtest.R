@@ -125,7 +125,7 @@ test_that("check_inputs_ss_backtest thrown an error when trying to choose a sign
   signal_themes_m_df_beta <- signal_themes_m_df %>% dplyr::filter(tickers == "Alpha") %>% dplyr::mutate(tickers = "Beta")
   signal_themes_m_df <- dplyr::bind_rows(signal_themes_m_df, signal_themes_m_df_beta)
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
 
@@ -149,7 +149,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
   backtest_returns_xts[3,2] <- NA
@@ -171,7 +171,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
   correct_dates <- zoo::index(backtest_returns_xts)
@@ -196,7 +196,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
   correct_dates <- zoo::index(backtest_returns_xts)
@@ -219,19 +219,19 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
-  wrong_backtest_returns_xts <- backtest_returns_xts[-2,]
+  wrong_backtest_returns_xts <- backtest_returns_xts[-c(2:3),]
 
   expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = wrong_backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        backtest_returns_xts = wrong_backtest_returns_xts, forced_signals = NULL, initial_sample_size = 1,
                                         enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
                                         market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
                                         signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
                                         signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
-               "all dates in signals_m_df must be present in backtest_returns_xts"
+               "all backtest_dates derived from signals_m_df must be present in backtest_returns_xts"
   )
 
   #backtest_returns_xts can have more dates than signals_m_df
@@ -239,7 +239,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
   signals_m_df <- signals_m_df %>% dplyr::filter(!dates == "2001-03-15")
@@ -260,7 +260,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
   short_benchmark_returns_xts <- benchmark_returns_xts[-1,]
@@ -279,7 +279,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
   short_backtest_returns_xts <- backtest_returns_xts[-1,]
@@ -301,35 +301,16 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 10
   p_correction_method <- "none"
   rebalancing_months <- 6
 
 
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 12, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
-                                        rebalancing_months = 6),
-               "backtest_returns_xts must have at least data_availability_cutoff rows")
-
-
-  #Create signals_m_d_ref_test
-  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
-
-  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
-
-  data_availability_cutoff <- 2
-  p_correction_method <- "none"
-  rebalancing_months <- 6
-
-
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 12, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 30,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "backtest_returns_xts must have at least initial_sample_size rows")
 
@@ -340,57 +321,37 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
   p_correction_method <- "none"
   rebalancing_months <- 6
-  backtest_returns_xts <-  backtest_returns_xts[c(3:6),]
 
 
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 1,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "There is only one date in backtest_returns_xts before the first training date")
 
 
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 3, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
-                                        rebalancing_months = 6))
-
-
-  #Create signals_m_d_ref_test
-  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
-
-  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
-
-  data_availability_cutoff <- 2
-  p_correction_method <- "none"
-  rebalancing_months <- 6
-  backtest_returns_xts <-  backtest_returns_xts[c(3:6),]
-  benchmark_returns_xts <- benchmark_returns_xts[c(3:6),]
-
-
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 3, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
-                                        rebalancing_months = 6, market_factor_proxy = "IBOV"),
-               "all dates in signals_m_df must be present in backtest_returns_xts")
 
   #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "long", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
 
 
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 6, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "all chosen_signals_and_positions with their corrected position should be present in backtest_returns_xts")
 
@@ -400,119 +361,284 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_xts or 
 
 test_that("check_inputs_ss_backtest thrown an error when signal_themes_m_df has wrong format", {
 
-  #Create signals_m_d_ref_test
+  #No underscore allowed
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
-  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long", Beta = "long")
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
   p_correction_method <- "none"
   rebalancing_months <- 6
   signal_themes_m_df$theme[7:12] <- paste0("high_",  signal_themes_m_df$theme[7:12])
 
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 6, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "No underscores allowed in signal_themes_m_df theme names")
 
 
 
-  #Create signals_m_d_ref_test
+  #Col names
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
-  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long", Beta = "long")
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
   colnames(signal_themes_m_df)[4] <- "themes"
 
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 6, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
 
 
-
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 6, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = NULL, priors_m_df = NULL, p_correction_method = p_correction_method,
+  #Enable theme representativeness
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = NULL, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
 
 
-  #Create signals_m_d_ref_test
+  #Chosen signals and positions
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
   chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
   signal_themes_m_df[7:12,"tickers"] <- "Beta"
   signal_themes_m_df[7:12,"id"] <- paste0(signal_themes_m_df[7:12,"tickers"], "-", signal_themes_m_df[7:12,"dates"])
 
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 6, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
 
-  #Create signals_m_d_ref_test
+
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
-  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Vega = "long")
 
-  data_availability_cutoff <- 2
+
   p_correction_method <- "none"
   rebalancing_months <- 6
-  benchmark_returns_xts <- benchmark_returns_xts[1:5,]
-  backtest_returns_xts <- backtest_returns_xts[1:5,]
+  signals_m_df <- signals_m_df %>% dplyr::mutate(Vega = rnorm(n = nrow(signals_m_df)))
+  backtest_returns_xts$Vega <- rnorm(n = nrow(backtest_returns_xts))
 
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 3, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = NULL, p_correction_method = p_correction_method,
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
-               "all dates in signals_m_df must be present in backtest_returns_xts")
+               "all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
+
+
+
+  #Check for dates in signal_themes_m_df and signals_m_df
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  signal_themes_m_df$dates[which(signal_themes_m_df$dates == "2001-04-15")] <- "2001-07-15"
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "dates in signal_themes_m_df and signals_m_df must be the same")
+
+
+
+
+  #Check for dates in signal_themes_m_df and signals_m_df
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  wrong_signal_themes_m_df <- signal_themes_m_df[-3,]
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = wrong_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "chosen_signals_and_positions must have a theme classification for every date")
 
 })
-
-
 
 test_that("check_inputs_ss_backtest thrown an error when priors_m_df has wrong format", {
 
-  #Create signals_m_d_ref_test
+
+  #Check for wrong colnames
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
-  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
 
-  data_availability_cutoff <- 2
   p_correction_method <- "none"
   rebalancing_months <- 6
+  wrong_priors_m_df <- priors_m_df %>% dplyr::rename(active_return = return)
 
-
-
-
-  expect_error(check_inputs_ss_backtest(initial_sample_size = 6, signals_m_df = signals_m_df,  chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_xts = backtest_returns_xts,
-                                        benchmark_returns_xts = benchmark_returns_xts, enable_theme_representativeness = TRUE,
-                                        signal_significance_threshold = 0.05,
-                                        signal_themes_m_df = signal_themes_m_df, priors_m_df = priors_m_df, p_correction_method = p_correction_method,
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
-               "No underscores allowed in signal_themes_m_df theme names")
+               "priors_m_df must have columns 'id', 'tickers', 'dates', 'return', 'market_factor_proxy' and 'theme'")
 
+
+  #Check for theme matching in prior_m_df
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  wrong_priors_m_df <- priors_m_df %>% dplyr::mutate(theme = dplyr::if_else(theme == "value" & dates == "2001-04-15", "momentum", theme)) #Eliminate value theme in 2001-04-15
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "priors_m_df themes must contemplate all themes of chosen_signals_and_positions throughout all backtest dates")
+
+  #Check for theme matching in prior_m_df
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  wrong_priors_m_df <- priors_m_df %>% dplyr::mutate(theme = dplyr::if_else(tickers == "delta" & dates == "2001-04-15", "skewness", theme)) #Crate a skewness theme
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "themes in priors_m_df and signal_themes_m_df should match")
 
 
 })
+
+test_that("check_inputs_ss_backtest thrown an error when custom_signal_universe_metrics_m_df has wrong format", {
+
+
+  #Check not contemplating chosen signals
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  custom_signal_universe_metrics_m_df <- signal_themes_m_df %>% dplyr::select(id, tickers, dates) %>% dplyr::filter(!dates %in% c("2001-05-15", "2001-07-15"),
+                                                                                                                    !tickers == "Delta") %>%
+    dplyr::mutate(pe = rnorm(nrow(.)), pb = rnorm(nrow(.)), ps = rnorm(nrow(.)), roe = rnorm(nrow(.)), roa = rnorm(nrow(.)), debt_to_equity = rnorm(nrow(.))) %>%
+    dplyr::arrange(id)
+
+  wrong_custom_signal_universe_metrics_m_df <- custom_signal_universe_metrics_m_df %>% dplyr::filter(!tickers == "Alpha") #Eliminate Alpha
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = wrong_custom_signal_universe_metrics_m_df,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "all chosen signals should be contemplated in custom_signal_universe_metrics_m_df")
+
+
+  #Check for first date not being ocntemplated
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  custom_signal_universe_metrics_m_df <- signal_themes_m_df %>% dplyr::select(id, tickers, dates) %>% dplyr::filter(!dates %in% c("2001-05-15", "2001-07-15"),
+                                                                                                                    !tickers == "Delta") %>%
+    dplyr::mutate(pe = rnorm(nrow(.)), pb = rnorm(nrow(.)), ps = rnorm(nrow(.)), roe = rnorm(nrow(.)), roa = rnorm(nrow(.)), debt_to_equity = rnorm(nrow(.))) %>%
+    dplyr::arrange(id)
+
+  wrong_custom_signal_universe_metrics_m_df <- custom_signal_universe_metrics_m_df %>% dplyr::filter(!dates < "2001-05-15") #Eliminate Alpha
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 2,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = wrong_custom_signal_universe_metrics_m_df,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "first rebalancing date should be contemplated in custom_signal_universe_metrics_m_df")
+
+
+  #Check for chosen_signals not being present in all dates
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  custom_signal_universe_metrics_m_df <- signal_themes_m_df %>% dplyr::select(id, tickers, dates) %>%
+    dplyr::filter(!dates %in% c("2001-05-15", "2001-07-15"),!tickers == "Delta") %>%
+    dplyr::mutate(pe = rnorm(nrow(.)), pb = rnorm(nrow(.)), ps = rnorm(nrow(.)), roe = rnorm(nrow(.)), roa = rnorm(nrow(.)), debt_to_equity = rnorm(nrow(.))) %>%
+    dplyr::arrange(id)
+
+  wrong_custom_signal_universe_metrics_m_df <- custom_signal_universe_metrics_m_df[-2, ]
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 2,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = wrong_custom_signal_universe_metrics_m_df,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6))
+
+
+})
+

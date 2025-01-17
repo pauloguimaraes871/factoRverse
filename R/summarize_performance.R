@@ -36,7 +36,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   ##################
   ###Get objects from selected_backtest_returns_corrected_positions_xts_upd_ref
   selected_signals <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref)
-  current_date <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref)[length(zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref))]
+  current_date <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref) %>% max()
 
 
   ##################
@@ -59,9 +59,9 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
     most_recent_custom_signal_universe_metrics_m_d_ref <- custom_signal_universe_metrics_m_upd_ref %>% dplyr::filter(dates == max(dates))
 
       ###Check if most recent one is not current date and send warning if not
-      if (most_recent_custom_signal_universe_metrics_m_d_ref %>% dplyr::pull(dates) %>% unique() != current_date){
+      if (unique(dplyr::pull(most_recent_custom_signal_universe_metrics_m_d_ref, dates)) != current_date){
         warning(paste("custom_signal_universe_metrics_m_d_ref does not contain data for current date. Using most recent date available:",
-                most_recent_custom_signal_universe_metrics_m_d_ref %>% dplyr::pull(dates) %>% unique()))
+                      unique(dplyr::pull(most_recent_custom_signal_universe_metrics_m_d_ref, dates))))
       }
 
       ###Check if all signals are contemplated
@@ -77,7 +77,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   ##Market-factor related
   #################################
   ###No Pooled Structure
-  if(model_structure == "no_pooled"){
+  if (model_structure == "no_pooled"){
 
     ###Get CAPM Models
     #################
@@ -126,13 +126,13 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   }
 
   ###Pooled Structure
-  if(model_structure == "partial_pooled"){
+  if (model_structure == "partial_pooled"){
 
-    #Get parameters of lmer_control
-    lmer_optimizer <- if(is.null(lmer_control$lmer_optimizer)) "nloptwrap" else lmer_control$lmer_optimizer
-    lmer_optimization_objective <- if(is.null(lmer_control$lmer_optimization_objective)) "REML" else lmer_control$lmer_optimization_objective
-    lmer_optimization_objective <- if(lmer_optimization_objective == "REML") TRUE else FALSE
-    hierarchical_p_value_method <- if(is.null(lmer_control$hierarchical_p_value_method)) "Satterthwaite" else lmer_control$hierarchical_p_value_method
+    #Get parameters of lmer_control (use default values in case of NULL)
+    lmer_optimizer <- if (is.null(lmer_control$lmer_optimizer)) "nloptwrap" else lmer_control$lmer_optimizer
+    lmer_optimization_objective <- if (is.null(lmer_control$lmer_optimization_objective)) "REML" else lmer_control$lmer_optimization_objective
+    lmer_optimization_objective <- if (lmer_optimization_objective == "REML") TRUE else FALSE
+    hierarchical_p_value_method <- if (is.null(lmer_control$hierarchical_p_value_method)) "Satterthwaite" else lmer_control$hierarchical_p_value_method
 
     ##Get unique hierarchical CAPM model
     #################
@@ -153,13 +153,23 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
     lmer_model <- hierarchical_frequentist_fit_results_list$lmer_model
 
     ###Join
-    signal_universe_m_d_ref <- dplyr::left_join(base_signal_universe_m_d_ref, dplyr::select(pooled_CAPM_metrics_m_d_ref, -tickers, -dates), by = "id")
+      ###First check for any potential unmatches
+        ####Get unmatched IDs
+        unmatched_ids <- setdiff(base_signal_universe_m_d_ref$id, pooled_CAPM_metrics_m_d_ref$id)
+
+        ####Perform pre-check
+        if (length(unmatched_ids) > 0) {
+          stop("The following IDs in base_signal_universe_m_d_ref do not have a match in pooled_CAPM_metrics_m_d_ref: ",
+               paste(unmatched_ids, collapse = ", "))
+        }
+        ####Join
+        signal_universe_m_d_ref <- dplyr::left_join(base_signal_universe_m_d_ref, dplyr::select(pooled_CAPM_metrics_m_d_ref, -tickers, -dates), by = "id")
   }
 
   ##Return
   performance_summary_list <- list(
     signal_universe_m_d_ref = signal_universe_m_d_ref,
-    frequentist_fit_results_list = if(model_structure == "no_pooled") capm_model_list else lmer_model
+    frequentist_fit_results_list = if (model_structure == "no_pooled") capm_model_list else lmer_model
   )
 
   return(performance_summary_list)

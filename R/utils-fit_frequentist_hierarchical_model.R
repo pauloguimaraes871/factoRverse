@@ -61,10 +61,10 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
 
   #Check inputs
   ######################
-  if(!lmer_optimizer %in% c("nloptwrap", "bobyqa", "Nelder_Mead", "nlminbwrap")){
+  if (!lmer_optimizer %in% c("nloptwrap", "bobyqa", "Nelder_Mead", "nlminbwrap")){
     stop("Invalid optimizer. Please choose from 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'.")
   }
-  if(!lmer_optimization_objective %in% c(TRUE, FALSE)){
+  if (!lmer_optimization_objective %in% c(TRUE, FALSE)){
     stop("Invalid optimization objective. Please choose from TRUE or FALSE.")
   }
 
@@ -96,7 +96,7 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
 
   #Summarize metrics
   ########################
-  if(!is.null(signal_universe_m_d_ref)){
+  if (!is.null(signal_universe_m_d_ref)){
 
     pooled_CAPM_metrics_m_d_ref <- summarize_lmer_model(
       ###Lmer Model

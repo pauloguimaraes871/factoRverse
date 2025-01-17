@@ -32,18 +32,23 @@ prepare_hierarchical_model_inputs <- function(selected_backtest_returns_correcte
 
   #Prepare objects
   ######################
-  ##Check if selected_backtest_returns_corrected_positions_m_upd_ref is alread being provided
+  ##Check if selected_backtest_returns_corrected_positions_m_upd_ref is already being provided
   ##########################
-  if(is.null(selected_backtest_returns_corrected_positions_m_upd_ref)){
+  if (is.null(selected_backtest_returns_corrected_positions_m_upd_ref)){
     ###Check if selected_backtest_returns_corrected_positions_m_upd_ref can be produced
-    if(any(is.null(selected_backtest_returns_corrected_positions_xts_upd_ref), is.null(selected_market_factor_proxy_xts_upd_ref),
+    if (any(is.null(selected_backtest_returns_corrected_positions_xts_upd_ref), is.null(selected_market_factor_proxy_xts_upd_ref),
            is.null(selected_signal_themes_m_d_ref))){
       stop("selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref and
            selected_signal_themes_m_d_ref must be provided when selected_backtest_returns_corrected_positions_m_upd_ref is not given.")
     }
 
     ##Add market_factor_proxy
-    selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
+      ###Check if indexes allign perfectly
+      if (!identical(zoo:index(selected_backtest_returns_corrected_positions_xts_upd_ref), zoo:index(selected_market_factor_proxy_xts_upd_ref))){
+        stop("Dates in selected_backtest_returns_corrected_positions_xts_upd_ref and selected_market_factor_proxy_xts_upd_ref do not match.")
+      }
+      ###Merge
+      selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
 
     ##Melt
     selected_backtest_returns_corrected_positions_m_upd_ref <- tidyr::pivot_longer(

@@ -37,7 +37,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
   ##################
   ###Get objects from selected_backtest_returns_corrected_positions_xts_upd_ref
   selected_signals <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref)
-  current_date <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref)[length(zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref))]
+  current_date <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref) %>% max()
 
   ###Get baseline benchmark
   baseline_benchmark_xts_upd_ref <- xts::xts(rowMeans(selected_backtest_returns_corrected_positions_xts_upd_ref, na.rm = TRUE),

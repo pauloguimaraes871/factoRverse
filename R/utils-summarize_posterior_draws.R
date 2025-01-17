@@ -273,12 +273,18 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
 
       #Re-order
       ##New metrics
-      ordered_metrics <- c("id", "tickers", "dates", frequentist_metrics,
-                           "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
-                           "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha")
+      bayesian_metrics <- c("posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
+                            "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha")
 
-      signal_universe_m_d_ref <- signal_universe_m_d_ref[, ordered_metrics]
+      ordered_metrics <- c("id", "tickers", "dates", frequentist_metrics, bayesian_metrics)
+
+      signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::select(dplyr::all_of(ordered_metrics))
       rownames(signal_universe_m_d_ref) <- NULL
+
+        ###Check for any resulting NAs
+        if (any(is.na(select(signal_universe_m_d_ref, dplyr::all_of(bayesian_metrics))))) {
+          stop("NA values detected in the bayesian_metrics columns.")
+        }
 
 
     #Create result object

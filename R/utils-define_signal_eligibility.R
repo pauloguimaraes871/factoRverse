@@ -214,7 +214,7 @@ define_signal_eligibility <- function(
   #Initial Preparations
   ################
   #Create model_spec_theme_level
-  if(model_structure == "partial_pooled"){
+  if (model_structure == "partial_pooled"){
     model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
   } else {
     model_spec_theme_level <- NULL
@@ -250,11 +250,11 @@ define_signal_eligibility <- function(
 
     #Frequentist version
     ######################
-    if(!p_correction_method == "bayesian"){
+    if (!p_correction_method == "bayesian"){
 
       ##Frequentist adjustment
-      p_value_df <- data.frame(p_value = unique(signal_universe_m_d_ref$p_value))
-      p_value_df$adjusted_p_value <- p.adjust(p_value_df$p_value, method = p_correction_method) #Adjust
+      p_value_df <- data.frame(p_value = unique(signal_universe_m_d_ref$p_value)) #First get all unique p_values. This will avoid too much strictness when using hierarchical methods
+      p_value_df$adjusted_p_value <- p.adjust(p_value_df$p_value, method = p_correction_method) #Adjust them
       ##Join
       signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(p_value_df, by = "p_value") #Join p-value adjust
 
@@ -271,18 +271,18 @@ define_signal_eligibility <- function(
       #Beware of the ALMIGHTY Bayesian model
       ######################################
 
-      #Get parameters of brms_control
-      chains <- if(is.null(brms_control$chains)) 4 else brms_control$chains
-      iter <- if(is.null(brms_control$iter)) 2000 else brms_control$iter
-      warmup <- if(is.null(brms_control$warmup)) round(iter/2) else brms_control$warmup
-      thin <- if(is.null(brms_control$thin)) 1 else brms_control$thin
-      seed <- if(is.null(brms_control$seed)) NA else brms_control$seed
-      adapt_delta <- if(is.null(brms_control$adapt_delta)) 0.80 else brms_control$adapt_delta
+      #Get parameters of brms_control (using default values in case of NULL)
+      chains <- if (is.null(brms_control$chains)) 4 else brms_control$chains
+      iter <- if (is.null(brms_control$iter)) 2000 else brms_control$iter
+      warmup <- if (is.null(brms_control$warmup)) round(iter/2) else brms_control$warmup
+      thin <- if (is.null(brms_control$thin)) 1 else brms_control$thin
+      seed <- if (is.null(brms_control$seed)) NA else brms_control$seed
+      adapt_delta <- if (is.null(brms_control$adapt_delta)) 0.80 else brms_control$adapt_delta
 
       #Get parameters of prior_derivation_control
-      half_t_df <- if(is.null(prior_derivation_control$half_t_df)) 30 else prior_derivation_control$half_t_df
-      lmer_optimizer <- if(is.null(lmer_control$lmer_optimizer)) "nloptwrap" else lmer_control$lmer_optimizer
-      lmer_optimization_objective <- if(is.null(lmer_control$lmer_optimization_objective)) "REML" else lmer_control$lmer_optimization_objective
+      half_t_df <- if (is.null(prior_derivation_control$half_t_df)) 30 else prior_derivation_control$half_t_df
+      lmer_optimizer <- if (is.null(lmer_control$lmer_optimizer)) "nloptwrap" else lmer_control$lmer_optimizer
+      lmer_optimization_objective <- if (is.null(lmer_control$lmer_optimization_objective)) "REML" else lmer_control$lmer_optimization_objective
 
       #Bayesian adjustment
       bayesian_adjustment_results_list <- bayesian_adjustment(

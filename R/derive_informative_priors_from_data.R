@@ -139,13 +139,13 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
   #Fit frequentist model to derive priors.
   ###Set all NULL, but selected_backtest_returns_corrected_positions_m_upd_ref to skip data preprocessing
   lmer_model <- fit_frequentist_hierarchical_model(signal_universe_m_d_ref = NULL,
-                                                  selected_backtest_returns_corrected_positions_m_upd_ref = priors_m_upd_ref,
-                                                  selected_backtest_returns_corrected_positions_xts_upd_ref = NULL,
-                                                  selected_market_factor_proxy_xts_upd_ref = NULL,
-                                                  selected_signal_themes_m_d_ref = NULL,
-                                                  model_spec_theme_level = model_spec_theme_level,
-                                                  lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective
-                                                  )$lmer_model
+                                                   selected_backtest_returns_corrected_positions_m_upd_ref = priors_m_upd_ref,
+                                                   selected_backtest_returns_corrected_positions_xts_upd_ref = NULL,
+                                                   selected_market_factor_proxy_xts_upd_ref = NULL,
+                                                   selected_signal_themes_m_d_ref = NULL,
+                                                   model_spec_theme_level = model_spec_theme_level,
+                                                   lmer_optimizer = lmer_optimizer, lmer_optimization_objective = lmer_optimization_objective
+                                                   )$lmer_model
 
   if(model_spec_theme_level == "random_intercept_fixed_slope"){
 

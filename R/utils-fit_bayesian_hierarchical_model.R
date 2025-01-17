@@ -145,7 +145,7 @@ fit_bayesian_hierarchical_model <- function(signal_universe_m_d_ref, selected_ba
   #############################################
 
   #Update signal_universe_m_d_ref with posterior statistics
-  if(!is.null(signal_universe_m_d_ref)){
+  if (!is.null(signal_universe_m_d_ref)){
   posteriors_results_list <- summarize_posteriors_draws(
     brm_model = brm_model, #brms model
     signal_universe_m_d_ref = signal_universe_m_d_ref, #Signal Universe
