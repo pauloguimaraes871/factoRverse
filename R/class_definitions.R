@@ -997,29 +997,30 @@ setClass("bayesian_alpha_test_strategy",
 
            if(!is.null(object@bayesian_model_parameters@user_priors)){
              #Get user priors
-             prior_df <- as.data.frame(object@bayesian_model_parameters@user_priors)
+             priors_df <- as.data.frame(object@bayesian_model_parameters@user_priors)
 
              if (theme_level_intercept == "random" && theme_level_slope == "fixed") {
                # Check for prior with class 'sd', coef 'Intercept', group 'theme'
                required_row <- subset(priors_df, class == "sd" & coef == "Intercept" & group == "theme")
                if (nrow(required_row) == 0) {
-                 warning("For this model specification, it is recommended to include a prior with class = 'sd', coef = 'Intercept', and group = 'theme'.")
+                 warning("For this model specification, remember to add a prior with effect = 'random', type = 'intercept', and level = 'theme'.")
                }
              } else if (theme_level_intercept == "theme_specific" && theme_level_slope == "fixed") {
                # Check for priors with class 'b' and coef matching 'theme...'
                required_rows <- subset(priors_df, class == "b" & grepl("^theme", coef))
                if (nrow(required_rows) == 0) {
-                 warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme'.")
+                 warning("For this model specification, it is recommended to include priors for type = 'intercept' and effect = 'fixed' for each desired theme.")
                }
              } else if (theme_level_intercept == "theme_specific" && theme_level_slope == "theme_specific") {
+
                # Check for priors with class 'b' and coef matching 'theme...' and 'theme...:market_factor_proxy'
                required_rows_intercepts <- subset(priors_df, class == "b" & grepl("^theme[^:]*$", coef))
                required_rows_slopes <- subset(priors_df, class == "b" & grepl("^theme[^:]*:market_factor_proxy$", coef))
                if (nrow(required_rows_intercepts) == 0) {
-                 warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme' for intercepts.")
+                 warning("For this model specification, it is recommended to include priors for type = 'intercept' and effect = 'fixed' for each desired theme.")
                }
                if (nrow(required_rows_slopes) == 0) {
-                 warning("For this model specification, it is recommended to include priors with class = 'b' and coef starting with 'theme' and ending with ':market_factor_proxy' for slopes.")
+                 warning("For this model specification, it is recommended to include priors for type = 'slope' and effect = 'fixed' for each desired theme.")
                }
              }
            }

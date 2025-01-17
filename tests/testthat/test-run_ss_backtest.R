@@ -770,7 +770,7 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
 
 })
 
-test_that("run_ss_backtest works for vanilla bayesian setting", {
+test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 
@@ -854,7 +854,7 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
 
   # Generate monthly dates for the observations
   dates <- rep(
-    seq.Date(as.Date("1980-01-01"), by = "month", length.out = n_obs_per_ticker),
+    seq.Date(as.Date("1980-01-15"), by = "month", length.out = n_obs_per_ticker),
     times = n_tickers
   )
 
@@ -1022,9 +1022,6 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
   expect_equal(results@bayesian_results$brm_model$data$`theme:tickers`,
                long_data$`theme:tickers`)
 
-  expect_equal(results@bayesian_results$brm_model$prior$prior[2],
-               priors_2$priors$prior[1])
-
   expect_equal(as.character(results@bayesian_results$brm_model$formula$formula),
                c("~", "return",
                "0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
@@ -1056,7 +1053,257 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
   )
 
   expect_equal(benchmark_weights_m_d_ref$theme_ss, c(1/3/2, 1/3/2, 1/3/2, 1/3, 1/3/2))
-  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(1/3/2, 1/3/2, 1/3/2, 1/3, 1/3/2))
+  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(1/3/2, 1/3/2, 1/3, 1/3, 0))
+  signal_universe_m_d_ref_2$theme_ss_bench_weights <- benchmark_weights_m_d_ref$theme_ss
+  signal_universe_m_d_ref_2$theme_sb_bench_weights <- benchmark_weights_m_d_ref$theme_sb
+  signal_universe_m_d_ref_2$theme <- c("value", "value", "defensive", "momentum", "defensive")
+  signal_universe_m_d_ref_2$is_eligible <- c(1,1,1,1,0)
+
+
+
+  expect_equal(signal_universe_m_d_ref_2,
+               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_2[,c(1:60)],
+                                            signal_significance_threshold = bayesian_ss_config@alpha_test_strategy@signal_significance_threshold,
+                                            groups_m_d_ref = selected_signal_themes_m_d_ref,
+                                            concentration_constraint_policy = list(
+                                              benchmark = c("theme_ss", "theme_sb"),
+                                              max_abs_active_group_weight = 0.1
+                                            ),
+                                            asset_object = "signals"
+               )
+  )
+
+  signal_universe_m_d_ref_2$exp_ret_score <- NULL
+
+
+  ordered_final_signal_universe <- results@final_signal_universe_m_d_ref@data[order(results@final_signal_universe_m_d_ref@data$id),]
+  ordered_signal_universe_m_d_ref_2 <- signal_universe_m_d_ref_2[order(signal_universe_m_d_ref_2$id),]
+
+  expect_true(
+    all.equal(ordered_final_signal_universe[,c(1:11, 15:19, 21:27)], #Exlude those that are based on random preds (not epreds)
+              ordered_signal_universe_m_d_ref_2[,c(1:11, 15:19, 21:27)],
+              check.attributes = FALSE)
+  )
+
+
+})
+
+test_that("run_ss_backtest works for bayesian setting with user_priors", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+    book_yield = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.01, sd = 0.035),
+    dy_med_36m = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.0075, sd = 0.025),
+    eps_yield = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.005, sd = 0.03),
+    mom_res_12m = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.015, sd = 0.035),
+    roe_3m = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.01, sd = 0.02),
+    sharpe_6m = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.025, sd = 0.035),
+    low_vol_36m = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.0075, sd = 0.0075)
+  ), order.by = as.Date(c("2022-08-15", "2022-09-15", "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15", "2023-02-15", "2023-03-15", "2023-04-15",
+                          "2023-05-15", "2023-06-15", "2023-07-15", "2023-08-15", "2023-09-15")))
+
+
+  expanded_benchmark_returns_xts <- rbind(xts::xts(data.frame(IBOV = rnorm(2), IDIV = rnorm(2), SMLL = rnorm(2)), order.by = as.Date(c("2022-08-15", "2022-09-15"))),
+                                          benchmark_returns_xts
+                                          )
+
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
+  suppressWarnings(
+  bayesian_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6,
+                                                  split_method = "expanding", config_name = "bayesian_ss", chosen_signals_and_positions = chosen_signals_and_positions) %>%
+
+    add_alpha_test_strategy(model_structure = "partial_pooled", theme_level_intercept = "theme_specific", theme_level_slope = "theme_specific",
+                            signal_significance_threshold = 0.10, p_correction_method = "bayesian",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE,
+                            lmer_control = list(lmer_optimizer = "Nelder_Mead")) %>%
+
+    add_bayesian_model_parameters(brms_control = list(adapt_delta = 0.7, iter = 1000, warmup = 500)) %>%
+
+    add_brms_prior(effect = "fixed", type = "intercept", theme = c("value", "momentum", "defensive"), distribution_choice = c("normal", "normal", "normal"),
+                   pars = list(c(mean = 0.0012, sd = 0.0016),c(mean = 0.0025, sd = 0.0016), c(mean = 0.0045, sd = 0.0030))) %>%
+    add_brms_prior(effect = "fixed", type = "slope", theme = c("value", "momentum", "defensive"), distribution_choice = c("normal", "normal", "normal"),
+                   pars = list(c(mean = 0.03, sd = 0.002),c(mean = 0.0000, sd = 0.004), c(mean = 0.0050, sd = 0.070))) %>%
+    add_brms_prior(effect = "random", type = "intercept", distribution_choice = c("student_t"),
+                   pars = list(c(df = 30, mean = 0, sd = 0.0113))) %>%
+    add_brms_prior(effect = "random", type = "slope", distribution_choice = c("student_t"),
+                   pars = list(c(df = 30, mean = 0, sd = 0.0018))) %>%
+    add_brms_prior(effect = "random", type = "sigma", distribution_choice = c("student_t"),
+                   pars = list(c(df = 30, mean = 0, sd = 0.0256))) %>%
+    add_brms_prior(effect = "random", type = "cor", distribution_choice = c("lkj"), pars = c(eta = 2))
+   )
+
+
+  signals_m_df <- create_meta_dataframe(signals_m_df, "signals_123")
+  signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11")
+
+
+  future::plan("multisession")
+  suppressWarnings(
+  results <- run_ss_backtest(bayesian_ss_config, priors_m_df = NULL,
+                             signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = expanded_benchmark_returns_xts,
+                             signal_themes_m_df = signal_themes_m_df,
+                             verbose = TRUE
+  )
+ )
+
+  ####Expected Results
+  ####################
+  ####################
+  signals_m_df <- signals_m_df@data
+  signal_themes_m_df <- signal_themes_m_df@data
+  initial_sample_size <- bayesian_ss_config@initial_sample_size
+  rebalancing_months <- bayesian_ss_config@rebalancing_months
+  initial_sample_size <- bayesian_ss_config@initial_sample_size
+  market_factor_proxy <- bayesian_ss_config@alpha_test_strategy@market_factor_proxy
+  model_structure <- bayesian_ss_config@alpha_test_strategy@model_structure
+  theme_level_intercept <- bayesian_ss_config@alpha_test_strategy@theme_level_intercept
+  theme_level_slope <- bayesian_ss_config@alpha_test_strategy@theme_level_slope
+  active_returns <- bayesian_ss_config@active_returns
+  lmer_control <- bayesian_ss_config@alpha_test_strategy@lmer_control
+
+
+  signal_universe_m_d_ref_list <- list()
+  bayesian_fit_nested_list <- list()
+  eligible_signals_list <- list()
+  dates_m_vector <- unique(signals_m_df$dates)
+
+  check_inputs_ss_backtest(rebalancing_months = rebalancing_months,
+                           signals_m_df = signals_m_df, initial_sample_size = initial_sample_size,
+                           chosen_signals_and_positions = chosen_signals_and_positions,
+                           custom_signal_universe_metrics_m_df = NULL,
+                           theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope,
+                           active_returns = active_returns, model_structure = model_structure, forced_signals = NULL,
+                           backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = expanded_benchmark_returns_xts,
+                           p_correction_method = signal_selection_policy$p_correction_method, lmer_control = lmer_control,
+                           enable_theme_representativeness = TRUE, market_factor_proxy = market_factor_proxy,
+                           signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
+                           priors_m_df = NULL, signal_themes_m_df = signal_themes_m_df
+  )
+
+  selected_signals_and_backtest_list <- select_and_correct_signals(
+    signals_m_df = signals_m_df,
+    signal_themes_m_df = signal_themes_m_df,
+    chosen_signals_and_positions = chosen_signals_and_positions,
+    backtest_returns_xts = mocked_backtest_returns_xts
+  )
+
+
+  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts,
+               mocked_backtest_returns_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
+
+  expect_equal(selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")],
+               signals_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")])
+
+  expect_equal(selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df$low_vol_36m,
+               signals_m_df$vol_36m * -1)
+
+  selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_market_factor_proxy_xts <- expanded_benchmark_returns_xts[, market_factor_proxy]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
+
+  #Second Rebalancing Month
+  ##########################
+  current_date <- dates_m_vector[9]
+
+  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:11),]
+  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:11), market_factor_proxy]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
+
+
+  model_spec_theme_level <- "theme_specific_intercept_theme_specific_slope"
+  summarize_performance_results <- summarize_performance(
+    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
+    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    model_structure = model_structure,
+    lmer_control = lmer_control,
+    active_returns = active_returns,
+    model_spec_theme_level = model_spec_theme_level
+  )
+
+  #Create signal universe
+  signal_universe_m_d_ref_2 <- summarize_performance_results$signal_universe_m_d_ref
+
+  #User Priors
+  elected_priors <- c(
+    # Prior for Value and Mom
+    brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themevalue"),
+    brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "thememomentum"),
+    brms::set_prior("normal(0.0045, 0.003)", class = "b", coef = "themedefensive"),
+    brms::set_prior("normal(0.03, 0.002)", class = "b", coef = "themevalue:market_factor_proxy"),
+    brms::set_prior("normal(0, 0.004)", class = "b", coef = "thememomentum:market_factor_proxy"),
+    brms::set_prior("normal(0.005, 0.07)", class = "b", coef = "themedefensive:market_factor_proxy"),
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+  expect_equal(elected_priors, results@bayesian_results$elected_priors)
+
+  selected_backtest_returns_corrected_positions_df <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+    tibble::rownames_to_column(var = "dates")
+  selected_backtest_returns_corrected_positions_df$market_factor_proxy <- as.vector(selected_market_factor_proxy_xts_upd_ref)
+
+  long_data <- tidyr::pivot_longer(selected_backtest_returns_corrected_positions_df, cols = c(-dates, -market_factor_proxy), names_to = "tickers", values_to = "return")
+  long_data <- dplyr::left_join(long_data, dplyr::select(selected_signal_themes_m_d_ref, tickers, theme), by = "tickers")
+  long_data$`theme:tickers` <- paste0(long_data$theme, "_", long_data$tickers)
+  long_data <- long_data %>% as.data.frame()
+
+  expect_equal(results@bayesian_results$brm_model$data$return, long_data$return)
+
+  expect_equal(results@bayesian_results$brm_model$data$market_factor_proxy,
+               long_data$market_factor_proxy)
+
+  expect_equal(results@bayesian_results$brm_model$data$`theme:tickers`,
+               long_data$`theme:tickers`)
+
+  expect_equal(as.character(results@bayesian_results$brm_model$formula$formula),
+               c("~", "return",
+                 "0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
+
+  set.seed(123)
+  posterior_draws_2 <- summarize_posteriors_draws(brm_model = results@bayesian_results$brm_model,
+                                                  signal_universe_m_d_ref = signal_universe_m_d_ref_2,
+                                                  model_spec_theme_level = model_spec_theme_level,
+                                                  selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
+
+
+  signal_universe_m_d_ref_2 <- posterior_draws_2$signal_universe_m_d_ref
+
+  signal_universe_m_d_ref_2[, "exp_ret_score"] <- signal_transform(
+    signal_universe_m_d_ref_2$posterior_alpha_t_stat,
+    upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization
+  )
+
+
+  #Create benchmarks
+  top_assets <- rep(0, length(signal_universe_m_d_ref_2$pd_alpha))
+  top_assets[which((1-signal_universe_m_d_ref_2$pd_alpha) <= bayesian_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
+  signal_universe_m_d_ref_2$top_assets <- top_assets
+  se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
+
+
+  benchmark_weights_m_d_ref <- create_se_benchmarks(
+    signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref
+  )
+
+  expect_equal(benchmark_weights_m_d_ref$theme_ss, c(1/3/2, 1/3/2, 1/3/2, 1/3, 1/3/2))
+  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(1/2/2, 1/2/2, 1/2/2, 0, 1/2/2))
   signal_universe_m_d_ref_2$theme_ss_bench_weights <- benchmark_weights_m_d_ref$theme_ss
   signal_universe_m_d_ref_2$theme_sb_bench_weights <- benchmark_weights_m_d_ref$theme_sb
   signal_universe_m_d_ref_2$theme <- c("value", "value", "defensive", "momentum", "defensive")
@@ -1081,8 +1328,13 @@ test_that("run_ss_backtest works for vanilla bayesian setting", {
 
   ordered_final_signal_universe <- results@final_signal_universe_m_d_ref@data[order(results@final_signal_universe_m_d_ref@data$id),]
   ordered_signal_universe_m_d_ref_2 <- signal_universe_m_d_ref_2[order(signal_universe_m_d_ref_2$id),]
-  expect_equal(ordered_final_signal_universe[,c(1:11, 15:19, 21:27)], #Exlude those that are based on random preds (not epreds)
-               ordered_signal_universe_m_d_ref_2[,c(1:11, 15:19, 21:27)])
+
+  expect_true(
+    all.equal(ordered_final_signal_universe[,c(1:11, 15:19, 21:27)], #Exlude those that are based on random preds (not epreds)
+              ordered_signal_universe_m_d_ref_2[,c(1:11, 15:19, 21:27)],
+              check.attributes = FALSE)
+  )
+
 
 })
 

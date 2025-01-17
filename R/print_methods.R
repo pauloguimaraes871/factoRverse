@@ -177,7 +177,6 @@ setMethod("show", "signal_universe_m_df", function(object) {
     cat("\n Training Information :")
     cat("   \n Rebalancing Months:", paste(ss_wf[["rebalancing_months"]] %||% "NULL", collapse = ", "))
     cat("   \n Initial Sample Size:", paste(ss_wf[["initial_sample_size"]] %||% "NULL", collapse = ", "))
-    cat("   \n Data Availability Cutoff:", paste(ss_wf[["data_availability_cutoff"]] %||% "NULL", collapse = ", "))
     cat("\n")
   }
 
@@ -1255,7 +1254,6 @@ setMethod("show", "ss_backtest_config", function(object) {
   cat("------------------------------\n")
   cat("Backtest Parameters:\n")
   cat("------------------------------\n")
-  cat("Data Availability Cutoff:", object@data_availability_cutoff, "\n")
   cat("Initial Sample Size:", object@initial_sample_size, "\n")
   cat("Rebalancing Months:", object@rebalancing_months, "\n")
   cat("Active Returns:", object@active_returns, "\n")
@@ -1438,7 +1436,6 @@ setMethod("show", "ss_backtest_results", function(object) {
   cat("    Theme-Level Slope: ", ss_backtest_workflow$theme_level_slope, "\n")
   }
   cat("    Market Factor Proxy: ", ss_backtest_workflow$market_factor_proxy, "\n")
-  cat("    Data Availability Cutoff: ", ss_backtest_workflow$data_availability_cutoff, "\n")
   cat("    Signal Significance Threshold: ", ss_backtest_workflow$signal_significance_threshold, "\n")
   cat("    Enable Theme Representativeness: ", ss_backtest_workflow$enable_theme_representativeness, "\n")
   cat("    lmer Control Parameters:\n")
@@ -1577,7 +1574,6 @@ setMethod("show", "port_backtest_config", function(object) {
     cat("\n")
     cat("  Signal Eligibility Criteria\n")
     cat("  Alpha Significance Threshold:", object@signal_selection_policy$signal_significance_threshold, "\n")
-    cat("  Min Number of Periods to Include Signal:", object@signal_selection_policy$data_availability_cutoff, "\n")
     cat("  Multiple Testing Adjustment:", object@signal_selection_policy$p_correction_method, "\n")
 
     if (object@signal_selection_policy$p_correction_method == "bayesian") {

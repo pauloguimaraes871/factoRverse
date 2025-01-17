@@ -142,13 +142,6 @@ check_inputs_ss_backtest <- function(
     warning("Categorical signals included in chosen_signals_and_positions.")
   }
 
-  ###Check for forced_signals presence in signals_m_df
-  if(!is.null(forced_signals)){
-    if(any(!forced_signals %in% colnames(signals_m_df))){
-      stop("forced_signals not available in signals_m_df")
-    }
-  }
-
   #initial_sample_size and
   if(any(!is.numeric(initial_sample_size))){
     stop("initial_sample_size and  must be numeric")
@@ -312,6 +305,7 @@ check_inputs_ss_backtest <- function(
 
     #priors_m_df
     if(!is.null(priors_m_df)){
+
       ###Coercible
       if(!(is_coercible_to_meta_dataframe(priors_m_df))){
         stop("priors_m_df should be coercible to meta_dataframe object")
@@ -404,12 +398,118 @@ check_inputs_ss_backtest <- function(
         stop("Currently, bayesian fit requires user_priors or priors_m_df.") #This warning is because using uninformative priors has not been tested yet.
       }
 
-      if(is.null(user_priors) && is.null(signal_themes_m_df)){
+      if(is.null(signal_themes_m_df)){
         stop("bayesian fit requires signal_themes_m_df.")
       }
 
-      if(is.null(user_priors) && !all(class(user_priors) == c("brmsprior", "data.frame"))){
+      if(!is.null(user_priors) && !all(class(user_priors) == c("brmsprior", "data.frame"))){
         stop("user_priors should contain only brmsprior objects.")
+      }
+
+
+      #User priors
+      if(!is.null(user_priors)){
+        if (!is.data.frame(user_priors)) {
+          stop("user_priors must be a data.frame.")
+        }
+
+        # Extract selected themes from signal_themes_m_df
+        themes <- unique(signal_themes_m_df %>% dplyr::filter(tickers %in% names(chosen_signals_corrected_positions)) %>% dplyr::pull(theme))
+        n_themes <- length(themes)
+
+        # Define expected structures based on `model_spec_theme_level`
+        model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
+        if(!model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
+          stop("Invalid model specification at theme-level")
+        }
+
+        expected_rows <- switch(
+          model_spec_theme_level,
+          "random_intercept_fixed_slope" = 7,
+          "theme_specific_intercept_fixed_slope" = n_themes + 5,
+          "theme_specific_intercept_theme_specific_slope" = n_themes * 2 + 4,
+          "fixed_intercept_fixed_slope" = 6,
+          stop("Invalid model specification at themelevel")
+        )
+
+        # Check number of rows
+        if (nrow(user_priors) != expected_rows) {
+          stop(sprintf("Expected %d rows for theme-level model specification '%s', but got %d.",
+                       expected_rows, model_spec_theme_level, nrow(user_priors)))
+        }
+
+        # Define validation rules for each model_spec_theme_level
+        validate_structure <- switch(
+          model_spec_theme_level,
+          "random_intercept_fixed_slope" = {
+            required_rows <- data.frame(
+              class = c("Intercept", "b", "sd", "sd", "sd", "sigma", "cor"),
+              coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "Intercept", "", ""),
+              group = c("", "", "theme:tickers", "theme:tickers", "theme", "", "")
+            )
+            all(apply(required_rows, 1, function(row) {
+              any(user_priors$class == row["class"] &
+                    user_priors$coef == row["coef"] &
+                    user_priors$group == row["group"])
+            }))
+          },
+          "theme_specific_intercept_fixed_slope" = {
+            intercept_rows <- data.frame(
+              class = "b",
+              coef = sprintf("theme%s", themes),
+              group = ""
+            )
+            common_rows <- data.frame(
+              class = c("b", "sd", "sd", "sigma", "cor"),
+              coef = c("market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
+              group = c("", "theme:tickers", "theme:tickers", "", "")
+            )
+            all(apply(rbind(intercept_rows, common_rows), 1, function(row) {
+              any(user_priors$class == row["class"] &
+                    user_priors$coef == row["coef"] &
+                    user_priors$group == row["group"])
+            }))
+          },
+          "theme_specific_intercept_theme_specific_slope" = {
+            intercept_rows <- data.frame(
+              class = "b",
+              coef = sprintf("theme%s", themes),
+              group = ""
+            )
+            slope_rows <- data.frame(
+              class = "b",
+              coef = sprintf("theme%s:market_factor_proxy", themes),
+              group = ""
+            )
+            common_rows <- data.frame(
+              class = c("sd", "sd", "sigma", "cor"),
+              coef = c("Intercept", "market_factor_proxy", "", ""),
+              group = c("theme:tickers", "theme:tickers", "", "")
+            )
+            all(apply(rbind(intercept_rows, slope_rows, common_rows), 1, function(row) {
+              any(user_priors$class == row["class"] &
+                    user_priors$coef == row["coef"] &
+                    user_priors$group == row["group"])
+            }))
+          },
+          "fixed_intercept_fixed_slope" = {
+            required_rows <- data.frame(
+              class = c("Intercept", "b", "sd", "sd", "sigma", "cor"),
+              coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
+              group = c("", "", "theme:tickers", "theme:tickers", "", "")
+            )
+            all(apply(required_rows, 1, function(row) {
+              any(user_priors$class == row["class"] &
+                    user_priors$coef == row["coef"] &
+                    user_priors$group == row["group"])
+            }))
+          }
+        )
+
+        if (!validate_structure) {
+          stop(sprintf("user_priors structure is invalid for theme-level model specification '%s'.", model_spec_theme_level))
+        }
+
       }
 
       #Prior derivation control
@@ -448,111 +548,6 @@ check_inputs_ss_backtest <- function(
       if(!is.null(brms_control$warmup) && (!is.null(brms_control$iter) && brms_control$warmup >= brms_control$iter)){
         stop("warmup must be less than iter.")
       }
-    }
-
-    #User priors
-    if(!is.null(user_priors)){
-      if (!is.data.frame(user_priors)) {
-        stop("user_priors must be a data.frame.")
-      }
-
-      # Extract themes from signal_themes_m_df
-      themes <- unique(signal_themes_m_df %>% dplyr::pull(theme))
-      n_themes <- length(themes)
-
-      # Define expected structures based on `model_spec_theme_level`
-      model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
-      if(!model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
-        stop("Invalid model specification at theme-level")
-      }
-
-      expected_rows <- switch(
-        model_spec_theme_level,
-        "random_intercept_fixed_slope" = 7,
-        "theme_specific_intercept_fixed_slope" = n_themes + 5,
-        "theme_specific_intercept_theme_specific_slope" = n_themes * 2 + 4,
-        "fixed_intercept_fixed_slope" = 6,
-        stop("Invalid model specification at themelevel")
-      )
-
-      # Check number of rows
-      if (nrow(user_priors) != expected_rows) {
-        stop(sprintf("Expected %d rows for theme-level model specification '%s', but got %d.",
-                     expected_rows, model_spec_theme_level, nrow(user_priors)))
-      }
-
-      # Define validation rules for each model_spec_theme_level
-      validate_structure <- switch(
-        model_spec_theme_level,
-        "random_intercept_fixed_slope" = {
-          required_rows <- data.frame(
-            class = c("Intercept", "b", "sd", "sd", "sd", "sigma", "cor"),
-            coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "Intercept", "", ""),
-            group = c("", "", "theme:tickers", "theme:tickers", "theme", "", "")
-          )
-          all(apply(required_rows, 1, function(row) {
-            any(user_priors$class == row["class"] &
-                  user_priors$coef == row["coef"] &
-                  user_priors$group == row["group"])
-          }))
-        },
-        "theme_specific_intercept_fixed_slope" = {
-          intercept_rows <- data.frame(
-            class = "b",
-            coef = sprintf("theme%s", themes),
-            group = ""
-          )
-          common_rows <- data.frame(
-            class = c("b", "sd", "sd", "sigma", "cor"),
-            coef = c("market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
-            group = c("", "theme:tickers", "theme:tickers", "", "")
-          )
-          all(apply(rbind(intercept_rows, common_rows), 1, function(row) {
-            any(user_priors$class == row["class"] &
-                  user_priors$coef == row["coef"] &
-                  user_priors$group == row["group"])
-          }))
-        },
-        "theme_specific_intercept_theme_specific_slope" = {
-          intercept_rows <- data.frame(
-            class = "b",
-            coef = sprintf("theme%s", themes),
-            group = ""
-          )
-          slope_rows <- data.frame(
-            class = "b",
-            coef = sprintf("theme%s:market_factor_proxy", themes),
-            group = ""
-          )
-          common_rows <- data.frame(
-            class = c("sd", "sd", "sigma", "cor"),
-            coef = c("Intercept", "market_factor_proxy", "", ""),
-            group = c("theme:tickers", "theme:tickers", "", "")
-          )
-          all(apply(rbind(intercept_rows, slope_rows, common_rows), 1, function(row) {
-            any(user_priors$class == row["class"] &
-                  user_priors$coef == row["coef"] &
-                  user_priors$group == row["group"])
-          }))
-        },
-        "fixed_intercept_fixed_slope" = {
-          required_rows <- data.frame(
-            class = c("Intercept", "b", "sd", "sd", "sigma", "cor"),
-            coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
-            group = c("", "", "theme:tickers", "theme:tickers", "", "")
-          )
-          all(apply(required_rows, 1, function(row) {
-            any(user_priors$class == row["class"] &
-                  user_priors$coef == row["coef"] &
-                  user_priors$group == row["group"])
-          }))
-        }
-      )
-
-      if (!validate_structure) {
-        stop(sprintf("user_priors structure is invalid for theme-level model specification '%s'.", model_spec_theme_level))
-      }
-
     }
 
  }

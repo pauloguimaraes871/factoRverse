@@ -44,7 +44,7 @@ prepare_hierarchical_model_inputs <- function(selected_backtest_returns_correcte
 
     ##Add market_factor_proxy
       ###Check if indexes allign perfectly
-      if (!identical(zoo:index(selected_backtest_returns_corrected_positions_xts_upd_ref), zoo:index(selected_market_factor_proxy_xts_upd_ref))){
+      if (!identical(zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref), zoo::index(selected_market_factor_proxy_xts_upd_ref))){
         stop("Dates in selected_backtest_returns_corrected_positions_xts_upd_ref and selected_market_factor_proxy_xts_upd_ref do not match.")
       }
       ###Merge

@@ -642,3 +642,341 @@ test_that("check_inputs_ss_backtest thrown an error when custom_signal_universe_
 
 })
 
+test_that("check_inputs_ss_backtest throws an error when user_priors has wrong format (Spec 1)", {
+
+  #Model Spec 1
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "bayesian"
+  rebalancing_months <- 6
+
+
+  #Create priors for model
+  wrong_user_priors <- c(
+    # Prior for Intercept
+    brms::set_prior("normal(0.0012, 0.0016)", class = "Intercept"), #ok
+
+    # Prior for market_factor_proxy coefficient
+    #brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"), #ok
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"), #ok
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"), #ok
+
+    # Prior for sd of Intercept at theme level
+    brms::set_prior("student_t(30, 0, 0.0011)", class = "sd", group = "theme", coef = "Intercept"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        theme_level_intercept = "random", theme_level_slope = "fixed", user_priors = wrong_user_priors,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "Expected 7 rows for theme-level model specification 'random_intercept_fixed_slope', but got 6.")
+
+
+  #Create priors for model
+  wrong_user_priors <- c(
+    # Prior for Intercept
+    brms::set_prior("normal(0.0012, 0.0016)", class = "Intercept"), #ok
+
+    # Prior for market_factor_proxy coefficient
+    brms::set_prior("normal(0.0003, 0.0003)", class = "sd", coef = "market_factor_proxy"), #ok
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"), #ok
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"), #ok
+
+    # Prior for sd of Intercept at theme level
+    brms::set_prior("student_t(30, 0, 0.0011)", class = "sd", group = "theme", coef = "Intercept"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        theme_level_intercept = "random", theme_level_slope = "fixed", user_priors = wrong_user_priors,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "user_priors structure is invalid for theme-level model specification 'random_intercept_fixed_slope'.")
+
+
+
+})
+
+test_that("check_inputs_ss_backtest throws an error when user_priors has wrong format (Spec 2)", {
+
+  #Model Spec 2
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "bayesian"
+  rebalancing_months <- 6
+
+
+  #Create priors for model
+  wrong_user_priors <- c(
+      # Prior for Value and Mom
+      brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themevalue"),
+      #brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "thememomentum"),
+
+      # Prior for market_factor_proxy coefficient
+      brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"),
+
+      # Prior for sd of Intercept at theme:tickers level
+      brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+      # Prior for sd of market_factor_proxy at theme:tickers level
+      brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+      # Prior for residual error (sigma)
+      brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+      # LKJ prior for correlations
+      brms::set_prior("lkj(2)", class = "cor")
+    )
+
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        theme_level_intercept = "theme_specific", theme_level_slope = "fixed", user_priors = wrong_user_priors,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "Expected 7 rows for theme-level model specification 'theme_specific_intercept_fixed_slope', but got 6.")
+
+
+  #Create priors for model
+  wrong_user_priors <- c(
+    # Prior for Value and Mom
+    brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themevalue"),
+    brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "themegrowth"),
+
+    # Prior for market_factor_proxy coefficient
+    brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"),
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        theme_level_intercept = "theme_specific", theme_level_slope = "fixed", user_priors = wrong_user_priors,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "user_priors structure is invalid for theme-level model specification 'theme_specific_intercept_fixed_slope'")
+
+
+
+})
+
+test_that("check_inputs_ss_backtest throws an error when user_priors has wrong format (Spec 3)", {
+
+  #Model Spec 3
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "bayesian"
+  rebalancing_months <- 6
+
+
+  #Create priors for model
+  wrong_user_priors <- c(
+    # Prior for Value and Mom
+    brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themevalue"),
+    brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "thememomentum"),
+    #brms::set_prior("normal(0.03, 0.002)", class = "b", coef = "themevalue:market_factor_proxy"),
+    brms::set_prior("normal(0.0000, 0.004)", class = "b", coef = "thememomentum:market_factor_proxy"),
+
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        theme_level_intercept = "theme_specific", theme_level_slope = "theme_specific", user_priors = wrong_user_priors,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "Expected 8 rows for theme-level model specification 'theme_specific_intercept_theme_specific_slope', but got 7.")
+
+
+  #Create priors for model
+  wrong_user_priors <- c(
+    # Prior for Value and Mom
+    brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themevalue"),
+    brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "thememomentum"),
+    brms::set_prior("normal(0.03, 0.002)", class = "b", coef = "themegrowth:market_factor_proxy"),
+    brms::set_prior("normal(0.0000, 0.004)", class = "b", coef = "thememomentum:market_factor_proxy"),
+
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        theme_level_intercept = "theme_specific", theme_level_slope = "theme_specific", user_priors = wrong_user_priors,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "user_priors structure is invalid for theme-level model specification 'theme_specific_intercept_theme_specific_slope'.")
+
+
+
+})
+
+test_that("check_inputs_ss_backtest throws an error when user_priors has wrong format (Spec 4)", {
+
+  #Model Spec 4
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "bayesian"
+  rebalancing_months <- 6
+
+
+  #Create priors for model
+  wrong_user_priors <- c(
+    # Prior for Value and Mom
+    brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themevalue"),
+    brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themedefensive"),
+    brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "thememomentum"),
+    brms::set_prior("normal(0.03, 0.002)", class = "b", coef = "themevalue:market_factor_proxy"),
+    brms::set_prior("normal(0.0000, 0.004)", class = "b", coef = "thememomentum:market_factor_proxy"),
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        theme_level_intercept = "fixed", theme_level_slope = "fixed", user_priors = wrong_user_priors,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "Expected 6 rows for theme-level model specification 'fixed_intercept_fixed_slope', but got 9.")
+
+
+
+  #Create priors for model
+  wrong_user_priors <- c(
+    # Prior for Value and Mom
+    brms::set_prior("normal(0.0012, 0.0016)", class = "Intercept"),
+    brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "themevalue"),
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_xts = backtest_returns_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_xts = benchmark_returns_xts,
+                                        theme_level_intercept = "fixed", theme_level_slope = "fixed", user_priors = wrong_user_priors,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "user_priors structure is invalid for theme-level model specification 'fixed_intercept_fixed_slope'.")
+
+
+
+})
+
+

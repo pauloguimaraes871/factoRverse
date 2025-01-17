@@ -60,7 +60,7 @@ check_inputs_sb_backtest <- function(
     #Tuning
     hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
     #Etc
-    early_stop, keras_architecture_parameters, parallel, verbose = TRUE
+    early_stop, keras_architecture_parameters, parallel, verbose = TRUE, .test_seed
 ){
 
   ###Initial Checks###
@@ -82,6 +82,7 @@ check_inputs_sb_backtest <- function(
              any(is.na(as.Date(features_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
         stop("dates in features_m_df must be a date object with format %Y-%m-%d.")
       }
+
 
   #Check for correct format in target_m_df
       if(!(is_coercible_to_meta_dataframe(target_m_df))){
@@ -150,11 +151,9 @@ check_inputs_sb_backtest <- function(
       }
 
       #Check structure of signal_universe_m_df
-      if(!is.null(signal_universe_m_df)){
         if(!(is_coercible_to_meta_dataframe(signal_universe_m_df))){
           stop("signal_universe_m_df should be coercible to meta_dataframe object")
         }
-
         ##Check for NAs in heuristic sb metric
         if(sb_algorithm %in% c("sw", "mvo")){
           heuristic_sb_metric <- signal_universe_m_df %>% dplyr::pull(stringr::str_remove_all(custom_objective, "max_") %>% stringr::str_remove_all("min_"))
@@ -162,7 +161,6 @@ check_inputs_sb_backtest <- function(
             stop("Heuristic Signal Blending Metric contains NAs")
           }
         }
-      }
 
       #backtest_returns_xts
       if(sb_algorithm %in% c("rp", "mvo") && is.null(backtest_returns_xts)){
@@ -179,24 +177,34 @@ check_inputs_sb_backtest <- function(
           stop("dates in backtest_returns_xts must be of class Date")
         }
 
-        if(nrow(backtest_returns_xts) < (training_sample_size + validation_sample_size)){
-          stop("backtest_returns_xts must have at least training_sample_size + validation_sample_size rows")
-        }
-
         if(any(apply(backtest_returns_xts, 2, function(x) any(is.na(x))))){
           stop("backtest_returns_xts must not have any NA")
+        }
+
+        if(nrow(backtest_returns_xts) < (training_sample_size + validation_sample_size)){
+          stop("backtest_returns_xts must have at least training_sample_size + validation_sample_size rows")
         }
 
         if(any(!signal_universe_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
           stop("all dates in signal_universe_m_df must be present in backtest_returns_xts")
         }
 
-        if(any(!features_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
-          stop("all dates in features_m_df must be present in backtest_returns_xts")
+        if(any(!unique(dplyr::pull(features_m_df, dates))[-c(1:(training_sample_size + validation_sample_size))] %in% backtest_returns_dates)){
+          stop("all backtest_dates derived from features_m_df must be present in backtest_returns_xts")
+        }
+
+        backtest_returns_dates_before_first_training <- backtest_returns_dates[which(backtest_returns_dates < unique(dplyr::pull(features_m_df, dates))[training_sample_size + validation_sample_size])]
+
+        if (length(backtest_returns_dates_before_first_training) < 2) {
+          stop("There is only one date in backtest_returns_xts before the first training date")
         }
 
         if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 + as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
           stop("backtest_returns_xts must have consecutive dates")
+        }
+
+        if(any(seq.Date(from = backtest_returns_dates[1], to = backtest_returns_dates[length(backtest_returns_dates)], by = "month") != backtest_returns_dates)){
+          stop("backtest_returns_xts must have sequential monthly dates")
         }
 
         if(sb_algorithm %in% c("rp", "mvo") && length(backtest_returns_dates) <= cov_matrix_sample_size){
@@ -218,7 +226,11 @@ check_inputs_sb_backtest <- function(
           stop("dates in benchmark_returns_xts_dates must be of class Date")
         }
 
-        if(any(benchmark_returns_xts_dates != backtest_returns_dates)){
+        if(any(!benchmark_returns_dates %in% backtest_returns_dates)){
+          stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+        }
+
+        if(any(!backtest_returns_dates %in% benchmark_returns_dates)){
           stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
         }
 
@@ -266,6 +278,11 @@ check_inputs_sb_backtest <- function(
         signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df %>% dplyr::pull(dates)))
         if(any(!dates_m_vector %in% signal_themes_dates_m_vector)){
           stop("dates in signal_themes_m_df and features_m_df must be the same")
+        }
+
+        ##Check if there is a theme classification for every date
+        if(any(!signal_universe_m_df$id %in% signal_themes_m_df$id)){
+          stop("all ids in signal_universe_m_df must have a theme classification")
         }
       }
 
@@ -604,12 +621,12 @@ check_inputs_sb_backtest <- function(
       #Check for custom objective
       if(sb_algorithm %in% c("sw", "mvo")){
         if (!custom_objective %>% stringr::str_remove("max_") %>% stringr::str_remove("min_") %in% colnames(signal_universe_m_df)){
-          return("Invalid custom_objective. Should be 'max_' or 'min_' + one of columns in signal_universe_m_df (heuristic performance metrics).
+          stop("Invalid custom_objective. Should be 'max_' or 'min_' + one of columns in signal_universe_m_df (heuristic performance metrics).
                  To see complete list of base valid heuristic performance metrics, run 'display_valid_custom_objectives()'.")
         }
       } else {
         if (!is.null(custom_objective) && !(custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
-          return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
+          stop("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
         }
       }
 
@@ -699,6 +716,10 @@ check_inputs_sb_backtest <- function(
           if(!concentration_constraint_policy$benchmark %in% c("theme_sb", "theme_ss")){
             stop("concentration_constraint_policy's benchmark should be set to theme_sb or theme_ss")
           }
+          if(!concentration_constraint_policy$benchmark %in% colnames(signal_universe_m_df)){
+            stop("concentration_constraint_policy's benchmark should be present in signal_universe_m_df")
+          }
+
           if(length(concentration_constraint_policy$max_abs_active_group_weight) > 0){
             stop("group constraints are not supported for signal portfolios")
           }

@@ -32,6 +32,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
                                   verbose = TRUE
                                   ){
 
+
   #Initial Preparations
   ##################
   ###Get objects from selected_backtest_returns_corrected_positions_xts_upd_ref

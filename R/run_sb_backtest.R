@@ -238,7 +238,7 @@ setMethod("run_sb_backtest",
                 #Generate an artificial signal_universe_m_df
 
                   ##Get columns values
-                  dates <- unique(features_m_df%>% dplyr::pull(dates))
+                  dates <- unique(features_m_df %>% dplyr::pull(dates))
                   tickers <- colnames(features_m_df[,-c(1:3)])
 
                   ##Create signal_universe_m_df
@@ -275,8 +275,6 @@ setMethod("run_sb_backtest",
 
               ###Extract signal_universe_m_df
               signal_universe_m_df <- ss_backtest_results@signal_universe_m_df@data
-
-
             }
             ###########################
 

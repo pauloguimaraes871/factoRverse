@@ -857,16 +857,65 @@ setMethod(
   }
 )
 
-
 #' @title Add Prior to Bayesian Alpha Test Strategy
-#' @description Adds a prior to a `bayesian_alpha_test_strategy` object based on provided parameters.
+#' @description Adds a prior to a `bayesian_alpha_test_strategy` object based on the specified effect, type, distribution, and parameters.
 #' @param object An object of class `bayesian_alpha_test_strategy`.
-#' @param distribution_choice A vector of strings representing the distribution of the prior. See details for valid options.
-#' @param pars A list of named numeric vectors. The names should match the expected parameter names for the chosen distribution.
-#' @param class A vector of character strings representing the class of the prior. Should be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.
-#' @param coef A vector of character strings representing the coefficient name. Only applicable when `class` is 'b' or 'sd'.
-#' @param group A vector of character strings representing the group name. Only applicable when `class` is 'b' or 'sd'.
+#' @param effect A character string specifying the effect of the prior. Must be one of "fixed" or "random".
+#' @param type A character string specifying the type of prior. Options: "intercept", "slope", "sigma", or "cor".
+#' @param theme A character vector specifying themes (e.g., "value", "momentum"). Applicable for fixed effects.
+#' @param distribution_choice A character vector specifying the distribution of the prior (e.g., "normal", "student_t").
+#' @param pars A list of named numeric vectors specifying parameters for the chosen distribution.
+#' @param level A character string specifying the hierarchical level for random effects. Options: "signals" (default), "tickers", or "theme".
 #' @return An updated `bayesian_alpha_test_strategy` object with the added prior.
+#' @details
+#' - For `effect = "fixed"`, you can specify global intercepts or slopes, or theme-specific priors using the `theme` argument.
+#' - For `effect = "random"`, you can define hierarchical priors with `level` specifying the grouping structure.
+#'
+#' Supported `distribution_choice` options include:
+#' - `"normal"`: Requires `pars` with `mean` and `sd`.
+#' - `"student_t"`: Requires `pars` with `df`, `mean`, and `sd`.
+#' - `"lkj"`: Requires `pars` with `eta` (only for `type = "cor"`).
+#'
+#' @examples
+#' # Example 1: Adding fixed effect priors for theme-specific intercepts
+#' obj <- new("bayesian_alpha_test_strategy")
+#' obj <- add_brms_prior(
+#'   object = obj,
+#'   effect = "fixed",
+#'   type = "intercept",
+#'   theme = c("value", "momentum"),
+#'   distribution_choice = c("normal", "normal"),
+#'   pars = list(c(mean = 0.0012, sd = 0.0016), c(mean = 0.0025, sd = 0.0016))
+#' )
+#'
+#' # Example 2: Adding a random effect prior for intercept at the signals level
+#' obj <- add_brms_prior(
+#'   object = obj,
+#'   effect = "random",
+#'   type = "intercept",
+#'   level = "signals",
+#'   distribution_choice = "student_t",
+#'   pars = list(c(df = 30, mean = 0, sd = 0.0113))
+#' )
+#'
+#' # Example 3: Adding a prior for residual error (sigma)
+#' obj <- add_brms_prior(
+#'   object = obj,
+#'   effect = "random",
+#'   type = "sigma",
+#'   distribution_choice = "student_t",
+#'   pars = list(c(df = 30, mean = 0, sd = 0.0256))
+#' )
+#'
+#' # Example 4: Adding a prior for correlation (cor)
+#' obj <- add_brms_prior(
+#'   object = obj,
+#'   effect = "random",
+#'   type = "cor",
+#'   distribution_choice = "lkj",
+#'   pars = list(c(eta = 2))
+#' )
+#'
 #' @export
 setGeneric("add_brms_prior", function(object, ...) standardGeneric("add_brms_prior"))
 
@@ -874,132 +923,76 @@ setGeneric("add_brms_prior", function(object, ...) standardGeneric("add_brms_pri
 #' @export
 setMethod("add_brms_prior",
           signature(object = "bayesian_alpha_test_strategy"),
-          function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
+          function(object, effect, type, theme = NULL, distribution_choice, pars, level = "signals") {
+            # Input validation
+            effect <- match.arg(effect, choices = c("fixed", "random"))
+            type <- match.arg(type, choices = c("intercept", "slope", "sigma", "cor"))
+            level <- match.arg(level, choices = c("signals", "tickers", "theme"))
 
-            # Ensure lengths match
+            # Ensure pars and distribution_choice have consistent lengths
             n <- length(distribution_choice)
-            if (!all(lengths(list(distribution_choice, pars, class)) == n)) {
-              stop("All arguments must have the same length.")
-            }
-            if (!is.null(coef) && length(coef) != n) {
-              stop("`coef` must be NULL or have the same length as `distribution_choice`.")
-            }
-            if (!is.null(group) && length(group) != n) {
-              stop("`group` must be NULL or have the same length as `distribution_choice`.")
+            if (length(pars) != n) {
+              stop("The lengths of `pars` and `distribution_choice` must match.")
             }
 
-            # Replace NA values with empty strings for `coef` and `group`
-            if (is.null(coef)) {
-              coef <- rep("", n)
-            } else {
-              coef[is.na(coef)] <- ""
-            }
-            if (is.null(group)) {
-              group <- rep("", n)
-            } else {
-              group[is.na(group)] <- ""
-            }
-
-            # Validate `class`
-            if (!all(class %in% c("Intercept", "b", "sd", "sigma", "cor"))) {
-              stop("Invalid `class` values. Must be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.")
+            # Handle fixed effects
+            if (effect == "fixed") {
+              priors <- lapply(seq_along(distribution_choice), function(i) {
+                coef_name <- if (!is.null(theme)) paste0("theme", theme[i], if (type == "slope") ":market_factor_proxy" else "") else NULL
+                brms::set_prior(
+                  paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
+                  class = "b", # Correctly setting class to 'b'
+                  coef = coef_name
+                )
+              })
             }
 
-            # Validate `pars` against `distribution_choice`
-            valid_distributions <- list(
-              normal = c("mean", "sd"),
-              student_t = c("df", "mean", "sd"),
-              cauchy = c("location", "scale"),
-              lognormal = c("meanlog", "sdlog"),
-              inv_gamma = c("shape", "scale"),
-              lkj = c("eta")
-            )
-            mapply(function(dist, params) {
-              if (!dist %in% names(valid_distributions)) {
-                stop(sprintf("Invalid distribution: '%s'.", dist))
+            # Handle random effects
+            if (effect == "random") {
+              if (type %in% c("intercept", "slope")) {
+                coef_name <- if (type == "intercept") "Intercept" else "market_factor_proxy"
+                group_name <- if (level == "signals") "theme:tickers" else level
+                priors <- list(brms::set_prior(
+                  paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
+                  class = "sd",
+                  group = group_name,
+                  coef = coef_name
+                ))
+              } else if (type == "sigma") {
+                priors <- list(brms::set_prior(
+                  paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
+                  class = "sigma"
+                ))
+              } else if (type == "cor") {
+                priors <- list(brms::set_prior(
+                  paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
+                  class = "cor"
+                ))
               }
-              missing_params <- setdiff(valid_distributions[[dist]], names(params))
-              if (length(missing_params) > 0) {
-                stop(sprintf("Missing parameters for '%s': %s.", dist, paste(missing_params, collapse = ", ")))
-              }
-              TRUE
-            }, distribution_choice, pars, SIMPLIFY = FALSE)
-
-            # Corrected validation for group and coef restrictions
-            if (any(!(class %in% c("b", "sd")) & group != "")) {
-              stop("Group should only be specified for class 'b' or 'sd'.")
-            }
-            if (any(!(class %in% c("b", "sd")) & coef != "")) {
-              stop("Coef should only be specified for class 'b' or 'sd'.")
             }
 
-            # Validate against model specification
-            theme_level_intercept <- object@theme_level_intercept
-            theme_level_slope <- object@theme_level_slope
-
-            chosen_combination <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
-
-            invalid_priors <- switch(
-              chosen_combination,
-              "random_intercept_fixed_slope" = {
-                sapply(seq_along(distribution_choice), function(i) {
-                  grepl("^theme", coef[i]) || grepl("^theme.*:market_factor_proxy$", coef[i])
-                })
-              },
-              "theme_specific_intercept_fixed_slope" = {
-                sapply(seq_along(distribution_choice), function(i) {
-                  class[i] == "Intercept" || grepl("^theme.*:market_factor_proxy$", coef[i])
-                })
-              },
-              "theme_specific_intercept_theme_specific_slope" = {
-                sapply(seq_along(distribution_choice), function(i) {
-                  class[i] == "Intercept" || coef[i] == "market_factor_proxy"
-                })
-              },
-              "fixed_intercept_fixed_slope" = {
-                sapply(seq_along(distribution_choice), function(i) {
-                  grepl("^theme", coef[i])
-                })
-              },
-              stop("Invalid model structure")
-            )
-
-            if (any(invalid_priors)) {
-              stop(sprintf("Some priors are invalid for the chosen model structure at theme_level: '%s'.", chosen_combination))
-            }
-
-            # Generate `brmsprior` object
-            new_priors <- lapply(seq_along(distribution_choice), function(i) {
-              brms::set_prior(
-                paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
-                class = class[i],
-                coef = coef[i],
-                group = group[i]
-              )
-            })
-
-            # Combine with existing `user_priors`
+            # Add priors to the object
             if (is.null(object@bayesian_model_parameters@user_priors)) {
-              object@bayesian_model_parameters@user_priors <- do.call(rbind, new_priors)
+              object@bayesian_model_parameters@user_priors <- do.call(rbind, priors)
             } else {
               object@bayesian_model_parameters@user_priors <- rbind(
                 object@bayesian_model_parameters@user_priors,
-                do.call(rbind, new_priors)
+                do.call(rbind, priors)
               )
             }
 
-            validObject(object@bayesian_model_parameters)
+            # Validate the object and return it
+            validObject(object)
             return(object)
           })
 
-#' @rdname add_brms_prior
-#' @export
+
 #' @rdname add_brms_prior
 #' @export
 setMethod(
   "add_brms_prior",
   signature(object = "ss_backtest_config"),
-  function(object, distribution_choice, pars, class, coef = NULL, group = NULL) {
+  function(object, effect, type, theme = NULL, distribution_choice, pars, level = "signals") {
     # Check if `alpha_test_strategy` is set
     if (is.null(object@alpha_test_strategy)) {
       stop("The 'alpha_test_strategy' slot is not set in the ss_backtest_config object.")
@@ -1012,12 +1005,13 @@ setMethod(
 
     # Delegate the call to the 'alpha_test_strategy' object's method
     object@alpha_test_strategy <- add_brms_prior(
-      object@alpha_test_strategy,
+      object = object@alpha_test_strategy,
+      effect = effect,
+      type = type,
+      theme = theme,
       distribution_choice = distribution_choice,
       pars = pars,
-      class = class,
-      coef = coef,
-      group = group
+      level = level
     )
 
     # Return the updated 'ss_backtest_config' object
