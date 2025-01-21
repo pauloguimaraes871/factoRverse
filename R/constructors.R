@@ -464,7 +464,12 @@ create_meta_xts <- function(data,
     # For assets_meta_xts, we fill the specialized slots:
     obj <- methods::new(
       "assets_meta_xts",
-      common_slots,
+      data = common_slots@data,
+      meta_xts_name = common_slots$meta_xts_name,
+      workflow = common_slots$workflow,
+      n_dates = common_slots$n_dates,
+      source = common_slots$source,
+      frequency = common_slots$frequency,
       assets   = colnames(data),
       n_assets = ncol(data)
     )
@@ -472,7 +477,12 @@ create_meta_xts <- function(data,
     # For metrics_meta_xts, we fill the specialized slots:
     obj <- methods::new(
       "metrics_meta_xts",
-      common_slots,
+      data = common_slots$data,
+      meta_xts_name = common_slots$meta_xts_name,
+      workflow = common_slots$workflow,
+      n_dates = common_slots$n_dates,
+      source = common_slots$source,
+      frequency = common_slots$frequency,
       metrics   = colnames(data),
       n_metrics = ncol(data)
     )

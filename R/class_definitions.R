@@ -1287,7 +1287,7 @@ setClass(
 )
 
 #-----------------------------------------------------------------------
-# sb_backtest-config
+# sb_backtest_config
 #-----------------------------------------------------------------------
 
 #' @title sb_backtest_config Class
@@ -1879,51 +1879,6 @@ setClass(
         return(paste(errors, collapse = "\n"))
       }
 
-      #Check if signals_m_df match across the board
-      signals_object_name_list <- lapply(object@base_sb_backtest_configs, function(x){
-        if (!is.null(x@ss_backtest_results)) x@ss_backtest_results@ss_backtest_workflow$signals_object_name else NULL
-      })
-      if (identical(signals_object_name_list, rep(signals_object_name_list[[1]], length(signals_object_name_list))) == FALSE){
-        warning("signals_object_names do not match across all 'sb_backtest_config' elements.",
-                "This might be either because: 1) 'signals_object_name' was not available in all 'sb_backtest_config' elements, or 2) 'signals_object_name' do not match across all 'sb_backtest_config' elements.")
-      }
-      #Check if signal_themes_m_df match across the board
-      signal_themes_object_name_list <- lapply(object@base_sb_backtest_configs, function(x){
-        if (!is.null(x@ss_backtest_results)) x@ss_backtest_results@ss_backtest_workflow$signal_themes_object_name else NULL
-      })
-      if (identical(signal_themes_object_name_list, rep(signal_themes_object_name_list[[1]], length(signal_themes_object_name_list))) == FALSE){
-        warning("signal_themes_object_names do not match across all 'sb_backtest_config' elements.",
-                "This might be either because: 1) 'signal_themes_object_name' was not available in all 'sb_backtest_config' elements, or 2) 'signal_themes_object_name' do not match across all 'sb_backtest_config' elements.")
-      }
-      #Check if backtest_returns_xts match across the board
-      backtest_returns_object_name_list <- lapply(object@base_sb_backtest_configs, function(x){
-        #If sb_backtest_results have ss_backtest_results, get backtest_returns_object_name
-        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name)
-      })
-      if (identical(backtest_returns_object_name_list, rep(backtest_returns_object_name_list[[1]], length(backtest_returns_object_name_list))) == FALSE){
-        warning("backtest_returns_object_name do not match across all 'sb_backtest_config' elements.",
-                "This might be either because: 1) 'backtest_returns_object_name' was not available in all 'sb_backtest_config' elements, or 2) 'backtest_returns_object_name' do not match across all 'sb_backtest_config' elements.")
-      }
-      #Check if benchmark_returns_xts match across the board
-      benchmark_returns_object_name_list <- lapply(object@base_sb_backtest_configs, function(x){
-        #If sb_backtest_results have ss_backtest_results, get backtest_returns_object_name
-        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name)
-      })
-      if (identical(benchmark_returns_object_name_list, rep(benchmark_returns_object_name_list[[1]], length(benchmark_returns_object_name_list))) == FALSE){
-        warning("benchmark_returns_object_name do not match across all 'sb_backtest_config' elements.",
-                "This might be either because: 1) 'benchmark_returns_object_name' was not available in all 'sb_backtest_config' elements, or 2) 'benchmark_returns_object_name' do not match across all 'sb_backtest_config' elements.")
-      }
-      #Check for chosen_signals_and_positions
-      chosen_signals_and_positions_list <- lapply(object@base_sb_backtest_configs, function(x) {
-        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)
-        if (!is.null(x@ss_backtest_config)) return(x@ss_backtest_config@chosen_signals_and_positions)
-        if (is.null(x@ss_backtest_results && x@ss_backtest_config)) return("all_long")
-      })
-
-      if (identical(chosen_signals_and_positions_list, rep(chosen_signals_and_positions_list[[1]], length(chosen_signals_and_positions_list))) == FALSE){
-        warning("chosen_signals_and_positions do not match across all 'sb_backtest_config' elements.",
-                "This might be either because: 1) 'chosen_signals_and_positions' was not available in all 'sb_backtest_config' elements, or 2) 'chosen_signals_and_positions' do not match across all 'sb_backtest_config' elements.")
-      }
     }
 
     #Base SB Backtest Results Check
@@ -1931,58 +1886,6 @@ setClass(
       if (!all(sapply(object@base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
         stop("All elements in 'base_sb_backtest_results' must be of class 'sb_backtest_results'.")
       }
-
-      #Check if signals_m_df match across the board
-      signals_object_name_list <- lapply(object@base_sb_backtest_results, function(x){
-        #If sb_backtest_results have ss_backtest_results, get signals_object_name
-        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$signals_object_name)
-      })
-      if (identical(signals_object_name_list, rep(signals_object_name_list[[1]], length(signals_object_name_list))) == FALSE){
-        warning("signals_object_names do not match across all 'sb_backtest_results' elements.",
-                "This might be either because: 1) 'signals_object_name' was not available in all 'sb_backtest_results' elements, or 2) 'signals_object_name' do not match across all 'sb_backtest_results' elements.")
-      }
-      #Check if signal_themes_m_df match across the board
-      signal_themes_object_name_list <- lapply(object@base_sb_backtest_results, function(x){
-        #If sb_backtest_results have ss_backtest_results, get signals_object_name
-        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$signal_themes_object_name)
-      })
-      if (identical(signal_themes_object_name_list, rep(signal_themes_object_name_list[[1]], length(signal_themes_object_name_list))) == FALSE){
-        warning("signal_themes_object_name do not match across all 'sb_backtest_results' elements.",
-                "This might be either because: 1) 'signal_themes_object_name' was not available in all 'sb_backtest_results' elements, or 2) 'signal_themes_object_name' do not match across all 'sb_backtest_results' elements.")
-      }
-      #Check if backtest_returns_xts match across the board
-      backtest_returns_object_name_list <- lapply(object@base_sb_backtest_results, function(x){
-        #If sb_backtest_results have ss_backtest_results, get backtest_returns_object_name
-        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name)
-      })
-      if (identical(backtest_returns_object_name_list, rep(backtest_returns_object_name_list[[1]], length(backtest_returns_object_name_list))) == FALSE){
-        warning("backtest_returns_object_name do not match across all 'sb_backtest_results' elements.",
-                "This might be either because: 1) 'backtest_returns_object_name' was not available in all 'sb_backtest_results' elements, or 2) 'backtest_returns_object_name' do not match across all 'sb_backtest_results' elements.")
-      }
-      #Check if benchmark_returns_xts match across the board
-      benchmark_returns_object_name_list <- lapply(object@base_sb_backtest_results, function(x){
-        #If sb_backtest_results have ss_backtest_results, get backtest_returns_object_name
-        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name)
-      })
-      if (identical(benchmark_returns_object_name_list, rep(benchmark_returns_object_name_list[[1]], length(benchmark_returns_object_name_list))) == FALSE){
-        warning("benchmark_returns_object_name do not match across all 'sb_backtest_results' elements.",
-                "This might be either because: 1) 'benchmark_returns_object_name' was not available in all 'sb_backtest_results' elements, or 2) 'benchmark_returns_object_name' do not match across all 'sb_backtest_results' elements.")
-      }
-
-      #Check for chosen_signals_and_positions
-      chosen_signals_and_positions_list <- lapply(object@base_sb_backtest_results, function(x) {
-        if (!is.null(x@ss_backtest_results)){
-          return(x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)
-        } else {
-          return("all_long")
-        }
-      })
-
-      if (identical(chosen_signals_and_positions_list, rep(chosen_signals_and_positions_list[[1]], length(chosen_signals_and_positions_list))) == FALSE){
-        warning("chosen_signals_and_positions do not match across all 'sb_backtest_results' elements.",
-                "This might be either because: 1) 'chosen_signals_and_positions' was not available in all 'sb_backtest_config' elements, or 2) 'chosen_signals_and_positions' do not match across all 'sb_backtest_config' elements.")
-      }
-
     }
 
     return(TRUE)

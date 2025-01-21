@@ -12684,7 +12684,6 @@ test_that("Metabacktesting works for configs", {
   rf_results <- run_sb_backtest(
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
-    target_fwd_name = "fwd_premium_3m",
     config = rf_config,
     parallel = FALSE,
     verbose = TRUE

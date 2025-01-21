@@ -60,8 +60,8 @@ test_that("fit_sb_model works for SW", {
                           huber_delta = 1, quantile_tau = .5, early_stop = NULL,
                           keras_architecture_parameters = NULL, chosen_eval_metric_translated = NULL,
                           most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                          selected_backtest_returns_corrected_positions_xts_upd_ref = NULL,
-                          selected_cov_matrix_benchmark_xts_upd_ref = NULL,
+                          selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                          selected_cov_matrix_benchmark_m_xts_upd_ref = NULL,
                           concentration_constraint_policy = NULL
                           )
 
@@ -104,7 +104,7 @@ test_that("fit_sb_model works for RP", {
 
   #Create backtest
   set.seed(123)
-  mocked_backtest_returns_xts <- xts::xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::xts(data.frame(
     book_yield = rnorm(13, 1, 1),
     eps_yield = rnorm(13, 1, 1),
     fcf_yield = rnorm(13, 1, 1),
@@ -113,7 +113,7 @@ test_that("fit_sb_model works for RP", {
     low_idio_vol_mrkt_ewma = rnorm(13, 1, 1)
   ), order.by = as.Date(unique(toy_preprocessed_features$dates), format = "%Y-%m-%d"))
 
-  mocked_cov_matrix_benchmark_xts <- xts::xts(data.frame(IBOV = rnorm(13, 1, 1)),
+  mocked_cov_matrix_benchmark_m_xts <- xts::xts(data.frame(IBOV = rnorm(13, 1, 1)),
                                                       order.by = as.Date(unique(toy_preprocessed_features$dates), format = "%Y-%m-%d"))
 
   training_sample_size <- 9
@@ -138,10 +138,10 @@ test_that("fit_sb_model works for RP", {
 
   selected_and_corrected_list <- select_and_correct_signals(signals_m_df = toy_preprocessed_features,
                                                             chosen_signals_and_positions = chosen_signals_and_positions,
-                                                            backtest_returns_xts = mocked_backtest_returns_xts)
+                                                            backtest_returns_m_xts = mocked_backtest_returns_m_xts)
 
   selected_features_corrected_positions_m_df <- selected_and_corrected_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_xts <- selected_and_corrected_list$selected_backtest_returns_corrected_positions_xts
+  selected_backtest_returns_m_xts <- selected_and_corrected_list$selected_backtest_returns_corrected_positions_m_xts
 
   expect_equal(colnames(selected_features_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
   expect_equal(selected_features_corrected_positions_m_df$low_idio_vol_mrkt_ewma, toy_preprocessed_features$idio_vol_mrkt_ewma*-1)
@@ -156,15 +156,15 @@ test_that("fit_sb_model works for RP", {
 
   selected_features_corrected_positions_m_refit <- ts_splits$refit$features_m_refit
   target_m_refit <- ts_splits$refit$target_m_refit
-  selected_backtest_returns_xts_upd_ref <- selected_backtest_returns_xts[c(1:9), ]
-  mocked_selected_cov_matrix_benchmark_xts_upd_ref <- mocked_cov_matrix_benchmark_xts[c(1:9), ]
+  selected_backtest_returns_m_xts_upd_ref <- selected_backtest_returns_m_xts[c(1:9), ]
+  mocked_selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_cov_matrix_benchmark_m_xts[c(1:9), ]
 
   #Create portfoli
 
   signal_port <- set_portfolio_weights(port_construction_method = "rp",
                                        universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                       returns_xts_upd_ref = selected_backtest_returns_xts_upd_ref,
-                                       selected_benchmark_xts_upd_ref = mocked_selected_cov_matrix_benchmark_xts_upd_ref,
+                                       returns_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
+                                       selected_benchmark_m_xts_upd_ref = mocked_selected_cov_matrix_benchmark_m_xts_upd_ref,
                                        active_returns = TRUE, cov_matrix_sample_size = 9, cov_estimation_method = "sample"
                                        )
 
@@ -176,8 +176,8 @@ test_that("fit_sb_model works for RP", {
                           huber_delta = 1, quantile_tau = .5, early_stop = NULL,
                           keras_architecture_parameters = NULL, chosen_eval_metric_translated = NULL,
                           most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                          selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_xts_upd_ref,
-                          selected_cov_matrix_benchmark_xts_upd_ref = mocked_selected_cov_matrix_benchmark_xts_upd_ref,
+                          selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
+                          selected_cov_matrix_benchmark_m_xts_upd_ref = mocked_selected_cov_matrix_benchmark_m_xts_upd_ref,
                           active_returns = TRUE, cov_matrix_sample_size = 9, cov_estimation_method = "sample",
                           concentration_constraint_policy = NULL
   )
@@ -270,8 +270,8 @@ test_that("fit_sb_model works for OLS", {
                           huber_delta = 1, quantile_tau = .5, early_stop = NULL,
                           keras_architecture_parameters = NULL, chosen_eval_metric_translated = NULL,
                           most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                          selected_backtest_returns_corrected_positions_xts_upd_ref = NULL,
-                          selected_cov_matrix_benchmark_xts_upd_ref = NULL,
+                          selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                          selected_cov_matrix_benchmark_m_xts_upd_ref = NULL,
                           concentration_constraint_policy = NULL
   )
 

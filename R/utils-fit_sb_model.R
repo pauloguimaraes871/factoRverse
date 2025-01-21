@@ -20,8 +20,8 @@
 #' @param optimal_hyper A named list of optimal hyperparameters for the specified \code{sb_algorithm}.
 #' @param chosen_eval_metric_translated A \code{character} specifying the evaluation metric for validation.
 #' @param most_recent_signal_universe_m_d_ref A meta-dataframe representing the most recent signal universe.
-#' @param selected_backtest_returns_corrected_positions_xts_upd_ref An \code{xts} object containing backtested returns for corrected positions.
-#' @param selected_cov_matrix_benchmark_xts_upd_ref An \code{xts} object representing the selected market factor proxy.
+#' @param selected_backtest_returns_corrected_positions_m_xts_upd_ref An \code{xts} object containing backtested returns for corrected positions.
+#' @param selected_cov_matrix_benchmark_m_xts_upd_ref An \code{xts} object representing the selected market factor proxy.
 #' @param cov_matrix_sample_size A numeric value specifying the sample size for covariance matrix estimation.
 #' @param cov_estimation_method A \code{character} specifying the method for covariance estimation (e.g., \code{"sample"}).
 #' @param active_returns A logical value indicating whether to use active returns (default: \code{TRUE}).
@@ -42,8 +42,8 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                          selected_full_data_corrected_positions_m_refit_clean = NULL, #Data
                          custom_objective_translated, huber_delta, quantile_tau, early_stop, keras_architecture_parameters, #Model Parameters
                          optimal_hyper = NULL, chosen_eval_metric_translated, #Validation Parameters
-                         most_recent_signal_universe_m_d_ref, most_recent_custom_signal_weights_m_d_ref = NULL, selected_backtest_returns_corrected_positions_xts_upd_ref, #Signal Universe
-                         cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, selected_cov_matrix_benchmark_xts_upd_ref, groups_m_d_ref, #COV (for RP and MVO)
+                         most_recent_signal_universe_m_d_ref, most_recent_custom_signal_weights_m_d_ref = NULL, selected_backtest_returns_corrected_positions_m_xts_upd_ref, #Signal Universe
+                         cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, selected_cov_matrix_benchmark_m_xts_upd_ref, groups_m_d_ref, #COV (for RP and MVO)
                          rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO Methods
                          concentration_constraint_policy, #Concentration Constraint
                          upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose){ #MISC
@@ -153,8 +153,8 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                      ##Risk-Parity
                      rp = set_portfolio_weights(port_construction_method = "rp",
                                                 universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                                returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                                selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                                returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                                 cov_matrix_sample_size = cov_matrix_sample_size,
                                                 cov_estimation_method = cov_estimation_method,
                                                 active_returns = active_returns,
@@ -164,8 +164,8 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                      ##MVO
                      mvo = set_portfolio_weights(port_construction_method = "mvo",
                                                  universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                                 returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                                 selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                                 returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                 selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                                  cov_matrix_sample_size = cov_matrix_sample_size,
                                                  cov_estimation_method = cov_estimation_method,
                                                  active_returns = active_returns,

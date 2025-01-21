@@ -272,9 +272,12 @@ setMethod("run_sb_backtest",
                 stop("Object names of signals_m_df (ss_backtest) and of features_m_df (sb_backtest) differ.")
               }
               if(!is.null(backtest_returns_m_xts) && ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name != backtest_returns_m_xts@meta_xts_name){
-                stop("Object names of signal_themes_m_df differ accross ss_backtest_results and sb_backtest.")
+                stop("Object names of backtest_returns_m_xts differ accross ss_backtest_results and sb_backtest.")
               }
-              if(!is.null(signal_themes_m_df) && ss_backtest_results@ss_backtest_workflow$signal_themes_object_name != signal_themes_m_df@meta_xts_name){
+              if(!is.null(benchmark_returns_m_xts) && ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name != benchmark_returns_m_xts@meta_xts_name){
+                stop("Object names of benchmark_returns_m_xts differ accross ss_backtest_results and sb_backtest.")
+              }
+              if(!is.null(signal_themes_m_df) && ss_backtest_results@ss_backtest_workflow$signal_themes_object_name != signal_themes_m_df@meta_dataframe_name){
                 stop("Object names of signal_themes_m_df differ accross ss_backtest_results and sb_backtest.")
               }
 
@@ -388,10 +391,10 @@ setMethod("run_sb_backtest",
                 sb_backtest_results@feature_importance_m_df@workflow <- list(paste0("feature_importance_m_df result of ", sb_backtest_results@backtest_identifier))
                 sb_backtest_results@final_feature_importance_m_d_ref@workflow <- list(paste0("final_feature_importance_m_d_ref result of ", sb_backtest_results@backtest_identifier))
                 ####Meta xts
-                sb_backtest_results@oos_testing_eval_metrics_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier),ncol(sb_backtest_results@oos_testing_eval_metrics_m_xts))
+                sb_backtest_results@oos_testing_eval_metrics_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@oos_testing_eval_metrics_m_xts@data))
                 if (!sb_algorithm %in% c("ew", "sw", "rp", "mvo", "custom_weights")){
-                  sb_backtest_results@hyper_choice_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier),ncol(sb_backtest_results@hyper_choice_m_xts))
-                  sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier),ncol(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts))
+                  sb_backtest_results@hyper_choice_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@hyper_choice_m_xts@data))
+                  sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data))
                 }
 
               ####Names
@@ -887,7 +890,7 @@ run_sb_backtest_internal <- function(
       #Store validation chosen eval
       chosen_eval_metric_validation <- list()
       #Store validation eval
-      validation_eval_metrics_hyper_choice_m_xts<- xts::xts(data.frame(
+      validation_eval_metrics_hyper_choice_m_xts <- xts::xts(data.frame(
         rss = as.vector(rep(NA, n_rebalance_months)), #R2
         cp = as.vector(rep(NA, n_rebalance_months)), #CP
         rmse = as.vector(rep(NA, n_rebalance_months)), #Root Mean Squared Error
@@ -900,14 +903,14 @@ run_sb_backtest_internal <- function(
       ), order.by = rebalance_dates)
 
       #Store hyper_choice_m_xtsbased on existence of early stop and best_lam
-      hyper_choice_m_xts<- xts::xts(as.data.frame(
+      hyper_choice_m_xts <- xts::xts(as.data.frame(
         matrix(NA, nrow = n_rebalance_months, ncol = length(hyper_grid_domain_list))),
         order.by = rebalance_dates)
-      colnames(hyper_choice_xts) <- names(hyper_grid_domain_list) #Set colnames as hyperparameters
+      colnames(hyper_choice_m_xts) <- names(hyper_grid_domain_list) #Set colnames as hyperparameters
 
       #Add best-lam and best-iteration
-      hyper_choice_xts$best_lam <- if(sb_algorithm == "glmnet") NA
-      hyper_choice_xts$best_iteration <- if(!is.null(early_stop)) NA
+      hyper_choice_m_xts$best_lam <- if(sb_algorithm == "glmnet") NA
+      hyper_choice_m_xts$best_iteration <- if(!is.null(early_stop)) NA
 
     }
 
@@ -1121,11 +1124,11 @@ run_sb_backtest_internal <- function(
           chosen_eval_metric_validation[[which(rebalance_dates == current_date)]] <- #Get correct position for list
             hyper_tune_results$chosen_eval_metric_validation_current_date
 
-          #Get Optimal Hypers and fill hyper_choice_xts
+          #Get Optimal Hypers and fill hyper_choice_m_xts
           optimal_hyper <- hyper_tune_results$optimal_hyper
           hyper_choice_m_xts[current_date, ] <- optimal_hyper[colnames(hyper_choice_m_xts)] #Get the row corresponding to the rebalancing date and replace hyper_choice_m_xtswith correct order
 
-          #Fill validation_eval_metrics_hyper_choice_xts
+          #Fill validation_eval_metrics_hyper_choice_m_xts
           validation_eval_metrics_hyper_choice_m_xts[current_date, ] <- hyper_tune_results$validation_eval_metrics_hyper_choice_current_date %>%
                                                                         dplyr::select(colnames(validation_eval_metrics_hyper_choice_m_xts)) %>% #Take right columns
                                                                         as.numeric() #Turn into numeric
@@ -1351,10 +1354,10 @@ run_sb_backtest_internal <- function(
     rebalance_dates = rebalance_dates,
     split_method = split_method,
     #Stocks
-    ids = features_m_df%>% dplyr::pull(id),
-    nobs = length(features_m_df%>% dplyr::pull(id)),
-    tickers = unique(features_m_df%>% dplyr::pull(tickers)),
-    n_stocks = length(unique(features_m_df%>% dplyr::pull(tickers))),
+    ids = features_m_df %>% dplyr::pull(id),
+    nobs = length(features_m_df %>% dplyr::pull(id)),
+    tickers = unique(features_m_df %>% dplyr::pull(tickers)),
+    n_stocks = length(unique(features_m_df %>% dplyr::pull(tickers))),
     #Target
     target_fwd_name = target_fwd_name,
     target_fwd = target_fwd,
