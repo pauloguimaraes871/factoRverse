@@ -2059,10 +2059,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
   }
 
   # Extract relevant data from the S4 object
-  oos_testing_eval_metrics <- x@oos_testing_eval_metrics_m_xts %>% as.data.frame()
-  validation_eval_metrics_hyper_choice <- x@validation_eval_metrics_hyper_choice_m_xts %>% as.data.frame()
+  oos_testing_eval_metrics <- x@oos_testing_eval_metrics_m_xts@data %>% as.data.frame()
+  validation_eval_metrics_hyper_choice <- if (!is.null(x@validation_eval_metrics_hyper_choice_m_xts)) x@validation_eval_metrics_hyper_choice_m_xts@data %>% as.data.frame() else NULL
   consolidated_eval_metrics <- x@consolidated_eval_metrics
-  hyper_choice_df <- x@best_hyperparameters_m_xts %>% as.data.frame()
+  hyper_choice_df <- if (!is.null(x@best_hyperparameters_m_xts)) x@best_hyperparameters_m_xts@data %>% as.data.frame() else NULL
   chosen_eval_metric <- x@sb_backtest_workflow$chosen_eval_metric
   chosen_eval_metric_validation <- x@chosen_eval_metric_validation
   sb_algorithm <- x@sb_backtest_workflow$sb_algorithm

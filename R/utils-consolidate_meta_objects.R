@@ -40,7 +40,8 @@
 #' @export
 consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
                                             winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
-                                            features_passthrough = "none", features_m_df) {
+                                            features_passthrough_and_positions = "none", features_m_df = NULL) {
+
 
   #Initial checks
   #########################
@@ -49,46 +50,21 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
       stop("Input must be a list of S4 objects.")
     }
 
-    ##Check if all oos_predictions_m_df share the same ids
-    if (!all(sapply(base_base_sb_backtest_results_list,
-                    function(x) identical(x@oos_sb_outputs_m_df@data$id, base_base_sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data$id)))){
-
-      ##Check the reason for non-compliance
-      ###Check if all have the same features_m_df object
-      check_if_all_have_same_features_m_df_object_names <- !all(sapply(base_base_sb_backtest_results_list,
-                                                                       function(x) x@sb_backtest_workflow$features_object_name) == base_base_sb_backtest_results_list[[1]]@sb_backtest_workflow$features_object_name)
-
-      ###Check if all have same training_sample_size and validation_sample_size
-      check_if_all_have_same_training_scheme <- !all(sapply(base_base_sb_backtest_results_list,
-                                                            function(x) x@sb_backtest_workflow$training_sample_size + x@sb_backtest_workflow$validation_sample_size) ==
-                                                       base_base_sb_backtest_results_list[[1]]@sb_backtest_workflow$training_sample_size + base_base_sb_backtest_results_list[[1]]@sb_backtest_workflow$validation_sample_size)
-
-      ###Case 1: All have different features_m_df object and different training schemes
-      if (all(check_if_all_have_same_features_m_df_object_names, check_if_all_have_same_training_scheme)){
-        warning("All base_sb_backtest_results must have the same features_m_df object and also the same training scheme (training_sample_size + validation_sample_size).")
-        return(base_base_sb_backtest_results_list)
-      }
-      ###Case 2: All have different features_m_df
-      if (check_if_all_have_same_features_m_df_object_names){
-        warning("All base_sb_backtest_results must have the same features_m_df object.")
-        return(base_base_sb_backtest_results_list)
-      }
-      ###Case 3: All have different training schemes
-      if (check_if_all_have_same_training_scheme){
-        warning("All base_sb_backtest_results must have the same training scheme (training_sample_size + validation_sample_size).")
-        return(base_base_sb_backtest_results_list)
-      }
-    }
-
     ##Check if elements of lists in oos_predictions_list match
     elements <- lapply(base_sb_backtest_results_list, function(x) x@oos_sb_outputs_m_df@data %>% dplyr::select(id))
     if(!all(purrr::map_lgl(elements, ~ identical(.x, elements[[1]])))){
       stop("Elements of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
     }
 
-    ##Check if the list has names
-    if (is.null(names(base_sb_backtest_results_list)) || any(names(base_sb_backtest_results_list) == "")) {
-      stop("All elements in the list must have names to be used as column names in the final data frame.")
+    ##Check if backtest_ids are in fact unique
+    if (length(sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)) !=
+        length(unique(sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)))) {
+      stop("Backtest identifiers must be unique.")
+    }
+
+
+    if(length(unique(names(base_sb_backtest_results_list))) != length(base_sb_backtest_results_list)){
+      stop("Names of sb_backtest_results objects must be unique.")
     }
 
     ##Check if length of oos_predictions_list match
@@ -96,10 +72,10 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
       stop("Number of rows of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
     }
 
-    ##Get features_passthrough_and_positions
-
-
-
+    ##Check if features_m_df is provided if features_passthrough_and_positions is not 'none'
+    if(length(features_passthrough_and_positions) == 1 && features_passthrough_and_positions != "none" && is.null(features_m_df)){
+      stop("features_m_df must be provided if features_passthrough_and_positions is not 'none'.")
+    }
 
 
   #########################
@@ -108,19 +84,24 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
   #########################
     ##Create base obj
     oos_predictions_m_df <- purrr::reduce(
-      base_sb_backtest_results_list,
-      function(sb_results_1, sb_results_2){
-        #Combines data.frames sequentially one by one
-        dplyr::left_join(sb_results_1@oos_sb_outputs_m_df@data,
-                         sb_results_2@oos_sb_outputs_m_df@data %>%
-                           dplyr::select(id, pred) %>% #Eliminate error, target, tickers and dates cols
-                           dplyr::rename_with(~ paste0(sb_results@backtest_identifier), .cols = "pred"),
-                         by = "id")
-      },
-      #Initialize the reduction
+      # Use all but the first S4 object in the iteration
+      .x = base_sb_backtest_results_list[-1],
+
+      # Start with the data frame from the first object
       .init = base_sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data %>%
         dplyr::select(id, tickers, dates, pred) %>%
-        dplyr::rename_with(~ paste0(base_sb_backtest_results_list[[1]]@backtest_identifier), .cols = "pred")
+        dplyr::rename_with(~ paste0(base_sb_backtest_results_list[[1]]@backtest_identifier), .cols = "pred"),
+
+      # For each iteration, 'df_acc' is a data.frame, 'sb_obj' is the next S4 object
+      .f = function(df_acc, sb_obj) {
+        dplyr::left_join(
+          df_acc,
+          sb_obj@oos_sb_outputs_m_df@data %>%
+            dplyr::select(id, pred) %>%
+            dplyr::rename_with(~ paste0(sb_obj@backtest_identifier), .cols = "pred"),
+          by = "id"
+        )
+      }
     )
 
       ###Check if 'id', 'tickers', and 'dates' exist
@@ -139,14 +120,10 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
 
   # Add Pass-through features
   #########################
-  if (features_passthrough_and_positions == "none") {
+  if (length(features_passthrough_and_positions) == 1 && features_passthrough_and_positions == "none") {
     # If none, do nothing
     oos_predictions_and_features_m_df <- oos_predictions_m_df
-    oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
-    oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, "passthrough_none")
-
   } else {
-
     ##If specific features, pass only those
 
       ###Adjust features_m_df according to features_passthrough_and_positions
@@ -159,8 +136,7 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
       oos_predictions_and_features_m_df <- oos_predictions_m_df
       oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data,
                                                                    dplyr::select(selected_and_correct_features_m_df, -tickers, -dates), by = "id")
-      oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
-      oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, features_passthrough_and_positions)
+
   }
 
 

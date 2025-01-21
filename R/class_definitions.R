@@ -75,7 +75,6 @@ setClass(
   "signals_m_df",
   contains = "meta_dataframe",
   validity = function(object) {
-
   if (any(object@data %>% apply(2, function(x) any(is.na(x))))){
     stop("Data contains missing values")
     }
@@ -149,7 +148,7 @@ setClass(
 #'
 #' @export
 setClass(
-  "signals_m_df",
+  "priors_m_df",
   contains = "meta_dataframe",
   validity = function(object) {
 
@@ -334,22 +333,12 @@ setClass(
     if (length(unique(object@source)) > 1) {
       warning("Source is not the same for all columns. Please confirm if this is intended.")
     }
-
-    all_values <- as.numeric(main_xts)
-    if (stats::median(abs(all_values), na.rm = TRUE) < 5) {
-      warning("Data might be in decimal form (e.g. 0.02 for 2%). ",
-              "If you intended values like 2.0 or 2.5 to represent percentages, please confirm.")
-    }
-
     if (length(unique(idx)) < length(idx)) {
       return("There are duplicated rows (time index) in 'data'.")
     }
     if (anyDuplicated(current_colnames) > 0) {
       return("There are duplicated column names in 'data'.")
     }
-
-    freq_info <- xts::periodicity(main_xts)
-    message("Detected frequency is: ", freq_info$scale)
 
     return(TRUE)
   }
@@ -396,6 +385,12 @@ setClass(
       }
     }
 
+    all_values <- as.numeric(main_xts)
+    if (median(abs(all_values), na.rm = TRUE) < 5) {
+      warning("Data might be in decimal form (e.g. 0.02 for 2%). ",
+              "If you intended values like 2.0 or 2.5 to represent percentages, please confirm.")
+    }
+
     # Check assets & n_assets
     if (object@n_assets != ncol(main_xts)) {
       return("Slot 'n_assets' does not match the number of columns in the xts slot 'data'.")
@@ -404,6 +399,10 @@ setClass(
     if (!identical(object@assets, current_colnames)) {
       return("Slot 'assets' does not match the colnames of the xts slot 'data'.")
     }
+
+    freq_info <- xts::periodicity(main_xts)
+    message("Detected frequency is: ", freq_info$scale)
+
     return(TRUE)
   }
 )

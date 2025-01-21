@@ -938,10 +938,10 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
 
   } else if (table_name == "OOS_Testing_Eval_Metrics") {
     # Existing logic for OOS_Testing_Eval_Metrics
-    if (!is.null(object@oos_testing_eval_metrics_m_m_xts) && length(object@oos_testing_eval_metrics_m_xts) > 0) {
+    if (!is.null(object@oos_testing_eval_metrics_m_xts) && length(object@oos_testing_eval_metrics_m_xts) > 0) {
       # Convert to data.frame
-      oos_testing_metrics <- object@oos_testing_eval_metrics_m_xts %>% as.data.frame() %>%
-        dplyr::mutate(Date = zoo::index(object@oos_testing_eval_metrics_m_xts)) %>% tidyr::pivot_longer(cols = -Date, names_to = "Metric", values_to = "value")
+      oos_testing_metrics <- object@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>%
+        dplyr::mutate(Date = zoo::index(object@oos_testing_eval_metrics_m_xts@data)) %>% tidyr::pivot_longer(cols = -Date, names_to = "Metric", values_to = "value")
 
       # Summarize evaluation metrics
       oos_testing_summary <- oos_testing_metrics %>%

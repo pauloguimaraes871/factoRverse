@@ -100,7 +100,7 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             type <- list(...)
             if(length(type) > 0){
               #Check if it is correct
-              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors")){
+              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features")){
                 stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
                      'weights', 'priors'.")
               }
@@ -144,10 +144,6 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
             }
 
             if (type %in% c("signals", "features")){
-
-              if (apply(data, 2, function(x) any(is.na(x)))){
-                stop("Signals type can't contain NA values")
-              }
 
               return(
                 new("signals_m_df",

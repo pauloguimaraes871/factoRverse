@@ -392,8 +392,8 @@ setMethod("run_sb_backtest",
                 sb_backtest_results@final_feature_importance_m_d_ref@workflow <- list(paste0("final_feature_importance_m_d_ref result of ", sb_backtest_results@backtest_identifier))
                 ####Meta xts
                 sb_backtest_results@oos_testing_eval_metrics_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@oos_testing_eval_metrics_m_xts@data))
-                if (!sb_algorithm %in% c("ew", "sw", "rp", "mvo", "custom_weights")){
-                  sb_backtest_results@hyper_choice_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@hyper_choice_m_xts@data))
+                if (!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
+                  sb_backtest_results@best_hyperparameters_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@best_hyperparameters_m_xts@data))
                   sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data))
                 }
 
@@ -409,8 +409,8 @@ setMethod("run_sb_backtest",
                 }
                 ####Meta xts
                 sb_backtest_results@oos_testing_eval_metrics_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
-                if (!sb_algorithm %in% c("ew", "sw", "rp", "mvo", "custom_weights")){
-                  sb_backtest_results@hyper_choice_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+                if (!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
+                  sb_backtest_results@best_hyperparameters_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
                   sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
                 }
 
@@ -466,23 +466,11 @@ setMethod("run_sb_backtest",
             ## Initial Preparations
             #######################
             if (is.null(config@base_sb_backtest_results)) {
-              # Run base SB backtests
+             ###Run or Get Individual Backtests
+             #######################
+              ####Get Base SB Backtest Configs
               base_sb_backtest_configs <- config@base_sb_backtest_configs
-
-              ###Check for name uniqueness
-              if (length(unique(sapply(base_sb_backtest_configs, function(x) x@config_name))) != length(base_sb_backtest_configs)){
-                stop("Base SB backtest configurations must have unique names.")
-              }
-
-              ###Check if there is more than one sb_algorithm assigned as custom_weights
-              if (length(which(sapply(base_sb_backtest_configs, function(x) x@sb_algorithm) %in% c("custom_weights"))) > 1){
-                warning("All custom_weights models will be assined the same base_custom_signal_weights_m_df")
-              }
-             #######################
-
-             #Run or Get Individual Backtests
-             #######################
-              ##Run
+              ####Run
                base_sb_backtest_results_list <- run_base_sb_backtests(
                   #Data
                   features_m_df = features_m_df, target_m_df = target_m_df,
@@ -496,34 +484,18 @@ setMethod("run_sb_backtest",
                   #Other
                   winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel, .test_seed = .test_seed
               )
+
             } else {
-              ##Get Base SB Backtest Results
+              ####Get Base SB Backtest Results
               base_sb_backtest_results_list <- config@base_sb_backtest_results
 
-                ###Use provided base_sb_backtest_results_list
+                #####Use provided base_sb_backtest_results_list
                 if (verbose) {
                   cat(crayon::green("Using provided base SB backtest results.\n"))
                 }
-
-                ###Check if is right format
-                if (all(sapply(base_sb_backtest_results_list, function(x) class(x)) != "sb_backtest_results")) {
-                  stop("base_sb_backtest_results must be a list of sb_backtest_results objects.")
-                }
-
-                ###Ensure base_sb_backtest_results_list is correctly named
-                  ####Backtest Identifiers
-                  names(base_sb_backtest_results_list) <- sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)
-                  ####Config Names
-                  base_sb_backtest_configs_names <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$config_name)
-                  for (i in 1:length(base_sb_backtest_results_list)) {
-                    base_sb_backtest_results_list[[i]]@sb_backtest_workflow$config_name <- base_sb_backtest_configs_names[i]
-                  }
-
-                ###Check for name uniqueness
-                if(length(unique(base_sb_backtest_configs_names)) != length(base_sb_backtest_configs_names)){
-                  stop("Base SB backtest configurations must have unique names.")
-                }
             }
+             ####Ensure base_sb_backtest_results_list is correctly named with backtest ids
+             names(base_sb_backtest_results_list) <- sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)
 
 
             #######################
@@ -532,9 +504,10 @@ setMethod("run_sb_backtest",
             #######################
 
               ##Get features_passthrough_and_positions based on chosen_signals_and_positions_list
+
               ###Get features_passthrough_and_positions from chosen_signals_and_positions
               features_passthrough_and_positions <- get_features_positions(
-                chosen_signals_and_positions_list = chosen_signals_and_positions_list, #Base SB Backtest Results List
+                base_sb_backtest_results_list = base_sb_backtest_results_list, #Base SB Backtest Results List
                 features_passthrough = config@features_passthrough, #Features to pass through
                 feature_m_df = features_m_df #Features meta_dataframe
               )
@@ -544,7 +517,7 @@ setMethod("run_sb_backtest",
                 base_sb_backtest_results_list,
                 winsorize_predictions = config@winsorize_base_predictions, winsorization_probs = winsorization_probs, # Winsorization
                 normalize_predictions = config@normalize_base_predictions, # Normalization
-                features_passthrough_and_positions = config@features_passthrough, # Pass-through features
+                features_passthrough_and_positions = features_passthrough_and_positions, # Pass-through features
                 features_m_df = features_m_df #Features to be passed
               )
 
@@ -777,7 +750,7 @@ setMethod("run_sb_backtest",
 #' @seealso
 #' \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 run_sb_backtest_internal <- function(
-    #Basic Objects Inputs
+  #Basic Objects Inputs
   features_m_df, target_m_df, training_sample_size, target_fwd_name,
   #Splits
   validation_sample_size = 0, rebalancing_months, split_method = "expanding",
@@ -902,7 +875,7 @@ run_sb_backtest_internal <- function(
         mb = as.vector(rep(NA, n_rebalance_months)) #Mean Bias
       ), order.by = rebalance_dates)
 
-      #Store hyper_choice_m_xtsbased on existence of early stop and best_lam
+      #Store hyper_choice_m_xts based on existence of early stop and best_lam
       hyper_choice_m_xts <- xts::xts(as.data.frame(
         matrix(NA, nrow = n_rebalance_months, ncol = length(hyper_grid_domain_list))),
         order.by = rebalance_dates)
@@ -1267,7 +1240,7 @@ run_sb_backtest_internal <- function(
 
       #Test Eval Metrics
       oos_testing_eval_metrics_m_xts[testing_lists_ref, ] <- as.numeric(testing_metrics$df_eval_metrics %>%
-                                                                      dplyr::select(colnames(oos_testing_eval_metrics_m_xts))) #Eliminate Score
+                                                                        dplyr::select(colnames(oos_testing_eval_metrics_m_xts))) #Eliminate Score
 
     }
 
@@ -1417,11 +1390,13 @@ run_sb_backtest_internal <- function(
   oos_testing_eval_metrics_m_xts <- create_meta_xts(oos_testing_eval_metrics_m_xts, type = "metrics",
                                                     source = rep(sb_backtest_workflow$backtest_identifier, ncol(oos_testing_eval_metrics_m_xts)))
   ###hyper_choice_m_xts
+  if (!sb_algorithm %in% non_tuning_algos){
   hyper_choice_m_xts <- create_meta_xts(hyper_choice_m_xts, type = "metrics",
                                         source = rep(sb_backtest_workflow$backtest_identifier, ncol(hyper_choice_m_xts)))
   ###validation_eval_metrics_hyper_choice_m_xts
   validation_eval_metrics_hyper_choice_m_xts <- create_meta_xts(validation_eval_metrics_hyper_choice_m_xts, type = "metrics",
                                                                 source = rep(sb_backtest_workflow$backtest_identifier, ncol(validation_eval_metrics_hyper_choice_m_xts)))
+  }
 
   #Get S4 object
   sb_backtest_results_object <-
@@ -1439,7 +1414,7 @@ run_sb_backtest_internal <- function(
         ss_backtest_results = NULL,
         sb_backtest_workflow = sb_backtest_workflow,
         backtest_identifier = sb_backtest_workflow$backtest_identifier
-        )
+       )
 
 
   #Return List

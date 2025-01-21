@@ -108,25 +108,30 @@ validate_meta_config <- function(
     }
   ##########################
 
-  #Repeated backtests or configs
+  #Structure of Base Backtest Results and Configs
   ##########################
   if (!is.null(config@base_sb_backtest_results)){
     base_sb_backtest_results_list <- config@base_sb_backtest_results
     ###Check for repeated backtest_identifier
-    if (any(sapply(base_sb_backtest_results_list,
-                   function(x){
-                     x@backtest_identifier != base_sb_backtest_results_list[[1]]@backtest_identifier
-                   }))) {
-      stop("There should be no repeated backtests.")
+    if (length(unique(sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier))) != length(base_sb_backtest_results_list)){
+      stop("Base sb backtest identifiers must have unique names.")
     }
+
+    ###Check if is right format
+    if (all(sapply(base_sb_backtest_results_list, function(x) class(x)) != "sb_backtest_results")) {
+      stop("base_sb_backtest_results must be a list of sb_backtest_results objects.")
+    }
+
   } else {
     base_sb_backtest_configs_list <- config@base_sb_backtest_configs #Get list
     ###Check for repeated config_names
-    if (any(sapply(base_sb_backtest_configs_list,
-                   function(x){
-                     x@config_name != base_sb_backtest_configs_list[[1]]@config_name
-                   }))) {
-      stop("There should be no repeated SB configs.")
+    if (length(unique(sapply(base_sb_backtest_configs_list, function(x) x@config_name))) != length(base_sb_backtest_configs_list)){
+      stop("Base sb backtest configurations must have unique names.")
+    }
+
+    ###Check if there is more than one sb_algorithm assigned as custom_weights
+    if (length(which(sapply(base_sb_backtest_configs_list, function(x) x@sb_algorithm) %in% c("custom_weights"))) > 1){
+      warning("All custom_weights models will be assined the same base_custom_signal_weights_m_df")
     }
   }
   ##########################
@@ -173,44 +178,17 @@ validate_meta_config <- function(
     }
 
     ###chosen_signals_and_positions
-      ####Get raw chosen_signals_and_positions_list depending on whether ss_backtest_results or ss_backtest_configs are supplied
-      if (!is.null(config@base_sb_backtest_results)){
-        ####Base SB Backtest Results
-        chosen_signals_and_positions_list <-
-          sapply(base_sb_backtest_results_list, function(x){ #List is already available
-            if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results$ss_backtest_workflow$chosen_signals_and_positions) else "all"
-          })
-    } else {
-        base_sb_backtest_configs_list <- config@base_sb_backtest_configs #Get list
+    get_and_check_chosen_signals_and_positions(
+      base_sb_backtest_results_list = config@base_sb_backtest_results,
+      base_sb_backtest_configs_list = config@base_sb_backtest_configs,
+      features_passthrough = config@features_passthrough,
+      features_m_df = features_m_df@data
+    )
 
-        chosen_signals_and_positions_list <-
-          sapply(base_sb_backtest_configs_list, function(x){
-            if (!is.null(x@ss_backtest_config)) return(x@ss_backtest_config$chosen_signals_and_positions)
-            if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)
-            if (is.null(x@ss_backtest_config) && is.null(x@ss_backtest_results)) return("all")
-          })
-      }
-
-      ####Verify that objects are the same
-      if (length(chosen_signals_and_positions_list) > 1) {
-        for (i in seq_along(chosen_signals_and_positions_list)) { #For each object
-          current_vec <- chosen_signals_and_positions_list[[i]]
-          if (!identical(current_vec, chosen_signals_and_positions_list[[1]])) { #Compare with first one as reference
-            #If they are not identifical, warn
-            stop("chosen_signals_and_positions of base objects differ at element index: ", i, ".")
-          }
-        }
-      }
-
-      ####Check if features_passthrough is contained
-      if (!(length(config@features_passthrough) == 1 && config@features_passthrough %in% c("all", "none"))) {
-        if (!all(config@features_passthrough %in% names(chosen_signals_and_positions_list[[1]]))) {
-          stop("features_passthrough should be contained in chosen_signals_and_positions of base objects")
-        }
-      }
   ##########################
 
   ##Base Conformity at SB Level
+  ##########################
   if (verbose) cat("Checking conformity of objects at Signal-Blending level.\n")
     ###features_m_df, target_m_dt, signal_themes_m_df, backtest_returns_m_xts, benchmark_returns_m_xts (only makes sense to check in sb_backtest_results)
     ###In sb_backtest_config, those objects will be necessarilly equal because backtest will be run with objects from arguments
