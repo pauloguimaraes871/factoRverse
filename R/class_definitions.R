@@ -56,6 +56,9 @@ setClass("meta_dataframe",
            meta_dataframe_name = "character"
          ), validity = function(object){
 
+           #Check coercibility
+           is_coercible_to_meta_dataframe(object@data)
+
            #Check for presence of low
            if(any(grepl("low_", object@signals))){
              return("Column names cannot contain 'low_'")
@@ -269,6 +272,177 @@ setClass(
 
   }
 )
+
+
+#' An S4 class that stores a main xts object plus metadata about backtested returns.
+#'
+#' The meta_xts class is designed to hold:
+#' \itemize{
+#'   \item \code{data}: An xts object containing the time series data.
+#'   \item \code{meta_xts_name}: A character name/label for the series.
+#'   \item \code{workflow}: An ANY object that can hold workflow objects/pipelines.
+#'   \item \code{n_dates}: A numeric value equal to the number of rows in \code{data}.
+#'   \item \code{source}: A character vector indicating the origin of each column
+#'         (same length as number of columns in \code{data}).
+#'   \item \code{frequency}: A character value representing time frequency
+#'         (e.g., "daily", "weekly", "monthly", "yearly", etc.).
+#' }
+#'
+#' @slot data An xts object containing the time series.
+#' @slot meta_xts_name Character. A label or ID for the series.
+#' @slot workflow ANY. A placeholder for user-defined workflow/pipeline objects.
+#' @slot n_dates Numeric. Number of rows in \code{data}.
+#' @slot source Character. Source of each column (same length as number of columns in \code{data}).
+#' @slot frequency Character. Detected frequency (daily, monthly, yearly, etc.).
+#'
+#' @import methods
+#' @importFrom xts xts
+#' @importFrom zoo index
+#' @export
+setClass(
+  Class = "meta_xts",
+  slots = c(
+    data          = "xts",
+    meta_xts_name = "character",
+    workflow      = "ANY",
+    n_dates       = "numeric",
+    source        = "character",
+    frequency     = "character"
+  ),
+  validity = function(object) {
+    # The underlying data is in object@data
+    main_xts <- object@data
+
+    idx <- zoo::index(main_xts)
+    if (!all(diff(idx) > 0)) {
+      return("Dates must be strictly increasing (oldest to newest).")
+    }
+    if (any(is.na(main_xts))) {
+      return("There must be no NA values in the time series.")
+    }
+    if (object@n_dates != nrow(main_xts)) {
+      return("Slot 'n_dates' does not match the number of rows in the xts slot 'data'.")
+    }
+
+    current_colnames <- colnames(main_xts)
+    ncols <- length(current_colnames)
+    if (length(object@source) != ncols) {
+      return("Slot 'source' must have the same length as the number of columns in slot 'data'.")
+    }
+
+    # If all columns do not share the same source, just warn:
+    if (length(unique(object@source)) > 1) {
+      warning("Source is not the same for all columns. Please confirm if this is intended.")
+    }
+
+    all_values <- as.numeric(main_xts)
+    if (stats::median(abs(all_values), na.rm = TRUE) < 5) {
+      warning("Data might be in decimal form (e.g. 0.02 for 2%). ",
+              "If you intended values like 2.0 or 2.5 to represent percentages, please confirm.")
+    }
+
+    if (length(unique(idx)) < length(idx)) {
+      return("There are duplicated rows (time index) in 'data'.")
+    }
+    if (anyDuplicated(current_colnames) > 0) {
+      return("There are duplicated column names in 'data'.")
+    }
+
+    freq_info <- xts::periodicity(main_xts)
+    message("Detected frequency is: ", freq_info$scale)
+
+    return(TRUE)
+  }
+)
+
+#' An S4 subclass of meta_xts for asset returns with no holes.
+#'
+#' In addition to the parent slots, it has:
+#' \itemize{
+#'   \item \code{assets}: a character vector with names of asset columns.
+#'   \item \code{n_assets}: a numeric value equal to the number of asset columns.
+#' }
+#'
+#' @slot assets Character. Names of the columns (assets).
+#' @slot n_assets Numeric. Number of asset columns.
+#'
+#' @importFrom methods setClass
+#' @export
+setClass(
+  Class = "assets_meta_xts",
+  contains = "meta_xts",
+  slots = c(
+    assets   = "character",
+    n_assets = "numeric"
+  ),
+  validity = function(object) {
+    main_xts <- object@data
+    idx <- zoo::index(main_xts)
+    freq_info <- xts::periodicity(main_xts)
+    discovered_scale <- freq_info$scale
+
+    # Check for consecutive dates
+    if (discovered_scale %in% c("daily", "weekly", "monthly", "quarterly", "yearly")) {
+      full_seq <- switch(
+        discovered_scale,
+        "daily"     = seq(idx[1], idx[length(idx)], by = "day"),
+        "weekly"    = seq(idx[1], idx[length(idx)], by = "week"),
+        "monthly"   = seq(idx[1], idx[length(idx)], by = "month"),
+        "quarterly" = seq(idx[1], idx[length(idx)], by = "quarter"),
+        "yearly"    = seq(idx[1], idx[length(idx)], by = "year")
+      )
+      if (length(full_seq) != length(idx) || !all(full_seq == idx)) {
+        return(paste0("Dates are not consecutive for detected frequency: ", discovered_scale, "."))
+      }
+    }
+
+    # Check assets & n_assets
+    if (object@n_assets != ncol(main_xts)) {
+      return("Slot 'n_assets' does not match the number of columns in the xts slot 'data'.")
+    }
+    current_colnames <- colnames(main_xts)
+    if (!identical(object@assets, current_colnames)) {
+      return("Slot 'assets' does not match the colnames of the xts slot 'data'.")
+    }
+    return(TRUE)
+  }
+)
+
+#' An S4 subclass of meta_xts for metric time series (holes allowed).
+#'
+#' In addition to the parent slots, it has:
+#' \itemize{
+#'   \item \code{metrics}: a character vector with names of metric columns.
+#'   \item \code{n_metrics}: a numeric value equal to the number of metric columns.
+#' }
+#'
+#' @slot metrics Character. Names of the columns (metrics).
+#' @slot n_metrics Numeric. Number of metric columns.
+#'
+#' @importFrom methods setClass
+#' @export
+setClass(
+  Class = "metrics_meta_xts",
+  contains = "meta_xts",
+  slots = c(
+    metrics   = "character",
+    n_metrics = "numeric"
+  ),
+  validity = function(object) {
+    main_xts <- object@data
+    if (object@n_metrics != ncol(main_xts)) {
+      return("Slot 'n_metrics' does not match the number of columns in the xts slot 'data'.")
+    }
+    current_colnames <- colnames(main_xts)
+    if (!identical(object@metrics, current_colnames)) {
+      return("Slot 'metrics' does not match the colnames of the xts slot 'data'.")
+    }
+    # No check for consecutive dates (holes allowed).
+    return(TRUE)
+  }
+)
+
+
 
 
 
@@ -1083,8 +1257,6 @@ setClass("ss_backtest_config",
 #-----------------------------------------------------------------------
 # ss_backtest_results
 #-----------------------------------------------------------------------
-
-
 #' S4 Class for Signal Selection Backtest Results
 #'
 #' This S4 class encapsulates the results and parameters from performing a signal selection backtest.
@@ -1105,7 +1277,7 @@ setClass(
   slots = list(
     signal_universe_m_df = "meta_dataframe",
     final_signal_universe_m_d_ref = "meta_dataframe",
-    selected_market_factor_proxy_xts = "xts",
+    selected_market_factor_proxy_m_xts = "meta_xts",
     frequentist_results = "ANY",
     bayesian_results = "ANY",
     p_correction_method = "character",
@@ -1563,7 +1735,7 @@ setClass(
 #' @slot base_sb_backtest_configs A list of `sb_backtest_config` objects whose oos predictions will be fed to the meta learner.
 #' @slot base_sb_backtest_results A list of `sb_backtest_result` objects whose oos predictions will be fed to the meta learner.
 #' @slot normalize_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
-#' @slot features_passthrough_and_positions A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner.
+#' @slot features_passthrough A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner.
 #'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
 #' @slot config_name A character string with the name of the configuration
 #' @export
@@ -1571,55 +1743,47 @@ setClass(
   "sb_metabacktest_config",
   slots = list(
     meta_sb_backtest_config = "sb_backtest_config",
-    meta_ss_backtest_config = "ANY",
-    meta_ss_backtest_results = "ANY",
     base_sb_backtest_configs = "ANY",
     base_sb_backtest_results = "ANY",
-    features_passthrough_and_positions = "character",
+    features_passthrough = "character",
     normalize_base_predictions = "logical",
     winsorize_base_predictions = "logical",
     config_name = "character"
   ),
   validity = function(object) {
 
-    #Check for ss_backtest_config OR ss_backtest_results
-    if(!is.null(object@meta_ss_backtest_config) && !is.null(object@meta_ss_backtest_results)) {
-      return("Only one of a meta_ss_backtest_config or a meta_ss_backtest_results object should be provided.")
-    }
-    ##SS Backtest Config Class
-    if(!is.null(object@meta_ss_backtest_config)){
-      if(!inherits(object@meta_ss_backtest_config, "ss_backtest_config")) {
-        return("meta_ss_backtest_config must be of class 'ss_backtest_config'.")
-      }
-    }
-    ##SS Backtest Results Class
-    if(!is.null(object@meta_ss_backtest_results)){
-      if(!inherits(object@meta_ss_backtest_results, "ss_backtest_results")) {
-        return("meta_ss_backtest_results must be of class 'ss_backtest_results'.")
-      }
-    }
-
     #Check for tuning strat
-    if(!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && is.null(object@meta_sb_backtest_config@tuning_strategy)){
+    if (!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && is.null(object@meta_sb_backtest_config@tuning_strategy)){
       stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for ols and heuristic sb algorithms).")
     }
 
-    #feat passthrough
-    if(length(object@features_passthrough_and_positions) == 1){
-      if(!object@features_passthrough_and_positions %in% c("all", "none")){
-        stop("features_passthrough_and_positions should be 'all', 'none' or a named vector with signals and positions")
-      }
-    } else {
-      if(!any(object@features_passthrough_and_positions %in% c("long", "short", "force"))){
-        stop("features_passthrough_and_positions should be either 'long', 'short' or 'force'.")
+    #Check for ss_backtest_config/results
+    if (length(object@meta_sb_backtest_config@ss_backtest_config) > 0){
+      if (object@meta_sb_backtest_config@ss_backtest_config$chosen_signals_and_positions != "all") {
+        stop("chosen_signals_and_positions should always be 'all' at meta-level.",
+             "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
       }
     }
-    if(!is.null(object@base_sb_backtest_configs) & !is.null(object@base_sb_backtest_results)){
+    if (length(object@meta_sb_backtest_config@ss_backtest_results) > 0){
+      if (object@meta_sb_backtest_config@ss_backtest_results@sb_backtest_workflow$chosen_signals_and_positions != "all") {
+        stop("chosen_signals_and_positions should always be 'all' at meta-level.",
+             "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
+      }
+    }
+
+    #Check for features_passthrough
+    if (any(features_passthrough %in% c("long", "short", "force"))){
+      stop ("features_passthrough should just declare which signals from features_m_df should be added to meta learner features.
+            Postions will be corrected based on chosen_signals_and_positions.")
+    }
+
+    #Check for simultaneous base_sb_backtest_configs and base_sb_backtest_results
+    if (!is.null(object@base_sb_backtest_configs) & !is.null(object@base_sb_backtest_results)){
       stop("base_sb_backtest_configs and base_sb_backtest_results can't be set at the same time.")
     }
 
-
-    if(!is.null(object@base_sb_backtest_configs)){
+    #Base SB Backtest Configs Check
+    if (!is.null(object@base_sb_backtest_configs)){
 
       if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
         stop("All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
@@ -1715,12 +1879,110 @@ setClass(
         return(paste(errors, collapse = "\n"))
       }
 
+      #Check if signals_m_df match across the board
+      signals_object_name_list <- lapply(object@base_sb_backtest_configs, function(x){
+        if (!is.null(x@ss_backtest_results)) x@ss_backtest_results@ss_backtest_workflow$signals_object_name else NULL
+      })
+      if (identical(signals_object_name_list, rep(signals_object_name_list[[1]], length(signals_object_name_list))) == FALSE){
+        warning("signals_object_names do not match across all 'sb_backtest_config' elements.",
+                "This might be either because: 1) 'signals_object_name' was not available in all 'sb_backtest_config' elements, or 2) 'signals_object_name' do not match across all 'sb_backtest_config' elements.")
+      }
+      #Check if signal_themes_m_df match across the board
+      signal_themes_object_name_list <- lapply(object@base_sb_backtest_configs, function(x){
+        if (!is.null(x@ss_backtest_results)) x@ss_backtest_results@ss_backtest_workflow$signal_themes_object_name else NULL
+      })
+      if (identical(signal_themes_object_name_list, rep(signal_themes_object_name_list[[1]], length(signal_themes_object_name_list))) == FALSE){
+        warning("signal_themes_object_names do not match across all 'sb_backtest_config' elements.",
+                "This might be either because: 1) 'signal_themes_object_name' was not available in all 'sb_backtest_config' elements, or 2) 'signal_themes_object_name' do not match across all 'sb_backtest_config' elements.")
+      }
+      #Check if backtest_returns_xts match across the board
+      backtest_returns_object_name_list <- lapply(object@base_sb_backtest_configs, function(x){
+        #If sb_backtest_results have ss_backtest_results, get backtest_returns_object_name
+        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name)
+      })
+      if (identical(backtest_returns_object_name_list, rep(backtest_returns_object_name_list[[1]], length(backtest_returns_object_name_list))) == FALSE){
+        warning("backtest_returns_object_name do not match across all 'sb_backtest_config' elements.",
+                "This might be either because: 1) 'backtest_returns_object_name' was not available in all 'sb_backtest_config' elements, or 2) 'backtest_returns_object_name' do not match across all 'sb_backtest_config' elements.")
+      }
+      #Check if benchmark_returns_xts match across the board
+      benchmark_returns_object_name_list <- lapply(object@base_sb_backtest_configs, function(x){
+        #If sb_backtest_results have ss_backtest_results, get backtest_returns_object_name
+        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name)
+      })
+      if (identical(benchmark_returns_object_name_list, rep(benchmark_returns_object_name_list[[1]], length(benchmark_returns_object_name_list))) == FALSE){
+        warning("benchmark_returns_object_name do not match across all 'sb_backtest_config' elements.",
+                "This might be either because: 1) 'benchmark_returns_object_name' was not available in all 'sb_backtest_config' elements, or 2) 'benchmark_returns_object_name' do not match across all 'sb_backtest_config' elements.")
+      }
+      #Check for chosen_signals_and_positions
+      chosen_signals_and_positions_list <- lapply(object@base_sb_backtest_configs, function(x) {
+        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)
+        if (!is.null(x@ss_backtest_config)) return(x@ss_backtest_config@chosen_signals_and_positions)
+        if (is.null(x@ss_backtest_results && x@ss_backtest_config)) return("all_long")
+      })
+
+      if (identical(chosen_signals_and_positions_list, rep(chosen_signals_and_positions_list[[1]], length(chosen_signals_and_positions_list))) == FALSE){
+        warning("chosen_signals_and_positions do not match across all 'sb_backtest_config' elements.",
+                "This might be either because: 1) 'chosen_signals_and_positions' was not available in all 'sb_backtest_config' elements, or 2) 'chosen_signals_and_positions' do not match across all 'sb_backtest_config' elements.")
+      }
     }
 
+    #Base SB Backtest Results Check
     if(!is.null(object@base_sb_backtest_results)){
       if (!all(sapply(object@base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
         stop("All elements in 'base_sb_backtest_results' must be of class 'sb_backtest_results'.")
       }
+
+      #Check if signals_m_df match across the board
+      signals_object_name_list <- lapply(object@base_sb_backtest_results, function(x){
+        #If sb_backtest_results have ss_backtest_results, get signals_object_name
+        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$signals_object_name)
+      })
+      if (identical(signals_object_name_list, rep(signals_object_name_list[[1]], length(signals_object_name_list))) == FALSE){
+        warning("signals_object_names do not match across all 'sb_backtest_results' elements.",
+                "This might be either because: 1) 'signals_object_name' was not available in all 'sb_backtest_results' elements, or 2) 'signals_object_name' do not match across all 'sb_backtest_results' elements.")
+      }
+      #Check if signal_themes_m_df match across the board
+      signal_themes_object_name_list <- lapply(object@base_sb_backtest_results, function(x){
+        #If sb_backtest_results have ss_backtest_results, get signals_object_name
+        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$signal_themes_object_name)
+      })
+      if (identical(signal_themes_object_name_list, rep(signal_themes_object_name_list[[1]], length(signal_themes_object_name_list))) == FALSE){
+        warning("signal_themes_object_name do not match across all 'sb_backtest_results' elements.",
+                "This might be either because: 1) 'signal_themes_object_name' was not available in all 'sb_backtest_results' elements, or 2) 'signal_themes_object_name' do not match across all 'sb_backtest_results' elements.")
+      }
+      #Check if backtest_returns_xts match across the board
+      backtest_returns_object_name_list <- lapply(object@base_sb_backtest_results, function(x){
+        #If sb_backtest_results have ss_backtest_results, get backtest_returns_object_name
+        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name)
+      })
+      if (identical(backtest_returns_object_name_list, rep(backtest_returns_object_name_list[[1]], length(backtest_returns_object_name_list))) == FALSE){
+        warning("backtest_returns_object_name do not match across all 'sb_backtest_results' elements.",
+                "This might be either because: 1) 'backtest_returns_object_name' was not available in all 'sb_backtest_results' elements, or 2) 'backtest_returns_object_name' do not match across all 'sb_backtest_results' elements.")
+      }
+      #Check if benchmark_returns_xts match across the board
+      benchmark_returns_object_name_list <- lapply(object@base_sb_backtest_results, function(x){
+        #If sb_backtest_results have ss_backtest_results, get backtest_returns_object_name
+        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name)
+      })
+      if (identical(benchmark_returns_object_name_list, rep(benchmark_returns_object_name_list[[1]], length(benchmark_returns_object_name_list))) == FALSE){
+        warning("benchmark_returns_object_name do not match across all 'sb_backtest_results' elements.",
+                "This might be either because: 1) 'benchmark_returns_object_name' was not available in all 'sb_backtest_results' elements, or 2) 'benchmark_returns_object_name' do not match across all 'sb_backtest_results' elements.")
+      }
+
+      #Check for chosen_signals_and_positions
+      chosen_signals_and_positions_list <- lapply(object@base_sb_backtest_results, function(x) {
+        if (!is.null(x@ss_backtest_results)){
+          return(x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)
+        } else {
+          return("all_long")
+        }
+      })
+
+      if (identical(chosen_signals_and_positions_list, rep(chosen_signals_and_positions_list[[1]], length(chosen_signals_and_positions_list))) == FALSE){
+        warning("chosen_signals_and_positions do not match across all 'sb_backtest_results' elements.",
+                "This might be either because: 1) 'chosen_signals_and_positions' was not available in all 'sb_backtest_config' elements, or 2) 'chosen_signals_and_positions' do not match across all 'sb_backtest_config' elements.")
+      }
+
     }
 
     return(TRUE)
@@ -1794,13 +2056,13 @@ setClass(
   "sb_backtest_results",
   slots = list(
     oos_sb_outputs_m_df = "meta_dataframe",
-    oos_testing_eval_metrics_xts = "xts",
+    oos_testing_eval_metrics_m_xts = "meta_xts",
     consolidated_eval_metrics = "data.frame",
     final_sb_model = "sb_model",
     final_gsm = "ANY",
     chosen_eval_metric_validation = "ANY",
-    best_hyperparameters_xts = "ANY",
-    validation_eval_metrics_hyper_choice_xts = "ANY",
+    best_hyperparameters_m_xts = "ANY",
+    validation_eval_metrics_hyper_choice_m_xts = "ANY",
     feature_importance_m_df = "meta_dataframe",
     final_feature_importance_m_d_ref = "meta_dataframe",
     ss_backtest_results = "ANY",
@@ -1816,12 +2078,12 @@ setClass(
       stop("ss_backtest_results must be an 'ss_backtest_results' object")
     }
 
-    if(!is.null(object@validation_eval_metrics_hyper_choice_xts) && !inherits(object@validation_eval_metrics_hyper_choice_xts, "xts")){
-      stop("validation_eval_metrics_hyper_choice_xts must be an 'xts' object")
+    if(!is.null(object@validation_eval_metrics_hyper_choice_m_xts) && !inherits(object@validation_eval_metrics_hyper_choice_m_xts, "meta_xts")){
+      stop("validation_eval_metrics_hyper_choice_xts must be an 'meta_xts' object")
     }
 
-    if(!is.null(object@best_hyperparameters_xts) && !inherits(object@best_hyperparameters_xts, "xts")){
-      stop("best_hyperparameters_xts must be an 'xts' object")
+    if(!is.null(object@best_hyperparameters_m_xts) && !inherits(object@best_hyperparameters_m_xts, "meta_xts")){
+      stop("best_hyperparameters_xts must be an 'meta_xts' object")
     }
 
   }

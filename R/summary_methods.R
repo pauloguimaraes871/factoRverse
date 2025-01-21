@@ -315,19 +315,28 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 
 
 
-
 #' Summary Method for sb_metabacktest_config Class
 #'
 #' Produces an interactive table summarizing the counts of configurations by `sb_algorithm` and other parameters using the `DT` package.
 #' Neural networks (`nn`) are grouped by the number of hidden layers, resulting in rows like `nn_1`, `nn_2`, etc.
+#'
 #' The table supports horizontal and vertical scrolling with the first column frozen and includes visual enhancements using specified colors.
 #' Underscores in column headers are replaced with spaces.
 #'
+#' This version also summarizes information from any associated \code{ss_backtest_config} or \code{ss_backtest_workflow}:
+#' \itemize{
+#'   \item \code{model_structure}
+#'   \item \code{p_correction_method}
+#' }
+#' For \code{ss_backtest_workflow}, we look at \code{sb_backtest_config@@ss_backtest_results@@ss_backtest_workflow}.
+#'
 #' @param object An `sb_metabacktest_config` object.
 #' @param ... Additional arguments (not used).
-#' @return Invisibly returns a `DT` table object. This function is called for its side effect of displaying the table.
+#'
+#' @return Invisibly returns a `DT` table object. This function is primarily called for its side effect of displaying the table.
+#'
 #' @examples
-#' # Assuming you have an sb_metabacktest_config object named meta_config
+#' # Assuming you have an sb_metabacktest_config object named meta_config:
 #' summary(meta_config)
 #'
 #' @export
@@ -335,105 +344,151 @@ setMethod("summary", "sb_metabacktest_config",
           function(object, ...) {
 
             cat("Summary of 'sb_metabacktest_config' object\n")
-            cat("Config Name: ", object@config_name, "\n")
-
-            cat("\n------------------------------\n")
-            cat(crayon::cyan("Meta Learner Backtest Configuration:\n"))
-            config <- object@meta_sb_backtest_config
-            cat(sprintf("  config_name: %s\n", config@config_name))
-            cat(sprintf("  sb_algorithm: %s\n", config@sb_algorithm))
-
-            # For neural networks, display number of layers
-            if (config@sb_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
-              n_layers <- length(config@keras_architecture_parameters@units)
-              cat(sprintf("  n_layers: %s\n", n_layers))
-            }
-
-            cat(sprintf("  Training Sample Size: %s\n", config@training_sample_size))
-            cat(sprintf("  Rebalancing Months: %s\n", paste(config@rebalancing_months, collapse = " ")))
-            cat(sprintf("  Custom Objective: %s\n", config@custom_objective))
-            cat(sprintf("  Huber Delta: %s\n", config@huber_delta))
-            cat(sprintf("  Quantile Tau: %s\n", config@quantile_tau))
-
-            if (!is.null(config@tuning_strategy)) {
-              cat("  Meta SB Config Tuning Strategy:\n")
-              cat(sprintf("    Tuning Method: %s\n", config@tuning_strategy@tuning_method))
-              cat(sprintf("    Validation Sample Size: %s\n", config@tuning_strategy@validation_sample_size))
-              cat(sprintf("    Chosen Eval Metric: %s\n", config@tuning_strategy@chosen_eval_metric))
-            } else {
-              cat("  No tuning_strategy available\n")
-            }
-            cat("\n")
-
-
             cat("------------------------------\n")
-
 
             n_configs <- length(object@base_sb_backtest_configs)
             cat(sprintf("Number of Base SB backtest configurations: %d\n\n", n_configs))
+
+            # Basic info
             training_sample_size <- unique(sapply(object@base_sb_backtest_configs, function(x) x@training_sample_size))
             cat(paste("Training sample size:", paste(training_sample_size, collapse = ","), "\n"))
             cat(paste("Training sample size (OLS):", paste(training_sample_size, collapse = ","), "\n"))
+
             rebalancing_months <- unique(sapply(object@base_sb_backtest_configs, function(x) x@rebalancing_months))
             cat(paste("Rebalancing months:", paste(rebalancing_months, collapse = ", "), "\n"))
 
-            if (n_configs > 0) {
-              # Collect unique sb_algorithms, handling 'nn' separately
+            # If there are no configs, just return
+            if (n_configs == 0) {
+              invisible(NULL)
+            } else {
+              ###################################################################
+              # 1) Collect unique sb_algorithms, grouping nn by # of hidden layers
+              ###################################################################
               sb_algorithms <- unique(sapply(object@base_sb_backtest_configs, function(x) {
                 if (x@sb_algorithm == "nn") {
-                  # Get number of hidden layers
                   num_hidden_layers <- length(x@keras_architecture_parameters@units)
-                  return(paste0("nn_", num_hidden_layers))
+                  paste0("nn_", num_hidden_layers)
                 } else {
-                  return(x@sb_algorithm)
+                  x@sb_algorithm
                 }
               }))
 
-              # Collect possible options
+              ###################################################################
+              # 2) Collect possible options: tuning methods, custom objectives, etc.
+              ###################################################################
+              # 2a) Tuning Methods
               tuning_methods <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
-                if (!is.null(x@tuning_strategy)) x@tuning_strategy@tuning_method else NA
+                if (!is.null(x@tuning_strategy)) {
+                  x@tuning_strategy@tuning_method
+                } else {
+                  NA
+                }
               })))
-              custom_objectives <- unique(sapply(object@base_sb_backtest_configs, function(x) x@custom_objective))
-              chosen_eval_metrics <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
-                if (!is.null(x@tuning_strategy)) x@tuning_strategy@chosen_eval_metric else NA
-              })))
-
-              # Remove NA values
               tuning_methods <- na.omit(tuning_methods)
+
+              # 2b) Custom Objectives
+              custom_objectives <- unique(sapply(object@base_sb_backtest_configs, function(x) x@custom_objective))
+              custom_objectives <- na.omit(custom_objectives)
+
+              # 2c) Chosen Eval Metrics
+              chosen_eval_metrics <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
+                if (!is.null(x@tuning_strategy)) {
+                  x@tuning_strategy@chosen_eval_metric
+                } else {
+                  NA
+                }
+              })))
               chosen_eval_metrics <- na.omit(chosen_eval_metrics)
 
-              # Create all column names without prefixes
-              count_col_names <- c(tuning_methods, custom_objectives, chosen_eval_metrics)
-              quant_param_names <- c("huber_delta", "quantile_tau", "validation_sample_size")
-              total_count_col <- "Algo_Count"
-              col_names <- c("sb_algorithm", count_col_names, quant_param_names, total_count_col)
+              ###################################################################
+              # 3) Summarize info from any embedded ss_backtest_config or
+              #    ss_backtest_workflow (found in x@ss_backtest_results).
+              #
+              # We look for:
+              #   model_structure
+              #   p_correction_method
+              #
+              # If there's no SS config or workflow, we skip.
+              ###################################################################
+              # 3a) model_structures
+              model_structures <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
+                if (!is.null(x@ss_backtest_config)) {
+                  # scenario (1)
+                  x@ss_backtest_config@alpha_test_strategy@model_structure
+                } else if (!is.null(x@ss_backtest_results) &&
+                           !is.null(x@ss_backtest_results@ss_backtest_workflow)) {
+                  # scenario (2) => check the workflow list
+                  x@ss_backtest_results@ss_backtest_workflow$model_structure
+                } else {
+                  NA
+                }
+              })))
+              model_structures <- na.omit(model_structures)
 
-              # Create display names by replacing underscores with spaces
+              # 3b) p_correction_methods
+              p_correction_methods <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
+                if (!is.null(x@ss_backtest_config)) {
+                  x@ss_backtest_config@alpha_test_strategy@p_correction_method
+                } else if (!is.null(x@ss_backtest_results) &&
+                           !is.null(x@ss_backtest_results@ss_backtest_workflow)) {
+                  x@ss_backtest_results@ss_backtest_workflow$p_correction_method
+                } else {
+                  NA
+                }
+              })))
+              p_correction_methods <- na.omit(p_correction_methods)
+
+              ###################################################################
+              # 4) Define final columns to summarize, ordering them so that
+              #    SS columns appear *after* validation_sample_size.
+              ###################################################################
+              # Categorical "counts" first:
+              count_col_names <- c(
+                tuning_methods,
+                custom_objectives,
+                chosen_eval_metrics
+              )
+              # Then numeric/quant param columns:
+              quant_param_names <- c("huber_delta", "quantile_tau", "validation_sample_size")
+              # Then SS columns (after validation_sample_size):
+              ss_col_names <- c(
+                model_structures,
+                p_correction_methods
+              )
+              total_count_col <- "Algo_Count"
+
+              # So final order is:
+              col_names <- c("sb_algorithm", count_col_names, quant_param_names, ss_col_names, total_count_col)
               display_col_names <- gsub("_", " ", col_names)
 
-              # Initialize data frame
-              summary_df <- data.frame(matrix("", nrow = length(sb_algorithms) + 1, ncol = length(col_names)),
-                                       stringsAsFactors = FALSE)
+              # Prepare a data.frame with one row per sb_algorithm + a "Total" row
+              summary_df <- data.frame(
+                matrix("", nrow = length(sb_algorithms) + 1, ncol = length(col_names)),
+                stringsAsFactors = FALSE
+              )
               names(summary_df) <- col_names
               summary_df$sb_algorithm <- c(sb_algorithms, "Total")
 
-              # Function to get range or single value
+              # Helper to unify numeric ranges or single values
               get_range_or_value <- function(values) {
                 values <- unique(na.omit(values))
                 if (length(values) == 1) {
-                  return(as.character(values))
+                  as.character(values)
                 } else if (length(values) > 1) {
-                  return(paste0(min(values), "-", max(values)))
+                  paste0(min(values), "-", max(values))
                 } else {
-                  return(NA)
+                  NA
                 }
               }
 
-              # Populate counts and quantitative parameters
+              ###################################################################
+              # 5) Populate summary_df row by row for each sb_algorithm
+              ###################################################################
               total_counts <- numeric(length(sb_algorithms))
+
               for (i in seq_along(sb_algorithms)) {
                 algo <- sb_algorithms[i]
-                # Filter configs based on sb_algorithm and, for 'nn', the number of hidden layers
+                # Filter the base_sb_backtest_configs for this algo
                 configs <- object@base_sb_backtest_configs[sapply(object@base_sb_backtest_configs, function(x) {
                   if (x@sb_algorithm == "nn") {
                     num_hidden_layers <- length(x@keras_architecture_parameters@units)
@@ -443,11 +498,10 @@ setMethod("summary", "sb_metabacktest_config",
                   }
                 })]
 
-                # Total count per sb_algorithm
                 total_counts[i] <- length(configs)
                 summary_df[i, total_count_col] <- total_counts[i]
 
-                # Counts for tuning_methods
+                #------------------- Tuning Methods --------------------#
                 tm_counts <- table(sapply(configs, function(x) {
                   if (!is.null(x@tuning_strategy)) x@tuning_strategy@tuning_method else NA
                 }))
@@ -455,21 +509,25 @@ setMethod("summary", "sb_metabacktest_config",
                   summary_df[i, tm] <- as.numeric(tm_counts[tm])
                 }
 
-                # Counts for custom_objectives
+                #------------------- Custom Objectives -----------------#
                 co_counts <- table(sapply(configs, function(x) x@custom_objective))
                 for (co in names(co_counts)) {
                   summary_df[i, co] <- as.numeric(co_counts[co])
                 }
 
-                # Counts for chosen_eval_metrics
+                #------------------- Chosen Eval Metrics --------------#
                 cem_counts <- table(sapply(configs, function(x) {
-                  if (!is.null(x@tuning_strategy)) x@tuning_strategy@chosen_eval_metric else NA
+                  if (!is.null(x@tuning_strategy)) {
+                    x@tuning_strategy@chosen_eval_metric
+                  } else {
+                    NA
+                  }
                 }))
                 for (cem in names(cem_counts)) {
                   summary_df[i, cem] <- as.numeric(cem_counts[cem])
                 }
 
-                # Quantitative parameters
+                #------------------- Quantitative Parameters ----------#
                 # huber_delta
                 huber_deltas <- sapply(configs, function(x) x@huber_delta)
                 summary_df[i, "huber_delta"] <- get_range_or_value(huber_deltas)
@@ -480,25 +538,66 @@ setMethod("summary", "sb_metabacktest_config",
 
                 # validation_sample_size
                 val_sample_sizes <- sapply(configs, function(x) {
-                  if (!is.null(x@tuning_strategy)) x@tuning_strategy@validation_sample_size else NA
+                  if (!is.null(x@tuning_strategy)) {
+                    x@tuning_strategy@validation_sample_size
+                  } else {
+                    NA
+                  }
                 })
-
                 summary_df[i, "validation_sample_size"] <- get_range_or_value(val_sample_sizes)
+
+                #------------------- SS Summaries (after val_sample) --#
+                # model_structure
+                ms_counts <- table(sapply(configs, function(x) {
+                  if (!is.null(x@ss_backtest_config)) {
+                    x@ss_backtest_config@alpha_test_strategy@model_structure
+                  } else if (!is.null(x@ss_backtest_results) &&
+                             !is.null(x@ss_backtest_results@ss_backtest_workflow)) {
+                    x@ss_backtest_results@ss_backtest_workflow$model_structure
+                  } else {
+                    NA
+                  }
+                }))
+                for (ms in names(ms_counts)) {
+                  summary_df[i, ms] <- as.numeric(ms_counts[ms])
+                }
+
+                # p_correction_method
+                pc_counts <- table(sapply(configs, function(x) {
+                  if (!is.null(x@ss_backtest_config)) {
+                    x@ss_backtest_config@alpha_test_strategy@p_correction_method
+                  } else if (!is.null(x@ss_backtest_results) &&
+                             !is.null(x@ss_backtest_results@ss_backtest_workflow)) {
+                    x@ss_backtest_results@ss_backtest_workflow$p_correction_method
+                  } else {
+                    NA
+                  }
+                }))
+                for (pc in names(pc_counts)) {
+                  summary_df[i, pc] <- as.numeric(pc_counts[pc])
+                }
               }
 
-              # Calculate totals for counts
-              count_columns <- count_col_names
+              ###################################################################
+              # 6) Fill in the "Total" row for all categorical columns
+              ###################################################################
+              count_columns <- c(
+                tuning_methods,
+                custom_objectives,
+                chosen_eval_metrics,
+                model_structures,
+                p_correction_methods
+              )
               for (col_name in count_columns) {
-                counts <- as.numeric(summary_df[1:length(sb_algorithms), col_name])
-                counts[is.na(counts)] <- 0
-                total <- sum(counts)
-                summary_df[length(sb_algorithms) + 1, col_name] <- total
+                col_vals <- as.numeric(summary_df[1:length(sb_algorithms), col_name])
+                col_vals[is.na(col_vals)] <- 0
+                summary_df[length(sb_algorithms) + 1, col_name] <- sum(col_vals)
               }
-
-              # Total count for Total row
               summary_df[length(sb_algorithms) + 1, total_count_col] <- sum(total_counts)
 
-              # For quantitative parameters in total row, display overall range or value
+              ###################################################################
+              # 7) Summation row for numeric ranges
+              ###################################################################
               # huber_delta
               all_huber_deltas <- sapply(object@base_sb_backtest_configs, function(x) x@huber_delta)
               summary_df[length(sb_algorithms) + 1, "huber_delta"] <- get_range_or_value(all_huber_deltas)
@@ -511,177 +610,163 @@ setMethod("summary", "sb_metabacktest_config",
               all_val_sample_sizes <- sapply(object@base_sb_backtest_configs, function(x) {
                 if (!is.null(x@tuning_strategy)) x@tuning_strategy@validation_sample_size else NA
               })
-              summary_df[length(sb_algorithms) + 1, "validation_sample_size"] <- get_range_or_value(all_val_sample_sizes)
+              summary_df[length(sb_algorithms) + 1, "validation_sample_size"] <-
+                get_range_or_value(all_val_sample_sizes)
 
               # Replace empty strings with NA
               summary_df[summary_df == ""] <- NA
 
-              # Replace NAs with zeros in counts columns
+              # Replace NAs with 0 in all "count" columns
               for (col_name in c(count_columns, total_count_col)) {
                 summary_df[[col_name]][is.na(summary_df[[col_name]])] <- 0
                 summary_df[[col_name]] <- as.numeric(summary_df[[col_name]])
               }
 
-              # Convert quantitative parameters to character
+              # Convert numeric param columns to character
               for (col_name in quant_param_names) {
                 summary_df[[col_name]] <- as.character(summary_df[[col_name]])
               }
 
-              # Create cluster indices
-              col_index <- 2  # sb_algorithm is at index 1
-              cluster_indices <- list()
-
-              # Tuning Methods
-              if(length(tuning_methods) > 0) {
-                start_tm <- col_index
-                end_tm <- col_index + length(tuning_methods) -1
-                cluster_indices$tuning_methods <- start_tm:end_tm
-                col_index <- end_tm +1
-              }
-
-              # Custom Objectives
-              if(length(custom_objectives) >0) {
-                start_co <- col_index
-                end_co <- col_index + length(custom_objectives) -1
-                cluster_indices$custom_objectives <- start_co:end_co
-                col_index <- end_co +1
-              }
-
-              # Chosen Eval Metrics
-              if(length(chosen_eval_metrics) >0) {
-                start_cem <- col_index
-                end_cem <- col_index + length(chosen_eval_metrics) -1
-                cluster_indices$chosen_eval_metrics <- start_cem:end_cem
-                col_index <- end_cem +1
-              }
-
-              # Quantitative Parameters
-              if(length(quant_param_names) >0) {
-                start_qp <- col_index
-                end_qp <- col_index + length(quant_param_names) -1
-                cluster_indices$quantitative_parameters <- start_qp:end_qp
-                col_index <- end_qp +1
-              }
-
-              # Total Count Column
-              cluster_indices$total_count <- col_index
-
-              # Assign class names to columns via columnDefs
+              ###################################################################
+              # 8) DataTable styling
+              ###################################################################
               columnDefs <- list()
               def_index <- 1
 
-              # Colors for clusters (specified colors)
-              cluster_colors <- c("#6A0DAD", "#00BFFF", "#FF69B4", "#FFA500")  # Vibrant Purple, Teal Blue, Soft Pink, Bright Yellow-Orange
-              cluster_names <- c("cluster1", "cluster2", "cluster3", "cluster4")
-              cluster_end_names <- c("cluster1_end", "cluster2_end", "cluster3_end", "cluster4_end")
-              cluster_list <- list(cluster_indices$tuning_methods, cluster_indices$custom_objectives,
-                                   cluster_indices$chosen_eval_metrics, cluster_indices$quantitative_parameters)
-
-              for(i in seq_along(cluster_list)) {
-                indices <- cluster_list[[i]]
-                if(!is.null(indices)) {
-                  # Adjust for zero-based indexing
-                  indices_zero_based <- indices -1
-                  # Assign className to columns
-                  columnDefs[[def_index]] <- list(targets = indices_zero_based, className = cluster_names[i])
-                  def_index <- def_index +1
-                  # Assign end className to last column
-                  columnDefs[[def_index]] <- list(targets = max(indices_zero_based), className = cluster_end_names[i])
-                  def_index <- def_index +1
-                }
+              # Helper to get zero-based indices for a given set of names
+              get_zero_based_indices <- function(the_names) {
+                pos <- match(the_names, col_names)
+                pos <- pos[!is.na(pos)]
+                pos - 1L  # zero-based for DT
               }
 
-              # Style the Total_Count column
-              total_count_index <- cluster_indices$total_count - 1  # Zero-based index
-              columnDefs[[def_index]] <- list(targets = total_count_index, className = "total_count_col")
+              # Tuning + custom obj + eval metrics
+              tm_co_cem_idx <- get_zero_based_indices(c(tuning_methods, custom_objectives, chosen_eval_metrics))
+              if (length(tm_co_cem_idx) > 0) {
+                # color cluster #1
+                columnDefs[[def_index]] <- list(targets = tm_co_cem_idx, className = "cluster1")
+                def_index <- def_index + 1
+                # rightmost boundary
+                columnDefs[[def_index]] <- list(targets = max(tm_co_cem_idx), className = "cluster1_end")
+                def_index <- def_index + 1
+              }
 
-              # Create the datatable with caption for the title
+              # Quant param indices
+              quant_idx <- get_zero_based_indices(quant_param_names)
+              if (length(quant_idx) > 0) {
+                # color cluster #2
+                columnDefs[[def_index]] <- list(targets = quant_idx, className = "cluster2")
+                def_index <- def_index + 1
+                # boundary
+                columnDefs[[def_index]] <- list(targets = max(quant_idx), className = "cluster2_end")
+                def_index <- def_index + 1
+              }
+
+              # SS columns
+              ss_idx <- get_zero_based_indices(c(model_structures, p_correction_methods))
+              if (length(ss_idx) > 0) {
+                # color cluster #3
+                columnDefs[[def_index]] <- list(targets = ss_idx, className = "cluster3")
+                def_index <- def_index + 1
+                # boundary
+                columnDefs[[def_index]] <- list(targets = max(ss_idx), className = "cluster3_end")
+                def_index <- def_index + 1
+              }
+
+              # total_count col
+              total_count_0 <- match(total_count_col, col_names) - 1
+              columnDefs[[def_index]] <- list(targets = total_count_0, className = "total_count_col")
+
+              # Build the DT
               dt_table <- DT::datatable(
                 summary_df,
                 rownames = FALSE,
-                colnames = display_col_names,  # Use display names with spaces
-                extensions = c('FixedColumns', 'Scroller'),
+                colnames = display_col_names,
+                extensions = c("FixedColumns", "Scroller"),
                 options = list(
                   scrollX = TRUE,
                   scrollY = 400,
                   scroller = TRUE,
                   fixedColumns = list(leftColumns = 1),
                   columnDefs = columnDefs,
-                  dom = 't',
+                  dom = "t",
                   ordering = FALSE
                 ),
-                class = 'cell-border stripe',
+                class = "cell-border stripe",
                 caption = htmltools::tags$caption(
-                  style = 'caption-side: top; text-align: center; color: #FFFFFF; background-color: #000000; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;',
-                  'Summary of Base SB Backtesting Configurations'
+                  style = "caption-side: top; text-align: center; color: #FFFFFF; background-color: #000000;
+                           padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;",
+                  "Summary of Base SB Backtesting Configurations"
                 )
               )
 
-              # Apply formatting
+              # Format styles
               dt_table <- dt_table %>%
                 DT::formatStyle(
-                  columns = 'sb_algorithm',
-                  fontWeight = 'bold',
-                  backgroundColor = '#000033',  # Deep Navy
-                  color = '#FFFFFF'
+                  columns = "sb_algorithm",
+                  fontWeight = "bold",
+                  backgroundColor = "#000033",
+                  color = "#FFFFFF"
                 ) %>%
                 DT::formatStyle(
                   columns = names(summary_df),
-                  valueColumns = 'sb_algorithm',
-                  backgroundColor = DT::styleEqual("Total", "#000000"),  # Black for 'Total' row
+                  valueColumns = "sb_algorithm",
+                  backgroundColor = DT::styleEqual("Total", "#000000"),
                   color = DT::styleEqual("Total", "#FFFFFF")
                 )
 
-              # Define CSS styles
+              # Custom CSS
               css_styles <- paste0("
-              .dataTable {
-                background-color: #000033 !important;  /* Deep Navy */
-                color: #FFFFFF;
-              }
-              table.dataTable tbody tr {
-                background-color: #000033 !important;  /* Deep Navy */
-              }
-              table.dataTable tbody td {
-                border-color: #333333 !important;
-              }
-              .cluster1 {
-                background-color: rgba(106, 13, 173, 0.2);  /* Vibrant Purple */
-              }
-              .cluster2 {
-                background-color: rgba(0, 191, 255, 0.2);   /* Teal Blue */
-              }
-              .cluster3 {
-                background-color: rgba(255, 105, 180, 0.2);   /* Soft Pink */
-              }
-              .cluster4 {
-                background-color: rgba(255, 165, 0, 0.2);     /* Bright Yellow-Orange */
-              }
-              .cluster1_end, .cluster2_end, .cluster3_end, .cluster4_end, .total_count_col {
-                border-right: 2px solid #FFFFFF !important;
-              }
-              .total_count_col {
-                background-color: #000033 !important;  /* Deep Navy */
-                color: #FFFFFF !important;
-              }
-              thead {
-                background-color: #000000 !important;
-                color: #FFFFFF !important;
-              }
-              /* Style for the 'Total' row */
-              table.dataTable tbody tr:last-child {
-                background-color: #000000 !important;  /* Black */
-                color: #FFFFFF !important;
-              }
+                .dataTable {
+                  background-color: #000033 !important;
+                  color: #FFFFFF;
+                }
+                table.dataTable tbody tr {
+                  background-color: #000033 !important;
+                }
+                table.dataTable tbody td {
+                  border-color: #333333 !important;
+                }
+                /* Clusters */
+                .cluster1 {
+                  background-color: rgba(106, 13, 173, 0.2);
+                }
+                .cluster1_end {
+                  border-right: 2px solid #FFFFFF !important;
+                }
+                .cluster2 {
+                  background-color: rgba(0, 191, 255, 0.2);
+                }
+                .cluster2_end {
+                  border-right: 2px solid #FFFFFF !important;
+                }
+                .cluster3 {
+                  background-color: rgba(255, 105, 180, 0.2);
+                }
+                .cluster3_end {
+                  border-right: 2px solid #FFFFFF !important;
+                }
+                /* Total col */
+                .total_count_col {
+                  border-right: 2px solid #FFFFFF !important;
+                  background-color: #000033 !important;
+                  color: #FFFFFF !important;
+                }
+                thead {
+                  background-color: #000000 !important;
+                  color: #FFFFFF !important;
+                }
+                table.dataTable tbody tr:last-child {
+                  background-color: #000000 !important;
+                  color: #FFFFFF !important;
+                }
               ")
-
-              # Add CSS to the datatable
               dt_table <- htmlwidgets::prependContent(dt_table, htmltools::tags$style(css_styles))
 
-              # Print the table
+              # Print the DT
               print(dt_table)
 
-            } else {
-              invisible(NULL)
+              invisible(TRUE)
             }
           })
 
@@ -853,10 +938,10 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
 
   } else if (table_name == "OOS_Testing_Eval_Metrics") {
     # Existing logic for OOS_Testing_Eval_Metrics
-    if (!is.null(object@oos_testing_eval_metrics_xts) && length(object@oos_testing_eval_metrics_xts) > 0) {
+    if (!is.null(object@oos_testing_eval_metrics_m_m_xts) && length(object@oos_testing_eval_metrics_m_xts) > 0) {
       # Convert to data.frame
-      oos_testing_metrics <- object@oos_testing_eval_metrics_xts %>% as.data.frame() %>%
-        dplyr::mutate(Date = zoo::index(object@oos_testing_eval_metrics_xts)) %>% tidyr::pivot_longer(cols = -Date, names_to = "Metric", values_to = "value")
+      oos_testing_metrics <- object@oos_testing_eval_metrics_m_xts %>% as.data.frame() %>%
+        dplyr::mutate(Date = zoo::index(object@oos_testing_eval_metrics_m_xts)) %>% tidyr::pivot_longer(cols = -Date, names_to = "Metric", values_to = "value")
 
       # Summarize evaluation metrics
       oos_testing_summary <- oos_testing_metrics %>%

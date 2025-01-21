@@ -2059,10 +2059,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
   }
 
   # Extract relevant data from the S4 object
-  oos_testing_eval_metrics <- x@oos_testing_eval_metrics_xts %>% as.data.frame()
-  validation_eval_metrics_hyper_choice <- x@validation_eval_metrics_hyper_choice_xts %>% as.data.frame()
+  oos_testing_eval_metrics <- x@oos_testing_eval_metrics_m_xts %>% as.data.frame()
+  validation_eval_metrics_hyper_choice <- x@validation_eval_metrics_hyper_choice_m_xts %>% as.data.frame()
   consolidated_eval_metrics <- x@consolidated_eval_metrics
-  hyper_choice_df <- x@best_hyperparameters_xts %>% as.data.frame()
+  hyper_choice_df <- x@best_hyperparameters_m_xts %>% as.data.frame()
   chosen_eval_metric <- x@sb_backtest_workflow$chosen_eval_metric
   chosen_eval_metric_validation <- x@chosen_eval_metric_validation
   sb_algorithm <- x@sb_backtest_workflow$sb_algorithm
@@ -3777,7 +3777,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   } else if (plot_name == "Waterfall Plot by Signal") {
     # Plot 7: Waterfall Plot by Ticker
     final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_xts),
+      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts),
                     beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
                     residual = specific_risk)
 
@@ -3792,7 +3792,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   } else if (plot_name == "Waterfall Plot by Theme") {
     # Plot 8: Waterfall Plot by Ticker
     final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_xts),
+      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts),
                     beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
                     residual = specific_risk)
 
@@ -4469,7 +4469,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       dplyr::mutate(tickers = as.factor(tickers))
 
     # Get market_factor_proxy
-    x_values <- x@selected_market_factor_proxy_xts %>% as.vector()
+    x_values <- x@selected_market_factor_proxy_m_xts %>% as.vector()
     x_values <- sort(x_values)
 
     # Sample a subset of posterior draws to avoid overplotting

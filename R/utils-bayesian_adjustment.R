@@ -161,7 +161,7 @@
 #' }
 #'
 #' @export
-bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, #Data
+bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, #Data
                                 priors_m_upd_ref = NULL, model_spec_theme_level, user_priors = NULL, #Priors
                                 lmer_optimization_objective = "REML", half_t_df = 30, lmer_optimizer = "nloptwrap",  #lme4 parameters
                                 selected_signal_themes_m_d_ref,
@@ -243,8 +243,8 @@ bayesian_adjustment <- function(signal_universe_m_d_ref, selected_backtest_retur
   posteriors_results_list <- fit_bayesian_hierarchical_model(
                                #Data
                                signal_universe_m_d_ref = signal_universe_m_d_ref,
-                               selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                               selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+                               selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                               selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
                                #Groups
                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                #Priors

@@ -3,20 +3,20 @@
 #' This functions takes wide-formar backtest and benchmark returns data, and transforms it into a long format.
 #' It also adds a market factor proxy to the data frame. The function then merges the data with signal themes and prepares a formula for the Bayesian hierarchical model.
 #'
-#' @param selected_backtest_returns_corrected_positions_xts_upd_ref A xts containing the backtest returns data for various signals.
+#' @param selected_backtest_returns_corrected_positions_m_xts_upd_ref A xts containing the backtest returns data for various signals.
 #'   - The first column should include dates.
 #'   - Remaining columns represent signals (e.g., tickers) and their respective active returns.
 #'
-#' @param selected_market_factor_proxy_xts_upd_ref A xts containing benchmark returns data.
+#' @param selected_market_factor_proxy_m_xts_upd_ref A xts containing benchmark returns data.
 #'
 #' @param selected_signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
-#'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_xts_upd_ref`.
+#'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_m_xts_upd_ref`.
 #'   - `theme`: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
 #'   - `dates`: Dates corresponding to the backtest data.
 #'   This input ensures proper alignment between signals and their associated themes.
 #'
-#' @param selected_backtest_returns_corrected_positions_m_upd_ref An already processed `selected_backtest_returns_corrected_positions_xts_upd_ref`.
-#' This data.frame is already in long format and contemplates both the `selected_market_factor_proxy_xts_upd_ref` and the
+#' @param selected_backtest_returns_corrected_positions_m_upd_ref An already processed `selected_backtest_returns_corrected_positions_m_xts_upd_ref`.
+#' This data.frame is already in long format and contemplates both the `selected_market_factor_proxy_m_xts_upd_ref` and the
 #' `selected_signal_themes_m_d_ref` theme data.
 #'
 #' @param model_spec_theme_level A character string specifying the desired Bayesian model structure.
@@ -27,7 +27,7 @@
 #'   - `"fixed_intercept_fixed_slope"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
 
 
-prepare_hierarchical_model_inputs <- function(selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, #Data
+prepare_hierarchical_model_inputs <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, #Data
                                               selected_signal_themes_m_d_ref, selected_backtest_returns_corrected_positions_m_upd_ref = NULL, model_spec_theme_level){
 
   #Prepare objects
@@ -36,23 +36,23 @@ prepare_hierarchical_model_inputs <- function(selected_backtest_returns_correcte
   ##########################
   if (is.null(selected_backtest_returns_corrected_positions_m_upd_ref)){
     ###Check if selected_backtest_returns_corrected_positions_m_upd_ref can be produced
-    if (any(is.null(selected_backtest_returns_corrected_positions_xts_upd_ref), is.null(selected_market_factor_proxy_xts_upd_ref),
+    if (any(is.null(selected_backtest_returns_corrected_positions_m_xts_upd_ref), is.null(selected_market_factor_proxy_m_xts_upd_ref),
            is.null(selected_signal_themes_m_d_ref))){
-      stop("selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref and
+      stop("selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref and
            selected_signal_themes_m_d_ref must be provided when selected_backtest_returns_corrected_positions_m_upd_ref is not given.")
     }
 
     ##Add market_factor_proxy
       ###Check if indexes allign perfectly
-      if (!identical(zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref), zoo::index(selected_market_factor_proxy_xts_upd_ref))){
-        stop("Dates in selected_backtest_returns_corrected_positions_xts_upd_ref and selected_market_factor_proxy_xts_upd_ref do not match.")
+      if (!identical(zoo::index(selected_backtest_returns_corrected_positions_m_xts_upd_ref), zoo::index(selected_market_factor_proxy_m_xts_upd_ref))){
+        stop("Dates in selected_backtest_returns_corrected_positions_m_xts_upd_ref and selected_market_factor_proxy_m_xts_upd_ref do not match.")
       }
       ###Merge
-      selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
+      selected_backtest_returns_corrected_positions_m_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_m_xts_upd_ref
 
     ##Melt
     selected_backtest_returns_corrected_positions_m_upd_ref <- tidyr::pivot_longer(
-      tibble::rownames_to_column(as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref), var = "dates"),
+      tibble::rownames_to_column(as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref), var = "dates"),
       cols = -c(dates, market_factor_proxy),
       names_to = "tickers", #Rename to match priors
       values_to = "return"

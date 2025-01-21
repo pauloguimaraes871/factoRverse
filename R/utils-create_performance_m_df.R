@@ -3,10 +3,10 @@
 #' This function calculates a wide range of performance and risk metrics for financial signals based on backtest returns and a benchmark.
 #' The results are returned as a structured data frame.
 #'
-#' @param selected_backtest_returns_corrected_positions_xts_upd_ref An `xts` object containing backtested returns for the selected signals
+#' @param selected_backtest_returns_corrected_positions_m_xts_upd_ref An `xts` object containing backtested returns for the selected signals
 #' Each column represents a signal, and rows represent time periods.
 #'
-#' @param selected_market_factor_proxy_xts_upd_ref A xts containing benchmark returns data.
+#' @param selected_market_factor_proxy_m_xts_upd_ref A xts containing benchmark returns data.
 #'
 #' @param active_returns If TRUE, calculate ative returns before applying performance functions.
 #'
@@ -22,53 +22,53 @@
 #' performance_m_df <- create_performance_m_df(
 #'   selected_signals = c("Signal_A", "Signal_B"),
 #'   current_date = "2024-12-12",
-#'   selected_backtest_returns_corrected_positions_xts_upd_ref = backtest_xts,
-#'   baseline_benchmark_xts_upd_ref = benchmark_xts
+#'   selected_backtest_returns_corrected_positions_m_xts_upd_ref = backtest_m_xts,
+#'   baseline_benchmark_m_xts_upd_ref = benchmark_m_xts
 #' )
 #' @export
-create_performance_m_df <- function(selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, active_returns, verbose = TRUE){
+create_performance_m_df <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, active_returns, verbose = TRUE){
 
   #Check for selected_market_factor_proxy if active_returns is TRUE
-  if(is.null(selected_market_factor_proxy_xts_upd_ref) & active_returns){
-    stop("The selected_market_factor_proxy_xts_upd_ref object can't be NULL when active_returns is TRUE.")
+  if(is.null(selected_market_factor_proxy_m_xts_upd_ref) & active_returns){
+    stop("The selected_market_factor_proxy_m_xts_upd_ref object can't be NULL when active_returns is TRUE.")
   }
 
   #Initial Preparations
   ##################
-  ###Get objects from selected_backtest_returns_corrected_positions_xts_upd_ref
-  selected_signals <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref)
-  current_date <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref) %>% max()
+  ###Get objects from selected_backtest_returns_corrected_positions_m_xts_upd_ref
+  selected_signals <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref)
+  current_date <- zoo::index(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>% max()
 
   ###Get baseline benchmark
-  baseline_benchmark_xts_upd_ref <- xts::xts(rowMeans(selected_backtest_returns_corrected_positions_xts_upd_ref, na.rm = TRUE),
-                                             order.by = zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref))
+  baseline_benchmark_m_xts_upd_ref <- xts::xts(rowMeans(selected_backtest_returns_corrected_positions_m_xts_upd_ref, na.rm = TRUE),
+                                             order.by = zoo::index(selected_backtest_returns_corrected_positions_m_xts_upd_ref))
 
   ###Get decimals
-  selected_backtest_returns_corrected_positions_xts_upd_ref_decimals <- selected_backtest_returns_corrected_positions_xts_upd_ref/100
-  selected_market_factor_proxy_vector_upd_ref_decimals <- as.vector(selected_market_factor_proxy_xts_upd_ref/100)
-  baseline_benchmark_xts_upd_ref_decimals <- baseline_benchmark_xts_upd_ref/100
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals <- selected_backtest_returns_corrected_positions_m_xts_upd_ref/100
+  selected_market_factor_proxy_vector_upd_ref_decimals <- as.vector(selected_market_factor_proxy_m_xts_upd_ref/100)
+  baseline_benchmark_m_xts_upd_ref_decimals <- baseline_benchmark_m_xts_upd_ref/100
 
   ##Check if active returns should be calculated
   if(active_returns){
     ##Get geometric active returns
-    ###selected_backtest_returns_corrected_positions_xts_upd_ref_decimals
-    selected_backtest_returns_corrected_positions_xts_upd_ref_decimals <- xts::xts(
+    ###selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals <- xts::xts(
       sapply(
         #For each series
-        colnames(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals),
+        colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals),
         function(series) {
           #Apply geometric return difference formula
           purrr::map2_dbl(
-            selected_backtest_returns_corrected_positions_xts_upd_ref_decimals[, series], #.x
+            selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals[, series], #.x
             selected_market_factor_proxy_vector_upd_ref_decimals, #.y
             ~ (1 + .x) / (1 + .y) - 1 #.f
           )
         }
       ),
-      order.by = zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)
+      order.by = zoo::index(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals)
     )
-    ###baseline_benchmark_xts_upd_ref_decimals
-    baseline_benchmark_xts_upd_ref_decimals <- (1 + baseline_benchmark_xts_upd_ref_decimals)/(1 + selected_market_factor_proxy_vector_upd_ref_decimals) - 1
+    ###baseline_benchmark_m_xts_upd_ref_decimals
+    baseline_benchmark_m_xts_upd_ref_decimals <- (1 + baseline_benchmark_m_xts_upd_ref_decimals)/(1 + selected_market_factor_proxy_vector_upd_ref_decimals) - 1
   }
 
       ###Message
@@ -81,8 +81,8 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
         }
 
         # Identify columns where all values are positive
-        positive_columns <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)[
-          apply(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, 2, function(x) all(x > 0))
+        positive_columns <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals)[
+          apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals, 2, function(x) all(x > 0))
         ]
         positive_columns <- positive_columns[which(!is.na(positive_columns))] #Remove NAs
 
@@ -98,8 +98,8 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
         }
 
         # Identify columns where all values are NA
-        NA_columns <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals)[
-          apply(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals, 2, function(x) all(is.na(x)))
+        NA_columns <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals)[
+          apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals, 2, function(x) all(is.na(x)))
         ]
         # Check if there are any columns with all positive returns
         if(length(NA_columns) > 0){
@@ -163,9 +163,9 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
       ### Ensure Alignment of Strategy and Benchmark Data
       ### This step assumes that both xts objects share the same date index or have overlapping dates.
       ### Adjust as necessary based on your data structure.
-      common_dates <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref_decimals) %in% zoo::index(baseline_benchmark_xts_upd_ref_decimals)
-      selected_returns_aligned <- selected_backtest_returns_corrected_positions_xts_upd_ref_decimals[common_dates]
-      benchmark_aligned <- baseline_benchmark_xts_upd_ref_decimals[common_dates]
+      common_dates <- zoo::index(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals) %in% zoo::index(baseline_benchmark_m_xts_upd_ref_decimals)
+      selected_returns_aligned <- selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals[common_dates]
+      benchmark_aligned <- baseline_benchmark_m_xts_upd_ref_decimals[common_dates]
 
 
   ##Construct the performance_m_df Data Frame

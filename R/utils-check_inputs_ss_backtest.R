@@ -4,10 +4,10 @@
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
 #' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
-#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
+#' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @param rebalancing_months Months (numeric) when signal selection should be implemented.
-#' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
+#' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
 #' @param p_correction_method The method for p-value correction. Possible options are:
 #'\itemize{
 #'  \item{"none"}: No correction.
@@ -44,7 +44,7 @@
 #' }
 #'
 #' @param active_returns A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
-#' backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts.
+#' backtest_returns_m_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts.
 #'
 #' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
 #' \itemize{
@@ -87,7 +87,7 @@ check_inputs_ss_backtest <- function(
   #Signals
   signals_m_df, chosen_signals_and_positions, forced_signals, custom_signal_universe_metrics_m_df,
   #Backtests and benchmark returns
-  backtest_returns_xts, benchmark_returns_xts, market_factor_proxy, active_returns,
+  backtest_returns_m_xts, benchmark_returns_m_xts, market_factor_proxy, active_returns,
   #P-value
   p_correction_method, signal_significance_threshold,
   #Theme Representativeness
@@ -147,80 +147,80 @@ check_inputs_ss_backtest <- function(
     stop("initial_sample_size and  must be numeric")
   }
 
-  #backtest_returns_xts
-  if(!xts::is.xts(backtest_returns_xts)){
-    stop("backtest_returns_xts must be a xts object")
+  #backtest_returns_m_xts
+  if(!xts::is.xts(backtest_returns_m_xts)){
+    stop("backtest_returns_m_xts must be a xts object")
   }
   #get dates
-  backtest_returns_dates <- zoo::index(backtest_returns_xts)
+  backtest_returns_dates <- zoo::index(backtest_returns_m_xts)
 
   if(class(backtest_returns_dates) != "Date"){
-    stop("dates in backtest_returns_xts must be of class Date")
+    stop("dates in backtest_returns_m_xts must be of class Date")
   }
 
   chosen_signals_corrected_positions <- chosen_signals_and_positions
   names(chosen_signals_corrected_positions)[which(chosen_signals_corrected_positions == "short")] <- paste0("low_", names(chosen_signals_and_positions)[which(chosen_signals_and_positions == "short")])
 
-  if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_xts))){
-    stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_xts")
+  if(any(!names(chosen_signals_corrected_positions) %in% colnames(backtest_returns_m_xts))){
+    stop("all chosen_signals_and_positions with their corrected position should be present in backtest_returns_m_xts")
   }
 
-  if(any(apply(backtest_returns_xts, 2, function(x) any(is.na(x))))){
-    stop("backtest_returns_xts must not have any NA")
+  if(any(apply(backtest_returns_m_xts, 2, function(x) any(is.na(x))))){
+    stop("backtest_returns_m_xts must not have any NA")
   }
 
-  if(nrow(backtest_returns_xts) < initial_sample_size){
-    stop("backtest_returns_xts must have at least initial_sample_size rows")
+  if(nrow(backtest_returns_m_xts) < initial_sample_size){
+    stop("backtest_returns_m_xts must have at least initial_sample_size rows")
   }
 
   if(any(!unique(dplyr::pull(signals_m_df, dates))[-c(1:initial_sample_size)] %in% backtest_returns_dates)){
-    stop("all backtest_dates derived from signals_m_df must be present in backtest_returns_xts")
+    stop("all backtest_dates derived from signals_m_df must be present in backtest_returns_m_xts")
   }
 
   backtest_returns_dates_before_first_training <- backtest_returns_dates[which(backtest_returns_dates < unique(dplyr::pull(signals_m_df, dates))[initial_sample_size])]
 
   if (length(backtest_returns_dates_before_first_training) < 2) {
-    stop("There is only one date in backtest_returns_xts before the first training date")
+    stop("There is only one date in backtest_returns_m_xts before the first training date")
   }
 
   if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 + as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
-    stop("backtest_returns_xts must have consecutive dates")
+    stop("backtest_returns_m_xts must have consecutive dates")
   }
 
   if(any(seq.Date(from = backtest_returns_dates[1], to = backtest_returns_dates[length(backtest_returns_dates)], by = "month") != backtest_returns_dates)){
-    stop("backtest_returns_xts must have sequential monthly dates")
+    stop("backtest_returns_m_xts must have sequential monthly dates")
   }
 
-  #benchmark_returns_xts
-  if(!xts::is.xts(benchmark_returns_xts)){
-    stop("benchmark_returns_xts must be a xts object")
+  #benchmark_returns_m_xts
+  if(!xts::is.xts(benchmark_returns_m_xts)){
+    stop("benchmark_returns_m_xts must be a xts object")
   }
 
   #get dates
-  benchmark_returns_dates <- zoo::index(benchmark_returns_xts)
+  benchmark_returns_dates <- zoo::index(benchmark_returns_m_xts)
   if(class(benchmark_returns_dates) != "Date"){
-    stop("dates in benchmark_returns_xts must be of class Date")
+    stop("dates in benchmark_returns_m_xts must be of class Date")
   }
 
   if(any(!benchmark_returns_dates %in% backtest_returns_dates)){
-    stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+    stop("dates in benchmark_returns_m_xts and backtest_returns_m_xts must be the same")
   }
 
   if(any(!backtest_returns_dates %in% benchmark_returns_dates)){
-    stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+    stop("dates in benchmark_returns_m_xts and backtest_returns_m_xts must be the same")
   }
 
-  if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
-    stop("benchmark_returns_xts must not have any NA values")
+  if(any(apply(benchmark_returns_m_xts, 2, function(x) all(is.na(x))))){
+    stop("benchmark_returns_m_xts must not have any NA values")
   }
 
   if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
                as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
-    stop("benchmark_returns_xts must have consecutive dates")
+    stop("benchmark_returns_m_xts must have consecutive dates")
   }
 
-  if(!market_factor_proxy %in% colnames(benchmark_returns_xts)){
-    stop("market_factor_proxy must be present in benchmark_returns_xts")
+  if(!market_factor_proxy %in% colnames(benchmark_returns_m_xts)){
+    stop("market_factor_proxy must be present in benchmark_returns_m_xts")
   }
 
   #signal_themes_m_df

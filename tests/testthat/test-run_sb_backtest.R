@@ -181,7 +181,7 @@ test_that("OLS - run_sb_backtest works with no rebalancing and a 1m target", {
   )
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-7)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-7)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -421,7 +421,7 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 1m target", {
   ), order.by = as.Date(c("2001-06-15","2001-07-15", "2001-08-15", "2001-09-15", "2001-10-15", "2001-11-15")))
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-5)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-5)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -657,7 +657,7 @@ test_that("OLS - run_sb_backtest works with rebalancing occuring at last month a
   )
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-5)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-5)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -910,7 +910,7 @@ test_that("OLS - run_sb_backtest works with rebalancing and a 3m target", {
 
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-5)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-5)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -1300,7 +1300,7 @@ test_that("OLS - run_sb_backtest works with two rebalancing dates, unbalanced pa
   )
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-1)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-1)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -1361,7 +1361,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -1373,7 +1373,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
   ), order.by = unique(toy_preprocessed_features$dates))
 
   #Benchmark Returns XTS
-  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates))
@@ -1389,7 +1389,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_xts),
+    tickers = names(mocked_backtest_returns_m_xts),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -1403,7 +1403,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
   signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type =  "groups")
 
   ##SS Config
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
   ) %>%
@@ -1415,8 +1415,8 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
-                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
   )
@@ -1654,7 +1654,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
                     order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -1745,7 +1745,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -1757,7 +1757,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
   ), order.by = unique(toy_preprocessed_features$dates))
 
   #Benchmark Returns XTS
-  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates))
@@ -1769,7 +1769,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_xts),
+    tickers = names(mocked_backtest_returns_m_xts),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -1783,7 +1783,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
   signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
 
   ##SS Config
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
   ) %>%
@@ -1795,8 +1795,8 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
-                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
   )
@@ -1841,11 +1841,11 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
   first_sb_port <- fit_sb_model(sb_algorithm = "custom_weights", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
-                                selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                 most_recent_custom_signal_weights_m_d_ref = most_recent_custom_weights_m_d_ref, verbose = TRUE,
                                 rp_method = "cyclical-spinu"
   )
@@ -1937,11 +1937,11 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
                                  selected_features_corrected_positions_m_refit = selected_features_second_rebal,
                                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                                  most_recent_custom_signal_weights_m_d_ref = most_recent_custom_weights_m_d_ref,
-                                 selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
                                  cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                  custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
-                                 selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                 selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                  rp_method = "cyclical-spinu"
   )
 
@@ -2067,7 +2067,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
                            order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -2157,7 +2157,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -2169,7 +2169,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   ), order.by = unique(toy_preprocessed_features$dates))
 
   #Benchmark Returns XTS
-  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates))
@@ -2181,7 +2181,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_xts),
+    tickers = names(mocked_backtest_returns_m_xts),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -2195,7 +2195,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
 
   ##SS Config
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
   ) %>%
@@ -2207,8 +2207,8 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
-                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
   )
@@ -2227,8 +2227,8 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
       features_m_df = features_m_df,
       target_m_df = target_m_df,
       gsm_algorithm = "tree",
-      backtest_returns_xts = mocked_backtest_returns_xts,
-      benchmark_returns_xts = mocked_benchmark_returns_xts,
+      backtest_returns_m_xts = mocked_backtest_returns_m_xts,
+      benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
       config = rp_config)
   }))
 
@@ -2236,9 +2236,9 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   #1st rebalancing
   #Most recent xts
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
-  selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2022-11-15",
+  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts["2022-07-15/2022-11-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2022-11-15", "IBOV"]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts["2022-07-15/2022-11-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
@@ -2253,11 +2253,11 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   first_sb_port <- fit_sb_model(sb_algorithm = "rp", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
-                                selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                 rp_method = "cyclical-spinu"
                                 )
   #Predict
@@ -2325,9 +2325,9 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
   #2nd rebalancing
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
-  selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2023-07-15",
+  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts["2022-07-15/2023-07-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2023-07-15", "IBOV"]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts["2022-07-15/2023-07-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
@@ -2349,11 +2349,11 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   second_sb_port <- fit_sb_model(sb_algorithm = "rp", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_second_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
-                                selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                 rp_method = "cyclical-spinu"
   )
 
@@ -2479,7 +2479,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
                            order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -2563,7 +2563,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -2575,7 +2575,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
   ), order.by = unique(toy_preprocessed_features$dates))
 
   #Benchmark Returns XTS
-  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates))
@@ -2587,7 +2587,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_xts),
+    tickers = names(mocked_backtest_returns_m_xts),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -2601,7 +2601,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
   mocked_signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
 
   ##SS Config
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
   ) %>%
@@ -2613,8 +2613,8 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
-                    signal_themes_m_df = mocked_signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = mocked_signal_themes_m_df,
                     verbose = TRUE
     )
   )
@@ -2636,8 +2636,8 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
       features_m_df = features_m_df,
       target_m_df = target_m_df,
       gsm_algorithm = "ols",
-      backtest_returns_xts = mocked_backtest_returns_xts,
-      benchmark_returns_xts = mocked_benchmark_returns_xts,
+      backtest_returns_m_xts = mocked_backtest_returns_m_xts,
+      benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
       signal_themes_m_df = mocked_signal_themes_m_df,
       config = mvo_config)
   }))
@@ -2646,9 +2646,9 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
   #1st rebalancing
   #Most recent xts
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
-  selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2022-11-15",
+  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts["2022-07-15/2022-11-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2022-11-15", "IBOV"]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts["2022-07-15/2022-11-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
@@ -2664,7 +2664,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
   first_sb_port <- fit_sb_model(sb_algorithm = "mvo", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE,
                                 groups_m_d_ref = mocked_signal_themes_m_df@data %>% dplyr::filter(dates == "2022-11-15"),
                                 custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
@@ -2673,7 +2673,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
                                   list(benchmark = "theme_sb", max_abs_active_group_weight = c(theme = 0.2),
                                        max_abs_active_individual_weight = NULL),
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
-                                selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                 rp_method = "cyclical-spinu"
   )
 
@@ -2768,9 +2768,9 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #2nd rebalancing
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
-  selected_mocked_backtest_returns_xts_upd_ref <- mocked_backtest_returns_xts["2022-07-15/2023-07-15",
+  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts["2022-07-15/2023-07-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_xts_upd_ref <- mocked_benchmark_returns_xts["2022-07-15/2023-07-15", "IBOV"]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts["2022-07-15/2023-07-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
@@ -2792,7 +2792,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
   second_sb_port <- fit_sb_model(sb_algorithm = "mvo", target_fwd_name = "fwd_premium_3m",
                                  selected_features_corrected_positions_m_refit = selected_features_second_rebal,
                                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                 selected_backtest_returns_corrected_positions_xts_upd_ref = selected_mocked_backtest_returns_xts_upd_ref,
+                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
                                  cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE,
                                  groups_m_d_ref = mocked_signal_themes_m_df@data %>% dplyr::filter(dates == "2023-07-15"),
                                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
@@ -2800,7 +2800,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
                                  concentration_constraint_policy = list(benchmark = "theme_sb", max_abs_active_group_weight = c(theme = 0.2),
                                                                         max_abs_active_individual_weight = NULL),
                                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
-                                 selected_cov_matrix_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                 selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                  rp_method = "cyclical-spinu"
   )
 
@@ -2949,7 +2949,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
                            order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
 
   expected_results$outputs[[2]] <- eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list), target = unlist(y_list))[-1]
 
@@ -3357,7 +3357,7 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 1m target, grid_s
                                             ), order.by = as.Date(c("2001-09-15", "2001-10-15", "2001-11-15")))
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
 
   #Consolidated
@@ -3393,12 +3393,12 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 1m target, grid_s
                best_lam = best_lam[hyper_choice]),
                order.by = as.Date("2001-09-15"))
 
-  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
   #Validation loss metrics for hyper choice
 
   expected_results$outputs[[8]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15")))
-  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
 
   #Check for importance based on coefs
@@ -3882,7 +3882,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
                                             ), order.by =as.Date(c("2001-09-15", "2001-10-15", "2001-11-15")))
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-2)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-2)
 
   #Consolidated
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -3916,11 +3916,11 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
                                      best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])
                                      ), order.by =  as.Date(c("2001-09-15", "2001-11-15")))
 
-  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[8]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15", "2001-11-15")))
-  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   #Check for importance based on coefs
   expect_equal(sb_backtest_results@final_feature_importance_m_d_ref@data %>% dplyr::arrange(normalized_importance) %>% dplyr::pull(tickers),
@@ -4412,7 +4412,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
                mb = c(-1.95, 5.65, -0.866667)), as.Date(c("2001-09-15","2001-10-15", "2001-11-15")))
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-3)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-3)
 
 
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -4448,13 +4448,13 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
                lambda.min.ratio = c(hyper_expanded_grid$lambda[hyper_choice1], hyper_expanded_grid$lambda[hyper_choice2]),
                best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])),
     order.by = as.Date(c("2001-09-15", "2001-11-15")))
-  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[7]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[8]] <- xts::xts(validation_eval_hyper_choice,
                                             order.by = as.Date(c("2001-09-15", "2001-11-15")))
-  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[8]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
 })
 
@@ -4928,7 +4928,7 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 3m target, grid_s
              order.by = as.Date(c("2002-03-15", "2002-04-15", "2002-05-15", "2002-06-15")))
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-2)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-2)
 
   #Consolidated
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -4964,12 +4964,12 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 3m target, grid_s
                                      best_lam = best_lam[hyper_choice1]),
                                      order.by = as.Date(c("2002-03-15")))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2002-03-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
 })
 
@@ -5450,7 +5450,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, grid_sear
   ), order.by = as.Date(c("2001-09-15","2001-10-15", "2001-11-15")))
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-2)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-2)
 
   #Consolidated
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -5487,10 +5487,10 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, grid_sear
                                      best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice1])
                                      ), order.by = as.Date(c("2001-09-15", "2001-11-15")))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15", "2001-11-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
 })
 
@@ -5970,7 +5970,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   ), order.by = as.Date(c("2001-09-15","2001-10-15", "2001-11-15")))
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-2)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-2)
 
   #Consolidated
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -6003,11 +6003,11 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
                                      best_lam = c(best_lam1[hyper_choice1], best_lam2[hyper_choice2])),
                                      order.by = as.Date(c("2001-09-15", "2001-11-15")))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15", "2001-11-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
 })
 
@@ -6503,7 +6503,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts, tolerance = 1e-3)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data, tolerance = 1e-3)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -6538,11 +6538,11 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   ), order.by = as.Date(c("2001-09-15", "2001-11-15")))
 
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2001-09-15", "2001-11-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
 })
 
@@ -6970,7 +6970,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -7010,11 +7010,11 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
                                      min.bucket = c(hyper_expanded_grid$min.bucket[hyper_choice1], hyper_expanded_grid$min.bucket[hyper_choice2])),
   order.by = as.Date(c("2023-04-15", "2023-06-15")))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
 
@@ -7471,7 +7471,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -7519,13 +7519,13 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
                                                         chosen_eval_metric_val[[2]]$best_iteration[hyper_choice2])
 
   ), order.by = as.Date(rebalance_dates))
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
 
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   suppressWarnings({
     future::plan("sequential")
@@ -8065,7 +8065,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
 
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -8135,12 +8135,12 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                                      best_iteration = c(chosen_eval_metric_val[[1]]$best_iteration[hyper_choice1], chosen_eval_metric_val[[2]]$best_iteration[hyper_choice2])
                                      ), order.by = as.Date(c("2023-04-15", "2023-06-15")))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
 
@@ -8153,7 +8153,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -8165,7 +8165,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   ), order.by = unique(toy_preprocessed_features$dates))
 
   #Benchmark Returns XTS
-  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates))
@@ -8177,7 +8177,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_xts),
+    tickers = names(mocked_backtest_returns_m_xts),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -8191,7 +8191,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
 
   ##SS Config
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
   ) %>%
@@ -8204,8 +8204,8 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
-                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
   )
@@ -8607,7 +8607,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -8648,12 +8648,12 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
                                                        min.bucket = c(hyper_expanded_grid$min.bucket[hyper_choice1], hyper_expanded_grid$min.bucket[hyper_choice2])),
                                             order.by = as.Date(c("2023-04-15", "2023-06-15")))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
 
@@ -9082,7 +9082,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -9123,12 +9123,12 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
                min.bucket = c(hyper_expanded_grid1$min.bucket[hyper_choice1], hyper_expanded_grid2$min.bucket[hyper_choice2])),
     order.by =  as.Date(c("2023-04-15", "2023-06-15")))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
 
@@ -9622,7 +9622,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -9673,11 +9673,11 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 
   )
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
 
@@ -10125,7 +10125,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -10163,12 +10163,12 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
                         best_lam = c(best_lam1, best_lam2)
                         ),order.by = as.Date(rebalance_dates))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
 })
@@ -10180,7 +10180,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -10192,7 +10192,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   ), order.by = unique(toy_preprocessed_features$dates))
 
   #Benchmark Returns XTS
-  mocked_benchmark_returns_xts <- xts::as.xts(data.frame(
+  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates))
@@ -10204,7 +10204,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_xts),
+    tickers = names(mocked_backtest_returns_m_xts),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -10218,7 +10218,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
 
   ##SS Config
-  bayesian_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6, data_availability_cutoff = 1,
+  bayesian_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
   ) %>%
@@ -10244,8 +10244,8 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(bayesian_ss_config,
-                    signals_m_df = features_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = mocked_benchmark_returns_xts,
-                    signal_themes_m_df = signal_themes_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
   )
@@ -10720,7 +10720,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -10766,11 +10766,11 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
                                                     unlist(ParBayesianOptimization::getBestPars(bayes_opt2))['min.bucket'])
   ), order.by = as.Date(rebalance_dates))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
   foreach::registerDoSEQ()
@@ -11285,7 +11285,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -11350,12 +11350,12 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
                                                         bayes_opt2$scoreSummary$best_iteration[which.max(bayes_opt2$scoreSummary$Score)])
   ), order.by = as.Date(c("2023-04-15", "2023-06-15")))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
 
@@ -11896,7 +11896,7 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
   }
 
   expected_results$outputs[[2]] <- oos_testing_eval_metrics
-  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_xts)
+  expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics
   consolidated_eval_metrics <- calculate_eval_metrics(pred = unlist(prediction_list),
@@ -11980,11 +11980,11 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
                                                         bayes_opt2$scoreSummary$best_iteration[which.max(bayes_opt2$scoreSummary$Score)])
   ), order.by = as.Date(rebalance_dates))
 
-  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_xts)
+  expect_equal(expected_results$outputs[[5]], sb_backtest_results@best_hyperparameters_m_xts@data)
 
   #Validation loss metrics for hyper choice
   expected_results$outputs[[6]] <- xts::xts(validation_eval_hyper_choice, order.by = as.Date(c("2023-04-15", "2023-06-15")))
-  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_xts)
+  expect_equal(expected_results$outputs[[6]], sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data)
 
   future::plan("sequential")
 
@@ -12581,11 +12581,73 @@ test_that("Metabacktesting works for configs", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
-  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6, config_name = "glmnet_123") %>%
+  #First apply a signal selection backtest
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates))
+
+  #Benchmark Returns XTS
+  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
+    IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+    SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+  ),  order.by = unique(toy_preprocessed_features$dates))
+
+
+  #Chosen Signals and Positions
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  #Mocked Signal Themes
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_m_xts),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  ##SS Config
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.15, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = TRUE
+    )
+  )
+
+
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m",
+                                             config_name = "glmnet_123") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
 
-  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6, config_name = "rf_101") %>%
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m",
+                                         config_name = "rf_101") %>%
     add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
     add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
                        distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
@@ -12593,23 +12655,19 @@ test_that("Metabacktesting works for configs", {
                                    c(min = 1L, max = 10L))
     )
 
-  nn1_config <- create_sb_backtest_config(sb_algorithm = "nn", training_sample_size = 4, rebalancing_months = 6) %>%
-    add_keras_architecture(nn_optimizer = "Adam", units = 32, batch_norm_option = TRUE, activation = "relu") %>%
-    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3, early_stop = 3) %>%
-    add_hyperparameter(hyperparameter = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
-                       grid = list(c(0,1), c(0,1), c(0, 0.75), c(0.1, 0.5), c(32L, 128L), c(1L, 10L))
-    )
 
-  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4,
+
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, target_fwd_name = "fwd_premium_3m",
                                                    rebalancing_months = 6, config_name = "meta") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
 
 
-
   meta_config <-
-    create_ml_metabacktest_config(meta_ml_backtest_config = meta_learner_config,
-                                  base_ml_backtest_configs = list(rf_config, glmnet_config),
+    create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
+                                  base_sb_backtest_configs = list(rf_config, glmnet_config),
+                                  base_ss_backtest_results = list(ss_results),
+                                  features_passthrough_and_positions = "none",
                                   config_name = "meta_rf_glmnet")
 
 
@@ -12617,7 +12675,6 @@ test_that("Metabacktesting works for configs", {
   ml_metabacktest_results <- run_sb_backtest(
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     features_m_df = create_meta_dataframe(toy_preprocessed_features),
-    target_fwd_name = "fwd_premium_3m",
     config = meta_config,
     parallel = FALSE,
     verbose = TRUE

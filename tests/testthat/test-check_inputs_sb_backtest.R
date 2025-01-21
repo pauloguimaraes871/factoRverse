@@ -280,8 +280,8 @@ test_that("run_sb_backtest_internal throws an error when target_m_df do not have
         custom_signal_weights_m_df = NULL,
         target_fwd_name = "fwd_premium_3m",
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         verbose = TRUE)
     }))
   )
@@ -752,8 +752,8 @@ test_that("run_sb_backtest_internal throws no error when keras network is correc
       check_inputs_sb_backtest(
         features_m_df = features_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -787,8 +787,8 @@ test_that("run_sb_backtest_internal throws no error when keras network is correc
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -821,8 +821,8 @@ test_that("run_sb_backtest_internal throws no error when keras network is correc
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -861,8 +861,8 @@ test_that("run_sb_backtest_internal does not throw an error when hyperparameters
       run_sb_backtest_internal(
         features_m_df = features_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -887,8 +887,8 @@ test_that("run_sb_backtest_internal does not throw an error when hyperparameters
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -913,8 +913,8 @@ test_that("run_sb_backtest_internal does not throw an error when hyperparameters
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -943,8 +943,8 @@ test_that("run_sb_backtest_internal does not throw an error when hyperparameters
         target_m_df = target_m_df,
         training_sample_size = 4,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -979,8 +979,8 @@ test_that("run_sb_backtest_internal throws an error when hyperparameters_grid_li
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1001,8 +1001,8 @@ test_that("run_sb_backtest_internal throws an error when hyperparameters_grid_li
       run_sb_backtest_internal(
         features_m_df = features_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1026,8 +1026,8 @@ test_that("run_sb_backtest_internal throws an error when hyperparameters_grid_li
       run_sb_backtest_internal(
         features_m_df = features_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1063,8 +1063,8 @@ test_that("run_sb_backtest_internal throws an error when hyperparameters_grid_li
         target_m_df = target_m_df,
         training_sample_size = 4,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1095,8 +1095,8 @@ test_that("run_sb_backtest_internal throws an error when hyperparameters_grid_li
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1143,8 +1143,8 @@ test_that("run_sb_backtest_internal throws an error when grid_search not correct
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1167,8 +1167,8 @@ test_that("run_sb_backtest_internal throws an error when grid_search not correct
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1201,8 +1201,8 @@ test_that("run_sb_backtest_internal throws an error when random_search not corre
         training_sample_size = 4,
         validation_sample_size = 1,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1223,8 +1223,8 @@ test_that("run_sb_backtest_internal throws an error when random_search not corre
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1247,8 +1247,8 @@ test_that("run_sb_backtest_internal throws an error when random_search not corre
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1271,8 +1271,8 @@ test_that("run_sb_backtest_internal throws an error when random_search not corre
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1299,8 +1299,8 @@ test_that("run_sb_backtest_internal throws an error when random_search not corre
         training_sample_size = 4,
         validation_sample_size = 1,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1322,8 +1322,8 @@ test_that("run_sb_backtest_internal throws an error when random_search not corre
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1347,8 +1347,8 @@ test_that("run_sb_backtest_internal throws an error when random_search not corre
         features_m_df = features_m_df,
         target_m_df = target_m_df,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1384,8 +1384,8 @@ test_that("run_sb_backtest_internal throws an error when bayesian_opt not correc
         training_sample_size = 4,
         validation_sample_size = 1,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1409,8 +1409,8 @@ test_that("run_sb_backtest_internal throws an error when bayesian_opt not correc
         training_sample_size = 4,
         validation_sample_size = 1,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1448,8 +1448,8 @@ test_that("run_sb_backtest_internal throws an error when custom_objective wrongl
         rebalancing_months = 9,
         tuning_method = "bayesian_opt",
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1477,8 +1477,8 @@ test_that("run_sb_backtest_internal throws an error when custom_objective wrongl
         validation_sample_size = 1,
         rebalancing_months = 9,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1503,8 +1503,8 @@ test_that("run_sb_backtest_internal throws an error when custom_objective wrongl
         training_sample_size = 4,
         validation_sample_size = 1,
         signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = NULL,
-        benchmark_returns_xts = NULL,
+        backtest_returns_m_xts = NULL,
+        benchmark_returns_m_xts = NULL,
         signal_themes_m_df = NULL,
         concentration_constraint_policy = NULL,
         custom_signal_weights_m_df = NULL,
@@ -1536,8 +1536,8 @@ test_that("run_sb_backtest_internal throws an error when there is a mismatch wit
     run_sb_backtest_internal(
       features_m_df = features_m_df,
       signal_universe_m_df = expanded_signal_universe_m_df,
-      backtest_returns_xts = NULL,
-      benchmark_returns_xts = NULL,
+      backtest_returns_m_xts = NULL,
+      benchmark_returns_m_xts = NULL,
       signal_themes_m_df = NULL,
       concentration_constraint_policy = NULL,
       custom_signal_weights_m_df = NULL,
@@ -1561,15 +1561,15 @@ test_that("run_sb_backtest_internal throws an error when there is a mismatch wit
 
   adjusted_features_m_df <- features_m_df %>% dplyr::rename(Vega = Gamma)
 
-  backtest_returns_xts <- xts::xts(data.frame(Alpha = rnorm(6), Beta = rnorm(6), Gamma = rnorm(6)), order.by = features_m_df$dates %>% unique())
+  backtest_returns_m_xts <- xts::xts(data.frame(Alpha = rnorm(6), Beta = rnorm(6), Gamma = rnorm(6)), order.by = features_m_df$dates %>% unique())
 
 
   expect_error(
     run_sb_backtest_internal(
       features_m_df = adjusted_features_m_df,
       signal_universe_m_df = expanded_signal_universe_m_df,
-      backtest_returns_xts = backtest_returns_xts,
-      benchmark_returns_xts = NULL,
+      backtest_returns_m_xts = backtest_returns_m_xts,
+      benchmark_returns_m_xts = NULL,
       signal_themes_m_df = NULL,
       concentration_constraint_policy = NULL,
       custom_signal_weights_m_df = NULL,
@@ -1583,7 +1583,7 @@ test_that("run_sb_backtest_internal throws an error when there is a mismatch wit
       sb_algorithm = "glmnet",
       chosen_eval_metric = "rss",
       target_fwd_name = "fwd_premium_1m"),
-    "There is a signal mismatch between eligible_signals and backtest_returns_xts: Vega"
+    "There is a signal mismatch between eligible_signals and backtest_returns_m_xts: Vega"
   )
 
 
@@ -1595,20 +1595,20 @@ test_that("run_sb_backtest_internal throws an error when there is a mismatch wit
 
   adjusted_features_m_df <- features_m_df %>% dplyr::rename(Vega = Gamma)
 
-  backtest_returns_xts <- xts::xts(data.frame(Alpha = rnorm(6), Beta = rnorm(6), Vega = rnorm(6)), order.by = features_m_df$dates %>% unique())
+  backtest_returns_m_xts <- xts::xts(data.frame(Alpha = rnorm(6), Beta = rnorm(6), Vega = rnorm(6)), order.by = features_m_df$dates %>% unique())
 
   signal_themes_m_df <- signal_universe_m_df %>% dplyr::select(-is_eligible) %>%
     dplyr::mutate(theme = dplyr::case_when(tickers == "Alpha" ~ "theme1", tickers == "Beta" ~ "theme2", tickers == "Gamma" ~ "theme3"))
 
-  benchmark_returns_xts <-  xts::xts(data.frame(Alpha = rnorm(6), Beta = rnorm(6), Vega = rnorm(6)), order.by = features_m_df$dates %>% unique())
+  benchmark_returns_m_xts <-  xts::xts(data.frame(Alpha = rnorm(6), Beta = rnorm(6), Vega = rnorm(6)), order.by = features_m_df$dates %>% unique())
 
 
   expect_error(
     run_sb_backtest_internal(
       features_m_df = adjusted_features_m_df,
       signal_universe_m_df = expanded_signal_universe_m_df,
-      backtest_returns_xts = backtest_returns_xts,
-      benchmark_returns_xts = benchmark_returns_xts,
+      backtest_returns_m_xts = backtest_returns_m_xts,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
       signal_themes_m_df = signal_themes_m_df,
       concentration_constraint_policy = NULL,
       custom_signal_weights_m_df = NULL,
@@ -1624,122 +1624,11 @@ test_that("run_sb_backtest_internal throws an error when there is a mismatch wit
       active_returns = TRUE,
       cov_matrix_benchmark = "Alpha",
       target_fwd_name = "fwd_premium_1m"),
-    "There is a id mismatch between eligible_ids and signal_themes_m_df: Vega-2001-03-15, Vega-2001-04-15, Vega-2001-05-15, Vega-2001-06-15, Vega-2001-07-15, Vega-2001-08-15"
+    "all ids in signal_universe_m_df must have a theme classification"
   )
 
 
 
 
 })
-
-
-
-#Data quality tests
-# Define your test
-test_that("toy_preprocessed_features_and_targets has adequate format",{
-  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
-  #User inputs
-  target_fwd_name = "fwd_premium_3m"
-  sb_algorithm = "rf"
-  tuning_method = "grid_search"
-  chosen_eval_metric = "rmse"
-  custom_objective = "squared_error"
-  split_method = "expanding"
-  training_sample_size <- 6
-  validation_sample_size <- 4
-  huber_delta <-  1
-  quantile_tau = 0.5
-  hyper_grid_domain_list <- list(mtry = c(0, 1), num.trees = c(200, 500),
-                                 max.depth = c(2), min.bucket = c(1, 10,15))
-
-
-  #Check Inputs
-  expect_no_error(
-  suppressWarnings(
-  check_inputs_sb_backtest(features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets,
-                         training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                         validation_sample_size = validation_sample_size, rebalancing_months = 6, split_method = split_method,
-                         chosen_eval_metric = chosen_eval_metric,
-                         sb_algorithm = sb_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                         hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                         n_iter = NULL, k_iter = NULL, acq = NULL, init_points = NULL, early_stop = NULL, keras_architecture_parameters = NULL,
-                         parallel = FALSE, verbose = TRUE
-  )
-  )
-  )
-
-
-})
-
-
-# Define your test
-test_that("artificial_ml_wf_val_obj has adequate format",{
-  load(paste(test_path(),"/testdata/","artificial_signal_blending_obj.RData", sep =""))
-  #User inputs
-  target_fwd_name = "fwd_premium_3m"
-  sb_algorithm = "rf"
-  tuning_method = "grid_search"
-  chosen_eval_metric = "rmse"
-  custom_objective = "squared_error"
-  split_method = "expanding"
-  training_sample_size <- 6
-  validation_sample_size <- 4
-  huber_delta <-  1
-  quantile_tau = 0.5
-  hyper_grid_domain_list <- list(mtry = c(0, 1), num.trees = c(200, 500),
-                                 max.depth = c(2), min.bucket = c(1, 10,15))
-
-
-  #Check Inputs
-  expect_no_error(
-    check_inputs_sb_backtest(features_m_df = features_m_df, target_m_df = target_m_df,
-                           training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                           validation_sample_size = validation_sample_size, rebalancing_months = 6, split_method = split_method,
-                           chosen_eval_metric = chosen_eval_metric,
-                           sb_algorithm = sb_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                           hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                           n_iter = NULL, k_iter = NULL, acq = NULL, init_points = NULL, early_stop = NULL, keras_architecture_parameters = NULL,
-                           parallel = FALSE, verbose = TRUE
-    )
-  )
-
-
-})
-
-
-# Define your test
-test_that("toy_fulldates_features_and_targets has adequate format",{
-  load(paste(test_path(),"/testdata/","toy_fulldates_features_and_targets.RData", sep =""))
-  #User inputs
-  target_fwd_name = "fwd_premium_3m"
-  sb_algorithm = "rf"
-  tuning_method = "grid_search"
-  chosen_eval_metric = "rmse"
-  custom_objective = "squared_error"
-  split_method = "expanding"
-  training_sample_size <- 6
-  validation_sample_size <- 4
-  huber_delta <-  1
-  quantile_tau = 0.5
-  hyper_grid_domain_list <- list(mtry = c(0, 1), num.trees = c(200, 500),
-                                 max.depth = c(2), min.bucket = c(1, 10,15))
-
-
-  #Check Inputs
-  expect_no_error(
-    check_inputs_sb_backtest(features_m_df = toy_features_full_dates, target_m_df = toy_target_full_date,
-                           training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
-                           validation_sample_size = validation_sample_size, rebalancing_months = 6, split_method = split_method,
-                           chosen_eval_metric = chosen_eval_metric,
-                           sb_algorithm = sb_algorithm, custom_objective = custom_objective, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                           hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
-                           n_iter = NULL, k_iter = NULL, acq = NULL, init_points = NULL, early_stop = NULL, keras_architecture_parameters = NULL,
-                           parallel = FALSE, verbose = TRUE
-    )
-  )
-
-
-})
-
-
 

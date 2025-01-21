@@ -8,8 +8,8 @@
 #' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
 
-#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
-#' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
+#' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
+#' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
 #' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
 #' and values for active_return, bench_return, alpha (mean and se), beta (mean and se), and sigma. Data should be exogenous, as it will be used to set priors for the hierarchical Bayesian model.
 #' @param signal_themes_m_df A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in `signals_m_df`, and a "theme" column providing group membership for each signal.
@@ -19,7 +19,7 @@
 #' @param parallel A boolean indicating whether to run the backtest in parallel.
 #' @param ... Additional arguments (not used in this method).
 #' @export
-setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_xts, benchmark_returns_xts, signal_themes_m_df,
+setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_m_xts, benchmark_returns_m_xts, signal_themes_m_df,
                                        ...) {
   standardGeneric("run_ss_backtest")
 })
@@ -29,10 +29,10 @@ setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_xt
 #' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
 #' @export
 setMethod("run_ss_backtest",
-          signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_xts = "xts", benchmark_returns_xts = "xts",
+          signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_m_xts = "meta_xts", benchmark_returns_m_xts = "meta_xts",
                     signal_themes_m_df = "meta_dataframe"),
 
-          function(config, signals_m_df, backtest_returns_xts, benchmark_returns_xts, signal_themes_m_df,
+          function(config, signals_m_df, backtest_returns_m_xts, benchmark_returns_m_xts, signal_themes_m_df,
                    priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
                    verbose = TRUE, parallel = TRUE, winsorization_probs = c(0.025, 0.975)){
 
@@ -140,7 +140,7 @@ setMethod("run_ss_backtest",
               #Signals Data
               signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
               #Return Data
-              backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, market_factor_proxy = market_factor_proxy,
+              backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, market_factor_proxy = market_factor_proxy,
               #Signal Themes Data
               signal_themes_m_df,
               #Training Scheme
@@ -222,12 +222,12 @@ setMethod("run_ss_backtest",
 #' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
 #' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
-#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
+#' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
 #' @param  The minimum number of non-NA observations required for a backtest to be considered.
 #' @param split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
 #' @param rebalancing_months Numeric months when signal selection should be implemented.
-#' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
+#' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
 #' @param p_correction_method The method for p-value correction. Possible options are:
 #' \itemize{
 #'   \item \strong{"none"}: No correction.
@@ -274,7 +274,7 @@ setMethod("run_ss_backtest",
 #' }
 #'
 #' @param active_returns A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
-#' backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts. This does not
+#' backtest_returns_m_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts. This does not
 #' impact calculation of the CAPM model, whether it is frequentist or bayesian, pooled or partial pooled.
 #'
 #' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
@@ -370,7 +370,7 @@ setMethod("run_ss_backtest",
 #'
 #' The process of generating a final signal (also known as Signal Engineering) incorporates two steps:
 #' \itemize{
-#'   \item \strong{Signal Selection}: Selecting signals deemed significant based on a hypothesis testing zero-alpha null-hypothesis rejection criteria applied to associated signal portfolios returns in `backtest_returns_xts`.
+#'   \item \strong{Signal Selection}: Selecting signals deemed significant based on a hypothesis testing zero-alpha null-hypothesis rejection criteria applied to associated signal portfolios returns in `backtest_returns_m_xts`.
 #'   \item \strong{Signal Blending}: Blending selected signals into a final signal used to generate the final portfolio at the stock level.
 #' }
 #'
@@ -390,7 +390,7 @@ setMethod("run_ss_backtest",
 #'   \item Checks for consistency in `chosen_signals_and_positions`.
 #'   \item Adjusts the signal positions based on whether they are "short" by multiplying their values by -1.
 #'   \item Updates column names in the data frame to reflect the corrected positions of the signals.
-#'   \item Validates that all adjusted signals have corresponding columns in `backtest_returns_xts`.
+#'   \item Validates that all adjusted signals have corresponding columns in `backtest_returns_m_xts`.
 #'   \item Calculates time-series metrics from backtested returns, including mean active return, IR, alpha, t-stat, beta, Treynor ratio, and p-value. Signals without adequate data (less than `` periods) are removed.
 #'   \item Adjusts p-values based on the method selected by the user.
 #'   \item Defines which signals are eligible for blending.
@@ -404,7 +404,7 @@ run_ss_backtest_internal <- function(
   #Signals
   signals_m_df, chosen_signals_and_positions, custom_signal_universe_metrics_m_df = NULL,
   #Backtests and benchmarks
-  backtest_returns_xts, benchmark_returns_xts, market_factor_proxy = "IBOV",
+  backtest_returns_m_xts, benchmark_returns_m_xts, market_factor_proxy = "IBOV",
   #P-value
   p_correction_method = "none", signal_significance_threshold = 0.05,
   #Theme Representativeness Eligiblity
@@ -471,7 +471,7 @@ run_ss_backtest_internal <- function(
       #Signals
       signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = forced_signals, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
       #Backtest and benchmarks
-      backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, market_factor_proxy = market_factor_proxy,
+      backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, market_factor_proxy = market_factor_proxy,
       #P-value
       p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold,
       #Theme Representativeness Eligiblity
@@ -527,7 +527,7 @@ run_ss_backtest_internal <- function(
       #Chosen signals and positions
       chosen_signals_and_positions = chosen_signals_and_positions,
       #Signals backtest
-      backtest_returns_xts = backtest_returns_xts
+      backtest_returns_m_xts = backtest_returns_m_xts
     )
 
     ###Selected signals_m_df with corrected positions
@@ -535,18 +535,18 @@ run_ss_backtest_internal <- function(
     ###Select signals_themes_m_df
     selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
     ###Selected signals backtest returns
-    selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+    selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
 
     ###Check if both are contemplated in signal_themes
     if(any(!colnames(dplyr::select(selected_signals_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(selected_signal_themes_m_df$tickers))){
       stop("all selected signals (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
     }
-    if(any(!colnames(selected_backtest_returns_corrected_positions_xts) %in% selected_signal_themes_m_df$tickers)){
+    if(any(!colnames(selected_backtest_returns_corrected_positions_m_xts) %in% selected_signal_themes_m_df$tickers)){
       stop("all selected signals in backtests (with corrected positions) should have a theme classification in selected_signal_themes_m_df")
     }
 
     ###Select market factor proxy from benchmark returns xts
-    selected_market_factor_proxy_xts <- benchmark_returns_xts[, market_factor_proxy]
+    selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, market_factor_proxy]
 
     ########################
 
@@ -572,15 +572,15 @@ run_ss_backtest_internal <- function(
         priors_m_upd_ref <- if (!is.null(priors_m_df)) priors_m_df %>% dplyr::filter(dates <= current_date) else NULL
         custom_signal_universe_metrics_m_upd_ref <- if (!is.null(custom_signal_universe_metrics_m_df)) custom_signal_universe_metrics_m_df %>% dplyr::filter(dates <= current_date) else NULL
 
-        selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[which(zoo::index(selected_backtest_returns_corrected_positions_xts) <= current_date), ]
-        selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[which(zoo::index(selected_market_factor_proxy_xts) <= current_date), ]
+        selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[which(zoo::index(selected_backtest_returns_corrected_positions_m_xts) <= current_date), ]
+        selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[which(zoo::index(selected_market_factor_proxy_m_xts) <= current_date), ]
 
 
         ###Elect signals0
         signal_eligibility_results_list <- define_signal_eligibility(
           #Backtests
-          selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-          selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+          selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+          selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
           custom_signal_universe_metrics_m_upd_ref = custom_signal_universe_metrics_m_upd_ref,
           #P adjustment
           p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold,
@@ -684,7 +684,7 @@ run_ss_backtest_internal <- function(
     split_method = split_method,
     #Signals
     chosen_signals_and_positions = chosen_signals_and_positions,
-    selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_xts_upd_ref),
+    selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref),
     n_signals = length(chosen_signals_and_positions),
     signals_workflow = NULL,
     signals_object_name = "not_identified",
@@ -693,6 +693,7 @@ run_ss_backtest_internal <- function(
     priors_workflow = NULL,
     priors_object_name = "not_present",
     backtest_returns_object_name = "not_identified",
+    benchmark_returns_object_name = "not_identified",
     custom_signal_universe_metrics_workflow = NULL,
     custom_signal_universe_metrics_object_name = "not_identified",
     lower_quantile_winsorization = lower_quantile_winsorization,
@@ -724,11 +725,21 @@ run_ss_backtest_internal <- function(
     invokeRestart("muffleWarning")
   })
 
+  ##Create meta_xts
+  ###Create selected_market_factor_proxy_m_xts
+  selected_market_factor_proxy_m_xts <- withCallingHandlers({
+    create_meta_xts(selected_market_factor_proxy_m_xts, type = "assets", source = ss_backtest_workflow$backtest_identifier)
+  },
+  warning = function(w) {
+    warning("Market factor proxy creation warning: ", conditionMessage(w))
+    invokeRestart("muffleWarning")
+  })
+
   #Get final object
   ss_backtest_results <- new("ss_backtest_results",
                              signal_universe_m_df = signal_universe_m_df,
                              final_signal_universe_m_d_ref = final_signal_universe_m_d_ref,
-                             selected_market_factor_proxy_xts = selected_market_factor_proxy_xts,
+                             selected_market_factor_proxy_m_xts = selected_market_factor_proxy_m_xts,
                              frequentist_results = signal_eligibility_results_list$frequentist_results,
                              bayesian_results = signal_eligibility_results_list$bayesian_results,
                              p_correction_method = p_correction_method,

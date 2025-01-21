@@ -13,26 +13,26 @@ test_that("create_performance_m_df works with no NAs and active returns", {
   selected_signals_and_backtest_list <- select_and_correct_signals(
     chosen_signals_and_positions = chosen_signals_and_positions,
     signal_themes_m_df = signal_themes_m_df,
-    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+    signals_m_df = signals_m_df, backtest_returns_m_xts = backtest_returns_m_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, "IBOV"]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:4), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:4),]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
 
   #Create base_signal_universe_m_d_ref
   base_signal_universe_m_d_ref <- create_performance_m_df(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     active_returns = TRUE
   )
 
@@ -88,28 +88,28 @@ test_that("create_performance_m_df works with NAs and active returns", {
   selected_signals_and_backtest_list <- select_and_correct_signals(
     chosen_signals_and_positions = chosen_signals_and_positions,
     signal_themes_m_df = signal_themes_m_df,
-    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+    signals_m_df = signals_m_df, backtest_returns_m_xts = backtest_returns_m_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, "IBOV"]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:4), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:4),]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   #Include NAs
-  selected_backtest_returns_corrected_positions_xts_upd_ref$Alpha[c(1:2)] <- NA
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$Alpha[c(1:2)] <- NA
 
   #Create base_signal_universe_m_d_ref
   base_signal_universe_m_d_ref <- create_performance_m_df(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     active_returns = TRUE
   )
 
@@ -123,8 +123,8 @@ test_that("create_performance_m_df works with NAs and active returns", {
   expect_equal(base_signal_universe_m_d_ref$ann_info_ratio[1], -0.52758, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$act_exp_short[1],
                as.numeric(PerformanceAnalytics::ETL(
-                 (selected_backtest_returns_corrected_positions_xts_upd_ref$Alpha[3:4]/100+1)/
-                  (selected_market_factor_proxy_xts_upd_ref[3:4]/100+1) - 1))*100*-1,
+                 (selected_backtest_returns_corrected_positions_m_xts_upd_ref$Alpha[3:4]/100+1)/
+                  (selected_market_factor_proxy_m_xts_upd_ref[3:4]/100+1) - 1))*100*-1,
                  tolerance = 1e-1) #Small method difference
   expect_equal(base_signal_universe_m_d_ref$info_ratio_exp_short[1], -0.109926, tolerance = 1e-1) #Small method difference
   expect_equal(base_signal_universe_m_d_ref$act_pain[1], 1.19092, tolerance = 1e-3)
@@ -172,28 +172,28 @@ test_that("create_performance_m_df works with NAs and raw returns", {
   selected_signals_and_backtest_list <- select_and_correct_signals(
     chosen_signals_and_positions = chosen_signals_and_positions,
     signal_themes_m_df = signal_themes_m_df,
-    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+    signals_m_df = signals_m_df, backtest_returns_m_xts = backtest_returns_m_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, "IBOV"]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:4), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:4),]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   #Include NAs
-  selected_backtest_returns_corrected_positions_xts_upd_ref$Alpha[c(1:2)] <- NA
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$Alpha[c(1:2)] <- NA
 
   #Create base_signal_universe_m_d_ref
   base_signal_universe_m_d_ref <- create_performance_m_df(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     active_returns = FALSE
   )
 
@@ -207,7 +207,7 @@ test_that("create_performance_m_df works with NAs and raw returns", {
   expect_equal(base_signal_universe_m_d_ref$ann_sharpe_ratio[1], -0.2438949, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$exp_short[1],
                as.numeric(PerformanceAnalytics::ETL(
-                 (selected_backtest_returns_corrected_positions_xts_upd_ref$Alpha[3:4]/100)))*100*-1,
+                 (selected_backtest_returns_corrected_positions_m_xts_upd_ref$Alpha[3:4]/100)))*100*-1,
                tolerance = 1e-1) #Small method difference
   expect_equal(base_signal_universe_m_d_ref$sharpe_ratio_exp_short[1], -0.05261938, tolerance = 1e-1) #Small method difference
   expect_equal(base_signal_universe_m_d_ref$pain[1], 0.59168, tolerance = 1e-3)
@@ -236,10 +236,10 @@ test_that("create_performance_m_df works with NAs and raw returns", {
   expect_equal(base_signal_universe_m_d_ref$modigliani[3], 0.148327, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$ann_modigliani[3], 1.7326, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$prob_sharpe_ratio[3],
-  as.numeric(PerformanceAnalytics::ProbSharpeRatio(selected_backtest_returns_corrected_positions_xts_upd_ref$low_Beta, refSR = 0)$sr_prob)
+  as.numeric(PerformanceAnalytics::ProbSharpeRatio(selected_backtest_returns_corrected_positions_m_xts_upd_ref$low_Beta, refSR = 0)$sr_prob)
   )
   expect_equal(base_signal_universe_m_d_ref$min_track_record[3],
-               PerformanceAnalytics::MinTrackRecord(selected_backtest_returns_corrected_positions_xts_upd_ref$low_Beta, refSR = 0)$num_of_extra_obs_needed)
+               PerformanceAnalytics::MinTrackRecord(selected_backtest_returns_corrected_positions_m_xts_upd_ref$low_Beta, refSR = 0)$num_of_extra_obs_needed)
 
 
 })
@@ -259,29 +259,29 @@ test_that("create_performance_m_df works with NAs (one column only NAs)", {
   selected_signals_and_backtest_list <- select_and_correct_signals(
     chosen_signals_and_positions = chosen_signals_and_positions,
     signal_themes_m_df = signal_themes_m_df,
-    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+    signals_m_df = signals_m_df, backtest_returns_m_xts = backtest_returns_m_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, "IBOV"]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:4), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:4),]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   #Include NAs
-  selected_backtest_returns_corrected_positions_xts_upd_ref$Alpha[c(1:2)] <- NA
-  selected_backtest_returns_corrected_positions_xts_upd_ref$Gamma[c(1:4)] <- NA
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$Alpha[c(1:2)] <- NA
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$Gamma[c(1:4)] <- NA
 
   #Create base_signal_universe_m_d_ref
   base_signal_universe_m_d_ref <- suppressWarnings(create_performance_m_df(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     active_returns = FALSE
   ))
 
@@ -295,7 +295,7 @@ test_that("create_performance_m_df works with NAs (one column only NAs)", {
   expect_equal(base_signal_universe_m_d_ref$ann_sharpe_ratio[1], -0.2438949, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$exp_short[1],
                as.numeric(PerformanceAnalytics::ETL(
-                 (selected_backtest_returns_corrected_positions_xts_upd_ref$Alpha[3:4]/100)))*100*-1,
+                 (selected_backtest_returns_corrected_positions_m_xts_upd_ref$Alpha[3:4]/100)))*100*-1,
                tolerance = 1e-1) #Small method difference
   expect_equal(base_signal_universe_m_d_ref$sharpe_ratio_exp_short[1], -0.05261938, tolerance = 1e-1) #Small method difference
   expect_equal(base_signal_universe_m_d_ref$pain[1], 0.59168, tolerance = 1e-3)
@@ -324,10 +324,10 @@ test_that("create_performance_m_df works with NAs (one column only NAs)", {
   expect_equal(base_signal_universe_m_d_ref$modigliani[3], 0.169204, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$ann_modigliani[3], 1.976513, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$prob_sharpe_ratio[3],
-               as.numeric(PerformanceAnalytics::ProbSharpeRatio(selected_backtest_returns_corrected_positions_xts_upd_ref$low_Beta, refSR = 0)$sr_prob)
+               as.numeric(PerformanceAnalytics::ProbSharpeRatio(selected_backtest_returns_corrected_positions_m_xts_upd_ref$low_Beta, refSR = 0)$sr_prob)
   )
   expect_equal(base_signal_universe_m_d_ref$min_track_record[3],
-               PerformanceAnalytics::MinTrackRecord(selected_backtest_returns_corrected_positions_xts_upd_ref$low_Beta, refSR = 0)$num_of_extra_obs_needed)
+               PerformanceAnalytics::MinTrackRecord(selected_backtest_returns_corrected_positions_m_xts_upd_ref$low_Beta, refSR = 0)$num_of_extra_obs_needed)
 
 
   #Check 3rd
@@ -345,18 +345,18 @@ test_that("create_performance_m_df works with NAs (one column only NAs)", {
 test_that("create_performance_m_df throws a warning for backtests with only positive values", {
 
   set.seed(123)
-  backtest_returns_xts <- xts::xts(data.frame(A = rlnorm(100, 0, 1), B = rnorm(100, 0, 1)),
+  backtest_returns_m_xts <- xts::xts(data.frame(A = rlnorm(100, 0, 1), B = rnorm(100, 0, 1)),
                                    order.by = seq.Date(from = as.Date("2000-01-01"), by = "months", length.out = 100)
   )
 
-  selected_market_factor_proxy_xts <- xts::xts(data.frame(Bench = rnorm(100, 0, 1)),
+  selected_market_factor_proxy_m_xts <- xts::xts(data.frame(Bench = rnorm(100, 0, 1)),
                                                order.by = seq.Date(from = as.Date("2000-01-01"), by = "months", length.out = 100)
   )
   # Capture all warnings
   warnings <- testthat::capture_warnings({
     performance_df <- create_performance_m_df(
-      backtest_returns_xts,
-      selected_market_factor_proxy_xts,
+      backtest_returns_m_xts,
+      selected_market_factor_proxy_m_xts,
       active_returns = FALSE
     )
   })
@@ -370,30 +370,30 @@ test_that("create_performance_m_df throws a warning for backtests with only posi
 test_that("create_performance_m_df works for Prob Sharpe Ratio and Min Track Record", {
 
   set.seed(123)
-  backtest_returns_xts <- xts::xts(data.frame(A = rnorm(100, 0, 1), B = rnorm(100, 0, 1)),
+  backtest_returns_m_xts <- xts::xts(data.frame(A = rnorm(100, 0, 1), B = rnorm(100, 0, 1)),
                                    order.by = seq.Date(from = as.Date("2000-01-01"), by = "months", length.out = 100)
                                    )
 
-  selected_market_factor_proxy_xts <- xts::xts(data.frame(Bench = rnorm(100, 0, 1)),
+  selected_market_factor_proxy_m_xts <- xts::xts(data.frame(Bench = rnorm(100, 0, 1)),
                                                order.by = seq.Date(from = as.Date("2000-01-01"), by = "months", length.out = 100)
   )
 
-  result <- create_performance_m_df(backtest_returns_xts, selected_market_factor_proxy_xts, active_returns = FALSE)
+  result <- create_performance_m_df(backtest_returns_m_xts, selected_market_factor_proxy_m_xts, active_returns = FALSE)
 
   #ProbSharpeRatio
-  expect_equal(result$prob_sharpe_ratio[1], as.numeric(PerformanceAnalytics::ProbSharpeRatio(backtest_returns_xts$A, refSR = 0)$sr_prob))
+  expect_equal(result$prob_sharpe_ratio[1], as.numeric(PerformanceAnalytics::ProbSharpeRatio(backtest_returns_m_xts$A, refSR = 0)$sr_prob))
   expect_equal(result$prob_sharpe_ratio[2], as.numeric(NA))
   #MinTrackRecord
-  expect_equal(result$min_track_record[1], as.numeric(PerformanceAnalytics::MinTrackRecord(backtest_returns_xts$A, refSR = 0)$num_of_extra_obs_needed))
+  expect_equal(result$min_track_record[1], as.numeric(PerformanceAnalytics::MinTrackRecord(backtest_returns_m_xts$A, refSR = 0)$num_of_extra_obs_needed))
   expect_equal(result$min_track_record[2], as.numeric(NA))
 
 
   #Insert NA's
-  backtest_returns_xts$A[1:25] <- NA
-  result <- create_performance_m_df(backtest_returns_xts, selected_market_factor_proxy_xts, active_returns = TRUE)
+  backtest_returns_m_xts$A[1:25] <- NA
+  result <- create_performance_m_df(backtest_returns_m_xts, selected_market_factor_proxy_m_xts, active_returns = TRUE)
 
   #ProbSharpeRatio
-  A <- ((backtest_returns_xts$A[26:100]/100+1)/(selected_market_factor_proxy_xts$Bench[26:100]/100+1)-1)*100
+  A <- ((backtest_returns_m_xts$A[26:100]/100+1)/(selected_market_factor_proxy_m_xts$Bench[26:100]/100+1)-1)*100
   expect_equal(result$prob_info_ratio[1], as.numeric(PerformanceAnalytics::ProbSharpeRatio(A, refSR = 0)$sr_prob))
   expect_equal(result$prob_info_ratio[2], as.numeric(NA))
   #MinTrackRecord

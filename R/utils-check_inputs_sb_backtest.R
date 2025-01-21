@@ -23,8 +23,8 @@
 #' @param early_stop Numeric, number of epochs for early stopping (for "xgb" and "nn" algorithms).
 #' @param keras_architecture_parameters List, containing units (numeric), n_layers (numeric between 1 and 5), activation_function and nn_optimizer ("Adam" or "RMSProp")
 #' @param signal_universe_m_d_ref A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.
-#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
-#' @param benchmark_returns_xts A xts with benchmark returns, named accordingly.
+#' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
+#' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
 #' @param show_plots Logical, whether to show diagnostic plots.
 #' @param verbose Logical, whether to print verbose output.
 #' @param parallel Logical, whether to use parallel computation.
@@ -51,7 +51,7 @@ check_inputs_sb_backtest <- function(
     #Time
     validation_sample_size, rebalancing_months, split_method,
     #SB heuristic
-    signal_universe_m_df, backtest_returns_xts, benchmark_returns_xts, cov_matrix_benchmark,
+    signal_universe_m_df, backtest_returns_m_xts, benchmark_returns_m_xts, cov_matrix_benchmark,
     cov_matrix_sample_size, cov_estimation_method, active_returns, signal_themes_m_df,
     rp_method, n_random_ports, random_ports_method, opt_objective, concentration_constraint_policy,
     custom_signal_weights_m_df,
@@ -162,89 +162,89 @@ check_inputs_sb_backtest <- function(
           }
         }
 
-      #backtest_returns_xts
-      if(sb_algorithm %in% c("rp", "mvo") && is.null(backtest_returns_xts)){
-        stop("backtest_returns_xts are strictly needed when sb_algorithm is either rp or mvo.")
+      #backtest_returns_m_xts
+      if(sb_algorithm %in% c("rp", "mvo") && is.null(backtest_returns_m_xts)){
+        stop("backtest_returns_m_xts are strictly needed when sb_algorithm is either rp or mvo.")
       }
-      if(!is.null(backtest_returns_xts)){
-        if(!xts::is.xts(backtest_returns_xts)){
-          stop("backtest_returns_xts must be a xts object")
+      if(!is.null(backtest_returns_m_xts)){
+        if(!xts::is.xts(backtest_returns_m_xts)){
+          stop("backtest_returns_m_xts must be a xts object")
         }
         #get dates
-        backtest_returns_dates <- zoo::index(backtest_returns_xts)
+        backtest_returns_dates <- zoo::index(backtest_returns_m_xts)
 
         if(class(backtest_returns_dates) != "Date"){
-          stop("dates in backtest_returns_xts must be of class Date")
+          stop("dates in backtest_returns_m_xts must be of class Date")
         }
 
-        if(any(apply(backtest_returns_xts, 2, function(x) any(is.na(x))))){
-          stop("backtest_returns_xts must not have any NA")
+        if(any(apply(backtest_returns_m_xts, 2, function(x) any(is.na(x))))){
+          stop("backtest_returns_m_xts must not have any NA")
         }
 
-        if(nrow(backtest_returns_xts) < (training_sample_size + validation_sample_size)){
-          stop("backtest_returns_xts must have at least training_sample_size + validation_sample_size rows")
+        if(nrow(backtest_returns_m_xts) < (training_sample_size + validation_sample_size)){
+          stop("backtest_returns_m_xts must have at least training_sample_size + validation_sample_size rows")
         }
 
         if(any(!signal_universe_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
-          stop("all dates in signal_universe_m_df must be present in backtest_returns_xts")
+          stop("all dates in signal_universe_m_df must be present in backtest_returns_m_xts")
         }
 
         if(any(!unique(dplyr::pull(features_m_df, dates))[-c(1:(training_sample_size + validation_sample_size))] %in% backtest_returns_dates)){
-          stop("all backtest_dates derived from features_m_df must be present in backtest_returns_xts")
+          stop("all backtest_dates derived from features_m_df must be present in backtest_returns_m_xts")
         }
 
         backtest_returns_dates_before_first_training <- backtest_returns_dates[which(backtest_returns_dates < unique(dplyr::pull(features_m_df, dates))[training_sample_size + validation_sample_size])]
 
         if (length(backtest_returns_dates_before_first_training) < 2) {
-          stop("There is only one date in backtest_returns_xts before the first training date")
+          stop("There is only one date in backtest_returns_m_xts before the first training date")
         }
 
         if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 + as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
-          stop("backtest_returns_xts must have consecutive dates")
+          stop("backtest_returns_m_xts must have consecutive dates")
         }
 
         if(any(seq.Date(from = backtest_returns_dates[1], to = backtest_returns_dates[length(backtest_returns_dates)], by = "month") != backtest_returns_dates)){
-          stop("backtest_returns_xts must have sequential monthly dates")
+          stop("backtest_returns_m_xts must have sequential monthly dates")
         }
 
         if(sb_algorithm %in% c("rp", "mvo") && length(backtest_returns_dates) <= cov_matrix_sample_size){
-          stop("backtest_returns_xts must have more dates than cov_matrix_sample_size")
+          stop("backtest_returns_m_xts must have more dates than cov_matrix_sample_size")
         }
       }
 
-      #benchmark_returns_xts
-      if(sb_algorithm %in% c("rp", "mvo") && active_returns && is.null(benchmark_returns_xts)){
-        stop("benchmark_returns_xts are strictly needed when sb_algorithm is either rp or mvo and active_returns is set to TRUE.")
+      #benchmark_returns_m_xts
+      if(sb_algorithm %in% c("rp", "mvo") && active_returns && is.null(benchmark_returns_m_xts)){
+        stop("benchmark_returns_m_xts are strictly needed when sb_algorithm is either rp or mvo and active_returns is set to TRUE.")
       }
-      if(!is.null(benchmark_returns_xts)){
-        if(!xts::is.xts(benchmark_returns_xts)){
-          stop("benchmark_returns_xts must be a xts object")
+      if(!is.null(benchmark_returns_m_xts)){
+        if(!xts::is.xts(benchmark_returns_m_xts)){
+          stop("benchmark_returns_m_xts must be a xts object")
         }
         #get dates
-        benchmark_returns_xts_dates <- zoo::index(benchmark_returns_xts)
-        if(class(benchmark_returns_xts_dates) != "Date"){
-          stop("dates in benchmark_returns_xts_dates must be of class Date")
+        benchmark_returns_dates <- zoo::index(benchmark_returns_m_xts)
+        if(class(benchmark_returns_dates) != "Date"){
+          stop("dates in benchmark_returns_m_xts must be of class Date")
         }
 
         if(any(!benchmark_returns_dates %in% backtest_returns_dates)){
-          stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+          stop("dates in benchmark_returns_m_xts and backtest_returns_m_xts must be the same")
         }
 
         if(any(!backtest_returns_dates %in% benchmark_returns_dates)){
-          stop("dates in benchmark_returns_xts and backtest_returns_xts must be the same")
+          stop("dates in benchmark_returns_m_xts and backtest_returns_m_xts must be the same")
         }
 
-        if(any(apply(benchmark_returns_xts, 2, function(x) all(is.na(x))))){
-          stop("benchmark_returns_xts must not have any NA values")
+        if(any(apply(benchmark_returns_m_xts, 2, function(x) all(is.na(x))))){
+          stop("benchmark_returns_m_xts must not have any NA values")
         }
 
-        if(!all(diff(as.numeric(format(benchmark_returns_xts_dates, "%Y")) * 12 +
-                     as.numeric(format(benchmark_returns_xts_dates, "%m"))) == 1)){
-          stop("benchmark_returns_xts must have consecutive dates")
+        if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 +
+                     as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
+          stop("benchmark_returns_m_xts must have consecutive dates")
         }
 
-        if(sb_algorithm %in% c("rp", "mvo") && !cov_matrix_benchmark %in% colnames(benchmark_returns_xts)){
-          stop("cov_matrix_benchmark must be present in benchmark_returns_xts")
+        if(sb_algorithm %in% c("rp", "mvo") && !cov_matrix_benchmark %in% colnames(benchmark_returns_m_xts)){
+          stop("cov_matrix_benchmark must be present in benchmark_returns_m_xts")
         }
       }
 
@@ -436,11 +436,11 @@ check_inputs_sb_backtest <- function(
         }
       }
 
-      ##Check signal presence in backtest_returns_xts
-      if(!is.null(backtest_returns_xts)){
-        check_signal_presence <- !eligible_signals %in% colnames(backtest_returns_xts)
+      ##Check signal presence in backtest_returns_m_xts
+      if(!is.null(backtest_returns_m_xts)){
+        check_signal_presence <- !eligible_signals %in% colnames(backtest_returns_m_xts)
         if (any(check_signal_presence)) {
-          stop("There is a signal mismatch between eligible_signals and backtest_returns_xts: ",
+          stop("There is a signal mismatch between eligible_signals and backtest_returns_m_xts: ",
                paste(eligible_signals[check_signal_presence], collapse = ", ")
           )
         }

@@ -12,25 +12,25 @@ test_that("define_signal_elibility works for no-pooled setting", {
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
     chosen_signals_and_positions = chosen_signals_and_positions, signal_themes_m_df = signal_themes_m_df,
-    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+    signals_m_df = signals_m_df, backtest_returnsm_xts = backtest_returnsm_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positionsm_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positionsm_xts
+  selected_market_factor_proxym_xts <- benchmark_returnsm_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
   selected_signals_corrected_positions_m_upd_ref <- selected_signals_corrected_positions_m_df[which(selected_signals_corrected_positions_m_df$dates <= current_date),]
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_backtest_returns_corrected_positionsm_xts_upd_ref <- selected_backtest_returns_corrected_positionsm_xts[c(1:4), ]
+  selected_market_factor_proxym_xts_upd_ref <- selected_market_factor_proxym_xts[c(1:4),]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   #summarize_performance
   expected_result <- summarize_performance(
     model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control =  list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
-    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref, selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref, selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+    selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref
   )
 
   p_value_df <- data.frame(p_value = unique(expected_result$signal_universe_m_d_ref$p_value))
@@ -56,8 +56,8 @@ test_that("define_signal_elibility works for no-pooled setting", {
 
   expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
   #results
-  results <- define_signal_eligibility(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                       selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  results <- define_signal_eligibility(selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+                                       selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
                                        data_availability_cutoff = data_availability_cutoff,
                                        p_correction_method = "holm",
                                        signal_significance_threshold = signal_significance_threshold,
@@ -88,33 +88,33 @@ test_that("define_signal_elibility works for pooled setting", {
   data_availability_cutoff <- 3
 
   #Increase returns
-  backtest_returns_xts$Alpha <- backtest_returns_xts$Alpha + 5.00
-  backtest_returns_xts$Gamma <- backtest_returns_xts$Gamma + 4.00
+  backtest_returnsm_xts$Alpha <- backtest_returnsm_xts$Alpha + 5.00
+  backtest_returnsm_xts$Gamma <- backtest_returnsm_xts$Gamma + 4.00
 
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
     chosen_signals_and_positions = chosen_signals_and_positions, signal_themes_m_df = signal_themes_m_df,
-    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+    signals_m_df = signals_m_df, backtest_returnsm_xts = backtest_returnsm_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positionsm_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positionsm_xts
+  selected_market_factor_proxym_xts <- benchmark_returnsm_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
   selected_signals_corrected_positions_m_upd_ref <- selected_signals_corrected_positions_m_df[which(selected_signals_corrected_positions_m_df$dates <= current_date),]
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_backtest_returns_corrected_positionsm_xts_upd_ref <- selected_backtest_returns_corrected_positionsm_xts[c(1:4), ]
+  selected_market_factor_proxym_xts_upd_ref <- selected_market_factor_proxym_xts[c(1:4),]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   #summarize_performance
   expected_result <- suppressWarnings(summarize_performance(
     model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
     lmer_control =  list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
-    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref, selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref, selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+    selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref
   ))
 
   adjusted_p_value <- p.adjust(unique(expected_result$signal_universe_m_d_ref$p_value), method = "bonferroni")
@@ -138,8 +138,8 @@ test_that("define_signal_elibility works for pooled setting", {
 
   expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
   #results
-  results <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                       selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  results <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+                                       selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
                                        data_availability_cutoff = data_availability_cutoff,
                                        p_correction_method = "bonferroni", model_structure = "partial_pooled",
                                        theme_level_intercept = "theme_specific", theme_level_slope = "theme_specific",
@@ -163,28 +163,28 @@ test_that("define_signal_elibility works for no-pooled frequentist setting when 
   signal_significance_threshold <- 0.05
   p_correction_method <- "none"
   data_availability_cutoff <- 3
-  backtest_returns_xts$Alpha <- backtest_returns_xts$Alpha*-1
+  backtest_returnsm_xts$Alpha <- backtest_returnsm_xts$Alpha*-1
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(
     chosen_signals_and_positions = chosen_signals_and_positions, signal_themes_m_df = signal_themes_m_df,
-    signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+    signals_m_df = signals_m_df, backtest_returnsm_xts = backtest_returnsm_xts)
 
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positionsm_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positionsm_xts
+  selected_market_factor_proxym_xts <- benchmark_returnsm_xts[, c("IBOV")]
   selected_signal_themes_m_df = selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+  selected_backtest_returns_corrected_positionsm_xts_upd_ref <- selected_backtest_returns_corrected_positionsm_xts[c(1:4), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_market_factor_proxym_xts_upd_ref <- selected_market_factor_proxym_xts[c(1:4),]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   #expected results
-  expected_results <- summarize_performance(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                            selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  expected_results <- summarize_performance(selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+                                            selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
                                             model_structure = "no_pooled", model_spec_theme_level = NULL,
                                             selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                             lmer_control =  list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
@@ -226,28 +226,28 @@ test_that("define_signal_elibility works for no-pooled frequentist setting when 
   data_availability_cutoff <- 2
 
   #repalce with NA
-  backtest_returns_xts$low_Beta[1:3] <- NA
+  backtest_returnsm_xts$low_Beta[1:3] <- NA
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(chosen_signals_and_positions = chosen_signals_and_positions,
                                                                    signal_themes_m_df = signal_themes_m_df,
-                                                                   signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+                                                                   signals_m_df = signals_m_df, backtest_returnsm_xts = backtest_returnsm_xts)
 
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positionsm_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positionsm_xts
+  selected_market_factor_proxym_xts <- benchmark_returnsm_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+  selected_backtest_returns_corrected_positionsm_xts_upd_ref <- selected_backtest_returns_corrected_positionsm_xts[c(1:4), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_market_factor_proxym_xts_upd_ref <- selected_market_factor_proxym_xts[c(1:4),]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   #expected results
-  expected_result <- suppressWarnings(summarize_performance(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                            selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  expected_result <- suppressWarnings(summarize_performance(selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+                                            selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
                                             selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                             model_structure = "no_pooled", model_spec_theme_level = NULL,
                                             lmer_control =  list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
@@ -273,8 +273,8 @@ test_that("define_signal_elibility works for no-pooled frequentist setting when 
 
   expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
 
-  result <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                                           selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  result <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+                                                           selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
                                                            data_availability_cutoff = data_availability_cutoff,
                                                            p_correction_method = p_correction_method,
                                                            signal_significance_threshold = signal_significance_threshold,
@@ -302,28 +302,28 @@ test_that("define_signal_elibility works for pooled frequentist setting when the
   data_availability_cutoff <- 2
 
   #repalce with NA
-  backtest_returns_xts$low_Beta[1:3] <- NA
+  backtest_returnsm_xts$low_Beta[1:3] <- NA
 
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(chosen_signals_and_positions = chosen_signals_and_positions,
                                                                    signal_themes_m_df = signal_themes_m_df,
-                                                                   signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+                                                                   signals_m_df = signals_m_df, backtest_returnsm_xts = backtest_returnsm_xts)
 
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positionsm_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positionsm_xts
+  selected_market_factor_proxym_xts <- benchmark_returnsm_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   current_date <- "2001-06-15"
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+  selected_backtest_returns_corrected_positionsm_xts_upd_ref <- selected_backtest_returns_corrected_positionsm_xts[c(1:4), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_market_factor_proxym_xts_upd_ref <- selected_market_factor_proxym_xts[c(1:4),]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   #expected results
-  expected_result <- suppressWarnings(summarize_performance(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                                            selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  expected_result <- suppressWarnings(summarize_performance(selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+                                                            selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
                                                             model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_fixed_slope",
                                                             lmer_control =  list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
                                                             selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref
@@ -350,8 +350,8 @@ test_that("define_signal_elibility works for pooled frequentist setting when the
 
   expected_result$signal_universe_m_d_ref$exp_ret_score <- NULL
 
-  result <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                                       selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  result <- suppressWarnings(define_signal_eligibility(selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+                                                       selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
                                                        data_availability_cutoff = data_availability_cutoff,
                                                        p_correction_method = p_correction_method,
                                                        signal_significance_threshold = 0.50, #Place a giant threshold for the function not to stop
@@ -380,15 +380,15 @@ test_that("define_signal_elibility works for bayesian setting", {
   #Select signals based on user choice
   selected_signals_and_backtest_list <- select_and_correct_signals(chosen_signals_and_positions = chosen_signals_and_positions,
                                                                    signal_themes_m_df = signal_themes_m_df,
-                                                                   signals_m_df = signals_m_df, backtest_returns_xts = backtest_returns_xts)
+                                                                   signals_m_df = signals_m_df, backtest_returnsm_xts = backtest_returnsm_xts)
 
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positionsm_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positionsm_xts
+  selected_market_factor_proxym_xts <- benchmark_returnsm_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:4), ]
+  selected_backtest_returns_corrected_positionsm_xts_upd_ref <- selected_backtest_returns_corrected_positionsm_xts[c(1:4), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:4),]
+  selected_market_factor_proxym_xts_upd_ref <- selected_market_factor_proxym_xts[c(1:4),]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
@@ -397,8 +397,8 @@ test_that("define_signal_elibility works for bayesian setting", {
 
 
   #expected results
-  expected_result <- suppressWarnings(summarize_performance(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                                            selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  expected_result <- suppressWarnings(summarize_performance(selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+                                                            selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
                                                             model_structure = "partial_pooled", model_spec_theme_level = "random_intercept_fixed_slope",
                                                             lmer_control =  list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
                                                             selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref
@@ -417,8 +417,8 @@ test_that("define_signal_elibility works for bayesian setting", {
   bayesian_results <- suppressWarnings(
     bayesian_adjustment(
     signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+    selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
     user_priors = user_priors,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_spec_theme_level = "random_intercept_fixed_slope",
@@ -450,8 +450,8 @@ test_that("define_signal_elibility works for bayesian setting", {
   #results
   set.seed(123)
   results <- suppressWarnings(define_signal_eligibility(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positionsm_xts_upd_ref = selected_backtest_returns_corrected_positionsm_xts_upd_ref,
+    selected_market_factor_proxym_xts_upd_ref = selected_market_factor_proxym_xts_upd_ref,
     data_availability_cutoff = 3,
     model_structure = "partial_pooled", theme_level_intercept = "random", theme_level_slope = "fixed",
     p_correction_method = "bayesian",

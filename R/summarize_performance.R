@@ -1,11 +1,11 @@
 #' @title Summarize Performance Metrics of Backtests
 #'
-#' @param selected_backtest_returns_corrected_positions_xts_upd_ref A xts containing the backtest returns data for various signals.
+#' @param selected_backtest_returns_corrected_positions_m_xts_upd_ref A xts containing the backtest returns data for various signals.
 #'
-#' @param selected_market_factor_proxy_xts_upd_ref A xts containing benchmark returns data.
+#' @param selected_market_factor_proxy_m_xts_upd_ref A xts containing benchmark returns data.
 #'
 #' @param selected_signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
-#'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_xts_upd_ref`.
+#'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_m_xts_upd_ref`.
 #'   - `theme`: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
 #'   - `dates`: Dates corresponding to the backtest data.
 #'   This input ensures proper alignment between signals and their associated themes.
@@ -23,8 +23,8 @@
 #' @importFrom PerformanceAnalytics StdDev SharpeRatio ES
 #'
 #' @export
-summarize_performance <- function(selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                  selected_market_factor_proxy_xts_upd_ref,
+summarize_performance <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                  selected_market_factor_proxy_m_xts_upd_ref,
                                   model_structure, model_spec_theme_level, lmer_control,
                                   selected_signal_themes_m_d_ref,
                                   custom_signal_universe_metrics_m_upd_ref = NULL,
@@ -35,9 +35,9 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
 
   #Initial Preparations
   ##################
-  ###Get objects from selected_backtest_returns_corrected_positions_xts_upd_ref
-  selected_signals <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref)
-  current_date <- zoo::index(selected_backtest_returns_corrected_positions_xts_upd_ref) %>% max()
+  ###Get objects from selected_backtest_returns_corrected_positions_m_xts_upd_ref
+  selected_signals <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref)
+  current_date <- zoo::index(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>% max()
 
 
   ##################
@@ -46,8 +46,8 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
   #################################
   ###Create base_signal_universe_m_d_ref
   base_signal_universe_m_d_ref <- create_performance_m_df(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     active_returns = active_returns,
     verbose = verbose
   )
@@ -82,8 +82,8 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
 
     ###Get CAPM Models
     #################
-    capm_model_list <- selected_backtest_returns_corrected_positions_xts_upd_ref %>% apply(2, function(x){
-      lm(x ~ selected_market_factor_proxy_xts_upd_ref)
+    capm_model_list <- selected_backtest_returns_corrected_positions_m_xts_upd_ref %>% apply(2, function(x){
+      lm(x ~ selected_market_factor_proxy_m_xts_upd_ref)
     })
     #################
 
@@ -108,7 +108,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
       alpha_t_stat = as.numeric(sapply(capm_model_list, function(x) summary(x)$coefficients[5])),
       ##Treynor Ratio
       treynor_ratio = as.numeric(
-        PerformanceAnalytics::mean.geometric(selected_backtest_returns_corrected_positions_xts_upd_ref/100, na.rm = TRUE)*100/
+        PerformanceAnalytics::mean.geometric(selected_backtest_returns_corrected_positions_m_xts_upd_ref/100, na.rm = TRUE)*100/
         sapply(capm_model_list, function(x) summary(x)$coefficients[2])
         ),
       ##Appraisal Ratio
@@ -140,8 +140,8 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
     hierarchical_frequentist_fit_results_list <- fit_frequentist_hierarchical_model(
       ###Data
       signal_universe_m_d_ref = base_signal_universe_m_d_ref,
-      selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-      selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+      selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+      selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
       ###Signal Themes
       selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
       model_spec_theme_level = model_spec_theme_level,

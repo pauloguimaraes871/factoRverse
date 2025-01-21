@@ -32,8 +32,8 @@
 set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   liquidity_m_d_ref = NULL, cap_weighting_metric = NULL, #Cap-Weight and Cap-Scaled
                                   groups_m_d_ref = NULL, #Used for filling returns for covariance matrix estimation and/or setting group constraints
-                                  returns_xts_upd_ref = NULL, selected_benchmark_xts_upd_ref = NULL, active_returns = if(is.null(selected_benchmark_xts_upd_ref)) FALSE else TRUE,  #Returns to estimate cov matrix
-                                  cov_estimation_method = "sample", cov_matrix_sample_size = if(is.null(returns_xts_upd_ref)) NULL else nrow(returns_xts_upd_ref), #How to estimate covariance matrix?
+                                  returns_m_xts_upd_ref = NULL, selected_benchmark_m_xts_upd_ref = NULL, active_returns = if(is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,  #Returns to estimate cov matrix
+                                  cov_estimation_method = "sample", cov_matrix_sample_size = if(is.null(returns_m_xts_upd_ref)) NULL else nrow(returns_m_xts_upd_ref), #How to estimate covariance matrix?
                                   liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL, #Policies
                                   n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", rp_method = "cyclical-spinu",
                                   custom_weights_m_d_ref = NULL, #Custom Weights
@@ -46,14 +46,14 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   #Calculate covariance matrix
   ###################
   ##Check if there is returns data
-  if(!is.null(returns_xts_upd_ref)){
+  if(!is.null(returns_m_xts_upd_ref)){
 
     ##Run estimation function
     covariance_matrix <- estimate_covariance_matrix(
       tickers = eligible_tickers, #Eligible universe
-      returns_xts_upd_ref = returns_xts_upd_ref, #Return sample
+      returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
       cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Cov estimation
-      selected_benchmark_xts_upd_ref = selected_benchmark_xts_upd_ref, #Benchmark for calculating active returns
+      selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref, #Benchmark for calculating active returns
       groups_m_d_ref = groups_m_d_ref #Groups for correcting NAs
     )
   } else {

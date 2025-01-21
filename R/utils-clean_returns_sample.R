@@ -12,10 +12,10 @@
 #' @export
 #'
 #' @examples
-clean_returns_sample <- function(returns_xts_sample, groups_m_d_ref = NULL, fill = TRUE, fill_by = NULL, verbose = TRUE){
+clean_returns_sample <- function(returns_m_xts_sample, groups_m_d_ref = NULL, fill = TRUE, fill_by = NULL, verbose = TRUE){
 
   #Remove holidays
-  returns_df_clean <- returns_xts_sample %>% as.data.frame() %>% dplyr::filter(rowSums(is.na(.)) != ncol(returns_xts_sample))  #Rows with only NAs
+  returns_df_clean <- returns_m_xts_sample %>% as.data.frame() %>% dplyr::filter(rowSums(is.na(.)) != ncol(returns_m_xts_sample))  #Rows with only NAs
 
   ##################n
 
@@ -71,7 +71,7 @@ clean_returns_sample <- function(returns_xts_sample, groups_m_d_ref = NULL, fill
 
   }
   #Return a xts object
-  returns_xts_clean <- xts::xts(returns_df_clean, order.by = zoo::index(returns_xts_sample))
-  return(returns_xts_clean)
+  returns_m_xts_clean <- xts::xts(returns_df_clean, order.by = zoo::index(returns_m_xts_sample))
+  return(returns_m_xts_clean)
 
 }

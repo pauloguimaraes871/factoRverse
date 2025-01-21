@@ -6,7 +6,7 @@
 #' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
 #' @param signal_themes_m_df A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in `signals_m_df`, and a "theme" column providing group membership for each signal.
-#' @param backtest_returns_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
+#' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #'
 #' @details
 #' The function performs the following operations:
@@ -28,7 +28,7 @@
 #' @importFrom dplyr select
 #' @importFrom stats setNames
 #' @export
-select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, signal_themes_m_df = NULL, backtest_returns_xts = NULL){
+select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, signal_themes_m_df = NULL, backtest_returns_m_xts = NULL){
 
   ###Get chosen signals
   #####################
@@ -78,16 +78,16 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
 
   ###Subset backtests
   #######################
-  if(!is.null(backtest_returns_xts)){
+  if(!is.null(backtest_returns_m_xts)){
     ###Check if all signals have a backtest
-    if(!all(chosen_signals_corrected_positions %in% colnames(backtest_returns_xts))){
-      stop("all chosen signals should have a matching position in backtest_returns_xts")
+    if(!all(chosen_signals_corrected_positions %in% colnames(backtest_returns_m_xts))){
+      stop("all chosen signals should have a matching position in backtest_returns_m_xts")
     }
 
     #signals_backtests
-    selected_backtest_returns_corrected_positions_xts <- backtest_returns_xts[, chosen_signals_corrected_positions]
+    selected_backtest_returns_corrected_positions_m_xts <- backtest_returns_m_xts[, chosen_signals_corrected_positions]
   } else {
-    selected_backtest_returns_corrected_positions_xts <- NULL
+    selected_backtest_returns_corrected_positions_m_xts <- NULL
   }
 
   #######################
@@ -97,7 +97,7 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
   selected_signals_and_backtest_list <- list(
     selected_signals_corrected_positions_m_df = selected_signals_corrected_positions_m_df,
     selected_signal_themes_m_df = selected_signal_themes_m_df,
-    selected_backtest_returns_corrected_positions_xts = selected_backtest_returns_corrected_positions_xts
+    selected_backtest_returns_corrected_positions_m_xts = selected_backtest_returns_corrected_positions_m_xts
   )
 
   return(selected_signals_and_backtest_list)

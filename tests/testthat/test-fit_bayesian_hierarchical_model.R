@@ -10,20 +10,20 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     signals_m_df = signals_m_df,
     signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = backtest_returns_xts
+    backtest_returns_m_xts = backtest_returns_m_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:5), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:5), "IBOV"]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
@@ -34,8 +34,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     model_structure = "partial_pooled", model_spec_theme_level = "random_intercept_fixed_slope",
     lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref
   )
 
 
@@ -67,8 +67,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
                                 signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
                                 selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
@@ -90,8 +90,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
-  selected_backtest_returns_corrected_positions_m_upd_ref <- tibble::rownames_to_column(as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref),
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_m_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref <- tibble::rownames_to_column(as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref),
                                                                                         var = "dates")
 
   selected_backtest_returns_corrected_positions_m_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
@@ -142,7 +142,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
+  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
@@ -249,19 +249,19 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     signals_m_df = signals_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
     signal_themes_m_df = signal_themes_m_df,
-    backtest_returns_xts = backtest_returns_xts
+    backtest_returns_m_xts = backtest_returns_m_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:5), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:5), "IBOV"]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
@@ -272,8 +272,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_fixed_slope",
     lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref
   )
 
   #Inside Bayesian Adjustment
@@ -302,8 +302,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
                                 signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
                                 selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
@@ -324,8 +324,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "0 + theme + market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
-  selected_backtest_returns_corrected_positions_m_upd_ref_long <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_m_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref_long <- as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>%
     tibble::rownames_to_column(var = "dates")
 
   selected_backtest_returns_corrected_positions_m_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref_long,
@@ -374,7 +374,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
+  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
@@ -468,19 +468,19 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     signals_m_df = signals_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
     signal_themes_m_df = signal_themes_m_df,
-    backtest_returns_xts = backtest_returns_xts
+    backtest_returns_m_xts = backtest_returns_m_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:5), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:5), "IBOV"]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
@@ -491,8 +491,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
     lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref
   )
 
   #Inside Bayesian Adjustment
@@ -521,8 +521,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
                                 signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
                                 selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
@@ -543,8 +543,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
-  selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_m_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>%
     tibble::rownames_to_column(var = "dates")
   selected_backtest_returns_corrected_positions_m_upd_ref <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
                                                                                id.vars = c("dates", "market_factor_proxy"),
@@ -592,7 +592,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
+  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
@@ -687,19 +687,19 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
     signals_m_df = signals_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
     signal_themes_m_df = signal_themes_m_df,
-    backtest_returns_xts = backtest_returns_xts
+    backtest_returns_m_xts = backtest_returns_m_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:5), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:5), "IBOV"]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
@@ -710,8 +710,8 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
     model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
     lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref
   )
 
   #Inside Bayesian Adjustment
@@ -742,8 +742,8 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
   future::plan("multisession")
   set.seed(123)
   suppressWarnings(
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                             selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                             selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
                                              signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
                                              selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                              elected_priors = elected_priors,
@@ -765,8 +765,8 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
-  selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_m_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>%
     tibble::rownames_to_column(var = "dates")
   selected_backtest_returns_corrected_positions_m_upd_ref <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
                                                                             id.vars = c("dates", "market_factor_proxy"),
@@ -855,7 +855,7 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
+  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
@@ -950,19 +950,19 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     signals_m_df = signals_m_df,
     signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = backtest_returns_xts
+    backtest_returns_m_xts = backtest_returns_m_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c("IBOV")]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c("IBOV")]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #current info
   current_date <- "2001-07-15"
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:5), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:5), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:5), "IBOV"]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:5), "IBOV"]
 
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date), ]
 
@@ -973,8 +973,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     model_structure = "partial_pooled", model_spec_theme_level = "fixed_intercept_fixed_slope",
     lmer_control = list(lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref
   )
 
   #Inside Bayesian Adjustment
@@ -1000,8 +1000,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   future::plan("multisession")
   set.seed(123)
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
                                 signal_universe_m_d_ref =  expected_result$signal_universe_m_d_ref,
                                 selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                 elected_priors = elected_priors,
@@ -1022,8 +1022,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
-  selected_backtest_returns_corrected_positions_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_xts_upd_ref
-  selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref$market_factor_proxy <- selected_market_factor_proxy_m_xts_upd_ref
+  selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>%
     tibble::rownames_to_column(var = "dates")
 
   selected_backtest_returns_corrected_positions_m_upd_ref <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
@@ -1072,7 +1072,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   #Check number of rows in predicted_summary
   n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_xts_upd_ref) - 1)
+  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
   expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws

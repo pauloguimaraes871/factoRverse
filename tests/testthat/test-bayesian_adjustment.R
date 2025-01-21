@@ -141,13 +141,13 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   chosen_signals_and_positions <- rep("long", length(signal_columns))
   names(chosen_signals_and_positions) <- signal_columns
 
-  backtest_returns_xts <- simulated_data %>% tidyr::pivot_wider(id_cols = dates, names_from = tickers, values_from = return)
-  backtest_returns_xts <- xts::as.xts(backtest_returns_xts[, -1], order.by = backtest_returns_xts$dates)
+  backtest_returns_m_xts <- simulated_data %>% tidyr::pivot_wider(id_cols = dates, names_from = tickers, values_from = return)
+  backtest_returns_m_xts <- xts::as.xts(backtest_returns_m_xts[, -1], order.by = backtest_returns_m_xts$dates)
 
-  correct_names <-   colnames(backtest_returns_xts)
+  correct_names <-   colnames(backtest_returns_m_xts)
   correct_names[chosen_signals_and_positions == "short"] <- paste0("low_", names(chosen_signals_and_positions)[chosen_signals_and_positions])
 
-  colnames(backtest_returns_xts) <- correct_names
+  colnames(backtest_returns_m_xts) <- correct_names
 
 
   #get selected info
@@ -155,20 +155,20 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
     signals_m_df = signals_m_df,
     signal_themes_m_df = NULL,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = backtest_returns_xts
+    backtest_returns_m_xts = backtest_returns_m_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- xts::as.xts(data.frame(IBOV = rnorm(num_dates, 0, 1)), order.by = dates)
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- xts::as.xts(data.frame(IBOV = rnorm(num_dates, 0, 1)), order.by = dates)
   #selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
 
   #current info
   current_date <- "1987-11-01"
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:95), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:95), ]
 
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:95), "IBOV"]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:95), "IBOV"]
 
   selected_signal_themes_m_d_ref <- tibble::enframe(theme_ticker_map, name = "theme", value = "tickers") %>%
     tidyr::unnest(tickers) %>%
@@ -299,16 +299,16 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
     model_structure = "partial_pooled", model_spec_theme_level = "theme_specific_intercept_fixed_slope",
     lmer_control = list(lmer_optimizer = "Nelder_Mead", lmer_optimization_objective = "REML", hierarchical_p_value_method = "Satterthwaite"),
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref
   )
 
 
   future::plan("multisession")
   suppressWarnings(
   result <- bayesian_adjustment(signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
                                 priors_m_upd_ref = priors_m_upd_ref, v = 30, lmer_optimizer = "Nelder_Mead", user_priors = NULL,
                                 model_spec_theme_level = "theme_specific_intercept_fixed_slope",
                                 selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,

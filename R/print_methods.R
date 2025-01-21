@@ -613,11 +613,17 @@ setMethod("show", "sb_metabacktest_config",
             cat("Config Name: ", object@config_name, "\n")
 
             cat("------------------------------\n")
+            cat(crayon::cyan("Meta Backtesting Scheme:"))
+            cat("\n")
+            cat(sprintf("  features_passthrough_and_positions: %s\n", object@features_passthrough_and_positions))
+            cat(sprintf("  winsorize_base_predictions: %s\n", object@winsorize_base_predictions))
+            cat(sprintf("  normalize_base_predictions: %s\n", object@normalize_base_predictions))
+            cat("\n")
+
             cat(crayon::cyan("Meta Learner Backtest Configuration:\n"))
             config <- object@meta_sb_backtest_config
             cat(sprintf("  sb_algorithm: %s\n", config@sb_algorithm))
             cat(sprintf("  config_name: %s\n", config@config_name))
-
 
             # For neural networks, display number of layers
             if (config@sb_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
@@ -632,14 +638,35 @@ setMethod("show", "sb_metabacktest_config",
             cat(sprintf("  quantile_tau: %s\n", config@quantile_tau))
 
             if (!is.null(config@tuning_strategy)) {
-              cat("  Tuning_strategy:\n")
+              cat("  Meta Learner Tuning Strategy:\n")
               cat(sprintf("    tuning_method: %s\n", config@tuning_strategy@tuning_method))
               cat(sprintf("    validation_sample_size: %s\n", config@tuning_strategy@validation_sample_size))
               cat(sprintf("    chosen_eval_metric: %s\n", config@tuning_strategy@chosen_eval_metric))
             } else {
-              cat("  No tuning_strategy available\n")
+              cat("  No Meta Learner Tuning Strategy available\n")
             }
             cat("\n")
+
+            if (!is.null(config@ss_backtest_config)) {
+              cat("  Meta Learner SS Backtest Config:\n")
+              cat(sprintf("    ss_config_name: %s\n", config@ss_backtest_config@config_name))
+              cat(sprintf("    model_structure: %s\n", config@alpha_test_strategy@model_structure))
+              cat(sprintf("    p_correction_method: %s\n", config@alpha_test_strategy@p_correction_method))
+            }
+            if (!is.null(config@ss_backtest_results)) {
+              cat("  Meta Learner SS Backtest Results:\n")
+              cat(sprintf("    ss_backtest_identifier: %s\n", config@ss_backtest_results@backtest_identifier))
+              cat(sprintf("    model_structure: %s\n", config@ss_backtest_results@ss_backtest_workflow$model_structure))
+              cat(sprintf("    p_correction_method: %s\n", config@ss_backtest_results@ss_backtest_workflow$p_correction_method))
+            }
+            cat("\n")
+
+            if (is.null(config@ss_backtest_results) && is.null(config@ss_backtest_config)) {
+              cat("  No Meta Learner SS backtest configuration or results available\n")
+            }
+
+            cat("\n")
+
 
 
             cat("------------------------------\n")
@@ -684,7 +711,7 @@ setMethod("show", "sb_metabacktest_config",
                 cat(sprintf("  quantile_tau: %s\n", config@quantile_tau))
 
                 if (!is.null(config@tuning_strategy)) {
-                  cat("  Tuning_strategy:\n")
+                  cat("  Tuning strategy:\n")
                   cat(sprintf("    tuning_method: %s\n", config@tuning_strategy@tuning_method))
                   cat(sprintf("    validation_sample_size: %s\n", config@tuning_strategy@validation_sample_size))
                   cat(sprintf("    chosen_eval_metric: %s\n", config@tuning_strategy@chosen_eval_metric))
@@ -692,6 +719,27 @@ setMethod("show", "sb_metabacktest_config",
                   cat("  No tuning_strategy available\n")
                 }
                 cat("\n")
+
+                if (!is.null(config@ss_backtest_config)) {
+                  cat("  SS Backtest Config:\n")
+                  cat(sprintf("    ss_config_name: %s\n", config@ss_backtest_config@config_name))
+                  cat(sprintf("    model_structure: %s\n", config@alpha_test_strategy@model_structure))
+                  cat(sprintf("    p_correction_method: %s\n", config@alpha_test_strategy@p_correction_method))
+                }
+                if (!is.null(config@ss_backtest_results)) {
+                  cat("  SS Backtest Results:\n")
+                  cat(sprintf("    ss_backtest_identifier: %s\n", config@ss_backtest_results@backtest_identifier))
+                  cat(sprintf("    model_structure: %s\n", config@ss_backtest_results@ss_backtest_workflow$model_structure))
+                  cat(sprintf("    p_correction_method: %s\n", config@ss_backtest_results@ss_backtest_workflow$p_correction_method))
+                }
+                cat("\n")
+
+                if (is.null(config@ss_backtest_results) && is.null(config@ss_backtest_config)) {
+                  cat("  No SS backtest configuration or results available\n")
+                }
+
+                cat("\n")
+
               }
             }
 

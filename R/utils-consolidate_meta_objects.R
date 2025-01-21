@@ -8,14 +8,14 @@
 #' @param winsorize_predictions Logical; if `TRUE`, performs winsorization on predictions to mitigate the effect of outliers. Default is `TRUE`.
 #' @param normalize_predictions Logical; if `TRUE`, normalizes predictions to ensure comparability across models. Default is `TRUE`.
 #' @param winsorization_probs A numeric vector of length 2 specifying the lower and upper quantile probabilities for winsorization. Default is `c(0.025, 0.975)`.
-#' @param features_passthrough_and_positions Character; specifies which features from `features_m_df` to include in the output. Options are `"none"`, `"all"`, or specific feature names with their positions. Default is `"none"`.
-#' @param features_m_df A meta dataframe of features to include in the passthrough. Only required if `features_passthrough_and_positions` is not `"none"`. Default is `NULL`.
+#' @param features_passthrough Character; specifies which features from `features_m_df` to include in the output. Options are `"none"`, `"all"`, or specific feature names. Default is `"none"`.
+#' @param features_m_df A meta dataframe of features to include in the passthrough. Only required if `features_passthrough` is not `"none"`. Default is `NULL`.
 #'
 #' @details
 #' The function performs a series of validation checks to ensure the consistency of input data:
 #' - All elements in `base_sb_backtest_results_list` must have the same `oos_predictions_m_df` structure, with matching `id` values across all elements.
 #' - The list must have unique, non-empty names to be used as column identifiers in the consolidated dataframe.
-#' - If `features_passthrough_and_positions` is not `"none"`, a `features_m_df` must be provided.
+#' - If `features_passthrough` is not `"none"`, a `features_m_df` must be provided.
 #'
 #' After performing these validations, the function consolidates predictions into a single meta dataframe.
 #' Optional winsorization and normalization can be applied to the predictions.
@@ -28,7 +28,7 @@
 #' # Example with default options
 #' consolidated_df <- consolidate_oos_sb_outputs_m_df(
 #'   base_sb_backtest_results_list = list_of_sb_results,
-#'   features_passthrough_and_positions = "all",
+#'   features_passthrough = "all",
 #'   features_m_df = features_df
 #' )
 #' }
@@ -39,8 +39,8 @@
 #'
 #' @export
 consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
-                                            winsorize_predictions = TRUE, normalize_predictions= TRUE, winsorization_probs = c(0.025,0.975),
-                                            features_passthrough_and_positions = "none", features_m_df = NULL) {
+                                            winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
+                                            features_passthrough = "none", features_m_df) {
 
   #Initial checks
   #########################
@@ -96,10 +96,12 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
       stop("Number of rows of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
     }
 
-    ##Check if features_m_df is provided when features_passthrough_and_positions is not none
-    if (features_passthrough_and_positions != "none" && is.null(features_m_df)){
-      stop("features_m_df can't be NULL when features_passthrough_and_positions is not none")
-    }
+    ##Get features_passthrough_and_positions
+
+
+
+
+
   #########################
 
   #Join oos_preds
@@ -145,29 +147,22 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
 
   } else {
 
-    if (features_passthrough_and_positions == "all") {
-      ##If all, pass everything except for tickers and dates
+    ##If specific features, pass only those
+
+      ###Adjust features_m_df according to features_passthrough_and_positions
+      selected_and_correct_features_m_df <- select_and_correct_signals(
+        features_m_df@data,
+        chosen_signals_and_positions = features_passthrough_and_positions
+        )$selected_signals_corrected_positions_m_df
+
+      ###Join
       oos_predictions_and_features_m_df <- oos_predictions_m_df
       oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data,
-                                                                 dplyr::select(features_m_df@data, -tickers, -dates), by = "id")
-      oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
-      oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, "passthrough_all")
-
-    } else {
-      ##If specific features, pass only those
-
-        ###Adjust features_m_df according to features_passthrough_and_positions
-        selected_and_correct_features_m_df <- select_and_correct_signals(features_m_df@data,
-                                                                         chosen_signals_and_positions = features_passthrough_and_positions)$selected_signals_corrected_positions_m_df
-
-        ###Join
-        oos_predictions_and_features_m_df <- oos_predictions_m_df
-        oos_predictions_and_features_m_df@data <- dplyr::left_join(oos_predictions_m_df@data,
                                                                    dplyr::select(selected_and_correct_features_m_df, -tickers, -dates), by = "id")
-        oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
-        oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, features_passthrough_and_positions)
-    }
+      oos_predictions_and_features_m_df@meta_dataframe_name <- paste0(config@config_name, "_bpreds")
+      oos_predictions_and_features_m_df@workflow <- c(oos_predictions_and_features_m_df@workflow, features_passthrough_and_positions)
   }
+
 
   #########################
   return(oos_predictions_and_features_m_df)

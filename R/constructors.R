@@ -387,6 +387,100 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 
 )
 
+#-----------------------------------------------------------------------
+# meta_xts
+#-----------------------------------------------------------------------
+#' Create a meta_xts, assets_meta_xts or metrics_meta_xts object.
+#'
+#' This constructor automatically sets most slots for you based on an
+#' input xts object and the desired type: "assets" or "metrics".
+#'
+#' @param data An xts object containing your time series data.
+#' @param type Character. Either \code{"assets"} (no holes allowed) or
+#'   \code{"metrics"} (holes allowed). Defaults to \code{c("assets","metrics")}
+#'   which means you must pick one.
+#' @param meta_xts_name A character string. Defaults to \code{"default_name"}.
+#' @param workflow An ANY object for workflow. Defaults to \code{NULL}.
+#' @param source A character vector indicating data origin for each column.
+#'   If \code{NULL}, defaults to \code{"not_identified"} repeated for each column.
+#'
+#' @return An S4 object of class \code{assets_meta_xts} or \code{metrics_meta_xts},
+#'   depending on \code{type}.
+#'
+#' @examples
+#' \dontrun{
+#'   library(xts)
+#'   # Simple example data
+#'   dates <- seq(as.Date("2020-01-01"), as.Date("2020-01-05"), by = "day")
+#'   x <- matrix(rnorm(5 * 2), ncol = 2)
+#'   colnames(x) <- c("AssetA", "AssetB")
+#'   my_xts <- xts::xts(x, order.by = dates)
+#'
+#'   # Create an assets_meta_xts
+#'   obj_assets <- create_meta_xts(data = my_xts, type = "assets",
+#'                                meta_xts_name = "My Assets Data")
+#'   validObject(obj_assets)
+#'
+#'   # Create a metrics_meta_xts
+#'   obj_metrics <- create_meta_xts(data = my_xts, type = "metrics",
+#'                                 meta_xts_name = "My Metrics Data")
+#'   validObject(obj_metrics)
+#' }
+#'
+#' @importFrom xts periodicity
+#' @importFrom methods new
+#' @export
+create_meta_xts <- function(data,
+                            type = c("assets", "metrics"),
+                            meta_xts_name = "default_name",
+                            workflow = NULL,
+                            source = NULL) {
+
+  # 1) Match 'type' argument
+  type <- match.arg(type)
+
+  # 2) If source is NULL, default to a vector of "not_identified"
+  #    repeated for each column in 'data'.
+  if (is.null(source)) {
+    source <- rep("not_identified", ncol(data))
+  }
+
+  # 3) Detect frequency automatically
+  freq_info <- xts::periodicity(data)
+  discovered_scale <- freq_info$scale
+
+  # 4) Common slots for the parent class
+  common_slots <- list(
+    data          = data,
+    meta_xts_name = meta_xts_name,
+    workflow      = workflow,
+    n_dates       = nrow(data),
+    source        = source,
+    frequency     = discovered_scale
+  )
+
+  # 5) Depending on 'type', build the appropriate subclass
+  if (type == "assets") {
+    # For assets_meta_xts, we fill the specialized slots:
+    obj <- methods::new(
+      "assets_meta_xts",
+      common_slots,
+      assets   = colnames(data),
+      n_assets = ncol(data)
+    )
+  } else { # type == "metrics"
+    # For metrics_meta_xts, we fill the specialized slots:
+    obj <- methods::new(
+      "metrics_meta_xts",
+      common_slots,
+      metrics   = colnames(data),
+      n_metrics = ncol(data)
+    )
+  }
+
+  # 6) Return the newly created object
+  return(obj)
+}
 
 
 #-----------------------------------------------------------------------
@@ -2315,7 +2409,6 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 }
 
 
-
 #' Create SB Meta Backtest Configuration
 #'
 #' The `create_sb_metabacktest_config` function creates an `sb_metabacktest_config` object by combining a `sb_backtest_config` for the meta-learner
@@ -2328,8 +2421,8 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
 #' @param base_sb_backtest_configs A list of `sb_backtest_config` objects with `tuning_strategy` set to `NULL`.
 #' @param base_sb_backtest_results A list of `sb_backtest_results` objects.
-#' @param ss_backtest_configs A list of `ss_backtest_config` objects (optional).
-#' @param ss_backtest_results A list of `ss_backtest_results` objects (optional)
+#' @param base_ss_backtest_configs A list of `ss_backtest_config` objects (optional).
+#' @param base_ss_backtest_results A list of `ss_backtest_results` objects (optional)
 #' @param config_name Name of the backtest configuration.
 #' @param ... Additional arguments (not used).
 #'
@@ -2356,8 +2449,9 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #' @seealso \code{\link{sb_backtest_config}}, \code{\link{ss_backtest_config}}, \code{\link{sb_metabacktest_config}}
 #'
 #' @export
-setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, base_sb_backtest_configs, base_sb_backtest_results,
-                                                     ss_backtest_configs, ss_backtest_results, ...) standardGeneric("create_sb_metabacktest_config"))
+setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config,
+                                                     base_sb_backtest_configs, base_sb_backtest_results,
+                                                     base_ss_backtest_configs, base_ss_backtest_results, ...) standardGeneric("create_sb_metabacktest_config"))
 
 
 #' @describeIn create_sb_metabacktest_config Combine ss_backtest_configs and ss_backtest_configs
@@ -2383,9 +2477,13 @@ setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, ba
 #'
 #' @export
 setMethod("create_sb_metabacktest_config",
-          signature(meta_sb_backtest_config = "sb_backtest_config", base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-                    ss_backtest_configs = "list", ss_backtest_results = "missing"),
-          function(meta_sb_backtest_config, base_sb_backtest_configs, ss_backtest_configs, config_name = "not_identified", ...) {
+          signature(meta_sb_backtest_config = "sb_backtest_config",
+                    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+                    base_ss_backtest_configs = "list", base_ss_backtest_results = "missing"),
+
+          function(meta_sb_backtest_config, base_sb_backtest_configs, base_ss_backtest_configs,
+                   features_passthrough = "none", normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+                   config_name = "not_identified", ...) {
 
             # Check that all base_sb_backtest_configs are sb_backtest_config objects
             if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
@@ -2393,13 +2491,13 @@ setMethod("create_sb_metabacktest_config",
             }
 
             # Check that all ss_backtest_config are ss_backtest_config objects
-            if (!all(sapply(ss_backtest_configs, function(x) is(x, "ss_backtest_config")))) {
-              stop("All elements in 'ss_backtest_configs' must be 'ss_backtest_config' objects.")
+            if (!all(sapply(base_ss_backtest_configs, function(x) is(x, "ss_backtest_config")))) {
+              stop("All elements in 'base_ss_backtest_configs' must be 'ss_backtest_config' objects.")
             }
 
             # Get config names
             sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
-            ss_config_names <- as.character(sapply(ss_backtest_configs, function(x) x@config_name))
+            ss_config_names <- as.character(sapply(base_ss_backtest_configs, function(x) x@config_name))
 
             combined_configs <- list()
 
@@ -2408,8 +2506,12 @@ setMethod("create_sb_metabacktest_config",
             for (i in seq_along(base_sb_backtest_configs)) {
               sb_config <- base_sb_backtest_configs[[i]]
 
-              for (j in seq_along(ss_backtest_configs)) {
-                ss_config <- ss_backtest_configs[[j]]
+              if (!is.null(sb_config@ss_backtest_config) || !is.null(sb_config@ss_backtest_results)) {
+                stop("All elements in 'base_sb_backtest_configs' must have 'ss_backtest_config' and 'ss_backtest_results' set to NULL.")
+              }
+
+              for (j in seq_along(base_ss_backtest_configs)) {
+                ss_config <- base_ss_backtest_configs[[j]]
 
                 # Add the ss_backtest_config
                 new_config <- add_ss_backtest_obj(sb_config, ss_config)
@@ -2424,7 +2526,11 @@ setMethod("create_sb_metabacktest_config",
            # Create the sb_metabacktest_config object
             meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config,
                                base_sb_backtest_configs = combined_configs,
-                               base_sb_backtest_results = NULL, config_name = config_name)
+                               base_sb_backtest_results = NULL,
+                               features_passthrough = features_passthrough,
+                               normalize_base_predictions = normalize_base_predictions,
+                               winsorize_base_predictions = winsorize_base_predictions,
+                               config_name = config_name)
 
             # State the number of valid configurations produced
             cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
@@ -2456,9 +2562,13 @@ setMethod("create_sb_metabacktest_config",
 #'
 #' @export
 setMethod("create_sb_metabacktest_config",
-          signature(meta_sb_backtest_config = "sb_backtest_config", base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-                    ss_backtest_configs = "missing", ss_backtest_results = "list"),
-          function(meta_sb_backtest_config, base_sb_backtest_configs, ss_backtest_results, config_name = "not_identified", ...) {
+          signature(meta_sb_backtest_config = "sb_backtest_config",
+                    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+                    base_ss_backtest_configs = "missing", base_ss_backtest_results = "list"),
+
+          function(meta_sb_backtest_config, base_sb_backtest_configs, base_ss_backtest_results,
+                   features_passthrough = "none", normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+                   config_name = "not_identified", ...) {
 
             # Check that all base_sb_backtest_configs are sb_backtest_config objects
             if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
@@ -2466,13 +2576,13 @@ setMethod("create_sb_metabacktest_config",
             }
 
             # Check that all ss_backtest_config are ss_backtest_results objects
-            if (!all(sapply(ss_backtest_results, function(x) is(x, "ss_backtest_results")))) {
-              stop("All elements in 'ss_backtest_results' must be 'ss_backtest_results' objects.")
+            if (!all(sapply(base_ss_backtest_results, function(x) is(x, "ss_backtest_results")))) {
+              stop("All elements in 'base_ss_backtest_results' must be 'ss_backtest_results' objects.")
             }
 
             # Get config names
             sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
-            ss_results_names <- as.character(sapply(ss_backtest_results, function(x) x@backtest_identifier))
+            ss_results_names <- as.character(sapply(base_ss_backtest_results, function(x) x@backtest_identifier))
 
             combined_configs <- list()
 
@@ -2481,8 +2591,12 @@ setMethod("create_sb_metabacktest_config",
             for (i in seq_along(base_sb_backtest_configs)) {
               sb_config <- base_sb_backtest_configs[[i]]
 
-              for (j in seq_along(ss_backtest_results)) {
-                ss_results <- ss_backtest_results[[j]]
+              if (!is.null(sb_config@ss_backtest_config) || !is.null(sb_config@ss_backtest_results)) {
+                stop("All elements in 'base_sb_backtest_configs' must have 'ss_backtest_config' and 'ss_backtest_results' set to NULL.")
+              }
+
+              for (j in seq_along(base_ss_backtest_results)) {
+                ss_results <- base_ss_backtest_results[[j]]
 
                 # Add the ss_backtest_results
                 new_config <- add_ss_backtest_obj(sb_config, ss_results)
@@ -2497,7 +2611,11 @@ setMethod("create_sb_metabacktest_config",
             # Create the sb_metabacktest_config object
             meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config,
                                base_sb_backtest_configs = combined_configs,
-                               base_sb_backtest_results = NULL, config_name = config_name)
+                               base_sb_backtest_results = NULL,
+                               features_passthrough = features_passthrough,
+                               normalize_base_predictions = normalize_base_predictions,
+                               winsorize_base_predictions = winsorize_base_predictions,
+                               config_name = config_name)
 
             # State the number of valid configurations produced
             cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
@@ -2516,23 +2634,27 @@ setMethod("create_sb_metabacktest_config",
 #' @return A `sb_metabacktest_config` object containing the provided `sb_backtest_config` objects.
 #' @export
 setMethod("create_sb_metabacktest_config",
-          signature(meta_sb_backtest_config = 'sb_backtest_config', base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-                    ss_backtest_configs = "missing", ss_backtest_results = "missing"),
-          function(meta_sb_backtest_config, base_sb_backtest_configs, config_name = "not_identified", ...) {
+          signature(meta_sb_backtest_config = 'sb_backtest_config',
+                    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+                    base_ss_backtest_configs = "missing", base_ss_backtest_results = "missing"),
+
+          function(meta_sb_backtest_config, base_sb_backtest_configs, config_name = "not_identified",
+                   features_passthrough = "none",
+                   normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+                   ...) {
 
             # Check that all configs are sb_backtest_config objects
             if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
               stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
             }
 
-            # Check that ss_backtest_config or ss_backtest_results is not NULL
-            if(any(sapply(base_sb_backtest_configs, function(x) is.null(x@ss_backtest_config) && is.null(x@ss_backtest_results)))) {
-              stop("All 'sb_backtest_config' objects must have 'ss_backtest_config' or 'ss_backtest_results' not NULL.")
-            }
-
             # Create the sb_metabacktest_config object
             meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = base_sb_backtest_configs,
-                               base_sb_backtest_results = NULL, config_name = config_name)
+                               base_sb_backtest_results = NULL,
+                               features_passthrough = features_passthrough,
+                               normalize_base_predictions = normalize_base_predictions,
+                               winsorize_base_predictions = winsorize_base_predictions,
+                               config_name = config_name)
             return(meta_config)
           }
 )
@@ -2546,18 +2668,29 @@ setMethod("create_sb_metabacktest_config",
 #' @return An `sb_metabacktest_config` object containing the provided `sb_backtest_config` objects.
 #' @export
 setMethod("create_sb_metabacktest_config",
-          signature(meta_sb_backtest_config = 'sb_backtest_config', base_sb_backtest_configs = "missing", base_sb_backtest_results = "list",
-                    ss_backtest_configs = "missing", ss_backtest_results = "missing"),
-          function(meta_sb_backtest_config, base_sb_backtest_results, config_name = "not_identified", ...) {
+          signature(meta_sb_backtest_config = 'sb_backtest_config',
+                    base_sb_backtest_configs = "missing", base_sb_backtest_results = "list",
+                    base_ss_backtest_configs = "missing", base_ss_backtest_results = "missing"),
+
+          function(meta_sb_backtest_config, base_sb_backtest_results, config_name = "not_identified",
+                   features_passthrough = "none",
+                   normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+                   ...) {
 
             # Check that all configs are sb_backtest_config objects
             if (!all(sapply(base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
               stop("All elements in 'base_sb_backtest_results' must be 'sb_backtest_results' objects.")
             }
 
+
             # Create the sb_metabacktest_config object
-            meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = NULL,
-                               base_sb_backtest_results = base_sb_backtest_results, config_name = config_name)
+            meta_config <- new("sb_metabacktest_config",
+                               meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = NULL,
+                               base_sb_backtest_results = base_sb_backtest_results,
+                               features_passthrough = features_passthrough,
+                               normalize_base_predictions = normalize_base_predictions,
+                               winsorize_base_predictions = winsorize_base_predictions,
+                               config_name = config_name)
             return(meta_config)
           }
 )
@@ -2574,13 +2707,10 @@ setGeneric("add_sb_backtest_config", function(object, ...) standardGeneric("add_
 setMethod("add_sb_backtest_config", "sb_metabacktest_config", function(object, ...) {
 
   # Check that all new_configs are complete sb_backtest_config objects
-  if(!all(sapply(new_configs, function(x) !is.null(x@tuning_strategy)))) {
+  if(!all(sapply(new_configs, function(x){
+    (!x@sb_algorithm %in% c("ols", "rp", "mvo", "ew", "sw", "custom") && !is.null(x@tuning_strategy))
+  }))){
     stop("All elements in '...' must be complete (with tuning_strategy) 'sb_backtest_config' objects.")
-  }
-
-  # Check that all new_configs are complete sb_backtest_config objects
-  if(!all(sapply(new_configs, function(x) is.null(x@ss_backtest_config && is.null(x@ss_backtest_results))))) {
-    stop("All elements in '...' must be complete (with ss_backtest_config or ss_backtest_results) 'sb_backtest_config' objects.")
   }
 
   # Combine the current base_sb_backtest_configs with the new configurations
@@ -2636,7 +2766,6 @@ setMethod("remove_sb_backtest_config", "sb_metabacktest_config", function(object
 #' @param base_sb_backtest_results_list A named list of `sb_backtest_results` objects for the base learners.
 #' @return An object of class `sb_metabacktest_results`.
 #'
-#' @export
 setGeneric(
   name = "create_sb_metabacktest_results",
   def = function(meta_sb_backtest_results, base_sb_backtest_results) {

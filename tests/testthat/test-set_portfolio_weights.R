@@ -17,10 +17,10 @@ test_that("set portfolio weights work for Custom Weights (signals)", {
 
   select_and_correct_signals_backtest_list <- select_and_correct_signals(signals_m_df = signals_m_df@data,
                                                                          chosen_signals_and_positions = chosen_signals_and_positions,
-                                                                         backtest_returns_xts = mocked_backtest_returns_xts)
+                                                                         backtest_returns_m_xts = mocked_backtest_returns_m_xts)
 
   selected_signals_corrected_positions_m_df <- select_and_correct_signals_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- select_and_correct_signals_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_backtest_returns_corrected_positions_m_xts <- select_and_correct_signals_backtest_list$selected_backtest_returns_corrected_positions_m_xts
 
   expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
   expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
@@ -80,10 +80,10 @@ test_that("set portfolio weights work for EW (signals)", {
 
   select_and_correct_signals_backtest_list <- select_and_correct_signals(signals_m_df = signals_m_df@data,
                                                                          chosen_signals_and_positions = chosen_signals_and_positions,
-                                                                         backtest_returns_xts = mocked_backtest_returns_xts)
+                                                                         backtest_returns_m_xts = mocked_backtest_returns_m_xts)
 
   selected_signals_corrected_positions_m_df <- select_and_correct_signals_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- select_and_correct_signals_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_backtest_returns_corrected_positions_m_xts <- select_and_correct_signals_backtest_list$selected_backtest_returns_corrected_positions_m_xts
 
   expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
   expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
@@ -96,7 +96,7 @@ test_that("set portfolio weights work for EW (signals)", {
 
   most_recent_signal_universe_m_d_ref <- most_recent_signal_universe_m_d_ref
 
-  cov_matrix <- cov(selected_backtest_returns_corrected_positions_xts[1:9,])
+  cov_matrix <- cov(selected_backtest_returns_corrected_positions_m_xts[1:9,])
 
   #RRC
   rrc <- relative_risk_contribution(most_recent_signal_universe_m_d_ref$weights, cov_matrix)
@@ -104,7 +104,7 @@ test_that("set portfolio weights work for EW (signals)", {
   most_recent_signal_universe_m_d_ref <- most_recent_signal_universe_m_d_ref %>% dplyr::relocate(rel_risk_contr, .before = weights)
 
   results <- set_portfolio_weights(port_construction_method = "ew", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::select(-weights, -rel_risk_contr),
-                                   returns_xts_upd_ref = mocked_backtest_returns_xts[1:9,]
+                                   returns_m_xts_upd_ref = mocked_backtest_returns_m_xts[1:9,]
   )
 
   expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
@@ -206,17 +206,17 @@ test_that("set portfolio weights work for RP (signals) ", {
 
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df@data, chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts)
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_cov_matrix_benchmark_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_cov_matrix_benchmark_m_xts <- benchmark_returns_m_xts[, "IBOV"]
 
   expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
   expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
-  selected_cov_matrix_benchmark_xts_upd_ref <- selected_cov_matrix_benchmark_xts[c(1:9), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:9),]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- selected_cov_matrix_benchmark_m_xts[c(1:9), ]
 
   #ts_splits
   features_m_refit <- signals_m_df@data %>% dplyr::filter(dates <= "2023-03-15") #this is to mimick ts_split behavior with a target_fwd of 3
@@ -226,16 +226,16 @@ test_that("set portfolio weights work for RP (signals) ", {
 
 
   #Calculate a sample cov active matrix
-  selected_backtest_returns_corrected_positions_xts_upd_ref_active <-
-    apply(selected_backtest_returns_corrected_positions_xts_upd_ref, 2, function(x){
-      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_xts_upd_ref)/100) - 1)*100
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref_active <-
+    apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref, 2, function(x){
+      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_m_xts_upd_ref)/100) - 1)*100
     })
 
-  rp <- riskParityPortfolio::riskParityPortfolio(Sigma = cov(selected_backtest_returns_corrected_positions_xts_upd_ref_active))
+  rp <- riskParityPortfolio::riskParityPortfolio(Sigma = cov(selected_backtest_returns_corrected_positions_m_xts_upd_ref_active))
 
 
   weights <- rp$w
-  rrc <- relative_risk_contribution(rp$w, cov(selected_backtest_returns_corrected_positions_xts_upd_ref_active))
+  rrc <- relative_risk_contribution(rp$w, cov(selected_backtest_returns_corrected_positions_m_xts_upd_ref_active))
   expect_equal(rrc$rel_risk_contr, as.numeric(rp$relative_risk_contribution))
   expect_equal(rrc$tickers, names(rp$relative_risk_contribution))
 
@@ -246,8 +246,8 @@ test_that("set portfolio weights work for RP (signals) ", {
   results <- set_portfolio_weights(port_construction_method = "rp", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>%
                                      dplyr::select(-rel_risk_contr, -weights),
                                    cov_matrix_sample_size = 9, cov_estimation_method = "sample", groups_m_d_ref = NULL, active_returns = TRUE,
-                                   returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                   selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref
+                                   returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                   selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref
   )
 
   expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
@@ -256,7 +256,7 @@ test_that("set portfolio weights work for RP (signals) ", {
   expect_equal(results@groups, NULL)
   expect_equal(results@exp_ret_score, NULL)
   expect_equal(results@eligible_assets, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
-  expect_equal(results@covariance_matrix, cov(selected_backtest_returns_corrected_positions_xts_upd_ref_active))
+  expect_equal(results@covariance_matrix, cov(selected_backtest_returns_corrected_positions_m_xts_upd_ref_active))
   expect_equal(results@rel_risk_contr, rrc$rel_risk_contr)
 
 
@@ -280,17 +280,17 @@ test_that("set portfolio weights work for MVO (signals) - unconstrained", {
 
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df@data, chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts)
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_cov_matrix_benchmark_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_cov_matrix_benchmark_m_xts <- benchmark_returns_m_xts[, "IBOV"]
 
   expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
   expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
-  selected_cov_matrix_benchmark_xts_upd_ref <- selected_cov_matrix_benchmark_xts[c(1:9), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:9),]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- selected_cov_matrix_benchmark_m_xts[c(1:9), ]
 
   #ts_splits
   features_m_refit <- signals_m_df@data %>% dplyr::filter(dates <= "2023-03-15") #this is to mimick ts_split behavior with a target_fwd of 3
@@ -300,12 +300,12 @@ test_that("set portfolio weights work for MVO (signals) - unconstrained", {
 
 
   #Calculate an ewma cov active matrix
-  selected_backtest_returns_corrected_positions_xts_upd_ref_active <-
-    apply(selected_backtest_returns_corrected_positions_xts_upd_ref, 2, function(x){
-      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_xts_upd_ref)/100) - 1)*100
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref_active <-
+    apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref, 2, function(x){
+      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_m_xts_upd_ref)/100) - 1)*100
     })
 
-  ewma_cov <- PerformanceAnalytics::M2.ewma(selected_backtest_returns_corrected_positions_xts_upd_ref_active)
+  ewma_cov <- PerformanceAnalytics::M2.ewma(selected_backtest_returns_corrected_positions_m_xts_upd_ref_active)
 
   #exp_ret_score
   exp_ret_score <- most_recent_signal_universe_m_d_ref$act_dd_dev*-1
@@ -348,8 +348,8 @@ test_that("set portfolio weights work for MVO (signals) - unconstrained", {
   results <- set_portfolio_weights(port_construction_method = "mvo", universe_m_d_ref = most_recent_signal_universe_m_d_ref %>%
                                      dplyr::select(-rel_risk_contr, -weights),
                                    cov_matrix_sample_size = 9, cov_estimation_method = "ewma", groups_m_d_ref = NULL, active_returns = TRUE,
-                                   returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                   selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref)
+                                   returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                   selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref)
 
   expect_equal(most_recent_signal_universe_m_d_ref %>% dplyr::arrange(id), results@universe_m_d_ref@data)
   expect_equal(results@groups, NULL)
@@ -380,20 +380,20 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
 
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df@data, chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts,
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts,
     signal_themes_m_df = signal_themes_m_df@data
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
-  selected_cov_matrix_benchmark_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_cov_matrix_benchmark_m_xts <- benchmark_returns_m_xts[, "IBOV"]
 
   expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
   expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
-  selected_cov_matrix_benchmark_xts_upd_ref <- selected_cov_matrix_benchmark_xts[c(1:9), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:9),]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- selected_cov_matrix_benchmark_m_xts[c(1:9), ]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df %>% dplyr::filter(dates == current_date)
 
   #ts_splits
@@ -404,13 +404,13 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
 
 
   #Calculate an ewma cov active matrix
-  selected_backtest_returns_corrected_positions_xts_upd_ref_active <-
-    apply(selected_backtest_returns_corrected_positions_xts_upd_ref, 2, function(x){
-      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_xts_upd_ref)/100) - 1)*100
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref_active <-
+    apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref, 2, function(x){
+      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_m_xts_upd_ref)/100) - 1)*100
     })
 
   pca2_cov <- PortfolioAnalytics::statistical.factor.model(
-    selected_backtest_returns_corrected_positions_xts_upd_ref_active, round(log(5))) %>% PortfolioAnalytics::extractCovariance()
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref_active, round(log(5))) %>% PortfolioAnalytics::extractCovariance()
 
   #exp_ret_score
   exp_ret_score <- most_recent_signal_universe_m_d_ref$act_dd_dev*-1
@@ -469,8 +469,8 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
                                    cov_matrix_sample_size = 9, cov_estimation_method = "pca2",
                                    opt_objective = "return",
                                    groups_m_d_ref = selected_signal_themes_m_d_ref, active_returns = TRUE,
-                                   returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                   selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                   returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                   selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                    concentration_constraint_policy = concentration_constraint_policy,
                                    lower_quantile_winsorization = 0.05, upper_quantile_winsorization = 0.95
   )
@@ -498,18 +498,18 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
 
   selected_signals_and_backtest_list <- select_and_correct_signals(
     signals_m_df = signals_m_df@data, chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts
   )
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_cov_matrix_benchmark_xts <- benchmark_returns_xts[, "IBOV"]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_cov_matrix_benchmark_m_xts <- benchmark_returns_m_xts[, "IBOV"]
 
   expect_equal(colnames(selected_signals_corrected_positions_m_df)[-c(1:3)], current_eligible_signals)
   expect_equal(selected_signals_corrected_positions_m_df$low_vol_36m, signals_m_df@data$vol_36m*-1)
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:6),]
-  selected_cov_matrix_benchmark_xts_upd_ref <- selected_cov_matrix_benchmark_xts[c(1:6), ]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:6),]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- selected_cov_matrix_benchmark_m_xts[c(1:6), ]
   signal_themes_m_d_ref <- signal_themes_m_df@data %>% dplyr::filter(dates == "2023-03-15")
 
   #custom_obj
@@ -517,14 +517,14 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
 
 
   #Calculate an ewma cov active matrix
-  selected_backtest_returns_corrected_positions_xts_upd_ref_active <-
-    apply(selected_backtest_returns_corrected_positions_xts_upd_ref, 2, function(x){
-      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_xts_upd_ref)/100) - 1)*100
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref_active <-
+    apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref, 2, function(x){
+      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_m_xts_upd_ref)/100) - 1)*100
     })
 
   pca2_cov <- PortfolioAnalytics::statistical.factor.model(
-    selected_backtest_returns_corrected_positions_xts_upd_ref_active, round(log(4))) %>% PortfolioAnalytics::extractCovariance()
-  colnames(pca2_cov) <- colnames(selected_backtest_returns_corrected_positions_xts_upd_ref_active)
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref_active, round(log(4))) %>% PortfolioAnalytics::extractCovariance()
+  colnames(pca2_cov) <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref_active)
 
   #exp_ret_score
   exp_ret_score <- most_recent_signal_universe_m_d_ref$act_dd_dev*-1
@@ -596,8 +596,8 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
                                    cov_matrix_sample_size = 6, cov_estimation_method = "pca2",
                                    opt_objective = "return",
                                    groups_m_d_ref = signal_themes_m_d_ref, active_returns = TRUE,
-                                   returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                   selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                   returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                   selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                    concentration_constraint_policy = concentration_constraint_policy,
                                    lower_quantile_winsorization = 0.05, upper_quantile_winsorization = 0.95
   )
@@ -673,8 +673,8 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
                                     cov_matrix_sample_size = 6, cov_estimation_method = "pca2",
                                     opt_objective = "risk",
                                     groups_m_d_ref = signal_themes_m_d_ref, active_returns = TRUE,
-                                    returns_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-                                    selected_benchmark_xts_upd_ref = selected_cov_matrix_benchmark_xts_upd_ref,
+                                    returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                    selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                     concentration_constraint_policy = concentration_constraint_policy,
                                     lower_quantile_winsorization = 0.05, upper_quantile_winsorization = 0.95
   )

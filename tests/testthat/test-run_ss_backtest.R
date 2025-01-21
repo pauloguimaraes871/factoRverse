@@ -3,7 +3,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 
   set.seed(123)
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     book_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.01, sd = 0.035),
     dy_med_36m = rnorm(length(unique(signals_m_df$dates)), mean = 0.0075, sd = 0.025),
     eps_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.005, sd = 0.03),
@@ -14,7 +14,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   ), order.by = unique(signals_m_df$dates))
 
   #Change EPS Yield to be in second rebalancing
-  mocked_backtest_returns_xts$eps_yield[c(7:9)] <- c(3,3,3)
+  mocked_backtest_returns_m_xts$eps_yield[c(7:9)] <- c(3,3,3)
   chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
 
   frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6,
@@ -32,7 +32,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
 
   results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                             signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
+                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
                              signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
                              )
@@ -58,7 +58,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
                            signals_m_df = signals_m_df, initial_sample_size = initial_sample_size, active_returns = active_returns,
                            custom_signal_universe_metrics_m_df = NULL,
                            chosen_signals_and_positions = chosen_signals_and_positions,  model_structure = model_structure,
-                           backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
+                           backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
                            p_correction_method = signal_selection_policy$p_correction_method, forced_signals = NULL,
                            enable_theme_representativeness = TRUE, market_factor_proxy = market_factor_proxy,
                            signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
@@ -69,11 +69,11 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
     signals_m_df = signals_m_df,
     signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts
   )
 
-  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts,
-               mocked_backtest_returns_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
+  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts,
+               mocked_backtest_returns_m_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
 
   expect_equal(selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")],
                signals_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")])
@@ -82,21 +82,21 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
                signals_m_df$vol_36m * -1)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c(market_factor_proxy)]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c(market_factor_proxy)]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #First Rebalancing Month
   ##########################
   current_date <- dates_m_vector[initial_sample_size]
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:6),]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:6), market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:6),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:6), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
 
   summarize_performance_results <- summarize_performance(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_structure = model_structure,
     active_returns = active_returns
@@ -155,13 +155,13 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   ##########################
   current_date <- dates_m_vector[9]
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:9), market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:9),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:9), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   summarize_performance_results <- summarize_performance(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_structure = model_structure,
     active_returns = active_returns
@@ -236,7 +236,7 @@ test_that("run_ss_backtest works for inclusion of forced variables", {
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 
   set.seed(123)
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     book_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.01, sd = 0.035),
     dy_med_36m = rnorm(length(unique(signals_m_df$dates)), mean = 0.0075, sd = 0.025),
     eps_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.005, sd = 0.03),
@@ -247,7 +247,7 @@ test_that("run_ss_backtest works for inclusion of forced variables", {
   ), order.by = unique(signals_m_df$dates))
 
   #Change EPS Yield to be in second rebalancing
-  mocked_backtest_returns_xts$eps_yield[c(7:9)] <- c(3,3,3)
+  mocked_backtest_returns_m_xts$eps_yield[c(7:9)] <- c(3,3,3)
   chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short", setorc1 = "force")
 
   frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 6, rebalancing_months = 6,
@@ -265,7 +265,7 @@ test_that("run_ss_backtest works for inclusion of forced variables", {
 
   results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
+                    signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
                     signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
@@ -288,7 +288,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 
   set.seed(123)
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     book_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.01, sd = 0.035),
     dy_med_36m = rnorm(length(unique(signals_m_df$dates)), mean = 0.0075, sd = 0.025),
     eps_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.005, sd = 0.03),
@@ -312,7 +312,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
 
 
   results <- run_ss_backtest(frequentist_ss_config,
-                             signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,signal_themes_m_df = signal_themes_m_df,
+                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
   )
 
@@ -340,7 +340,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
                            signals_m_df = signals_m_df, initial_sample_size = initial_sample_size, active_returns = active_returns,
                            custom_signal_universe_metrics_m_df = NULL,
                            chosen_signals_and_positions = chosen_signals_and_positions, model_structure = model_structure,
-                           backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
+                           backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
                            p_correction_method = signal_selection_policy$p_correction_method, forced_signals = NULL,
                            enable_theme_representativeness = TRUE, market_factor_proxy = market_factor_proxy,
                            signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
@@ -351,12 +351,12 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
     signals_m_df = signals_m_df,
     signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts
   )
 
 
-  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts,
-               mocked_backtest_returns_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
+  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts,
+               mocked_backtest_returns_m_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
 
   expect_equal(selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")],
                signals_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")])
@@ -365,21 +365,21 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
                signals_m_df$vol_36m * -1)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c(market_factor_proxy)]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c(market_factor_proxy)]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #First Rebalancing Month
   ##########################
   current_date <- dates_m_vector[initial_sample_size]
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:6),]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:6), market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:6),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:6), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
 
   summarize_performance_results <- summarize_performance(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_structure = model_structure,
     active_returns = active_returns
@@ -442,13 +442,13 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   #Second Rebalancing Month
   ##########################
   current_date <- dates_m_vector[9]
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:9), market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:9),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:9), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   summarize_performance_results <- summarize_performance(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_structure = model_structure,
     active_returns = active_returns
@@ -530,7 +530,7 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 
   set.seed(123)
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     book_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.01, sd = 0.035),
     dy_med_36m = rnorm(length(unique(signals_m_df$dates)), mean = 0.0075, sd = 0.025),
     eps_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.005, sd = 0.03),
@@ -554,7 +554,7 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
 
 
   results <- run_ss_backtest(frequentist_ss_config,
-                             signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,signal_themes_m_df = signal_themes_m_df,
+                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
   )
 
@@ -581,7 +581,7 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
                            signals_m_df = signals_m_df, initial_sample_size = initial_sample_size, active_returns = active_returns,
                            custom_signal_universe_metrics_m_df = NULL,
                            chosen_signals_and_positions = chosen_signals_and_positions, model_structure = model_structure,
-                           backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
+                           backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
                            p_correction_method = signal_selection_policy$p_correction_method, lmer_control = lmer_control,
                            enable_theme_representativeness = TRUE, market_factor_proxy = market_factor_proxy, forced_signals = NULL,
                            signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
@@ -592,12 +592,12 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
     signals_m_df = signals_m_df,
     signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts
   )
 
 
-  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts,
-               mocked_backtest_returns_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
+  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts,
+               mocked_backtest_returns_m_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
 
   expect_equal(selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")],
                signals_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")])
@@ -606,23 +606,23 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
                signals_m_df$vol_36m * -1)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, c(market_factor_proxy)]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c(market_factor_proxy)]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #First Rebalancing Month
   ##########################
   current_date <- dates_m_vector[initial_sample_size]
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:6),]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:6), market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:6),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:6), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   model_spec_theme_level <- paste0(frequentist_ss_config@alpha_test_strategy@theme_level_intercept,"_intercept_",
                                    frequentist_ss_config@alpha_test_strategy@theme_level_slope,"_slope")
 
   summarize_performance_results <- summarize_performance(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_spec_theme_level = model_spec_theme_level,
     lmer_control = lmer_control,
@@ -686,13 +686,13 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   #Second Rebalancing Month
   ##########################
   current_date <- dates_m_vector[9]
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:9), market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:9),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:9), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
   summarize_performance_results <- summarize_performance(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_structure = model_structure,
     model_spec_theme_level = model_spec_theme_level,
@@ -776,7 +776,7 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     book_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.01, sd = 0.035),
     dy_med_36m = rnorm(length(unique(signals_m_df$dates)), mean = 0.0075, sd = 0.025),
     eps_yield = rnorm(length(unique(signals_m_df$dates)), mean = 0.005, sd = 0.03),
@@ -911,7 +911,7 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
 
   future::plan("multisession")
   results <- run_ss_backtest(bayesian_ss_config, priors_m_df = priors_m_df,
-                             signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
+                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
                              signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
   )
@@ -945,7 +945,7 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
                            custom_signal_universe_metrics_m_df = NULL,
                            theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope,
                            active_returns = active_returns, model_structure = model_structure, forced_signals = NULL,
-                           backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts,
+                           backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
                            p_correction_method = signal_selection_policy$p_correction_method, lmer_control = lmer_control,
                            enable_theme_representativeness = TRUE, market_factor_proxy = market_factor_proxy,
                            signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
@@ -956,12 +956,12 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
     signals_m_df = signals_m_df,
     signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts
   )
 
 
-  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts,
-               mocked_backtest_returns_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
+  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts,
+               mocked_backtest_returns_m_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
 
   expect_equal(selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")],
                signals_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")])
@@ -970,24 +970,24 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
                signals_m_df$vol_36m * -1)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- benchmark_returns_xts[, market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, market_factor_proxy]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #Second Rebalancing Month
   ##########################
   current_date <- dates_m_vector[9]
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:9),]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:9), market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:9),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:9), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
   priors_m_upd_ref <- priors_m_df[which(priors_m_df$dates <= current_date),]
 
 
   model_spec_theme_level <- "theme_specific_intercept_theme_specific_slope"
   summarize_performance_results <- summarize_performance(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_structure = model_structure,
     lmer_control = lmer_control,
@@ -1005,9 +1005,9 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
   expect_equal(priors_2$priors, results@bayesian_results$elected_priors)
   expect_equal(coef(priors_2$model), coef(results@bayesian_results$elected_priors_frequentist_model))
 
-  selected_backtest_returns_corrected_positions_df <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+  selected_backtest_returns_corrected_positions_df <- as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>%
     tibble::rownames_to_column(var = "dates")
-  selected_backtest_returns_corrected_positions_df$market_factor_proxy <- as.vector(selected_market_factor_proxy_xts_upd_ref)
+  selected_backtest_returns_corrected_positions_df$market_factor_proxy <- as.vector(selected_market_factor_proxy_m_xts_upd_ref)
 
   long_data <- tidyr::pivot_longer(selected_backtest_returns_corrected_positions_df, cols = c(-dates, -market_factor_proxy), names_to = "tickers", values_to = "return")
   long_data <- dplyr::left_join(long_data, dplyr::select(selected_signal_themes_m_d_ref, tickers, theme), by = "tickers")
@@ -1094,7 +1094,7 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
     book_yield = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.01, sd = 0.035),
     dy_med_36m = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.0075, sd = 0.025),
     eps_yield = rnorm(length(unique(signals_m_df$dates)) + 2, mean = 0.005, sd = 0.03),
@@ -1106,8 +1106,8 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
                           "2023-05-15", "2023-06-15", "2023-07-15", "2023-08-15", "2023-09-15")))
 
 
-  expanded_benchmark_returns_xts <- rbind(xts::xts(data.frame(IBOV = rnorm(2), IDIV = rnorm(2), SMLL = rnorm(2)), order.by = as.Date(c("2022-08-15", "2022-09-15"))),
-                                          benchmark_returns_xts
+  expanded_benchmark_returns_m_xts <- rbind(xts::xts(data.frame(IBOV = rnorm(2), IDIV = rnorm(2), SMLL = rnorm(2)), order.by = as.Date(c("2022-08-15", "2022-09-15"))),
+                                          benchmark_returns_m_xts
                                           )
 
   chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
@@ -1144,7 +1144,7 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
   future::plan("multisession")
   suppressWarnings(
   results <- run_ss_backtest(bayesian_ss_config, priors_m_df = NULL,
-                             signals_m_df = signals_m_df, backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = expanded_benchmark_returns_xts,
+                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = expanded_benchmark_returns_m_xts,
                              signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
   )
@@ -1177,7 +1177,7 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
                            custom_signal_universe_metrics_m_df = NULL,
                            theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope,
                            active_returns = active_returns, model_structure = model_structure, forced_signals = NULL,
-                           backtest_returns_xts = mocked_backtest_returns_xts, benchmark_returns_xts = expanded_benchmark_returns_xts,
+                           backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = expanded_benchmark_returns_m_xts,
                            p_correction_method = signal_selection_policy$p_correction_method, lmer_control = lmer_control,
                            enable_theme_representativeness = TRUE, market_factor_proxy = market_factor_proxy,
                            signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
@@ -1188,12 +1188,12 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
     signals_m_df = signals_m_df,
     signal_themes_m_df = signal_themes_m_df,
     chosen_signals_and_positions = chosen_signals_and_positions,
-    backtest_returns_xts = mocked_backtest_returns_xts
+    backtest_returns_m_xts = mocked_backtest_returns_m_xts
   )
 
 
-  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts,
-               mocked_backtest_returns_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
+  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts,
+               mocked_backtest_returns_m_xts[, c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_vol_36m")])
 
   expect_equal(selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")],
                signals_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "roe_3m", "sharpe_6m")])
@@ -1202,23 +1202,23 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
                signals_m_df$vol_36m * -1)
 
   selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-  selected_backtest_returns_corrected_positions_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_xts
-  selected_market_factor_proxy_xts <- expanded_benchmark_returns_xts[, market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- expanded_benchmark_returns_m_xts[, market_factor_proxy]
   selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
 
   #Second Rebalancing Month
   ##########################
   current_date <- dates_m_vector[9]
 
-  selected_backtest_returns_corrected_positions_xts_upd_ref <- selected_backtest_returns_corrected_positions_xts[c(1:11),]
-  selected_market_factor_proxy_xts_upd_ref <- selected_market_factor_proxy_xts[c(1:11), market_factor_proxy]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:11),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:11), market_factor_proxy]
   selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
 
 
   model_spec_theme_level <- "theme_specific_intercept_theme_specific_slope"
   summarize_performance_results <- summarize_performance(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     model_structure = model_structure,
     lmer_control = lmer_control,
@@ -1255,9 +1255,9 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
 
   expect_equal(elected_priors, results@bayesian_results$elected_priors)
 
-  selected_backtest_returns_corrected_positions_df <- as.data.frame(selected_backtest_returns_corrected_positions_xts_upd_ref) %>%
+  selected_backtest_returns_corrected_positions_df <- as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>%
     tibble::rownames_to_column(var = "dates")
-  selected_backtest_returns_corrected_positions_df$market_factor_proxy <- as.vector(selected_market_factor_proxy_xts_upd_ref)
+  selected_backtest_returns_corrected_positions_df$market_factor_proxy <- as.vector(selected_market_factor_proxy_m_xts_upd_ref)
 
   long_data <- tidyr::pivot_longer(selected_backtest_returns_corrected_positions_df, cols = c(-dates, -market_factor_proxy), names_to = "tickers", values_to = "return")
   long_data <- dplyr::left_join(long_data, dplyr::select(selected_signal_themes_m_d_ref, tickers, theme), by = "tickers")
