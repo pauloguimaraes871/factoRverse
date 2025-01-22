@@ -15,7 +15,6 @@ add_signal_selection_policy(
   max_abs_active_group_weight = NULL,
   p_correction_method = "none",
   signal_significance_threshold = 0.05,
-  data_availability_cutoff = 60,
   priors_type = NULL,
   priors_informative_data = NULL
 )
@@ -38,8 +37,6 @@ add_signal_selection_policy(
 \item{p_correction_method}{Method for p-value correction.}
 
 \item{signal_significance_threshold}{A threshold for signal significance.}
-
-\item{data_availability_cutoff}{A cutoff for data availability.}
 
 \item{priors_type}{Type of priors to use.}
 

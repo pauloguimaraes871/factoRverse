@@ -5,7 +5,6 @@
 \title{Create an ss_backtest_config Object}
 \usage{
 create_ss_backtest_config(
-  data_availability_cutoff,
   initial_sample_size,
   rebalancing_months,
   active_returns = TRUE,
@@ -16,8 +15,6 @@ create_ss_backtest_config(
 )
 }
 \arguments{
-\item{data_availability_cutoff}{A numeric indicating the minimum number of non-NA observations required for a backtest.}
-
 \item{initial_sample_size}{A numeric indicating the minimum number of observations required to begin the backtest.}
 
 \item{rebalancing_months}{A numeric indicating the number of months for rebalancing.}
@@ -42,7 +39,6 @@ and validation of its slots.
 \examples{
 # Example usage:
 config <- create_ss_backtest_config(
-  data_availability_cutoff = 100,
   initial_sample_size = 200,
   rebalancing_months = 6,
   alpha_test_strategy = alpha_test_strategy_obj,

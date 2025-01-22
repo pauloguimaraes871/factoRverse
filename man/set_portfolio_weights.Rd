@@ -10,12 +10,12 @@ set_portfolio_weights(
   liquidity_m_d_ref = NULL,
   cap_weighting_metric = NULL,
   groups_m_d_ref = NULL,
-  returns_xts_upd_ref = NULL,
-  selected_benchmark_xts_upd_ref = NULL,
-  active_returns = if (is.null(selected_benchmark_xts_upd_ref)) FALSE else TRUE,
+  returns_m_xts_upd_ref = NULL,
+  selected_benchmark_m_xts_upd_ref = NULL,
+  active_returns = if (is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,
   cov_estimation_method = "sample",
-  cov_matrix_sample_size = if (is.null(returns_xts_upd_ref)) NULL else
-    nrow(returns_xts_upd_ref),
+  cov_matrix_sample_size = if (is.null(returns_m_xts_upd_ref)) NULL else
+    nrow(returns_m_xts_upd_ref),
   liquidity_constraint_policy = NULL,
   turnover_constraint_policy = NULL,
   concentration_constraint_policy = NULL,

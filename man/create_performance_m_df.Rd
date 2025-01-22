@@ -5,17 +5,17 @@
 \title{Create a Performance Metrics Data Frame}
 \usage{
 create_performance_m_df(
-  selected_backtest_returns_corrected_positions_xts_upd_ref,
-  selected_market_factor_proxy_xts_upd_ref,
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+  selected_market_factor_proxy_m_xts_upd_ref,
   active_returns,
   verbose = TRUE
 )
 }
 \arguments{
-\item{selected_backtest_returns_corrected_positions_xts_upd_ref}{An \code{xts} object containing backtested returns for the selected signals
+\item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{An \code{xts} object containing backtested returns for the selected signals
 Each column represents a signal, and rows represent time periods.}
 
-\item{selected_market_factor_proxy_xts_upd_ref}{A xts containing benchmark returns data.}
+\item{selected_market_factor_proxy_m_xts_upd_ref}{A xts containing benchmark returns data.}
 
 \item{active_returns}{If TRUE, calculate ative returns before applying performance functions.}
 }
@@ -38,7 +38,7 @@ The results are returned as a structured data frame.
 performance_m_df <- create_performance_m_df(
   selected_signals = c("Signal_A", "Signal_B"),
   current_date = "2024-12-12",
-  selected_backtest_returns_corrected_positions_xts_upd_ref = backtest_xts,
-  baseline_benchmark_xts_upd_ref = benchmark_xts
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref = backtest_m_xts,
+  baseline_benchmark_m_xts_upd_ref = benchmark_m_xts
 )
 }

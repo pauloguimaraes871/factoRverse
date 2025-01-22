@@ -2,24 +2,24 @@
 % Please edit documentation in R/run_ss_backtest.R
 \name{run_ss_backtest}
 \alias{run_ss_backtest}
-\alias{run_ss_backtest,ss_backtest_config,meta_dataframe,xts,xts,meta_dataframe-method}
+\alias{run_ss_backtest,ss_backtest_config,meta_dataframe,meta_xts,meta_xts,meta_dataframe-method}
 \alias{run_ss_backtest_internal}
 \title{Run a Signal Selection Backtest}
 \usage{
 run_ss_backtest(
   config,
   signals_m_df,
-  backtest_returns_xts,
-  benchmark_returns_xts,
+  backtest_returns_m_xts,
+  benchmark_returns_m_xts,
   signal_themes_m_df,
   ...
 )
 
-\S4method{run_ss_backtest}{ss_backtest_config,meta_dataframe,xts,xts,meta_dataframe}(
+\S4method{run_ss_backtest}{ss_backtest_config,meta_dataframe,meta_xts,meta_xts,meta_dataframe}(
   config,
   signals_m_df,
-  backtest_returns_xts,
-  benchmark_returns_xts,
+  backtest_returns_m_xts,
+  benchmark_returns_m_xts,
   signal_themes_m_df,
   priors_m_df = NULL,
   custom_signal_universe_metrics_m_df = NULL,
@@ -35,8 +35,8 @@ run_ss_backtest_internal(
   signals_m_df,
   chosen_signals_and_positions,
   custom_signal_universe_metrics_m_df = NULL,
-  backtest_returns_xts,
-  benchmark_returns_xts,
+  backtest_returns_m_xts,
+  benchmark_returns_m_xts,
   market_factor_proxy = "IBOV",
   p_correction_method = "none",
   signal_significance_threshold = 0.05,
@@ -63,9 +63,9 @@ run_ss_backtest_internal(
 
 \item{signals_m_df}{A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.}
 
-\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
+\item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
-\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
+\item{benchmark_returns_m_xts}{A xts with benchmark returns, named accordingly.}
 
 \item{signal_themes_m_df}{A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in \code{signals_m_df}, and a "theme" column providing group membership for each signal.}
 
@@ -132,7 +132,7 @@ Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
 }}
 
 \item{active_returns}{A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
-backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts. This does not
+backtest_returns_m_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts. This does not
 impact calculation of the CAPM model, whether it is frequentist or bayesian, pooled or partial pooled.}
 
 \item{user_priors}{An object with user-defined priors for the hierarchical Bayesian model, used when \code{priors_type = "user"}.
@@ -169,7 +169,7 @@ The function performs the following operations:
 \item Checks for consistency in \code{chosen_signals_and_positions}.
 \item Adjusts the signal positions based on whether they are "short" by multiplying their values by -1.
 \item Updates column names in the data frame to reflect the corrected positions of the signals.
-\item Validates that all adjusted signals have corresponding columns in \code{backtest_returns_xts}.
+\item Validates that all adjusted signals have corresponding columns in \code{backtest_returns_m_xts}.
 \item Calculates time-series metrics from backtested returns, including mean active return, IR, alpha, t-stat, beta, Treynor ratio, and p-value. Signals without adequate data (less than `` periods) are removed.
 \item Adjusts p-values based on the method selected by the user.
 \item Defines which signals are eligible for blending.
@@ -180,8 +180,8 @@ The function performs the following operations:
 \item \code{run_ss_backtest(
   config = ss_backtest_config,
   signals_m_df = meta_dataframe,
-  backtest_returns_xts = xts,
-  benchmark_returns_xts = xts,
+  backtest_returns_m_xts = meta_xts,
+  benchmark_returns_m_xts = meta_xts,
   signal_themes_m_df = meta_dataframe
 )}: Run Signal Selection Backtest
 

@@ -73,9 +73,13 @@ setMethod("run_ss_backtest",
             chosen_signals_and_positions <- config@chosen_signals_and_positions
               ##Convert 'all' chosen_signals_and_positions
               if(length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions == "all"){
+                if (verbose) cat("According to user choice, SS backtest will contemplate all signals in signals_m_df, assuming a 'long' position.")
                 chosen_signals <- colnames(signals_m_df@data)[-c(1:3)] #Get all signals in signals_m_df
                 chosen_signals_and_positions <- rep("long", length(chosen_signals)) #Set all positions as 'long'
                 names(chosen_signals_and_positions) <- chosen_signals
+              } else {
+                if (verbose) cat("According to user choice, SS backtest will contemplate the following signals in signals_m_df:")
+                if (verbose) print(chosen_signals_and_positions)
               }
 
             ##signals_m_df
@@ -94,6 +98,17 @@ setMethod("run_ss_backtest",
               custom_signal_universe_metrics_object_name <- custom_signal_universe_metrics_m_df@meta_dataframe_name #Get mdf name
               custom_signal_universe_metrics_m_df <- custom_signal_universe_metrics_m_df@data #Get custom_signal_universe_metrics_m_df
             }
+
+            ##backtest_returns_m_xts
+            backtest_returns_workflow <- backtest_returns_m_xts@workflow #Get workflow
+            backtest_returns_object_name <- backtest_returns_m_xts@meta_xts_name #Get mxts name
+            backtest_returns_m_xts <- backtest_returns_m_xts@data #Get backtest_returns_m_xts
+
+            ##benchmark_returns_m_xts
+            benchmark_returns_workflow <- benchmark_returns_m_xts@workflow #Get workflow
+            benchmark_returns_object_name <- benchmark_returns_m_xts@meta_xts_name #Get mxts name
+            benchmark_returns_m_xts <- benchmark_returns_m_xts@data #Get benchmark_returns_m_xts
+
 
             ##Get general info from contig
             initial_sample_size <- config@initial_sample_size
@@ -181,8 +196,14 @@ setMethod("run_ss_backtest",
               ss_backtest_results@ss_backtest_workflow$custom_signal_universe_metrics_workflow <- custom_signal_universe_metrics_workflow
             }
 
-            ###Backtest Returns DF
-            #ss_backtest_results@ss_backtest_workflow$backtest_returns_object <- backtest_returns_object_name
+            ###Backtest Returns
+            ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name <- backtest_returns_object_name
+            ss_backtest_results@ss_backtest_workflow$backtest_returns_workflow <- backtest_returns_workflow
+
+            ###Benchmark Returns
+            ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name <- benchmark_returns_object_name
+            ss_backtest_results@ss_backtest_workflow$benchmark_returns_workflow <- benchmark_returns_workflow
+
 
             ###IDs
             ss_backtest_results@ss_backtest_workflow$config_name <- config@config_name
@@ -202,7 +223,6 @@ setMethod("run_ss_backtest",
               ####Names
               ss_backtest_results@signal_universe_m_df@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
               ss_backtest_results@final_signal_universe_m_d_ref@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
-
 
               ###Call
               ss_backtest_results@ss_backtest_workflow$call <- sys.call(-2)
@@ -461,6 +481,7 @@ run_ss_backtest_internal <- function(
     } else {
       forced_signals <- NULL
     }
+    original_chosen_signals_and_positions <- chosen_signals_and_positions #Get original object in case forced_signals were taken out
     chosen_signals_and_positions <- chosen_signals_and_positions[which(chosen_signals_and_positions != "force")]
 
     #################
@@ -683,9 +704,9 @@ run_ss_backtest_internal <- function(
     first_rebalance_date = first_rebalance_date,
     split_method = split_method,
     #Signals
-    chosen_signals_and_positions = chosen_signals_and_positions,
+    chosen_signals_and_positions = original_chosen_signals_and_positions,
     selected_signals_corrected_positions = colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref),
-    n_signals = length(chosen_signals_and_positions),
+    n_signals = length(original_chosen_signals_and_positions),
     signals_workflow = NULL,
     signals_object_name = "not_identified",
     signal_themes_workflow = NULL,

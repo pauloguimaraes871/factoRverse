@@ -125,6 +125,11 @@ check_inputs_ss_backtest <- function(
     stop("signals_m_df should contain only numeric columns with non-NAs.")
   }
 
+  #Check for presence of low
+  if(any(grepl("low_", colnames(signals_m_df)))){
+    stop("signals_m_df column names should not contain 'low_'.")
+  }
+
   ###Check if all chosen_signals are present in signals_m_df
   if(any(!names(chosen_signals_and_positions) %in% colnames(signals_m_df))){
     stop("signal selection not avaiable in signals_m_df")
@@ -140,6 +145,10 @@ check_inputs_ss_backtest <- function(
 
   if(any(names(chosen_signals_and_positions) %in% categorical_signals)){
     warning("Categorical signals included in chosen_signals_and_positions.")
+  }
+  #Check for presence of low_
+  if(any(grepl("low_", names(chosen_signals_and_positions)))){
+    stop("chosen_signals_and_positions should not contain 'low_'.")
   }
 
   #initial_sample_size and

@@ -15,7 +15,6 @@ add_ss_backtest_obj(object, ss_backtest_obj, ...)
 
 \S4method{add_ss_backtest_obj}{sb_backtest_config,missing}(
   object,
-  data_availability_cutoff,
   initial_sample_size,
   rebalancing_months,
   active_returns = TRUE,

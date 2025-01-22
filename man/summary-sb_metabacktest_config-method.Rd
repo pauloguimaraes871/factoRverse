@@ -12,16 +12,25 @@
 \item{...}{Additional arguments (not used).}
 }
 \value{
-Invisibly returns a \code{DT} table object. This function is called for its side effect of displaying the table.
+Invisibly returns a \code{DT} table object. This function is primarily called for its side effect of displaying the table.
 }
 \description{
 Produces an interactive table summarizing the counts of configurations by \code{sb_algorithm} and other parameters using the \code{DT} package.
 Neural networks (\code{nn}) are grouped by the number of hidden layers, resulting in rows like \code{nn_1}, \code{nn_2}, etc.
+}
+\details{
 The table supports horizontal and vertical scrolling with the first column frozen and includes visual enhancements using specified colors.
 Underscores in column headers are replaced with spaces.
+
+This version also summarizes information from any associated \code{ss_backtest_config} or \code{ss_backtest_workflow}:
+\itemize{
+\item \code{model_structure}
+\item \code{p_correction_method}
+}
+For \code{ss_backtest_workflow}, we look at \code{sb_backtest_config@ss_backtest_results@ss_backtest_workflow}.
 }
 \examples{
-# Assuming you have an sb_metabacktest_config object named meta_config
+# Assuming you have an sb_metabacktest_config object named meta_config:
 summary(meta_config)
 
 }

@@ -5,8 +5,8 @@
 \title{Define Signal Eligibility}
 \usage{
 define_signal_eligibility(
-  selected_backtest_returns_corrected_positions_xts_upd_ref,
-  selected_market_factor_proxy_xts_upd_ref,
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+  selected_market_factor_proxy_m_xts_upd_ref,
   custom_signal_universe_metrics_m_upd_ref,
   p_correction_method = "none",
   signal_significance_threshold = 0.05,
@@ -29,10 +29,6 @@ define_signal_eligibility(
 )
 }
 \arguments{
-\item{selected_backtest_returns_corrected_positions_xts_upd_ref}{A xts containing backtest returns for various signals.}
-
-\item{selected_market_factor_proxy_xts_upd_ref}{A xts containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.}
-
 \item{p_correction_method}{The method for p-value correction. Possible options are:
 \itemize{
 \item{"none"}: No correction.
@@ -97,6 +93,10 @@ for defining clusters in bayesian hierarchical model. It should contain data onl
 
 \item{parallel}{Logical.
 Indicates whether to enable parallel computation using the \code{future} package. Only avaialable for bayesian model. Default is \code{TRUE}.}
+
+\item{selected_backtest_returns_corrected_positions_xts_upd_ref}{A xts containing backtest returns for various signals.}
+
+\item{selected_market_factor_proxy_xts_upd_ref}{A xts containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.}
 
 \item{priors_m_df_upd_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
 and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.

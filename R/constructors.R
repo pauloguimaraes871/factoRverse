@@ -94,19 +94,14 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 #' @exportMethod create_meta_dataframe
 setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
 
-          function(data, meta_dataframe_name = "not_identified", workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, ...) {
+          function(data, meta_dataframe_name = "not_identified", workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, type = "generic", ...) {
 
             #Check for type argument
-            type <- list(...)
-            if(length(type) > 0){
-              #Check if it is correct
               if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features")){
                 stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
                      'weights', 'priors'.")
               }
-            } else {
-              type <- "generic"
-            }
+
 
             #Is it coercible
             if(!is_coercible_to_meta_dataframe(data)){
@@ -460,7 +455,7 @@ create_meta_xts <- function(data,
     # For assets_meta_xts, we fill the specialized slots:
     obj <- methods::new(
       "assets_meta_xts",
-      data = common_slots@data,
+      data = common_slots$data,
       meta_xts_name = common_slots$meta_xts_name,
       workflow = common_slots$workflow,
       n_dates = common_slots$n_dates,
@@ -1038,7 +1033,9 @@ setMethod("add_brms_prior",
             # Handle fixed effects
             if (effect == "fixed") {
               priors <- lapply(seq_along(distribution_choice), function(i) {
-                coef_name <- if (!is.null(theme)) paste0("theme", theme[i], if (type == "slope") ":market_factor_proxy" else "") else NULL
+                coef_name <- if (!is.null(theme)){
+                  paste0("theme", theme[i], if (type == "slope") ":market_factor_proxy" else "")
+                } else if (type == "slope") "market_factor_proxy" else "Intercept"
                 brms::set_prior(
                   paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
                   class = "b", # Correctly setting class to 'b'
@@ -2370,6 +2367,7 @@ setMethod("add_rp_parameters",
 #' @export
 create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
                                       ss_backtest_config = NULL, ss_backtest_results = NULL,
+                                      chosen_signals_and_positions = NULL,
                                       custom_objective = "squared_error", keras_architecture_parameters = NULL, signal_port_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
                                       config_name = "not_identified") {
 
@@ -2379,6 +2377,21 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   }
   if (!is.null(huber_delta) && huber_delta != 1) {
     message("changing huber_delta impacts both chosen_eval_metric and custom_objective.")
+  }
+
+  ##Chosen_signals_and_positions
+  if (any(!is.null(ss_backtest_config),!is.null(ss_backtest_results))){
+    if (!is.null(chosen_signals_and_positions)){
+      stop("chosen_signals_and_positions should only be provided when 'ss_backtest_config' or 'ss_backtest_results' are missing.")
+    }
+    chosen_signals_and_positions <- "ss_backtest_obj"
+    message("chosen_signals_and_positions will follow underlying ss_backtest_obj")
+  }
+  if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)){
+    chosen_signals_and_positions <- "all"
+  }
+  if (sb_algorithm == "custom_weights" && !is.null(chosen_signals_and_positions)){
+    stop("chosen_signals_and_positions are not needed when sb_algorithm is custom_weights.")
   }
 
   #Create default parameters for signal_port_parameters depending on sb_algo
@@ -2400,6 +2413,7 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
       sb_algorithm = sb_algorithm,
       target_fwd_name = target_fwd_name,
       training_sample_size = training_sample_size,
+      chosen_signals_and_positions = chosen_signals_and_positions,
       rebalancing_months = rebalancing_months,
       split_method = split_method,
       ss_backtest_config = ss_backtest_config,
@@ -2819,8 +2833,8 @@ setMethod(
 
   #Initialize
   ###################
-
-    #Get ML Workflow from meta learner
+  browser()
+    #Get SB Workflow from meta learner
     meta_learner_sb_backtest_workflow <- meta_sb_backtest_results@sb_backtest_workflow
 
     # Get the names of the list elements

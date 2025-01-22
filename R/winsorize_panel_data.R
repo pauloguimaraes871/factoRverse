@@ -47,19 +47,19 @@ winsorize_panel_data <- function(features_m_df, probs, Infs_to_preserve = NULL) 
   #check probs
   if(!is.numeric(probs) || length(probs) != 2){
     stop("probs must be a numeric vector of length 2")
-  } else {}
+  }
 
   #Check structure of dates_vector and features_m_df$dates
   if(!all(as.Date(dates_vector, format = "%Y-%m-%d") %in% unique(as.Date(features_m_df$dates, format = "%Y-%m-%d"))) ||
      !all(unique(as.Date(features_m_df$dates, format = "%Y-%m-%d")) %in% as.Date(dates_vector, format = "%Y-%m-%d"))){
     stop("all dates in dates_vector must have a correspondence in features_m_df")
-  } else {}
+  }
 
   #Check for correct format in dates_vector
   if(any(is.na(strptime(dates_vector, format = "%Y-%m-%d"))) ||
      any(format(strptime(dates_vector, format = "%Y-%m-%d"), "%Y-%m-%d") != dates_vector)){
     stop("dates_vector must be a date object with format %Y-%m-%d")
-  } else {}
+  }
 
   #Initialize objects
     winsorized_matrix <- features_m_df

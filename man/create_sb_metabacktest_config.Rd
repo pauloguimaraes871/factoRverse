@@ -12,15 +12,18 @@ create_sb_metabacktest_config(
   meta_sb_backtest_config,
   base_sb_backtest_configs,
   base_sb_backtest_results,
-  ss_backtest_configs,
-  ss_backtest_results,
+  base_ss_backtest_configs,
+  base_ss_backtest_results,
   ...
 )
 
 \S4method{create_sb_metabacktest_config}{sb_backtest_config,list,missing,list,missing}(
   meta_sb_backtest_config,
   base_sb_backtest_configs,
-  ss_backtest_configs,
+  base_ss_backtest_configs,
+  features_passthrough = "none",
+  normalize_base_predictions = TRUE,
+  winsorize_base_predictions = TRUE,
   config_name = "not_identified",
   ...
 )
@@ -28,7 +31,10 @@ create_sb_metabacktest_config(
 \S4method{create_sb_metabacktest_config}{sb_backtest_config,list,missing,missing,list}(
   meta_sb_backtest_config,
   base_sb_backtest_configs,
-  ss_backtest_results,
+  base_ss_backtest_results,
+  features_passthrough = "none",
+  normalize_base_predictions = TRUE,
+  winsorize_base_predictions = TRUE,
   config_name = "not_identified",
   ...
 )
@@ -37,6 +43,9 @@ create_sb_metabacktest_config(
   meta_sb_backtest_config,
   base_sb_backtest_configs,
   config_name = "not_identified",
+  features_passthrough = "none",
+  normalize_base_predictions = TRUE,
+  winsorize_base_predictions = TRUE,
   ...
 )
 
@@ -44,6 +53,9 @@ create_sb_metabacktest_config(
   meta_sb_backtest_config,
   base_sb_backtest_results,
   config_name = "not_identified",
+  features_passthrough = "none",
+  normalize_base_predictions = TRUE,
+  winsorize_base_predictions = TRUE,
   ...
 )
 }
@@ -54,13 +66,17 @@ create_sb_metabacktest_config(
 
 \item{base_sb_backtest_results}{A list of \code{sb_backtest_results} objects.}
 
-\item{ss_backtest_configs}{A list of \code{ss_backtest_config} objects.}
+\item{base_ss_backtest_configs}{A list of \code{ss_backtest_config} objects (optional).}
 
-\item{ss_backtest_results}{A list of \code{ss_backtest_results} objects.}
+\item{base_ss_backtest_results}{A list of \code{ss_backtest_results} objects (optional)}
 
 \item{...}{Additional arguments (not used).}
 
 \item{config_name}{Name of the backtest configuration.}
+
+\item{ss_backtest_configs}{A list of \code{ss_backtest_config} objects.}
+
+\item{ss_backtest_results}{A list of \code{ss_backtest_results} objects.}
 }
 \value{
 A \code{sb_metabacktest_config} object containing all viable combinations of configs.
@@ -87,8 +103,8 @@ Alternatively, the user can provide a list of \code{sb_backtest_results} directl
   meta_sb_backtest_config = sb_backtest_config,
   base_sb_backtest_configs = list,
   base_sb_backtest_results = missing,
-  ss_backtest_configs = list,
-  ss_backtest_results = missing
+  base_ss_backtest_configs = list,
+  base_ss_backtest_results = missing
 )}: Combine ss_backtest_configs and ss_backtest_configs
 
 This method accepts one or multiple \code{sb_backtest_config} and one or multiple \code{ss_backtest_config} objects.
@@ -98,8 +114,8 @@ It combines all possible configurations between the configs and strategies by us
   meta_sb_backtest_config = sb_backtest_config,
   base_sb_backtest_configs = list,
   base_sb_backtest_results = missing,
-  ss_backtest_configs = missing,
-  ss_backtest_results = list
+  base_ss_backtest_configs = missing,
+  base_ss_backtest_results = list
 )}: Combine ss_backtest_configs and ss_backtest_results
 
 This method accepts one or multiple \code{sb_backtest_config} and one or multiple \code{ss_backtest_config} objects.
@@ -109,16 +125,16 @@ It combines all possible configurations between the configs and strategies by us
   meta_sb_backtest_config = sb_backtest_config,
   base_sb_backtest_configs = list,
   base_sb_backtest_results = missing,
-  ss_backtest_configs = missing,
-  ss_backtest_results = missing
+  base_ss_backtest_configs = missing,
+  base_ss_backtest_results = missing
 )}: Create meta config from sb_backtest_configs
 
 \item \code{create_sb_metabacktest_config(
   meta_sb_backtest_config = sb_backtest_config,
   base_sb_backtest_configs = missing,
   base_sb_backtest_results = list,
-  ss_backtest_configs = missing,
-  ss_backtest_results = missing
+  base_ss_backtest_configs = missing,
+  base_ss_backtest_results = missing
 )}: Create meta config from ss_backtest_results
 
 }}

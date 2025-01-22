@@ -6,8 +6,8 @@
 \usage{
 bayesian_adjustment(
   signal_universe_m_d_ref,
-  selected_backtest_returns_corrected_positions_xts_upd_ref,
-  selected_market_factor_proxy_xts_upd_ref,
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+  selected_market_factor_proxy_m_xts_upd_ref,
   priors_m_upd_ref = NULL,
   model_spec_theme_level,
   user_priors = NULL,

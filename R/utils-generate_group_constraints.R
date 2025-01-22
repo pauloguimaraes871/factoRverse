@@ -29,7 +29,7 @@ generate_group_constraints <- function(universe_m_d_ref, concentration_constrain
   if(is.null(groups_m_d_ref)){
     stop("groups_m_d_ref must be different from NULL in order to implement group constraints")
   }
-  if(any(!universe_m_d_ref %>% dplyr::pull(tickers) %in% groups_m_d_ref %>% dplyr::pull(tickers))){
+  if(any(!dplyr::pull(universe_m_d_ref, tickers) %in% dplyr::pull(groups_m_d_ref, tickers))){
     stop("Some tickers in universe_m_d_ref are not present in groups_m_d_ref")
   }
 

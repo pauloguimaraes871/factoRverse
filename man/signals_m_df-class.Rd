@@ -6,6 +6,4 @@
 \title{Define the signals_m_df S4 Class}
 \description{
 This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a signals meta_dataframe.
-
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a priros meta_dataframe.
 }

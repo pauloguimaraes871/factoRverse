@@ -3777,7 +3777,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   } else if (plot_name == "Waterfall Plot by Signal") {
     # Plot 7: Waterfall Plot by Ticker
     final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts),
+      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
                     beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
                     residual = specific_risk)
 
@@ -3792,7 +3792,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   } else if (plot_name == "Waterfall Plot by Theme") {
     # Plot 8: Waterfall Plot by Ticker
     final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts),
+      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
                     beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
                     residual = specific_risk)
 

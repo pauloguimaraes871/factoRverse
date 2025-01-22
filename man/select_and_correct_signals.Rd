@@ -8,7 +8,7 @@ select_and_correct_signals(
   signals_m_df,
   chosen_signals_and_positions,
   signal_themes_m_df = NULL,
-  backtest_returns_xts = NULL
+  backtest_returns_m_xts = NULL
 )
 }
 \arguments{
@@ -19,7 +19,7 @@ For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "sh
 
 \item{signal_themes_m_df}{A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in \code{signals_m_df}, and a "theme" column providing group membership for each signal.}
 
-\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
+\item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 }
 \value{
 A list with two components:

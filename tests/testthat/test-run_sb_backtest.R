@@ -1361,7 +1361,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -1370,14 +1370,15 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
     roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates))
+  ), order.by = unique(toy_preprocessed_features$dates)), type = "assets")
 
-  #Benchmark Returns XTS
-  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
+  #Benchmark Returns xts
+  suppressWarnings( #supress warning
+  mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
-  ),  order.by = unique(toy_preprocessed_features$dates))
-
+  ),  order.by = unique(toy_preprocessed_features$dates)), type = "assets")
+)
 
   #Chosen Signals and Positions
   chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
@@ -1389,7 +1390,7 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_m_xts),
+    tickers = names(mocked_backtest_returns_m_xts@data),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -1745,7 +1746,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -1754,14 +1755,15 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
     roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates))
+  ), order.by = unique(toy_preprocessed_features$dates)))
 
-  #Benchmark Returns XTS
-  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
+  #Benchmark Returns xts
+  suppressWarnings(
+  mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates))
-
+  ))
 
   #Chosen Signals and Positions
   chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
@@ -1769,7 +1771,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_m_xts),
+    tickers = names(mocked_backtest_returns_m_xts@data),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -2157,7 +2159,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -2166,14 +2168,15 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
     roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates))
+  ), order.by = unique(toy_preprocessed_features$dates)), meta_xts_name = "mocked")
 
-  #Benchmark Returns XTS
-  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
+  #Benchmark Returns xts
+  suppressWarnings(
+  mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates))
-
+  ))
 
   #Chosen Signals and Positions
   chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
@@ -2181,7 +2184,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_m_xts),
+    tickers = names(mocked_backtest_returns_m_xts@data),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -2236,9 +2239,9 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   #1st rebalancing
   #Most recent xts
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
-  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts["2022-07-15/2022-11-15",
+  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts@data["2022-07-15/2022-11-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts["2022-07-15/2022-11-15", "IBOV"]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts@data["2022-07-15/2022-11-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
@@ -2325,9 +2328,9 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
   #2nd rebalancing
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
-  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts["2022-07-15/2023-07-15",
+  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts@data["2022-07-15/2023-07-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts["2022-07-15/2023-07-15", "IBOV"]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts@data["2022-07-15/2023-07-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
@@ -2563,7 +2566,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -2572,14 +2575,15 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
     roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates))
+  ), order.by = unique(toy_preprocessed_features$dates)))
 
   #Benchmark Returns XTS
-  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
+  suppressWarnings(
+  mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
-  ),  order.by = unique(toy_preprocessed_features$dates))
-
+  ),  order.by = unique(toy_preprocessed_features$dates)))
+  )
 
   #Chosen Signals and Positions
   chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
@@ -2587,7 +2591,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_m_xts),
+    tickers = names(mocked_backtest_returns_m_xts@data),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -2646,9 +2650,9 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
   #1st rebalancing
   #Most recent xts
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
-  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts["2022-07-15/2022-11-15",
+  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts@data["2022-07-15/2022-11-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts["2022-07-15/2022-11-15", "IBOV"]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts@data["2022-07-15/2022-11-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
@@ -2768,9 +2772,9 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
   #2nd rebalancing
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
-  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts["2022-07-15/2023-07-15",
+  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts@data["2022-07-15/2023-07-15",
                                                                               most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts["2022-07-15/2023-07-15", "IBOV"]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts@data["2022-07-15/2023-07-15", "IBOV"]
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
@@ -8153,7 +8157,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -8162,14 +8166,15 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
     roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates))
+  ), order.by = unique(toy_preprocessed_features$dates)))
 
-  #Benchmark Returns XTS
-  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
+  #Benchmark Returns xts
+  suppressWarnings(
+  mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
-  ),  order.by = unique(toy_preprocessed_features$dates))
-
+  ),  order.by = unique(toy_preprocessed_features$dates)))
+  )
 
   #Chosen Signals and Positions
   chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
@@ -8177,7 +8182,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_m_xts),
+    tickers = names(mocked_backtest_returns_m_xts@data),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -10180,7 +10185,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -10189,14 +10194,15 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
     roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates))
+  ), order.by = unique(toy_preprocessed_features$dates)))
 
-  #Benchmark Returns XTS
-  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
+  #Benchmark Returns xts
+  suppressWarnings(
+  mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
-  ),  order.by = unique(toy_preprocessed_features$dates))
-
+  ),  order.by = unique(toy_preprocessed_features$dates)))
+  )
 
   #Chosen Signals and Positions
   chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
@@ -10204,7 +10210,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_m_xts),
+    tickers = names(mocked_backtest_returns_m_xts@data),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -10226,16 +10232,18 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
                             theme_level_intercept = "theme_specific", theme_level_slope = "fixed",
                             signal_significance_threshold = 0.50, p_correction_method = "bayesian",
                             market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE) %>%
-    add_brms_prior(
-      coef = c("themevalue", "thememomentum", "themedefensive", "market_factor_proxy", "Intercept", "market_factor_proxy", NA, NA),
-      distribution_choice = c("normal", "normal", "normal", "normal", "student_t", "student_t", "student_t", "lkj"),
-      pars = list(
-        c(mean = 0.0012, sd = 0.0016), c(mean = 0.0025,sd = 0.0016),  c(mean = -0.0025,sd = 0.0016), c(mean = 0.0003, sd = 0.0003),
-        c(df = 30, mean = 0, sd = 0.0113),  c(df = 30, mean = 0, sd = 0.0018),  c(df = 30, mean = 0, sd = 0.0256), c(eta = 2)
-      ),
-      class = c("b", "b", "b", "b", "sd", "sd", "sigma", "cor"),
-      group = c(NA, NA, NA, NA, "theme:tickers", "theme:tickers", NA, NA)
-    )
+    add_brms_prior(effect = "fixed", type = "intercept", theme = c("value", "momentum", "defensive"), distribution_choice = c("normal", "normal", "normal"),
+                   pars = list(c(mean = 0.0012, sd = 0.0016),c(mean = 0.0025, sd = 0.0016), c(mean = -0.0025, sd = 0.0016))) %>%
+    add_brms_prior(effect = "fixed", type = "slope", distribution_choice = "normal", pars = list(c(mean = 0.0003, sd = 0.0003))) %>%
+    add_brms_prior(effect = "random", type = "intercept", distribution_choice = c("student_t"),
+                   pars = list(c(df = 30, mean = 0, sd = 0.0113))) %>%
+    add_brms_prior(effect = "random", type = "slope", distribution_choice = c("student_t"),
+                   pars = list(c(df = 30, mean = 0, sd = 0.0018))) %>%
+    add_brms_prior(effect = "random", type = "sigma", distribution_choice = c("student_t"),
+                   pars = list(c(df = 30, mean = 0, sd = 0.0256))) %>%
+    add_brms_prior(effect = "random", type = "cor", distribution_choice = c("lkj"), pars = c(eta = 2))
+
+
 
   features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
 
@@ -10260,7 +10268,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(toy_preprocessed_features),
+      features_m_df = features_m_df,
       target_m_df = create_meta_dataframe(toy_preprocessed_targets),
       config = rf_config,
       .test_seed = 123,
@@ -12584,7 +12592,7 @@ test_that("Metabacktesting works for configs", {
   #First apply a signal selection backtest
   set.seed(123)
   #Backtest Returns
-  mocked_backtest_returns_m_xts <- xts::as.xts(data.frame(
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
     book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
     dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
@@ -12593,14 +12601,15 @@ test_that("Metabacktesting works for configs", {
     roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates))
+  ), order.by = unique(toy_preprocessed_features$dates)), meta_xts_name = "backtest")
 
-  #Benchmark Returns XTS
-  mocked_benchmark_returns_m_xts <- xts::as.xts(data.frame(
+  #Benchmark Returns xts
+  suppressWarnings(
+  mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
-  ),  order.by = unique(toy_preprocessed_features$dates))
-
+  ),  order.by = unique(toy_preprocessed_features$dates)), meta_xts_name = "benchmark")
+ )
 
   #Chosen Signals and Positions
   chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
@@ -12608,7 +12617,7 @@ test_that("Metabacktesting works for configs", {
 
   #Mocked Signal Themes
   mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_m_xts),
+    tickers = names(mocked_backtest_returns_m_xts@data),
     dates = unique(toy_preprocessed_features$dates),
     stringsAsFactors = FALSE
   ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
@@ -12621,7 +12630,7 @@ test_that("Metabacktesting works for configs", {
 
   signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
 
-  ##SS Config
+  ##SS Config 1
   frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
@@ -12639,7 +12648,6 @@ test_that("Metabacktesting works for configs", {
                     verbose = TRUE
     )
   )
-
 
   glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m",
                                              config_name = "glmnet_123") %>%
@@ -12667,14 +12675,14 @@ test_that("Metabacktesting works for configs", {
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
                                   base_sb_backtest_configs = list(rf_config, glmnet_config),
                                   base_ss_backtest_results = list(ss_results),
-                                  features_passthrough_and_positions = "none",
+                                  features_passthrough = "all",
                                   config_name = "meta_rf_glmnet")
 
 
   set.seed(123)
   ml_metabacktest_results <- run_sb_backtest(
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-    features_m_df = create_meta_dataframe(toy_preprocessed_features),
+    features_m_df = features_m_df,
     config = meta_config,
     parallel = FALSE,
     verbose = TRUE

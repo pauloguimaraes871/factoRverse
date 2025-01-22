@@ -13,8 +13,8 @@ check_inputs_sb_backtest(
   rebalancing_months,
   split_method,
   signal_universe_m_df,
-  backtest_returns_xts,
-  benchmark_returns_xts,
+  backtest_returns_m_xts,
+  benchmark_returns_m_xts,
   cov_matrix_benchmark,
   cov_matrix_sample_size,
   cov_estimation_method,
@@ -41,7 +41,8 @@ check_inputs_sb_backtest(
   early_stop,
   keras_architecture_parameters,
   parallel,
-  verbose = TRUE
+  verbose = TRUE,
+  .test_seed
 )
 }
 \arguments{
@@ -59,9 +60,9 @@ check_inputs_sb_backtest(
 
 \item{split_method}{Character, method of data splitting (currently only "expanding" is supported).}
 
-\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
+\item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
-\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
+\item{benchmark_returns_m_xts}{A xts with benchmark returns, named accordingly.}
 
 \item{sb_algorithm}{Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo").}
 

@@ -5,21 +5,21 @@
 \title{Summarize Performance Metrics of Backtests}
 \usage{
 summarize_performance(
-  selected_backtest_returns_corrected_positions_xts_upd_ref,
-  selected_market_factor_proxy_xts_upd_ref,
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+  selected_market_factor_proxy_m_xts_upd_ref,
   model_structure,
   model_spec_theme_level,
   lmer_control,
   selected_signal_themes_m_d_ref,
-  custom_signal_universe_metrics_m_upd_ref,
+  custom_signal_universe_metrics_m_upd_ref = NULL,
   active_returns = TRUE,
   verbose = TRUE
 )
 }
 \arguments{
-\item{selected_backtest_returns_corrected_positions_xts_upd_ref}{A xts containing the backtest returns data for various signals.}
+\item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{A xts containing the backtest returns data for various signals.}
 
-\item{selected_market_factor_proxy_xts_upd_ref}{A xts containing benchmark returns data.}
+\item{selected_market_factor_proxy_m_xts_upd_ref}{A xts containing benchmark returns data.}
 
 \item{model_spec_theme_level}{A character string specifying the desired Bayesian model structure.
 Options include:
@@ -32,7 +32,7 @@ Options include:
 
 \item{selected_signal_themes_m_d_ref}{A data frame containing metadata about signals. This data frame should include:
 \itemize{
-\item \code{tickers}: Signal identifiers matching those in \code{selected_backtest_returns_corrected_positions_xts_upd_ref}.
+\item \code{tickers}: Signal identifiers matching those in \code{selected_backtest_returns_corrected_positions_m_xts_upd_ref}.
 \item \code{theme}: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
 \item \code{dates}: Dates corresponding to the backtest data.
 This input ensures proper alignment between signals and their associated themes.

@@ -17,7 +17,7 @@
 #' @param meta_benchmark_returns_m_xts Optional xts object for meta benchmark returns.
 #'
 #' @return None. Stops execution if validation checks fail.
-validate_meta_config <- function(
+check_inputs_meta_sb_backtest <- function(
     config,
     features_m_df,
     base_signal_themes_m_df = NULL,
@@ -29,7 +29,8 @@ validate_meta_config <- function(
     base_backtest_returns_m_xts = NULL,
     base_benchmark_returns_m_xts = NULL,
     meta_backtest_returns_m_xts = NULL,
-    meta_benchmark_returns_m_xts = NULL
+    meta_benchmark_returns_m_xts = NULL,
+    verbose
 ) {
 
   # Objects Structure
@@ -94,18 +95,34 @@ validate_meta_config <- function(
   # Meta and Base Conformity
   ##########################
     ##Check for same objects being supplied
-    if (!is.null(base_signal_themes_m_df) && !is.null(meta_signal_themes_m_df) &&
-        base_signal_themes_m_df@meta_dataframe_name == meta_signal_themes_m_df@meta_dataframe_name) {
-      stop("base_signal_themes_m_df and meta_signal_themes_m_df should be different objects.")
+    if (!is.null(base_signal_themes_m_df) && !is.null(meta_signal_themes_m_df)){
+      if (base_signal_themes_m_df@meta_dataframe_name == meta_signal_themes_m_df@meta_dataframe_name) {
+        stop("base_signal_themes_m_df and meta_signal_themes_m_df should be different objects.")
+      }
+      if (any(base_signal_themes_m_df@data$id %in% meta_signal_themes_m_df@data$id)) {
+        stop("base_signal_themes_m_df and meta_signal_themes_m_df should not share any ids.")
+      }
     }
-    if (!is.null(base_priors_m_df) && !is.null(meta_priors_m_df) &&
-        base_priors_m_df@meta_dataframe_name == meta_priors_m_df@meta_dataframe_name) {
-      stop("base_priors_m_df and meta_priors_m_df should be different objects.")
+
+    if (!is.null(base_priors_m_df) && !is.null(meta_priors_m_df)){
+      if (base_priors_m_df@meta_dataframe_name == meta_priors_m_df@meta_dataframe_name) {
+        stop("base_priors_m_df and meta_priors_m_df should be different objects.")
+      }
+      if (any(base_priors_m_df@data$id %in% meta_priors_m_df@data$id)) {
+        stop("base_priors_m_df and meta_priors_m_df should not share any ids.")
+      }
     }
-    if (!is.null(base_custom_signal_weights_m_df) && !is.null(meta_custom_signal_weights_m_df) &&
-        base_custom_signal_weights_m_df@meta_dataframe_name == meta_custom_signal_weights_m_df@meta_dataframe_name) {
-      stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should be different objects.")
+
+    if (!is.null(base_custom_signal_weights_m_df) && !is.null(meta_custom_signal_weights_m_df)){
+      if (base_custom_signal_weights_m_df@meta_dataframe_name == meta_custom_signal_weights_m_df@meta_dataframe_name) {
+        stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should be different objects.")
+      }
+      if (any(base_custom_signal_weights_m_df@data$id %in% meta_custom_signal_weights_m_df@data$id)) {
+        stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should not share any ids.")
+      }
     }
+
+
   ##########################
 
   #Structure of Base Backtest Results and Configs

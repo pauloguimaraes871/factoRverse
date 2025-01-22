@@ -24,6 +24,9 @@ create_custom_weighted_portfolio <- function(universe_m_d_ref, custom_weights_m_
   if (abs(sum(custom_weights_m_d_ref$weights) - 1) > 0.02){
     stop("Custom weights should sum to 1")
   }
+  if (any(!universe_m_d_ref$tickers %in% custom_weights_m_d_ref$tickers)){
+    stop("Custom weights should contain all tickers in the universe")
+  }
 
   #Get custom weights
   custom_weights <- universe_m_d_ref %>% dplyr::select(tickers) %>% #Select only two colums

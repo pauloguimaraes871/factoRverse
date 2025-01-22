@@ -233,8 +233,8 @@ define_signal_eligibility <- function(
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
     active_returns = active_returns,
     #Data
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     custom_signal_universe_metrics_m_upd_ref = custom_signal_universe_metrics_m_upd_ref,
     verbose = verbose
     )

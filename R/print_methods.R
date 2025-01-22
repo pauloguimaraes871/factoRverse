@@ -589,6 +589,12 @@ setMethod("show", "sb_backtest_config", function(object) {
     print(object@ss_backtest_config)
   }
 
+  if(is.null(object@ss_backtest_config) && is.null(object@ss_backtest_results)){
+    cat("Chosen Signals and Positions:\n")
+    print(object@chosen_signals_and_positions, quote = FALSE)
+  }
+
+
 
   cat("\n=================================\n")
 })
@@ -615,7 +621,7 @@ setMethod("show", "sb_metabacktest_config",
             cat("------------------------------\n")
             cat(crayon::cyan("Meta Backtesting Scheme:"))
             cat("\n")
-            cat(sprintf("  features_passthrough_and_positions: %s\n", object@features_passthrough_and_positions))
+            cat(sprintf("  features_passthrough: %s\n", object@features_passthrough))
             cat(sprintf("  winsorize_base_predictions: %s\n", object@winsorize_base_predictions))
             cat(sprintf("  normalize_base_predictions: %s\n", object@normalize_base_predictions))
             cat("\n")
@@ -984,6 +990,8 @@ setMethod("show", "sb_backtest_results", function(object) {
 
   # Display Features Information
   cat("Features Information:\n")
+  cat("  Chosen Signals and Positions:\n")
+  print(sb_backtest_workflow$chosen_signals_and_positions)
   cat("Features:", paste(sb_backtest_workflow$features, collapse = ", "), "\n")
   if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
     cat("  Features Workflow:\n")

@@ -52,8 +52,14 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
 
     ##Check if elements of lists in oos_predictions_list match
     elements <- lapply(base_sb_backtest_results_list, function(x) x@oos_sb_outputs_m_df@data %>% dplyr::select(id))
-    if(!all(purrr::map_lgl(elements, ~ identical(.x, elements[[1]])))){
+    if (!all(purrr::map_lgl(elements, ~ identical(.x, elements[[1]])))){
       stop("Elements of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
+    }
+
+    ##Check if there are avaialable features_m_df ids
+    if (!is.null(features_m_df)) {
+      if (any(!base_sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data$id %in% features_m_df@data$id))
+        stop("Not all ids in base_sb_backtest_results are available in features_m_df")
     }
 
     ##Check if backtest_ids are in fact unique
@@ -62,18 +68,17 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
       stop("Backtest identifiers must be unique.")
     }
 
-
-    if(length(unique(names(base_sb_backtest_results_list))) != length(base_sb_backtest_results_list)){
+    if (length(unique(names(base_sb_backtest_results_list))) != length(base_sb_backtest_results_list)){
       stop("Names of sb_backtest_results objects must be unique.")
     }
 
     ##Check if length of oos_predictions_list match
-    if(!all(sapply(base_sb_backtest_results_list, function(x) nrow(x@oos_sb_outputs_m_df@data)) == nrow(base_sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data))){
+    if (!all(sapply(base_sb_backtest_results_list, function(x) nrow(x@oos_sb_outputs_m_df@data)) == nrow(base_sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data))){
       stop("Number of rows of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
     }
 
     ##Check if features_m_df is provided if features_passthrough_and_positions is not 'none'
-    if(length(features_passthrough_and_positions) == 1 && features_passthrough_and_positions != "none" && is.null(features_m_df)){
+    if (length(features_passthrough_and_positions) == 1 && features_passthrough_and_positions != "none" && is.null(features_m_df)){
       stop("features_m_df must be provided if features_passthrough_and_positions is not 'none'.")
     }
 
@@ -110,12 +115,18 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
         stop("The merged data frame does not contain the required 'id', 'tickers', or 'dates' columns.")
       }
 
+      ###Check for backtest_identifier columns
+      if (any(!names(base_sb_backtest_results_list) %in% colnames(oos_predictions_m_df))){
+        stop("All backtests should be in oos_predictions_m_df.")
+      }
+
+
     ##Transform to meta dataframe
-    oos_predictions_m_df <- create_meta_dataframe(oos_predictions_m_df)
+    oos_predictions_m_df <- create_meta_dataframe(oos_predictions_m_df, type = "signals")
 
     # Perform Winsorization and Normalization
-    if(winsorize_predictions) oos_predictions_m_df <- winsorize_panel_data(oos_predictions_m_df, probs = winsorization_probs)
-    if(normalize_predictions) oos_predictions_m_df <- normalize_panel_data(oos_predictions_m_df)
+    if (winsorize_predictions) oos_predictions_m_df <- winsorize_panel_data(oos_predictions_m_df, probs = winsorization_probs)
+    if (normalize_predictions) oos_predictions_m_df <- normalize_panel_data(oos_predictions_m_df)
   #########################
 
   # Add Pass-through features
@@ -127,10 +138,7 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
     ##If specific features, pass only those
 
       ###Adjust features_m_df according to features_passthrough_and_positions
-      selected_and_correct_features_m_df <- select_and_correct_signals(
-        features_m_df@data,
-        chosen_signals_and_positions = features_passthrough_and_positions
-        )$selected_signals_corrected_positions_m_df
+      selected_and_correct_features_m_df <- features_m_df@data %>% dplyr::select(id, tickers, dates, names(features_passthrough_and_positions))
 
       ###Join
       oos_predictions_and_features_m_df <- oos_predictions_m_df

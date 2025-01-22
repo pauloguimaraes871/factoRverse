@@ -61,7 +61,7 @@ setClass("meta_dataframe",
 
            #Check for presence of low
            if(any(grepl("low_", object@signals))){
-             return("Column names cannot contain 'low_'")
+             stop("Column names should not contain 'low_', as it will bring problems when running backtesting functions")
            }
 
          })
@@ -386,9 +386,10 @@ setClass(
     }
 
     all_values <- as.numeric(main_xts)
-    if (median(abs(all_values), na.rm = TRUE) < 5) {
+    if (median(abs(all_values)) < 1) {
       warning("Data might be in decimal form (e.g. 0.02 for 2%). ",
-              "If you intended values like 2.0 or 2.5 to represent percentages, please confirm.")
+              "Some functions depend on a percent representation (use 2.0 instead of 0.02), but this check might ",
+              "be wrong. Please confirm if data format is right.")
     }
 
     # Check assets & n_assets
@@ -1237,7 +1238,7 @@ setClass("ss_backtest_config",
                stop("chosen_signals_and_positions should be 'all' or a named vector with signals and positions")
              }
            } else {
-             if(!any(object@chosen_signals_and_positions %in% c("long", "short", "force"))){
+             if(any(!object@chosen_signals_and_positions %in% c("long", "short", "force"))){
                stop("chosen_signals_and_positions should be either 'long', 'short' or 'force'.")
              }
            }
@@ -1327,6 +1328,7 @@ setClass(
     tuning_strategy = "ANY",
     ss_backtest_config = "ANY",
     ss_backtest_results = "ANY",
+    chosen_signals_and_positions = "character",
     split_method = "character",
     training_sample_size = "numeric",
     rebalancing_months = "numeric",
@@ -1362,6 +1364,19 @@ setClass(
         return("ss_backtest_results must be of class 'ss_backtest_results'.")
       }
     }
+    ##Chosen Signals and Positions
+    if (is.null(object@ss_backtest_config) && is.null(object@ss_backtest_results)) {
+      if (length(object@chosen_signals_and_positions) == 1){
+        if(!object@chosen_signals_and_positions == "all"){
+          stop("chosen_signals_and_positions should be 'all' or a named vector with signals and positions")
+        }
+      } else {
+        if(any(!object@chosen_signals_and_positions %in% c("long", "short"))){
+          stop("chosen_signals_and_positions should be either 'long' or 'short'.")
+        }
+      }
+    }
+
 
     #Check for valid sb_algorithm
     valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo", "custom_weights")
@@ -1390,10 +1405,14 @@ setClass(
         "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
         "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
       )
-      if (!grepl("^max_|^min_", object@custom_objective) || !substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
-        return("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
-               To see complete list of valid heuristic performance metrics, use 'display_valid_custom_objectives()'")
+      if (!grepl("^max_|^min_", object@custom_objective)){
+        stop("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
+             To see complete list of valid heuristic performance metrics, use 'display_valid_custom_objectives()'")
       }
+      if (!substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
+        warning("Custom_objective not one of typical valid heuristic performance. Please be sure that the metric is present in signal_univers_m_df")
+      }
+
     } else {
       if (!is.null(object@custom_objective) && !(object@custom_objective %in% c("squared_error", "pseudo_huber_error", "absolute_error"))) {
         return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
@@ -1771,7 +1790,7 @@ setClass(
     }
 
     #Check for features_passthrough
-    if (any(features_passthrough %in% c("long", "short", "force"))){
+    if (any(object@features_passthrough %in% c("long", "short", "force"))){
       stop ("features_passthrough should just declare which signals from features_m_df should be added to meta learner features.
             Postions will be corrected based on chosen_signals_and_positions.")
     }

@@ -1494,6 +1494,43 @@ test_that("run_sb_backtest_internal throws an error when custom_objective wrongl
     "Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'."
   )
 
+  #Seting inexistent heuristic sb metric
+  expect_error(
+    suppressMessages(suppressWarnings({
+      check_inputs_sb_backtest(
+        features_m_df = features_m_df,
+        target_m_df = target_m_df,
+        split_method = "expanding",
+        quantile_tau = 0.5,
+        gsm_algorithm = "ols",
+        training_sample_size = 4,
+        validation_sample_size = 0,
+        huber_delta = 1,
+        rebalancing_months = 9,
+        hyper_grid_domain_list = NULL,
+        n_iter = NULL,
+        k_iter = NULL,
+        tuning_method = NULL,
+        signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_m_xts = xts::xts(data.frame(Alpha = rnorm(6), Beta = rnorm(6), Gamma = rnorm(6)),
+                                          order.by = seq.Date(as.Date("2001-03-15"), as.Date("2001-08-15"), by = "month")),
+        benchmark_returns_m_xts =  xts::xts(data.frame(IBOV = rnorm(6), SMLL = rnorm(6), IDIV = rnorm(6)),
+                                            order.by = seq.Date(as.Date("2001-03-15"), as.Date("2001-08-15"), by = "month")),
+        signal_themes_m_df = NULL,
+        concentration_constraint_policy = NULL,
+        cov_matrix_sample_size = 3,
+        custom_signal_weights_m_df = NULL,
+        custom_objective = "max_sharpe",
+        sb_algorithm = "sw",
+        chosen_eval_metric = "rss",
+        active_returns = FALSE,
+        cov_matrix_benchmark = "IBOV",
+        target_fwd_name = "fwd_premium_1m")
+    })),
+    "Heuristic Signal Blending Metric not found in signal_universe_m_df"
+  )
+
+
   #Early stop
   expect_error(
     suppressMessages(suppressWarnings({

@@ -10,38 +10,96 @@ add_brms_prior(object, ...)
 
 \S4method{add_brms_prior}{bayesian_alpha_test_strategy}(
   object,
+  effect,
+  type,
+  theme = NULL,
   distribution_choice,
   pars,
-  class,
-  coef = NULL,
-  group = NULL
+  level = "signals"
 )
 
 \S4method{add_brms_prior}{ss_backtest_config}(
   object,
+  effect,
+  type,
+  theme = NULL,
   distribution_choice,
   pars,
-  class,
-  coef = NULL,
-  group = NULL
+  level = "signals"
 )
 }
 \arguments{
 \item{object}{An object of class \code{bayesian_alpha_test_strategy}.}
 
-\item{distribution_choice}{A vector of strings representing the distribution of the prior. See details for valid options.}
+\item{effect}{A character string specifying the effect of the prior. Must be one of "fixed" or "random".}
 
-\item{pars}{A list of named numeric vectors. The names should match the expected parameter names for the chosen distribution.}
+\item{type}{A character string specifying the type of prior. Options: "intercept", "slope", "sigma", or "cor".}
 
-\item{class}{A vector of character strings representing the class of the prior. Should be one of 'Intercept', 'b', 'sd', 'sigma', or 'cor'.}
+\item{theme}{A character vector specifying themes (e.g., "value", "momentum"). Applicable for fixed effects.}
 
-\item{coef}{A vector of character strings representing the coefficient name. Only applicable when \code{class} is 'b' or 'sd'.}
+\item{distribution_choice}{A character vector specifying the distribution of the prior (e.g., "normal", "student_t").}
 
-\item{group}{A vector of character strings representing the group name. Only applicable when \code{class} is 'b' or 'sd'.}
+\item{pars}{A list of named numeric vectors specifying parameters for the chosen distribution.}
+
+\item{level}{A character string specifying the hierarchical level for random effects. Options: "signals" (default), "tickers", or "theme".}
 }
 \value{
 An updated \code{bayesian_alpha_test_strategy} object with the added prior.
 }
 \description{
-Adds a prior to a \code{bayesian_alpha_test_strategy} object based on provided parameters.
+Adds a prior to a \code{bayesian_alpha_test_strategy} object based on the specified effect, type, distribution, and parameters.
+}
+\details{
+\itemize{
+\item For \code{effect = "fixed"}, you can specify global intercepts or slopes, or theme-specific priors using the \code{theme} argument.
+\item For \code{effect = "random"}, you can define hierarchical priors with \code{level} specifying the grouping structure.
+}
+
+Supported \code{distribution_choice} options include:
+\itemize{
+\item \code{"normal"}: Requires \code{pars} with \code{mean} and \code{sd}.
+\item \code{"student_t"}: Requires \code{pars} with \code{df}, \code{mean}, and \code{sd}.
+\item \code{"lkj"}: Requires \code{pars} with \code{eta} (only for \code{type = "cor"}).
+}
+}
+\examples{
+# Example 1: Adding fixed effect priors for theme-specific intercepts
+obj <- new("bayesian_alpha_test_strategy")
+obj <- add_brms_prior(
+  object = obj,
+  effect = "fixed",
+  type = "intercept",
+  theme = c("value", "momentum"),
+  distribution_choice = c("normal", "normal"),
+  pars = list(c(mean = 0.0012, sd = 0.0016), c(mean = 0.0025, sd = 0.0016))
+)
+
+# Example 2: Adding a random effect prior for intercept at the signals level
+obj <- add_brms_prior(
+  object = obj,
+  effect = "random",
+  type = "intercept",
+  level = "signals",
+  distribution_choice = "student_t",
+  pars = list(c(df = 30, mean = 0, sd = 0.0113))
+)
+
+# Example 3: Adding a prior for residual error (sigma)
+obj <- add_brms_prior(
+  object = obj,
+  effect = "random",
+  type = "sigma",
+  distribution_choice = "student_t",
+  pars = list(c(df = 30, mean = 0, sd = 0.0256))
+)
+
+# Example 4: Adding a prior for correlation (cor)
+obj <- add_brms_prior(
+  object = obj,
+  effect = "random",
+  type = "cor",
+  distribution_choice = "lkj",
+  pars = list(c(eta = 2))
+)
+
 }

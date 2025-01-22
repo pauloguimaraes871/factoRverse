@@ -13,8 +13,8 @@ run_sb_backtest(features_m_df, target_m_df, config, ...)
   features_m_df,
   target_m_df,
   config,
-  backtest_returns_xts = NULL,
-  benchmark_returns_xts = NULL,
+  backtest_returns_m_xts = NULL,
+  benchmark_returns_m_xts = NULL,
   signal_themes_m_df = NULL,
   priors_m_df = NULL,
   custom_signal_weights_m_df = NULL,
@@ -30,13 +30,13 @@ run_sb_backtest(features_m_df, target_m_df, config, ...)
   features_m_df,
   target_m_df,
   config,
-  base_backtest_returns_xts = NULL,
-  base_benchmark_returns_xts = NULL,
+  base_backtest_returns_m_xts = NULL,
+  base_benchmark_returns_m_xts = NULL,
   base_signal_themes_m_df = NULL,
   base_priors_m_df = NULL,
   base_custom_signal_weights_m_df = NULL,
-  meta_backtest_returns_xts = NULL,
-  meta_benchmark_returns_xts = NULL,
+  meta_backtest_returns_m_xts = NULL,
+  meta_benchmark_returns_m_xts = NULL,
   meta_signal_themes_m_df = NULL,
   meta_priors_m_df = NULL,
   meta_custom_signal_weights_m_df = NULL,
@@ -59,8 +59,8 @@ run_sb_backtest_internal(
   cov_matrix_sample_size = 36,
   cov_estimation_method = "sample",
   active_returns = TRUE,
-  backtest_returns_xts = NULL,
-  benchmark_returns_xts = NULL,
+  backtest_returns_m_xts = NULL,
+  benchmark_returns_m_xts = NULL,
   cov_matrix_benchmark = "IBOV",
   rp_method = "cyclical-spinu",
   n_random_ports = 2000,
@@ -101,9 +101,9 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{...}{Additional arguments (not used in this method).}
 
-\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_universe_m_df},}
+\item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_universe_m_df},}
 
-\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
+\item{benchmark_returns_m_xts}{A xts with benchmark returns, named accordingly.}
 
 \item{winsorization_probs}{Numeric vector of length 2 specifying the lower and upper quantiles for winsorization. Default is \code{c(0.025, 0.975)}.}
 
@@ -165,7 +165,7 @@ If running in parallel, set iters.k to a multiple of the number of cores. Must b
 
 \item{normalize_predictions}{Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.}
 
-\item{features_passthrough_and_positions}{A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
+\item{features_passthrough}{A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
 Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.}
 
 \item{hyper_grid_domain}{A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:

@@ -41,7 +41,6 @@ alpha_strategy <- new("frequentist_alpha_test_strategy",
                        p_correction_method = "holm",
                        market_factor_proxy = "S&P500")
 config <- create_ss_backtest_config(
-  data_availability_cutoff = 100,
   initial_sample_size = 200,
   rebalancing_months = 6,
   alpha_test_strategy = NULL,

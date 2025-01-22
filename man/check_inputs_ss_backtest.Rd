@@ -12,8 +12,8 @@ check_inputs_ss_backtest(
   chosen_signals_and_positions,
   forced_signals,
   custom_signal_universe_metrics_m_df,
-  backtest_returns_xts,
-  benchmark_returns_xts,
+  backtest_returns_m_xts,
+  benchmark_returns_m_xts,
   market_factor_proxy,
   active_returns,
   p_correction_method,
@@ -42,12 +42,12 @@ check_inputs_ss_backtest(
 \item{chosen_signals_and_positions}{A named vector indicating signals and their corresponding positions (long or short).
 For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").}
 
-\item{backtest_returns_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
+\item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
-\item{benchmark_returns_xts}{A xts with benchmark returns, named accordingly.}
+\item{benchmark_returns_m_xts}{A xts with benchmark returns, named accordingly.}
 
 \item{active_returns}{A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
-backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts.}
+backtest_returns_m_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts.}
 
 \item{p_correction_method}{The method for p-value correction. Possible options are:
 \itemize{

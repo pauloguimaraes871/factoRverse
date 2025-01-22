@@ -54,7 +54,7 @@
 #'
 #'
 fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
-                                               selected_backtest_returns_corrected_positions_xts_upd_ref, selected_market_factor_proxy_xts_upd_ref, #Data
+                                               selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, #Data
                                                selected_backtest_returns_corrected_positions_m_upd_ref = NULL,
                                                selected_signal_themes_m_d_ref, model_spec_theme_level, #Hierarhical Model spec
                                                lmer_optimizer, lmer_optimization_objective, hierarchical_p_value_method){ #lmer parameters
@@ -73,8 +73,8 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
   #Prepare objects
   ########################
   lmer_model_inputs_list <- prepare_hierarchical_model_inputs(
-    selected_backtest_returns_corrected_positions_xts_upd_ref = selected_backtest_returns_corrected_positions_xts_upd_ref,
-    selected_market_factor_proxy_xts_upd_ref = selected_market_factor_proxy_xts_upd_ref,
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
     #If selected_backtest_returns_corrected_positions_m_upd_ref is not NULL, it will just give formulas
     selected_backtest_returns_corrected_positions_m_upd_ref = selected_backtest_returns_corrected_positions_m_upd_ref,
     selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,

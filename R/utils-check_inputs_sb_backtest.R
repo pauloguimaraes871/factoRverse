@@ -83,6 +83,10 @@ check_inputs_sb_backtest <- function(
         stop("dates in features_m_df must be a date object with format %Y-%m-%d.")
       }
 
+      #Check for presence of low
+      if(any(grepl("low_", colnames(features_m_df)))){
+        stop("features_m_df column names should not contain 'low_'.")
+      }
 
   #Check for correct format in target_m_df
       if(!(is_coercible_to_meta_dataframe(target_m_df))){
@@ -154,10 +158,13 @@ check_inputs_sb_backtest <- function(
         if(!(is_coercible_to_meta_dataframe(signal_universe_m_df))){
           stop("signal_universe_m_df should be coercible to meta_dataframe object")
         }
-        ##Check for NAs in heuristic sb metric
-        if(sb_algorithm %in% c("sw", "mvo")){
+        ##Check for existence and NAs in heuristic sb metric
+        if (sb_algorithm %in% c("sw", "mvo")){
+          if (!stringr::str_remove_all(custom_objective, "max_") %>% stringr::str_remove_all("min_") %in% colnames(signal_universe_m_df)){
+            stop("Heuristic Signal Blending Metric not found in signal_universe_m_df")
+          }
           heuristic_sb_metric <- signal_universe_m_df %>% dplyr::pull(stringr::str_remove_all(custom_objective, "max_") %>% stringr::str_remove_all("min_"))
-          if(any(is.na(heuristic_sb_metric))){
+          if (any(is.na(heuristic_sb_metric))){
             stop("Heuristic Signal Blending Metric contains NAs")
           }
         }
@@ -310,7 +317,7 @@ check_inputs_sb_backtest <- function(
         }
         ##Check if any weight belong to a non-eligible ticker
         non_zero_weight_id <- custom_signal_weights_m_df %>% dplyr::filter(weights != 0) %>% dplyr::pull(id)
-        non_eligible_id <- signal_universe_m_df %>% dplyr::filter(eligible == 0) %>% dplyr::pull(id)
+        non_eligible_id <- signal_universe_m_df %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(id)
         if(any(non_zero_weight_id %in% non_eligible_id)){
           message("Some ids in custom_signal_weights_m_df are not eligible: ",
                   paste(non_zero_weight_id[non_zero_weight_id %in% non_eligible_id], collapse = ", "))
@@ -457,6 +464,11 @@ check_inputs_sb_backtest <- function(
         }
       }
 
+      ##Check if all is eligible while method is ew
+      if(sb_algorithm == "ew" && !any(stringr::str_detect(signal_universe_m_df$tickers, "_low"))){
+        warning("All signals are 'long' and sb_algorithm is 'ew'. Please check if this is intended.")
+      }
+
       #Validation Schema
       #Check for correct choice in chosen_eval_metric
       if(!is.null(chosen_eval_metric)){
@@ -477,12 +489,12 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for correct hyperparameters names in hyper_grid_domain_list
-      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & !is.null(hyper_grid_domain_list)){
+      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & !is.null(hyper_grid_domain_list)){
         stop("ols and heuristic sb algorithms do not support hyperparameters.")
       }
 
 
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & is.null(hyper_grid_domain_list)){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & is.null(hyper_grid_domain_list)){
         stop("hyper_grid_domain must be set when sb_algorithm is different from ols.")
       }
 
@@ -511,12 +523,12 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for valid format in tuning method
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
         stop("tuning_method should be one of random_search, grid_search or bayesian_opt.")
       }
 
       #Check for correct format in case tuning method is grid_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("grid_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("grid_search")){
         if(any(
           #Check if hyper_grid_domain_list is a list
           !(class(hyper_grid_domain_list) == "list"),
@@ -530,12 +542,12 @@ check_inputs_sb_backtest <- function(
         }
       }
 
-      if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo"), tuning_method == "grid_search",!is.null(n_iter))){
+      if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights"), tuning_method == "grid_search",!is.null(n_iter))){
         warning("When tuning_method is grid_search, hyperparameters are combined exhaustively. Ignoring any user set n_iter value")
       }
 
       #Check for correct format in case tuning method is random_search
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("random_search")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("random_search")){
 
 
         tryCatch({
@@ -576,7 +588,7 @@ check_inputs_sb_backtest <- function(
 
 
       #Check for correct format in case tuning method is Bayesian Optimization
-      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && tuning_method == c("bayesian_opt")){
+      if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("bayesian_opt")){
         if(any(
           #Check if hyper_grid_domain_list is a list
           !is.list(hyper_grid_domain_list),
@@ -614,7 +626,7 @@ check_inputs_sb_backtest <- function(
       }
 
       #Check for correct choice in custom_objective
-      if(all(!sb_algorithm %in% c("xgb", "nn", "sw", "mvo") && custom_objective != "squared_error")){
+      if(all(!sb_algorithm %in% c("xgb", "nn", "sw", "mvo", "custom_weights") && custom_objective != "squared_error")){
         stop("Custom objective functions are only allowed for xgb, nn, sw or mvo sb_algorithm choices")
       }
 
@@ -716,12 +728,8 @@ check_inputs_sb_backtest <- function(
           if(!concentration_constraint_policy$benchmark %in% c("theme_sb", "theme_ss")){
             stop("concentration_constraint_policy's benchmark should be set to theme_sb or theme_ss")
           }
-          if(!concentration_constraint_policy$benchmark %in% colnames(signal_universe_m_df)){
+          if(!concentration_constraint_policy$benchmark %in% stringr::str_remove(colnames(signal_universe_m_df), "_bench_weights")){
             stop("concentration_constraint_policy's benchmark should be present in signal_universe_m_df")
-          }
-
-          if(length(concentration_constraint_policy$max_abs_active_group_weight) > 0){
-            stop("group constraints are not supported for signal portfolios")
           }
 
         }

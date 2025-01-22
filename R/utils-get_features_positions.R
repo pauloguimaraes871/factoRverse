@@ -99,21 +99,27 @@ get_and_check_chosen_signals_and_positions <- function(base_sb_backtest_results_
   if (!is.null(base_sb_backtest_results_list)){
     ####Base SB Backtest Results
     chosen_signals_and_positions_list <-
-      sapply(base_sb_backtest_results_list, function(x){ #List is already available
-        if (!is.null(x@ss_backtest_results)){
-          return(x@ss_backtest_results$ss_backtest_workflow$chosen_signals_and_positions)
-        } else {
-          #As features_m_df is the same object (checked in the main function), we can use it here to reconstruct missing as 'all'
-          current_chosen_signals_and_positions <- rep("long", ncol(features_m_df %>% dplyr::select(-id, -tickers, -dates)))
-          names(current_chosen_signals_and_positions) <- colnames(features_m_df %>% dplyr::select(-id, -tickers, -dates))
-        }
+      lapply(base_sb_backtest_results_list, function(x){ #List is already available
+          current_chosen_signals_and_positions_vec <- x@sb_backtest_workflow$chosen_signals_and_positions
+          return(current_chosen_signals_and_positions_vec)
       })
   } else {
     ####Base SB Backtest Configs
     chosen_signals_and_positions_list <-
-      sapply(base_sb_backtest_configs_list, function(x){
-        if (!is.null(x@ss_backtest_config)) return(x@ss_backtest_config$chosen_signals_and_positions)
-        if (!is.null(x@ss_backtest_results)) return(x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)
+      lapply(base_sb_backtest_configs_list, function(x){
+        #For SS Backtest Configs
+        if (!is.null(x@ss_backtest_config)){
+          current_chosen_signals_and_positions_vec <-x@ss_backtest_config$chosen_signals_and_positions
+          names(current_chosen_signals_and_positions_vec) <- names(x@ss_backtest_config$chosen_signals_and_positions)
+          return(current_chosen_signals_and_positions_vec)
+        }
+        #For SS Backtest Results
+        if (!is.null(x@ss_backtest_results)){
+          current_chosen_signals_and_positions_vec <- x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions
+          names(current_chosen_signals_and_positions_vec) <- names(x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)
+          return(current_chosen_signals_and_positions_vec)
+        }
+        #For NULLs
         if (is.null(x@ss_backtest_config) && is.null(x@ss_backtest_results)){
           #As features_m_df is the same object (checked in the main function), we can use it here to reconstruct missing as 'all'
           current_chosen_signals_and_positions <- rep("long", ncol(features_m_df %>% dplyr::select(-id, -tickers, -dates)))

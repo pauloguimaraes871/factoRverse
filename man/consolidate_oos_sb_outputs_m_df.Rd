@@ -22,9 +22,9 @@ consolidate_oos_sb_outputs_m_df(
 
 \item{winsorization_probs}{A numeric vector of length 2 specifying the lower and upper quantile probabilities for winsorization. Default is \code{c(0.025, 0.975)}.}
 
-\item{features_passthrough_and_positions}{Character; specifies which features from \code{features_m_df} to include in the output. Options are \code{"none"}, \code{"all"}, or specific feature names with their positions. Default is \code{"none"}.}
+\item{features_m_df}{A meta dataframe of features to include in the passthrough. Only required if \code{features_passthrough} is not \code{"none"}. Default is \code{NULL}.}
 
-\item{features_m_df}{A meta dataframe of features to include in the passthrough. Only required if \code{features_passthrough_and_positions} is not \code{"none"}. Default is \code{NULL}.}
+\item{features_passthrough}{Character; specifies which features from \code{features_m_df} to include in the output. Options are \code{"none"}, \code{"all"}, or specific feature names. Default is \code{"none"}.}
 }
 \value{
 A \code{meta_dataframe} object containing the consolidated predictions, optionally with normalized and winsorized values, and passthrough features.
@@ -38,7 +38,7 @@ The function performs a series of validation checks to ensure the consistency of
 \itemize{
 \item All elements in \code{base_sb_backtest_results_list} must have the same \code{oos_predictions_m_df} structure, with matching \code{id} values across all elements.
 \item The list must have unique, non-empty names to be used as column identifiers in the consolidated dataframe.
-\item If \code{features_passthrough_and_positions} is not \code{"none"}, a \code{features_m_df} must be provided.
+\item If \code{features_passthrough} is not \code{"none"}, a \code{features_m_df} must be provided.
 }
 
 After performing these validations, the function consolidates predictions into a single meta dataframe.
@@ -50,7 +50,7 @@ Additionally, the specified features can be passed through to the output datafra
 # Example with default options
 consolidated_df <- consolidate_oos_sb_outputs_m_df(
   base_sb_backtest_results_list = list_of_sb_results,
-  features_passthrough_and_positions = "all",
+  features_passthrough = "all",
   features_m_df = features_df
 )
 }
