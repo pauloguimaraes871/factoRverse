@@ -2380,19 +2380,32 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   }
 
   ##Chosen_signals_and_positions
-  if (any(!is.null(ss_backtest_config),!is.null(ss_backtest_results))){
-    if (!is.null(chosen_signals_and_positions)){
-      stop("chosen_signals_and_positions should only be provided when 'ss_backtest_config' or 'ss_backtest_results' are missing.")
+    ###Presence of other objects
+    if (any(!is.null(ss_backtest_config),!is.null(ss_backtest_results))){
+      if (!is.null(chosen_signals_and_positions)){
+        stop("chosen_signals_and_positions should only be provided when 'ss_backtest_config' or 'ss_backtest_results' are missing.")
+      }
+      chosen_signals_and_positions <- "ss_backtest_obj"
+      message("chosen_signals_and_positions will follow underlying ss_backtest_obj")
     }
-    chosen_signals_and_positions <- "ss_backtest_obj"
-    message("chosen_signals_and_positions will follow underlying ss_backtest_obj")
-  }
-  if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)){
-    chosen_signals_and_positions <- "all"
-  }
-  if (sb_algorithm == "custom_weights" && !is.null(chosen_signals_and_positions)){
-    stop("chosen_signals_and_positions are not needed when sb_algorithm is custom_weights.")
-  }
+    if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)){
+      chosen_signals_and_positions <- "all"
+    }
+    if (sb_algorithm == "custom_weights" && !is.null(chosen_signals_and_positions)){
+      stop("chosen_signals_and_positions are not applied when sb_algorithm is custom_weights.")
+    }
+    ###Check if chosen_signals_and_positions length > 1
+    if(length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions != "all"){
+      stop("More than one signal must be provided in order to run a sb_backtest")
+    }
+    ###Check if there are repeated signals in chosen_signals
+    if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
+      stop("each signal must be chosen only once")
+    }
+    ###Check for presence of low_
+    if(any(grepl("low_", names(chosen_signals_and_positions)))){
+      stop("chosen_signals_and_positions should not contain 'low_'.")
+    }
 
   #Create default parameters for signal_port_parameters depending on sb_algo
   if(sb_algorithm %in% c("mvo", "rp") && is.null(signal_port_parameters)){

@@ -22,6 +22,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
 
   set.seed(123)
+  suppressWarnings(
   ols_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
@@ -29,7 +30,9 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     verbose = TRUE,
     parallel = FALSE
   )
+  )
 
+  suppressWarnings(
   glmnet_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
@@ -37,13 +40,16 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     verbose = TRUE,
     parallel = FALSE
   )
+  )
 
+  suppressWarnings(
   rf_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
     config = rf_config,
     verbose = TRUE,
     parallel = FALSE
+  )
   )
 
   #Get sb_backtest_results
@@ -168,6 +174,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     add_ss_backtest_obj(ss_results)
 
   set.seed(123)
+  suppressWarnings(
   ols_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
@@ -175,7 +182,9 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     verbose = TRUE,
     parallel = FALSE
   )
+  )
 
+  suppressWarnings(
   glmnet_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
@@ -183,13 +192,16 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     verbose = TRUE,
     parallel = FALSE
   )
+  )
 
+  suppressWarnings(
   rf_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
     config = rf_config,
     verbose = TRUE,
     parallel = FALSE
+  )
   )
 
   #Get sb_backtest_results
@@ -285,6 +297,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
 
   set.seed(123)
+  suppressWarnings(
   ols_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
@@ -292,7 +305,9 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     verbose = TRUE,
     parallel = FALSE
   )
+  )
 
+  suppressWarnings(
   glmnet_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
@@ -300,13 +315,16 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     verbose = TRUE,
     parallel = FALSE
   )
+  )
 
+  suppressWarnings(
   rf_results <- run_sb_backtest(
     features_m_df = features_m_df,
     target_m_df = target_m_df,
     config = rf_config,
     verbose = TRUE,
     parallel = FALSE
+  )
   )
 
   #Get sb_backtest_results
@@ -337,8 +355,87 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
 })
 
+test_that("consolidate_backtest_returns_xts adequately combines base and meta backtests", {
 
 
+  #Create objects
+  set.seed(123)
+  #Backtest Returns
+  meta_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    rf_results = rnorm(10, mean = 5, sd = 3.5),
+    ols_results = rnorm(10, mean = 1, sd = 5),
+    ew_results = rnorm(10, mean = 15, sd = 0.4),
+   order.by = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10))),
+  type = "assets", meta_xts_name = "meta_xts")
+
+  base_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(5, mean = 5, sd = 3.5),
+    book_yield = rnorm(5, mean = 1, sd = 5),
+    dps_yield = rnorm(5, mean = 15, sd = 0.4),
+    eps_yield = rnorm(5, mean = 0.5, sd = 1.3),
+    mom_res_12m = rnorm(5, mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(5, mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(5, mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(5, mean = 1.05, sd = 7.5)
+  ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
+  type = "assets", meta_xts_name = "base_xts")
+
+
+  #Merge them according to meta_backtest_returns_xts
+  expected_results <- merge(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data, join = "left") %>% na.omit()
+
+  expect_equal(consolidate_backtest_returns_xts(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data),
+               expected_results)
+
+  #Only meta_backtest_returns_xts
+  expect_equal(consolidate_backtest_returns_xts(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts = NULL),
+               meta_backtest_returns_m_xts@data)
+
+
+  #Only base_backtest_returns_xts
+  expect_equal(consolidate_backtest_returns_xts(meta_backtest_returns_m_xts = NULL, base_backtest_returns_m_xts = base_backtest_returns_m_xts@data),
+               NULL)
+
+
+})
+
+test_that("consolidate_benchmark_returns_xts adequately combines base and meta benchmarks", {
+
+
+  #Create objects
+  set.seed(123)
+  #Backtest Returns
+  meta_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    theme_ss = rnorm(10, mean = 5, sd = 3.5),
+    theme_sb = rnorm(10, mean = 1, sd = 5)
+  ), order.by = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10)),
+    type = "assets", meta_xts_name = "meta_xts")
+
+  base_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    IBOV = rnorm(5, mean = 5, sd = 3.5),
+    IDIV = rnorm(5, mean = 1, sd = 5),
+    SMLL = rnorm(5, mean = 15, sd = 0.4)
+  ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
+  type = "assets", meta_xts_name = "base_xts")
+
+
+  #Merge them according to meta_backtest_returns_xts
+  expected_results <- merge(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data, join = "left") %>% na.omit()
+
+  expect_equal(consolidate_benchmark_returns_xts(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data),
+               expected_results)
+
+  #Only meta_benchmark_returns_xts
+  expect_equal(consolidate_benchmark_returns_xts(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts = NULL),
+               meta_benchmark_returns_m_xts@data)
+
+
+  #Only base_benchmark_returns_xts
+  expect_equal(consolidate_benchmark_returns_xts(meta_benchmark_returns_m_xts = NULL, base_benchmark_returns_m_xts = base_backtest_returns_m_xts@data),
+               base_backtest_returns_m_xts@data)
+
+
+})
 
 
 

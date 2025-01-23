@@ -37,7 +37,6 @@
 #' [sb_backtest_results-class] for the definition of `sb_backtest_results` objects.
 #' [create_meta_dataframe()] for constructing a meta dataframe.
 #'
-#' @export
 consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
                                             winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
                                             features_passthrough_and_positions = "none", features_m_df = NULL) {
@@ -154,27 +153,43 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
 
 
 #' @title Consolidate backtest_returns_xts
-#' @export
-consolidate_backtest_returns_xts <- function(meta_backtest_returns_xts, base_backtest_returns_xts) {
-  # Return NULL if meta_backtest_returns_xts is NULL
-  if (is.null(meta_backtest_returns_xts)) return(NULL)
+consolidate_backtest_returns_xts <- function(meta_backtest_returns_m_xts, base_backtest_returns_m_xts) {
+  # Return NULL if meta_backtest_returns_m_xts is NULL
+  if (is.null(meta_backtest_returns_m_xts)) return(NULL)
 
-  # Return meta_backtest_returns_xts if base_backtest_returns_xts is NULL
-  if (is.null(base_backtest_returns_xts)) return(meta_backtest_returns_xts)
+  # Return meta_backtest_returns_m_xts if base_backtest_returns_m_xts is NULL
+  if (is.null(base_backtest_returns_m_xts)) return(meta_backtest_returns_m_xts)
 
   # Merge meta and base backtest returns using a left join
-  merge(meta_backtest_returns_xts, base_backtest_returns_xts, join = "left")
+  create_meta_xts(merge(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data, join = "left") %>% na.omit(), #Join
+                  meta_xts_name = paste0(meta_backtest_returns_m_xts@meta_xts_name, "_", base_backtest_returns_m_xts@meta_xts_name), #Rename
+                  type = "assets"
+  )
 }
 
 
 #' @title Consolidate benchmark_returns_xts
-#' @export
-combine_benchmark_returns <- function(meta_benchmark_returns_xts, base_benchmark_returns_xts) {
+consolidate_benchmark_returns_xts <- function(meta_benchmark_returns_m_xts, base_benchmark_returns_m_xts) {
   # Case 1 & 2: Return the non-NULL object if either is NULL, or NULL if both are NULL
-  if (is.null(meta_benchmark_returns_xts)) return(base_benchmark_returns_xts)
-  if (is.null(base_benchmark_returns_xts)) return(meta_benchmark_returns_xts)
+  if (is.null(meta_benchmark_returns_m_xts)) return(base_benchmark_returns_m_xts)
+  if (is.null(base_benchmark_returns_m_xts)) return(meta_benchmark_returns_m_xts)
 
   # Case 3: Merge both if neither is NULL
-  merge(meta_benchmark_returns_xts, base_benchmark_returns_xts, join = "left")
+  create_meta_xts(merge(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data, join = "left") %>% na.omit(), #Join
+                  meta_xts_name = paste0(meta_benchmark_returns_m_xts@meta_xts_name, "_", base_benchmark_returns_m_xts@meta_xts_name), #Rename
+                  type = "assets"
+  )
+}
+
+#' @title Consolidate meta and base m_df
+consolidate_generic_meta_dataframes <- function(meta_generic_m_df, base_generic_m_df) {
+  if (is.null(meta_generic_m_df)){
+    ##If meta_generic_m_df is NULL, just pass NULL
+    adapted_generic_m_df <- NULL
+  } else {
+    ##Else Full Join them. If base is NULL, it will return only meta_generic_m_df
+    adapted_generic_m_df <- dplyr::bind_rows(meta_generic_m_df, base_generic_m_df) %>% dplyr::arrange(id) %>%
+      create_meta_dataframe(meta_dataframe_name = paste0(meta_signal_themes_m_df@meta_dataframe_name, "_", base_signal_themes_m_df@meta_dataframe_name), type = "groups")
+  }
 }
 

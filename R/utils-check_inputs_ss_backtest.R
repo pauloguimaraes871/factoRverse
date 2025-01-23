@@ -264,6 +264,11 @@ check_inputs_ss_backtest <- function(
       stop("dates in signal_themes_m_df and signals_m_df must be the same")
     }
 
+    ###Check for NAs
+    if (any(is.na(signal_themes_m_df))){
+      stop("signal_themes_m_df should not have NAs")
+    }
+
   ##Check if there is a theme classification for every date
   expected_ids_in_signal_themes <- expand.grid(tickers = names(chosen_signals_corrected_positions), dates = signal_dates_m_vector) %>%
     dplyr::mutate(id = paste0(tickers, "-", dates)) %>% dplyr::pull(id)
@@ -339,6 +344,11 @@ check_inputs_ss_backtest <- function(
          !all(unique(signal_themes_m_df %>% dplyr::pull(theme)) %in% unique(priors_m_df %>% dplyr::pull(theme)))
       ){
         stop("themes in priors_m_df and signal_themes_m_df should match")
+      }
+
+      ###Check for NAs
+      if (any(is.na(priors_m_df))){
+        stop("priors_m_df should not have NAs")
       }
 
     }

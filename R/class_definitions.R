@@ -1386,6 +1386,11 @@ setClass(
 
     #Check for custom objective
     if(object@sb_algorithm %in% c("sw", "mvo")){
+      if (!grepl("^max_|^min_", object@custom_objective)){
+        stop("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
+             To see complete list of valid heuristic performance metrics, use 'display_valid_custom_objectives()'")
+      }
+      ###Valid Metrics
       valid_heuristic_sb_metrics <- c(
         "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
         "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
@@ -1405,12 +1410,42 @@ setClass(
         "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
         "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
       )
-      if (!grepl("^max_|^min_", object@custom_objective)){
-        stop("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
-             To see complete list of valid heuristic performance metrics, use 'display_valid_custom_objectives()'")
+      valid_oos_eval_metrics <- c("rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr", "mb")
+      if (!substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% c(valid_heuristic_sb_metrics, valid_oos_eval_metrics)){
+        warning("Custom_objective is not one of typical valid heuristic performance. Please be sure that the metric is present in signal_univers_m_df")
       }
-      if (!substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_heuristic_sb_metrics){
-        warning("Custom_objective not one of typical valid heuristic performance. Please be sure that the metric is present in signal_univers_m_df")
+
+      if (substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_oos_eval_metrics){
+        warning("Custom_objective is valid only for meta sb backtests. Please be sure that the current configuration is for such a backtest.")
+      }
+
+      typical_max_objective <- c(
+        "arith_mean_ret", "geom_mean_ret", "ann_ret",
+        "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
+        "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
+        "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "hurst",
+        "prob_sharpe_ratio", "modigliani", "ann_modigliani",
+        "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret",
+        "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
+        "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
+        "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
+        "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "prob_info_ratio",
+        "act_modigliani", "act_ann_modigliani",
+        "alpha", "theme_alpha", "individual_alpha", "alpha_se",
+        "alpha_t_stat", "treynor_ratio", "appraisal_ratio",
+        "posterior_theme_alpha", "posterior_individual_alpha", "posterior_theme_beta", "posterior_individual_beta",
+        "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha",
+        "rss", "cp", "hr", "mb"
+      )
+
+      if (any(stringr::str_remove(object@custom_objective, "min_") %in% typical_max_objective %in% typical_max_objective)){
+        warning("Custom_objective is min, but chosen metric is typically maximized.")
+      }
+
+      typical_min_objective <- setdiff(valid_heuristic_sb_metrics, typical_max_objective)
+
+      if (any(stringr::str_remove(object@custom_objective, "max_") %in% typical_min_objective)){
+        warning("Custom_objective is max, but chosen metric is typically minimized.")
       }
 
     } else {
@@ -1803,6 +1838,10 @@ setClass(
     #Base SB Backtest Configs Check
     if (!is.null(object@base_sb_backtest_configs)){
 
+      if (length(object@base_sb_backtest_configs) == 1){
+        stop("base_sb_backtest_configs should contain more than one sb_backtest_config objects.")
+      }
+
       if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
         stop("All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
       }
@@ -1904,6 +1943,11 @@ setClass(
       if (!all(sapply(object@base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
         stop("All elements in 'base_sb_backtest_results' must be of class 'sb_backtest_results'.")
       }
+
+      if (length(object@base_sb_backtest_results) == 1){
+        stop("base_sb_backtest_results should contain more than one sb_backtest_results objects.")
+      }
+
     }
 
     return(TRUE)

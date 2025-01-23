@@ -291,6 +291,11 @@ check_inputs_sb_backtest <- function(
         if(any(!signal_universe_m_df$id %in% signal_themes_m_df$id)){
           stop("all ids in signal_universe_m_df must have a theme classification")
         }
+
+        ###Check for NAs
+        if (any(is.na(signal_themes_m_df))){
+          stop("signal_themes_m_df should not have NAs")
+        }
       }
 
       #custom_signal_weights_m_df
@@ -465,7 +470,7 @@ check_inputs_sb_backtest <- function(
       }
 
       ##Check if all is eligible while method is ew
-      if(sb_algorithm == "ew" && !any(stringr::str_detect(signal_universe_m_df$tickers, "_low"))){
+      if(sb_algorithm == "ew" && !any(stringr::str_detect(signal_universe_m_df$tickers, "low_"))){
         warning("All signals are 'long' and sb_algorithm is 'ew'. Please check if this is intended.")
       }
 

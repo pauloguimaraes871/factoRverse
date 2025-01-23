@@ -20,52 +20,59 @@
 check_inputs_meta_sb_backtest <- function(
     config,
     features_m_df,
-    base_signal_themes_m_df = NULL,
-    base_priors_m_df = NULL,
-    base_custom_signal_weights_m_df = NULL,
-    meta_signal_themes_m_df = NULL,
-    meta_priors_m_df = NULL,
-    meta_custom_signal_weights_m_df = NULL,
-    base_backtest_returns_m_xts = NULL,
-    base_benchmark_returns_m_xts = NULL,
-    meta_backtest_returns_m_xts = NULL,
-    meta_benchmark_returns_m_xts = NULL,
+    base_signal_themes_m_df, base_priors_m_df, base_custom_signal_weights_m_df, base_custom_signal_universe_metrics_m_df,
+    meta_signal_themes_m_df, meta_priors_m_df, meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df,
+    base_backtest_returns_m_xts, base_benchmark_returns_m_xts,
+    meta_backtest_returns_m_xts, meta_benchmark_returns_m_xts,
     verbose
 ) {
 
-  # Objects Structure
+  #Objects Structure
   ##########################
-  # Check for meta_dataframe objects
-  meta_dfs <- list(
-    base_signal_themes_m_df,
-    base_priors_m_df,
-    base_custom_signal_weights_m_df,
-    meta_signal_themes_m_df,
-    meta_priors_m_df,
-    meta_custom_signal_weights_m_df
-  )
-  names(meta_dfs) <- c("base_signal_themes_m_df", "base_priors_m_df", "base_custom_signal_weights_m_df",
-                       "meta_signal_themes_m_df", "meta_priors_m_df", "meta_custom_signal_weights_m_df")
-  for (df_name in names(meta_dfs)) {
-    if (!is.null(meta_dfs[[df_name]]) && !is_meta_dataframe(meta_dfs[[df_name]])) {
-      stop(paste("If provided,", df_name, "must be a meta_dataframe object."))
-    }
-  }
+    ##Amount of base configs
+      ###sb_backtest_results
+      if (!is.null(config@base_sb_backtest_results) && length(config@base_sb_backtest_results) == 1){
+        stop("More than one base_sb_backtest_results must be supplied.")
+      }
+      ###sb_backtest_config
+      if (!is.null(config@base_sb_backtest_configs) && length(config@base_sb_backtest_configs) == 1){
+        stop("More than one base_sb_backtest_configs must be supplied.")
+      }
 
-  # Check for xts objects
-  xts_objects <- list(
-    base_backtest_returns_m_xts,
-    base_benchmark_returns_m_xts,
-    meta_backtest_returns_m_xts,
-    meta_benchmark_returns_m_xts
-  )
-  names(xts_objects) <- c("base_backtest_returns_m_xts", "base_benchmark_returns_m_xts",
-                          "meta_backtest_returns_m_xts", "meta_benchmark_returns_m_xts")
-  for (xts_name in names(xts_objects)) {
-    if (!is.null(xts_objects[[xts_name]]) && !inherits(xts_objects[[xts_name]], "meta_xts")) {
-      stop(paste("If provided,", xts_name, "must be a meta_xts object."))
+
+    ##Check for meta_dataframe objects
+    meta_dfs <- list(
+      base_signal_themes_m_df,
+      base_priors_m_df,
+      base_custom_signal_weights_m_df,
+      base_custom_signal_universe_metrics_m_df,
+      meta_signal_themes_m_df,
+      meta_priors_m_df,
+      meta_custom_signal_weights_m_df,
+      meta_custom_signal_universe_metrics_m_df
+    )
+    names(meta_dfs) <- c("base_signal_themes_m_df", "base_priors_m_df", "base_custom_signal_weights_m_df", "base_custom_signal_universe_metrics_m_df",
+                         "meta_signal_themes_m_df", "meta_priors_m_df", "meta_custom_signal_weights_m_df", "meta_custom_signal_universe_metrics_m_df")
+    for (df_name in names(meta_dfs)) {
+      if (!is.null(meta_dfs[[df_name]]) && !is_meta_dataframe(meta_dfs[[df_name]])) {
+        stop(paste("If provided,", df_name, "must be a meta_dataframe object."))
+      }
     }
-  }
+
+    ##Check for xts objects
+    xts_objects <- list(
+      base_backtest_returns_m_xts,
+      base_benchmark_returns_m_xts,
+      meta_backtest_returns_m_xts,
+      meta_benchmark_returns_m_xts
+    )
+    names(xts_objects) <- c("base_backtest_returns_m_xts", "base_benchmark_returns_m_xts",
+                            "meta_backtest_returns_m_xts", "meta_benchmark_returns_m_xts")
+    for (xts_name in names(xts_objects)) {
+      if (!is.null(xts_objects[[xts_name]]) && !inherits(xts_objects[[xts_name]], "meta_xts")) {
+        stop(paste("If provided,", xts_name, "must be a meta_xts object."))
+      }
+    }
   ##########################
 
 
@@ -92,35 +99,139 @@ check_inputs_meta_sb_backtest <- function(
   }
   ##########################
 
+  #Signal Blending Meta Level
+  oos_testing_eval_metrics <- c("rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr", "mb")
+  # Check if custom_objective is oos_testing_eval_metrics
+  if (stringr::str_remove(stringr::str_remove(config@custom_objective, "min_"), "max_") %in% oos_testing_eval_metrics){
+    if (config@features_passthrough != "none"){
+      stop("features_passthrough should be 'none' when using custom_objective from oos_testing_eval_metrics.")
+    }
+    if (any(!is.null(base_custom_signal_universe_metrics_m_df), !is.null(meta_custom_signal_universe_metrics_m_df))){
+      stop("base_custom_signal_universe_metrics_m_df and meta_custom_signal_universe_metrics_m_df should be NULL when using custom_objective from oos_testing_eval_metrics.")
+    }
+  }
   # Meta and Base Conformity
   ##########################
-    ##Check for same objects being supplied
-    if (!is.null(base_signal_themes_m_df) && !is.null(meta_signal_themes_m_df)){
-      if (base_signal_themes_m_df@meta_dataframe_name == meta_signal_themes_m_df@meta_dataframe_name) {
-        stop("base_signal_themes_m_df and meta_signal_themes_m_df should be different objects.")
+    ##Check for same objects being supplied and other checks
+      ###Backtest Returns
+      if (!is.null(base_backtest_returns_m_xts) && !is.null(meta_backtest_returns_m_xts)){
+        if (base_backtest_returns_m_xts@meta_xts_name == meta_backtest_returns_m_xts@meta_xts_name) {
+          stop("base_backtest_returns_m_xts and meta_backtest_returns_m_xts should be different objects.")
+        }
+        if (any(colnames(base_backtest_returns_m_xts@data) %in% colnames(meta_backtest_returns_m_xts@data))) {
+          stop("base_backtest_returns_m_xts and meta_backtest_returns_m_xts should not share any columns.")
+        }
+        if (any(!zoo::index(meta_backtest_returns_m_xts@data) %in% zoo::index(base_backtest_returns_m_xts@data))){
+          stop("all meta_backtest_returns_m_xts dates should be contemplated in base_backtest_returns_m_xts")
+        }
       }
-      if (any(base_signal_themes_m_df@data$id %in% meta_signal_themes_m_df@data$id)) {
-        stop("base_signal_themes_m_df and meta_signal_themes_m_df should not share any ids.")
+      if (!is.null(meta_backtest_returns_m_xts) && config@features_passthrough != "none" && is.null(base_backtest_returns_m_xts)){
+        stop("base_backtest_returns_m_xts should be provided when features_passthrough is different to 'none'.")
       }
-    }
 
-    if (!is.null(base_priors_m_df) && !is.null(meta_priors_m_df)){
-      if (base_priors_m_df@meta_dataframe_name == meta_priors_m_df@meta_dataframe_name) {
-        stop("base_priors_m_df and meta_priors_m_df should be different objects.")
+      ###Backtest Returns
+      if (!is.null(base_benchmark_returns_m_xts) && !is.null(meta_benchmark_returns_m_xts)){
+        if (base_benchmark_returns_m_xts@meta_xts_name == meta_benchmark_returns_m_xts@meta_xts_name) {
+          stop("base_benchmark_returns_m_xts and meta_benchmark_returns_m_xts should be different objects.")
+        }
+        if (any(colnames(base_benchmark_returns_m_xts@data) %in% colnames(meta_benchmark_returns_m_xts@data))) {
+          stop("base_benchmark_returns_m_xts and meta_benchmark_returns_m_xts should not share any columns.")
+        }
+        if (any(!zoo::index(meta_benchmark_returns_m_xts@data) %in% zoo::index(base_benchmark_returns_m_xts@data))){
+          stop("all meta_benchmark_returns_m_xts dates should be contemplated in base_benchmark_returns_m_xts")
+        }
       }
-      if (any(base_priors_m_df@data$id %in% meta_priors_m_df@data$id)) {
-        stop("base_priors_m_df and meta_priors_m_df should not share any ids.")
-      }
-    }
 
-    if (!is.null(base_custom_signal_weights_m_df) && !is.null(meta_custom_signal_weights_m_df)){
-      if (base_custom_signal_weights_m_df@meta_dataframe_name == meta_custom_signal_weights_m_df@meta_dataframe_name) {
-        stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should be different objects.")
+      ###Signal Themes
+      if (!is.null(base_signal_themes_m_df) && !is.null(meta_signal_themes_m_df)){
+        if (base_signal_themes_m_df@meta_dataframe_name == meta_signal_themes_m_df@meta_dataframe_name) {
+          stop("base_signal_themes_m_df and meta_signal_themes_m_df should be different objects.")
+        }
+        if (any(base_signal_themes_m_df@data$id %in% meta_signal_themes_m_df@data$id)) {
+          stop("base_signal_themes_m_df and meta_signal_themes_m_df should not share any ids.")
+        }
+        if (any(base_signal_themes_m_df@data$tickers %in% meta_signal_themes_m_df@data$tickers)) {
+          stop("base_signal_themes_m_df and meta_signal_themes_m_df should not share any tickers.")
+        }
+        if (!all(colnames(base_signal_themes_m_df) == colnames(meta_signal_themes_m_df))){
+          stop("base_signal_themes_m_df and meta_signal_themes_m_df should have the same columns.")
+        }
+        if (any(!unique(meta_signal_themes_m_df %>% dplyr::pull(dates)) %in% dplyr::pull(base_signal_themes_m_df, dates))){
+          stop("all meta_signal_themes_m_df dates should be contemplated in base_signal_themes_m_df.")
+        }
       }
-      if (any(base_custom_signal_weights_m_df@data$id %in% meta_custom_signal_weights_m_df@data$id)) {
-        stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should not share any ids.")
+      if (!is.null(meta_signal_themes_m_df) && config@features_passthrough != "none" && is.null(base_signal_themes_m_df)){
+        stop("base_signal_themes_m_df should be provided when features_passthrough is different to 'none'.")
       }
-    }
+
+      ###Priors
+      if (!is.null(base_priors_m_df) && !is.null(meta_priors_m_df)){
+        if (base_priors_m_df@meta_dataframe_name == meta_priors_m_df@meta_dataframe_name) {
+          stop("base_priors_m_df and meta_priors_m_df should be different objects.")
+        }
+        if (any(base_priors_m_df@data$id %in% meta_priors_m_df@data$id)) {
+          stop("base_priors_m_df and meta_priors_m_df should not share any ids.")
+        }
+        if (any(base_priors_m_df@data$tickers %in% meta_priors_m_df@data$tickers)) {
+          stop("base_priors_m_df and meta_priors_m_df should not share any tickers.")
+        }
+        if (!all(colnames(base_priors_m_df) == colnames(meta_priors_m_df))){
+          stop("base_priors_m_df and meta_priors_m_df should have the same columns.")
+        }
+        if (any(!unique(meta_priors_m_df %>% dplyr::pull(dates)) %in% dplyr::pull(base_priors_m_df, dates))){
+          stop("all meta_priors_m_df dates should be contemplated in base_priors_m_df")
+        }
+      }
+      if (!is.null(meta_priors_m_df) && config@features_passthrough != "none" && is.null(base_priors_m_df)){
+        stop("base_priors_m_df should be provided when features_passthrough is different to 'none'.")
+      }
+
+      ###Custom Weights
+      if (!is.null(base_custom_signal_weights_m_df) && !is.null(meta_custom_signal_weights_m_df)){
+        if (base_custom_signal_weights_m_df@meta_dataframe_name == meta_custom_signal_weights_m_df@meta_dataframe_name) {
+          stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should be different objects.")
+        }
+        if (any(base_custom_signal_weights_m_df@data$id %in% meta_custom_signal_weights_m_df@data$id)) {
+          stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should not share any ids.")
+        }
+        if (any(base_custom_signal_weights_m_df@data$tickers %in% meta_custom_signal_weights_m_df@data$tickers)) {
+          stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should not share any tickers.")
+        }
+        if (!all(colnames(base_custom_signal_weights_m_df) == colnames(meta_custom_signal_weights_m_df))){
+          stop("base_custom_signal_weights_m_df and meta_custom_signal_weights_m_df should have the same columns.")
+        }
+        if (any(!unique(meta_custom_signal_weights_m_df %>% dplyr::pull(dates)) %in% dplyr::pull(base_custom_signal_weights_m_df, dates))){
+          stop("all meta_custom_signal_weights_m_df dates should be contemplated in base_custom_signal_weights_m_df")
+        }
+      }
+        if (!is.null(meta_custom_signal_weights_m_df) && config@features_passthrough != "none" && is.null(base_custom_signal_weights_m_df)){
+          stop("base_custom_signal_weights_m_df should be provided when features_passthrough is different to 'none'.")
+        }
+
+      ###Custom Signal Universe
+      if (!is.null(base_custom_signal_universe_metrics_m_df) && !is.null(meta_custom_signal_universe_metrics_m_df)){
+        if (base_custom_signal_universe_metrics_m_df@meta_dataframe_name == meta_custom_signal_universe_metrics_m_df@meta_dataframe_name) {
+          stop("base_custom_signal_universe_metrics_m_df and meta_custom_signal_universe_metrics_m_df should be different objects.")
+        }
+        if (any(base_custom_signal_universe_metrics_m_df@data$id %in% meta_custom_signal_universe_metrics_m_df@data$id)) {
+          stop("base_custom_signal_universe_metrics_m_df and meta_custom_signal_universe_metrics_m_df should not share any ids.")
+        }
+        if (any(base_custom_signal_universe_metrics_m_df@data$tickers %in% meta_custom_signal_universe_metrics_m_df@data$tickers)) {
+          stop("base_custom_signal_universe_metrics_m_df and meta_custom_signal_universe_metrics_m_df should not share any tickers.")
+        }
+        if (!all(colnames(base_custom_signal_universe_metrics_m_df) == colnames(meta_custom_signal_universe_metrics_m_df))){
+          stop("base_custom_signal_universe_metrics_m_df and meta_custom_signal_universe_metrics_m_df should have the same columns.")
+        }
+        if (any(!unique(meta_custom_signal_universe_metrics_m_df %>% dplyr::pull(dates)) %in% dplyr::pull(base_custom_signal_universe_metrics_m_df, dates))){
+          stop("all meta_custom_signal_universe_metrics_m_df dates should be contemplated in base_custom_signal_universe_metrics_m_df")
+        }
+      }
+      if (!is.null(meta_custom_signal_universe_metrics_m_df) && !stringr::str_remove(stringr::str_remove(config@custom_objective, "min_"), "max_") %in% colnames(meta_custom_signal_universe_metrics_m_df)){
+        stop("custom_objective should be contained in meta_custom_signal_universe_metrics_m_df.")
+      }
+      if (!is.null(meta_custom_signal_universe_metrics_m_df) && config@features_passthrough != "none" && is.null(base_custom_signal_universe_metrics_m_df)){
+        stop("base_custom_signal_universe_metrics_m_df should be provided when features_passthrough is different to 'none'.")
+      }
 
 
   ##########################
@@ -161,6 +272,7 @@ check_inputs_meta_sb_backtest <- function(
     ###In sb_backtest_config, those objects will be necessarilly equal because backtest will be run with objects from arguments
     if (!is.null(config@base_sb_backtest_results)){
       base_sb_backtest_results_list <- config@base_sb_backtest_results
+
       ###Between supplied for meta backtest and base learners (and base learners themselves)
         ####in signals_m_df object name
         if (any(sapply(base_sb_backtest_results_list,
@@ -271,6 +383,13 @@ check_inputs_meta_sb_backtest <- function(
                        function(x) !identical(x@sb_backtest_workflow$target_fwd_name, base_sb_backtest_results_list[[1]]@sb_backtest_workflow$target_fwd_name)))){
           stop("target_fwd_name is not the same in every base SB backtest results.")
         }
+        ####Testing Dates
+        if (any(sapply(base_sb_backtest_results_list,
+                       function(x) !identical(x@sb_backtest_workflow$dates_testing_sample, base_sb_backtest_results_list[[1]]@sb_backtest_workflow$dates_testing_sample)))){
+          stop("dates_testing_sample is not the same in every base SB backtest results.")
+        }
+        ####Check if custom objective depends on consolidated oos_eval_metrics_xts
+
 
     }  else {
       base_sb_backtest_configs_list <- config@base_sb_backtest_configs #Get list
@@ -278,8 +397,8 @@ check_inputs_meta_sb_backtest <- function(
       ####Training Sample + Validation Sample
       if (any(sapply(base_sb_backtest_configs_list,
                      function(x){
-                       (x@training_sample_size + x@validation_sample_size) !=
-                         (base_sb_backtest_configs_list[[1]]@training_sample_size + base_sb_backtest_configs_list[[1]]@validation_sample_size)
+                       (x@training_sample_size + if (x@sb_algorithm %in% c("ols", "ew", "rp", "sw", "mvo", "custom_weights")) x@tuning_strategy@validation_sample_size else 0) !=
+                       (base_sb_backtest_configs_list[[1]]@training_sample_size +  if (x@sb_algorithm %in% c("ols", "ew", "rp", "sw", "mvo", "custom_weights")) base_sb_backtest_configs_list[[1]]@tuning_strategy@validation_sample_size else 0)
                      }))){
         stop("training_sample_size + validation_sample_size is not the same in every base SB backtest configs")
       }

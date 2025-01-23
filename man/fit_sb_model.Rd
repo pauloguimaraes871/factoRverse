@@ -19,11 +19,11 @@ fit_sb_model(
   chosen_eval_metric_translated,
   most_recent_signal_universe_m_d_ref,
   most_recent_custom_signal_weights_m_d_ref = NULL,
-  selected_backtest_returns_corrected_positions_xts_upd_ref,
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref,
   cov_matrix_sample_size = 36,
   cov_estimation_method = "sample",
   active_returns = TRUE,
-  selected_cov_matrix_benchmark_xts_upd_ref,
+  selected_cov_matrix_benchmark_m_xts_upd_ref,
   groups_m_d_ref,
   rp_method = "cyclical-spinu",
   n_random_ports = 2000,
@@ -64,7 +64,7 @@ fit_sb_model(
 
 \item{most_recent_signal_universe_m_d_ref}{A meta-dataframe representing the most recent signal universe.}
 
-\item{selected_backtest_returns_corrected_positions_xts_upd_ref}{An \code{xts} object containing backtested returns for corrected positions.}
+\item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{An \code{xts} object containing backtested returns for corrected positions.}
 
 \item{cov_matrix_sample_size}{A numeric value specifying the sample size for covariance matrix estimation.}
 
@@ -72,7 +72,7 @@ fit_sb_model(
 
 \item{active_returns}{A logical value indicating whether to use active returns (default: \code{TRUE}).}
 
-\item{selected_cov_matrix_benchmark_xts_upd_ref}{An \code{xts} object representing the selected market factor proxy.}
+\item{selected_cov_matrix_benchmark_m_xts_upd_ref}{An \code{xts} object representing the selected market factor proxy.}
 
 \item{rp_method}{A \code{character} specifying the method for Risk Parity optimization.}
 
