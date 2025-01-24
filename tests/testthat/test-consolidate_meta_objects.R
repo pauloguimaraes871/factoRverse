@@ -355,7 +355,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
 })
 
-test_that("consolidate_backtest_returns_xts adequately combines base and meta backtests", {
+test_that("consolidate_backtest_returns_m_xts adequately combines base and meta backtests", {
 
 
   #Create objects
@@ -382,24 +382,26 @@ test_that("consolidate_backtest_returns_xts adequately combines base and meta ba
 
 
   #Merge them according to meta_backtest_returns_xts
-  expected_results <- merge(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data, join = "left") %>% na.omit()
+  expected_results <- merge(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data, join = "left") %>% na.omit() %>% create_meta_xts(
+    meta_xts_name = "meta_xts_base_xts", type = "assets"
+  )
 
-  expect_equal(consolidate_backtest_returns_xts(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data),
+  expect_equal(consolidate_backtest_returns_m_xts(meta_backtest_returns_m_xts, base_backtest_returns_m_xts),
                expected_results)
 
   #Only meta_backtest_returns_xts
-  expect_equal(consolidate_backtest_returns_xts(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts = NULL),
-               meta_backtest_returns_m_xts@data)
+  expect_equal(consolidate_backtest_returns_m_xts(meta_backtest_returns_m_xts, base_backtest_returns_m_xts = NULL),
+               meta_backtest_returns_m_xts)
 
 
   #Only base_backtest_returns_xts
-  expect_equal(consolidate_backtest_returns_xts(meta_backtest_returns_m_xts = NULL, base_backtest_returns_m_xts = base_backtest_returns_m_xts@data),
+  expect_equal(consolidate_backtest_returns_m_xts(meta_backtest_returns_m_xts = NULL, base_backtest_returns_m_xts = base_backtest_returns_m_xts),
                NULL)
 
 
 })
 
-test_that("consolidate_benchmark_returns_xts adequately combines base and meta benchmarks", {
+test_that("consolidate_benchmark_returns_m_xts adequately combines base and meta benchmarks", {
 
 
   #Create objects
@@ -420,22 +422,288 @@ test_that("consolidate_benchmark_returns_xts adequately combines base and meta b
 
 
   #Merge them according to meta_backtest_returns_xts
-  expected_results <- merge(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data, join = "left") %>% na.omit()
+  expected_results <- merge(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data, join = "left") %>% na.omit() %>% create_meta_xts(
+    type = "assets", meta_xts_name = "meta_xts_base_xts"
+  )
 
-  expect_equal(consolidate_benchmark_returns_xts(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data),
+  expect_equal(consolidate_benchmark_returns_m_xts(meta_benchmark_returns_m_xts, base_benchmark_returns_m_xts),
                expected_results)
 
   #Only meta_benchmark_returns_xts
-  expect_equal(consolidate_benchmark_returns_xts(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts = NULL),
-               meta_benchmark_returns_m_xts@data)
+  expect_equal(consolidate_benchmark_returns_m_xts(meta_benchmark_returns_m_xts, base_benchmark_returns_m_xts = NULL),
+               meta_benchmark_returns_m_xts)
 
 
   #Only base_benchmark_returns_xts
-  expect_equal(consolidate_benchmark_returns_xts(meta_benchmark_returns_m_xts = NULL, base_benchmark_returns_m_xts = base_backtest_returns_m_xts@data),
-               base_backtest_returns_m_xts@data)
+  expect_equal(consolidate_benchmark_returns_m_xts(meta_benchmark_returns_m_xts = NULL, base_benchmark_returns_m_xts = base_benchmark_returns_m_xts),
+               base_benchmark_returns_m_xts)
 
 
 })
+
+test_that("consolidate_generic_meta_dataframes adequately combines base and meta mdfs", {
+
+  #Base Signal Themes
+  base_signal_themes_m_df <- expand.grid(
+    tickers = c("mom_res_12m", "sharpe_6m", "dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield", "roe_3m", "low_idio_vol_mrkt_ewma"),
+    dates = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  base_signal_themes_m_df <- create_meta_dataframe(base_signal_themes_m_df, "st_11", type = "groups")
+
+  #Meta Signal Themes
+  meta_signal_themes_m_df <- expand.grid(
+    tickers = c("rf_results", "ols_results", "xgb_results", "glmnet_results", "nn1_results", "nn2_results", "nn3_results", "rp_results", "mvo_results"),
+    dates = seq.Date(from = as.Date("2000-05-01"), by = "month", length.out = 5),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("rf_results", "xgb_results") ~ "tree",
+                        tickers %in% c("ols_results", "glmnet_results") ~ "linear",
+                        tickers %in% c("nn1_results", "nn2_results", "nn3_results") ~ "neural",
+                        tickers %in% c("rp_results", "mvo_results") ~ "heuristic"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  meta_signal_themes_m_df <- create_meta_dataframe(meta_signal_themes_m_df, "meta_st", type = "groups")
+
+  #Merge them according to meta_signal_themes_m_df
+  expected_results <- dplyr::bind_rows(meta_signal_themes_m_df@data, base_signal_themes_m_df@data) %>% dplyr::arrange(id) %>% create_meta_dataframe(
+    type = "groups", meta_dataframe_name = "meta_st_st_11"
+  )
+
+  expect_equal(consolidate_generic_meta_dataframes(meta_signal_themes_m_df, base_signal_themes_m_df),
+               expected_results)
+
+  expect_equal(consolidate_generic_meta_dataframes(NULL, base_signal_themes_m_df),
+               NULL)
+
+  expect_equal(consolidate_generic_meta_dataframes(meta_signal_themes_m_df, NULL),
+               meta_signal_themes_m_df)
+
+
+
+})
+
+test_that("derive_adapted_custom_signal_universe_m_df adequately creates consolidated_oos_eval_metrics_m_df", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, type = "signals", meta_dataframe_name = "feat123")
+  target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target", meta_dataframe_name = "target123")
+
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", custom_objective = "squared_error", target_fwd_name = "fwd_premium_3m",
+                                          training_sample_size = 9, rebalancing_months = 6, config_name = "ols1")
+
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 6, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m", config_name = "glm1") %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
+
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 6, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m", config_name = "rf1") %>%
+    add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
+    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+                       distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
+                       pars = list(c(min=0.1, max = 0.9), c(min = 100L, max = 500L), c(meanlog = 1L, sdlog = 1L),
+                                   c(min = 1L, max = 10L))
+    )
+
+
+  set.seed(123)
+  suppressWarnings(
+    ols_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = ols_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
+  )
+
+  suppressWarnings(
+    glmnet_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = glmnet_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
+  )
+
+  suppressWarnings(
+    rf_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = rf_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
+  )
+
+  #Derive oos_eval_metrics_m_df
+  ols_oos_eval_metrics_m_df <- ols_results@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% tibble::rownames_to_column(var = "dates") %>%
+    dplyr::mutate(tickers = ols_results@backtest_identifier, .before = dates)
+  ols_oos_eval_metrics_m_df$dates <- as.Date(ols_oos_eval_metrics_m_df$dates) + months(3)
+  ols_oos_eval_metrics_m_df <- ols_oos_eval_metrics_m_df %>% dplyr::mutate(id = paste0(tickers,"-",dates), .before = tickers)
+
+  glmnet_oos_eval_metrics_m_df <- glmnet_results@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% tibble::rownames_to_column(var = "dates") %>%
+    dplyr::mutate(tickers = glmnet_results@backtest_identifier, .before = dates)
+  glmnet_oos_eval_metrics_m_df$dates <- as.Date(glmnet_oos_eval_metrics_m_df$dates) + months(3)
+  glmnet_oos_eval_metrics_m_df <- glmnet_oos_eval_metrics_m_df %>% dplyr::mutate(id = paste0(tickers,"-",dates), .before = tickers)
+
+
+  rf_oos_eval_metrics_m_df <- rf_results@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% tibble::rownames_to_column(var = "dates") %>%
+    dplyr::mutate(tickers = rf_results@backtest_identifier, .before = dates)
+  rf_oos_eval_metrics_m_df$dates <- as.Date(rf_oos_eval_metrics_m_df$dates) + months(3)
+  rf_oos_eval_metrics_m_df <- rf_oos_eval_metrics_m_df %>% dplyr::mutate(id = paste0(tickers,"-",dates), .before = tickers)
+
+  #Consolidate
+  expected_results <- dplyr::bind_rows(ols_oos_eval_metrics_m_df, glmnet_oos_eval_metrics_m_df, rf_oos_eval_metrics_m_df) %>% dplyr::arrange(id) %>% create_meta_dataframe()
+
+  results <- derive_adapted_custom_signal_universe_m_df(
+    meta_custom_objective = "max_hr",
+    base_sb_backtest_results_list = list(ols_results, glmnet_results, rf_results),
+    meta_custom_signal_universe_metrics_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL)
+
+  expect_equal(results, expected_results)
+
+  expect_true(
+    mean((results@data$dates - zoo::index(ols_results@oos_testing_eval_metrics_m_xts@data)) - 90) %>% as.numeric() < 3)
+
+
+})
+
+test_that("derive_adapted_custom_signal_universe_m_df adequately creates consolidated_oos_eval_metrics_m_df when there are NAs in most recent target_m_df dates", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  current_date <- "2023-07-15"
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, type = "signals", meta_dataframe_name = "feat123")
+  target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target", meta_dataframe_name = "target123")
+  #Create adapted target_m_df with NAs in last dates
+  adapted_target_m_df <- create_meta_dataframe(
+    target_m_df@data %>%
+      dplyr::arrange(desc(dates)) %>%
+      dplyr::mutate(
+        dplyr::across(dplyr::ends_with("_3m"), ~ ifelse(dates %in% unique(dates)[1:3], NA, .)),
+        dplyr::across(dplyr::ends_with("_1m"), ~ ifelse(dates == unique(dates)[1], NA, .))
+      ) %>%
+      dplyr::arrange(id)
+    , type = "target")
+
+
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", custom_objective = "squared_error", target_fwd_name = "fwd_premium_1m",
+                                          training_sample_size = 9, rebalancing_months = 6, config_name = "ols1")
+
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 6, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m", config_name = "glm1") %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
+
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 6, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m", config_name = "rf1") %>%
+    add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
+    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+                       distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
+                       pars = list(c(min=0.1, max = 0.9), c(min = 100L, max = 500L), c(meanlog = 1L, sdlog = 1L),
+                                   c(min = 1L, max = 10L))
+    )
+
+
+  set.seed(123)
+  suppressWarnings(
+    ols_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = adapted_target_m_df,
+      config = ols_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
+  )
+
+  suppressWarnings(
+    glmnet_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = adapted_target_m_df,
+      config = glmnet_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
+  )
+
+  suppressWarnings(
+    rf_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = adapted_target_m_df,
+      config = rf_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
+  )
+
+  #Derive oos_eval_metrics_m_df
+  ols_oos_eval_metrics_m_df <- ols_results@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% tibble::rownames_to_column(var = "dates") %>%
+    dplyr::mutate(tickers = ols_results@backtest_identifier, .before = dates)
+  ols_oos_eval_metrics_m_df$dates <- as.Date(ols_oos_eval_metrics_m_df$dates) + months(1)
+  ols_oos_eval_metrics_m_df <- ols_oos_eval_metrics_m_df %>% dplyr::mutate(id = paste0(tickers,"-",dates), .before = tickers)
+
+  glmnet_oos_eval_metrics_m_df <- glmnet_results@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% tibble::rownames_to_column(var = "dates") %>%
+    dplyr::mutate(tickers = glmnet_results@backtest_identifier, .before = dates)
+  glmnet_oos_eval_metrics_m_df$dates <- as.Date(glmnet_oos_eval_metrics_m_df$dates) + months(1)
+  glmnet_oos_eval_metrics_m_df <- glmnet_oos_eval_metrics_m_df %>% dplyr::mutate(id = paste0(tickers,"-",dates), .before = tickers)
+
+
+  rf_oos_eval_metrics_m_df <- rf_results@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% tibble::rownames_to_column(var = "dates") %>%
+    dplyr::mutate(tickers = rf_results@backtest_identifier, .before = dates)
+  rf_oos_eval_metrics_m_df$dates <- as.Date(rf_oos_eval_metrics_m_df$dates) + months(1)
+  rf_oos_eval_metrics_m_df <- rf_oos_eval_metrics_m_df %>% dplyr::mutate(id = paste0(tickers,"-",dates), .before = tickers)
+
+  #Consolidate
+  expected_results <- dplyr::bind_rows(ols_oos_eval_metrics_m_df, glmnet_oos_eval_metrics_m_df, rf_oos_eval_metrics_m_df) %>% dplyr::arrange(id) %>% create_meta_dataframe()
+  results <- derive_adapted_custom_signal_universe_m_df(
+    meta_custom_objective = "max_rss",
+    base_sb_backtest_results_list = list(ols_results, glmnet_results, rf_results),
+    meta_custom_signal_universe_metrics_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL)
+
+  expect_equal(results,expected_results)
+
+
+  expect_true(
+    mean((results@data$dates - zoo::index(ols_results@oos_testing_eval_metrics_m_xts@data)) - 30) %>% as.numeric() < 3)
+
+
+
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -238,10 +238,20 @@ setClass(
     if(!any(colnames(object@data) == c("id", "tickers", "dates", "target", "pred", "error"))){
       stop("Column names do not adhere to expected oos_sb_outputs_m_df object")
     }
-    #target, error and pred relationship
-    if(any((object@data$target - object@data$pred) != object@data$error)){
-      stop("target, pred and error columns do not adhere to expected oos_sb_outputs_m_df object")
+    # Check if 1) target not NA, error is target - pred 2) target NA, error is also NA
+    valid_indices <- !(is.na(object@data$target))
+
+    # Check for incorrect error values where valid indices exist
+    if (any((object@data$target[valid_indices] - object@data$pred[valid_indices]) != object@data$error[valid_indices],
+            na.rm = TRUE)) {
+      stop("Error values do not match target - pred where target and pred are not both NA.")
     }
+
+    # Check if both target and pred are NA, and error should also be NA
+    if (any(is.na(object@data$target) & is.na(object@data$pred) & !is.na(object@data$error))) {
+      stop("Error should be NA when both target and pred are NA.")
+    }
+
   }
 )
 
@@ -2070,7 +2080,7 @@ setClass(
   slots = list(
     meta_sb_backtest_results = "sb_backtest_results",
     base_sb_backtest_results_list = "list",
-    base_learners_oos_predictions_meta_dataframe = "meta_dataframe",
+    base_learners_oos_predictions_m_df = "meta_dataframe",
     consolidated_oos_testing_metrics = "list",
     mean_validation_metrics = "data.frame",
     time_series_oos_testing_metrics = "list",
@@ -2078,9 +2088,6 @@ setClass(
     backtest_identifier = "character"
   ),
   validity = function(object) {
-    if (!all(sapply(object@meta_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
-      return("All elements in 'meta_sb_backtest_results_list' must be of class 'sb_backtest_results'.")
-    }
 
     if (!all(sapply(object@base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
       return("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'.")

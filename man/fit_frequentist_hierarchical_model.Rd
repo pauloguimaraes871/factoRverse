@@ -6,8 +6,8 @@
 \usage{
 fit_frequentist_hierarchical_model(
   signal_universe_m_d_ref,
-  selected_backtest_returns_corrected_positions_xts_upd_ref,
-  selected_market_factor_proxy_xts_upd_ref,
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+  selected_market_factor_proxy_m_xts_upd_ref,
   selected_backtest_returns_corrected_positions_m_upd_ref = NULL,
   selected_signal_themes_m_d_ref,
   model_spec_theme_level,

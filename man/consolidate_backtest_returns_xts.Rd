@@ -5,8 +5,8 @@
 \title{Consolidate backtest_returns_xts}
 \usage{
 consolidate_backtest_returns_xts(
-  meta_backtest_returns_xts,
-  base_backtest_returns_xts
+  meta_backtest_returns_m_xts,
+  base_backtest_returns_m_xts
 )
 }
 \description{

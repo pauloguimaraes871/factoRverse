@@ -251,8 +251,79 @@ test_that("run_sb_backtest_internal throws an error when target_m_df do not have
     "target_m_df can't have NAs until the last target_fwd periods"
   )
 
+  wrong_target_m_df <- target_m_df
+  wrong_target_m_df[which(wrong_target_m_df$dates %in% c("2001-05-15", "2001-06-15", "2001-07-15", "2001-08-15")),-c(1:3)] <- NA
 
-  #No error if adeaute number of NAs
+  expect_error(
+    suppressMessages(suppressWarnings({
+      run_sb_backtest_internal(
+        features_m_df = features_m_df,
+        target_m_df = wrong_target_m_df,
+        training_sample_size = 4,
+        rebalancing_months = 9,
+        sb_algorithm = "ols",
+        target_fwd_name = "fwd_premium_3m")
+    })),
+    "target_m_df can't have NAs until the last target_fwd periods"
+  )
+
+  wrong_target_m_df <- target_m_df %>% dplyr::filter(dates %in% c("2001-03-15", "2001-04-15", "2001-05-15"))
+  wrong_features_m_df <- features_m_df %>% dplyr::filter(dates %in% c("2001-03-15", "2001-04-15", "2001-05-15"))
+
+  expect_error(
+    suppressMessages(suppressWarnings({
+      run_sb_backtest_internal(
+        features_m_df = wrong_features_m_df,
+        target_m_df = wrong_target_m_df,
+        training_sample_size = 4,
+        rebalancing_months = 9,
+        sb_algorithm = "ols",
+        target_fwd_name = "fwd_premium_3m")
+    })),
+    "training_sample_size plus validation_sample_size should be less than the number of unique dates in features_m_df."
+  )
+
+
+  #Only NAs in first rebalancing
+  wrong_target_m_df <- target_m_df %>% dplyr::filter(dates %in% c("2001-04-15", "2001-05-15", "2001-06-15"))
+  wrong_target_m_df[which(wrong_target_m_df$dates %in% c("2001-04-15", "2001-05-15", "2001-06-15")), c("fwd_premium_3m")] <- NA
+  wrong_target_m_df[which(wrong_target_m_df$dates %in% c("2001-06-15")), c("fwd_premium_1m", "fwd_sharpe_1m")] <- NA
+
+  wrong_features_m_df <- features_m_df %>% dplyr::filter(dates %in% c("2001-04-15", "2001-05-15", "2001-06-15"))
+
+  expect_error(
+    suppressMessages(suppressWarnings({
+      check_inputs_sb_backtest(
+        features_m_df = wrong_features_m_df,
+        target_m_df = wrong_target_m_df,
+        training_sample_size = 3,
+        rebalancing_months = 9,
+        split_method = "expanding",
+        validation_sample_size = 0,
+        chosen_eval_metric = "rmse",
+        quantile_tau = 0.5,
+        early_stop = NULL,
+        huber_delta = 1,
+        n_iter = 3,
+        custom_objective = "squared_error",
+        tuning_method = "random_search",
+        sb_algorithm = "ols",
+        target_fwd_name = "fwd_premium_3m",
+        signal_universe_m_df = signal_universe_m_df,
+        backtest_returns_m_xts = NULL,
+        custom_signal_weights_m_df = NULL,
+        signal_themes_m_df = NULL,
+        benchmark_returns_m_xts = NULL,
+        concentration_constraint_policy = NULL,
+        hyper_grid_domain_list = NULL,
+        gsm_algorith = "ols",
+        verbose = TRUE)
+    }))
+  )
+
+
+
+  #No error if adequate number of NAs
   right_target_m_df <- target_m_df
   right_target_m_df[which(right_target_m_df$dates %in% c("2001-06-15", "2001-07-15", "2001-08-15")),-c(1:3)] <- NA
 
@@ -430,7 +501,7 @@ test_that("run_sb_backtest_internal throws an error when dates are less than tar
         sb_algorithm = "ols",
         target_fwd_name = "fwd_premium_3m")
     })),
-    "target_m_df and features_m_df should have more dates than the prediction horizon"
+    "training_sample_size plus validation_sample_size should be less than the number of unique dates in features_m_df."
   )
 
 

@@ -88,6 +88,73 @@ check_inputs_sb_backtest <- function(
         stop("features_m_df column names should not contain 'low_'.")
       }
 
+  #Check structure of rebalancing_months
+  if(!is.numeric(rebalancing_months)){
+    stop("rebalancing_months should be numeric.")
+  }
+
+  if(rebalancing_months < 0 || rebalancing_months > 12){
+    stop("rebalancing_months should be between 1 and 12.")
+  }
+
+  #Check structure of target_fwd_name
+  target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
+
+  if(!(is.character(target_fwd_name))){
+    stop("target_fwd_name should be character.")
+  }
+
+  if(!grepl(target_fwd_name_right_pattern, target_fwd_name)){
+    stop("target_fwd_name is not in the right pattern")
+  }
+
+  #Check structure of training_sample_size and validation_sample_size
+  assumed_target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
+
+  if(!(is.numeric(training_sample_size))){
+    stop("training_sample_size should be numeric.")
+  }
+
+  if((training_sample_size <= assumed_target_fwd)){
+    stop("training_sample_size should be bigger than target_fwd")
+  }
+
+  if((training_sample_size < 0)){
+    stop("training_sample_size should be positive.")
+  }
+
+  if(!(is.numeric(validation_sample_size))){
+    stop("validation_sample_size should be numeric.")
+  }
+
+  if(validation_sample_size < 0){
+    stop("validation_sample_size should be positive.")
+  }
+
+  if (!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && ((training_sample_size + validation_sample_size - assumed_target_fwd) < training_sample_size)){
+    stop("training_sample_size should be bigger than training_sample_size + validation_sample_size - target_fwd")
+  }
+
+  if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & validation_sample_size != 0){
+    stop("ols and heuristic sb algorithms do not support validation split.")
+  }
+
+  dates_m_vector <- unique(as.Date(features_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d"))
+  if(length(dates_m_vector) < (training_sample_size + validation_sample_size)){
+    stop("training_sample_size plus validation_sample_size should be less than the number of unique dates in features_m_df.")
+  }
+
+  #Check structure of split_method
+  if(split_method != "expanding"){
+    stop("split_method should be expanding.")
+  }
+
+  #gsm
+  if(!gsm_algorithm %in% c("ols", "tree")){
+    stop("gsm_algorithm should be either 'ols' or 'tree'.")
+  }
+
+
   #Check for correct format in target_m_df
       if(!(is_coercible_to_meta_dataframe(target_m_df))){
         stop("target_m_df should be coercible to meta_dataframe object")
@@ -97,9 +164,6 @@ check_inputs_sb_backtest <- function(
         stop("target_m_df should contain only numeric columns (NAs allowed at ending dates).")
       }
 
-      target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
-      assumed_target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
-
       if(any(!grepl(target_fwd_name_right_pattern, colnames(target_m_df[,-c(1:3)])))){
         stop("target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.")
       }
@@ -107,6 +171,12 @@ check_inputs_sb_backtest <- function(
       if(all(any(!lubridate::is.Date(target_m_df %>% dplyr::pull(dates))) ||
              any(is.na(as.Date(target_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
         stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
+      }
+
+      #Check for only NAs in first rebalancing period
+      if (all(is.na(target_m_df %>% dplyr::filter(dates %in% unique(target_m_df %>% dplyr::pull(dates))[1:training_sample_size+validation_sample_size]) %>%
+          dplyr::pull(target_fwd_name)))){
+        stop("target_m_df can't have only NAs in the first rebalancing period")
       }
 
       #Get dates allowed to be NA
@@ -153,6 +223,11 @@ check_inputs_sb_backtest <- function(
       if(nrow(target_m_df) < assumed_target_fwd || nrow(features_m_df) < assumed_target_fwd){
         stop("target_m_df and features_m_df should have more dates than the prediction horizon")
       }
+
+      if(length(target_m_df %>% dplyr::pull(dates) %>% unique()) <= assumed_target_fwd || length(features_m_df %>% dplyr::pull(dates) %>% unique()) <= assumed_target_fwd){
+        stop("target_m_df and features_m_df should have more dates than the prediction horizon")
+      }
+
 
       #Check structure of signal_universe_m_df
         if(!(is_coercible_to_meta_dataframe(signal_universe_m_df))){
@@ -348,59 +423,6 @@ check_inputs_sb_backtest <- function(
 
       }
 
-      #Check structure of rebalancing_months
-      if(!is.numeric(rebalancing_months)){
-        stop("rebalancing_months should be numeric.")
-      }
-
-      if(rebalancing_months < 0 || rebalancing_months > 12){
-        stop("rebalancing_months should be between 1 and 12.")
-      }
-
-      #Check structure of target_fwd_name
-      if(!(is.character(target_fwd_name))){
-        stop("target_fwd_name should be character.")
-      }
-
-      if(!grepl(target_fwd_name_right_pattern, target_fwd_name)){
-        stop("target_fwd_name is not in the right pattern")
-      }
-
-      #Check structure of training_sample_size and validation_sample_size
-      if(!(is.numeric(training_sample_size))){
-        stop("training_sample_size should be numeric.")
-      }
-
-      if((training_sample_size < 0)){
-        stop("training_sample_size should be positive.")
-      }
-
-      if(!(is.numeric(validation_sample_size))){
-        stop("validation_sample_size should be numeric.")
-      }
-
-      if((validation_sample_size < 0)){
-        stop("validation_sample_size should be positive.")
-      }
-
-      if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & validation_sample_size != 0){
-        stop("ols and heuristic sb algorithms do not support validation split.")
-      }
-
-      dates_m_vector <- unique(as.Date(features_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d"))
-      if(length(dates_m_vector) < (training_sample_size + validation_sample_size)){
-        stop("training_sample_size + validation_sample_size should be less than the number of unique dates in features_m_df.")
-      }
-
-      #Check structure of split_method
-      if(split_method != "expanding"){
-        stop("split_method should be expanding.")
-      }
-
-      #gsm
-      if(!gsm_algorithm %in% c("ols", "tree")){
-        stop("gsm_algorithm should be either 'ols' or 'tree'.")
-      }
 
 
 

@@ -102,7 +102,7 @@ check_inputs_meta_sb_backtest <- function(
   #Signal Blending Meta Level
   oos_testing_eval_metrics <- c("rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr", "mb")
   # Check if custom_objective is oos_testing_eval_metrics
-  if (stringr::str_remove(stringr::str_remove(config@custom_objective, "min_"), "max_") %in% oos_testing_eval_metrics){
+  if (stringr::str_remove(stringr::str_remove(config@meta_sb_backtest_config@custom_objective, "min_"), "max_") %in% oos_testing_eval_metrics){
     if (config@features_passthrough != "none"){
       stop("features_passthrough should be 'none' when using custom_objective from oos_testing_eval_metrics.")
     }
@@ -226,7 +226,7 @@ check_inputs_meta_sb_backtest <- function(
           stop("all meta_custom_signal_universe_metrics_m_df dates should be contemplated in base_custom_signal_universe_metrics_m_df")
         }
       }
-      if (!is.null(meta_custom_signal_universe_metrics_m_df) && !stringr::str_remove(stringr::str_remove(config@custom_objective, "min_"), "max_") %in% colnames(meta_custom_signal_universe_metrics_m_df)){
+      if (!is.null(meta_custom_signal_universe_metrics_m_df) && !stringr::str_remove(stringr::str_remove(config@meta_sb_backtest_config@custom_objective, "min_"), "max_") %in% colnames(meta_custom_signal_universe_metrics_m_df)){
         stop("custom_objective should be contained in meta_custom_signal_universe_metrics_m_df.")
       }
       if (!is.null(meta_custom_signal_universe_metrics_m_df) && config@features_passthrough != "none" && is.null(base_custom_signal_universe_metrics_m_df)){

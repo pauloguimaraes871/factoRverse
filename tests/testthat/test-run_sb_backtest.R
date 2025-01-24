@@ -1803,8 +1803,8 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
   )
 
   ##Custom Weights Config
-  custom_weights_config <- create_sb_backtest_config(sb_algorithm = "custom_weights", rebalancing_months = 7, training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
-    add_ss_backtest_obj(ss_results)
+  custom_weights_config <- create_sb_backtest_config(sb_algorithm = "custom_weights", rebalancing_months = 7, training_sample_size = 5, target_fwd_name = "fwd_premium_3m",
+                                                     chosen_signals_and_positions = chosen_signals_and_positions) %>% add_ss_backtest_obj(ss_results)
 
   target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target")
 
@@ -6287,7 +6287,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
 })
 
 #Define your test Excel sheet test glmnet 7
-test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method and mphe as chosen eval metric",{
+test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, grid_search as tuning method, mphe as chosen eval metric",{
 
   glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", huber_delta = 1.25, training_sample_size = 4,
                                              rebalancing_months = 11, target_fwd_name = "fwd_premium_3m"
@@ -6822,7 +6822,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
 })
 
 #Define your test
-test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and hr as chosen eval metric - toy_preprocessed_features_and_targets",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -8422,7 +8422,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
 })
 
 #Define your test
-test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric + signal_selection -toy_preprocessed_features_and_targets",{
+test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method and cp as chosen eval metric + signal_selection -toy_preprocessed_features_and_targets with NAs in target_m_df",{
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -8496,15 +8496,25 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
                                                             list(c(0, 0.5, 1), c(200, 500), c(2,4,6), c(1, 5, 10))) %>%
     add_ss_backtest_obj(ss_results)
 
+  #Modify target_m_df to include NAs in the last 3 months
+  adapted_target_m_df <- create_meta_dataframe(
+    toy_preprocessed_targets %>%
+      dplyr::arrange(desc(dates)) %>%
+      dplyr::mutate(
+        dplyr::across(dplyr::ends_with("_3m"), ~ ifelse(dates %in% unique(dates)[1:3], NA, .)),
+        dplyr::across(dplyr::ends_with("_1m"), ~ ifelse(dates == unique(dates)[1], NA, .))
+      ) %>%
+      dplyr::arrange(id)
+    , type = "target")
 
   #Apply function
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = create_meta_dataframe(toy_preprocessed_features),
-      target_m_df = create_meta_dataframe(toy_preprocessed_targets),
+      features_m_df = features_m_df,
+      target_m_df = adapted_target_m_df,
       config = rf_config,
       .test_seed = 123,
-      verbose = FALSE
+      verbose = TRUE
     )}))
 
 
@@ -8538,8 +8548,8 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   features_first_train <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15","2022-08-15", "2022-09-15", "2022-10-15")),current_eligible]
   features_first_val <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-01-15")),current_eligible]
   #Targets
-  targets_first_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
-  targets_first_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-01-15")),]
+  targets_first_train <- adapted_target_m_df@data[which(adapted_target_m_df@data$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15")),]
+  targets_first_val <- adapted_target_m_df@data[which(adapted_target_m_df@data$dates %in% c("2023-01-15")),]
   #Full data
   full_data_first_train <- cbind(targets_first_train$fwd_premium_3m, features_first_train[,-c(1:3)])
   colnames(full_data_first_train)[1] <- c("fwd_premium_3m")
@@ -8619,7 +8629,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
     current_eligible]
 
 
-  target_first_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+  target_first_training_and_validation <- adapted_target_m_df@data[which(adapted_target_m_df@data$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15")),]
 
   #Full data
@@ -8636,7 +8646,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   #First test set
   features_first_test <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-04-15","2023-05-15")),current_eligible]
-  target_first_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-04-15","2023-05-15")),]
+  target_first_test <- adapted_target_m_df@data[which(adapted_target_m_df@data$dates %in% c("2023-04-15","2023-05-15")),]
 
 
 
@@ -8649,16 +8659,16 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   #Calc error
   error_list <- list()
-  error_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
+  error_list[[1]] <- adapted_target_m_df@data$fwd_premium_3m[which(adapted_target_m_df@data$dates %in% c("2023-04-15"))] - as.numeric(prediction_list[[1]])
   names(error_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  error_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
+  error_list[[2]] <- adapted_target_m_df@data$fwd_premium_3m[which(adapted_target_m_df@data$dates %in% c("2023-05-15"))] - as.numeric(prediction_list[[2]])
   names(error_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #Y
   y_list <- list()
-  y_list[[1]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-04-15"))] %>% as.numeric()
+  y_list[[1]] <- adapted_target_m_df@data$fwd_premium_3m[which(adapted_target_m_df@data$dates %in% c("2023-04-15"))] %>% as.numeric()
   names(y_list[[1]]) <- features_first_test[which(features_first_test$dates %in% c("2023-04-15")),2]
-  y_list[[2]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-05-15"))] %>% as.numeric()
+  y_list[[2]] <- adapted_target_m_df@data$fwd_premium_3m[which(adapted_target_m_df@data$dates %in% c("2023-05-15"))] %>% as.numeric()
   names(y_list[[2]]) <- features_first_test[which(features_first_test$dates %in% c("2023-05-15")),2]
 
   #2nd rebal!
@@ -8671,9 +8681,9 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
                                                                                                   "2022-11-15", "2022-12-15")), current_eligible]
   features_second_val <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-03-15")),current_eligible]
   #Targets
-  targets_second_train <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
+  targets_second_train <- adapted_target_m_df@data[which(adapted_target_m_df@data$dates %in% c("2022-07-15","2022-08-15","2022-09-15","2022-10-15",
                                                                                                "2022-11-15", "2022-12-15")),]
-  targets_second_val <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-03-15")),]
+  targets_second_val <- adapted_target_m_df@data[which(adapted_target_m_df@data$dates %in% c("2023-03-15")),]
 
   #Full data
   full_data_second_train <- cbind(targets_second_train$fwd_premium_3m, features_second_train[,-c(1:3)])
@@ -8770,17 +8780,13 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   validation_eval_hyper_choice$mb[2] <- mean(targets_second_val$fwd_premium_3m - shrinkage.pred_df[,hyper_choice2])
 
 
-
-
-
-
   #Refit
   features_second_training_and_validation <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                     "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
                                                                                                                     "2023-02-15", "2023-03-15")), current_eligible]
 
 
-  target_second_training_and_validation <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+  target_second_training_and_validation <- adapted_target_m_df@data[which(adapted_target_m_df@data$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                 "2022-10-15", "2022-11-15", "2022-12-15", "2023-01-15",
                                                                                                                 "2023-02-15", "2023-03-15")),]
 
@@ -8800,7 +8806,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   #second test set
   features_second_test <- toy_preprocessed_features_corrected[which(toy_preprocessed_features_corrected$dates %in% c("2023-06-15","2023-07-15")), current_eligible]
-  target_second_test <- toy_preprocessed_targets[which(toy_preprocessed_targets$dates %in% c("2023-06-15","2023-07-15")),]
+  target_second_test <- adapted_target_m_df@data[which(adapted_target_m_df@data$dates %in% c("2023-06-15","2023-07-15")),]
 
 
 
@@ -8811,15 +8817,15 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   names(prediction_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
   #Calc error
-  error_list[[3]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-06-15"))] - as.numeric(prediction_list[[3]])
+  error_list[[3]] <- adapted_target_m_df@data$fwd_premium_3m[which(adapted_target_m_df@data$dates %in% c("2023-06-15"))] - as.numeric(prediction_list[[3]])
   names(error_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
-  error_list[[4]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-07-15"))] - as.numeric(prediction_list[[4]])
+  error_list[[4]] <- adapted_target_m_df@data$fwd_premium_3m[which(adapted_target_m_df@data$dates %in% c("2023-07-15"))] - as.numeric(prediction_list[[4]])
   names(error_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
   #Y
-  y_list[[3]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-06-15"))] %>% as.numeric()
+  y_list[[3]] <- adapted_target_m_df@data$fwd_premium_3m[which(adapted_target_m_df@data$dates %in% c("2023-06-15"))] %>% as.numeric()
   names(y_list[[3]]) <- features_second_test[which(features_second_test$dates %in% c("2023-06-15")),2]
-  y_list[[4]] <- toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% c("2023-07-15"))] %>% as.numeric()
+  y_list[[4]] <- adapted_target_m_df@data$fwd_premium_3m[which(adapted_target_m_df@data$dates %in% c("2023-07-15"))] %>% as.numeric()
   names(y_list[[4]]) <- features_second_test[which(features_second_test$dates %in% c("2023-07-15")),2]
 
 
@@ -8882,7 +8888,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
     oos_testing_eval_metrics$mb[l] <- mean((y_list[[l]] - prediction_list[[l]]))
   }
 
-  expected_results$outputs[[2]] <- oos_testing_eval_metrics
+  expected_results$outputs[[2]] <- oos_testing_eval_metrics %>% na.omit()
   expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
 
   #Eval metrics

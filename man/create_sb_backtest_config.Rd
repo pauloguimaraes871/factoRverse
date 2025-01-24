@@ -13,6 +13,7 @@ create_sb_backtest_config(
   split_method = "expanding",
   ss_backtest_config = NULL,
   ss_backtest_results = NULL,
+  chosen_signals_and_positions = NULL,
   custom_objective = "squared_error",
   keras_architecture_parameters = NULL,
   signal_port_parameters = NULL,

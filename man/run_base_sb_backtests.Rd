@@ -13,6 +13,7 @@ run_base_sb_backtests(
   base_signal_themes_m_df = NULL,
   base_priors_m_df = NULL,
   base_custom_signal_weights_m_df = NULL,
+  base_custom_signal_universe_metrics_m_df = NULL,
   winsorization_probs = c(0.025, 0.975),
   gsm_algorithm = "ols",
   verbose = TRUE,

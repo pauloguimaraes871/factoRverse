@@ -397,7 +397,7 @@ setMethod("run_sb_backtest",
                    meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL, #Custom weights for meta learner
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
-            browser()
+
             ## Initial checks
             #######################
             check_inputs_meta_sb_backtest(
@@ -447,7 +447,6 @@ setMethod("run_sb_backtest",
              ####Ensure base_sb_backtest_results_list is correctly named with backtest ids
              names(base_sb_backtest_results_list) <- sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)
 
-
             #######################
 
             #Generate oos_predictions_m_df and adapt objects
@@ -486,7 +485,7 @@ setMethod("run_sb_backtest",
 
               ##Adapt target_m_df
               adapted_target_m_df <- target_m_df
-              adapted_target_m_df@data <- target_m_df@data %>% dplyr::filter(id %in% oos_predictions_m_df@data%>% dplyr::pull(id))
+              adapted_target_m_df@data <- target_m_df@data %>% dplyr::filter(id %in% dplyr::pull(oos_predictions_m_df@data, id))
               adapted_target_m_df@meta_dataframe_name <- paste0(adapted_target_m_df@meta_dataframe_name, "_adj")
 
               ##Join backtest_returns_m_xts
@@ -512,41 +511,12 @@ setMethod("run_sb_backtest",
                                                                                           base_generic_m_df = base_custom_signal_weights_m_df,
                                                                                           type = "weights")
 
-              ##Join meta_custom_signal_universe_metrics_m_df with consolidated eval metrics
-                ###Derive consolidated_eval_metrics_m_df
-                all_base_consolidated_eval_metrics_m_df <- purrr::reduce(
-                  ###Use reduce to join all oos_testing_eval_metrics_m_df into a consolidate object
-                  purrr::map(
-                    ####Apply a map function to transform each oos_testing_eval_metrics_m_xts into a meta_dataframe-like object
-                    base_sb_backtest_results_list,
-                    function(x){
-                      x@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% #First extract all oos_testing eval metrics xts
-                        tibble::rownames_to_column(var = "dates") %>% #Rename to dates column
-                        dplyr::mutate(dates = as.Date(dates) + months(x@sb_backtest_workflow$target_fwd)) %>% #Adjust dates in order to reflect when info was actually available
-                        dplyr::mutate(tickers = x@backtest_identifier, .before = dates) %>% #Add tickers
-                        dplyr::mutate(id = paste0(tickers, "_", dates), .before = tickers) #Add id
-                    }
-                  ),
-                  function(oos_testing_eval_m_df_1, oos_testing_eval_m_df_2){
-                    ###Use bind_rows to join all oos_testing_eval_metrics_m_df sequentially
-                    dplyr::bind_rows(
-                      oos_testing_eval_m_df_1, oos_testing_eval_m_df_2
-                    )
-                  }
-                ) %>% dplyr::arrange(id)
-                ###Check if meta_custom_signal_universe_metrics_m_df is NULL
-                if (is.null(meta_custom_signal_universe_metrics_m_df)){
-                  ##Check if max/min oos_testing_eval_metrics is the objective
-                  oos_testing_eval_metrics <- c("rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr", "mb")
-                  if (stringr::str_remove(stringr::str_remove(config@custom_objective, "min_"), "max_") %in% oos_testing_eval_metrics){
-                    adapted_custom_signal_universe_metrics_m_df <- create_meta_dataframe(all_base_consolidated_eval_metrics_m_df)
-                  } else {
-                    adapted_custom_signal_universe_metrics_m_df <- NULL
-                  }
-                } else {
-                  adapted_custom_signal_universe_metrics_m_df <- dplyr::bind_rows(meta_custom_signal_universe_metrics_m_df@data, base_custom_signal_universe_metrics_m_df@data) %>% dplyr::arrange(id) %>%
-                    create_meta_dataframe(meta_dataframe_name = paste0(meta_custom_signal_universe_metrics_m_df@meta_dataframe_name, "_", base_custom_signal_universe_metrics_m_df@meta_dataframe_name))
-                }
+              ##Derive meta_custom_signal_universe_metrics_m_df as consolidated eval metrics or join
+                adapted_custom_signal_universe_metrics_m_df <- derive_adapted_custom_signal_universe_m_df(
+                  meta_custom_objective = config@meta_sb_backtest_config@custom_objective,
+                  base_sb_backtest_results_list = base_sb_backtest_results_list, #Base SB Backtest Results List
+                  meta_custom_signal_universe_metrics_m_df = meta_custom_signal_universe_metrics_m_df, base_custom_signal_universe_metrics_m_df = base_custom_signal_universe_metrics_m_df
+                )
 
             #######################
 
@@ -568,7 +538,7 @@ setMethod("run_sb_backtest",
                 target_m_df = adapted_target_m_df, # Target is the original target
                 backtest_returns_m_xts = adapted_backtest_returns_m_xts, benchmark_returns_m_xts = adapted_benchmark_returns_m_xts, signal_themes_m_df = adapted_signal_themes_m_df, #SS Backtest
                 priors_m_df = adapted_priors_m_df, #Priors
-                custom_signal_weights_m_df = meta_custom_signal_weights_m_df, #Custom Weights
+                custom_signal_weights_m_df = adapted_custom_signal_weights_m_df, custom_signal_universe_metrics_m_df = adapted_custom_signal_universe_metrics_m_df, #Custom Weights and Signal Universe Metrics
                 winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel, .test_seed = .test_seed
               )
             }, error = function(e) {
@@ -578,8 +548,8 @@ setMethod("run_sb_backtest",
             #Change SB Metadata
                 ### Features Passthrough And Positions
                 meta_learner_backtest_results@sb_backtest_workflow$features_passthrough_and_positions <- features_passthrough_and_positions
-                meta_learner_backtest_results@sb_backtest_workflow$winsorize_base_predictions <- winsorize_base_predictions
-                meta_learner_backtest_results@sb_backtest_workflow$normalize_base_predictions <- normalize_base_predictions
+                meta_learner_backtest_results@sb_backtest_workflow$winsorize_base_predictions <- config@winsorize_base_predictions
+                meta_learner_backtest_results@sb_backtest_workflow$normalize_base_predictions <- config@normalize_base_predictions
 
                 ### Type
                 meta_learner_backtest_results@sb_backtest_workflow$backtest_type <- "meta_learner"
@@ -1363,7 +1333,7 @@ run_sb_backtest_internal <- function(
 
   #Create meta_dataframes
   ###oos_sb_outputs_m_df
-  oos_sb_outputs_m_df <- create_meta_dataframe(oos_sb_outputs_m_df, type = "oos_sb_outputs", sb_backtest_workflow = sb_backtest_workflow)
+  oos_sb_outputs_m_df <- suppressWarnings(create_meta_dataframe(oos_sb_outputs_m_df, type = "oos_sb_outputs", sb_backtest_workflow = sb_backtest_workflow))
   ###feature_importance_m_df
   feature_importance_m_df <- suppressWarnings(create_meta_dataframe(feature_importance_m_df))
   ###final_feature_importance_m_d_ref
@@ -1371,7 +1341,7 @@ run_sb_backtest_internal <- function(
 
   #Create meta_xts
   ###oos_testing_eval_metrics_m_xts
-  oos_testing_eval_metrics_m_xts <- create_meta_xts(oos_testing_eval_metrics_m_xts, type = "metrics",
+  oos_testing_eval_metrics_m_xts <- create_meta_xts(oos_testing_eval_metrics_m_xts %>% na.omit(), type = "metrics",
                                                     source = rep(sb_backtest_workflow$backtest_identifier, ncol(oos_testing_eval_metrics_m_xts)))
   ###hyper_choice_m_xts
   if (!sb_algorithm %in% non_tuning_algos){

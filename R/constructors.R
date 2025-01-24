@@ -437,8 +437,8 @@ create_meta_xts <- function(data,
   }
 
   # 3) Detect frequency automatically
-  freq_info <- xts::periodicity(data)
-  discovered_scale <- freq_info$scale
+  freq_info <-  suppressWarnings(xts::periodicity(data))
+  discovered_scale <- if (nrow(data) == 1) "not_available" else freq_info$scale
 
   # 4) Common slots for the parent class
   common_slots <- list(
@@ -2387,13 +2387,21 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
       }
       chosen_signals_and_positions <- "ss_backtest_obj"
       message("chosen_signals_and_positions will follow underlying ss_backtest_obj")
+
+      if (sb_algorithm == "custom_weights"){
+        message("only positions in chosen_signals_and_positions are applied when sb_algorithm is custom_weights.")
+      }
     }
+    ###Custom weights warning
+    if (sb_algorithm == "custom_weights" && is.null(chosen_signals_and_positions)){
+      message("only positions of chosen_signals_and_positions are used when sb_algorithm is custom_weights, as every non-zero weight",
+              "in custom_signal_weights_m_df will be eligible.")
+    }
+
     if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)){
       chosen_signals_and_positions <- "all"
     }
-    if (sb_algorithm == "custom_weights" && !is.null(chosen_signals_and_positions)){
-      stop("chosen_signals_and_positions are not applied when sb_algorithm is custom_weights.")
-    }
+
     ###Check if chosen_signals_and_positions length > 1
     if(length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions != "all"){
       stop("More than one signal must be provided in order to run a sb_backtest")
@@ -2817,7 +2825,7 @@ setGeneric(
 #'
 setGeneric(
   name = "create_sb_metabacktest_results",
-  def = function(meta_sb_backtest_results, base_sb_backtest_results_list, ...) {
+  def = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df, ...) {
     standardGeneric("create_sb_metabacktest_results")
   }
 )
@@ -2826,16 +2834,11 @@ setGeneric(
 #' @aliases create_sb_metabacktest_results,list-method
 setMethod(
   f = "create_sb_metabacktest_results",
-  signature = signature(meta_sb_backtest_results = "list", base_sb_backtest_results_list = "list"),
+  signature = signature(meta_sb_backtest_results = "sb_backtest_results", base_sb_backtest_results_list = "list", oos_predictions_m_df = "meta_dataframe"),
   definition = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df) {
 
   #Initial Checks
   ##################
-
-    # Check that the meta_sb_backtest_results input is a list of 'sb_backtest_results' object
-    if (!is(meta_sb_backtest_results, "sb_backtest_results")){
-      stop("'meta_sb_backtest_results_list' must be of class 'sb_backtest_results'")
-    }
 
     # Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
     if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
@@ -2846,7 +2849,6 @@ setMethod(
 
   #Initialize
   ###################
-  browser()
     #Get SB Workflow from meta learner
     meta_learner_sb_backtest_workflow <- meta_sb_backtest_results@sb_backtest_workflow
 
@@ -2891,19 +2893,16 @@ setMethod(
       chosen_eval_metric <- sb_backtest_result@sb_backtest_workflow$chosen_eval_metric
 
       ## Out-of-Sample Testing Evaluation Metrics ##
-      oos_testing_eval_metrics <- sb_backtest_result@oos_testing_eval_metrics
-
-      # Exclude 'consolidated' row for time series data
-      oos_metrics_time_series <- oos_testing_eval_metrics[rownames(oos_testing_eval_metrics) != "consolidated", , drop = FALSE]
+      oos_metrics_time_series <- sb_backtest_result@oos_testing_eval_metrics_m_xts@data %>% as.data.frame()
 
       # Add Date and Backtest columns for time series data
-      oos_metrics_time_series$Date <- rownames(oos_metrics_time_series)
-      oos_metrics_time_series$Backtest <- sb_name  # Use sb_name instead of sb_algorithm
+      oos_metrics_time_series$dates <- rownames(oos_metrics_time_series) %>% as.Date()
+      oos_metrics_time_series$tickers <- sb_name  # Use sb_name instead of sb_algorithm
 
       # Reshape to long format for time series data
       oos_metrics_long <- as.data.frame(tidyr::pivot_longer(
         oos_metrics_time_series,  # Convert to data frame
-        cols = -c(Date, Backtest),
+        cols = -c(dates, tickers),
         names_to = "Metric",
         values_to = "Value"
       ))
@@ -2911,18 +2910,17 @@ setMethod(
       # Combine with the main data frame
       all_oos_metrics_long_df <- rbind(all_oos_metrics_long_df, oos_metrics_long)
 
-      # Get 'consolidated' row for consolidated metrics
-      oos_metrics <- oos_testing_eval_metrics["consolidated", , drop = FALSE]
+      # Get 'consolidated' metrics
+      oos_metrics <- sb_backtest_result@consolidated_eval_metrics %>% dplyr::select(metric, cons_oos)
       oos_metrics_common_dates <-
-        oos_testing_eval_metrics[which(rownames(oos_testing_eval_metrics) %in% common_testing_dates_range), , drop = FALSE]
+        oos_metrics_time_series[which(rownames(oos_metrics_time_series) %in% common_testing_dates_range), , drop = FALSE]
 
 
       # Combine sb_name, chosen_eval_metric, and oos_metrics using cbind
           ##Consolidated
           oos_metrics_df <- cbind(
             data.frame(
-              Backtest = sb_name,
-              chosen_eval_metric = chosen_eval_metric,
+              tickers = sb_name,
               testing_dates_range = paste0(
                 min(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample)),
                 "-",
@@ -2935,8 +2933,7 @@ setMethod(
           ##Common dates
           oos_metrics_common_dates_df <- cbind(
             data.frame(
-              Backtest = sb_name,
-              chosen_eval_metric = chosen_eval_metric,
+              tickers = sb_name,
               testing_dates_range = paste0(
                 min(as.Date(common_testing_dates_range)),
                 "-",
@@ -2967,20 +2964,20 @@ setMethod(
       ##########################
 
       ## Validation Evaluation Metrics (if available) ##
-      validation_metrics <- sb_backtest_result@validation_eval_metrics_hyper_choice
+      validation_metrics <- sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data
 
       if (!is.null(validation_metrics) && nrow(validation_metrics) > 0) {
-        # Exclude 'average' row for time series data
-        validation_metrics_time_series <- validation_metrics[rownames(validation_metrics) != "average", , drop = FALSE]
+        # Get time series data
+        validation_metrics_time_series <- validation_metrics %>% as.data.frame()
 
         # Add Date and Algorithm columns for time series data
-        validation_metrics_time_series$Date <- rownames(validation_metrics_time_series)
-        validation_metrics_time_series$Backtest <- sb_name
+        validation_metrics_time_series$dates <- rownames(validation_metrics_time_series)
+        validation_metrics_time_series$tickers <- sb_name
 
         # Reshape to long format
         validation_metrics_long <- as.data.frame(tidyr::pivot_longer(
           validation_metrics_time_series,  # Convert to data frame
-          cols = -c(Date, Backtest),
+          cols = -c(dates, tickers),
           names_to = "Metric",
           values_to = "Value"
         ))
@@ -2988,19 +2985,13 @@ setMethod(
         # Combine with the main data frame
         all_validation_metrics_long_df <- rbind(all_validation_metrics_long_df, validation_metrics_long)
 
-        # Get 'average' row for consolidated validation metrics
-        if ("average" %in% rownames(validation_metrics)) {
-          validation_metrics_average <- validation_metrics["average", , drop = FALSE]
-        } else {
-          # Compute mean across rows if 'average' row is not present
-          validation_metrics_average <- as.data.frame(t(colMeans(validation_metrics, na.rm = TRUE)))
-        }
+        # Get 'average' consolidated validation metrics
+          validation_metrics_average <- sb_backtest_result@consolidated_eval_metrics %>% dplyr::select(metric, avg_val)
 
         # Combine sb_name, chosen_eval_metric, and validation_metrics_average using cbind
         validation_metrics_df <- cbind(
           data.frame(
-            Backtest = sb_name,
-            chosen_eval_metric = chosen_eval_metric,
+            tickers = sb_name,
             check.names = FALSE,
             stringsAsFactors = FALSE
           ),
@@ -3040,13 +3031,13 @@ setMethod(
 
     # Convert appropriate columns to numeric
     num_cols_oos <- sapply(full_periods_oos_testing_metrics, is.numeric)
-    full_periods_oos_testing_metrics[, num_cols_oos] <- lapply(full_periods_oos_testing_metrics[, num_cols_oos], as.numeric)
+    full_periods_oos_testing_metrics[, num_cols_oos] <- sapply(full_periods_oos_testing_metrics[, num_cols_oos], as.numeric)
 
     num_cols_common <- sapply(common_dates_oos_testing_metrics, is.numeric)
-    common_dates_oos_testing_metrics[, num_cols_common] <- lapply(common_dates_oos_testing_metrics[, num_cols_common], as.numeric)
+    common_dates_oos_testing_metrics[, num_cols_common] <- sapply(common_dates_oos_testing_metrics[, num_cols_common], as.numeric)
 
     num_cols_val <- sapply(mean_validation_metrics, is.numeric)
-    mean_validation_metrics[, num_cols_val] <- lapply(mean_validation_metrics[, num_cols_val], as.numeric)
+    mean_validation_metrics[, num_cols_val] <- sapply(mean_validation_metrics[, num_cols_val], as.numeric)
 
     ###########################
 
@@ -3066,23 +3057,20 @@ setMethod(
       # Reshape to wide format
       metric_wide_df <- as.data.frame(tidyr::pivot_wider(
         metric_df,
-        id_cols = Date,
-        names_from = Backtest,
+        id_cols = dates,
+        names_from = tickers,
         values_from = Value
       ))
 
       # Arrange by Date
-      metric_wide_df <- metric_wide_df[order(as.Date(metric_wide_df$Date)), ]
+      metric_wide_df <- metric_wide_df[order(as.Date(metric_wide_df$dates)), ]
+      metric_dates <- metric_wide_df$dates %>% as.Date()
 
-      # Set rownames to Date
-      rownames(metric_wide_df) <- metric_wide_df$Date
-      metric_wide_df$Date <- NULL
-
-      # Convert to data frame
-      metric_wide_df <- as.data.frame(metric_wide_df)
+      # Convert to xts
+      metric_wide_xts <- metric_wide_df %>% dplyr::select(-dates) %>% xts::xts(order.by = metric_dates)
 
       # Add to the list
-      time_series_oos_testing_metrics[[metric]] <- metric_wide_df
+      time_series_oos_testing_metrics[[metric]] <- metric_wide_xts
     }
 
     # Similarly for validation metrics time series
@@ -3098,30 +3086,21 @@ setMethod(
         # Reshape to wide format
         metric_wide_df <- as.data.frame(tidyr::pivot_wider(
           metric_df,  # Ensure data frame
-          id_cols = Date,
-          names_from = Backtest,
+          id_cols = dates,
+          names_from = tickers,
           values_from = Value
         ))
 
         # Arrange by Date
-        # Convert Date to Date class if possible
-        metric_df_dates <- try(as.Date(metric_wide_df$Date), silent = TRUE)
-        if (inherits(metric_df_dates, "Date")) {
-          metric_wide_df <- metric_wide_df[order(metric_df_dates), ]
-        } else {
-          # If Date is not a real date, sort numerically or as character
-          metric_wide_df <- metric_wide_df[order(metric_wide_df$Date), ]
-        }
+        metric_wide_df <- metric_wide_df[order(as.Date(metric_wide_df$dates)), ]
+        metric_dates <- metric_wide_df$dates %>% as.Date()
 
-        # Set rownames to Date
-        rownames(metric_wide_df) <- metric_wide_df$Date
-        metric_wide_df$Date <- NULL
+        # Convert to xts
+        metric_wide_xts <- metric_wide_df %>% dplyr::select(-dates) %>% xts::xts(order.by = metric_dates)
 
-        # Convert to data frame
-        metric_wide_df <- as.data.frame(metric_wide_df)
 
         # Add to the list
-        time_series_validation_metrics[[metric]] <- metric_wide_df
+        time_series_validation_metrics[[metric]] <- metric_wide_xts
       }
     }
 
@@ -3129,11 +3108,11 @@ setMethod(
 
    # Create the 'sb_metabacktest_results' object
     new_object <- new("sb_metabacktest_results",
-                      meta_sb_backtest_results_list = meta_sb_backtest_results_list,
+                      meta_sb_backtest_results = meta_sb_backtest_results,
                       base_sb_backtest_results_list = base_sb_backtest_results_list,
-                      base_learners_oos_predictions_meta_dataframe = oos_predictions_m_df,
+                      base_learners_oos_predictions_m_df = oos_predictions_m_df,
                       consolidated_oos_testing_metrics = list(full_periods_oos_testing_metrics = full_periods_oos_testing_metrics,
-                                                             common_dates_oos_testing_metrics = common_dates_oos_testing_metrics),
+                                                              common_dates_oos_testing_metrics = common_dates_oos_testing_metrics),
                       mean_validation_metrics = mean_validation_metrics,
                       time_series_oos_testing_metrics = time_series_oos_testing_metrics,
                       time_series_validation_metrics = time_series_validation_metrics,
