@@ -4,7 +4,7 @@
 \alias{summary,sb_metabacktest_results-method}
 \title{Summary Method for sb_metabacktest_results Class}
 \usage{
-\S4method{summary}{sb_metabacktest_results}(object, summary_id = NULL)
+\S4method{summary}{sb_metabacktest_results}(object, summary_id = NULL, which_backtest_results = NULL)
 }
 \arguments{
 \item{object}{An object of class \code{sb_metabacktest_results}.}

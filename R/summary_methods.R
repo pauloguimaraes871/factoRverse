@@ -1113,12 +1113,47 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
 #' @return Invisibly returns the input `object`.
 #' @importFrom methods setMethod
 #' @export
-setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NULL) {
+setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NULL, which_backtest_results = NULL) {
 
   # Define colors for styling
   deep_navy <- "#000033"   # Deep Navy for data rows
   black <- "#000000"       # Black for headers
   white <- "#FFFFFF"       # White text
+
+  # Ask if intention is to summarize underlying sb_backtest_results
+  available_objects <- c("sb_metabacktest_results", "meta_learner_sb_backtest_results", "base_learners_sb_backtest_results")
+  if (is.null(which_backtest_results)) {
+    cat("Which object results do you want to summarize?\n")
+    for (i in seq_along(available_objects)) {
+      cat(paste0(i, ": ", available_objects[i], "\n"))
+    }
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    which_backtest_results <- as.numeric(selection)
+    if (is.na(which_backtest_results) || which_backtest_results < 1) {
+      stop("Invalid selection.")
+    }
+  }
+
+    ## Call Appropriate Method
+    if (available_objects[which_backtest_results] == "meta_learner_sb_backtest_results"){
+      summary(object@meta_sb_backtest_results)
+      return()
+    }
+    if (available_objects[which_backtest_results] == "base_learners_sb_backtest_results"){
+      cat("Which base learner do you want?\n")
+      available_base_learners <- names(object@base_sb_backtest_results_list)
+      for (i in seq_along(available_base_learners)) {
+        cat(paste0(i, ": ", available_base_learners[i], "\n"))
+      }
+      selection <- readline(prompt = "Enter the number of your choice: ")
+      chosen_base_learner <- as.numeric(selection)
+      if (is.na(chosen_base_learner) || chosen_base_learner < 1) {
+        stop("Invalid selection.")
+      }
+      summary(object@base_sb_backtest_results_list[[chosen_base_learner]])
+      return()
+    }
+
 
   # List of available tables
   available_tables <- c(
@@ -1134,9 +1169,9 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
   cat("\nBase Learners Algorithms:\n")
   base_learner_algorithms <- sapply(object@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$sb_algorithm)
   cat(paste0("- ", base_learner_algorithms), sep = "\n")
-  cat("\nMeta Learners Algorithms:\n")
-  meta_learner_algorithms <- sapply(object@meta_sb_backtest_results_list, function(x) x@sb_backtest_workflow$sb_algorithm)
-  cat(paste0("- ", meta_learner_algorithms), sep = "\n")
+  cat("\nMeta Learners Algorithm:\n")
+  meta_learner_algorithm <- object@meta_sb_backtest_results@sb_backtest_workflow$sb_algorithm
+  cat(meta_learner_algorithm,"\n")
 
   if (is.null(summary_id)) {
     cat("\nPlease choose a table to display:\n")
@@ -1269,11 +1304,12 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 
   # Prepare data based on the selected table
   if (table_name == "Consolidated_OOS_Testing_Metrics") {
+    browser()
     # Extract the data
     consolidated_metrics <- object@consolidated_oos_testing_metrics
 
-    # Collect all unique Backtest identifiers from both tables
-    all_backtests <- unique(unlist(lapply(consolidated_metrics, function(df) df$Backtest)))
+    # Collect all unique sb_tickers identifiers from both tables
+    all_backtests <- unique(unlist(lapply(consolidated_metrics, function(df) df$sb_backtest)))
     labels <- seq_along(all_backtests)
     legend <- list(
       backtest_ids = all_backtests,
@@ -1285,8 +1321,8 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     for (metric_name in names(consolidated_metrics)) {
       data_df <- consolidated_metrics[[metric_name]]
 
-      # Replace 'Backtest' values with labels
-      data_df$Backtest <- legend$labels[data_df$Backtest]
+      # Replace 'sb_backtest' values with labels
+      data_df$sb_backtest <- legend$labels[data_df$sb_backtest]
 
       display_table(data_df, paste("Consolidated OOS Testing Metrics -", metric_name), legend)
     }
@@ -1294,16 +1330,16 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
   } else if (table_name == "Mean_Validation_Metrics") {
     data_df <- object@mean_validation_metrics
 
-    # Replace long Backtest identifiers with labels
-    if ("Backtest" %in% names(data_df)) {
-      all_backtests <- unique(data_df$Backtest)
+    # Replace long sb_backtest identifiers with labels
+    if ("sb_backtest" %in% names(data_df)) {
+      all_backtests <- unique(data_df$sb_backtest)
       labels <- seq_along(all_backtests)
       legend <- list(
         backtest_ids = all_backtests,
         labels = setNames(labels, all_backtests),
         printed = FALSE
       )
-      data_df$Backtest <- legend$labels[data_df$Backtest]
+      data_df$sb_backtest <- legend$labels[data_df$sb_backtest]
     } else {
       legend <- NULL
     }
@@ -1312,12 +1348,10 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 
   } else if (table_name == "Time_Series_OOS_Testing_Metrics") {
     # This is a list of data frames for each metric over time
-    # We can display each metric's data frame
-
     metrics_list <- object@time_series_oos_testing_metrics
 
-    # Collect all unique Backtest identifiers from all metrics
-    all_backtests <- unique(unlist(lapply(metrics_list, function(df) names(df))))
+    # Collect all unique backtest identifiers from all metrics
+    all_backtests <- unique(unlist(lapply(metrics_list, function(xts) names(xts@data))))
     labels <- seq_along(all_backtests)
     legend <- list(
       backtest_ids = all_backtests,
@@ -1331,9 +1365,9 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     cat(legend_text, "\n\n")
 
     for (metric_name in names(metrics_list)) {
-      data_df <- metrics_list[[metric_name]]
-      data_df$Date <- rownames(data_df)
-      data_df <- data_df[, c("Date", setdiff(names(data_df), "Date"))]
+      data_df <- metrics_list[[metric_name]]@data %>% as.data.frame()
+      data_df$dates <- zoo::index(metrics_list[[metric_name]]@data)
+      data_df <- data_df[, c("dates", setdiff(names(data_df), "dates"))]
 
       # Replace Backtest column names with labels
       colnames(data_df)[-1] <- legend$labels[colnames(data_df)[-1]]
@@ -1346,7 +1380,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     metrics_list <- object@time_series_validation_metrics
 
     # Collect all unique Backtest identifiers from all metrics
-    all_backtests <- unique(unlist(lapply(metrics_list, function(df) names(df))))
+    all_backtests <- unique(unlist(lapply(metrics_list, function(xts) names(xts@data))))
     labels <- seq_along(all_backtests)
     legend <- list(
       backtest_ids = all_backtests,
@@ -1360,9 +1394,9 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     cat(legend_text, "\n\n")
 
     for (metric_name in names(metrics_list)) {
-      data_df <- metrics_list[[metric_name]]
-      data_df$Date <- rownames(data_df)
-      data_df <- data_df[, c("Date", setdiff(names(data_df), "Date"))]
+      data_df <- metrics_list[[metric_name]]@data %>% as.data.frame()
+      data_df$dates <- zoo::index(metrics_list[[metric_name]]@data) %>% as.Date()
+      data_df <- data_df[, c("dates", setdiff(names(data_df), "dates"))]
 
       # Replace Backtest column names with labels
       colnames(data_df)[-1] <- legend$labels[colnames(data_df)[-1]]
@@ -1371,26 +1405,9 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     }
 
   } else if (table_name == "Base_Learners_OOS_Predictions") {
+
     # base_learners_oos_predictions_meta_dataframe is of class meta_dataframe
-    data_df <- as.data.frame(object@base_learners_oos_predictions_meta_dataframe)
-
-    # Exclude 'id', 'tickers', and 'dates' columns
-    data_numeric <- data_df[, !(names(data_df) %in% c("id", "tickers", "dates")), drop = FALSE]
-
-    # Compute summary statistics for each base learner
-    summary_stats <- data.frame(
-      Base_Learner = names(data_numeric),
-      Mean = sapply(data_numeric, mean, na.rm = TRUE),
-      Median = sapply(data_numeric, median, na.rm = TRUE),
-      SD = sapply(data_numeric, sd, na.rm = TRUE),
-      Min = sapply(data_numeric, min, na.rm = TRUE),
-      Max = sapply(data_numeric, max, na.rm = TRUE)
-    )
-
-    # Remove any rows with all NA values (in case all data was in excluded columns)
-    summary_stats <- summary_stats[complete.cases(summary_stats), ]
-
-    display_table(summary_stats, "Summary Statistics of Base Learners OOS Predictions")
+    summary(object@base_learners_oos_predictions_m_df)
   }
 
   invisible(object)  # Return the object invisibly

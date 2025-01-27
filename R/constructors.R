@@ -408,7 +408,7 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 #'   my_xts <- xts::xts(x, order.by = dates)
 #'
 #'   # Create an assets_meta_xts
-#'   obj_assets <- create_meta_xts(data = my_xts, type = "assets",
+#'   obj_assets <- create_meta_xts(data = my_xts, type = "port",
 #'                                meta_xts_name = "My Assets Data")
 #'   validObject(obj_assets)
 #'
@@ -422,25 +422,27 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 #' @importFrom methods new
 #' @export
 create_meta_xts <- function(data,
-                            type = c("assets", "metrics"),
+                            type = c("returns", "metrics"),
+                            asset_type = NULL,
                             meta_xts_name = "default_name",
+                            metric_name = NULL,
                             workflow = NULL,
                             source = NULL) {
 
-  # 1) Match 'type' argument
+  # Match 'type' argument
   type <- match.arg(type)
 
-  # 2) If source is NULL, default to a vector of "not_identified"
-  #    repeated for each column in 'data'.
+  # If source is NULL, default to a vector of "not_identified"
+  # repeated for each column in 'data'.
   if (is.null(source)) {
     source <- rep("not_identified", ncol(data))
   }
 
-  # 3) Detect frequency automatically
+  # Detect frequency automatically
   freq_info <-  suppressWarnings(xts::periodicity(data))
   discovered_scale <- if (nrow(data) == 1) "not_available" else freq_info$scale
 
-  # 4) Common slots for the parent class
+  # Common slots for the parent class
   common_slots <- list(
     data          = data,
     meta_xts_name = meta_xts_name,
@@ -451,12 +453,14 @@ create_meta_xts <- function(data,
   )
 
   # 5) Depending on 'type', build the appropriate subclass
-  if (type == "assets") {
+  if (type == "returns") {
     # For assets_meta_xts, we fill the specialized slots:
     obj <- methods::new(
-      "assets_meta_xts",
+      "returns_meta_xts",
       data = common_slots$data,
+      asset_type = asset_type,
       meta_xts_name = common_slots$meta_xts_name,
+      metric_name = if (is.null(metric_name)) "returns" else metric_name,
       workflow = common_slots$workflow,
       n_dates = common_slots$n_dates,
       source = common_slots$source,
@@ -470,16 +474,17 @@ create_meta_xts <- function(data,
       "metrics_meta_xts",
       data = common_slots$data,
       meta_xts_name = common_slots$meta_xts_name,
+      metric_name = if (is.null(metric_name)) "metrics" else metric_name,
       workflow = common_slots$workflow,
       n_dates = common_slots$n_dates,
       source = common_slots$source,
       frequency = common_slots$frequency,
-      metrics   = colnames(data),
-      n_metrics = ncol(data)
+      series   = colnames(data),
+      n_series = ncol(data)
     )
   }
 
-  # 6) Return the newly created object
+  # Return the newly created object
   return(obj)
 }
 
@@ -2839,7 +2844,6 @@ setMethod(
 
   #Initial Checks
   ##################
-
     # Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
     if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
       stop("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'")
@@ -2884,10 +2888,8 @@ setMethod(
 
   #Collect OOS Testing Metrics
   ##########################
-
     #Loop through all results
     for (i in seq_along(all_sb_backtest_results)) {
-      #if(i == 3) browser()
       sb_backtest_result <- all_sb_backtest_results[[i]]
       sb_name <- all_sb_names[i]  # Use the name of the list element
       chosen_eval_metric <- sb_backtest_result@sb_backtest_workflow$chosen_eval_metric
@@ -2896,13 +2898,13 @@ setMethod(
       oos_metrics_time_series <- sb_backtest_result@oos_testing_eval_metrics_m_xts@data %>% as.data.frame()
 
       # Add Date and Backtest columns for time series data
-      oos_metrics_time_series$dates <- rownames(oos_metrics_time_series) %>% as.Date()
-      oos_metrics_time_series$tickers <- sb_name  # Use sb_name instead of sb_algorithm
+      oos_metrics_time_series$dates <- zoo::index(sb_backtest_result@oos_testing_eval_metrics_m_xts@data) %>% as.Date()
+      oos_metrics_time_series$sb_backtest <- sb_name  # Use sb_name instead of sb_algorithm
 
       # Reshape to long format for time series data
       oos_metrics_long <- as.data.frame(tidyr::pivot_longer(
         oos_metrics_time_series,  # Convert to data frame
-        cols = -c(dates, tickers),
+        cols = -c(dates, sb_backtest),
         names_to = "Metric",
         values_to = "Value"
       ))
@@ -2920,7 +2922,7 @@ setMethod(
           ##Consolidated
           oos_metrics_df <- cbind(
             data.frame(
-              tickers = sb_name,
+              sb_backtest = sb_name,
               testing_dates_range = paste0(
                 min(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample)),
                 "-",
@@ -2933,7 +2935,7 @@ setMethod(
           ##Common dates
           oos_metrics_common_dates_df <- cbind(
             data.frame(
-              tickers = sb_name,
+              sb_backtest = sb_name,
               testing_dates_range = paste0(
                 min(as.Date(common_testing_dates_range)),
                 "-",
@@ -2941,7 +2943,7 @@ setMethod(
               check.names = FALSE,
               stringsAsFactors = FALSE
             ),
-            as.data.frame(oos_metrics_common_dates)  # Ensure it's a data frame
+            as.data.frame(oos_metrics_common_dates) %>% dplyr::select(-sb_backtest, -dates)  # Ensure it's a data frame
           )
 
 
@@ -2971,13 +2973,13 @@ setMethod(
         validation_metrics_time_series <- validation_metrics %>% as.data.frame()
 
         # Add Date and Algorithm columns for time series data
-        validation_metrics_time_series$dates <- rownames(validation_metrics_time_series)
-        validation_metrics_time_series$tickers <- sb_name
+        validation_metrics_time_series$dates <- zoo::index(sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data) %>% as.Date()
+        validation_metrics_time_series$sb_backtest <- sb_name
 
         # Reshape to long format
         validation_metrics_long <- as.data.frame(tidyr::pivot_longer(
           validation_metrics_time_series,  # Convert to data frame
-          cols = -c(dates, tickers),
+          cols = -c(dates, sb_backtest),
           names_to = "Metric",
           values_to = "Value"
         ))
@@ -2991,7 +2993,7 @@ setMethod(
         # Combine sb_name, chosen_eval_metric, and validation_metrics_average using cbind
         validation_metrics_df <- cbind(
           data.frame(
-            tickers = sb_name,
+            sb_backtest = sb_name,
             check.names = FALSE,
             stringsAsFactors = FALSE
           ),
@@ -3015,23 +3017,23 @@ setMethod(
     ###########################
 
     # Combine lists into data.frames
-    full_periods_oos_testing_metrics <- do.call(rbind, oos_metrics_list)
+    all_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_list)
     common_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_common_dates_list)
     mean_validation_metrics <- do.call(rbind, validation_metrics_list)
 
     # Remove row names from consolidated metrics data frames
-    rownames(full_periods_oos_testing_metrics) <- NULL
+    rownames(all_dates_oos_testing_metrics) <- NULL
     rownames(common_dates_oos_testing_metrics) <- NULL
     rownames(mean_validation_metrics) <- NULL
 
     # Replace NaN with NA for clarity
-    full_periods_oos_testing_metrics[is.nan(as.matrix(full_periods_oos_testing_metrics))] <- NA
+    all_dates_oos_testing_metrics[is.nan(as.matrix(all_dates_oos_testing_metrics))] <- NA
     common_dates_oos_testing_metrics[is.nan(as.matrix(common_dates_oos_testing_metrics))] <- NA
     mean_validation_metrics[is.nan(as.matrix(mean_validation_metrics))] <- NA
 
     # Convert appropriate columns to numeric
-    num_cols_oos <- sapply(full_periods_oos_testing_metrics, is.numeric)
-    full_periods_oos_testing_metrics[, num_cols_oos] <- sapply(full_periods_oos_testing_metrics[, num_cols_oos], as.numeric)
+    num_cols_oos <- sapply(all_dates_oos_testing_metrics, is.numeric)
+    all_dates_oos_testing_metrics[, num_cols_oos] <- sapply(all_dates_oos_testing_metrics[, num_cols_oos], as.numeric)
 
     num_cols_common <- sapply(common_dates_oos_testing_metrics, is.numeric)
     common_dates_oos_testing_metrics[, num_cols_common] <- sapply(common_dates_oos_testing_metrics[, num_cols_common], as.numeric)
@@ -3058,7 +3060,7 @@ setMethod(
       metric_wide_df <- as.data.frame(tidyr::pivot_wider(
         metric_df,
         id_cols = dates,
-        names_from = tickers,
+        names_from = sb_backtest,
         values_from = Value
       ))
 
@@ -3070,7 +3072,10 @@ setMethod(
       metric_wide_xts <- metric_wide_df %>% dplyr::select(-dates) %>% xts::xts(order.by = metric_dates)
 
       # Add to the list
-      time_series_oos_testing_metrics[[metric]] <- metric_wide_xts
+      time_series_oos_testing_metrics[[metric]] <- create_meta_xts(metric_wide_xts, type = "metrics",
+                                                                   meta_xts_name = paste0("testing_", meta_sb_name,"_", metric),
+                                                                   metric_name = metric,
+                                                                   source = all_sb_names)
     }
 
     # Similarly for validation metrics time series
@@ -3087,7 +3092,7 @@ setMethod(
         metric_wide_df <- as.data.frame(tidyr::pivot_wider(
           metric_df,  # Ensure data frame
           id_cols = dates,
-          names_from = tickers,
+          names_from = sb_backtest,
           values_from = Value
         ))
 
@@ -3098,9 +3103,12 @@ setMethod(
         # Convert to xts
         metric_wide_xts <- metric_wide_df %>% dplyr::select(-dates) %>% xts::xts(order.by = metric_dates)
 
-
         # Add to the list
-        time_series_validation_metrics[[metric]] <- metric_wide_xts
+        time_series_validation_metrics[[metric]] <- create_meta_xts(metric_wide_xts, type = "metrics",
+                                                                    meta_xts_name = paste0("val_", meta_sb_name, "_", metric),
+                                                                    metric_name = metric,
+                                                                    source = all_sb_names)
+
       }
     }
 
@@ -3111,7 +3119,7 @@ setMethod(
                       meta_sb_backtest_results = meta_sb_backtest_results,
                       base_sb_backtest_results_list = base_sb_backtest_results_list,
                       base_learners_oos_predictions_m_df = oos_predictions_m_df,
-                      consolidated_oos_testing_metrics = list(full_periods_oos_testing_metrics = full_periods_oos_testing_metrics,
+                      consolidated_oos_testing_metrics = list(all_dates_oos_testing_metrics = all_dates_oos_testing_metrics,
                                                               common_dates_oos_testing_metrics = common_dates_oos_testing_metrics),
                       mean_validation_metrics = mean_validation_metrics,
                       time_series_oos_testing_metrics = time_series_oos_testing_metrics,

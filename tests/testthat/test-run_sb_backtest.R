@@ -12953,7 +12953,7 @@ test_that("Metabacktesting works for configs", {
 
 
   set.seed(123)
-  ml_metabacktest_results <- run_sb_backtest(
+  sb_metabacktest_results <- run_sb_backtest(
     target_m_df = create_meta_dataframe(toy_preprocessed_targets),
     features_m_df = features_m_df,
     config = meta_config,

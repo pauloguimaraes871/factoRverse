@@ -2,10 +2,25 @@
 % Please edit documentation in R/utils-consolidate_meta_objects.R
 \name{consolidate_generic_meta_dataframes}
 \alias{consolidate_generic_meta_dataframes}
-\title{Consolidate meta and base m_df}
+\title{Consolidate Meta and Base Dataframes}
 \usage{
 consolidate_generic_meta_dataframes(meta_generic_m_df, base_generic_m_df, type)
 }
+\arguments{
+\item{meta_generic_m_df}{A meta dataframe object.}
+
+\item{base_generic_m_df}{A base dataframe object.}
+
+\item{type}{A character string indicating the type of data (e.g., "groups").}
+}
+\value{
+A consolidated dataframe combining meta and base data, or NULL if meta is NULL.
+}
 \description{
-Consolidate meta and base m_df
+Merges meta and base dataframes, handling cases where either dataframe is NULL.
+If both are present, they are combined using a full join and sorted by ID.
+}
+\examples{
+consolidated_df <- consolidate_generic_meta_dataframes(meta_df, base_df, "groups")
+
 }

@@ -12,7 +12,7 @@
 setMethod("show", "meta_dataframe", function(object) {
 
   # Print a summary of the sb_backtest_workflow
-  cat("Meta Dataframe Summary:\n")
+  cat("Meta Dataframe Show Method:\n")
   cat("=================================\n")
   cat("Meta Dataframe name: ", object@meta_dataframe_name, " \n\n")
   if(object@class == "target_m_df"){
@@ -64,7 +64,7 @@ setMethod("show", "meta_dataframe", function(object) {
 setMethod("show", "groups_m_df", function(object) {
 
   # Print a summary of the sb_backtest_workflow
-  cat("Meta Dataframe Groups Summary:\n")
+  cat("Meta Dataframe Groups Show Method:\n")
   cat("=================================\n")
   cat("Meta Dataframe name: ", object@meta_dataframe_name, " \n\n")
   cat(" Groups:\n")
@@ -120,7 +120,7 @@ setMethod("show", "groups_m_df", function(object) {
 setMethod("show", "signal_universe_m_df", function(object) {
   # 1) Initial Info
   # Print a summary of the signal_universe_m_df
-  cat("Signal Universe Summary:\n")
+  cat("Signal Universe Show Method:\n")
   cat("=================================\n")
   cat("Object name: ", object@meta_dataframe_name, " \n\n")
   cat(" Performance Metrics:\n")
@@ -192,6 +192,149 @@ setMethod("show", "signal_universe_m_df", function(object) {
 `%||%` <- function(x, default) {
   if (!is.null(x)) x else default
 }
+
+#' @title Show method for meta_xts
+#' @description
+#' Shows a summary of the \code{meta_xts} object, including metadata and
+#' the first few rows of the underlying \code{xts} data.
+#'
+#' @param object An object of class \code{meta_xts}.
+#'
+#' @return Returns the object invisibly after printing its summary.
+#'
+#' @examples
+#' \dontrun{
+#' # Assuming `my_meta_xts` is a valid meta_xts object:
+#' show(my_meta_xts)
+#' }
+#'
+#' @export
+setMethod("show", "meta_xts", function(object) {
+
+  # Print a summary of the meta_xts object
+  cat("meta_xts Show Method:\n")
+  cat("=================================\n")
+  cat("Name:", object@meta_xts_name, "\n")
+  cat("Number of dates (n_dates):", object@n_dates, "\n")
+  cat("Frequency:", object@frequency, "\n")
+  cat("Source(s):", paste(unique(object@source), collapse = ", "), "\n")
+
+  cat("  \nWorkflow:\n")
+  if(length(object@workflow) == 0){
+    cat("  No workflow set.\n")
+  } else {
+    print(object@workflow)
+  }
+
+  cat("=================================\n")
+
+  # Print the first few rows of the data slot
+  cat("\nFirst few rows of 'data' (xts):\n")
+  print(head(object@data))
+
+  # Return the object invisibly
+  invisible(object)
+})
+
+#' @title Show method for returns_meta_xts
+#' @description
+#' Shows a summary of the \code{returns_meta_xts} object, including metadata
+#' and the first few rows of the underlying \code{xts} data.
+#'
+#' @param object An object of class \code{returns_meta_xts}.
+#'
+#' @return Returns the object invisibly after printing its summary.
+#'
+#' @examples
+#' \dontrun{
+#' # Assuming `my_returns_meta_xts` is a valid returns_meta_xts object:
+#' show(my_returns_meta_xts)
+#' }
+#'
+#' @export
+setMethod("show", "returns_meta_xts", function(object) {
+
+  # Print a summary of the returns_meta_xts object
+  cat("returns_meta_xts Show Method:\n")
+  cat("=================================\n")
+  cat("Name:", object@meta_xts_name, "\n")
+  cat("Number of dates (n_dates):", object@n_dates, "\n")
+  cat("Frequency:", object@frequency, "\n")
+  cat("Source(s):", paste(unique(object@source), collapse = ", "), "\n")
+
+  cat("  \nWorkflow:\n")
+  if(length(object@workflow) == 0){
+    cat("  No workflow set.\n")
+  } else {
+    print(object@workflow)
+  }
+
+  cat("\nAssets Info:\n")
+  cat("  asset_type:", object@asset_type, "\n")
+  cat("  assets:", paste(object@assets, collapse = ", "), "\n")
+  cat("  number of assets (n_assets):", object@n_assets, "\n")
+
+  cat("=================================\n")
+
+  # Print the first few rows of the data slot
+  cat("\nFirst few rows of 'data' (xts):\n")
+  print(head(object@data))
+
+  # Return the object invisibly
+  invisible(object)
+})
+
+#' @title Show method for metrics_meta_xts
+#' @description
+#' Shows a summary of the \code{metrics_meta_xts} object, including metadata
+#' and the first few rows of the underlying \code{xts} data.
+#'
+#' @param object An object of class \code{metrics_meta_xts}.
+#'
+#' @return Returns the object invisibly after printing its summary.
+#'
+#' @examples
+#' \dontrun{
+#' # Assuming `my_metrics_meta_xts` is a valid metrics_meta_xts object:
+#' show(my_metrics_meta_xts)
+#' }
+#'
+#' @export
+setMethod("show", "metrics_meta_xts", function(object) {
+
+  # Print a summary of the metrics_meta_xts object
+  cat("metrics_meta_xts Show Method:\n")
+  cat("=================================\n")
+  cat("Name:", object@meta_xts_name, "\n")
+  cat("Number of dates (n_dates):", object@n_dates, "\n")
+  cat("Frequency:", object@frequency, "\n")
+  cat("Source(s):", paste(unique(object@source), collapse = ", "), "\n")
+
+  cat("  \nWorkflow:\n")
+  if(length(object@workflow) == 0){
+    cat("  No workflow set.\n")
+  } else {
+    print(object@workflow)
+  }
+
+  cat("\nSeries Info:\n")
+  cat("  Metric Name: ", object@metric_name, "\n")
+  cat("  series:", paste(object@series, collapse = ", "), "\n")
+  cat("  number of series:", object@n_series, "\n")
+
+  cat("=================================\n")
+
+  # Print the first few rows of the data slot
+  cat("\nFirst few rows of 'data' (xts):\n")
+  print(head(object@data))
+
+  # Return the object invisibly
+  invisible(object)
+})
+
+
+
+
 
 
 #' Print method for hyper_grid_domain
@@ -894,10 +1037,9 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("Algorithm Information:\n")
   cat(" Config Name:", sb_backtest_workflow$config_name, "\n")
   cat("  SB Algorithm:", sb_backtest_workflow$sb_algorithm, "\n")
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
-    cat("  Custom Objective:", sb_backtest_workflow$custom_objective, "\n")
-    if(sb_backtest_workflow$custom_objective == "pseudo_huber_error") cat("  Custom Huber Delta:", sb_backtest_workflow$huber_delta, "\n")
-  }
+  cat("  Custom Objective:", sb_backtest_workflow$custom_objective, "\n")
+  if(sb_backtest_workflow$custom_objective == "pseudo_huber_error") cat("  Custom Huber Delta:", sb_backtest_workflow$huber_delta, "\n")
+
   if(sb_backtest_workflow$sb_algorithm == "opt_ensemble"){
     cat("  Ensemble Eval Metric:", sb_backtest_workflow$chosen_eval_metric, "\n")
     cat("  Ensemble Huber Delta:", sb_backtest_workflow$huber_delta, "\n")
@@ -928,7 +1070,7 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("  Number of Dates:", sb_backtest_workflow$n_dates, "\n")
   cat("  First Rebalance Date:", paste(sb_backtest_workflow$first_rebalance_date), "\n")
   cat("  Rebalance Dates:", paste(sb_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble")) cat("  Split Method:", sb_backtest_workflow$split_method, "\n")
+  cat("  Split Method:", sb_backtest_workflow$split_method, "\n")
 
   if(sb_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
@@ -943,11 +1085,15 @@ setMethod("show", "sb_backtest_results", function(object) {
 
   # Display Sample Sizes
   cat("Sample Sizes:\n")
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble")) cat("  Training Sample Size:", sb_backtest_workflow$training_sample_size, "\n")
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("  Validation Sample Size:", sb_backtest_workflow$validation_sample_size, "\n")
+  cat("  Training Sample Size:", sb_backtest_workflow$training_sample_size, "\n")
+  cat("  Validation Sample Size:", sb_backtest_workflow$validation_sample_size, "\n")
   cat("  Testing Sample Size:", sb_backtest_workflow$testing_sample_size, "\n")
-  cat("  Range of Dates in Testing Sample:", paste(c(min(sb_backtest_workflow$dates_testing_sample), max(sb_backtest_workflow$dates_testing_sample)), sep ="-"), "\n")
-
+  cat("  Range of Dates in Testing Sample:", paste(
+    if(length(sb_backtest_workflow$dates_testing_sample) == 1){
+      as.Date(min(sb_backtest_workflow$dates_testing_sample))
+    } else {
+      c(min(sb_backtest_workflow$dates_testing_sample), max(sb_backtest_workflow$dates_testing_sample))
+      }, sep ="-"), "\n")
   if(sb_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
     cat("  Base Learners Sample Sizes:\n")
@@ -993,15 +1139,14 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("  Chosen Signals and Positions:\n")
   print(sb_backtest_workflow$chosen_signals_and_positions)
   cat("Features:", paste(sb_backtest_workflow$features, collapse = ", "), "\n")
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
-    cat("  Features Workflow:\n")
+  cat("  Features Workflow:\n")
     if(is.null(sb_backtest_workflow$features_workflow)){
       cat("    No Features Workflow\n")
     } else {
       print(sb_backtest_workflow$features_workflow)
       cat("\n")
     }
-  }
+
   cat("\n")
 
   cat("Top 5 most important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
@@ -1012,7 +1157,7 @@ setMethod("show", "sb_backtest_results", function(object) {
                                                                    dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
                                                                    collapse = ", "), "\n")
 
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("Features Object:", sb_backtest_workflow$features_object, "\n")
+  cat("Features Object:", sb_backtest_workflow$features_object, "\n")
 
   cat("Feature Selection Backtest Information:\n")
   if(!is.null(object@ss_backtest_results)){
@@ -1027,7 +1172,7 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("=================================\n")
 
   # Display Tuning Information
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo", "custom_weights")){
+  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
     cat("Tuning Information:\n")
     cat("  Tuning Method:", sb_backtest_workflow$tuning_method, "\n")
     if(sb_backtest_workflow$tuning_method == "random_search" || sb_backtest_workflow$tuning_method == "bayesian_opt"){
@@ -1049,13 +1194,12 @@ setMethod("show", "sb_backtest_results", function(object) {
 
 
   # Display Performance Information
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
   cat("Performance Information:\n")
    cat("  Completion Time:", sb_backtest_workflow$completion_time, "\n")
    cat("  Elapsed Time:", sb_backtest_workflow$elapsed_time, "seconds\n")
    cat("  Parallel Processing:", sb_backtest_workflow$parallel, "\n")
    cat("=================================\n")
-  }
+
 
   # Display Call Information
   cat("Call:\n")
@@ -1081,7 +1225,7 @@ setMethod("show", "sb_backtest_results", function(object) {
 setMethod("show", "sb_metabacktest_results", function(object) {
 
   # Extract the meta_learner_sb_backtest_workflow from the meta learner object
-  meta_learner_sb_backtest_workflow <- object@meta_sb_backtest_results_list[[1]]@sb_backtest_workflow
+  meta_learner_sb_backtest_workflow <- object@meta_sb_backtest_results@sb_backtest_workflow
 
   # Create a neat display of the meta_learner_sb_backtest_workflow
   cat(crayon::cyan("Meta Learner Workflow Metadata\n"))
@@ -1092,8 +1236,7 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   cat("Algorithm Information:\n")
   cat(" Config Name:", meta_learner_sb_backtest_workflow$config_name, "\n")
   cat("  SB Algorithm:", meta_learner_sb_backtest_workflow$sb_algorithm, "\n")
-  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble")) cat("  Custom Objective:", meta_learner_sb_backtest_workflow$custom_objective, "\n")
-  cat("  Backtest Type:", meta_learner_sb_backtest_workflow$backtest_type, "\n")
+  cat("  Custom Objective:", meta_learner_sb_backtest_workflow$custom_objective, "\n")
   if(meta_learner_sb_backtest_workflow$backtest_type == "meta_learner"){
     cat("    Base-Learner Config Names:", meta_learner_sb_backtest_workflow$config_name_bl, "\n")
     cat("    Base-Learner Algorithms:", meta_learner_sb_backtest_workflow$sb_algorithm_bl, "\n")
@@ -1117,7 +1260,7 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   cat("  Number of Dates:", meta_learner_sb_backtest_workflow$n_dates, "\n")
   cat("  First Rebalance Date:", paste(meta_learner_sb_backtest_workflow$first_rebalance_date), "\n")
   cat("  Rebalance Dates:", paste(meta_learner_sb_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
-  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble")) cat("  Split Method:", meta_learner_sb_backtest_workflow$split_method, "\n")
+  cat("  Split Method:", meta_learner_sb_backtest_workflow$split_method, "\n")
 
   if(meta_learner_sb_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
@@ -1132,10 +1275,18 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
   # Display Sample Sizes
   cat("Sample Sizes:\n")
-  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble")) cat("  Training Sample Size:", meta_learner_sb_backtest_workflow$training_sample_size, "\n")
-  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("  Validation Sample Size:", meta_learner_sb_backtest_workflow$validation_sample_size, "\n")
+  cat("  Training Sample Size:", meta_learner_sb_backtest_workflow$training_sample_size, "\n")
+  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
+    cat("  Validation Sample Size:", meta_learner_sb_backtest_workflow$validation_sample_size, "\n")
+  }
   cat("  Testing Sample Size:", meta_learner_sb_backtest_workflow$testing_sample_size, "\n")
-  cat("  Range of Dates in Testing Sample:", paste(c(min(meta_learner_sb_backtest_workflow$dates_testing_sample), max(meta_learner_sb_backtest_workflow$dates_testing_sample)), sep ="-"), "\n")
+  cat("  Range of Dates in Testing Sample:", paste(
+    if(length(meta_learner_sb_backtest_workflow$dates_testing_sample) == 1){
+      as.Date(min(meta_learner_sb_backtest_workflow$dates_testing_sample))
+    } else {
+      c(min(meta_learner_sb_backtest_workflow$dates_testing_sample), max(meta_learner_sb_backtest_workflow$dates_testing_sample))
+    }, sep ="-"), "\n")
+  cat("\n")
 
   if(meta_learner_sb_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
@@ -1174,18 +1325,33 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
   # Display Features Information
   cat("Features Information:\n")
+  cat("Chosen Signals and Positions: \n")
+  print(meta_learner_sb_backtest_workflow$chosen_signals_and_positions)
+  cat("\n")
   cat("Features:", paste(meta_learner_sb_backtest_workflow$features, collapse = ", "), "\n")
-  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
-    cat("  Features Workflow:\n")
+  cat("Features Workflow:\n")
+  cat("  Features Workflow:\n")
+  if(is.null(meta_learner_sb_backtest_workflow$features_workflow)){
+    cat("    No Features Workflow\n")
+  } else {
     print(meta_learner_sb_backtest_workflow$features_workflow)
     cat("\n")
   }
-  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")) cat("Features Object:", meta_learner_sb_backtest_workflow$features_object, "\n")
+  cat("Features Object:", meta_learner_sb_backtest_workflow$features_object_name, "\n")
+
+  cat("Top 5 most important features at final rebalancing:", paste(object@meta_sb_backtest_results@final_feature_importance_m_d_ref@data %>%
+                                                                   dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
+                                                                   collapse = ", "), "\n")
+
+  cat("Bottom 5 least important features at final rebalancing:", paste(object@meta_sb_backtest_results@final_feature_importance_m_d_ref@data %>%
+                                                                       dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
+                                                                       collapse = ", "), "\n")
+
 
   cat("=================================\n")
 
   # Display Tuning Information
-  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble")){
+  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
     cat("Tuning Information:\n")
     cat("  Tuning Method:", meta_learner_sb_backtest_workflow$tuning_method, "\n")
     if(meta_learner_sb_backtest_workflow$tuning_method == "random_search" || meta_learner_sb_backtest_workflow$tuning_method == "bayesian_opt"){
@@ -1207,13 +1373,12 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
 
   # Display Performance Information
-  if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ew_ensemble", "optimal_ensemble")){
     cat("Performance Information:\n")
     cat("  Completion Time:", meta_learner_sb_backtest_workflow$completion_time, "\n")
     cat("  Elapsed Time:", meta_learner_sb_backtest_workflow$elapsed_time, "seconds\n")
     cat("  Parallel Processing:", meta_learner_sb_backtest_workflow$parallel, "\n")
     cat("=================================\n")
-  }
+
 
   # Display Call Information
   cat("Call:\n")
@@ -1226,63 +1391,6 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   cat("\n")
 
   cat("=========================================\n")
-
-  # Create a neat display for EW
-  cat(crayon::magenta("\n\nEW Ensemble Workflow Metadata\n"))
-  ew_sb_backtest_workflow <- object@meta_sb_backtest_results_list[[2]]@sb_backtest_workflow
-
-  cat("Backtest Identifier: ", ew_sb_backtest_workflow$backtest_identifier, "\n")
-  cat("=================================\n")
-
-  #Algo Info
-  cat("Algorithm Information:\n")
-  cat("  Config Name:", ew_sb_backtest_workflow$config_name, "\n")
-  cat("-------------------------------\n")
-
-  # Display Date Information
-  cat("Date Information:\n")
-  cat("  Range of Dates Covered:", paste(c(min(ew_sb_backtest_workflow$dates_covered),max(ew_sb_backtest_workflow$dates_covered)), sep = "-"), "\n")
-  cat("  Number of Dates:", ew_sb_backtest_workflow$n_dates, "\n")
-  cat("  First Rebalance Date:", paste(ew_sb_backtest_workflow$first_rebalance_date), "\n")
-  cat("  Rebalance Dates:", paste(ew_sb_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
-
-  cat("-------------------------------\n")
-  # Display Sample Sizes
-  cat("Sample Sizes:\n")
-  cat("  Testing Sample Size:", ew_sb_backtest_workflow$testing_sample_size, "\n")
-  cat("  Range of Dates in Testing Sample:", paste(c(min(ew_sb_backtest_workflow$dates_testing_sample), max(ew_sb_backtest_workflow$dates_testing_sample)), sep ="-"), "\n")
-
-  cat("=================================\n")
-
-  # Create a neat display for Opt
-  cat(crayon::magenta("\n\nOptimal Ensemble Workflow Metadata\n"))
-  opt_sb_backtest_workflow <- object@meta_sb_backtest_results_list[[3]]@sb_backtest_workflow
-
-  cat("Backtest Identifier: ", opt_sb_backtest_workflow$backtest_identifier, "\n")
-  cat("=================================\n")
-
-  #Algo Info
-  cat("Algorithm Information:\n")
-  cat("  Config Name:", opt_sb_backtest_workflow$config_name, "\n")
-  cat("  Ensemble Eval Metric:", opt_sb_backtest_workflow$chosen_eval_metric, "\n")
-  cat("  Ensemble Huber Delta:", opt_sb_backtest_workflow$huber_delta, "\n")
-  cat("  Ensemble Quantile Tau:", opt_sb_backtest_workflow$quantile_tau, "\n")
-  cat("-------------------------------\n")
-
-  cat("Date Information:\n")
-  cat("  Range of Dates Covered:", paste(c(min(opt_sb_backtest_workflow$dates_covered),max(opt_sb_backtest_workflow$dates_covered)), sep = "-"), "\n")
-  cat("  Number of Dates:", opt_sb_backtest_workflow$n_dates, "\n")
-  cat("  First Rebalance Date:", paste(opt_sb_backtest_workflow$first_rebalance_date), "\n")
-  cat("  Rebalance Dates:", paste(opt_sb_backtest_workflow$rebalance_dates, collapse = ", "), "\n")
-
-  cat("-------------------------------\n")
-  # Display Sample Sizes
-  cat("Sample Sizes:\n")
-  cat("  Testing Sample Size:", opt_sb_backtest_workflow$testing_sample_size, "\n")
-  cat("  Range of Dates in Testing Sample:", paste(c(min(opt_sb_backtest_workflow$dates_testing_sample), max(opt_sb_backtest_workflow$dates_testing_sample)), sep ="-"), "\n")
-
-  cat("=================================\n")
-
 
 
 

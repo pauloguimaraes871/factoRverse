@@ -461,13 +461,16 @@ setMethod("run_sb_backtest",
                 )
 
                 ###Create oos_predictions_m_df and join with features_m_df according to features_passthrough_and_positions
-                oos_predictions_m_df <- consolidate_oos_sb_outputs_m_df(
-                  base_sb_backtest_results_list,
-                  winsorize_predictions = config@winsorize_base_predictions, winsorization_probs = winsorization_probs, # Winsorization
-                  normalize_predictions = config@normalize_base_predictions, # Normalization
-                  features_passthrough_and_positions = features_passthrough_and_positions, # Pass-through features
-                  features_m_df = features_m_df #Features to be passed
-                )
+                  ####Create object
+                  oos_predictions_m_df <- consolidate_oos_sb_outputs_m_df(
+                    base_sb_backtest_results_list,
+                    winsorize_predictions = config@winsorize_base_predictions, winsorization_probs = winsorization_probs, # Winsorization
+                    normalize_predictions = config@normalize_base_predictions, # Normalization
+                    features_passthrough_and_positions = features_passthrough_and_positions, # Pass-through features
+                    features_m_df = features_m_df #Features to be passed
+                  )
+                  ####Change meta_dataframe name
+                  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", config@config_name, "_", "f_mdf:", features_m_df@meta_dataframe_name)
 
                 ###Adapted chosen_signals_and_positions
                   ####Recreate chosen_signals_and_positions based on backtest names (always long) and features_passthrough_and_positions

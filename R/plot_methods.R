@@ -1351,6 +1351,256 @@ setMethod(
 
 )
 
+#' @title Plot Method for meta_xts
+#' @description
+#' Plots data from a meta_xts (or subclass) object using ggplot2, labeling each
+#' distinct series by its column name. Optionally allows grouping of series by
+#' a \code{clustering_list}.
+#'
+#' @details
+#' 1) Converts the \code{xts} data to a data frame, then melts it into long format,
+#' 2) Assigns each series (column) a numeric color label,
+#' 3) Optionally groups series by a provided \code{clustering_list} to vary line type,
+#' 4) Specifies \code{group = series} (or \code{group = interaction(series, group)}) so ggplot2
+#'    knows which observations to connect by line,
+#' 5) Plots the data on a dark background with neon color palette.
+#'
+#' @param x A \code{meta_xts} (or subclass) object.
+#' @param y Not used (for consistency with base \code{plot} generic).
+#' @param clustering_list A named list, where each name (e.g. "Base") is mapped to
+#' a character vector of column names. If \code{NULL}, no grouping is performed.
+#' @param ... Further arguments passed to or from other methods (currently not used).
+#'
+#' @return Invisibly returns the ggplot object. It also prints a legend mapping
+#' numeric labels to the original column names.
+#'
+#' @examples
+#' \dontrun{
+#' library(xts)
+#'
+#' # Create example data
+#' test_dates <- seq(as.Date("2023-01-15"), by="month", length.out=7)
+#' test_data <- xts(matrix(c(0.086, -0.014, -0.026, -0.040, -0.073, 0.115, 0.101,
+#'                           0.080,  0.053,  0.087,  0.079,  0.060, 0.095, 0.070,
+#'                           NA,      NA,      NA,      NA,      NA,   NA, -0.063),
+#'                         nrow=7, ncol=3, byrow=FALSE,
+#'                         dimnames=list(NULL, c("series_1", "series_2", "series_3"))),
+#'                  order.by = test_dates)
+#'
+#' # Build a dummy meta_xts
+#' my_meta <- new("metrics_meta_xts",
+#'                data = test_data,
+#'                meta_xts_name = "Example",
+#'                metric_name = "rss",
+#'                workflow = list(),
+#'                n_dates = nrow(test_data),
+#'                source = rep("MockSource", 3),
+#'                frequency = "monthly",
+#'                series = colnames(test_data),
+#'                n_metrics = ncol(test_data))
+#'
+#' # Optional clustering
+#' my_clusters <- list("Group1" = "series_1", "Group2" = "series_2")
+#'
+#' # Plot (with or without clustering_list)
+#' plot(my_meta)
+#' plot(my_meta, clustering_list = my_clusters)
+#' }
+#'
+#' @rdname plot
+#' @export
+setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
+          function(x, y, clustering_list = NULL, facet_by_year = NULL, add_overall_means = NULL, ...) {
+
+            # Ask user if they want to facet by year if the argument is not provided
+            if (is.null(facet_by_year)) {
+              response_facet <- readline(prompt = "Do you want to facet the plot by year? (yes/no): ")
+              facet_by_year <- tolower(response_facet) == "yes"
+            }
+
+            # Ask user if they want to add overall mean lines if the argument is not provided
+            if (is.null(add_overall_means)) {
+              response_means <- readline(prompt = "Do you want to add overall mean lines? (yes/no): ")
+              add_overall_means <- tolower(response_means) == "yes"
+            }
+
+            # Define the neon color palette
+            neon_colors <- c(
+              "#00BFFF",  # Neon Blue
+              "#FF1493",  # Neon Pink
+              "#FFFF00",  # Neon Yellow
+              "#8A2BE2",  # Neon Purple
+              "#FF4500",  # Neon Orange
+              "#39FF14",  # Neon Green
+              "#FF69B4",  # Hot Pink
+              "#32CD32",  # Lime Green
+              "#FFA500"   # Bright Orange
+            )
+
+            blue_bg <- "#001f3f"
+            faint_blue <- "#003366"
+            white <- "#FFFFFF"
+
+            # Extract slots
+            frequency <- x@frequency
+            metric_name <- x@metric_name
+            main_xts <- x@data
+
+            # Convert xts -> data frame -> long format
+            df_data <- as.data.frame(main_xts)
+            df_data$dates <- as.Date(zoo::index(main_xts))
+            df_data$year <- lubridate::year(df_data$dates)
+
+            long_data <- reshape2::melt(
+              df_data,
+              id.vars = c("dates", "year"),
+              variable.name = "series",
+              value.name = "value"
+            )
+
+            # Sort by date to ensure correct plotting order
+            long_data <- long_data[order(long_data$dates), ]
+
+            # Count non-NA values per series to classify them
+            series_counts <- long_data %>%
+              dplyr::group_by(series) %>%
+              dplyr::summarize(non_na_count = sum(!is.na(value)), .groups = "drop")
+
+            # Identify series with only 1 non-NA value
+            single_obs_series <- series_counts %>%
+              dplyr::filter(non_na_count == 1) %>%
+              dplyr::pull(series)
+
+            if (length(single_obs_series) > 0) {
+              warning("The following series have been excluded from the plot due to only one non-NA observation: ",
+                      paste(single_obs_series, collapse = ", "))
+            }
+
+            # Keep only series with more than one non-NA observation
+            multi_obs_series <- series_counts %>%
+              dplyr::filter(non_na_count > 1) %>%
+              dplyr::pull(series)
+
+            # Filter data for plotting
+            plot_data_multi <- dplyr::filter(long_data, series %in% multi_obs_series & !is.na(value))
+
+            # Compute overall mean per series if requested
+            if (add_overall_means) {
+              overall_means <- plot_data_multi %>%
+                dplyr::group_by(series) %>%
+                dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop")
+            }
+
+            # Apply clustering if provided
+            if (!is.null(clustering_list)) {
+              plot_data_multi$group <- NA
+              for (grp in names(clustering_list)) {
+                assigned_series <- clustering_list[[grp]]
+                plot_data_multi$group[plot_data_multi$series %in% assigned_series] <- grp
+              }
+
+              # Check if all values belong to the same group
+              unique_groups <- unique(plot_data_multi$group)
+
+              if (length(unique_groups) == 1) {
+                warning("Only one group detected, plotting without grouping.")
+                plot_data_multi$group <- plot_data_multi$series  # Fallback to independent series plotting
+                linetype_legend_title <- NULL
+              } else {
+                linetype_legend_title <- "Group"
+              }
+
+            } else {
+              plot_data_multi$group <- plot_data_multi$series  # No clustering, treat each series separately
+              linetype_legend_title <- NULL
+            }
+
+            # Assign numeric labels for coloring
+            unique_series <- unique(plot_data_multi$series)
+            color_mapping <- setNames(rep(neon_colors, length.out = length(unique_series)), unique_series)
+
+            # Create a mapping from unique series to numbers
+            series_mapping <- setNames(seq_along(unique(plot_data_multi$series)), unique(plot_data_multi$series))
+            plot_data_multi$series <- series_mapping[plot_data_multi$series] %>% as.factor()
+            color_mapping <- color_mapping[names(series_mapping)]
+            names(color_mapping) <- series_mapping
+
+            # Create the ggplot object
+            plot_obj <- ggplot2::ggplot(plot_data_multi, ggplot2::aes(
+              x = dates,
+              y = value,
+              color = series,
+              group = series
+            )) +
+              ggplot2::geom_line(size = 0.8, na.rm = TRUE) +  # Reduced line thickness
+              ggplot2::labs(
+                title = paste("Time series of", metric_name, "for", frequency, "frequency"),
+                x = "Date",
+                y = metric_name,
+                color = "Series Label",
+                linetype = linetype_legend_title
+              ) +
+              ggplot2::scale_color_manual(values = color_mapping) +
+              ggplot2::theme_minimal() +
+              ggplot2::theme(
+                plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+                panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+                plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
+                axis.text        = ggplot2::element_text(color = white),
+                axis.title       = ggplot2::element_text(color = white),
+                legend.title     = ggplot2::element_text(color = white),
+                legend.text      = ggplot2::element_text(color = white),
+                panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+                panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+              ) +
+              ggplot2::scale_x_date(labels = scales::date_format("%b-%y"))
+
+            # Add faceting if enabled
+            if (facet_by_year) {
+              plot_obj <- plot_obj +
+                ggplot2::facet_wrap(~year, scales = "free") +
+                ggplot2::theme(
+                  strip.text = ggplot2::element_text(color = white, face = "bold"),
+                  legend.position = "right"
+                )
+            }
+
+            # Add overall mean lines if requested
+            if (add_overall_means) {
+              overall_means <- plot_data_multi %>%
+                dplyr::group_by(series) %>%
+                dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop") %>%
+                dplyr::mutate(series = as.factor(series))  # Ensure correct factor levels
+
+              # Add overall mean lines to the plot with corresponding colors
+              plot_obj <- plot_obj +
+                ggplot2::geom_hline(data = overall_means,
+                                    ggplot2::aes(yintercept = overall_mean, color = series),
+                                    linetype = "dashed", show.legend = FALSE)
+            }
+
+            # Remove linetype legend if no clustering list is provided or only one group exists
+            if (is.null(clustering_list) || length(unique_groups) == 1) {
+              plot_obj <- plot_obj + ggplot2::guides(linetype = "none")
+            }
+
+            print(plot_obj)
+            cat("\nLegend:\n")
+            for (i in seq_along(series_mapping)) {
+              cat(series_mapping[i], ":", paste(names(series_mapping)[i] , "\n"))
+            }
+
+            invisible(plot_obj)
+          })
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1798,8 +2048,6 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 })
 
 
-
-
 #' @title Plot Method for `sb_backtest_config`
 #' @description Calls the appropriate plot method for `tuning_strategy`.
 #' @param x An object of class `sb_backtest_config`.
@@ -1954,9 +2202,6 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
     stop("No valid plots available to display.")
   }
 })
-
-
-
 
 
 # Define the plot method for sb_backtest_results
@@ -2114,7 +2359,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
   oos_testing_eval_metrics <- oos_testing_eval_metrics %>% dplyr::mutate(dates = rownames(oos_testing_eval_metrics))
   oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") # Coerce to dates
 
-  if (!sb_algorithm %in% c("ols", "rp", "sw", "ew", "mvo", "custom_weights", "ew_ensemble", "optimal_ensemble")) {
+  if (!sb_algorithm %in% c("ols", "rp", "sw", "ew", "mvo", "custom_weights")) {
     # Some treatments to validation_eval_metrics_hyper_choice
     # Change colnames
     colnames(validation_eval_metrics_hyper_choice) <- paste("validation_", colnames(validation_eval_metrics_hyper_choice), sep = "")
@@ -2164,6 +2409,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   # Now generate the selected plot
   if (plot_name == "Chosen Evaluation Metric Over Time") {
+    browser()
     # PLOT 1: Test chosen evaluation metric over time
     plots_list$chosen_eval_metric_over_time <- ggplot2::ggplot(
       chosen_eval_testing_data,
@@ -3003,7 +3249,8 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
   # List of available plots
   available_plots <- c(
-    "Consolidated OOS Testing Metrics Comparison",
+    "Consolidated OOS Testing Metrics Comparison - All Dates",
+    "Consolidated OOS Testing Metrics Comparison - Common Dates",
     "Time Series OOS Testing Metrics",
     "Mean Validation Metrics Comparison",
     "Time Series Validation Metrics",
@@ -3068,71 +3315,56 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
   mean_validation_metrics <- x@mean_validation_metrics
   time_series_validation_metrics <- x@time_series_validation_metrics
   base_learners <- x@base_sb_backtest_results_list
-  meta_learners <- x@meta_sb_backtest_results_list
+  meta_learner <- x@meta_sb_backtest_results
 
   # Initialize plots list
   plots_list <- list()
   # Now generate the selected plot
-  if (plot_name == "Consolidated OOS Testing Metrics Comparison") {
+  if (plot_name == "Consolidated OOS Testing Metrics Comparison - All Dates") {
     # Plot consolidated OOS testing metrics for all models (base and meta learners)
 
     # Prepare data
     # Extract full periods and common dates metrics
-    full_periods_metrics <- consolidated_metrics$full_periods_oos_testing_metrics
-    common_dates_metrics <- consolidated_metrics$common_dates_oos_testing_metrics
+    all_dates_metrics <- consolidated_metrics$all_dates_oos_testing_metrics
+    all_dates_metrics$period <- "All Dates"
 
-    # Combine the two data frames
-    consolidated_data <- rbind(
-      cbind(full_periods_metrics, Period = "Full Periods"),
-      cbind(common_dates_metrics, Period = "Common Dates")
-    )
 
-    # Replace long Backtest identifiers with labels
-    all_backtests <- unique(consolidated_data$Backtest)
+    # Replace long sb_backtest identifiers with labels
+    all_backtests <- unique(all_dates_metrics$sb_backtest)
     labels <- seq_along(all_backtests)
-    legend <- data.frame(
-      Backtest = all_backtests,
-      Label = labels
-    )
-    consolidated_data$BacktestLabel <- legend$Label[match(consolidated_data$Backtest, legend$Backtest)]
-
-    # Melt data for plotting
-    plot_data <- reshape2::melt(
-      consolidated_data,
-      id.vars = c("Backtest", "BacktestLabel", "Period", "testing_dates_range", "chosen_eval_metric"),
-      variable.name = "Metric",
-      value.name = "Value"
-    )
-
-    # Exclude non-numeric columns
-    plot_data <- plot_data[!plot_data$Metric %in% c("Backtest", "BacktestLabel", "Period", "testing_dates_range", "chosen_eval_metric"), ]
+    legend_df <- data.frame(backtest = all_backtests, label = labels)
+    all_dates_metrics$backtest_label <- legend_df$label[match(all_dates_metrics$sb_backtest, legend_df$backtest)]
 
     # Create the plot
-    plots_list$consolidated_oos_testing_metrics_comparison <- ggplot2::ggplot(
-      plot_data,
-      ggplot2::aes(x = as.factor(BacktestLabel), y = Value, fill = Metric)
+    plots_list$consolidated_oos_testing_metrics_all_dates <- ggplot2::ggplot(
+      all_dates_metrics,
+      ggplot2::aes(
+        x    = factor(backtest_label),
+        y    = cons_oos,
+        fill = factor(backtest_label)
+      )
     ) +
-      ggplot2::geom_bar(stat = "identity", position = "dodge") +
-      ggplot2::facet_wrap(~Period, scales = "free_y") +
+      ggplot2::geom_col(position = "dodge") +
+      ggplot2::facet_wrap(~ metric, scales = "free_y") +
       ggplot2::labs(
-        title = "Consolidated OOS Testing Metrics Comparison",
-        x = "Model (Backtest Label)",
-        y = "Metric Value",
-        fill = "Metric"
+        title = "Consolidated OOS Testing Metrics (All Dates)",
+        x     = "Model (Backtest Label)",
+        y     = "Metric Value",
+        fill  = "Backtest Label"
       ) +
       ggplot2::scale_fill_manual(values = extended_neon_palette) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = white),
+        axis.title            = ggplot2::element_text(color = white),
+        strip.text            = ggplot2::element_text(color = white, face = "bold"),
+        legend.title          = ggplot2::element_text(color = white),
+        legend.text           = ggplot2::element_text(color = white),
+        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
       )
 
     # Print the legend mapping Backtest labels to identifiers
@@ -3141,14 +3373,73 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
       cat(paste(labels[i], ":", all_backtests[i], "\n"))
     }
 
-    print(plots_list$consolidated_oos_testing_metrics_comparison)
+    print(plots_list$consolidated_oos_testing_metrics_all_dates)
+
+  } else if (plot_name == "Consolidated OOS Testing Metrics Comparison - Common Dates") {
+
+    # Prepare data
+    common_dates_raw <- consolidated_metrics$common_dates_oos_testing_metrics
+    common_dates_metrics <- tidyr::pivot_longer(
+      common_dates_raw,
+      cols      = -c(sb_backtest, testing_dates_range),
+      names_to  = "metric",
+      values_to = "cons_oos"
+    )
+    common_dates_metrics$Period <- "Common Dates"
+
+    # Use the same labeling logic
+    all_backtests <- unique(common_dates_metrics$sb_backtest)
+    labels <- seq_along(all_backtests)
+    legend_df <- data.frame(backtest = all_backtests, label = labels)
+    common_dates_metrics$backtest_label <- legend_df$label[match(common_dates_metrics$sb_backtest, legend_df$backtest)]
+
+    # Plot (Common Dates)
+    plots_list$consolidated_oos_testing_metrics_common_dates <- ggplot2::ggplot(
+      common_dates_metrics,
+      ggplot2::aes(
+        x    = factor(backtest_label),
+        y    = cons_oos,
+        fill = factor(backtest_label)
+      )
+    ) +
+      ggplot2::geom_col(position = "dodge") +
+      ggplot2::facet_wrap(~ metric, scales = "free_y") +
+      ggplot2::labs(
+        title = "Consolidated OOS Testing Metrics (Common Dates)",
+        x     = "Model (Backtest Label)",
+        y     = "Metric Value",
+        fill  = "Backtest Label"
+      ) +
+      ggplot2::scale_fill_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = white),
+        axis.title            = ggplot2::element_text(color = white),
+        strip.text            = ggplot2::element_text(color = white, face = "bold"),
+        legend.title          = ggplot2::element_text(color = white),
+        legend.text           = ggplot2::element_text(color = white),
+        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    # Show a quick legend
+    cat("\nLegend (Common Dates):\n")
+    for (i in seq_along(labels)) {
+      cat(paste0(labels[i], " : ", all_backtests[i], "\n"))
+    }
+
+    print(plots_list$consolidated_oos_testing_metrics_common_dates)
+
 
   } else if (plot_name == "Time Series OOS Testing Metrics") {
     # Plot time series OOS testing metrics for each model
 
     # Prepare data
     # time_series_oos_testing_metrics is a list of data frames for each metric
-    # We'll combine them into one data frame for plotting
+    # Combine them into one data frame for plotting
 
     metrics_list <- time_series_oos_testing_metrics
     metric_names <- names(metrics_list)
@@ -3156,34 +3447,34 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     plot_data <- data.frame()
 
     for (metric_name in metric_names) {
-      metric_df <- metrics_list[[metric_name]]
+      metric_df <- metrics_list[[metric_name]]@data %>% as.data.frame()
       metric_long <- reshape2::melt(
         as.data.frame(metric_df),
         id.vars = NULL,
-        variable.name = "Backtest",
-        value.name = "Value"
+        variable.name = "backtest",
+        value.name = "value"
       )
-      metric_long$Date <- as.Date(rownames(metric_df))
-      metric_long$Metric <- metric_name
+      metric_long$dates <- as.Date(zoo::index(metrics_list[[metric_name]]@data))
+      metric_long$metric <- metric_name
       plot_data <- rbind(plot_data, metric_long)
     }
 
-    # Replace long Backtest identifiers with labels
-    all_backtests <- unique(plot_data$Backtest)
+    # Replace long backtest identifiers with labels
+    all_backtests <- unique(plot_data$backtest)
     labels <- seq_along(all_backtests)
     legend <- data.frame(
-      Backtest = all_backtests,
-      Label = labels
+      backtest = all_backtests,
+      label = labels
     )
-    plot_data$BacktestLabel <- legend$Label[match(plot_data$Backtest, legend$Backtest)]
+    plot_data$backtest_label <- legend$label[match(plot_data$backtest, legend$backtest)]
 
     # Create the plot
     plots_list$time_series_oos_testing_metrics <- ggplot2::ggplot(
       plot_data,
-      ggplot2::aes(x = Date, y = Value, color = as.factor(BacktestLabel))
+      ggplot2::aes(x = dates, y = value, color = as.factor(backtest_label))
     ) +
       ggplot2::geom_line() +
-      ggplot2::facet_wrap(~Metric, scales = "free_y") +
+      ggplot2::facet_wrap(~metric, scales = "free_y") +
       ggplot2::labs(
         title = "Time Series OOS Testing Metrics",
         x = "Date",
@@ -3219,15 +3510,15 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     # Prepare data
     data_df <- x@mean_validation_metrics
 
-    # Replace long Backtest identifiers with labels
-    if ("Backtest" %in% names(data_df)) {
-      all_backtests <- unique(data_df$Backtest)
+    # Replace long backtest identifiers with labels
+    if ("sb_backtest" %in% names(data_df)) {
+      all_backtests <- unique(data_df$sb_backtest)
       labels <- seq_along(all_backtests)
       legend <- data.frame(
-        Backtest = all_backtests,
-        Label = labels
+        backtest = all_backtests,
+        label = labels
       )
-      data_df$BacktestLabel <- legend$Label[match(data_df$Backtest, legend$Backtest)]
+      data_df$backtest_label <- legend$label[match(data_df$sb_backtest, legend$backtest)]
     } else {
       legend <- NULL
     }
@@ -3235,20 +3526,21 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     # Melt data for plotting
     plot_data <- reshape2::melt(
       data_df,
-      id.vars = c("Backtest", "BacktestLabel", "chosen_eval_metric"),
-      variable.name = "Metric",
-      value.name = "Value"
+      id.vars = c("sb_backtest", "backtest_label", "metric"),
+      value.name = "avg_val"
     )
-
-    # Exclude non-numeric columns
-    plot_data <- plot_data[!plot_data$Metric %in% c("Backtest", "BacktestLabel", "chosen_eval_metric"), ]
 
     # Create the plot
     plots_list$mean_validation_metrics_comparison <- ggplot2::ggplot(
       plot_data,
-      ggplot2::aes(x = as.factor(BacktestLabel), y = Value, fill = Metric)
+      ggplot2::aes(
+        x    = as.factor(backtest_label),
+        y    = avg_val,
+        fill = factor(backtest_label)
+      )
     ) +
-      ggplot2::geom_bar(stat = "identity", position = "dodge") +
+      ggplot2::geom_col(position = "dodge") +
+      ggplot2::facet_wrap(~ metric, scales = "free_y") +
       ggplot2::labs(
         title = "Mean Validation Metrics Comparison",
         x = "Model (Backtest Label)",
@@ -3258,17 +3550,18 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
       ggplot2::scale_fill_manual(values = extended_neon_palette) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = white),
+        axis.title            = ggplot2::element_text(color = white),
+        strip.text            = ggplot2::element_text(color = white, face = "bold"),
+        legend.title          = ggplot2::element_text(color = white),
+        legend.text           = ggplot2::element_text(color = white),
+        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
       )
+
 
     # Print the legend mapping Backtest labels to identifiers
     if (!is.null(legend)) {
@@ -3290,34 +3583,34 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     plot_data <- data.frame()
 
     for (metric_name in metric_names) {
-      metric_df <- metrics_list[[metric_name]]
+      metric_df <- metrics_list[[metric_name]]@data
       metric_long <- reshape2::melt(
         as.data.frame(metric_df),
         id.vars = NULL,
-        variable.name = "Backtest",
-        value.name = "Value"
+        variable.name = "sb_backtest",
+        value.name = "value"
       )
-      metric_long$Date <- as.Date(rownames(metric_df))
-      metric_long$Metric <- metric_name
+      metric_long$dates <- as.Date(zoo::index(metrics_list[[metric_name]]@data))
+      metric_long$metric <- metric_name
       plot_data <- rbind(plot_data, metric_long)
     }
 
     # Replace long Backtest identifiers with labels
-    all_backtests <- unique(plot_data$Backtest)
+    all_backtests <- unique(plot_data$sb_backtest)
     labels <- seq_along(all_backtests)
     legend <- data.frame(
-      Backtest = all_backtests,
-      Label = labels
+      backtest = all_backtests,
+      label = labels
     )
-    plot_data$BacktestLabel <- legend$Label[match(plot_data$Backtest, legend$Backtest)]
+    plot_data$backtest_label <- legend$label[match(plot_data$sb_backtest, legend$backtest)]
 
     # Create the plot
     plots_list$time_series_validation_metrics <- ggplot2::ggplot(
       plot_data,
-      ggplot2::aes(x = Date, y = Value, color = as.factor(BacktestLabel))
+      ggplot2::aes(x = dates, y = value, color = as.factor(backtest_label))
     ) +
       ggplot2::geom_line() +
-      ggplot2::facet_wrap(~Metric, scales = "free_y") +
+      ggplot2::facet_wrap(~metric, scales = "free_y") +
       ggplot2::labs(
         title = "Time Series Validation Metrics",
         x = "Date",
@@ -3364,73 +3657,21 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     metric_name <- available_metrics[metric_selection]
 
     # Prepare data
-    metric_df <- time_series_oos_testing_metrics[[metric_name]]
+    meta_xts <- time_series_oos_testing_metrics[[metric_name]]
 
-    if (is.null(metric_df)) {
+    if (is.null(meta_xts@data)) {
       cat("Metric", metric_name, "not found in time series OOS testing metrics.\n")
       return(invisible(x))
     }
 
-    # Prepare the data
-    plot_data <- reshape2::melt(
-      as.data.frame(metric_df),
-      id.vars = NULL,
-      variable.name = "Backtest",
-      value.name = "Value"
-    )
-    plot_data$Date <- as.Date(rownames(metric_df))
+    base_learner_ids <- sapply(base_learners, function(bl) bl@backtest_identifier) #Get bae learner ids
+    meta_learner_id <- meta_learner@backtest_identifier #Get meta learner id
 
-    # Add a column indicating whether the model is a base learner or meta learner
-    base_learner_ids <- sapply(base_learners, function(bl) bl@backtest_identifier)
-    meta_learner_ids <- sapply(meta_learners, function(sb) sb@backtest_identifier)
-    plot_data$ModelType <- ifelse(
-      plot_data$Backtest %in% base_learner_ids, "Base Learner",
-      ifelse(plot_data$Backtest %in% meta_learner_ids, "Meta Learner", "Unknown")
-    )
+    clustering_list <- list("meta_learner" = meta_learner_id, "base_learners" = base_learner_ids)
 
-    # Replace long Backtest identifiers with labels
-    all_backtests <- unique(plot_data$Backtest)
-    labels <- seq_along(all_backtests)
-    legend <- data.frame(
-      Backtest = all_backtests,
-      Label = labels
-    )
-    plot_data$BacktestLabel <- legend$Label[match(plot_data$Backtest, legend$Backtest)]
+    # Use meta_xts plot method
+    plot(x = meta_xts, clustering_list = clustering_list)
 
-    # Create the plot
-    plots_list$base_vs_meta_over_time <- ggplot2::ggplot(
-      plot_data,
-      ggplot2::aes(x = Date, y = Value, color = as.factor(BacktestLabel), linetype = ModelType)
-    ) +
-      ggplot2::geom_line() +
-      ggplot2::labs(
-        title = paste("Base Learners vs Meta Learners Over Time -", metric_name),
-        x = "Date",
-        y = metric_name,
-        color = "Model (Backtest Label)",
-        linetype = "Model Type"
-      ) +
-      ggplot2::scale_color_manual(values = extended_neon_palette) +
-      ggplot2::theme_minimal() +
-      ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
-      )
-
-    # Print the legend mapping Backtest labels to identifiers
-    cat("\nLegend:\n")
-    for (i in seq_along(labels)) {
-      cat(paste(labels[i], ":", all_backtests[i], "\n"))
-    }
-
-    print(plots_list$base_vs_meta_over_time)
   }
 
   invisible(x)

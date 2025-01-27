@@ -6,8 +6,10 @@
 \usage{
 create_meta_xts(
   data,
-  type = c("assets", "metrics"),
+  type = c("returns", "metrics"),
+  asset_type = NULL,
   meta_xts_name = "default_name",
+  metric_name = NULL,
   workflow = NULL,
   source = NULL
 )
@@ -44,7 +46,7 @@ input xts object and the desired type: "assets" or "metrics".
   my_xts <- xts::xts(x, order.by = dates)
 
   # Create an assets_meta_xts
-  obj_assets <- create_meta_xts(data = my_xts, type = "assets",
+  obj_assets <- create_meta_xts(data = my_xts, type = "port",
                                meta_xts_name = "My Assets Data")
   validObject(obj_assets)
 

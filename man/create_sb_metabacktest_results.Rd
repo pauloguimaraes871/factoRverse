@@ -2,23 +2,25 @@
 % Please edit documentation in R/constructors.R
 \name{create_sb_metabacktest_results}
 \alias{create_sb_metabacktest_results}
-\alias{create_sb_metabacktest_results,list,list-method}
+\alias{create_sb_metabacktest_results,sb_backtest_results,list,meta_dataframe-method}
 \alias{create_sb_metabacktest_results,list-method}
 \title{Create an sb_metabacktest_results Object}
 \usage{
 create_sb_metabacktest_results(
   meta_sb_backtest_results,
   base_sb_backtest_results_list,
+  oos_predictions_m_df,
   ...
 )
 
 create_sb_metabacktest_results(
   meta_sb_backtest_results,
   base_sb_backtest_results_list,
+  oos_predictions_m_df,
   ...
 )
 
-\S4method{create_sb_metabacktest_results}{list,list}(
+\S4method{create_sb_metabacktest_results}{sb_backtest_results,list,meta_dataframe}(
   meta_sb_backtest_results,
   base_sb_backtest_results_list,
   oos_predictions_m_df

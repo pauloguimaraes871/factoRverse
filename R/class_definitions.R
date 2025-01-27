@@ -313,6 +313,7 @@ setClass(
   slots = c(
     data          = "xts",
     meta_xts_name = "character",
+    metric_name   = "character",
     workflow      = "ANY",
     n_dates       = "numeric",
     source        = "character",
@@ -326,23 +327,15 @@ setClass(
     if (!all(diff(idx) > 0)) {
       return("Dates must be strictly increasing (oldest to newest).")
     }
-    if (any(is.na(main_xts))) {
-      return("There must be no NA values in the time series.")
-    }
     if (object@n_dates != nrow(main_xts)) {
       return("Slot 'n_dates' does not match the number of rows in the xts slot 'data'.")
     }
-
     current_colnames <- colnames(main_xts)
     ncols <- length(current_colnames)
     if (length(object@source) != ncols) {
       return("Slot 'source' must have the same length as the number of columns in slot 'data'.")
     }
 
-    # If all columns do not share the same source, just warn:
-    if (length(unique(object@source)) > 1) {
-      warning("Source is not the same for all columns. Please confirm if this is intended.")
-    }
     if (length(unique(idx)) < length(idx)) {
       return("There are duplicated rows (time index) in 'data'.")
     }
@@ -368,9 +361,10 @@ setClass(
 #' @importFrom methods setClass
 #' @export
 setClass(
-  Class = "assets_meta_xts",
+  Class = "returns_meta_xts",
   contains = "meta_xts",
   slots = c(
+    asset_type = "character",
     assets   = "character",
     n_assets = "numeric"
   ),
@@ -411,6 +405,22 @@ setClass(
       return("Slot 'assets' does not match the colnames of the xts slot 'data'.")
     }
 
+    # If all columns do not share the same source, just warn:
+    if (length(unique(object@source)) > 1) {
+      warning("Source is not the same for all columns. Please confirm if this is intended.")
+    }
+
+    #Check for NAs
+    if (any(is.na(main_xts))) {
+      if(object@asset_type == "ports"){
+        #NA Values are forbidden for ports
+        return("There are NA values in the time series.")
+      } else {
+        warning("There are NA values in the time series.")
+      }
+    }
+
+
     freq_info <- xts::periodicity(main_xts)
     message("Detected frequency is: ", freq_info$scale)
 
@@ -426,8 +436,8 @@ setClass(
 #'   \item \code{n_metrics}: a numeric value equal to the number of metric columns.
 #' }
 #'
-#' @slot metrics Character. Names of the columns (metrics).
-#' @slot n_metrics Numeric. Number of metric columns.
+#' @slot series Character. Names of the columns (metrics).
+#' @slot n_series Numeric. Number of metric columns.
 #'
 #' @importFrom methods setClass
 #' @export
@@ -435,17 +445,17 @@ setClass(
   Class = "metrics_meta_xts",
   contains = "meta_xts",
   slots = c(
-    metrics   = "character",
-    n_metrics = "numeric"
+    series   = "character",
+    n_series = "numeric"
   ),
   validity = function(object) {
     main_xts <- object@data
-    if (object@n_metrics != ncol(main_xts)) {
-      return("Slot 'n_metrics' does not match the number of columns in the xts slot 'data'.")
+    if (object@n_series != ncol(main_xts)) {
+      return("Slot 'n_series' does not match the number of columns in the xts slot 'data'.")
     }
     current_colnames <- colnames(main_xts)
-    if (!identical(object@metrics, current_colnames)) {
-      return("Slot 'metrics' does not match the colnames of the xts slot 'data'.")
+    if (!identical(object@series, current_colnames)) {
+      return("Slot 'series' does not match the colnames of the xts slot 'data'.")
     }
     # No check for consecutive dates (holes allowed).
     return(TRUE)

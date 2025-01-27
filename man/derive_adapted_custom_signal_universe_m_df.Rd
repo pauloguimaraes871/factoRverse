@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils-consolidate_meta_objects.R
 \name{derive_adapted_custom_signal_universe_m_df}
 \alias{derive_adapted_custom_signal_universe_m_df}
-\title{Derive adapted_custom_signal_universe_metrics_m_df}
+\title{Derive Adapted Custom Signal Universe Metrics}
 \usage{
 derive_adapted_custom_signal_universe_m_df(
   meta_custom_objective,
@@ -11,6 +11,19 @@ derive_adapted_custom_signal_universe_m_df(
   base_custom_signal_universe_metrics_m_df
 )
 }
+\arguments{
+\item{meta_custom_objective}{A character string representing the custom objective (e.g., 'min_rss').}
+
+\item{base_sb_backtest_results_list}{A list of backtest results for processing.}
+
+\item{meta_custom_signal_universe_metrics_m_df}{Meta-level metrics dataframe.}
+
+\item{base_custom_signal_universe_metrics_m_df}{Base-level metrics dataframe.}
+}
+\value{
+A combined and processed dataframe of signal universe metrics.
+}
 \description{
-Derive adapted_custom_signal_universe_metrics_m_df
+This function consolidates and adapts custom signal universe metrics.
+It processes evaluation metrics across multiple backtest results and integrates them with meta-level data.
 }
