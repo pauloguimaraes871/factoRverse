@@ -314,6 +314,457 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 
 
 
+#' @title Summary Method for meta_xts Class
+#' @description Provides summary statistics for meta_xts objects, including numeric summaries,
+#' yearly trends, series frequency tables, and (for returns_meta_xts) a performance metrics table.
+#'
+#' @param object An S4 object of class `meta_xts`, possibly a subclass like `returns_meta_xts`.
+#' @param summary_id A numeric or character specifying which summary to display.
+#'   If NULL, a menu is shown.
+#' @param benchmark_returns_m_xts An optional \code{xts} object with benchmark returns (for active performance).
+#' @param active_returns Logical. If TRUE, computes active returns relative to the benchmark.
+#' @param ... Further arguments (not used).
+#'
+#' @return Invisibly returns the \code{object}, printing a styled table or prompt in the Viewer.
+#'
+#' @examples
+#' \dontrun{
+#' # If x is a generic meta_xts:
+#' summary(x)  # numeric summary, yearly summary, or series frequency table
+#'
+#' # If x is a returns_meta_xts:
+#' summary(x)  # includes the new 'Performance Metrics Table' if you choose it
+#' }
+#'
+#' @export
+setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
+
+  # Colors
+  deep_navy <- "#000033"        # Deep Navy for data rows
+  black <- "#000000"            # Black for headers and the title bar
+  white <- "#FFFFFF"            # White text
+  blue_bg <- "#001f3f"          # Blue background (if needed)
+
+  # Base summaries
+  base_summaries <- c(
+    "Numeric Summary Table",
+    "Numeric Summary Table by Year",
+    "Series Frequency Table"
+  )
+
+  # If object is 'returns_meta_xts', add a new option:
+  if (methods::is(object, "returns_meta_xts")) {
+    available_summaries <- c(base_summaries, "Performance Metrics Table")
+    if (!is.null(benchmark_returns_m_xts) && (!methods::is(benchmark_returns_m_xts, "returns_meta_xts"))){
+      stop("The 'benchmark_returns_m_xts' argument must be a 'returns_meta_xts' object.")
+    }
+  } else {
+    available_summaries <- base_summaries
+  }
+
+
+  # Display info about the meta_xts
+  cat("\nMeta xts Summary\n")
+  cat("Meta xts Name:", object@meta_xts_name, "\n")
+  cat("Number of Rows:", nrow(object@data), "\n")
+  cat("Number of Columns:", ncol(object@data), "\n")
+  cat("Columns:", paste(names(object@data), collapse = ", "), "\n")
+
+  # If no summary_id, prompt user
+  if (is.null(summary_id)) {
+    cat("\nPlease choose a summary to display:\n")
+    for (i in seq_along(available_summaries)) {
+      cat(paste0(i, ": ", available_summaries[i], "\n"))
+    }
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    summary_id <- as.numeric(selection)
+    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_summaries)) {
+      stop("Invalid selection.")
+    }
+  }
+
+  # Prompt for active_returns
+  if (summary_id == 4) {
+    active_returns <- readline(prompt = "Compute active returns relative to the benchmark? (yes/no): ")
+    if (active_returns == "yes") {
+      if (is.null(benchmark_returns_m_xts)){
+        stop("You must provide a 'benchmark_returns_m_xts' object to compute active returns.")
+      }
+      if (ncol(benchmark_returns_m_xts@data) > 1){
+        stop("The 'benchmark_returns_m_xts' object must have only one column.")
+      }
+      active_returns <- TRUE
+    } else {
+      active_returns <- FALSE
+    }
+  }
+
+  # Resolve summary name
+  if (is.numeric(summary_id)) {
+    if (summary_id >= 1 && summary_id <= length(available_summaries)) {
+      summary_name <- available_summaries[summary_id]
+    } else {
+      stop("Invalid summary number. Must be between 1 and ", length(available_summaries), ".")
+    }
+  } else if (is.character(summary_id)) {
+    if (summary_id %in% available_summaries) {
+      summary_name <- summary_id
+    } else {
+      stop("Invalid 'summary_id' specified. Available options are:\n",
+           paste(available_summaries, collapse = ", "))
+    }
+  } else {
+    stop("'summary_id' must be either a string or a number corresponding to the summary.")
+  }
+
+
+  # Convert xts -> data frame, add year for numeric summaries
+  df_data <- as.data.frame(object@data)
+  df_data$dates <- as.Date(zoo::index(object@data))
+  df_data$year <- lubridate::year(df_data$dates)
+
+  # Only numeric columns for numeric summaries
+  numeric_cols <- sapply(df_data, is.numeric)
+  numeric_data <- df_data[, numeric_cols, drop = FALSE]
+
+  # Numeric Summary Table
+  display_numeric_summary <- function() {
+    if (ncol(numeric_data) == 0) {
+      cat("\nNo numeric columns to summarize.\n")
+      return()
+    }
+
+    # Build summary
+    numeric_summary <- data.frame(
+      Variable = names(numeric_data),
+      NAs = sapply(numeric_data, function(col) sum(is.na(col))),
+      Min = sapply(numeric_data, function(col) round(min(col, na.rm = TRUE), 4)),
+      `1st Quartile` = sapply(numeric_data, function(col) round(quantile(col, 0.25, na.rm = TRUE), 4)),
+      Median = sapply(numeric_data, function(col) round(median(col, na.rm = TRUE), 4)),
+      Mean = sapply(numeric_data, function(col) round(mean(col, na.rm = TRUE), 4)),
+      `3rd Quartile` = sapply(numeric_data, function(col) round(quantile(col, 0.75, na.rm = TRUE), 4)),
+      Max = sapply(numeric_data, function(col) round(max(col, na.rm = TRUE), 4)),
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+
+    # Format the table with scroll bars and a title
+    numeric_summary_formatted <- DT::datatable(
+      numeric_summary,
+      rownames = FALSE,
+      extensions = c('FixedColumns', 'Scroller'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't',
+        ordering = FALSE
+      ),
+      class = 'cell-border stripe',
+      caption = htmltools::tags$caption(
+        style = paste0(
+          'caption-side: top; text-align: center; color: ', white,
+          '; background-color: ', black,
+          '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'
+        ),
+        # meta_xts_name + " : Summary of Numeric Variables"
+        paste0(object@meta_xts_name, ": Summary of Numeric Variables")
+      )
+    ) %>%
+      # Apply overall styling for data rows
+      DT::formatStyle(
+        columns = names(numeric_summary),
+        backgroundColor = deep_navy,
+        color = white
+      )
+
+    # Additional CSS for black headers, etc.
+    css_styles <- paste0("
+      table.dataTable thead th {
+        background-color: ", black, " !important;
+        color: ", white, " !important;
+      }
+      .dataTable {
+        background-color: ", deep_navy, " !important;
+        color: ", white, ";
+      }
+      table.dataTable tbody tr {
+        background-color: ", deep_navy, " !important;  /* Deep Navy */
+      }
+      table.dataTable tbody td {
+        border-color: #333333 !important;
+      }
+    ")
+
+    # Prepend the extra CSS
+    numeric_summary_formatted <- htmlwidgets::prependContent(
+      numeric_summary_formatted,
+      htmltools::tags$style(css_styles)
+    )
+
+    print(numeric_summary_formatted)
+  }
+
+  # Numeric Summary Table by Year (User Statistic)
+  display_numeric_summary_by_year <- function() {
+    if (ncol(numeric_data) == 0) {
+      cat("\nNo numeric columns to summarize.\n")
+      return()
+    }
+
+    cat("\nChoose a statistic to calculate (mean, median, sd, min, max):\n")
+    stat_choice <- readline(prompt = "Enter your choice: ")
+    valid_stats <- c("mean", "median", "sd", "min", "max")
+    if (!stat_choice %in% valid_stats) {
+      stop("Invalid statistic. Choose from: mean, median, sd, min, max.")
+    }
+
+    summary_by_year <- numeric_data %>%
+      dplyr::mutate(year = df_data$year) %>%
+      dplyr::group_by(year) %>%
+      dplyr::summarize(dplyr::across(dplyr::everything(), match.fun(stat_choice), na.rm = TRUE)) %>%
+      dplyr::ungroup()
+
+    # Round except 'year'
+    for (nm in names(summary_by_year)) {
+      if (nm != "year") {
+        summary_by_year[[nm]] <- round(summary_by_year[[nm]], 4)
+      }
+    }
+
+    # Create the table
+    summary_by_year_formatted <- DT::datatable(
+      summary_by_year,
+      rownames = FALSE,
+      extensions = c('FixedColumns', 'Scroller'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't',
+        ordering = FALSE
+      ),
+      class = 'cell-border stripe',
+      caption = htmltools::tags$caption(
+        style = paste0(
+          'caption-side: top; text-align: center; color: ', white,
+          '; background-color: ', black,
+          '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'
+        ),
+        paste0(object@meta_xts_name, ": Numeric Summary by Year (", stat_choice, ")")
+      )
+    ) %>%
+      DT::formatStyle(
+        columns = names(summary_by_year),
+        backgroundColor = deep_navy,
+        color = white
+      )
+
+    # Extra CSS for black headers, etc.
+    css_styles_by_year <- paste0("
+      table.dataTable thead th {
+        background-color: ", black, " !important;
+        color: ", white, " !important;
+      }
+      .dataTable {
+        background-color: ", deep_navy, " !important;
+        color: ", white, ";
+      }
+      table.dataTable tbody tr {
+        background-color: ", deep_navy, " !important;  /* Deep Navy */
+      }
+      table.dataTable tbody td {
+        border-color: #333333 !important;
+      }
+    ")
+
+    summary_by_year_formatted <- htmlwidgets::prependContent(
+      summary_by_year_formatted,
+      htmltools::tags$style(css_styles_by_year)
+    )
+
+    print(summary_by_year_formatted)
+  }
+
+  # Series Frequency Table
+  display_series_frequency_table <- function() {
+    # Summarize the number of non-NA obs per date
+    freq_table <- df_data %>%
+      dplyr::group_by(dates) %>%
+      dplyr::summarize(Non_NA_Count = sum(!is.na(.)), .groups = "drop")
+
+    freq_table_formatted <- DT::datatable(
+      freq_table,
+      rownames = FALSE,
+      extensions = c('FixedColumns', 'Scroller'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't',
+        ordering = FALSE
+      ),
+      class = 'cell-border stripe',
+      caption = htmltools::tags$caption(
+        style = paste0(
+          'caption-side: top; text-align: center; color: ', white,
+          '; background-color: ', black,
+          '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'
+        ),
+        paste0(object@meta_xts_name, ": Series Frequency Table")
+      )
+    ) %>%
+      DT::formatStyle(
+        columns = names(freq_table),
+        backgroundColor = deep_navy,
+        color = white
+      )
+
+    css_styles_freq <- paste0("
+      table.dataTable thead th {
+        background-color: ", black, " !important;
+        color: ", white, " !important;
+      }
+      .dataTable {
+        background-color: ", deep_navy, " !important;
+        color: ", white, ";
+      }
+      table.dataTable tbody tr {
+        background-color: ", deep_navy, " !important;  /* Deep Navy */
+      }
+      table.dataTable tbody td {
+        border-color: #333333 !important;
+      }
+    ")
+
+    freq_table_formatted <- htmlwidgets::prependContent(
+      freq_table_formatted,
+      htmltools::tags$style(css_styles_freq)
+    )
+
+    print(freq_table_formatted)
+  }
+
+  # Performance Metrics Table (for returns_meta_xts)
+  display_performance_metrics_table <- function() {
+    # Check if the object is actually returns_meta_xts
+    if (!methods::is(object, "returns_meta_xts")) {
+      cat("\nThis summary is only for returns_meta_xts objects.\n")
+      return()
+    }
+
+    # "Wrap" create_performance_m_df
+    performance_df <- create_performance_m_df(
+      selected_backtest_returns_corrected_positions_m_xts_upd_ref = object@data,
+      selected_market_factor_proxy_m_xts_upd_ref = if (is.null(benchmark_returns_m_xts)) NULL else benchmark_returns_m_xts@data,
+      active_returns = active_returns,
+      verbose = TRUE
+    )
+
+    # Convert to wide format with tickers as columns, ignoring 'id' and 'dates'
+    # Rows = metrics, Columns = tickers
+    performance_df_wide <- performance_df %>%
+      dplyr::select(-id, -dates) %>%
+      tidyr::pivot_longer(
+        cols = -tickers,
+        names_to = "metric",
+        values_to = "value"
+      ) %>%
+      tidyr::pivot_wider(
+        names_from = tickers,
+        values_from = value
+      ) %>%
+      dplyr::mutate(dplyr::across(where(is.numeric), ~ round(.x, 4)))
+
+    # Build a DT exactly like the other tables (no finalize_table):
+    table_title <- if (active_returns) {
+      "Active Performance Metrics Table"
+    } else {
+      "Performance Metrics Table"
+    }
+
+    performance_dt <- DT::datatable(
+      performance_df_wide,
+      rownames = FALSE,
+      extensions = c("FixedColumns", "Scroller"),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = "t",
+        ordering = FALSE
+      ),
+      class = "cell-border stripe",
+      caption = htmltools::tags$caption(
+        style = paste0(
+          'caption-side: top; text-align: center; color: ', white,
+          '; background-color: ', black,
+          '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'
+        ),
+        paste0(object@meta_xts_name, ": ", table_title)
+      )
+    ) %>%
+      DT::formatStyle(
+        columns = names(performance_df_wide),
+        backgroundColor = deep_navy,
+        color = white
+      )
+
+    # Same black header & navy background style
+    css_styles_perf <- paste0("
+      table.dataTable thead th {
+        background-color: ", black, " !important;
+        color: ", white, " !important;
+      }
+      .dataTable {
+        background-color: ", deep_navy, " !important;
+        color: ", white, ";
+      }
+      table.dataTable tbody tr {
+        background-color: ", deep_navy, " !important;
+      }
+      table.dataTable tbody td {
+        border-color: #333333 !important;
+      }
+    ")
+
+    performance_dt <- htmlwidgets::prependContent(
+      performance_dt,
+      htmltools::tags$style(css_styles_perf)
+    )
+
+
+    print(performance_dt)
+  }
+
+
+  # Dispatcher
+  if (summary_name == "Numeric Summary Table") {
+    display_numeric_summary()
+  } else if (summary_name == "Numeric Summary Table by Year") {
+    display_numeric_summary_by_year()
+  } else if (summary_name == "Series Frequency Table") {
+    display_series_frequency_table()
+  } else if (summary_name == "Performance Metrics Table") {
+    display_performance_metrics_table()
+  }
+
+  invisible(object)
+})
+
+
+
+
+
+
+
+
+
+
 
 #' Summary Method for sb_metabacktest_config Class
 #'
@@ -1304,7 +1755,6 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 
   # Prepare data based on the selected table
   if (table_name == "Consolidated_OOS_Testing_Metrics") {
-    browser()
     # Extract the data
     consolidated_metrics <- object@consolidated_oos_testing_metrics
 

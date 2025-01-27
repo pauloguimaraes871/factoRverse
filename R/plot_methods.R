@@ -1410,7 +1410,160 @@ setMethod(
 #' @rdname plot
 #' @export
 setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
-          function(x, y, clustering_list = NULL, facet_by_year = NULL, add_overall_means = NULL, ...) {
+          function(x, y, clustering_list = NULL, facet_by_year = NULL,
+                   add_overall_means = NULL, vertical_lines = NULL, cumulative = NULL,
+                   plot_perf_metric = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
+
+
+            # If x is returns_meta_xts, decide if user wants to plot performance metric
+            is_returns_xts <- methods::is(x, "returns_meta_xts")
+
+            if (is_returns_xts) {
+              if (is.null(plot_perf_metric)) {
+                resp_perf <- readline(prompt = "Do you want to plot a performance metric? (yes/no): ")
+                plot_perf_metric <- tolower(resp_perf) == "yes"
+              }
+            } else {
+              # If not returns_meta_xts, ignore
+              plot_perf_metric <- FALSE
+            }
+
+            if (plot_perf_metric) {
+              #Check benchmark_returns_m_xts
+              if (!is.null(benchmark_returns_m_xts) && !methods::is(benchmark_returns_m_xts, "meta_xts")) {
+                stop("benchmark_returns_m_xts must be a meta_xts object.")
+              }
+
+              # Prompt for active_returns
+                active_returns <- readline(prompt = "Compute active returns relative to the benchmark? (yes/no): ")
+                if (active_returns == "yes") {
+                  if (is.null(benchmark_returns_m_xts)){
+                    stop("You must provide a 'benchmark_returns_m_xts' object to compute active returns.")
+                  }
+                  if (ncol(benchmark_returns_m_xts@data) > 1){
+                    stop("The 'benchmark_returns_m_xts' object must have only one column.")
+                  }
+                  active_returns <- TRUE
+                } else {
+                  active_returns <- FALSE
+                }
+
+
+              # Generate performance data
+              performance_df <- create_performance_m_df(
+                selected_backtest_returns_corrected_positions_m_xts_upd_ref = x@data,
+                selected_market_factor_proxy_m_xts_upd_ref = if (is.null(benchmark_returns_m_xts)) NULL else benchmark_returns_m_xts@data,
+                active_returns = FALSE,
+                verbose = TRUE
+              )
+
+              # Identify the unique tickers
+              unique_tickers <- unique(performance_df$tickers)
+              # Create a map from ticker -> integer
+              ticker_map <- setNames(seq_along(unique_tickers), unique_tickers)
+              # Replace each ticker in performance_df with its numeric code
+              performance_df$tickers <- ticker_map[performance_df$tickers]
+
+              # Pivot to wide (tickers = columns), ignoring 'id'/'dates'
+              perf_wide <- performance_df %>%
+                dplyr::select(-id, -dates) %>%
+                tidyr::pivot_longer(
+                  cols = -tickers,
+                  names_to = "metric",
+                  values_to = "value"
+                ) %>%
+                tidyr::pivot_wider(
+                  names_from = tickers,
+                  values_from = value
+                )
+
+              # Prompt user to pick a metric
+              all_metrics <- unique(perf_wide$metric)
+              cat("\nAvailable performance metrics:\n")
+              for (i in seq_along(all_metrics)) {
+                cat(i, ":", all_metrics[i], "\n")
+              }
+              sel <- readline(prompt = "Enter the number of your choice: ")
+              sel_num <- as.numeric(sel)
+              if (is.na(sel_num) || sel_num < 1 || sel_num > length(all_metrics)) {
+                stop("Invalid selection.")
+              }
+              chosen_metric <- all_metrics[sel_num]
+
+              # Subset data for that single metric
+              metric_data <- perf_wide %>%
+                dplyr::filter(metric == chosen_metric) %>%
+                dplyr::select(-metric)
+
+              # Convert to numeric vector with ticker columns
+              #    One row, multiple columns
+              # Ticker columns might be in alphabetical or original order
+              # Gather them into a data.frame for ggplot
+              metric_data_long <- metric_data %>%
+                tidyr::pivot_longer(
+                  cols = -character(0),
+                  names_to = "ticker",
+                  values_to = "val"
+                )
+
+              # Round data to 4 decimals
+              metric_data_long$val <- round(metric_data_long$val, 4)
+
+              # Use the same neon palette
+              neon_colors <- c(
+                "#00BFFF", "#FF1493", "#FFFF00", "#8A2BE2",
+                "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+              )
+              # If there are more tickers than colors, repeat as needed
+              color_mapping <- rep(neon_colors, length.out = nrow(metric_data_long))
+
+              # ggplot bar chart
+              #    x = ticker, y = val
+              p <- ggplot2::ggplot(metric_data_long, ggplot2::aes(x = ticker, y = val, fill = ticker)) +
+                ggplot2::geom_bar(stat = "identity", color = "#FFFFFF") +
+                ggplot2::scale_fill_manual(values = rep(neon_colors, length.out = length(unique(metric_data_long$ticker)))) +
+                ggplot2::theme_minimal() +
+                ggplot2::labs(
+                  title = paste("Performance Metric:", chosen_metric),
+                  x = "Series",
+                  y = chosen_metric,
+                  fill = "Series"
+                ) +
+                ggplot2::theme(
+                  plot.background  = ggplot2::element_rect(fill = "#001f3f", color = NA),
+                  panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+                  plot.title       = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"),
+                  axis.text        = ggplot2::element_text(color = "#FFFFFF"),
+                  axis.title       = ggplot2::element_text(color = "#FFFFFF"),
+                  legend.position  = "none",
+                  panel.grid.major = ggplot2::element_line(color = "#4d4d4d", size = 0.2),
+                  panel.grid.minor = ggplot2::element_line(color = "#4d4d4d", size = 0.1)
+                )
+
+              # Print plot
+              print(p)
+              # Print the mapping for reference
+              cat("Legend:\n")
+              for (original_name in names(ticker_map)) {
+                cat(ticker_map[original_name], ":", original_name, "\n")
+              }
+              return(invisible(p))
+
+
+
+            } else {
+
+            # If x is returns_meta_xts, ask about cumulative if not specified
+            if (methods::is(x, "returns_meta_xts")) {
+              # If user didn't specify 'cumulative', prompt them
+              if (is.null(cumulative)) {
+                response_cum <- readline(prompt = "Do you want to plot cumulative returns? (yes/no): ")
+                cumulative <- tolower(response_cum) == "yes"
+              }
+            } else {
+              # If x is not returns_meta_xts, ignore 'cumulative' (force it to FALSE)
+              cumulative <- FALSE
+            }
 
             # Ask user if they want to facet by year if the argument is not provided
             if (is.null(facet_by_year)) {
@@ -1419,10 +1572,13 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             }
 
             # Ask user if they want to add overall mean lines if the argument is not provided
-            if (is.null(add_overall_means)) {
+            if (is.null(add_overall_means) && !cumulative) {
               response_means <- readline(prompt = "Do you want to add overall mean lines? (yes/no): ")
               add_overall_means <- tolower(response_means) == "yes"
+            } else {
+              add_overall_means <- FALSE
             }
+
 
             # Define the neon color palette
             neon_colors <- c(
@@ -1440,6 +1596,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             blue_bg <- "#001f3f"
             faint_blue <- "#003366"
             white <- "#FFFFFF"
+            vertical_line_color <- "#CCCC00"  # Dark Neon Yellow
 
             # Extract slots
             frequency <- x@frequency
@@ -1461,34 +1618,43 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             # Sort by date to ensure correct plotting order
             long_data <- long_data[order(long_data$dates), ]
 
-            # Count non-NA values per series to classify them
+            # Validate user-specified dates for vertical lines
+            if (!is.null(vertical_lines)) {
+              if (!all(class(vertical_lines) %in% c("Date", "POSIXt"))) {
+                stop("The 'vertical_lines' argument must be a Date or POSIXct vector.")
+              }
+              vertical_lines <- as.Date(vertical_lines)  # Convert to Date if not already
+            }
+
+            # Remove missing values and single-observation series
             series_counts <- long_data %>%
               dplyr::group_by(series) %>%
               dplyr::summarize(non_na_count = sum(!is.na(value)), .groups = "drop")
 
-            # Identify series with only 1 non-NA value
-            single_obs_series <- series_counts %>%
-              dplyr::filter(non_na_count == 1) %>%
-              dplyr::pull(series)
-
-            if (length(single_obs_series) > 0) {
-              warning("The following series have been excluded from the plot due to only one non-NA observation: ",
-                      paste(single_obs_series, collapse = ", "))
-            }
-
-            # Keep only series with more than one non-NA observation
             multi_obs_series <- series_counts %>%
               dplyr::filter(non_na_count > 1) %>%
               dplyr::pull(series)
 
-            # Filter data for plotting
             plot_data_multi <- dplyr::filter(long_data, series %in% multi_obs_series & !is.na(value))
+
+            # If cumulative = TRUE and x is returns_meta_xts, compute cumulative returns
+            if (cumulative && methods::is(x, "returns_meta_xts")) {
+              # Transform each series by cumulative product
+              plot_data_multi <- plot_data_multi %>%
+                dplyr::group_by(series) %>%
+                dplyr::arrange(dates) %>%
+                dplyr::mutate(value = cumprod(1 + value/100) - 1) %>%
+                dplyr::ungroup()
+              # Also rename the y-label so user sees it's cumulative
+              metric_name <- paste0("cumulative ", metric_name)
+            }
 
             # Compute overall mean per series if requested
             if (add_overall_means) {
               overall_means <- plot_data_multi %>%
                 dplyr::group_by(series) %>%
-                dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop")
+                dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop") %>%
+                dplyr::mutate(series = as.factor(series))
             }
 
             # Apply clustering if provided
@@ -1499,29 +1665,27 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                 plot_data_multi$group[plot_data_multi$series %in% assigned_series] <- grp
               }
 
-              # Check if all values belong to the same group
               unique_groups <- unique(plot_data_multi$group)
 
               if (length(unique_groups) == 1) {
                 warning("Only one group detected, plotting without grouping.")
-                plot_data_multi$group <- plot_data_multi$series  # Fallback to independent series plotting
+                plot_data_multi$group <- plot_data_multi$series
                 linetype_legend_title <- NULL
               } else {
                 linetype_legend_title <- "Group"
               }
-
             } else {
-              plot_data_multi$group <- plot_data_multi$series  # No clustering, treat each series separately
+              plot_data_multi$group <- plot_data_multi$series
               linetype_legend_title <- NULL
             }
 
-            # Assign numeric labels for coloring
+            # Assign colors to series
             unique_series <- unique(plot_data_multi$series)
             color_mapping <- setNames(rep(neon_colors, length.out = length(unique_series)), unique_series)
 
             # Create a mapping from unique series to numbers
             series_mapping <- setNames(seq_along(unique(plot_data_multi$series)), unique(plot_data_multi$series))
-            plot_data_multi$series <- series_mapping[plot_data_multi$series] %>% as.factor()
+            plot_data_multi$series <- factor(series_mapping[plot_data_multi$series])
             color_mapping <- color_mapping[names(series_mapping)]
             names(color_mapping) <- series_mapping
 
@@ -1532,7 +1696,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
               color = series,
               group = series
             )) +
-              ggplot2::geom_line(size = 0.8, na.rm = TRUE) +  # Reduced line thickness
+              ggplot2::geom_line(size = 0.8, na.rm = TRUE) +
               ggplot2::labs(
                 title = paste("Time series of", metric_name, "for", frequency, "frequency"),
                 x = "Date",
@@ -1569,29 +1733,47 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             if (add_overall_means) {
               overall_means <- plot_data_multi %>%
                 dplyr::group_by(series) %>%
-                dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop") %>%
-                dplyr::mutate(series = as.factor(series))  # Ensure correct factor levels
+                dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop")
 
-              # Add overall mean lines to the plot with corresponding colors
+              # Match the factor levels so geom_hline uses the same color mapping
+              # 'series' in plot_data_multi is a factor with custom numeric labels, e.g. 1,2,3,...
+              # Make sure overall_means$series has the exact same factor levels
+              overall_means$series <- factor(overall_means$series,
+                                             levels = levels(plot_data_multi$series))
+
+              # Then add dashed lines colored by 'series'
               plot_obj <- plot_obj +
                 ggplot2::geom_hline(data = overall_means,
                                     ggplot2::aes(yintercept = overall_mean, color = series),
                                     linetype = "dashed", show.legend = FALSE)
             }
 
-            # Remove linetype legend if no clustering list is provided or only one group exists
-            if (is.null(clustering_list) || length(unique_groups) == 1) {
-              plot_obj <- plot_obj + ggplot2::guides(linetype = "none")
+            # Add vertical dashed lines at specified timestamps
+            if (!is.null(vertical_lines)) {
+              plot_obj <- plot_obj +
+                ggplot2::geom_vline(xintercept = as.numeric(vertical_lines),
+                                    linetype = "dashed", color = vertical_line_color, size = 0.5) +
+                ggplot2::annotate("text",
+                                  x = vertical_lines,
+                                  y = max(plot_data_multi$value, na.rm = TRUE) * 0.95,
+                                  label = format(vertical_lines, "%Y-%m-%d"),
+                                  color = vertical_line_color,
+                                  angle = 90,
+                                  vjust = 0.5,
+                                  size = 1)
+            }
+
+            # Print the legend mapping Backtest labels to identifiers
+            cat("\nLegend:\n")
+            for (i in seq_along(series_mapping)) {
+              cat(paste(series_mapping[i], ":", names(series_mapping)[i], "\n"))
             }
 
             print(plot_obj)
-            cat("\nLegend:\n")
-            for (i in seq_along(series_mapping)) {
-              cat(series_mapping[i], ":", paste(names(series_mapping)[i] , "\n"))
-            }
-
             invisible(plot_obj)
+            }
           })
+
 
 
 
@@ -2409,7 +2591,6 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   # Now generate the selected plot
   if (plot_name == "Chosen Evaluation Metric Over Time") {
-    browser()
     # PLOT 1: Test chosen evaluation metric over time
     plots_list$chosen_eval_metric_over_time <- ggplot2::ggplot(
       chosen_eval_testing_data,
@@ -3254,7 +3435,11 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     "Time Series OOS Testing Metrics",
     "Mean Validation Metrics Comparison",
     "Time Series Validation Metrics",
-    "Base Learners vs Meta Learners Over Time"
+    "Base Learners vs Meta Learners Over Time",
+    "Decomposed Feature Importance Side-by-Side by Signal",
+    "Decomposed Feature Importance Side-by-Side by Theme",
+    "Decomposed Feature Importance Heatmap by Signal",
+    "Decomposed Feature Importance Heatmap by Theme"
   )
 
   # Display the available plots and prompt the user if plot_id is NULL
@@ -3671,6 +3856,177 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
     # Use meta_xts plot method
     plot(x = meta_xts, clustering_list = clustering_list)
+
+  } else if (plot_name %in% c("Decomposed Feature Importance Side-by-Side by Signal", "Decomposed Feature Importance Side-by-Side by Theme",
+                              "Decomposed Feature Importance Heatmap by Signal", "Decomposed Feature Importance Heatmap by Theme")) {
+
+    #Check if gsm_algorithm matches
+    if (!all(sapply(base_learners, function(x) x@sb_backtest_workflow$gsm_algorithm) %in% meta_learner@sb_backtest_workflow$gsm_algorithm)){
+      stop("Base learners and meta learner must have the same gsm_algorithm")
+    }
+
+    #Get final_feature_importance object for meta_learner
+    meta_fi_m_df <-  meta_learner@final_feature_importance_m_d_ref@data
+    # Make a lookup from backtest_identifier -> base feature importance data
+    base_lookup <- setNames(
+      lapply(base_learners, function(x) x@final_feature_importance_m_d_ref@data),
+      sapply(base_learners, function(x) x@backtest_identifier)
+    )
+    # Prepare a container to hold new rows
+    new_rows <- list()
+
+    # Iterate over each row in the meta table
+    for (i in seq_len(nrow(meta_fi_m_df))) {
+      meta_row <- meta_fi_m_df[i, ]
+      meta_learner_id <- meta_row[["tickers"]]  # ALWAYS use 'tickers'
+
+      # Check if this meta row matches a known base-learner ID
+      if (meta_learner_id %in% names(base_lookup)) {
+        # We found a base learner that the meta learner is referencing
+        base_fi_m_df <- base_lookup[[meta_learner_id]]
+
+        # Sum of the base learner's normalized_importance
+        sum_base_norm <- sum(base_fi_m_df$normalized_importance, na.rm = TRUE)
+        if (sum_base_norm == 0) {
+          # If it's zero or NA, skip (avoid divide-by-zero)
+          next
+        }
+
+        # "Fraction" is how much normalized importance the meta row had
+        meta_fraction <- meta_row[["normalized_importance"]]
+
+        # Scale the base features by meta_fraction
+        # We store into scaled_norm for clarity:
+        base_fi_m_df$scaled_norm <- meta_fraction * base_fi_m_df$normalized_importance / sum_base_norm
+
+        # For each base feature, either update an existing row in meta_fi_m_df or create a new one
+        for (j in seq_len(nrow(base_fi_m_df))) {
+          base_feature_name <- as.character(base_fi_m_df[j, "tickers"])  # ALWAYS use 'tickers'
+
+          # Attempt to find an existing row in meta_fi_m_df with the same (tickers, date)
+          idx_existing <- which(
+            meta_fi_m_df$tickers == base_feature_name
+          )
+
+          # The scaled value for both 'importance' and 'normalized_importance'
+          scaled_val <- base_fi_m_df$scaled_norm[j]
+
+          if (length(idx_existing) > 0) {
+            # If row exists, just add to the existing row's importance and normalized_importance
+            meta_fi_m_df$importance[idx_existing] <-
+              meta_fi_m_df$importance[idx_existing] + scaled_val
+
+            meta_fi_m_df$normalized_importance[idx_existing] <-
+              meta_fi_m_df$normalized_importance[idx_existing] + scaled_val
+          } else {
+            # Create a new row from meta_row as a template
+            new_row <- meta_row
+
+            # Overwrite relevant columns
+            new_row[["id"]] <- base_fi_m_df$id[j]  # or keep meta_row's id if you prefer
+            new_row[["tickers"]] <- base_feature_name
+            new_row[["dates"]] <- base_fi_m_df$dates[j]
+            new_row[["importance"]] <- scaled_val
+            new_row[["normalized_importance"]] <- scaled_val
+
+            # Carry over other columns from base_fi_m_df if needed
+            if ("is_eligible" %in% colnames(base_fi_m_df)) {
+              new_row[["is_eligible"]] <- base_fi_m_df$is_eligible[j]
+            }
+            if ("theme" %in% colnames(base_fi_m_df)) {
+              new_row[["theme"]] <- base_fi_m_df$theme[j]
+            }
+
+            new_rows[[length(new_rows) + 1]] <- new_row
+          }
+        }
+      }
+    }
+
+    # Bind the newly created rows, if any
+    if (length(new_rows) > 0) {
+      meta_fi_m_df <- dplyr::bind_rows(meta_fi_m_df,new_rows)
+    }
+
+    # Remove rows that correspond to base learners
+    base_learner_ids <- names(base_lookup)
+    meta_fi_m_df <- meta_fi_m_df[!(meta_fi_m_df$tickers %in% base_learner_ids), ]
+
+    # Consolidate repeated tickers by summing importance & normalized_importance
+    meta_fi_m_df <- meta_fi_m_df %>%
+      dplyr::group_by(tickers, dates) %>%
+      dplyr::summarise(
+        id = dplyr::first(id),  # or paste them, or keep the first
+        importance = sum(importance, na.rm = TRUE),
+        normalized_importance = sum(normalized_importance, na.rm = TRUE),
+        is_eligible = max(is_eligible, na.rm = TRUE),  # or first
+        theme = dplyr::first(theme),
+        .groups = "drop"
+      ) %>% as.data.frame()
+
+    # Add themes for NA cases if signal_themes is the same
+    if (all(unname(sapply(base_learners, function(x) x@sb_backtest_workflow$signal_themes_object_name)) %in%
+            base_learners[[1]]@sb_backtest_workflow$signal_themes_object_name)){
+      meta_fi_m_df <- meta_fi_m_df %>%
+        dplyr::left_join(base_fi_m_df %>% dplyr::select(tickers, theme), by = "tickers") %>% #Get themes from last base_fi_m_df
+        dplyr::mutate(theme = ifelse(is.na(theme.x), theme.y, theme.x)) %>% dplyr::select(-theme.x, -theme.y) #Replace NA with theme.y
+    }
+
+    #Create m_df
+    meta_fi_m_df <- meta_fi_m_df %>%
+      dplyr::mutate(
+        dates = as.Date(max(dates)),
+        id = paste0(tickers, "-", dates)
+      ) %>%
+      dplyr::relocate(id, .before = tickers) %>% create_meta_dataframe()
+
+      ##Plot according to plot id
+      if (plot_name == "Decomposed Feature Importance Side-by-Side by Signal"){
+
+      plot_type <- "cross_sectional"
+      clustering_variables <- "tickers"
+      calc_stat <- "mean"
+      variable <- "normalized_importance"
+
+      plot(meta_fi_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+    } else if (plot_name == "Decomposed Feature Importance Side-by-Side by Theme"){
+
+      if(!"theme" %in% colnames(meta_fi_m_df@data)){
+        stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
+      }
+
+      plot_type <- "cross_sectional"
+      clustering_variables <- "theme"
+      calc_stat <- "mean"
+      variable <- "normalized_importance"
+
+      plot(meta_fi_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+    } else if (plot_name == "Decomposed Feature Importance Heatmap by Signal"){
+
+      plot_type <- "tile_heatmap"
+      clustering_variables <- "tickers"
+      variable <- "normalized_importance"
+      calc_stat <- "mean"
+
+      plot(meta_fi_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+    } else if (plot_name == "Decomposed Feature Importance Heatmap by Theme"){
+
+      if(!"theme" %in% colnames(meta_fi_m_df@data)){
+        stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
+      }
+
+      plot_type <- "tile_heatmap"
+      clustering_variables <- "theme"
+      variable <- "normalized_importance"
+      calc_stat <- "mean"
+
+      plot(meta_fi_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+
+    }
+
 
   }
 

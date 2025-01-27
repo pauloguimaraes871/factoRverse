@@ -12858,7 +12858,7 @@ skip()
 
 ###Metabacktesting
 
-test_that("Metabacktesting works for configs", {
+test_that("Metabacktesting works for base_sb_configs + base_ss_results and glmnet meta_ss_config without ss_object ", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -12913,6 +12913,7 @@ test_that("Metabacktesting works for configs", {
                             market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
 
   features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+  target_m_df <- create_meta_dataframe(toy_preprocessed_targets, "tg_123")
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
@@ -12937,7 +12938,6 @@ test_that("Metabacktesting works for configs", {
     )
 
 
-
   meta_learner_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, target_fwd_name = "fwd_premium_3m",
                                                    rebalancing_months = 6, config_name = "meta") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
@@ -12954,7 +12954,7 @@ test_that("Metabacktesting works for configs", {
 
   set.seed(123)
   sb_metabacktest_results <- run_sb_backtest(
-    target_m_df = create_meta_dataframe(toy_preprocessed_targets),
+    target_m_df = target_m_df,
     features_m_df = features_m_df,
     config = meta_config,
     parallel = FALSE,
@@ -12963,85 +12963,124 @@ test_that("Metabacktesting works for configs", {
 
   set.seed(123)
   rf_results <- run_sb_backtest(
-    target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-    features_m_df = create_meta_dataframe(toy_preprocessed_features),
-    config = rf_config,
+    target_m_df = target_m_df,
+    features_m_df = features_m_df,
+    config = rf_config %>% add_ss_backtest_obj(ss_results),
     parallel = FALSE,
     verbose = TRUE
   )
 
   glmnet_results <- run_sb_backtest(
-    target_m_df = create_meta_dataframe(toy_preprocessed_targets),
-    features_m_df = create_meta_dataframe(toy_preprocessed_features),
-    target_fwd_name = "fwd_premium_3m",
-    config = glmnet_config,
+    target_m_df = target_m_df,
+    features_m_df = features_m_df,
+    config = glmnet_config %>% add_ss_backtest_obj(ss_results),
     parallel = FALSE,
     verbose = TRUE
   )
 
-  oos_predictions_m_df <- convert_oos_predictions_list_to_m_df(
-    list("c:rf_101_f:not_identified_t:not_identified-fwd_premium_3m" = rf_results,
-         "c:glmnet_123_f:not_identified_t:not_identified-fwd_premium_3m" = glmnet_results),
-    winsorize_predictions = TRUE, winsorization_probs = c(0.025, 0.975), # Winsorization
-    normalize_predictions = TRUE) # Normalization
+  #Base SB Results
+  base_sb_backtest_results_list = list(rf_results, glmnet_results)
+  names(base_sb_backtest_results_list) <- c(rf_results@backtest_identifier, glmnet_results@backtest_identifier)
 
-  adapted_target_m_df <- create_meta_dataframe(toy_preprocessed_targets)
-  adapted_target_m_df@data <- adapted_target_m_df@data[which(adapted_target_m_df@data$id %in% oos_predictions_m_df@data$id),]
+  #Features passthrough and positions
+  features_passthrough_and_positions <- get_features_positions(
+    base_sb_backtest_results_list = base_sb_backtest_results_list,
+    features_passthrough = "all",
+    features_m_df = features_m_df
+  )
+
+  #Consolidate results
+  oos_predictions_m_df <- consolidate_oos_sb_outputs_m_df(
+    base_sb_backtest_results_list = base_sb_backtest_results_list,
+    winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025, 0.975),
+    features_passthrough_and_positions = features_passthrough_and_positions,
+    features_m_df = features_m_df
+  )
+  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", meta_config@config_name, "_", "f_mdf:", features_m_df@meta_dataframe_name)
+  #Check if both objects are equal
+  expect_equal(sb_metabacktest_results@base_learners_oos_predictions_m_df@data, oos_predictions_m_df@data)
+  #Check if chosen_signals_and_positions flow is correct
+  expect_equal(features_passthrough_and_positions, chosen_signals_and_positions)
+  expect_equal(features_passthrough_and_positions, rf_results@sb_backtest_workflow$chosen_signals_and_positions)
+  expect_equal(features_passthrough_and_positions, glmnet_results@sb_backtest_workflow$chosen_signals_and_positions)
+  adapted_chosen_signals_and_positions <- c("long", "long", unname(chosen_signals_and_positions))
+  names(adapted_chosen_signals_and_positions) <-  c(rf_results@backtest_identifier, glmnet_results@backtest_identifier, names(chosen_signals_and_positions))
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@sb_backtest_workflow$chosen_signals_and_positions,adapted_chosen_signals_and_positions)
+
+
+  #Adapted target
+  target_m_df@data <- target_m_df@data %>% dplyr::filter(id %in% oos_predictions_m_df@data$id)
+  target_m_df@meta_dataframe_name <- paste0(target_m_df@meta_dataframe_name, "_adj")
+
+  #Meta-level backtest
+  meta_learner_config@chosen_signals_and_positions <- adapted_chosen_signals_and_positions
 
   meta_results <- run_sb_backtest(
-    target_m_df = adapted_target_m_df,
+    target_m_df = target_m_df,
     features_m_df = oos_predictions_m_df,
-    target_fwd_name = "fwd_premium_3m",
     config = meta_learner_config,
     parallel = FALSE,
     verbose = TRUE
   )
 
-  #Check val metrics
-  expect_equal(as.numeric(ml_metabacktest_results@mean_validation_metrics[2, -c(1:2)]),
-               as.numeric(glmnet_results@validation_eval_metrics_hyper_choice[3,]))
+  #Check outputs of meta-learner sb_results
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@consolidated_eval_metrics, meta_results@consolidated_eval_metrics)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data, meta_results@oos_sb_outputs_m_df@data)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name, meta_results@oos_sb_outputs_m_df@meta_dataframe_name)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@oos_testing_eval_metrics_m_xts@data, meta_results@oos_testing_eval_metrics_m_xts@data)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@chosen_eval_metric_validation, meta_results@chosen_eval_metric_validation)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@best_hyperparameters_m_xts@data, meta_results@best_hyperparameters_m_xts@data)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@feature_importance_m_df@data, meta_results@feature_importance_m_df@data)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@final_feature_importance_m_d_ref@data, meta_results@final_feature_importance_m_d_ref@data)
 
-  expect_equal(as.numeric(ml_metabacktest_results@mean_validation_metrics[1, -c(1:2)]),
-               as.numeric(rf_results@validation_eval_metrics_hyper_choice[3,])
+
+  #Check other outputs (this is a also a test for crete_sb_metabacktest_results)
+  #Mean val metrics
+  expect_equal(sb_metabacktest_results@mean_validation_metrics$avg_val[c(1:9)], rf_results@consolidated_eval_metrics$avg_val)
+  expect_equal(sb_metabacktest_results@mean_validation_metrics$avg_val[c(10:18)], glmnet_results@consolidated_eval_metrics$avg_val)
+  expect_equal(sb_metabacktest_results@mean_validation_metrics$avg_val[c(19:27)], meta_results@consolidated_eval_metrics$avg_val)
+
+  #Consolidate oos testing metrics
+  expect_equal(sb_metabacktest_results@consolidated_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(1:9)], rf_results@consolidated_eval_metrics$cons_oos)
+  expect_equal(sb_metabacktest_results@consolidated_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(10:18)], glmnet_results@consolidated_eval_metrics$cons_oos)
+  expect_equal(sb_metabacktest_results@consolidated_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(19:27)], meta_results@consolidated_eval_metrics$cons_oos)
+  expect_equal(unique(sb_metabacktest_results@consolidated_oos_testing_metrics$all_dates_oos_testing_metrics$testing_dates_range),
+               c(paste0(min(rf_results@sb_backtest_workflow$dates_testing_sample),"-",max(rf_results@sb_backtest_workflow$dates_testing_sample)),
+               paste0(min(meta_results@sb_backtest_workflow$dates_testing_sample),"-",max(meta_results@sb_backtest_workflow$dates_testing_sample))
+               ))
+  expect_equal(sb_metabacktest_results@consolidated_oos_testing_metrics$common_dates_oos_testing_metrics[1, -c(1:2)] %>% tibble::remove_rownames(),
+               rf_results@oos_testing_eval_metrics_m_xts@data["2023-07-15"] %>% as.data.frame() %>% tibble::remove_rownames()
                )
-
-  #Check OOS eval
-  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[1,-c(1:3)]),
-               as.numeric(rf_results@oos_testing_eval_metrics[8,])
-               )
-
-  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[2,-c(1:3)]),
-               as.numeric(glmnet_results@oos_testing_eval_metrics[8,])
+  expect_equal(sb_metabacktest_results@consolidated_oos_testing_metrics$common_dates_oos_testing_metrics[2, -c(1:2)] %>% tibble::remove_rownames(),
+               glmnet_results@oos_testing_eval_metrics_m_xts@data["2023-07-15"] %>% as.data.frame() %>% tibble::remove_rownames()
   )
-
-
-  expect_equal(ml_metabacktest_results@time_series_oos_testing_metrics$hr[, 1],
-               rf_results@oos_testing_eval_metrics$hr[-8]
+  expect_equal(sb_metabacktest_results@consolidated_oos_testing_metrics$common_dates_oos_testing_metrics[3, -c(1:2)] %>% tibble::remove_rownames(),
+               meta_results@oos_testing_eval_metrics_m_xts@data["2023-07-15"] %>% as.data.frame() %>% tibble::remove_rownames()
   )
+  #OOS Eval Metrics
+  for (j in 1:length(sb_metabacktest_results@time_series_oos_testing_metrics)){
+    expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data$`c:rf_101_f:feats_123_t:not_identified-fwd_premium_3m` %>% as.numeric(),
+                 rf_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
-  expect_equal(ml_metabacktest_results@time_series_oos_testing_metrics$hr[, 2],
-               glmnet_results@oos_testing_eval_metrics$hr[-8]
-  )
+    expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data$`c:glmnet_123_f:feats_123_t:not_identified-fwd_premium_3m` %>% as.numeric(),
+                 glmnet_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
-  expect_equal(as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$common_dates_oos_testing_metrics[2,-c(1:3)]),
-               as.numeric(glmnet_results@oos_testing_eval_metrics[7,])
-               )
+    expect_equal(na.omit(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data$`c:meta_f:m_config:meta_rf_glmnet_f_mdf:feats_123_t:not_identified_adj-fwd_premium_3m`) %>% as.numeric(),
+                 meta_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
-  #Meta model check
-  expect_equal(oos_predictions_m_df, ml_metabacktest_results@base_learners_oos_predictions_meta_dataframe)
+  }
+  #Val Metrics
+  for (j in 1:length(sb_metabacktest_results@time_series_validation_metrics)){
+    expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data$`c:rf_101_f:feats_123_t:not_identified-fwd_premium_3m` %>% na.omit() %>% as.numeric(),
+                 rf_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
 
+    expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data$`c:glmnet_123_f:feats_123_t:not_identified-fwd_premium_3m` %>% na.omit() %>% as.numeric(),
+                 glmnet_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
 
+    expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data$`c:meta_f:m_config:meta_rf_glmnet_f_mdf:feats_123_t:not_identified_adj-fwd_premium_3m` %>% na.omit() %>% as.numeric(),
+                 meta_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
 
-  expect_equal(as.numeric(meta_results@oos_testing_eval_metrics[2,]),
-               as.numeric(ml_metabacktest_results@consolidated_oos_testing_metrics$full_periods_oos_testing_metrics[3,-c(1:3)]))
-
-
-  expect_equal(as.Date(rownames(
-    ml_metabacktest_results@meta_ml_backtest_results_list$`c:meta_rf_glmnet_f:meta_rf_glmnet_bpreds_t:not_identified_adj-fwd_premium_3m`@oos_testing_eval_metrics
-    )[-2]),
-    as.Date(get_dates(oos_predictions_m_df)[7])
-  )
-
+  }
 
 })
 

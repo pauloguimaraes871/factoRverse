@@ -1830,20 +1830,19 @@ setClass(
       stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for ols and heuristic sb algorithms).")
     }
 
-    #Check for ss_backtest_config/results
+    #Check for ss_backtest_config/results at meta-level
+    if (all(length(object@meta_sb_backtest_config@ss_backtest_config) == 0, length(object@meta_sb_backtest_config@ss_backtest_results) == 0)){
+      if (object@meta_sb_backtest_config@chosen_signals_and_positions != "all"){
+        stop("chosen_signals_and_positions should always be 'all' at meta-level.",
+             "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
+      }
+    }
     if (length(object@meta_sb_backtest_config@ss_backtest_config) > 0){
-      if (object@meta_sb_backtest_config@ss_backtest_config$chosen_signals_and_positions != "all") {
+      if(object@meta_sb_backtest_config@chosen_signals_and_positions != "all"){
         stop("chosen_signals_and_positions should always be 'all' at meta-level.",
              "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
       }
     }
-    if (length(object@meta_sb_backtest_config@ss_backtest_results) > 0){
-      if (object@meta_sb_backtest_config@ss_backtest_results@sb_backtest_workflow$chosen_signals_and_positions != "all") {
-        stop("chosen_signals_and_positions should always be 'all' at meta-level.",
-             "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
-      }
-    }
-
     #Check for features_passthrough
     if (any(object@features_passthrough %in% c("long", "short", "force"))){
       stop ("features_passthrough should just declare which signals from features_m_df should be added to meta learner features.

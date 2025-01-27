@@ -206,7 +206,7 @@ setMethod("run_sb_backtest",
 
             #Get or Fabricate Signal Universe and market_factor_proxy
             ###########################
-            signal_universe_m_df <- derive_signal_universe_m_df(
+            derive_signal_universe_m_df_results_list <- derive_signal_universe_m_df(
               config = config,
               ss_backtest_results = ss_backtest_results, ss_backtest_config, #Signal Selection Objects
               features_m_df = features_m_df, chosen_signals_and_positions = chosen_signals_and_positions, #Features
@@ -217,6 +217,9 @@ setMethod("run_sb_backtest",
               signal_themes_m_df = signal_themes_m_df, #Signal Themes
               verbose = verbose, parallel = parallel, winsorization_probs = winsorization_probs #Misc
             )
+              #Extract objs
+              signal_universe_m_df <- derive_signal_universe_m_df_results_list$signal_universe_m_df
+              chosen_signals_and_positions <- derive_signal_universe_m_df_results_list$chosen_signals_and_positions
 
             ###########################
 
@@ -304,7 +307,7 @@ setMethod("run_sb_backtest",
             #Add signal_selection_results
             sb_backtest_results@ss_backtest_results <- ss_backtest_results
             #Add chosen_signals_and_positions
-            sb_backtest_results@sb_backtest_workflow$chosen_signals_and_positions <- if (!is.null(ss_backtest_results)) ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions else chosen_signals_and_positions
+            sb_backtest_results@sb_backtest_workflow$chosen_signals_and_positions <- chosen_signals_and_positions
 
             #Add workflows, config_name and objects for target and features
               ##Target
@@ -412,6 +415,7 @@ setMethod("run_sb_backtest",
             )
 
             #######################
+            browser()
 
             ## Initial Preparations
             #######################
@@ -482,8 +486,28 @@ setMethod("run_sb_backtest",
                     if (verbose) cat("Final features and positions for meta backtest:\n", adapted_chosen_signals_and_positions, "\n")
 
                   ####Modify according to type
-                  if (!is.null(config@meta_sb_backtest_config@ss_backtest_config)){
-                   config@meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- adapted_chosen_signals_and_positions
+                  if (any(!is.null(config@meta_sb_backtest_config@ss_backtest_config), !is.null(config@meta_sb_backtest_config@ss_backtest_results))){
+                    ####If Meta-Learner SS Object is a Config
+                    if (!is.null(config@meta_sb_backtest_config@ss_backtest_config)){
+                      config@meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- adapted_chosen_signals_and_positions
+                    }
+                    ####If Meta-Learner SS Object is a Results Object
+                    if (!is.null(config@meta_sb_backtest_config@ss_backtest_results)){
+                      ###Get chosen_signals_and_positions at ss_level
+                      chosen_signals_and_positions_ss_level <- config@meta_sb_backtest_config@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions
+                      ###Compare with adapted_chosen_signals_and_positions
+                        ####Check names
+                        if (any(length(setdiff(names(adapted_chosen_signals_and_positions),names(chosen_signals_and_positions_ss_level))) > 0)){
+                          warning("Backtest ids and features to pass-through are not present in ss_results for meta-learner.")
+                        }
+                        ####Check positions
+                        if (!all(adapted_chosen_signals_and_positions == chosen_signals_and_positions_ss_level[names(adapted_chosen_signals_and_positions)])){
+                          warning("Backtest ids and features to pass-through positions do not match ss_results for meta-learner.")
+                        }
+                    }
+                  } else {
+                    ####If there is no config or results at meta-level
+                    config@meta_sb_backtest_config@chosen_signals_and_positions <- adapted_chosen_signals_and_positions
                   }
 
               ##Adapt target_m_df

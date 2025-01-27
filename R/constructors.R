@@ -423,7 +423,7 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 #' @export
 create_meta_xts <- function(data,
                             type = c("returns", "metrics"),
-                            asset_type = NULL,
+                            asset_type = "ports",
                             meta_xts_name = "default_name",
                             metric_name = NULL,
                             workflow = NULL,

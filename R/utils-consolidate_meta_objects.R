@@ -41,7 +41,6 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
                                             winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
                                             features_passthrough_and_positions = "none", features_m_df = NULL) {
 
-
   #Initial checks
   #########################
     ##Check if input is a list

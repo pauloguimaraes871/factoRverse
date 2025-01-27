@@ -73,6 +73,8 @@ derive_signal_universe_m_df <- function(config,
       #Extract signal_universe_m_df
       signal_universe_m_df <- ss_backtest_results@signal_universe_m_df@data
       cat(crayon::green("Signal Selection Backtest completed sucessfully \n"))
+      #Extract chosen_signals_and_positions
+      chosen_signals_and_positions <- ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions
 
     }
     ###########################
@@ -189,9 +191,14 @@ derive_signal_universe_m_df <- function(config,
 
     ###Extract signal_universe_m_df
     signal_universe_m_df <- ss_backtest_results@signal_universe_m_df@data
+    #Extract chosen_signals_and_positions
+    chosen_signals_and_positions <- ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions
   }
+
   ###########################
-  return(signal_universe_m_df)
+  return(list(signal_universe_m_df = signal_universe_m_df,
+              chosen_signals_and_positions = chosen_signals_and_positions
+              ))
 
 
 }

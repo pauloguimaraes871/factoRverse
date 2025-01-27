@@ -85,10 +85,15 @@ check_inputs_meta_sb_backtest <- function(
            "This is because features positions are already corrected through features_passthrough.")
     }
   }
+  # Check if 'ss_results' at meta-level comprehends all features_passthrough and backtest ids
   if (length(config@meta_sb_backtest_config@ss_backtest_results) > 0) {
-    if (config@meta_sb_backtest_config@ss_backtest_results@sb_backtest_workflow$chosen_signals_and_positions != "all") {
-      stop("chosen_signals_and_positions should always be 'all' at meta-level.\n",
-           "This is because features positions are already corrected through features_passthrough.")
+    if (length(config@features_passthrough) > 1 && any(!config@features_passthrough %in% config@meta_sb_backtest_config@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)) {
+      stop("features_passthrough should be contained in meta-level ss results")
+    }
+    if (!is.null(config@base_sb_backtest_results)) {
+      if (any(!sapply(config@base_sb_backtest_results, function(x) x@backtest_identifier) %in% config@meta_sb_backtest_config@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)) {
+        stop("backtest_ids should be contained in meta-level ss results")
+      }
     }
   }
   # Check for features_passthrough presence
