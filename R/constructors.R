@@ -128,13 +128,13 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
               # Store metadata and column names
               return(
                 new("meta_dataframe",
-                  data = data,
-                  workflow = workflow,
-                  signals = names(data)[-c(1:3)],
-                  unique_dates = unique_dates_count,
-                  unique_tickers = unique_tickers_count,
-                  n_obs = total_observations_count,
-                  meta_dataframe_name = meta_dataframe_name)
+                    data = data,
+                    workflow = workflow,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name)
               )
             }
 
@@ -160,15 +160,15 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
 
               # Store metadata and column names
               return(
-              new("signal_universe_m_df",
-                  data = data,
-                  workflow = NULL,
-                  signals = names(data)[-c(1:3)],
-                  unique_dates = unique_dates_count,
-                  unique_tickers = unique_tickers_count,
-                  n_obs = total_observations_count,
-                  meta_dataframe_name = meta_dataframe_name,
-                  ss_backtest_workflow = ss_backtest_workflow)
+                new("signal_universe_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name,
+                    ss_backtest_workflow = ss_backtest_workflow)
               )
             }
             if(type == "oos_sb_outputs"){
@@ -576,6 +576,10 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
             #Place ss_backtest_object
             object@ss_backtest_config <- ss_backtest_obj
 
+            ##Chosen_signals_and_positions
+            object@chosen_signals_and_positions <- ss_backtest_obj@chosen_signals_and_positions
+            message("chosen_signals_and_positions will follow underlying ss_backtest_config")
+
             # Validate the object explicitly
             validObject(object)
 
@@ -596,6 +600,11 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
 
             #Place ss_backtest_results
             object@ss_backtest_results <- ss_backtest_obj
+
+            ##Chosen_signals_and_positions
+            object@chosen_signals_and_positions <- ss_backtest_obj@ss_backtest_workflow$chosen_signals_and_positions
+            message("chosen_signals_and_positions will follow underlying ss_backtest_results")
+
 
             # Validate the object explicitly
             validObject(object)
@@ -632,6 +641,12 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
 
             #Include
             object@ss_backtest_config <- ss_backtest_config
+
+            ##Chosen_signals_and_positions
+            object@chosen_signals_and_positions <- chosen_signals_and_positions
+            message("chosen_signals_and_positions will follow underlying ss_backtest_config")
+
+
 
             # Validate the object explicitly
             validObject(object)
@@ -1920,7 +1935,7 @@ create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_s
                         cov_matrix_sample_size = cov_matrix_sample_size,
                         active_returns = active_returns,
                         cov_matrix_benchmark = cov_matrix_benchmark
-                        )
+  )
 
 }
 
@@ -1986,7 +2001,7 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
                                                                                   cov_matrix_sample_size = cov_matrix_sample_size,
                                                                                   active_returns = active_returns,
                                                                                   cov_matrix_benchmark = cov_matrix_benchmark
-                                                                                  )
+            )
 
             return(object)
           }
@@ -2385,40 +2400,44 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   }
 
   ##Chosen_signals_and_positions
-    ###Presence of other objects
-    if (any(!is.null(ss_backtest_config),!is.null(ss_backtest_results))){
-      if (!is.null(chosen_signals_and_positions)){
-        stop("chosen_signals_and_positions should only be provided when 'ss_backtest_config' or 'ss_backtest_results' are missing.")
-      }
-      chosen_signals_and_positions <- "ss_backtest_obj"
-      message("chosen_signals_and_positions will follow underlying ss_backtest_obj")
+  ###Presence of other objects
+  if (any(!is.null(ss_backtest_config),!is.null(ss_backtest_results))){
+    if (!is.null(chosen_signals_and_positions)){
+      stop("chosen_signals_and_positions should only be provided when 'ss_backtest_config' or 'ss_backtest_results' are missing.")
+    }
+    if (!is.null(ss_backtest_config)){
+      chosen_signals_and_positions <- ss_backtest_config@chosen_signals_and_positions
+      message("chosen_signals_and_positions will follow underlying ss_backtest_config")
+    } else {
+      chosen_signals_and_positions <- ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions
+      message("chosen_signals_and_positions will follow underlying ss_backtest_results")
+    }
+    if (sb_algorithm == "custom_weights"){
+      message("only positions in chosen_signals_and_positions are applied when sb_algorithm is custom_weights.")
+    }
+  }
+  ###Custom weights warning
+  if (sb_algorithm == "custom_weights" && is.null(chosen_signals_and_positions)){
+    message("Only positions of chosen_signals_and_positions are used when sb_algorithm is custom_weights, as every non-zero weight",
+            "in custom_signal_weights_m_df will be eligible.")
+  }
 
-      if (sb_algorithm == "custom_weights"){
-        message("only positions in chosen_signals_and_positions are applied when sb_algorithm is custom_weights.")
-      }
-    }
-    ###Custom weights warning
-    if (sb_algorithm == "custom_weights" && is.null(chosen_signals_and_positions)){
-      message("only positions of chosen_signals_and_positions are used when sb_algorithm is custom_weights, as every non-zero weight",
-              "in custom_signal_weights_m_df will be eligible.")
-    }
+  if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)){
+    chosen_signals_and_positions <- "all"
+  }
 
-    if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)){
-      chosen_signals_and_positions <- "all"
-    }
-
-    ###Check if chosen_signals_and_positions length > 1
-    if(length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions != "all"){
-      stop("More than one signal must be provided in order to run a sb_backtest")
-    }
-    ###Check if there are repeated signals in chosen_signals
-    if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
-      stop("each signal must be chosen only once")
-    }
-    ###Check for presence of low_
-    if(any(grepl("low_", names(chosen_signals_and_positions)))){
-      stop("chosen_signals_and_positions should not contain 'low_'.")
-    }
+  ###Check if chosen_signals_and_positions length > 1
+  if(length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions != "all"){
+    stop("More than one signal must be provided in order to run a sb_backtest")
+  }
+  ###Check if there are repeated signals in chosen_signals
+  if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
+    stop("each signal must be chosen only once")
+  }
+  ###Check for presence of low_
+  if(any(grepl("low_", names(chosen_signals_and_positions)))){
+    stop("chosen_signals_and_positions should not contain 'low_'.")
+  }
 
   #Create default parameters for signal_port_parameters depending on sb_algo
   if(sb_algorithm %in% c("mvo", "rp") && is.null(signal_port_parameters)){
@@ -2563,13 +2582,29 @@ setMethod("create_sb_metabacktest_config",
                 new_config <- add_ss_backtest_obj(sb_config, ss_config)
 
                 # Add it to combined_configs
-                  combined_name <- paste0(sb_config_names[i], "_", ss_config_names[j])
-                  combined_configs[[combined_name]] <- new_config
+                combined_name <- paste0(sb_config_names[i], "_", ss_config_names[j])
+                combined_configs[[combined_name]] <- new_config
 
               }
             }
 
-           # Create the sb_metabacktest_config object
+            # Warn about not considering chosen_signals_and_positions at meta-level
+            if (length(meta_sb_backtest_config@ss_backtest_config) > 0){
+              message("The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
+                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
+              meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
+            }
+            if (length(meta_sb_backtest_config@ss_backtest_results) > 0){
+              message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
+            }
+            if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj"){
+              message("The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
+              meta_sb_backtest_config@chosen_signals_and_positions <- "all"
+            }
+
+
+            # Create the sb_metabacktest_config object
             meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config,
                                base_sb_backtest_configs = combined_configs,
                                base_sb_backtest_results = NULL,
@@ -2654,6 +2689,21 @@ setMethod("create_sb_metabacktest_config",
               }
             }
 
+            # Warn about not considering chosen_signals_and_positions at meta-level
+            if (length(meta_sb_backtest_config@ss_backtest_config) > 0){
+              message("The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
+                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
+              meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
+            }
+            if (length(meta_sb_backtest_config@ss_backtest_results) > 0){
+              message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
+            }
+            if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj"){
+              message("The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
+              meta_sb_backtest_config@chosen_signals_and_positions <- "all"
+            }
+
             # Create the sb_metabacktest_config object
             meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config,
                                base_sb_backtest_configs = combined_configs,
@@ -2694,6 +2744,21 @@ setMethod("create_sb_metabacktest_config",
               stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
             }
 
+            # Warn about not considering chosen_signals_and_positions at meta-level
+            if (length(meta_sb_backtest_config@ss_backtest_config) > 0){
+              message("The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
+                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
+              meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
+            }
+            if (length(meta_sb_backtest_config@ss_backtest_results) > 0){
+              message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
+            }
+            if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj"){
+              message("The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
+              meta_sb_backtest_config@chosen_signals_and_positions <- "all"
+            }
+
             # Create the sb_metabacktest_config object
             meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = base_sb_backtest_configs,
                                base_sb_backtest_results = NULL,
@@ -2726,6 +2791,21 @@ setMethod("create_sb_metabacktest_config",
             # Check that all configs are sb_backtest_config objects
             if (!all(sapply(base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
               stop("All elements in 'base_sb_backtest_results' must be 'sb_backtest_results' objects.")
+            }
+
+            # Warn about not considering chosen_signals_and_positions at meta-level
+            if (length(meta_sb_backtest_config@ss_backtest_config) > 0){
+              message("The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
+                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
+              meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
+            }
+            if (length(meta_sb_backtest_config@ss_backtest_results) > 0){
+              message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
+            }
+            if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj"){
+              message("The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
+              meta_sb_backtest_config@chosen_signals_and_positions <- "all"
             }
 
 
@@ -2842,17 +2922,17 @@ setMethod(
   signature = signature(meta_sb_backtest_results = "sb_backtest_results", base_sb_backtest_results_list = "list", oos_predictions_m_df = "meta_dataframe"),
   definition = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df) {
 
-  #Initial Checks
-  ##################
+    #Initial Checks
+    ##################
     # Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
     if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
       stop("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'")
     }
 
-  ##################
+    ##################
 
-  #Initialize
-  ###################
+    #Initialize
+    ###################
     #Get SB Workflow from meta learner
     meta_learner_sb_backtest_workflow <- meta_sb_backtest_results@sb_backtest_workflow
 
@@ -2864,6 +2944,8 @@ setMethod(
     #Consolidate all results
     all_sb_backtest_results <- c(base_sb_backtest_results_list, meta_sb_backtest_results)
     all_sb_names <- c(base_sb_names, meta_sb_name)
+    sb_names_with_validation <- ifelse(!sapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow$sb_algorithm) %in% c("ols", "ew", "sw", "rp", "mvo"), 1, 0)
+    sb_names_with_validation <- all_sb_names[sb_names_with_validation == 1]
 
     #Common testing dates range
     common_testing_dates_range <- as.Date(Reduce(
@@ -2884,10 +2966,10 @@ setMethod(
     oos_metric_names <- NULL
     validation_metric_names <- NULL
 
-  ###################
+    ###################
 
-  #Collect OOS Testing Metrics
-  ##########################
+    #Collect OOS Testing Metrics
+    ##########################
     #Loop through all results
     for (i in seq_along(all_sb_backtest_results)) {
       sb_backtest_result <- all_sb_backtest_results[[i]]
@@ -2919,32 +3001,32 @@ setMethod(
 
 
       # Combine sb_name, chosen_eval_metric, and oos_metrics using cbind
-          ##Consolidated
-          oos_metrics_df <- cbind(
-            data.frame(
-              sb_backtest = sb_name,
-              testing_dates_range = paste0(
-                min(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample)),
-                "-",
-                max(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample))),
-              check.names = FALSE,
-              stringsAsFactors = FALSE
-            ),
-            as.data.frame(oos_metrics)  # Ensure it's a data frame
-          )
-          ##Common dates
-          oos_metrics_common_dates_df <- cbind(
-            data.frame(
-              sb_backtest = sb_name,
-              testing_dates_range = paste0(
-                min(as.Date(common_testing_dates_range)),
-                "-",
-                max(as.Date(common_testing_dates_range))),
-              check.names = FALSE,
-              stringsAsFactors = FALSE
-            ),
-            as.data.frame(oos_metrics_common_dates) %>% dplyr::select(-sb_backtest, -dates)  # Ensure it's a data frame
-          )
+      ##Consolidated
+      oos_metrics_df <- cbind(
+        data.frame(
+          sb_backtest = sb_name,
+          testing_dates_range = paste0(
+            min(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample)),
+            "-",
+            max(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample))),
+          check.names = FALSE,
+          stringsAsFactors = FALSE
+        ),
+        as.data.frame(oos_metrics)  # Ensure it's a data frame
+      )
+      ##Common dates
+      oos_metrics_common_dates_df <- cbind(
+        data.frame(
+          sb_backtest = sb_name,
+          testing_dates_range = paste0(
+            min(as.Date(common_testing_dates_range)),
+            "-",
+            max(as.Date(common_testing_dates_range))),
+          check.names = FALSE,
+          stringsAsFactors = FALSE
+        ),
+        oos_metrics_common_dates %>% dplyr::select(-sb_backtest, -dates) %>% colMeans() %>% as.data.frame() %>% t()  # Ensure it's a data frame
+      )
 
 
 
@@ -2966,7 +3048,7 @@ setMethod(
       ##########################
 
       ## Validation Evaluation Metrics (if available) ##
-      validation_metrics <- sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data
+      validation_metrics <- if (!is.null(sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts)) sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data else NULL
 
       if (!is.null(validation_metrics) && nrow(validation_metrics) > 0) {
         # Get time series data
@@ -2988,7 +3070,7 @@ setMethod(
         all_validation_metrics_long_df <- rbind(all_validation_metrics_long_df, validation_metrics_long)
 
         # Get 'average' consolidated validation metrics
-          validation_metrics_average <- sb_backtest_result@consolidated_eval_metrics %>% dplyr::select(metric, avg_val)
+        validation_metrics_average <- sb_backtest_result@consolidated_eval_metrics %>% dplyr::select(metric, avg_val)
 
         # Combine sb_name, chosen_eval_metric, and validation_metrics_average using cbind
         validation_metrics_df <- cbind(
@@ -3082,6 +3164,7 @@ setMethod(
     time_series_validation_metrics <- list()
 
     if (nrow(all_validation_metrics_long_df) > 0) {
+
       validation_time_series_metric_names <- unique(all_validation_metrics_long_df$Metric)
 
       for (metric in validation_time_series_metric_names) {
@@ -3107,25 +3190,25 @@ setMethod(
         time_series_validation_metrics[[metric]] <- create_meta_xts(metric_wide_xts, type = "metrics",
                                                                     meta_xts_name = paste0("val_", meta_sb_name, "_", metric),
                                                                     metric_name = metric,
-                                                                    source = all_sb_names)
+                                                                    source = sb_names_with_validation)
 
       }
     }
 
-  ###########################
+    ###########################
 
-   # Create the 'sb_metabacktest_results' object
+    # Create the 'sb_metabacktest_results' object
     new_object <- new("sb_metabacktest_results",
                       meta_sb_backtest_results = meta_sb_backtest_results,
                       base_sb_backtest_results_list = base_sb_backtest_results_list,
                       base_learners_oos_predictions_m_df = oos_predictions_m_df,
-                      consolidated_oos_testing_metrics = list(all_dates_oos_testing_metrics = all_dates_oos_testing_metrics,
-                                                              common_dates_oos_testing_metrics = common_dates_oos_testing_metrics),
+                      combined_oos_testing_metrics = list(all_dates_oos_testing_metrics = all_dates_oos_testing_metrics,
+                                                          common_dates_oos_testing_metrics = common_dates_oos_testing_metrics),
                       mean_validation_metrics = mean_validation_metrics,
                       time_series_oos_testing_metrics = time_series_oos_testing_metrics,
                       time_series_validation_metrics = time_series_validation_metrics,
                       backtest_identifier = meta_learner_sb_backtest_workflow$backtest_identifier
-                      )
+    )
 
     return(new_object)
   }
@@ -3219,19 +3302,19 @@ setMethod("add_liquidity_constraint_policy", "port_backtest_config", function(po
   }
 
 
-    # Add liquidity_cap_rules to the new policy
-    new_liquidity_constraint_policy <- c(new_liquidity_constraint_policy, new_liquidity_cap_rules)
+  # Add liquidity_cap_rules to the new policy
+  new_liquidity_constraint_policy <- c(new_liquidity_constraint_policy, new_liquidity_cap_rules)
 
 
 
 
   # Create the S4 object
   new_port_backtest_config_obj <- new("port_backtest_config",
-                                    liquidity_constraint_policy = new_liquidity_constraint_policy,
-                                    signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
-                                    turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
-                                    concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
-                                    liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
+                                      liquidity_constraint_policy = new_liquidity_constraint_policy,
+                                      signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
+                                      turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
+                                      concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
+                                      liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
 
   return(new_port_backtest_config_obj)
 })
@@ -3316,26 +3399,26 @@ setMethod("add_turnover_constraint_policy", "port_backtest_config", function(por
     #Extract existing rules not to be overwritten
     unique_existing_rules <- existing_rules[[which(!existing_rules_names %in% sapply(turnover_rules, function(x) x$liquidity_classification))]]
 
-      ###Check if unique_existing_rules is not list of lists
-      if(!all(sapply(unique_existing_rules, function(x) is.list(x)))){
-        final_rules <- list(unique_existing_rules) #Create list of lists obj
-      } else {
-        final_rules <- unique_existing_rules #do noth
-      }
+    ###Check if unique_existing_rules is not list of lists
+    if(!all(sapply(unique_existing_rules, function(x) is.list(x)))){
+      final_rules <- list(unique_existing_rules) #Create list of lists obj
+    } else {
+      final_rules <- unique_existing_rules #do noth
+    }
 
     #Combine new and old
     if(all(sapply(turnover_rules, function(x) is.list(x)))){
 
-       #If new object is a list of lists, extract individually and add
+      #If new object is a list of lists, extract individually and add
       for(new_rule in turnover_rules){
-          final_rules[[length(final_rules) + 1]] <- new_rule
-      }
-    }
-      else {
-        #In case it is not a list of lists
         final_rules[[length(final_rules) + 1]] <- new_rule
       }
     }
+    else {
+      #In case it is not a list of lists
+      final_rules[[length(final_rules) + 1]] <- new_rule
+    }
+  }
 
   ###In case there are no old rules
 
@@ -3348,23 +3431,23 @@ setMethod("add_turnover_constraint_policy", "port_backtest_config", function(por
     }
   }
 
-    # Transform to the right format
-    n <- length(final_rules)
+  # Transform to the right format
+  n <- length(final_rules)
 
-    # Rename
-    names(final_rules) <- paste0("buffer_zone_", seq_len(n))
+  # Rename
+  names(final_rules) <- paste0("buffer_zone_", seq_len(n))
 
 
-    # Create the S4 object
-    new_port_backtest_config_obj <- new("port_backtest_config",
+  # Create the S4 object
+  new_port_backtest_config_obj <- new("port_backtest_config",
                                       liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
                                       signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
                                       turnover_constraint_policy = final_rules,
                                       concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
                                       liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
 
-    return(new_port_backtest_config_obj)
-  })
+  return(new_port_backtest_config_obj)
+})
 
 
 
@@ -3501,7 +3584,7 @@ setMethod("add_concentration_constraint_policy",
               object@signal_port_parameters <- methods::new("signal_port_parameters")
             }
 
-             # Assign
+            # Assign
             object@signal_port_parameters@concentration_constraint_policy <- new_policy
             methods::validObject(object)
             return(object)
@@ -3580,127 +3663,127 @@ setMethod("add_signal_selection_policy", "port_backtest_config", function(port_b
                                                                           #How to select signals
                                                                           p_correction_method = "none", signal_significance_threshold = 0.05,
                                                                           priors_type = NULL, priors_informative_data = NULL
-                                                                        ) {
+) {
 
   # Validate arguments
-    ## chosen_signals
-    if(!is.null(chosen_signals)){
-      if (!all(is.character(chosen_signals))){
-        stop("chosen_signals should be a character vector.")
-      }
-      #Check if signal positions is also updated
-      if(is.null(signal_positions)){
-        stop("please always update chosen_signals with signal_positions to ensure consistency")
-      }
-
-      ## signal_position
-      if (!all(is.character(signal_positions))){
-        stop("signal_positions should be a character vector.")
-      }
-      if(length(signal_positions) != length(chosen_signals)){
-        stop("lengths of signal_positions and chosen_signals should match.")
-      }
-
-      ## check for appropriate signal_blending_method
-      if(length(chosen_signals) > 1){
-        #If more than one signal is chosen, signal_blending_method can't be NULL
-        if(any(!is.null(signal_blending_method), !is.null(port_backtest_config_obj@signal_selection_policy))){
-          #Either the new signal_blending_method or the old one must be different from NULL
-        }
-      }
+  ## chosen_signals
+  if(!is.null(chosen_signals)){
+    if (!all(is.character(chosen_signals))){
+      stop("chosen_signals should be a character vector.")
+    }
+    #Check if signal positions is also updated
+    if(is.null(signal_positions)){
+      stop("please always update chosen_signals with signal_positions to ensure consistency")
     }
 
-    ## Signal Blending Method
-    if (!is.null(signal_blending_method)){
-      ###Character
-      if(!is.character(signal_blending_method)) {
-        stop("signal_blending_method should be a character")
-      }
-      ###Correct choice
-      if(!signal_blending_method %in% c("EW", "SW", "RP", "MTO", "ML")){
-        stop("signal_blending_method should be one of EW, SW, RP, MTO or ML")
-      }
+    ## signal_position
+    if (!all(is.character(signal_positions))){
+      stop("signal_positions should be a character vector.")
+    }
+    if(length(signal_positions) != length(chosen_signals)){
+      stop("lengths of signal_positions and chosen_signals should match.")
     }
 
-    ##chosen_sb_metric
-    if (!is.null(chosen_sb_metric)){
-      ###Character
-      if(!is.character(chosen_sb_metric)) {
-        stop("chosen_sb_metric should be a character")
-      }
-      ###Correct choice
-      if(!chosen_sb_metric %in% c("mean_active_return", "IR", "alpha", "AP", "treynor")){
-        stop("chosen_sb_metric should be one of mean_active_return, IR, alpha, AP or treynor")
+    ## check for appropriate signal_blending_method
+    if(length(chosen_signals) > 1){
+      #If more than one signal is chosen, signal_blending_method can't be NULL
+      if(any(!is.null(signal_blending_method), !is.null(port_backtest_config_obj@signal_selection_policy))){
+        #Either the new signal_blending_method or the old one must be different from NULL
       }
     }
+  }
 
-    ## Signal Blending Benchmark Weighting Method
-    if (!is.null(sb_benchmark_weighting_method)){
-      ###Character
-      if(!is.character(sb_benchmark_weighting_method)) {
-        stop("sb_benchmark_weighting_method should be a character")
-      }
-      ###Correct choice
-      if(!sb_benchmark_weighting_method %in% c("individual_sb", "theme_sb")){
-        stop("sb_benchmark_weighting_method should be one of individual_sb or theme_sb")
-      }
+  ## Signal Blending Method
+  if (!is.null(signal_blending_method)){
+    ###Character
+    if(!is.character(signal_blending_method)) {
+      stop("signal_blending_method should be a character")
     }
-
-    ##max_abs_active_individual_weight
-    if(!is.null(max_abs_active_individual_weight)){
-      if(!is.numeric(max_abs_active_individual_weight)){
-        stop("max_abs_active_individual_weight should be numeric")
-      }
+    ###Correct choice
+    if(!signal_blending_method %in% c("EW", "SW", "RP", "MTO", "ML")){
+      stop("signal_blending_method should be one of EW, SW, RP, MTO or ML")
     }
+  }
 
-    ##max_abs_active_group_weight
-    if(!is.null(max_abs_active_group_weight)){
-      if(!is.numeric(max_abs_active_group_weight)){
-        stop("max_abs_active_group_weight should be numeric")
-      }
+  ##chosen_sb_metric
+  if (!is.null(chosen_sb_metric)){
+    ###Character
+    if(!is.character(chosen_sb_metric)) {
+      stop("chosen_sb_metric should be a character")
     }
-
-
-    ## p_correction_method
-    if (!is.null(p_correction_method)){
-      ###Character
-      if(!is.character(p_correction_method)) {
-        stop("p_correction_method should be a character")
-      }
-      ###Correct choice
-      if(!p_correction_method %in% c("bayesian", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none")){
-        stop("p_correction_method should be one of bayesian, holm, hochberg, hommel, bonferroni, BH, BY, fdr or none")
-      }
+    ###Correct choice
+    if(!chosen_sb_metric %in% c("mean_active_return", "IR", "alpha", "AP", "treynor")){
+      stop("chosen_sb_metric should be one of mean_active_return, IR, alpha, AP or treynor")
     }
+  }
 
-    ##signal_significance_threshold
-    if(!is.numeric(signal_significance_threshold)){
-      stop("signal_significance_threshold should be numeric")
+  ## Signal Blending Benchmark Weighting Method
+  if (!is.null(sb_benchmark_weighting_method)){
+    ###Character
+    if(!is.character(sb_benchmark_weighting_method)) {
+      stop("sb_benchmark_weighting_method should be a character")
     }
+    ###Correct choice
+    if(!sb_benchmark_weighting_method %in% c("individual_sb", "theme_sb")){
+      stop("sb_benchmark_weighting_method should be one of individual_sb or theme_sb")
+    }
+  }
 
-    ##priors_type
-    if (!is.null(priors_type)){
-      ###Character
-      if(!is.character(priors_type)) {
-        stop("priors_type should be a character")
-      }
-      ###Correct choice
-      if(!priors_type %in% c("uninformative", "all", "mean", "user")){
-        stop("priors_type should be one of uninformative, all, mean or user")
-      }
+  ##max_abs_active_individual_weight
+  if(!is.null(max_abs_active_individual_weight)){
+    if(!is.numeric(max_abs_active_individual_weight)){
+      stop("max_abs_active_individual_weight should be numeric")
     }
+  }
 
-    ##priors_informative_data
-    if (!is.null(priors_informative_data)){
-      ###Character
-      if(!is.character(priors_informative_data)) {
-        stop("priors_informative_data should be a character")
-      }
-      ###Correct choice
-      if(!priors_informative_data %in% c("jkp_emerging", "cz_global")){
-        stop("priors_type should be one of jkp_emerging or cz_global")
-      }
+  ##max_abs_active_group_weight
+  if(!is.null(max_abs_active_group_weight)){
+    if(!is.numeric(max_abs_active_group_weight)){
+      stop("max_abs_active_group_weight should be numeric")
     }
+  }
+
+
+  ## p_correction_method
+  if (!is.null(p_correction_method)){
+    ###Character
+    if(!is.character(p_correction_method)) {
+      stop("p_correction_method should be a character")
+    }
+    ###Correct choice
+    if(!p_correction_method %in% c("bayesian", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none")){
+      stop("p_correction_method should be one of bayesian, holm, hochberg, hommel, bonferroni, BH, BY, fdr or none")
+    }
+  }
+
+  ##signal_significance_threshold
+  if(!is.numeric(signal_significance_threshold)){
+    stop("signal_significance_threshold should be numeric")
+  }
+
+  ##priors_type
+  if (!is.null(priors_type)){
+    ###Character
+    if(!is.character(priors_type)) {
+      stop("priors_type should be a character")
+    }
+    ###Correct choice
+    if(!priors_type %in% c("uninformative", "all", "mean", "user")){
+      stop("priors_type should be one of uninformative, all, mean or user")
+    }
+  }
+
+  ##priors_informative_data
+  if (!is.null(priors_informative_data)){
+    ###Character
+    if(!is.character(priors_informative_data)) {
+      stop("priors_informative_data should be a character")
+    }
+    ###Correct choice
+    if(!priors_informative_data %in% c("jkp_emerging", "cz_global")){
+      stop("priors_type should be one of jkp_emerging or cz_global")
+    }
+  }
 
 
   # Construct new_signal_selection_policy list

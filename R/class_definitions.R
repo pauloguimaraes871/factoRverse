@@ -205,7 +205,7 @@ setClass(
 
     if(any(!colnames %in% c("id", "tickers", "dates", valid_performance_metrics_names, "adjusted_p_value", "top_assets", "is_eligible",
                             "theme", "theme_ss_bench_weights", "theme_sb_bench_weights"))){
-      warning("User-inputed metrics were identified in signal_universe_m_df object")
+      message("User-inputed metrics were identified in signal_universe_m_df object")
     }
 
     if(any(!c("top_assets", "is_eligible") %in% colnames)){
@@ -1436,7 +1436,7 @@ setClass(
       }
 
       if (substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_oos_eval_metrics){
-        warning("Custom_objective is valid only for meta sb backtests. Please be sure that the current configuration is for such a backtest.")
+        message("This custom_objective is valid only for meta sb backtests. Please be sure that the current configuration is for such a backtest.")
       }
 
       typical_max_objective <- c(
@@ -1838,7 +1838,7 @@ setClass(
       }
     }
     if (length(object@meta_sb_backtest_config@ss_backtest_config) > 0){
-      if(object@meta_sb_backtest_config@chosen_signals_and_positions != "all"){
+      if(object@meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions != "all"){
         stop("chosen_signals_and_positions should always be 'all' at meta-level.",
              "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
       }
@@ -2090,7 +2090,7 @@ setClass(
     meta_sb_backtest_results = "sb_backtest_results",
     base_sb_backtest_results_list = "list",
     base_learners_oos_predictions_m_df = "meta_dataframe",
-    consolidated_oos_testing_metrics = "list",
+    combined_oos_testing_metrics = "list",
     mean_validation_metrics = "data.frame",
     time_series_oos_testing_metrics = "list",
     time_series_validation_metrics = "list",
@@ -2102,8 +2102,8 @@ setClass(
       return("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'.")
     }
 
-    if (!all(sapply(object@consolidated_oos_testing_metrics, function(x) is(x, "data.frame")))){
-      return("All elements in 'consolidated_oos_testing_metrics' must be of class 'data.frame'.")
+    if (!all(sapply(object@combined_oos_testing_metrics, function(x) is(x, "data.frame")))){
+      return("All elements in 'combined_oos_testing_metrics' must be of class 'data.frame'.")
     }
 
     TRUE

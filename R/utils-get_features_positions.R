@@ -109,8 +109,8 @@ get_and_check_chosen_signals_and_positions <- function(base_sb_backtest_results_
       lapply(base_sb_backtest_configs_list, function(x){
         #For SS Backtest Configs
         if (!is.null(x@ss_backtest_config)){
-          current_chosen_signals_and_positions_vec <-x@ss_backtest_config$chosen_signals_and_positions
-          names(current_chosen_signals_and_positions_vec) <- names(x@ss_backtest_config$chosen_signals_and_positions)
+          current_chosen_signals_and_positions_vec <-x@ss_backtest_config@chosen_signals_and_positions
+          names(current_chosen_signals_and_positions_vec) <- names(x@ss_backtest_config@chosen_signals_and_positions)
           return(current_chosen_signals_and_positions_vec)
         }
         #For SS Backtest Results

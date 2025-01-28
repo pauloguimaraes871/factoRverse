@@ -3430,8 +3430,8 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
   # List of available plots
   available_plots <- c(
-    "Consolidated OOS Testing Metrics Comparison - All Dates",
-    "Consolidated OOS Testing Metrics Comparison - Common Dates",
+    "Combined and Consolidated OOS Testing Metrics - All Dates",
+    "Combined and Averaged OOS Testing Metrics - Common Dates",
     "Time Series OOS Testing Metrics",
     "Mean Validation Metrics Comparison",
     "Time Series Validation Metrics",
@@ -3495,7 +3495,7 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
   )
 
   # Extract data from the sb_metabacktest_results object
-  consolidated_metrics <- x@consolidated_oos_testing_metrics
+  combined_metrics <- x@combined_oos_testing_metrics
   time_series_oos_testing_metrics <- x@time_series_oos_testing_metrics
   mean_validation_metrics <- x@mean_validation_metrics
   time_series_validation_metrics <- x@time_series_validation_metrics
@@ -3505,12 +3505,12 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
   # Initialize plots list
   plots_list <- list()
   # Now generate the selected plot
-  if (plot_name == "Consolidated OOS Testing Metrics Comparison - All Dates") {
+  if (plot_name == "Combined and Consolidated OOS Testing Metrics - All Dates") {
     # Plot consolidated OOS testing metrics for all models (base and meta learners)
 
     # Prepare data
     # Extract full periods and common dates metrics
-    all_dates_metrics <- consolidated_metrics$all_dates_oos_testing_metrics
+    all_dates_metrics <- combined_metrics$all_dates_oos_testing_metrics
     all_dates_metrics$period <- "All Dates"
 
 
@@ -3532,7 +3532,7 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
       ggplot2::geom_col(position = "dodge") +
       ggplot2::facet_wrap(~ metric, scales = "free_y") +
       ggplot2::labs(
-        title = "Consolidated OOS Testing Metrics (All Dates)",
+        title = "Combined and Consolidated OOS Testing Metrics - All Dates",
         x     = "Model (Backtest Label)",
         y     = "Metric Value",
         fill  = "Backtest Label"
@@ -3560,10 +3560,10 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
     print(plots_list$consolidated_oos_testing_metrics_all_dates)
 
-  } else if (plot_name == "Consolidated OOS Testing Metrics Comparison - Common Dates") {
+  } else if (plot_name == "Combined and Averaged OOS Testing Metrics - Common Dates") {
 
     # Prepare data
-    common_dates_raw <- consolidated_metrics$common_dates_oos_testing_metrics
+    common_dates_raw <- combined_metrics$common_dates_oos_testing_metrics
     common_dates_metrics <- tidyr::pivot_longer(
       common_dates_raw,
       cols      = -c(sb_backtest, testing_dates_range),
@@ -3590,7 +3590,7 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
       ggplot2::geom_col(position = "dodge") +
       ggplot2::facet_wrap(~ metric, scales = "free_y") +
       ggplot2::labs(
-        title = "Consolidated OOS Testing Metrics (Common Dates)",
+        title = "Combined and Averaged OOS Testing Metrics - Common Dates",
         x     = "Model (Backtest Label)",
         y     = "Metric Value",
         fill  = "Backtest Label"

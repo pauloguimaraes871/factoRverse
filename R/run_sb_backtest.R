@@ -114,6 +114,23 @@ setMethod("run_sb_backtest",
 
             ###########################
 
+            #Get or Fabricate Signal Universe and market_factor_proxy
+            ###########################
+              derive_signal_universe_m_df_results_list <- derive_signal_universe_m_df(
+                config = config,
+                features_m_df = features_m_df,
+                backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, #Backtest and Benchmark
+                priors_m_df = priors_m_df, #Priors
+                custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df, #Custom Signal Universe Metrics
+                signal_themes_m_df = signal_themes_m_df, #Signal Themes
+                verbose = verbose, parallel = parallel, winsorization_probs = winsorization_probs #Misc
+              )
+              #Extract signal_universe_m_df
+              signal_universe_m_df <- derive_signal_universe_m_df_results_list$signal_universe_m_df
+
+
+            ###########################
+
             #Get data from S4 objects
             ###########################
               ##features_m_df
@@ -145,7 +162,7 @@ setMethod("run_sb_backtest",
                 quantile_tau <- config@quantile_tau #Get quantile_tau
 
                 ###Signal Selection
-                chosen_signals_and_positions <- config@chosen_signals_and_positions #Get chosen_signals_and_positions
+                chosen_signals_and_positions <- derive_signal_universe_m_df_results_list$chosen_signals_and_positions #Get chosen_signals_and_positions from SB or SS
                 ss_backtest_config <- config@ss_backtest_config #Get ss_backtest_config
                 ss_backtest_results <- config@ss_backtest_results #Get ss_backtest_results
 
@@ -201,29 +218,7 @@ setMethod("run_sb_backtest",
                     }
                 }
 
-
-            ###########################
-
-            #Get or Fabricate Signal Universe and market_factor_proxy
-            ###########################
-            derive_signal_universe_m_df_results_list <- derive_signal_universe_m_df(
-              config = config,
-              ss_backtest_results = ss_backtest_results, ss_backtest_config, #Signal Selection Objects
-              features_m_df = features_m_df, chosen_signals_and_positions = chosen_signals_and_positions, #Features
-              backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, #Backtest and Benchmark
-              priors_m_df = priors_m_df, #Priors
-              custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df, #Custom Signal Universe Metrics
-              cov_matrix_benchmark = cov_matrix_benchmark, features_object_name = features_object_name,#Check adherence
-              signal_themes_m_df = signal_themes_m_df, #Signal Themes
-              verbose = verbose, parallel = parallel, winsorization_probs = winsorization_probs #Misc
-            )
-              #Extract objs
-              signal_universe_m_df <- derive_signal_universe_m_df_results_list$signal_universe_m_df
-              chosen_signals_and_positions <- derive_signal_universe_m_df_results_list$chosen_signals_and_positions
-
-            ###########################
-
-            #Get signal themes, backtest returns and so on
+              ##Get signal themes, backtest returns and so on
               ##Signal themes
               if(!is.null(signal_themes_m_df)){
                 signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name #Signal Themes Obj Name
@@ -254,10 +249,17 @@ setMethod("run_sb_backtest",
               } else {
                 if(!is.null(backtest_returns_m_xts)){
                   message("backtest_returns_m_xts provided but not used in sb_algorithm choice")
+                  backtest_returns_m_xts <- NULL
                 }
                 if(!is.null(benchmark_returns_m_xts)){
                   message("benchmark_returns_m_xts provided but not used in sb_algorithm choice")
+                  benchmark_returns_m_xts <- NULL
                 }
+                if(!is.null(signal_themes_m_df)){
+                  message("signal_themes_m_df provided but not used in sb_algorithm choice")
+                  signal_themes_m_df <- NULL
+                }
+
               }
               ##Custom signal weights
               if(sb_algorithm == "custom_weights"){
@@ -404,7 +406,7 @@ setMethod("run_sb_backtest",
             ## Initial checks
             #######################
             check_inputs_meta_sb_backtest(
-              config = config, features_m_df = features_m_df,
+              config = config, features_m_df = features_m_df, target_m_df = target_m_df,
               #Base Objects
               base_backtest_returns_m_xts = base_backtest_returns_m_xts, base_benchmark_returns_m_xts = base_benchmark_returns_m_xts, base_signal_themes_m_df = base_signal_themes_m_df,
               base_priors_m_df = base_priors_m_df, base_custom_signal_weights_m_df = base_custom_signal_weights_m_df, base_custom_signal_universe_metrics_m_df = base_custom_signal_universe_metrics_m_df,
@@ -415,7 +417,6 @@ setMethod("run_sb_backtest",
             )
 
             #######################
-            browser()
 
             ## Initial Preparations
             #######################
@@ -456,6 +457,7 @@ setMethod("run_sb_backtest",
             #Generate oos_predictions_m_df and adapt objects
             #######################
 
+
               ##Get features_passthrough_and_positions based on chosen_signals_and_positions_list
                 ###Get features_passthrough_and_positions from chosen_signals_and_positions
                 features_passthrough_and_positions <- get_features_positions(
@@ -479,11 +481,20 @@ setMethod("run_sb_backtest",
                 ###Adapted chosen_signals_and_positions
                   ####Recreate chosen_signals_and_positions based on backtest names (always long) and features_passthrough_and_positions
                   backtest_ids <- unname(sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier))
-                  adapted_chosen_signals_and_positions <- c(rep("long", length(backtest_ids)), features_passthrough_and_positions) #Get all positions
-                  names(adapted_chosen_signals_and_positions) <- c(backtest_ids, names(features_passthrough_and_positions))
+                  if (length(features_passthrough_and_positions) == 1 && features_passthrough_and_positions == "none"){
+                    adapted_chosen_signals_and_positions <- c(rep("long", length(backtest_ids))) #If features_pass is 'none', then pass only backtests
+                    names(adapted_chosen_signals_and_positions) <- backtest_ids
+                  } else {
+                    adapted_chosen_signals_and_positions <- c(rep("long", length(backtest_ids)), features_passthrough_and_positions) #Get all positions
+                    names(adapted_chosen_signals_and_positions) <- c(backtest_ids, names(features_passthrough_and_positions))
+                  }
 
                     #####Print
-                    if (verbose) cat("Final features and positions for meta backtest:\n", adapted_chosen_signals_and_positions, "\n")
+                    if (verbose){
+                      cat("Final features and positions for meta backtest:\n")
+                      print(adapted_chosen_signals_and_positions)
+                      cat("\n")
+                    }
 
                   ####Modify according to type
                   if (any(!is.null(config@meta_sb_backtest_config@ss_backtest_config), !is.null(config@meta_sb_backtest_config@ss_backtest_results))){
@@ -1098,7 +1109,6 @@ run_sb_backtest_internal <- function(
           selected_features_corrected_positions_m_refit <- ts_splits$refit$features_m_refit #Subset -> Signal Ports do not depend on features_m_refit. Therefore, they are fit with most avaiable signal universe data.
           target_m_refit <- ts_splits$refit$target_m_refit #Subset
           selected_full_data_corrected_positions_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
-
 
         #(RE)Fit SB Model
         sb_model_fit <- fit_sb_model(

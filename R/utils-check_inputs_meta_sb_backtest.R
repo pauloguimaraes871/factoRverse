@@ -19,7 +19,7 @@
 #' @return None. Stops execution if validation checks fail.
 check_inputs_meta_sb_backtest <- function(
     config,
-    features_m_df,
+    features_m_df, target_m_df,
     base_signal_themes_m_df, base_priors_m_df, base_custom_signal_weights_m_df, base_custom_signal_universe_metrics_m_df,
     meta_signal_themes_m_df, meta_priors_m_df, meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df,
     base_backtest_returns_m_xts, base_benchmark_returns_m_xts,
@@ -80,7 +80,7 @@ check_inputs_meta_sb_backtest <- function(
   ##########################
   # Check for 'all' at signal_selection at meta level
   if (length(config@meta_sb_backtest_config@ss_backtest_config) > 0) {
-    if (config@meta_sb_backtest_config@ss_backtest_config$chosen_signals_and_positions != "all") {
+    if (config@meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions != "all") {
       stop("chosen_signals_and_positions should always be 'all' at meta-level.\n" ,
            "This is because features positions are already corrected through features_passthrough.")
     }
@@ -108,7 +108,7 @@ check_inputs_meta_sb_backtest <- function(
   oos_testing_eval_metrics <- c("rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr", "mb")
   # Check if custom_objective is oos_testing_eval_metrics
   if (stringr::str_remove(stringr::str_remove(config@meta_sb_backtest_config@custom_objective, "min_"), "max_") %in% oos_testing_eval_metrics){
-    if (config@features_passthrough != "none"){
+    if (length(config@features_passthrough) > 1 ||  config@features_passthrough != "none"){
       stop("features_passthrough should be 'none' when using custom_objective from oos_testing_eval_metrics.")
     }
     if (any(!is.null(base_custom_signal_universe_metrics_m_df), !is.null(meta_custom_signal_universe_metrics_m_df))){
@@ -282,7 +282,7 @@ check_inputs_meta_sb_backtest <- function(
         ####in signals_m_df object name
         if (any(sapply(base_sb_backtest_results_list,
                        function(x){
-                         length(x@ss_backtest_results$ss_backtest_workflow$signals_object_name) > 0 && x@ss_backtest_results$ss_backtest_workflow$signals_object_name != features_m_df@meta_dataframe_name
+                         length(x@ss_backtest_results@ss_backtest_workflow$signals_object_name) > 0 && x@ss_backtest_results@ss_backtest_workflow$signals_object_name != features_m_df@meta_dataframe_name
                        }))) {
           stop("signals_m_df object is not the same in every base SS backtest results and/or with the features_m_df being currently supplied.")
         }
@@ -290,7 +290,7 @@ check_inputs_meta_sb_backtest <- function(
         ####in signal_themes_m_df object name
         if (any(sapply(base_sb_backtest_results_list,
                        function(x){
-                         length(x@ss_backtest_results$ss_backtest_workflow$signal_themes_object_name) > 0 && x@ss_backtest_results$ss_backtest_workflow$signal_themes_object_name != base_sb_backtest_results_list[[1]]@ss_backtest_results@ss_backtest_workflow$signal_themes_object_name
+                         length(x@ss_backtest_results@ss_backtest_workflow$signal_themes_object_name) > 0 && x@ss_backtest_results@ss_backtest_workflow$signal_themes_object_name != base_sb_backtest_results_list[[1]]@ss_backtest_results@ss_backtest_workflow$signal_themes_object_name
                      }))) {
           stop("signal_themes_m_df object is not the same in every base SS backtest results.")
         }
@@ -298,14 +298,14 @@ check_inputs_meta_sb_backtest <- function(
         ####in backtest_returns object name
         if (any(sapply(base_sb_backtest_results_list,
                        function(x){
-                         length(x@ss_backtest_results$ss_backtest_workflow$backtest_returns_object_name) > 0 && x@ss_backtest_results$ss_backtest_workflow$backtest_returns_object_name != base_sb_backtest_results_list[[1]]@ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name
+                         length(x@ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name) > 0 && x@ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name != base_sb_backtest_results_list[[1]]@ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name
                      }))) {
           stop("backtest_returns_m_xts object is not the same in every base SS backtest results.")
         }
         ####in benchmark_returns object name
         if (any(sapply(base_sb_backtest_results_list,
                        function(x){
-                         length(x@ss_backtest_results$ss_backtest_workflow$benchmark_returns_object_name) > 0 && x@ss_backtest_results$ss_backtest_workflow$benchmark_returns_object_name != base_sb_backtest_results_list[[1]]@ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name
+                         length(x@ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name) > 0 && x@ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name != base_sb_backtest_results_list[[1]]@ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name
                      }))) {
           stop("benchmark_returns_m_xts object is not the same in every base SS backtest results.")
         }
@@ -331,12 +331,12 @@ check_inputs_meta_sb_backtest <- function(
       ###Between supplied for meta backtest and base learners (and base learners themselves)
         ####in features_m_df object name
         if (any(sapply(base_sb_backtest_results_list,
-                       function(x) x@sb_backtest_workflow$features_object_name != features_m_df@object_name))) {
+                       function(x) x@sb_backtest_workflow$features_object_name != features_m_df@meta_dataframe_name))) {
           stop("features_m_df object is not the same in every base SB base backtest results and/or with the features_m_df being currently supplied.")
         }
         ####in target_m_df object name
         if (any(sapply(base_sb_backtest_results_list,
-                       function(x) x@sb_backtest_workflow$target_object_name != target_m_df@object_name))) {
+                       function(x) x@sb_backtest_workflow$target_object_name != target_m_df@meta_dataframe_name))) {
           stop("target_m_df object is not the same in every base SB base backtest results and/or with the target_m_df being currently supplied.")
         }
       ###Between base_learners themselves
@@ -344,7 +344,7 @@ check_inputs_meta_sb_backtest <- function(
       valid_algos <- c("ew", "rp", "sw", "mvo")
         ####signal_themes, backtest_returns and benchmark_returns
         relevant_indices_signal <- sapply(base_sb_backtest_results_list, function(x) {
-          x@sb_backtest_workflow$sb_algorithm %in% valid_algorithms
+          x@sb_backtest_workflow$sb_algorithm %in% valid_algos
         })
         check_object_consistency <- function(obj_name) {
           #####Which elements should be checked (those using valid_algos)

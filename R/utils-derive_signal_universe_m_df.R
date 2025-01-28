@@ -3,16 +3,13 @@
 #' @description
 #' Generates or extracts a signal universe for systematic backtesting, with flexible input methods.
 #'
-#' @param ss_backtest_results Signal selection backtest results (optional)
-#' @param ss_backtest_config Signal selection backtest configuration (optional)
+#' @param config SB Config
 #' @param features_m_df Feature matrix dataframe
-#' @param chosen_signals_and_positions Named vector of signals and their positions
 #' @param backtest_returns_m_xts XTS of backtest returns
 #' @param benchmark_returns_m_xts XTS of benchmark returns
 #' @param signal_themes_m_df Dataframe of signal themes (optional)
 #' @param priors_m_df Priors dataframe (optional)
 #' @param custom_signal_universe_metrics_m_df Custom metrics dataframe (optional)
-#' @param cov_matrix_benchmark Covariance matrix benchmark (optional)
 #' @param verbose Logical to enable verbose output
 #' @param parallel Logical to enable parallel processing
 #' @param winsorization_probs Winsorization probabilities
@@ -29,13 +26,25 @@
 #' - Supports full and partial signal selection
 #' - Handles both long and short signal positions
 derive_signal_universe_m_df <- function(config,
-                                        ss_backtest_results, ss_backtest_config,
                                         features_m_df,
-                                        chosen_signals_and_positions,
                                         backtest_returns_m_xts, benchmark_returns_m_xts, signal_themes_m_df, priors_m_df, custom_signal_universe_metrics_m_df,
-                                        cov_matrix_benchmark, features_object_name,
                                         verbose, parallel, winsorization_probs
                                         ){
+
+  #Get objects from config and features_m_df
+  ################################
+  ss_backtest_results <- config@ss_backtest_results
+  ss_backtest_config <- config@ss_backtest_config
+  chosen_signals_and_positions <- config@chosen_signals_and_positions
+  features_object_name = features_m_df@meta_dataframe_name
+  if (config@sb_algorithm %in% c("rp", "mvo")){
+    cov_matrix_benchmark <- config@signal_port_parameters@cov_est_method@cov_matrix_benchmark
+  } else {
+    cov_matrix_benchmark <- NULL
+  }
+
+
+  ################################
 
   if(is.null(ss_backtest_results)){
     #Run a Signal Selection Backtest based on ss_backtest_config
@@ -57,7 +66,7 @@ derive_signal_universe_m_df <- function(config,
         stop("A signal_themes_m_df must be provided when providing a ss_backtest_config")
       }
       ##Conformity
-      if(!is.null(cov_matrix_benchmark) && ss_backtest_config@alpha_test_strategy$market_factor_proxy != cov_matrix_benchmark){
+      if(!is.null(cov_matrix_benchmark) && ss_backtest_config@alpha_test_strategy@market_factor_proxy != cov_matrix_benchmark){
         message(crayon::yellow("market_factor_proxy and cov_matrix_benchmark in ss_backtest_config differ."))
       }
 
@@ -83,8 +92,8 @@ derive_signal_universe_m_df <- function(config,
     ###########################
 
       ##Get columns values
-      dates <- unique(features_m_df %>% dplyr::pull(dates))
-      tickers <- colnames(features_m_df[,-c(1:3)])
+      dates <- unique(features_m_df@data %>% dplyr::pull(dates))
+      tickers <- colnames(features_m_df@data[,-c(1:3)])
 
       ##Adjust tickers based on chosen_signals_and_positions
       if (length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions == "all"){
@@ -97,7 +106,7 @@ derive_signal_universe_m_df <- function(config,
       } else {
         ##Some checks
         ###Check if all chosen_signals_and_positions are inside features_m_df
-        if (any(!names(chosen_signals_and_positions) %in% colnames(features_m_df))){
+        if (any(!names(chosen_signals_and_positions) %in% colnames(features_m_df@data))){
           stop("chosen_signals_and_positions must be match the columns of features_m_df")
         }
           ####Print
@@ -127,23 +136,28 @@ derive_signal_universe_m_df <- function(config,
 
       ##Add a signal themes
       if(!is.null(signal_themes_m_df)){
-        if(!any(signal_themes_m_df %>% dplyr::pull(id) %in% signal_universe_m_df %>% dplyr::pull(id))){
+        if(!any(dplyr::pull(signal_themes_m_df@data, id) %in% dplyr::pull(signal_universe_m_df, id))){
           message("signal_themes_m_df does not contain all the id's in signal_universe_m_df.")
           #Join
           signal_universe_m_df <- signal_universe_m_df %>%
-            dplyr::left_join(signal_themes_m_df %>% dplyr::select(-tickers, -dates), by = "id")
+            dplyr::left_join(signal_themes_m_df@data %>% dplyr::select(-tickers, -dates), by = "id")
         }
       }
       ##Add custom signal_universe_metrics_m_df
         ###Check for adequacy of custom_signal_universe_metrics_m_df
         if(!is.null(custom_signal_universe_metrics_m_df)){
+          custom_signal_universe_metrics_m_df <- custom_signal_universe_metrics_m_df@data
           ####Coercibility
           if (!is_coercible_to_meta_dataframe(custom_signal_universe_metrics_m_df)){
             stop("custom_signal_universe_metrics_m_df not coercible to meta_dataframe.")
           }
-          ####all signal_universe_m_df ids in custom_signal_universe_metrics
-          if (any(!dplyr::pull(signal_universe_m_df, id) %in% dplyr::pull(custom_signal_universe_metrics_m_df, id))){
-            stop ("all signal_universe_m_df id's should be contemplated in custom_signal_universe_metrics_m_df")
+          ####Only numeric
+          if (!all(sapply(custom_signal_universe_metrics_m_df %>% dplyr::select(-id, -tickers, -dates), is.numeric))){
+            stop("custom_signal_universe_metrics_m_df should only contain numeric values.")
+          }
+          ####all signal_universe_m_df tickers in custom_signal_universe_metrics
+          if (any(!dplyr::pull(signal_universe_m_df, tickers) %in% dplyr::pull(custom_signal_universe_metrics_m_df, tickers))){
+            stop ("all signal_universe_m_df tickers should be contemplated in custom_signal_universe_metrics_m_df")
           }
           ####Any NA in custom_signal_universe_m_df
           if (any(is.na(custom_signal_universe_metrics_m_df))){
@@ -153,15 +167,29 @@ derive_signal_universe_m_df <- function(config,
           if (custom_signal_universe_metrics_m_df %>% nrow() != length(unique(dplyr::pull(custom_signal_universe_metrics_m_df, tickers))) * length(unique(dplyr::pull(custom_signal_universe_metrics_m_df, dates)))){
             stop("custom_signal_universe_metrics_m_df should have nrows equal to tickers * dates")
           }
+          ####Check if first training data is contemplated by custom_signal_universe
+          training_and_validation_first_date <- unique(dplyr::pull(features_m_df@data, dates))[config@training_sample_size + if (!config@sb_algorithm %in% c("ols", "ew", "sw", "mvo", "rp")) config@tuning_strategy@validation_sample_size else 0]
+          rebalancing_first_date <- unique(dplyr::pull(features_m_df@data, dates))[as.numeric(format(unique(dplyr::pull(features_m_df@data, dates)), "%m")) == config@rebalancing_months][1]
+          first_training_date <- min(training_and_validation_first_date, rebalancing_first_date)
+          if (all(first_training_date < unique(dplyr::pull(custom_signal_universe_metrics_m_df, dates)))){
+            stop("custom_signal_universe_metrics_m_df should have at least one date before first_training_date")
+          }
           ####Check if custom objective is contemplated in custom_signal_universe_metrics
-          if (!stringr::str_remove(stringr:str_remove(config@custom_objective, "min_"), "max_") %in% colnames(custom_signal_universe_metrics_m_df)){
+          if (!stringr::str_remove(stringr::str_remove(config@custom_objective, "min_"), "max_") %in% colnames(custom_signal_universe_metrics_m_df)){
             stop("custom_objective not contemplated in custom_signal_universe_metrics_m_df")
           }
-
           ###Add custom_signal_universe_metrics_m_df to signal_universe_m_df
           signal_universe_m_df <- signal_universe_m_df %>%
-            dplyr::left_join(custom_signal_universe_metrics_m_df %>% dplyr::select(-tickers, -dates), by = "id") %>% #Add custom metrics
-            dplyr::drop_na()
+            dplyr::left_join(custom_signal_universe_metrics_m_df %>% dplyr::select(-tickers, -dates), by = "id")
+
+            #####Check for NAs and warn the user
+            if (any(sapply(signal_universe_m_df, function(x) any(is.na(x))))){
+              message("custom_signal_universe_metrics_m_df does not contain data for all dates in features_m_df.\n")
+            }
+
+          ###Drop NA rows
+          signal_universe_m_df <- signal_universe_m_df %>% tidyr::drop_na()
+
         }
 
       if(!is_coercible_to_meta_dataframe(signal_universe_m_df)) stop("signal_universe_m_df not coercible to meta_dataframe.")
@@ -187,6 +215,9 @@ derive_signal_universe_m_df <- function(config,
     }
     if(!is.null(signal_themes_m_df) && ss_backtest_results@ss_backtest_workflow$signal_themes_object_name != signal_themes_m_df@meta_dataframe_name){
       stop("Object names of signal_themes_m_df differ accross ss_backtest_results and sb_backtest.")
+    }
+    if (!is.null(custom_signal_universe_metrics_m_df)){
+     warning("custom_signal_universe_metrics_m_df should only be provided when a ss_backtest_results is not given. Ignoring custom_signal_universe_metrics_m_df.")
     }
 
     ###Extract signal_universe_m_df

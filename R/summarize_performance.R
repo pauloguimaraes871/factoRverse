@@ -61,7 +61,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
 
       ###Check if most recent one is not current date and send warning if not
       if (unique(dplyr::pull(most_recent_custom_signal_universe_metrics_m_d_ref, dates)) != current_date){
-        warning(paste("custom_signal_universe_metrics_m_d_ref does not contain data for current date. Using most recent date available:",
+        message(paste("custom_signal_universe_metrics_m_d_ref does not contain data for current date. Using most recent date available:",
                       unique(dplyr::pull(most_recent_custom_signal_universe_metrics_m_d_ref, dates))))
       }
 

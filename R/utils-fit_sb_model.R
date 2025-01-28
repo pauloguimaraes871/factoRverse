@@ -48,6 +48,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                          concentration_constraint_policy, #Concentration Constraint
                          upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose){ #MISC
 
+
   ###Define the heuristic_sb_metric for optimization in heuristic portfolios
   ######################
   if(sb_algorithm %in% c("sw", "mvo")){

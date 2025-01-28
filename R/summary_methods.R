@@ -1608,7 +1608,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 
   # List of available tables
   available_tables <- c(
-    "Consolidated_OOS_Testing_Metrics",
+    "Combined_OOS_Testing_Metrics",
     "Mean_Validation_Metrics",
     "Time_Series_OOS_Testing_Metrics",
     "Time_Series_Validation_Metrics",
@@ -1754,9 +1754,9 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
   }
 
   # Prepare data based on the selected table
-  if (table_name == "Consolidated_OOS_Testing_Metrics") {
+  if (table_name == "Combined_OOS_Testing_Metrics") {
     # Extract the data
-    consolidated_metrics <- object@consolidated_oos_testing_metrics
+    consolidated_metrics <- object@combined_oos_testing_metrics
 
     # Collect all unique sb_tickers identifiers from both tables
     all_backtests <- unique(unlist(lapply(consolidated_metrics, function(df) df$sb_backtest)))
@@ -1774,7 +1774,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
       # Replace 'sb_backtest' values with labels
       data_df$sb_backtest <- legend$labels[data_df$sb_backtest]
 
-      display_table(data_df, paste("Consolidated OOS Testing Metrics -", metric_name), legend)
+      display_table(data_df, paste("Combined OOS Testing Metrics -", metric_name), legend)
     }
 
   } else if (table_name == "Mean_Validation_Metrics") {

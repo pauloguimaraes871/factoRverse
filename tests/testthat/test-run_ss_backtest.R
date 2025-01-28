@@ -1338,4 +1338,93 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
 
 })
 
+test_that("run_ss_backtest_works for inclusion of custom_signal_universe_metric", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  set.seed(123)
+  #Backtest Returns
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates)))
+
+  #Benchmark Returns xts
+  suppressWarnings(
+    mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+      IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+      SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+    ),  order.by = unique(toy_preprocessed_features$dates))
+    ))
+
+  #Chosen Signals and Positions
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  #Mocked Signal Themes
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_m_xts@data),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  ##SS Config
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.15, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+
+
+  #Custom Signal Universe Metrics
+  tickers <- colnames(features_m_df@data)[-c(1:3)]
+  corrected_tickers <- tickers
+  corrected_tickers[6] <- paste0("low_", tickers[6])
+
+  dates <- unique(features_m_df@data$dates)
+  custom_signal_universe_metrics_m_df <- expand.grid(corrected_tickers, dates, stringsAsFactors = FALSE) %>% dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::mutate(id = paste0(tickers,"-",dates)) %>%
+    dplyr::select(id, tickers, dates) %>%
+    dplyr::mutate(pe = runif(dplyr::n(), 0, 100), pb = runif(dplyr::n(), 0, 100), roe = runif(dplyr::n(), 0, 100),
+                  div_yield = runif(dplyr::n(), 0, 100), market_cap = runif(dplyr::n(), 0, 100)) %>% dplyr::arrange(id) %>%
+    create_meta_dataframe()
+
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
+                    verbose = TRUE
+    )
+  )
+
+  #Check for presence of custom_signal_universe_metrics_m_df
+  results <- ss_results@signal_universe_m_df@data %>% dplyr::select(colnames(custom_signal_universe_metrics_m_df@data))
+  expected_results <- custom_signal_universe_metrics_m_df@data %>% dplyr::filter(id %in% ss_results@signal_universe_m_df@data$id)
+  attr(expected_results, "out.attrs") <- NULL
+
+  expect_equal(results, expected_results)
+
+
+})
+
 
