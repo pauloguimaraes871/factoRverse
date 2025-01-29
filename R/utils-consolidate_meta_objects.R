@@ -295,6 +295,869 @@ derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, ba
 
 
 
+#' Consolidate Meta Backtest Results
+#'
+#' This function takes a collection of \code{sb_backtest_results} objects along with
+#' optional meta-backtest information, and consolidates out-of-sample and validation
+#' metrics into both tabular and time-series formats. Specifically, it:
+#' \itemize{
+#'   \item Identifies backtests that include validation metrics.
+#'   \item Calculates common testing date ranges across all backtests.
+#'   \item Reshapes both out-of-sample and validation metrics into a consistent \code{long} format,
+#'         as well as into time-series \code{xts} objects (\code{time_series_oos_testing_metrics} and
+#'         \code{time_series_validation_metrics}).
+#'   \item Combines full-sample metrics and those restricted to common dates, while preserving a
+#'         \code{testing_dates_range} column in the returned data frames.
+#' }
+#'
+#' @param all_sb_backtest_results A list of \code{sb_backtest_results} objects that you wish to consolidate.
+#' @param meta_sb_name An optional character string representing the name of the meta backtest results.
+#'   If \code{NULL}, meta-related naming will be skipped.
+#' @param base_sb_names A character vector containing the names of base backtest results.
+#'
+#' @details
+#' The function first determines which backtest objects contain validation metrics by inspecting
+#' the \code{sb_algorithm} in each workflow. It then computes the intersection of testing dates
+#' across all backtests and extracts both out-of-sample and validation metrics into separate
+#' data frames. Key columns, such as \code{testing_dates_range}, are included to indicate the
+#' date span over which metrics were calculated. Subsequently, the metrics are reshaped into
+#' both \code{long} and \code{wide} formats to facilitate time-series representations in \code{xts}.
+#'
+#' @return A named list containing the following elements:
+#' \itemize{
+#'   \item \code{all_dates_oos_testing_metrics}: A data frame of out-of-sample metrics for the full date range.
+#'   \item \code{common_dates_oos_testing_metrics}: A data frame of out-of-sample metrics restricted to the
+#'         common date range found across all backtests.
+#'   \item \code{mean_validation_metrics}: A data frame of validation metrics for the backtests that provide them.
+#'   \item \code{time_series_oos_testing_metrics}: A named list of \code{xts} objects containing
+#'         out-of-sample testing metrics (by metric).
+#'   \item \code{time_series_validation_metrics}: A named list of \code{xts} objects containing
+#'         validation metrics (by metric).
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' # Suppose you have a list of sb_backtest_results named base_list and a meta backtest object:
+#' my_meta_results <- consolidate_sb_metabacktest_results(
+#'   all_sb_backtest_results = c(base_list, meta_result),
+#'   meta_sb_name            = \"metaLearner\",
+#'   base_sb_names           = names(base_list)
+#' )
+#'
+#' # Access the consolidated metrics
+#' my_meta_results$all_dates_oos_testing_metrics
+#' my_meta_results$time_series_oos_testing_metrics
+#' }
+#'
+consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb_name, base_sb_names) {
+
+  ##Get all names
+  if (!is.null(meta_sb_name)){
+    all_sb_names <- c(meta_sb_name, base_sb_names)
+  } else {
+    all_sb_names <- base_sb_names
+  }
+
+  ##Identify which backtests have validation
+  sb_names_with_validation <- ifelse(
+    !sapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow$sb_algorithm) %in%
+      c("ols", "ew", "sw", "rp", "mvo"),
+    1, 0
+  )
+  sb_names_with_validation <- all_sb_names[sb_names_with_validation == 1]
+
+  ##Determine the common testing dates
+  common_testing_dates_range <- as.Date(
+    Reduce(
+      intersect,
+      lapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow$dates_testing_sample)
+    )
+  )
+
+  ##Initialize lists and data frames
+  oos_metrics_list <- list()
+  oos_metrics_common_dates_list <- list()
+  validation_metrics_list <- list()
+  all_oos_metrics_long_df <- data.frame()
+  all_validation_metrics_long_df <- data.frame()
+  oos_metric_names <- NULL
+  validation_metric_names <- NULL
+
+  ##Loop through all sb_backtest_results
+  for (i in seq_along(all_sb_backtest_results)) {
+    sb_backtest_result <- all_sb_backtest_results[[i]]
+    sb_name <- all_sb_names[i]
+
+    ###Out-of-sample testing eval metrics
+    oos_metrics_time_series <- sb_backtest_result@oos_testing_eval_metrics_m_xts@data %>%
+      as.data.frame()
+    oos_metrics_time_series$dates <- zoo::index(sb_backtest_result@oos_testing_eval_metrics_m_xts@data) %>%
+      as.Date()
+    oos_metrics_time_series$sb_backtest <- sb_name
+
+    ###Reshape to long format
+    oos_metrics_long <- tidyr::pivot_longer(
+      data = oos_metrics_time_series,
+      cols = -c(dates, sb_backtest),
+      names_to = "Metric",
+      values_to = "Value"
+    ) %>% as.data.frame()
+    all_oos_metrics_long_df <- rbind(all_oos_metrics_long_df, oos_metrics_long)
+
+    ###Consolidated OOS metrics
+    oos_metrics <- sb_backtest_result@consolidated_eval_metrics %>%
+      dplyr::select(metric, cons_oos)
+
+    ###Subset for common testing dates
+    oos_metrics_common_dates <- oos_metrics_time_series[
+      which(rownames(oos_metrics_time_series) %in% common_testing_dates_range),
+      , drop = FALSE]
+
+    ###Build full-sample metrics data frame with testing_dates_range
+    oos_metrics_df <- cbind(
+      data.frame(
+        sb_backtest = sb_name,
+        testing_dates_range = paste0(
+          min(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample)),
+          "-",
+          max(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample))
+        ),
+        check.names = FALSE,
+        stringsAsFactors = FALSE
+      ),
+      as.data.frame(oos_metrics)
+    )
+
+    ###Build common-date metrics data frame with testing_dates_range
+    oos_metrics_common_dates_df <- cbind(
+      data.frame(
+        sb_backtest = sb_name,
+        testing_dates_range = paste0(
+          min(as.Date(common_testing_dates_range)),
+          "-",
+          max(as.Date(common_testing_dates_range))
+        ),
+        check.names = FALSE,
+        stringsAsFactors = FALSE
+      ),
+      oos_metrics_common_dates %>%
+        dplyr::select(-sb_backtest, -dates) %>%
+        colMeans() %>%
+        as.data.frame() %>%
+        t()
+    )
+
+    ###Eliminate rownames
+    rownames(oos_metrics_df) <- NULL
+    rownames(oos_metrics_common_dates_df) <- NULL
+    oos_metric_names <- unique(c(oos_metric_names, names(oos_metrics_df)))
+
+    oos_metrics_list[[i]] <- oos_metrics_df
+    oos_metrics_common_dates_list[[i]] <- oos_metrics_common_dates_df
+
+    ###Validation metrics (if available)
+    validation_metrics <- if (!is.null(sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts)) {
+      sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data
+    } else {
+      NULL
+    }
+
+    ###For those that have validation
+    if (!is.null(validation_metrics) && nrow(validation_metrics) > 0) {
+      validation_metrics_time_series <- validation_metrics %>% as.data.frame()
+      validation_metrics_time_series$dates <- zoo::index(
+        sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data
+      ) %>% as.Date()
+      validation_metrics_time_series$sb_backtest <- sb_name
+
+      ###Reshape to long format for validation
+      validation_metrics_long <- tidyr::pivot_longer(
+        data = validation_metrics_time_series,
+        cols = -c(dates, sb_backtest),
+        names_to = "Metric",
+        values_to = "Value"
+      ) %>% as.data.frame()
+      all_validation_metrics_long_df <- rbind(all_validation_metrics_long_df, validation_metrics_long)
+
+      ###Average consolidated validation metrics
+      validation_metrics_average <- sb_backtest_result@consolidated_eval_metrics %>%
+        dplyr::select(metric, avg_val)
+
+      validation_metrics_df <- cbind(
+        data.frame(
+          sb_backtest = sb_name,
+          check.names = FALSE,
+          stringsAsFactors = FALSE
+        ),
+        as.data.frame(validation_metrics_average)
+      )
+
+      ###Remove rownames and add
+      rownames(validation_metrics_df) <- NULL
+      validation_metric_names <- unique(c(validation_metric_names, names(validation_metrics_df)))
+      validation_metrics_list[[i]] <- validation_metrics_df
+    }
+  }
+
+  ##Combine consolidated metrics
+  all_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_list)
+  common_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_common_dates_list)
+  mean_validation_metrics <- do.call(rbind, validation_metrics_list)
+
+  rownames(all_dates_oos_testing_metrics) <- NULL
+  rownames(common_dates_oos_testing_metrics) <- NULL
+  rownames(mean_validation_metrics) <- NULL
+
+  all_dates_oos_testing_metrics[is.nan(as.matrix(all_dates_oos_testing_metrics))] <- NA
+  common_dates_oos_testing_metrics[is.nan(as.matrix(common_dates_oos_testing_metrics))] <- NA
+  mean_validation_metrics[is.nan(as.matrix(mean_validation_metrics))] <- NA
+
+  ##Convert numeric columns
+  num_cols_oos <- sapply(all_dates_oos_testing_metrics, is.numeric)
+  all_dates_oos_testing_metrics[, num_cols_oos] <- sapply(all_dates_oos_testing_metrics[, num_cols_oos], as.numeric)
+
+  num_cols_common <- sapply(common_dates_oos_testing_metrics, is.numeric)
+  common_dates_oos_testing_metrics[, num_cols_common] <- sapply(common_dates_oos_testing_metrics[, num_cols_common], as.numeric)
+
+  num_cols_val <- sapply(mean_validation_metrics, is.numeric)
+  mean_validation_metrics[, num_cols_val] <- sapply(mean_validation_metrics[, num_cols_val], as.numeric)
+
+  ##Create time series objects for OOS
+  time_series_oos_testing_metrics <- list()
+  time_series_metric_names <- unique(all_oos_metrics_long_df$Metric)
+
+  for (metric in time_series_metric_names) {
+    metric_df <- subset(all_oos_metrics_long_df, Metric == metric)
+    metric_wide_df <- tidyr::pivot_wider(
+      data = metric_df,
+      id_cols = dates,
+      names_from = sb_backtest,
+      values_from = Value
+    ) %>% as.data.frame()
+
+    metric_wide_df <- metric_wide_df[order(as.Date(metric_wide_df$dates)), ]
+    metric_dates <- as.Date(metric_wide_df$dates)
+
+    metric_wide_xts <- xts::xts(
+      x = metric_wide_df %>% dplyr::select(-dates),
+      order.by = metric_dates
+    )
+
+    #Define name depending on meta_sb_name
+    if (!is.null(meta_sb_name)){
+      meta_xts_name <- paste0("testing_", meta_sb_name, "_", metric)
+    } else {
+      meta_xts_name <- paste0("testing_", metric)
+    }
+
+    time_series_oos_testing_metrics[[metric]] <- create_meta_xts(
+      metric_wide_xts,
+      type = "metrics",
+      meta_xts_name = meta_xts_name,
+      metric_name = metric,
+      source = all_sb_names
+    )
+  }
+
+  ##Create time series objects for validation
+  time_series_validation_metrics <- list()
+  if (nrow(all_validation_metrics_long_df) > 0) {
+    validation_time_series_metric_names <- unique(all_validation_metrics_long_df$Metric)
+
+    for (metric in validation_time_series_metric_names) {
+      metric_df <- subset(all_validation_metrics_long_df, Metric == metric)
+      val_wide_df <- tidyr::pivot_wider(
+        data = metric_df,
+        id_cols = dates,
+        names_from = sb_backtest,
+        values_from = Value
+      ) %>% as.data.frame()
+
+      val_wide_df <- val_wide_df[order(as.Date(val_wide_df$dates)), ]
+      val_dates <- as.Date(val_wide_df$dates)
+
+      val_wide_xts <- xts::xts(
+        x = val_wide_df %>% dplyr::select(-dates),
+        order.by = val_dates
+      )
+
+      #Define name depending on meta_sb_name
+      if (!is.null(meta_sb_name)){
+        meta_xts_name <- paste0("val_", meta_sb_name, "_", metric)
+      } else {
+        meta_xts_name <- paste0("val_", metric)
+      }
+
+
+      time_series_validation_metrics[[metric]] <- create_meta_xts(
+        val_wide_xts,
+        type = "metrics",
+        meta_xts_name = meta_xts_name,
+        metric_name = metric,
+        source = sb_names_with_validation
+      )
+    }
+  }
+
+  # Return all objects needed for the final sb_metabacktest_results
+  return(list(
+    all_dates_oos_testing_metrics = all_dates_oos_testing_metrics,
+    common_dates_oos_testing_metrics = common_dates_oos_testing_metrics,
+    mean_validation_metrics = mean_validation_metrics,
+    time_series_oos_testing_metrics = time_series_oos_testing_metrics,
+    time_series_validation_metrics = time_series_validation_metrics
+  ))
+
+}
+
+#' Plot Various Consolidated Backtest Results
+#'
+#' This function creates a variety of diagnostic and comparative plots for both
+#' out-of-sample (OOS) and validation metrics obtained from a set of backtest results.
+#' The type of plot depends on the value supplied to \code{plot_name}.
+#'
+#' @param combined_metrics A named list containing out-of-sample testing metrics, typically the
+#'   \code{combined_oos_testing_metrics} slot from an \code{sb_metabacktest_results} object.
+#'   Must have elements \code{all_dates_oos_testing_metrics} and \code{common_dates_oos_testing_metrics}.
+#' @param mean_validation_metrics A data frame containing aggregated validation metrics for each
+#'   backtest, usually found in the \code{mean_validation_metrics} slot of
+#'   \code{sb_metabacktest_results}.
+#' @param time_series_oos_testing_metrics A named list of time-series objects (\code{meta_xts})
+#'   capturing OOS testing metrics. Each entry corresponds to a distinct metric.
+#' @param time_series_validation_metrics A named list of time-series objects (\code{meta_xts})
+#'   capturing validation metrics. Each entry corresponds to a distinct metric.
+#' @param base_learners A list of backtest objects used primarily when plotting the
+#'   \code{\"Prediction Error Correlation\"}, since it needs the error outputs of each
+#'   learner to build the correlation matrix.
+#' @param plot_name A character string indicating which plot to generate. Options include:
+#'   \describe{
+#'     \item{\code{\"Combined and Consolidated OOS Testing Metrics - All Dates\"}}{Shows
+#'       a bar chart of OOS testing metrics across all backtests for the full date range.}
+#'     \item{\code{\"Combined and Averaged OOS Testing Metrics - Common Dates\"}}{Shows
+#'       a bar chart of OOS testing metrics across all backtests restricted to the common
+#'       date range.}
+#'     \item{\code{\"Time Series OOS Testing Metrics\"}}{Plots time-series OOS metrics for
+#'       each backtest, typically over the entire out-of-sample period.}
+#'     \item{\code{\"Mean Validation Metrics Comparison\"}}{Creates a bar chart comparing
+#'       average validation metrics across backtests.}
+#'     \item{\code{\"Time Series Validation Metrics\"}}{Plots validation metrics in a time
+#'       series format, if such data exist.}
+#'     \item{\code{\"Prediction Error Correlation\"}}{Builds a correlation heatmap of
+#'       prediction errors among the selected backtest learners.}
+#'   }
+#'
+#' @details
+#' When creating each plot, the function re-labels lengthy backtest identifiers with numeric
+#' labels for clarity. It also prints a legend that maps the numeric label back to the
+#' underlying identifier. Note that most plot types rely on subsets of the data contained in
+#' \code{combined_metrics}, \code{mean_validation_metrics}, \code{time_series_oos_testing_metrics},
+#' and \code{time_series_validation_metrics}.
+#'
+#' For the \code{\"Prediction Error Correlation\"} plot:
+#' \itemize{
+#'   \item The user can select a subset of backtests (by indices) or all of them.
+#'   \item A correlation matrix is constructed from the merged error columns of each selected
+#'         backtest, and a heatmap is displayed where only the lower triangle is filled.
+#'   \item A legend maps each column index to the corresponding backtest identifier.
+#' }
+#'
+#' @return Called for its side effects of displaying plots. For some cases, a ggplot2 plot object
+#'   is returned invisibly (e.g., in the \code{\"Prediction Error Correlation\"} case).
+#'
+#' @examples
+#' \dontrun{
+#' # Suppose you have computed sb_metabacktest_results named my_results:
+#' #   combined_metrics <- my_results@combined_oos_testing_metrics
+#' #   mean_val         <- my_results@mean_validation_metrics
+#' #   ts_oos           <- my_results@time_series_oos_testing_metrics
+#' #   ts_val           <- my_results@time_series_validation_metrics
+#'
+#' # To plot consolidated OOS testing metrics for all dates:
+#' plot_consolidated_sb_backtest_results(
+#'   combined_metrics               = combined_metrics,
+#'   mean_validation_metrics        = mean_val,
+#'   time_series_oos_testing_metrics= ts_oos,
+#'   time_series_validation_metrics = ts_val,
+#'   base_learners                  = list_of_backtests,  # Only needed if you want error correlation
+#'   plot_name                      = \"Combined and Consolidated OOS Testing Metrics - All Dates\"
+#' )
+#' }
+#'
+plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validation_metrics,
+                                                  time_series_oos_testing_metrics, time_series_validation_metrics,
+                                                  base_learners,
+                                                  plot_name) {
+
+  # Define color palette
+  neon_blue <- "#00BFFF"
+  neon_pink <- "#FF1493"
+  neon_yellow <- "#FFFF00"
+  neon_purple <- "#8A2BE2"
+  neon_orange <- "#FF4500"
+  neon_green <- "#39FF14"
+  blue_bg <- "#001f3f"
+  faint_blue <- "#003366"
+  black <- "#000000"
+  white <- "#FFFFFF"
+  neon_hot_pink <- "#FF69B4"      # Hot Pink
+  neon_lime_green <- "#32CD32"    # Lime Green
+  neon_bright_orange <- "#FFA500" # Bright Orange
+
+  # Extended neon palette with 9 colors
+  extended_neon_palette <- c(
+    neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
+    neon_hot_pink, neon_lime_green, neon_bright_orange
+  )
+
+  # Generate the selected plot
+  if (plot_name == "Combined and Consolidated OOS Testing Metrics - All Dates") {
+    # Plot consolidated OOS testing metrics for all models (base and meta learners)
+
+    # Prepare data
+    # Extract full periods and common dates metrics
+    all_dates_metrics <- combined_metrics$all_dates_oos_testing_metrics
+    all_dates_metrics$period <- "All Dates"
+
+
+    # Replace long sb_backtest identifiers with labels
+    all_backtests <- unique(all_dates_metrics$sb_backtest)
+    labels <- seq_along(all_backtests)
+    legend_df <- data.frame(backtest = all_backtests, label = labels)
+    all_dates_metrics$backtest_label <- legend_df$label[match(all_dates_metrics$sb_backtest, legend_df$backtest)]
+
+    # Create the plot
+    p <- ggplot2::ggplot(
+      all_dates_metrics,
+      ggplot2::aes(
+        x    = factor(backtest_label),
+        y    = cons_oos,
+        fill = factor(backtest_label)
+      )
+    ) +
+      ggplot2::geom_col(position = "dodge") +
+      ggplot2::facet_wrap(~ metric, scales = "free_y") +
+      ggplot2::labs(
+        title = "Combined and Consolidated OOS Testing Metrics - All Dates",
+        x     = "Model (Backtest Label)",
+        y     = "Metric Value",
+        fill  = "Backtest Label"
+      ) +
+      ggplot2::scale_fill_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = white),
+        axis.title            = ggplot2::element_text(color = white),
+        strip.text            = ggplot2::element_text(color = white, face = "bold"),
+        legend.title          = ggplot2::element_text(color = white),
+        legend.text           = ggplot2::element_text(color = white),
+        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    # Print the legend mapping Backtest labels to identifiers
+    cat("\nLegend:\n")
+    for (i in seq_along(labels)) {
+      cat(paste(labels[i], ":", all_backtests[i], "\n"))
+    }
+
+    print(p)
+    return(invisible(p))
+
+  } else if (plot_name == "Combined and Averaged OOS Testing Metrics - Common Dates") {
+
+    # Prepare data
+    common_dates_raw <- combined_metrics$common_dates_oos_testing_metrics
+    common_dates_metrics <- tidyr::pivot_longer(
+      common_dates_raw,
+      cols      = -c(sb_backtest, testing_dates_range),
+      names_to  = "metric",
+      values_to = "cons_oos"
+    )
+    common_dates_metrics$Period <- "Common Dates"
+
+    # Use the same labeling logic
+    all_backtests <- unique(common_dates_metrics$sb_backtest)
+    labels <- seq_along(all_backtests)
+    legend_df <- data.frame(backtest = all_backtests, label = labels)
+    common_dates_metrics$backtest_label <- legend_df$label[match(common_dates_metrics$sb_backtest, legend_df$backtest)]
+
+    # Plot (Common Dates)
+    p <- ggplot2::ggplot(
+      common_dates_metrics,
+      ggplot2::aes(
+        x    = factor(backtest_label),
+        y    = cons_oos,
+        fill = factor(backtest_label)
+      )
+    ) +
+      ggplot2::geom_col(position = "dodge") +
+      ggplot2::facet_wrap(~ metric, scales = "free_y") +
+      ggplot2::labs(
+        title = "Combined and Averaged OOS Testing Metrics - Common Dates",
+        x     = "Model (Backtest Label)",
+        y     = "Metric Value",
+        fill  = "Backtest Label"
+      ) +
+      ggplot2::scale_fill_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = white),
+        axis.title            = ggplot2::element_text(color = white),
+        strip.text            = ggplot2::element_text(color = white, face = "bold"),
+        legend.title          = ggplot2::element_text(color = white),
+        legend.text           = ggplot2::element_text(color = white),
+        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    # Show a quick legend
+    cat("\nLegend (Common Dates):\n")
+    for (i in seq_along(labels)) {
+      cat(paste0(labels[i], " : ", all_backtests[i], "\n"))
+    }
+
+    print(p)
+    return(invisible(p))
+
+
+  } else if (plot_name == "Time Series OOS Testing Metrics") {
+    # Plot time series OOS testing metrics for each model
+
+    # Prepare data
+    # time_series_oos_testing_metrics is a list of data frames for each metric
+    # Combine them into one data frame for plotting
+
+    metrics_list <- time_series_oos_testing_metrics
+    metric_names <- names(metrics_list)
+
+    plot_data <- data.frame()
+
+    for (metric_name in metric_names) {
+      metric_df <- metrics_list[[metric_name]]@data %>% as.data.frame()
+      metric_long <- reshape2::melt(
+        as.data.frame(metric_df),
+        id.vars = NULL,
+        variable.name = "backtest",
+        value.name = "value"
+      )
+      metric_long$dates <- as.Date(zoo::index(metrics_list[[metric_name]]@data))
+      metric_long$metric <- metric_name
+      plot_data <- rbind(plot_data, metric_long)
+    }
+
+    # Replace long backtest identifiers with labels
+    all_backtests <- unique(plot_data$backtest)
+    labels <- seq_along(all_backtests)
+    legend <- data.frame(
+      backtest = all_backtests,
+      label = labels
+    )
+    plot_data$backtest_label <- legend$label[match(plot_data$backtest, legend$backtest)]
+
+    # Create the plot
+    p <- ggplot2::ggplot(
+      plot_data,
+      ggplot2::aes(x = dates, y = value, color = as.factor(backtest_label))
+    ) +
+      ggplot2::geom_line() +
+      ggplot2::facet_wrap(~metric, scales = "free_y") +
+      ggplot2::labs(
+        title = "Time Series OOS Testing Metrics",
+        x = "Date",
+        y = "Metric Value",
+        color = "Model (Backtest Label)"
+      ) +
+      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    # Print the legend mapping Backtest labels to identifiers
+    cat("\nLegend:\n")
+    for (i in seq_along(labels)) {
+      cat(paste(labels[i], ":", all_backtests[i], "\n"))
+    }
+
+    print(p)
+    return(invisible(p))
+
+  } else if (plot_name == "Mean Validation Metrics Comparison") {
+    # Plot mean validation metrics for each model
+
+    # Prepare data
+    data_df <- mean_validation_metrics
+
+    # Replace long backtest identifiers with labels
+    if ("sb_backtest" %in% names(data_df)) {
+      all_backtests <- unique(data_df$sb_backtest)
+      labels <- seq_along(all_backtests)
+      legend <- data.frame(
+        backtest = all_backtests,
+        label = labels
+      )
+      data_df$backtest_label <- legend$label[match(data_df$sb_backtest, legend$backtest)]
+    } else {
+      legend <- NULL
+    }
+
+    # Melt data for plotting
+    plot_data <- reshape2::melt(
+      data_df,
+      id.vars = c("sb_backtest", "backtest_label", "metric"),
+      value.name = "avg_val"
+    )
+
+    # Create the plot
+    p <- ggplot2::ggplot(
+      plot_data,
+      ggplot2::aes(
+        x    = as.factor(backtest_label),
+        y    = avg_val,
+        fill = factor(backtest_label)
+      )
+    ) +
+      ggplot2::geom_col(position = "dodge") +
+      ggplot2::facet_wrap(~ metric, scales = "free_y") +
+      ggplot2::labs(
+        title = "Mean Validation Metrics Comparison",
+        x = "Model (Backtest Label)",
+        y = "Metric Value",
+        fill = "Metric"
+      ) +
+      ggplot2::scale_fill_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = white),
+        axis.title            = ggplot2::element_text(color = white),
+        strip.text            = ggplot2::element_text(color = white, face = "bold"),
+        legend.title          = ggplot2::element_text(color = white),
+        legend.text           = ggplot2::element_text(color = white),
+        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+
+    # Print the legend mapping Backtest labels to identifiers
+    if (!is.null(legend)) {
+      cat("\nLegend:\n")
+      for (i in seq_along(labels)) {
+        cat(paste(labels[i], ":", all_backtests[i], "\n"))
+      }
+    }
+
+    print(p)
+    return(invisible(p))
+
+  } else if (plot_name == "Time Series Validation Metrics") {
+    # Plot time series validation metrics for each model
+
+    # Prepare data
+    metrics_list <- time_series_validation_metrics
+    metric_names <- names(metrics_list)
+
+    plot_data <- data.frame()
+
+    for (metric_name in metric_names) {
+      metric_df <- metrics_list[[metric_name]]@data
+      metric_long <- reshape2::melt(
+        as.data.frame(metric_df),
+        id.vars = NULL,
+        variable.name = "sb_backtest",
+        value.name = "value"
+      )
+      metric_long$dates <- as.Date(zoo::index(metrics_list[[metric_name]]@data))
+      metric_long$metric <- metric_name
+      plot_data <- rbind(plot_data, metric_long)
+    }
+
+    # Replace long Backtest identifiers with labels
+    all_backtests <- unique(plot_data$sb_backtest)
+    labels <- seq_along(all_backtests)
+    legend <- data.frame(
+      backtest = all_backtests,
+      label = labels
+    )
+    plot_data$backtest_label <- legend$label[match(plot_data$sb_backtest, legend$backtest)]
+
+    # Create the plot
+    p <- ggplot2::ggplot(
+      plot_data,
+      ggplot2::aes(x = dates, y = value, color = as.factor(backtest_label))
+    ) +
+      ggplot2::geom_line() +
+      ggplot2::facet_wrap(~metric, scales = "free_y") +
+      ggplot2::labs(
+        title = "Time Series Validation Metrics",
+        x = "Date",
+        y = "Metric Value",
+        color = "Model (Backtest Label)"
+      ) +
+      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = white),
+        axis.title = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+      )
+
+    # Print the legend mapping Backtest labels to identifiers
+    cat("\nLegend:\n")
+    for (i in seq_along(labels)) {
+      cat(paste(labels[i], ":", all_backtests[i], "\n"))
+    }
+
+    print(p)
+    return(invisible(p))
+
+  } else if (plot_name == "Prediction Error Correlation") {
+
+    #Get Cov Matrix of Errors
+    oos_errors_df <- purrr::reduce(
+      base_learners[-1], #Remove first to avoid duplication
+      function(x, y) {
+        y_df <- y@oos_sb_outputs_m_df@data %>%
+          dplyr::select(id, error) %>%
+          dplyr::rename(!!y@backtest_identifier := error)  # Rename before joining
+
+        dplyr::left_join(x, y_df, by = "id")  # Avoids column duplication
+      },
+      .init = base_learners[[1]]@oos_sb_outputs_m_df@data %>%
+        dplyr::select(id, error) %>%
+        dplyr::rename(!!base_learners[[1]]@backtest_identifier := error) #Initialization is needed because a data.frame must be returned
+    ) %>% dplyr::select(-id)
+
+    # Generate Correlation Matrix
+    oos_error_cor_matrix <- stats::cor(oos_errors_df)
+    backtest_names <- colnames(oos_error_cor_matrix)  # Extract backtest identifiers
+
+    # Create index mapping for backtests
+    backtest_indices <- setNames(seq_along(backtest_names), backtest_names)
+
+    # Selection
+    cat("\nEnter 'all' for all backtests,\nOR indices (e.g. '1,3'):\n")
+    selection <- readline(prompt = "Your choice: ")
+
+    # Process user selection
+    if (nzchar(selection) && tolower(selection) != "all") {
+      parts <- strsplit(selection, ",")[[1]]
+      parts <- trimws(parts)
+      all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+      if (all_numeric) {
+        indices <- as.numeric(parts)
+        if (any(indices < 1 | indices > length(backtest_names)))
+          stop("Some indices are out of range.")
+        backtests_to_plot <- backtest_names[indices]  # Convert indices to names
+      } else {
+        stop("Please enter numeric indices only.")
+      }
+    } else {
+      backtests_to_plot <- backtest_names
+    }
+
+    # Subset the Correlation Matrix
+    sub_mat <- oos_error_cor_matrix[backtests_to_plot, backtests_to_plot, drop = FALSE]
+    sub_mat[upper.tri(sub_mat, diag = FALSE)] <- NA  # Keep lower triangle
+
+    df_cor <- as.data.frame(sub_mat)
+    df_cor$BacktestRow <- rownames(df_cor)
+
+    df_long <- df_cor %>%
+      tidyr::pivot_longer(
+        cols      = -BacktestRow,
+        names_to  = "BacktestCol",
+        values_to = "Correlation"
+      )
+
+    # Replace long backtest names with index numbers in the plot
+    df_long$BacktestRow <- as.character(backtest_indices[df_long$BacktestRow])
+    df_long$BacktestCol <- as.character(backtest_indices[df_long$BacktestCol])
+
+    # Generate the heatmap plot
+    p <- ggplot2::ggplot(
+      df_long,
+      ggplot2::aes(
+        x = factor(.data$BacktestCol, levels = as.character(backtest_indices[backtests_to_plot])),
+        y = factor(.data$BacktestRow, levels = rev(as.character(backtest_indices[backtests_to_plot]))),
+        fill = .data$Correlation
+      )
+    ) +
+      ggplot2::geom_tile(color = "white") +
+
+      # Add text labels
+      ggplot2::geom_text(
+        ggplot2::aes(label = round(.data$Correlation, 2)),
+        color = "black",
+        na.rm = TRUE,
+        size = 3
+      ) +
+
+      ggplot2::scale_fill_gradient2(
+        low      = neon_pink,
+        mid      = white,
+        high     = neon_green,
+        midpoint = 0,
+        limits   = c(-1, 1)
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        axis.text.x      = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1, color = white),
+        axis.text.y      = ggplot2::element_text(color = white),
+        axis.title       = ggplot2::element_blank(),
+        plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold"),
+        legend.position  = "right",
+        legend.title     = ggplot2::element_text(color = white),
+        legend.text      = ggplot2::element_text(color = white)
+      ) +
+      ggplot2::labs(
+        title = paste("Base Learners Backtest Correlation Heatmap")
+      )
+
+    print(p)
+
+    #Print legend
+    cat("Legend:\n")
+    for (i in seq_along(backtest_names)) {
+      cat(paste0(i, ": ", backtest_names[i], "\n"))
+    }
+
+    return(invisible(p))
+
+
+  }
+
+  }
+
+
+
+
 
 
 
