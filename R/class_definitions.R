@@ -1859,6 +1859,7 @@ setClass(
       stop("base_sb_backtest_configs and base_sb_backtest_results can't be set at the same time.")
     }
 
+
     #Base SB Backtest Configs Check
     if (!is.null(object@base_sb_backtest_configs)){
 
@@ -1908,7 +1909,8 @@ setClass(
         errors <- c(errors, "Rebalancing months must match across all 'sb_backtest_config' elements.")
       }
 
-      # Loop over each sb_backtest_config in the list
+
+      # Loop over each sb_backtest_config in the list and check general params
       for (i in seq_along(object@base_sb_backtest_configs)) {
         config <- object@base_sb_backtest_configs[[i]]
 
@@ -1937,6 +1939,11 @@ setClass(
         if (length(expected_hyperparameters) == 0) {
           errors <- c(errors, paste0("Unknown sb_algorithm '", sb_algorithm, "' in config ", i, "."))
           next
+        }
+
+        #If custom_objective is meta_specific, record an error
+        if (stringr::str_remove(stringr::str_remove(config@custom_objective, "min_"), "max_") %in% c("rmse", "rss", "hr", "mb", "cp", "mae", "mape", "mphe", "mpe")){
+          errors <- c(errors, paste0("custom_objective can't be set to ", config@custom_objective, " in config ", i, "as it is exclusive for meta-learners."))
         }
 
         # For algorithms other than 'ols', perform hyperparameter checks

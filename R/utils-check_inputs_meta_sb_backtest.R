@@ -341,7 +341,7 @@ check_inputs_meta_sb_backtest <- function(
         }
       ###Between base_learners themselves
       ###Do it for signal_themes_m_df, backtest_returns and benchmark_returns (only valid for ew, rp, sw and mvo)
-      valid_algos <- c("ew", "rp", "sw", "mvo")
+      valid_algos <- c("rp","mvo")
         ####signal_themes, backtest_returns and benchmark_returns
         relevant_indices_signal <- sapply(base_sb_backtest_results_list, function(x) {
           x@sb_backtest_workflow$sb_algorithm %in% valid_algos
@@ -376,7 +376,7 @@ check_inputs_meta_sb_backtest <- function(
                          (x@sb_backtest_workflow$training_sample_size + x@sb_backtest_workflow$validation_sample_size) !=
                          (base_sb_backtest_results_list[[1]]@sb_backtest_workflow$training_sample_size + base_sb_backtest_results_list[[1]]@sb_backtest_workflow$validation_sample_size)
                        }))){
-          stop("training_sample_size + validation_sample_size is not the same in every base SB backtest results.")
+          stop("training_sample_size plus validation_sample_size is not the same in every base SB backtest results.")
         }
         ####Rebalancing Month
         if (any(sapply(base_sb_backtest_results_list,
@@ -394,18 +394,25 @@ check_inputs_meta_sb_backtest <- function(
           stop("dates_testing_sample is not the same in every base SB backtest results.")
         }
         ####Check if custom objective depends on consolidated oos_eval_metrics_xts
+        if (stringr::str_remove(stringr::str_remove(config@meta_sb_backtest_config@custom_objective, "max_"), "min_") %in% c("rmse", "rss", "hr", "mb", "cp", "mae", "mape", "mphe", "mpe") &&
+            !is.null(meta_custom_signal_universe_metrics_m_df)){
+          stop("custom_objective depends on base-level consolidated oos_eval_metrics_xts. Please set meta_custom_signal_universe_metrics_m_df to NULL.")
+        }
 
 
     }  else {
       base_sb_backtest_configs_list <- config@base_sb_backtest_configs #Get list
 
       ####Training Sample + Validation Sample
-      if (any(sapply(base_sb_backtest_configs_list,
-                     function(x){
-                       (x@training_sample_size + if (x@sb_algorithm %in% c("ols", "ew", "rp", "sw", "mvo", "custom_weights")) x@tuning_strategy@validation_sample_size else 0) !=
-                       (base_sb_backtest_configs_list[[1]]@training_sample_size +  if (x@sb_algorithm %in% c("ols", "ew", "rp", "sw", "mvo", "custom_weights")) base_sb_backtest_configs_list[[1]]@tuning_strategy@validation_sample_size else 0)
-                     }))){
-        stop("training_sample_size + validation_sample_size is not the same in every base SB backtest configs")
+      total_training_and_validation_sample_size_list <- lapply(base_sb_backtest_configs_list, function(x){
+        if (!x@sb_algorithm %in% c("ols", "ew", "rp", "sw", "mvo", "custom_weights")){
+          (x@training_sample_size +  x@tuning_strategy@validation_sample_size)
+        } else {
+          x@training_sample_size
+        }
+      })
+      if (any(sapply(total_training_and_validation_sample_size_list, function(x) x != total_training_and_validation_sample_size_list[[1]]))){
+        stop("training_sample_size plus validation_sample_size is not the same in every base SB backtest configs")
       }
       ####Rebalancing Month
       if (any(sapply(base_sb_backtest_configs_list,

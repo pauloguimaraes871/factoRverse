@@ -361,9 +361,9 @@ setMethod("run_sb_backtest",
                   sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
                 }
                 if (sb_algorithm %in% c("rp", "mvo")){
-                  sb_backtest_results@sb_backtest_workflow$backtest_returns_object <- backtest_returns_object_name
+                  sb_backtest_results@sb_backtest_workflow$backtest_returns_object_name <- backtest_returns_object_name
                   sb_backtest_results@sb_backtest_workflow$backtest_returns_workflow <- backtest_returns_workflow
-                  sb_backtest_results@sb_backtest_workflow$benchmark_returns_object <- benchmark_returns_object_name
+                  sb_backtest_results@sb_backtest_workflow$benchmark_returns_object_name <- benchmark_returns_object_name
                   sb_backtest_results@sb_backtest_workflow$benchmark_returns_workflow <- benchmark_returns_workflow
                 }
 

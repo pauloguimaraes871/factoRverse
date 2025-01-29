@@ -752,10 +752,10 @@ check_inputs_sb_backtest <- function(
           if(!opt_objective %in% c("return", "risk", "sharpe")){
             stop("opt_objective should be set to return, risk or sharpe")
           }
-          if(!concentration_constraint_policy$benchmark %in% c("theme_sb", "theme_ss")){
+          if(length(concentration_constraint_policy) > 0 && !concentration_constraint_policy$benchmark %in% c("theme_sb", "theme_ss")){
             stop("concentration_constraint_policy's benchmark should be set to theme_sb or theme_ss")
           }
-          if(!concentration_constraint_policy$benchmark %in% stringr::str_remove(colnames(signal_universe_m_df), "_bench_weights")){
+          if(length(concentration_constraint_policy) > 0 && !concentration_constraint_policy$benchmark %in% stringr::str_remove(colnames(signal_universe_m_df), "_bench_weights")){
             stop("concentration_constraint_policy's benchmark should be present in signal_universe_m_df")
           }
 
