@@ -1838,11 +1838,16 @@ setClass(
       }
     }
     if (length(object@meta_sb_backtest_config@ss_backtest_config) > 0){
+      stop("meta-level signal selection is not supported at this time.")
       if(object@meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions != "all"){
         stop("chosen_signals_and_positions should always be 'all' at meta-level.",
              "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
       }
     }
+    if (length(object@meta_sb_backtest_config@ss_backtest_results) > 0){
+      stop("meta-level signal selection is not supported at this time.")
+    }
+
     #Check for features_passthrough
     if (any(object@features_passthrough %in% c("long", "short", "force"))){
       stop ("features_passthrough should just declare which signals from features_m_df should be added to meta learner features.

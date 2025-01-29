@@ -248,15 +248,15 @@ setMethod("run_sb_backtest",
                 benchmark_returns_m_xts <- benchmark_returns_m_xts@data
               } else {
                 if(!is.null(backtest_returns_m_xts)){
-                  message("backtest_returns_m_xts provided but not used in sb_algorithm choice")
+                  message("backtest_returns_m_xts assigned as NULL, as it is not used in sb_algorithm choice")
                   backtest_returns_m_xts <- NULL
                 }
                 if(!is.null(benchmark_returns_m_xts)){
-                  message("benchmark_returns_m_xts provided but not used in sb_algorithm choice")
+                  message("benchmark_returns_m_xts assigned as NULL, as it is not used in sb_algorithm choice")
                   benchmark_returns_m_xts <- NULL
                 }
                 if(!is.null(signal_themes_m_df)){
-                  message("signal_themes_m_df provided but not used in sb_algorithm choice")
+                  message("signal_themes_m_df assigned as NULL, as it is not used in sb_algorithm choice")
                   signal_themes_m_df <- NULL
                 }
 
@@ -1267,7 +1267,8 @@ run_sb_backtest_internal <- function(
 
   #Testing Performance Summary
     ##Create consolidated row
-    consolidated_eval_metrics_row <- calculate_eval_metrics(pred = unlist(oos_prediction_list), target = unlist(oos_y_list),
+    consolidated_eval_metrics_row <- calculate_eval_metrics(pred = oos_sb_outputs_m_df %>% tidyr::drop_na() %>% dplyr::pull(pred),
+                                                            target = oos_sb_outputs_m_df %>% tidyr::drop_na() %>% dplyr::pull(target),
                                                             huber_delta = huber_delta, quantile_tau = quantile_tau, chosen_eval_metric = chosen_eval_metric)[-1] #-1 to eliminate Score
 
     consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics_row), cons_oos = as.numeric(consolidated_eval_metrics_row),

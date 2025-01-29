@@ -728,7 +728,7 @@ check_inputs_sb_backtest <- function(
         }
 
         if(cov_matrix_sample_size > training_sample_size){
-          stop("cov_matrix_sample_size should be greater than or equal to training_sample_size")
+          stop("cov_matrix_sample_size should be smaller than or equal to training_sample_size")
         }
 
         if(!is.logical(active_returns)){
