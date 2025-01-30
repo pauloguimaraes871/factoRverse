@@ -3508,10 +3508,7 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     "Time Series Validation Metrics",
     "Prediction Error Correlation",
     "Base Learners vs Meta Learners Over Time",
-    "Decomposed Feature Importance Side-by-Side by Signal",
-    "Decomposed Feature Importance Side-by-Side by Theme",
-    "Decomposed Feature Importance Heatmap by Signal",
-    "Decomposed Feature Importance Heatmap by Theme"
+    "Hierarchical Feature Importance"
   )
 
   # Display the available plots and prompt the user if plot_id is NULL
@@ -3615,175 +3612,187 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     # Use meta_xts plot method
     plot(x = meta_xts, clustering_list = clustering_list)
 
-  }  else if (plot_name %in% c("Decomposed Feature Importance Side-by-Side by Signal", "Decomposed Feature Importance Side-by-Side by Theme",
-                              "Decomposed Feature Importance Heatmap by Signal", "Decomposed Feature Importance Heatmap by Theme")) {
+  }  else if (plot_name == "Hierarchical Feature Importance"){
 
-    #Check if gsm_algorithm matches
-    if (!all(sapply(base_learners, function(x) x@sb_backtest_workflow$gsm_algorithm) %in% meta_learner@sb_backtest_workflow$gsm_algorithm)){
-      stop("Base learners and meta learner must have the same gsm_algorithm")
+    # Prompt User for Number of Top Features**
+    num_features <- as.integer(readline(prompt = "Enter the number of top features to display: "))
+
+    # Ensure valid input
+    if (is.na(num_features) || num_features <= 0) {
+      stop("Invalid input. Please enter a positive integer.")
     }
 
-    #Get final_feature_importance object for meta_learner
-    meta_fi_m_df <-  meta_learner@final_feature_importance_m_d_ref@data
-    # Make a lookup from backtest_identifier -> base feature importance data
-    base_lookup <- setNames(
-      lapply(base_learners, function(x) x@final_feature_importance_m_d_ref@data),
-      sapply(base_learners, function(x) x@backtest_identifier)
-    )
-    # Prepare a container to hold new rows
-    new_rows <- list()
+    # **1. Extract Meta-Learner Feature Importances**
+    meta_importance_df <- x@meta_sb_backtest_results@final_feature_importance_m_d_ref@data
 
-    # Iterate over each row in the meta table
-    for (i in seq_len(nrow(meta_fi_m_df))) {
-      meta_row <- meta_fi_m_df[i, ]
-      meta_learner_id <- meta_row[["tickers"]]  # ALWAYS use 'tickers'
+    # **NEW: Filter Meta-Learner Features Based on Importance**
+    meta_importance_df <- meta_importance_df %>%
+      dplyr::slice_max(order_by = abs(importance), n = num_features)
 
-      # Check if this meta row matches a known base-learner ID
-      if (meta_learner_id %in% names(base_lookup)) {
-        # We found a base learner that the meta learner is referencing
-        base_fi_m_df <- base_lookup[[meta_learner_id]]
+    # **2. Extract Base Learners' Feature Importances**
+    # Get the list of base learners
+    base_learners_feature_imp_list <- x@base_sb_backtest_results_list
+    base_model_ids <- names(base_learners_feature_imp_list)
 
-        # Sum of the base learner's normalized_importance
-        sum_base_norm <- sum(base_fi_m_df$normalized_importance, na.rm = TRUE)
-        if (sum_base_norm == 0) {
-          # If it's zero or NA, skip (avoid divide-by-zero)
-          next
-        }
-
-        # "Fraction" is how much normalized importance the meta row had
-        meta_fraction <- meta_row[["normalized_importance"]]
-
-        # Scale the base features by meta_fraction
-        # We store into scaled_norm for clarity:
-        base_fi_m_df$scaled_norm <- meta_fraction * base_fi_m_df$normalized_importance / sum_base_norm
-
-        # For each base feature, either update an existing row in meta_fi_m_df or create a new one
-        for (j in seq_len(nrow(base_fi_m_df))) {
-          base_feature_name <- as.character(base_fi_m_df[j, "tickers"])  # ALWAYS use 'tickers'
-
-          # Attempt to find an existing row in meta_fi_m_df with the same (tickers, date)
-          idx_existing <- which(
-            meta_fi_m_df$tickers == base_feature_name
-          )
-
-          # The scaled value for both 'importance' and 'normalized_importance'
-          scaled_val <- base_fi_m_df$scaled_norm[j]
-
-          if (length(idx_existing) > 0) {
-            # If row exists, just add to the existing row's importance and normalized_importance
-            meta_fi_m_df$importance[idx_existing] <-
-              meta_fi_m_df$importance[idx_existing] + scaled_val
-
-            meta_fi_m_df$normalized_importance[idx_existing] <-
-              meta_fi_m_df$normalized_importance[idx_existing] + scaled_val
-          } else {
-            # Create a new row from meta_row as a template
-            new_row <- meta_row
-
-            # Overwrite relevant columns
-            new_row[["id"]] <- base_fi_m_df$id[j]  # or keep meta_row's id if you prefer
-            new_row[["tickers"]] <- base_feature_name
-            new_row[["dates"]] <- base_fi_m_df$dates[j]
-            new_row[["importance"]] <- scaled_val
-            new_row[["normalized_importance"]] <- scaled_val
-
-            # Carry over other columns from base_fi_m_df if needed
-            if ("is_eligible" %in% colnames(base_fi_m_df)) {
-              new_row[["is_eligible"]] <- base_fi_m_df$is_eligible[j]
-            }
-            if ("theme" %in% colnames(base_fi_m_df)) {
-              new_row[["theme"]] <- base_fi_m_df$theme[j]
-            }
-
-            new_rows[[length(new_rows) + 1]] <- new_row
-          }
-        }
-      }
+    # If base_model_ids are NULL or empty, assign default names
+    if (is.null(base_model_ids) || any(base_model_ids == "")) {
+      base_model_ids <- paste0("BaseLearner", seq_along(base_learners_feature_imp_list))
+      names(base_learners_feature_imp_list) <- base_model_ids
     }
 
-    # Bind the newly created rows, if any
-    if (length(new_rows) > 0) {
-      meta_fi_m_df <- dplyr::bind_rows(meta_fi_m_df,new_rows)
-    }
+    # **NEW: Filter Each Base Learner’s Feature Importance**
+    base_learners_feature_imp <- lapply(base_learners_feature_imp_list, function(bl) {
+      bl@final_feature_importance_m_d_ref@data %>%
+        dplyr::slice_max(order_by = abs(importance), n = num_features)
+    })
 
-    # Remove rows that correspond to base learners
-    base_learner_ids <- names(base_lookup)
-    meta_fi_m_df <- meta_fi_m_df[!(meta_fi_m_df$tickers %in% base_learner_ids), ]
+    # **3. Normalize Base Models' Relative Importances**
+    base_importances_sum <- sapply(base_learners_feature_imp, function(df) {
+      sum(abs(df$importance))
+    })
 
-    # Consolidate repeated tickers by summing importance & normalized_importance
-    meta_fi_m_df <- meta_fi_m_df %>%
-      dplyr::group_by(tickers, dates) %>%
-      dplyr::summarise(
-        id = dplyr::first(id),  # or paste them, or keep the first
-        importance = sum(importance, na.rm = TRUE),
-        normalized_importance = sum(normalized_importance, na.rm = TRUE),
-        is_eligible = max(is_eligible, na.rm = TRUE),  # or first
-        theme = dplyr::first(theme),
-        .groups = "drop"
-      ) %>% as.data.frame()
+    total_importance_sum <- sum(base_importances_sum)
+    base_importances_norm <- base_importances_sum / total_importance_sum
 
-    # Add themes for NA cases if signal_themes is the same
-    if (all(unname(sapply(base_learners, function(x) x@sb_backtest_workflow$signal_themes_object_name)) %in%
-            base_learners[[1]]@sb_backtest_workflow$signal_themes_object_name)){
-      meta_fi_m_df <- meta_fi_m_df %>%
-        dplyr::left_join(base_fi_m_df %>% dplyr::select(tickers, theme), by = "tickers") %>% #Get themes from last base_fi_m_df
-        dplyr::mutate(theme = ifelse(is.na(theme.x), theme.y, theme.x)) %>% dplyr::select(-theme.x, -theme.y) #Replace NA with theme.y
-    }
+    # **4. Prepare Links from Features to Base Learners**
+    links_base <- mapply(
+      FUN = function(base_df, base_model_id) {
+        base_df %>%
+          dplyr::mutate(
+            from = tickers,  # Feature name
+            to = base_model_id,  # Base learner ID
+            value = importance  # Importance value
+          ) %>%
+          dplyr::select(from, to, value)
+      },
+      base_df = base_learners_feature_imp,
+      base_model_id = base_model_ids,
+      SIMPLIFY = FALSE
+    ) %>%
+      dplyr::bind_rows()
 
-    #Create m_df
-    meta_fi_m_df <- meta_fi_m_df %>%
+    # **5. Prepare Links from Features Directly to Meta-Learner**
+    links_direct <- meta_importance_df %>%
       dplyr::mutate(
-        dates = as.Date(max(dates)),
-        id = paste0(tickers, "-", dates)
+        from = tickers,  # Feature name
+        to = "meta_learner",  # Meta-learner node
+        value = importance  # Importance value
       ) %>%
-      dplyr::relocate(id, .before = tickers) %>% create_meta_dataframe()
+      dplyr::select(from, to, value)
 
-      ##Plot according to plot id
-      if (plot_name == "Decomposed Feature Importance Side-by-Side by Signal"){
+    # **6. Prepare Links from Base Learners to Meta-Learner**
+    links_meta <- data.frame(
+      from = base_model_ids,  # Base learner IDs
+      to = "meta_learner",  # Meta-learner node
+      value = base_importances_norm,  # Normalized importance values
+      stringsAsFactors = FALSE
+    )
 
-      plot_type <- "cross_sectional"
-      clustering_variables <- "tickers"
-      calc_stat <- "mean"
-      variable <- "normalized_importance"
+    # **7. Combine All Links**
+    links <- dplyr::bind_rows(links_base, links_direct, links_meta)
 
-      plot(meta_fi_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    # **8. Define Nodes for the Hierarchical Tree**
+    features <- unique(c(links_base$from, links_direct$from))
+    features <- setdiff(features, base_model_ids)
+    base_learners <- base_model_ids
+    meta_learner <- "meta_learner"
 
-    } else if (plot_name == "Decomposed Feature Importance Side-by-Side by Theme"){
+    nodes <- data.frame(
+      name = unique(c(features, base_learners, meta_learner)),
+      stringsAsFactors = FALSE
+    )
 
-      if(!"theme" %in% colnames(meta_fi_m_df@data)){
-        stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
-      }
+    # **10. Categorize Nodes into Types**
+    nodes <- nodes %>%
+      dplyr::mutate(type = dplyr::case_when(
+        name %in% features ~ "Feature",
+        name %in% base_learners ~ "Base Learner",
+        name == meta_learner ~ "Meta Learner",
+        TRUE ~ "Other"
+      ))
 
-      plot_type <- "cross_sectional"
-      clustering_variables <- "theme"
-      calc_stat <- "mean"
-      variable <- "normalized_importance"
+    # **11. Define Custom Vibrant Neon Color Palette**
+    type_colors <- c(
+      "Feature" = "#39FF14",      # Neon Green
+      "Base Learner" = "#FF5F1F", # Neon Orange
+      "Meta Learner" = "#FFDC00", # Neon Yellow
+      "Other" = "#FF007F"          # Neon Pink
+    )
 
-      plot(meta_fi_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    # **12. Create the Graph Object with igraph**
+    graph <- igraph::graph_from_data_frame(d = links, vertices = nodes, directed = TRUE)
 
-    } else if (plot_name == "Decomposed Feature Importance Heatmap by Signal"){
+    # Extract unique base model IDs
+    base_model_ids <- unique(igraph::V(graph)$name[grepl("^c:", igraph::V(graph)$name)])
 
-      plot_type <- "tile_heatmap"
-      clustering_variables <- "tickers"
-      variable <- "normalized_importance"
-      calc_stat <- "mean"
+    # Create a mapping (model_1, model_2, ...)
+    base_model_mapping <- setNames(paste0("model_", seq_along(base_model_ids)), base_model_ids)
 
-      plot(meta_fi_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    # Rename the nodes in the graph
+    igraph::V(graph)$name <- ifelse(igraph::V(graph)$name %in% names(base_model_mapping),
+                                    base_model_mapping[igraph::V(graph)$name],
+                                    igraph::V(graph)$name)
 
-    } else if (plot_name == "Decomposed Feature Importance Heatmap by Theme"){
-
-      if(!"theme" %in% colnames(meta_fi_m_df@data)){
-        stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
-      }
-
-      plot_type <- "tile_heatmap"
-      clustering_variables <- "theme"
-      variable <- "normalized_importance"
-      calc_stat <- "mean"
-
-      plot(meta_fi_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
-
+    # Print the mapping correspondence
+    cat("\nLegend:\n")
+    for (i in seq_along(base_model_mapping)) {
+      cat(paste0(base_model_mapping[i], ": ", names(base_model_mapping)[i], "\n"))
     }
+
+    # **13. Adjust Layout to Position Meta-Learner Below Base Models**
+    layout <- ggraph::create_layout(graph, layout = "tree")
+    layout$y <- ifelse(layout$name == "meta_learner", min(layout$y) - 1, layout$y)
+
+    # **14. Generate Graph Plot**
+    p <- ggraph::ggraph(layout) +
+      ggraph::geom_edge_link(
+        ggplot2::aes(width = value, color = value, alpha = value),
+        arrow = ggplot2::arrow(length = grid::unit(4, 'mm')),
+        end_cap = ggraph::circle(3, 'mm')
+      ) +
+      ggraph::geom_node_point(ggplot2::aes(color = type), size = 5) +
+      ggraph::geom_node_text(
+        ggplot2::aes(label = name),
+        color = "white",
+        hjust = -0.1,
+        vjust = 0.5,
+        size = 3,
+        fontface = "bold"
+      ) +
+      ggraph::scale_edge_width(range = c(0.5, 3)) +
+      ggplot2::scale_color_manual(values = type_colors) +
+      ggraph::scale_edge_color_continuous(
+        low = "red",
+        high = "blue",
+        name = "Importance",
+        guide = ggraph::guide_edge_colorbar()
+      ) +
+      ggraph::scale_edge_alpha_continuous(range = c(0.0001, 0.8)) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        legend.position = "bottom",
+        plot.margin = ggplot2::margin(5, 40, 5, 5),
+        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        panel.grid = ggplot2::element_blank(),
+        axis.text = ggplot2::element_blank(),
+        axis.title = ggplot2::element_blank(),
+        axis.ticks = ggplot2::element_blank(),
+        plot.title = ggplot2::element_text(color = "white", size = 16, face = "bold"),
+        plot.subtitle = ggplot2::element_text(color = "white", size = 12, face = "italic"),
+        legend.text = ggplot2::element_text(color = "white"),
+        legend.title = ggplot2::element_text(color = "white")
+      ) +
+      ggplot2::labs(
+        title = "Hierarchical Feature Importance",
+        subtitle = x@meta_sb_backtest_results@backtest_identifier,
+        edge_width = "Importance",
+        edge_color = "Importance",
+        edge_alpha = "Importance",
+        color = "Node Type"
+      )
+
+    print(p)
 
 
   }

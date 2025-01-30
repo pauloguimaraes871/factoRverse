@@ -177,7 +177,7 @@ consolidate_backtest_returns_m_xts <- function(meta_backtest_returns_m_xts, base
   # Merge meta and base backtest returns using a left join
   return(create_meta_xts(merge(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data, join = "left") %>% na.omit(), #Join
                                meta_xts_name = paste0(meta_backtest_returns_m_xts@meta_xts_name, "_", base_backtest_returns_m_xts@meta_xts_name), #Rename
-                               type = "assets")
+                               type = "returns")
         )
 }
 
@@ -203,7 +203,7 @@ consolidate_benchmark_returns_m_xts <- function(meta_benchmark_returns_m_xts, ba
   # Case 3: Merge both if neither is NULL
   return(create_meta_xts(merge(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data, join = "left") %>% na.omit(), #Join
                          meta_xts_name = paste0(meta_benchmark_returns_m_xts@meta_xts_name, "_", base_benchmark_returns_m_xts@meta_xts_name), #Rename
-                         type = "assets")
+                         type = "returns")
          )
 
 }
@@ -609,6 +609,8 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
   ))
 
 }
+
+
 
 #' Plot Various Consolidated Backtest Results
 #'

@@ -106,14 +106,14 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
   ), order.by = unique(toy_preprocessed_features$dates)),
-  type = "assets", meta_xts_name = "mocked_xts")
+  type = "returns", meta_xts_name = "mocked_xts")
 
   #Benchmark Returns XTS
   suppressWarnings(mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
   ),  order.by = unique(toy_preprocessed_features$dates)),
-  type = "assets", meta_xts_name = "mocked_benchmarks")
+  type = "returns", meta_xts_name = "mocked_benchmarks")
  )
 
   #Chosen Signals and Positions
@@ -366,7 +366,7 @@ test_that("consolidate_backtest_returns_m_xts adequately combines base and meta 
     ols_results = rnorm(10, mean = 1, sd = 5),
     ew_results = rnorm(10, mean = 15, sd = 0.4),
    order.by = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10))),
-  type = "assets", meta_xts_name = "meta_xts")
+  type = "returns", meta_xts_name = "meta_xts")
 
   base_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(5, mean = 5, sd = 3.5),
@@ -378,12 +378,12 @@ test_that("consolidate_backtest_returns_m_xts adequately combines base and meta 
     sharpe_6m = rnorm(5, mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(5, mean = 1.05, sd = 7.5)
   ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
-  type = "assets", meta_xts_name = "base_xts")
+  type = "returns", meta_xts_name = "base_xts")
 
 
   #Merge them according to meta_backtest_returns_xts
   expected_results <- merge(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data, join = "left") %>% na.omit() %>% create_meta_xts(
-    meta_xts_name = "meta_xts_base_xts", type = "assets"
+    meta_xts_name = "meta_xts_base_xts", type = "returns"
   )
 
   expect_equal(consolidate_backtest_returns_m_xts(meta_backtest_returns_m_xts, base_backtest_returns_m_xts),
@@ -411,19 +411,19 @@ test_that("consolidate_benchmark_returns_m_xts adequately combines base and meta
     theme_ss = rnorm(10, mean = 5, sd = 3.5),
     theme_sb = rnorm(10, mean = 1, sd = 5)
   ), order.by = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10)),
-    type = "assets", meta_xts_name = "meta_xts")
+    type = "returns", meta_xts_name = "meta_xts")
 
   base_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(5, mean = 5, sd = 3.5),
     IDIV = rnorm(5, mean = 1, sd = 5),
     SMLL = rnorm(5, mean = 15, sd = 0.4)
   ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
-  type = "assets", meta_xts_name = "base_xts")
+  type = "returns", meta_xts_name = "base_xts")
 
 
   #Merge them according to meta_backtest_returns_xts
   expected_results <- merge(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data, join = "left") %>% na.omit() %>% create_meta_xts(
-    type = "assets", meta_xts_name = "meta_xts_base_xts"
+    type = "returns", meta_xts_name = "meta_xts_base_xts"
   )
 
   expect_equal(consolidate_benchmark_returns_m_xts(meta_benchmark_returns_m_xts, base_benchmark_returns_m_xts),
@@ -679,43 +679,4 @@ test_that("derive_adapted_custom_signal_universe_m_df adequately creates consoli
 
 
 })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
