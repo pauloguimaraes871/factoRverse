@@ -1,73 +1,178 @@
 #' Explain Prediction
 #'
 #' @description
-#' The `explain_prediction` function decomposes the out‐of‐sample (OOS) prediction for a selected ticker and date using the OLS Global Signal Model (GSM) backtest results. It performs internal checks on the provided inputs, extracts feature importance data and corresponding feature values, computes partial contributions (i.e. the product of feature importance and feature value), and finally generates a waterfall plot that visualizes how each feature (including the intercept) contributes to the GSM prediction.
+#' The `explain_prediction` function decomposes the out‐of‐sample (OOS) prediction for a selected ticker and date using
+#' the OLS Global Signal Model (GSM) backtest results. It supports both standard backtest results and meta-learner backtest results.
+#' If a meta-learner backtest object is passed, the function decomposes base learners' contributions before computing the final breakdown.
 #'
-#' @param sb_backtest_results An S4 object containing the backtest results (including the workflow, OOS outputs, and feature importance data). The workflow object (`sb_backtest_results@sb_backtest_workflow`) must have been generated with an OLS GSM algorithm.
-#' @param features_m_df An object containing the features meta-data used in the backtest. Its internal name (accessible via `features_m_df@meta_dataframe_name`) must match the one stored in `sb_backtest_results@sb_backtest_workflow$features_object_name`.
-#' @param selected_id A character string representing the selected identifier. **Note:** This value is overwritten internally by concatenating `selected_ticker` and `selected_date` (i.e. `paste0(selected_ticker, "-", selected_date)`).
+#' @param sb_backtest_results An S4 object containing the backtest results, either of class `sb_backtest_results` or `sb_metabacktest_results`.
+#' @param features_m_df An S4 object containing the features metadata used in the backtest. It must match the one stored in `sb_backtest_results`.
 #' @param selected_ticker A character string representing the ticker (e.g., `"AAPL"`) for which to explain the prediction.
+#' @param selected_date A Date object representing the prediction date.
 #'
 #' @details
 #' The function operates in several stages:
 #'
 #' \strong{Initial Checks:}
 #'   \itemize{
-#'     \item Verifies that the GSM algorithm used is `"ols"`. If not, the function stops.
-#'     \item Checks that the provided `features_m_df` object matches the one used in the backtest.
-#'     \item Constructs a new `selected_id` using the selected ticker and an externally defined `selected_date`. It then ensures that this identifier exists within the OOS outputs.
-#'     \item Ensures that the `selected_date` is not earlier than the first rebalancing date.
+#'     \item Ensures that the provided backtest object is valid.
+#'     \item Ensures that the `features_m_df` matches the backtest object's expected feature metadata.
+#'     \item Ensures the selected ticker and date exist in the data.
 #'   }
 #'
 #' \strong{Feature Importance and Partial Contributions:}
 #'   \itemize{
-#'     \item Extracts the most recent feature importance data up to the `selected_date` and separates the intercept from the other features.
-#'     \item Reconstructs the corrected feature values using the helper function `select_and_correct_signals()`.
-#'     \item Calculates the partial contribution for each feature (i.e. the product of the feature's importance and its current value).
-#'     \item Identifies the most important and less important contributions for both positive and negative feature effects.
+#'     \item Extracts the most recent feature importance data up to the `selected_date`.
+#'     \item If a meta-learner backtest is used, decomposes base learners' contributions before processing further.
+#'     \item Calculates the partial contribution for each feature as the product of its importance and current value.
 #'   }
 #'
 #' \strong{Plot Generation:}
 #'   \itemize{
-#'     \item Using `dplyr::mutate()`, the function computes a running (cumulative) total of contributions and other helper columns required to create a waterfall plot (e.g., previous cumulative value, midpoint for text labels, and x-axis positions).
-#'     \item A waterfall plot is then generated with `ggplot2`, which uses neon colors on a dark background to visually decompose the GSM prediction into its contributing components.
+#'     \item Generates a waterfall plot using `ggplot2`, showing how each feature (including the intercept) contributes to the prediction.
 #'   }
 #'
-#' @return The function produces a waterfall plot (a `ggplot2` object) that displays the decomposition of the OOS prediction based on feature contributions. It does not return a value programmatically.
+#' @return A `ggplot2` waterfall plot displaying the decomposition of the OOS prediction.
 #'
 #' @examples
 #' \dontrun{
 #'   # Example usage:
-#'   # Assume that sb_backtest_results, features_m_df, selected_date, and selected_ticker are properly defined.
-#'   explain_prediction(sb_backtest_results, features_m_df, "ignored_value", "AAPL")
+#'   explain_prediction(sb_backtest_results, features_m_df, "AAPL", as.Date("2023-07-15"))
 #' }
 #'
 #' @export
-explain_prediction <- function(sb_backtest_results, features_m_df, selected_ticker, selected_date){
+setGeneric("explain_prediction", function(sb_backtest_results, features_m_df, selected_ticker, selected_date) {
+  standardGeneric("explain_prediction")
+})
 
-  #Get objects
-  sb_backtest_workflow <- sb_backtest_results@sb_backtest_workflow
-  oos_sb_outputs_m_df <- sb_backtest_results@oos_sb_outputs_m_df@data
-  feature_importance_m_df <- sb_backtest_results@feature_importance_m_df@data
-  gsm_algorithm <- sb_backtest_workflow$gsm_algorithm
-  features_obj_name <- features_m_df@meta_dataframe_name
-  features_m_df <- features_m_df@data
 
-  if(gsm_algorithm != "ols"){
-    stop("Currently, this function is only available for OLS GSM algorithm.")
-  }
+#' Explain Prediction for sb_backtest_results
+#' @export
+setMethod("explain_prediction",
+          signature(sb_backtest_results = "sb_backtest_results", features_m_df = "meta_dataframe", selected_ticker = "character", selected_date = "Date"),
+          function(sb_backtest_results, features_m_df, selected_ticker, selected_date) {
+
+
+            # Extract objects
+            ##################
+            sb_backtest_workflow <- sb_backtest_results@sb_backtest_workflow
+            oos_sb_outputs_m_df <- sb_backtest_results@oos_sb_outputs_m_df@data
+            feature_importance_m_df <- sb_backtest_results@feature_importance_m_df@data
+            gsm_algorithm <- sb_backtest_workflow$gsm_algorithm
+            features_obj_name <- features_m_df@meta_dataframe_name
+            features_m_df <- features_m_df@data
+
+            #Initial Checks
+            ##############
+            ##Check if features_m_df is the one used in the backtest
+            if(sb_backtest_workflow$features_object_name != features_obj_name){
+              stop("The features_m_df object used in the backtest is different from the one provided. Please provide the correct features_m_df object.")
+            }
+            if(any(!sb_backtest_workflow$features %in% colnames(features_m_df))){
+              stop("The features_m_df object provided does not contain the features used in backtest. Please provide the correct features_m_df object.")
+            }
+
+            # Call the existing function
+            explain_prediction_inner(sb_backtest_workflow = sb_backtest_workflow, oos_sb_outputs_m_df = oos_sb_outputs_m_df,
+                                     feature_importance_m_df = feature_importance_m_df, gsm_algorithm = gsm_algorithm,
+                                     features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
+          }
+)
+
+
+#' Explain Prediction for sb_metabacktest_results
+#' @export
+setMethod("explain_prediction",
+          signature(sb_backtest_results = "sb_metabacktest_results", features_m_df = "meta_dataframe", selected_ticker = "character", selected_date = "Date"),
+          function(sb_backtest_results, features_m_df, selected_ticker, selected_date) {
+
+
+            ##Get Objects
+            ##############
+            sb_backtest_workflow <- sb_backtest_results@meta_sb_backtest_results@sb_backtest_workflow
+            oos_sb_outputs_m_df <- sb_backtest_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data
+            gsm_algorithm <- sb_backtest_workflow$gsm_algorithm
+            features_obj_name <- features_m_df@meta_dataframe_name
+            features_m_df <- features_m_df@data
+             ##Extract identifiers
+             base_identifiers <- sapply(sb_backtest_results@base_sb_backtest_results_list, function(x) x@backtest_identifier)
+             base_features <- sapply(sb_backtest_results@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$features) %>% unique()
+
+
+            #Initial Checks
+            ##############
+            base_learners_features_object_name <- sapply(sb_backtest_results@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$features_object_name)
+            ##Check if features_m_df is the one used in the base backtest
+            if(any(base_learners_features_object_name != features_obj_name)){
+              stop("The features_m_df object used in base backtests is different from the one provided. Please provide the correct features_m_df object.")
+            }
+            if(any(!setdiff(sb_backtest_results@meta_sb_backtest_results@sb_backtest_workflow$features, base_identifiers) %in% colnames(features_m_df))){
+              stop("The features_m_df object provided does not contain the features used in meta-learner backtest. Please provide the correct features_m_df object.")
+            }
+             if(any(!base_features %in% colnames(features_m_df))){
+               stop("The features_m_df object provided does not contain the features used in base-learner backtests. Please provide the correct features_m_df object.")
+             }
+
+
+            # Extract meta learner feature importance
+            meta_feature_importance <- sb_backtest_results@meta_sb_backtest_results@feature_importance_m_df@data
+
+            # Extract list of base learners feature importance
+            base_feature_importance_list <- lapply(sb_backtest_results@base_sb_backtest_results_list,
+                                                   function(x) x@feature_importance_m_df@data)
+
+
+
+            # Step 1: Get most recent date for meta learner feature importance ≤ selected_date
+            most_recent_meta_date <- meta_feature_importance %>%
+              dplyr::filter(dates <= selected_date) %>%
+              dplyr::pull(dates) %>%
+              unique() %>%
+              max()
+
+            # Filter meta feature importance to that date
+            meta_feature_importance <- meta_feature_importance %>%
+              dplyr::filter(dates == most_recent_meta_date)
+
+            # Step 2: Get most recent dates for base learners, ensuring they precede the meta learner
+            base_feature_importance_filtered <- lapply(base_feature_importance_list, function(df) {
+              most_recent_base_date <- df %>%
+                dplyr::filter(dates < most_recent_meta_date) %>%
+                dplyr::pull(dates) %>%
+                unique() %>%
+                max()
+
+              df %>% dplyr::filter(dates == most_recent_base_date)
+            })
+
+            # Step 3: Decompose feature importance of base learners in meta learner
+            # Iterate through meta_feature_importance rows, replacing base learner rows
+            meta_feature_importance_decomposed_consolidated_m_df <- decompose_feature_importance(
+              most_recent_meta_date = most_recent_meta_date,
+              meta_feature_importance = meta_feature_importance,
+              base_identifiers = base_identifiers,
+              base_feature_importance_filtered = base_feature_importance_filtered
+              )
+
+            # Step 4: Call the existing function
+            explain_prediction_inner(sb_backtest_workflow = sb_backtest_workflow, oos_sb_outputs_m_df = oos_sb_outputs_m_df,
+                                     feature_importance_m_df = meta_feature_importance_decomposed_consolidated_m_df, gsm_algorithm = gsm_algorithm,
+                                     features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
+
+
+          }
+)
+
+#' inner function
+explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, feature_importance_m_df, gsm_algorithm,
+                                     features_m_df, selected_ticker = selected_ticker, selected_date = selected_date){
 
   #Initial Checks
   ##############
-    ##Check if features_m_df is the one used in the backtest
-    if(sb_backtest_workflow$features_object_name != features_obj_name){
-      stop("The features_m_df object used in the backtest is different from the one provided. Please provide the correct features_m_df object.")
+    ##Check for gsm
+    if(gsm_algorithm != "ols"){
+      stop("Currently, this function is only available for OLS GSM algorithm.")
     }
-
-    if(any(!sb_backtest_workflow$features %in% colnames(features_m_df))){
-      stop("The features_m_df object provided does not contain the features used in backtest. Please provide the correct features_m_df object.")
-    }
-
     ##Check if id is avaiable
     selected_id <- paste0(selected_ticker,"-",selected_date)
     if(!(selected_id %in% oos_sb_outputs_m_df$id)){
@@ -84,6 +189,7 @@ explain_prediction <- function(sb_backtest_results, features_m_df, selected_tick
       if(selected_date < first_rebalancing_date){
         stop("Selected date is before the first rebalancing date. Please select a date after the first rebalancing date.")
       }
+
   ##############
 
   #Get feature importance info
@@ -118,6 +224,7 @@ explain_prediction <- function(sb_backtest_results, features_m_df, selected_tick
       tidyr::pivot_longer(dplyr::everything(), names_to = "feature", values_to = "feature_value") %>% #Transform to long format
       as.data.frame() %>% #Convert to data.frame
       dplyr::left_join(features_importance, by = c("feature" = "tickers"))
+
   #####################
 
   #Get partial contribution and prediction
@@ -155,8 +262,7 @@ explain_prediction <- function(sb_backtest_results, features_m_df, selected_tick
     gsm_prediction <- sum(partial_contribution %>% dplyr::pull(partial_contribution)) + intercept_importance$importance
 
     ##Extract prediction of complex model
-    oos_pred_selected_ticker <- sb_backtest_results@oos_sb_outputs_m_df@data %>%
-      dplyr::filter(id == selected_id) %>% dplyr::pull(pred)
+    oos_pred_selected_ticker <- oos_sb_outputs_m_df %>% dplyr::filter(id == selected_id) %>% dplyr::pull(pred)
 
     ##Extract non-linearity
     complexity <- oos_pred_selected_ticker - gsm_prediction
@@ -301,14 +407,63 @@ explain_prediction <- function(sb_backtest_results, features_m_df, selected_tick
         legend.position  = "none",
         legend.title     = ggplot2::element_text(color = white),
         legend.text      = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
+        panel.grid.major = ggplot2::element_line(color = faint_blue, linewidth  = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = faint_blue, linewidth  = 0.1),
         plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold")
       )
 
     print(p)
+    return(plot_data_df)
 
     #####################
+
+}
+
+
+#' inner helper function to decompose feature importance
+decompose_feature_importance <- function(most_recent_meta_date, meta_feature_importance, base_identifiers, base_feature_importance_filtered){
+
+  #Init
+  meta_feature_importance_decomposed <- meta_feature_importance
+
+  #Loop through base identifiers
+  for (i in seq_along(base_identifiers)) {
+    base_id <- base_identifiers[i]
+    base_features <- base_feature_importance_filtered[[i]]
+
+    # Extract meta row corresponding to base learner
+    meta_row <- meta_feature_importance_decomposed %>%
+      dplyr::filter(tickers == base_id)
+
+    if (nrow(meta_row) > 0) {
+      # Calculate relative importance for base learner features
+      relative_importance <- base_features %>%
+        dplyr::mutate(relative_importance = importance / sum(importance, na.rm = TRUE)) %>%
+        dplyr::mutate(adjusted_importance = relative_importance * meta_row$importance) %>%
+        dplyr::mutate(importance = adjusted_importance)
+
+      # Remove meta row for base learner
+      meta_feature_importance_decomposed <- meta_feature_importance_decomposed %>%
+        dplyr::filter(tickers != base_id)
+
+      # Append decomposed base learner features
+      meta_feature_importance_decomposed <- dplyr::bind_rows(meta_feature_importance_decomposed, relative_importance)
+    }
+  }
+
+  # Step 4: Consolidate duplicate tickers (sum their importance)
+  meta_feature_importance_decomposed_consolidated <-
+    meta_feature_importance_decomposed %>%
+    dplyr::group_by(tickers) %>%
+    dplyr::summarize(importance = sum(importance, na.rm = TRUE), .groups = "drop")
+
+  # Adjust meta_feature_importance_consolidated object to include all needed columns
+  meta_feature_importance_decomposed_consolidated_m_df <- meta_feature_importance_decomposed_consolidated %>%
+    as.data.frame() %>%
+    dplyr::mutate(dates = most_recent_meta_date, .before = importance) %>%
+    dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers)
+
+  return(meta_feature_importance_decomposed_consolidated_m_df)
 
 }
 

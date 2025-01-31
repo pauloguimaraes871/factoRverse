@@ -557,7 +557,6 @@ test_that("derive_adapted_custom_signal_universe_m_df adequately creates consoli
   glmnet_oos_eval_metrics_m_df$dates <- as.Date(glmnet_oos_eval_metrics_m_df$dates) + months(3)
   glmnet_oos_eval_metrics_m_df <- glmnet_oos_eval_metrics_m_df %>% dplyr::mutate(id = paste0(tickers,"-",dates), .before = tickers)
 
-
   rf_oos_eval_metrics_m_df <- rf_results@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% tibble::rownames_to_column(var = "dates") %>%
     dplyr::mutate(tickers = rf_results@backtest_identifier, .before = dates)
   rf_oos_eval_metrics_m_df$dates <- as.Date(rf_oos_eval_metrics_m_df$dates) + months(3)

@@ -783,6 +783,7 @@ run_sb_backtest_internal <- function(
     ################
 
     #Initial Setup: Making some changes to metrics if needed and displaying initial setup
+    ################
     ##Adjust custom obj and chosen eval metric
     if(verbose){
       cat("=============================\n")
@@ -809,100 +810,100 @@ run_sb_backtest_internal <- function(
 
     ##################
 
-    ###Init objects###
+    ##Init objects
     ##################
-    #Extract dates
-    dates_m_vector <- unique(as.Date(features_m_df%>% dplyr::pull(dates), format = "%Y-%m-%d")) #coerce just to be sure
-    dates_m_vector <- dates_m_vector[order(dates_m_vector)] #Re-order ascending just to be sure
-    #Takes column corresponding to specific target
-    target_vector <- target_m_df %>% dplyr::pull(target_fwd_name)
-    target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
+      ###Extract dates
+      dates_m_vector <- unique(as.Date(features_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d")) #coerce just to be sure
+      dates_m_vector <- dates_m_vector[order(dates_m_vector)] #Re-order ascending just to be sure
+      ###Takes column corresponding to specific target
+      target_vector <- target_m_df %>% dplyr::pull(target_fwd_name)
+      target_fwd <- as.numeric(gsub(".*?([0-9]+).*", "\\1", target_fwd_name))
 
-    #Print for target
-    if(verbose)   cat("Predicting a", target_fwd, "months ahead target:", target_fwd_name, "\n")
+        ####Print for target
+        if(verbose)   cat("Predicting a", target_fwd, "months ahead target:", target_fwd_name, "\n")
 
-    #Testing Sample Size
-    testing_sample_size <- length(dates_m_vector) - training_sample_size - validation_sample_size + 1 #calculate testing sample size
+      ###Testing Sample Size
+      testing_sample_size <- length(dates_m_vector) - training_sample_size - validation_sample_size + 1 #calculate testing sample size
 
-    #Rebalancing Dates
-    dates_testing_sample <- dates_m_vector[(training_sample_size + validation_sample_size):
+      ###Rebalancing Dates
+      dates_testing_sample <- dates_m_vector[(training_sample_size + validation_sample_size):
                                            (training_sample_size + validation_sample_size + testing_sample_size - 1)] #These are dates inside testing sample
-      ##Get first rebalancing date
+      ###Get first rebalancing date
       first_rebalance_date <- min(dates_testing_sample)
-      ##Get all rebalance dates
+      ###Get all rebalance dates
       rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
         c(first_rebalance_date, dates_testing_sample[which(lubridate::month(dates_testing_sample) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
       )
       rebalance_dates <- rebalance_dates[order(rebalance_dates)] #Re-order
 
-    #Eligible signals dates
-    eligible_signals_dates <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(dates) %>% unique() %>% dplyr::pull()
+      ###Eligible signals dates
+      eligible_signals_dates <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::select(dates) %>% unique() %>% dplyr::pull()
 
-    #Number of rebalancing months
-    n_rebalance_months <- length(rebalance_dates)
+      ###Number of rebalancing months
+      n_rebalance_months <- length(rebalance_dates)
 
-    #Last rebalance date
-    last_rebalance_date <- max(rebalance_dates)
-    #Time expanding validation
-    if(!sb_algorithm %in% non_tuning_algos){
-      #Store hyperparameters choice (model complexity)
-      #Store validation chosen eval
-      chosen_eval_metric_validation <- list()
-      #Store validation eval
-      validation_eval_metrics_hyper_choice_m_xts <- xts::xts(data.frame(
-        rss = as.vector(rep(NA, n_rebalance_months)), #R2
-        cp = as.vector(rep(NA, n_rebalance_months)), #CP
-        rmse = as.vector(rep(NA, n_rebalance_months)), #Root Mean Squared Error
-        mae = as.vector(rep(NA, n_rebalance_months)), #Mean Absolute Error
-        mphe = as.vector(rep(NA, n_rebalance_months)), #Mean Pseudo huber
-        mpe = as.vector(rep(NA, n_rebalance_months)), #Mean Pinball Error
-        mape = as.vector(rep(NA, n_rebalance_months)), #Mean Absolute Percentage Error
-        hr = as.vector(rep(NA, n_rebalance_months)), #Hit Rate
-        mb = as.vector(rep(NA, n_rebalance_months)) #Mean Bias
-      ), order.by = rebalance_dates)
+      ###Last rebalance date
+      last_rebalance_date <- max(rebalance_dates)
 
-      #Store hyper_choice_m_xts based on existence of early stop and best_lam
-      hyper_choice_m_xts <- xts::xts(as.data.frame(
-        matrix(NA, nrow = n_rebalance_months, ncol = length(hyper_grid_domain_list))),
-        order.by = rebalance_dates)
-      colnames(hyper_choice_m_xts) <- names(hyper_grid_domain_list) #Set colnames as hyperparameters
+      ###Time expanding validation
+      if(!sb_algorithm %in% non_tuning_algos){
+        #Store hyperparameters choice (model complexity)
+        #Store validation chosen eval
+        chosen_eval_metric_validation <- list()
+        #Store validation eval
+        validation_eval_metrics_hyper_choice_m_xts <- xts::xts(data.frame(
+          rss = as.vector(rep(NA, n_rebalance_months)), #R2
+          cp = as.vector(rep(NA, n_rebalance_months)), #CP
+          rmse = as.vector(rep(NA, n_rebalance_months)), #Root Mean Squared Error
+          mae = as.vector(rep(NA, n_rebalance_months)), #Mean Absolute Error
+          mphe = as.vector(rep(NA, n_rebalance_months)), #Mean Pseudo huber
+          mpe = as.vector(rep(NA, n_rebalance_months)), #Mean Pinball Error
+          mape = as.vector(rep(NA, n_rebalance_months)), #Mean Absolute Percentage Error
+          hr = as.vector(rep(NA, n_rebalance_months)), #Hit Rate
+          mb = as.vector(rep(NA, n_rebalance_months)) #Mean Bias
+        ), order.by = rebalance_dates)
 
-      #Add best-lam and best-iteration
-      hyper_choice_m_xts$best_lam <- if(sb_algorithm == "glmnet") NA
-      hyper_choice_m_xts$best_iteration <- if(!is.null(early_stop)) NA
+        ###Store hyper_choice_m_xts based on existence of early stop and best_lam
+        hyper_choice_m_xts <- xts::xts(as.data.frame(
+          matrix(NA, nrow = n_rebalance_months, ncol = length(hyper_grid_domain_list))),
+          order.by = rebalance_dates)
+        colnames(hyper_choice_m_xts) <- names(hyper_grid_domain_list) #Set colnames as hyperparameters
+
+        ###Add best-lam and best-iteration
+        hyper_choice_m_xts$best_lam <- if(sb_algorithm == "glmnet") NA
+        hyper_choice_m_xts$best_iteration <- if(!is.null(early_stop)) NA
 
     }
 
-    #Time expanding test
-    #Store test eval
-    oos_testing_eval_metrics_m_xts<- xts::xts(data.frame(
-      rss = as.vector(rep(NA, testing_sample_size)), #+1 bco first date is also a testing date
-      cp = as.vector(rep(NA, testing_sample_size)),
-      rmse = as.vector(rep(NA, testing_sample_size)),
-      mae = as.vector(rep(NA, testing_sample_size)),
-      mphe = as.vector(rep(NA, testing_sample_size)),
-      mpe = as.vector(rep(NA, testing_sample_size)),
-      mape = as.vector(rep(NA, testing_sample_size)),
-      hr = as.vector(rep(NA, testing_sample_size)),
-      mb = as.vector(rep(NA, testing_sample_size))
-    ), order.by = dates_testing_sample
-    )
+      ###Time expanding test
+      ###Store test eval
+      oos_testing_eval_metrics_m_xts<- xts::xts(data.frame(
+        rss = as.vector(rep(NA, testing_sample_size)), #+1 bco first date is also a testing date
+        cp = as.vector(rep(NA, testing_sample_size)),
+        rmse = as.vector(rep(NA, testing_sample_size)),
+        mae = as.vector(rep(NA, testing_sample_size)),
+        mphe = as.vector(rep(NA, testing_sample_size)),
+        mpe = as.vector(rep(NA, testing_sample_size)),
+        mape = as.vector(rep(NA, testing_sample_size)),
+        hr = as.vector(rep(NA, testing_sample_size)),
+        mb = as.vector(rep(NA, testing_sample_size))
+      ), order.by = dates_testing_sample
+      )
 
+      ###Prediction, error and Y objects
+      oos_prediction_list <- list() #initialize prediction list. Each element will be a vector of predictions for that date
+      oos_error_list <- list() #Initialize error list.
+      oos_y_list <- list() #Initialize y list.
 
-    #Prediction, error and Y objects
-    oos_prediction_list <- list() #initialize prediction list. Each element will be a vector of predictions for that date
-    oos_error_list <- list() #Initialize error list.
-    oos_y_list <- list() #Initialize y list.
-
-    #Feature importance
-    feature_importance_m_d_ref_list <- list()
+      ###Feature importance
+      feature_importance_m_d_ref_list <- list()
 
 
     ##################
 
-    ###Start Fitting###
+    ##Start Fitting
     ##################
-    #Loop through
+    ##Loop through
     for(d in (training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size - 1)){
       #Get current date
       current_date <- dates_m_vector[d]

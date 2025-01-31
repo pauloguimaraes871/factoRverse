@@ -444,48 +444,24 @@ run_ss_backtest_internal <- function(
   verbose = TRUE, parallel = TRUE
 ){
 
-  #Create structures to get results
-  signal_universe_m_d_ref_list <- list()
-
-
-
   #Measure time to run and run gc
   elapsed_time <- system.time({
 
-    #Extract dates
-    dates_m_vector <- unique(as.Date(signals_m_df$dates, format = "%Y-%m-%d")) #coerce just to be sure
-    dates_m_vector <- dates_m_vector[order(dates_m_vector)] #Re-order ascending just to be sure
+    ##Initial Setup
+    #########################
+      ###Get forced signals and exclude them from chosen_signals_and_positions
+      if(any(chosen_signals_and_positions == "force")){
+        forced_signals <- chosen_signals_and_positions[which(chosen_signals_and_positions == "force")]
+      } else {
+        forced_signals <- NULL
+      }
+      original_chosen_signals_and_positions <- chosen_signals_and_positions #Get original object in case forced_signals were taken out
+      chosen_signals_and_positions <- chosen_signals_and_positions[which(chosen_signals_and_positions != "force")]
 
-    #Backtest length
-    backtest_length <- length(dates_m_vector) - initial_sample_size + 1 #calculate backtest_length
+    #########################
 
-    #Rebalancing Dates
-    dates_backtest <- dates_m_vector[initial_sample_size:
-                                       (initial_sample_size + backtest_length - 1)] #These are dates inside backtest
-
-    first_rebalance_date <- min(dates_backtest) #Get first rebalancing date
-    rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
-      c(first_rebalance_date, dates_backtest[which(lubridate::month(dates_backtest) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
-    )
-    rebalance_dates <- rebalance_dates[order(rebalance_dates)] #Re-order
-
-    #Number of rebalancing months
-    n_rebalance_months <- length(rebalance_dates)
-
-    #Last rebalance date
-    last_rebalance_date <- max(rebalance_dates)
-
-    #Get forced signals and exclude them from chosen_signals_and_positions
-    if(any(chosen_signals_and_positions == "force")){
-      forced_signals <- chosen_signals_and_positions[which(chosen_signals_and_positions == "force")]
-    } else {
-      forced_signals <- NULL
-    }
-    original_chosen_signals_and_positions <- chosen_signals_and_positions #Get original object in case forced_signals were taken out
-    chosen_signals_and_positions <- chosen_signals_and_positions[which(chosen_signals_and_positions != "force")]
-
-    #################
     ##Check Parameters
+    #########################
     check_inputs_ss_backtest(
       #Dates
       initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
@@ -508,7 +484,39 @@ run_ss_backtest_internal <- function(
       lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization
     )
 
+    #########################
+
+    ##Init objects
+    #########################
+      ###Extract dates
+      dates_m_vector <- unique(as.Date(signals_m_df$dates, format = "%Y-%m-%d")) #coerce just to be sure
+      dates_m_vector <- dates_m_vector[order(dates_m_vector)] #Re-order ascending just to be sure
+
+      ###Backtest length
+      backtest_length <- length(dates_m_vector) - initial_sample_size + 1 #calculate backtest_length
+
+      ###Rebalancing Dates
+      dates_backtest <- dates_m_vector[initial_sample_size:(initial_sample_size + backtest_length - 1)] #These are dates inside backtest
+
+      first_rebalance_date <- min(dates_backtest) #Get first rebalancing date
+      rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
+        c(first_rebalance_date, dates_backtest[which(lubridate::month(dates_backtest) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
+      )
+      rebalance_dates <- rebalance_dates[order(rebalance_dates)] #Re-order
+
+      ###Number of rebalancing months
+      n_rebalance_months <- length(rebalance_dates)
+
+      ###Last rebalance date
+      last_rebalance_date <- max(rebalance_dates)
+
+      ###Create signal_universe list structure to get results
+      signal_universe_m_d_ref_list <- list()
+
+    #########################
+
     #Initial Prints
+    #########################
     if(verbose){
 
       #Text otherwise
