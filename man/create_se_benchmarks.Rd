@@ -12,7 +12,7 @@ create_se_benchmarks(signal_universe_m_d_ref, selected_signal_themes_m_d_ref)
 \item \code{id}
 \item \code{tickers}
 \item \code{dates}
-\item \code{top_assets} (indicating which signals are statistically significant)
+\item \code{pre_eligible_assets} (indicating which signals are statistically significant)
 }}
 
 \item{selected_signal_themes_m_d_ref}{An optional data frame with signal themes. Must include columns:
@@ -37,7 +37,7 @@ Creates Signal-Selection and Signal-Blending benchmark weights:
 \itemize{
 \item{Signal-Selection Benchmark}: A benchmark that is built using the universe of all signals in \code{chosen_signals}.
 It is used to evaluate the performance of the signal selection process.
-\item{Signal-Blending Benchmark}: A benchmark that is built using only signals derived from signal selection process (those with top_assets assigned as 1).
+\item{Signal-Blending Benchmark}: A benchmark that is built using only signals derived from signal selection process (those with pre_eligible_assets assigned as 1).
 It is used to evaluate the performance of the signal blending process.
 }
 }

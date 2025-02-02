@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils-generate_box_constraints.R
 \name{generate_box_constraints}
 \alias{generate_box_constraints}
-\title{Create individual box constraints for MTO portfolios based on liquidity, concentration and turnover constraints}
+\title{Create individual box constraints for MVO portfolios based on liquidity, concentration and turnover constraints}
 \usage{
 generate_box_constraints(
   universe_m_d_ref,
@@ -51,5 +51,5 @@ Note that, in the context of \code{generate_sector_constraints}, a \code{benchma
 }}
 }
 \description{
-Create individual box constraints for MTO portfolios based on liquidity, concentration and turnover constraints
+Create individual box constraints for MVO portfolios based on liquidity, concentration and turnover constraints
 }

@@ -113,9 +113,9 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   )
 
   #Create benchmarks
-  top_assets <- rep(0, length(signal_universe_m_d_ref_1$adjusted_p_value))
-  top_assets[which(signal_universe_m_d_ref_1$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
-  signal_universe_m_d_ref_1$top_assets <- top_assets
+  pre_eligible_assets <- rep(0, length(signal_universe_m_d_ref_1$adjusted_p_value))
+  pre_eligible_assets[which(signal_universe_m_d_ref_1$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
+  signal_universe_m_d_ref_1$pre_eligible_assets <- pre_eligible_assets
   se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_1, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
 
 
@@ -178,8 +178,8 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   )
 
   #Create benchmarks
-  top_assets <- rep(1, length(signal_universe_m_d_ref_2$adjusted_p_value))
-  signal_universe_m_d_ref_2$top_assets <- top_assets
+  pre_eligible_assets <- rep(1, length(signal_universe_m_d_ref_2$adjusted_p_value))
+  signal_universe_m_d_ref_2$pre_eligible_assets <- pre_eligible_assets
   se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
 
 
@@ -396,9 +396,9 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   )
 
   #Create benchmarks
-  top_assets <- rep(0, length(signal_universe_m_d_ref_1$adjusted_p_value))
-  top_assets[which(signal_universe_m_d_ref_1$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
-  signal_universe_m_d_ref_1$top_assets <- top_assets
+  pre_eligible_assets <- rep(0, length(signal_universe_m_d_ref_1$adjusted_p_value))
+  pre_eligible_assets[which(signal_universe_m_d_ref_1$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
+  signal_universe_m_d_ref_1$pre_eligible_assets <- pre_eligible_assets
   se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_1, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
 
 
@@ -465,10 +465,10 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   )
 
   #Create benchmarks
-  top_assets <- rep(0, length(signal_universe_m_d_ref_2$adjusted_p_value))
-  top_assets[which(signal_universe_m_d_ref_2$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
+  pre_eligible_assets <- rep(0, length(signal_universe_m_d_ref_2$adjusted_p_value))
+  pre_eligible_assets[which(signal_universe_m_d_ref_2$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
 
-  signal_universe_m_d_ref_2$top_assets <- top_assets
+  signal_universe_m_d_ref_2$pre_eligible_assets <- pre_eligible_assets
   se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
 
 
@@ -641,9 +641,9 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   )
 
   #Create benchmarks
-  top_assets <- rep(0, length(signal_universe_m_d_ref_1$adjusted_p_value))
-  top_assets[which(signal_universe_m_d_ref_1$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
-  signal_universe_m_d_ref_1$top_assets <- top_assets
+  pre_eligible_assets <- rep(0, length(signal_universe_m_d_ref_1$adjusted_p_value))
+  pre_eligible_assets[which(signal_universe_m_d_ref_1$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
+  signal_universe_m_d_ref_1$pre_eligible_assets <- pre_eligible_assets
   se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_1, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
 
 
@@ -711,10 +711,10 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   )
 
   #Create benchmarks
-  top_assets <- rep(0, length(signal_universe_m_d_ref_2$adjusted_p_value))
-  top_assets[which(signal_universe_m_d_ref_2$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
+  pre_eligible_assets <- rep(0, length(signal_universe_m_d_ref_2$adjusted_p_value))
+  pre_eligible_assets[which(signal_universe_m_d_ref_2$adjusted_p_value <= frequentist_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
 
-  signal_universe_m_d_ref_2$top_assets <- top_assets
+  signal_universe_m_d_ref_2$pre_eligible_assets <- pre_eligible_assets
   se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
 
 
@@ -1042,9 +1042,9 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
 
 
   #Create benchmarks
-  top_assets <- rep(0, length(signal_universe_m_d_ref_2$pd_alpha))
-  top_assets[which((1-signal_universe_m_d_ref_2$pd_alpha) <= bayesian_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
-  signal_universe_m_d_ref_2$top_assets <- top_assets
+  pre_eligible_assets <- rep(0, length(signal_universe_m_d_ref_2$pd_alpha))
+  pre_eligible_assets[which((1-signal_universe_m_d_ref_2$pd_alpha) <= bayesian_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
+  signal_universe_m_d_ref_2$pre_eligible_assets <- pre_eligible_assets
   se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
 
 
@@ -1292,9 +1292,9 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
 
 
   #Create benchmarks
-  top_assets <- rep(0, length(signal_universe_m_d_ref_2$pd_alpha))
-  top_assets[which((1-signal_universe_m_d_ref_2$pd_alpha) <= bayesian_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
-  signal_universe_m_d_ref_2$top_assets <- top_assets
+  pre_eligible_assets <- rep(0, length(signal_universe_m_d_ref_2$pd_alpha))
+  pre_eligible_assets[which((1-signal_universe_m_d_ref_2$pd_alpha) <= bayesian_ss_config@alpha_test_strategy@signal_significance_threshold)] <- 1
+  signal_universe_m_d_ref_2$pre_eligible_assets <- pre_eligible_assets
   se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
 
 

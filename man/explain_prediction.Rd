@@ -12,50 +12,48 @@ explain_prediction(
 )
 }
 \arguments{
-\item{sb_backtest_results}{An S4 object containing the backtest results (including the workflow, OOS outputs, and feature importance data). The workflow object (\code{sb_backtest_results@sb_backtest_workflow}) must have been generated with an OLS GSM algorithm.}
+\item{sb_backtest_results}{An S4 object containing the backtest results, either of class \code{sb_backtest_results} or \code{sb_metabacktest_results}.}
 
-\item{features_m_df}{An object containing the features meta-data used in the backtest. Its internal name (accessible via \code{features_m_df@meta_dataframe_name}) must match the one stored in \code{sb_backtest_results@sb_backtest_workflow$features_object_name}.}
+\item{features_m_df}{An S4 object containing the features metadata used in the backtest. It must match the one stored in \code{sb_backtest_results}.}
 
 \item{selected_ticker}{A character string representing the ticker (e.g., \code{"AAPL"}) for which to explain the prediction.}
 
-\item{selected_id}{A character string representing the selected identifier. \strong{Note:} This value is overwritten internally by concatenating \code{selected_ticker} and \code{selected_date} (i.e. \code{paste0(selected_ticker, "-", selected_date)}).}
+\item{selected_date}{A Date object representing the prediction date.}
 }
 \value{
-The function produces a waterfall plot (a \code{ggplot2} object) that displays the decomposition of the OOS prediction based on feature contributions. It does not return a value programmatically.
+A \code{ggplot2} waterfall plot displaying the decomposition of the OOS prediction.
 }
 \description{
-The \code{explain_prediction} function decomposes the out‐of‐sample (OOS) prediction for a selected ticker and date using the OLS Global Signal Model (GSM) backtest results. It performs internal checks on the provided inputs, extracts feature importance data and corresponding feature values, computes partial contributions (i.e. the product of feature importance and feature value), and finally generates a waterfall plot that visualizes how each feature (including the intercept) contributes to the GSM prediction.
+The \code{explain_prediction} function decomposes the out‐of‐sample (OOS) prediction for a selected ticker and date using
+the OLS Global Signal Model (GSM) backtest results. It supports both standard backtest results and meta-learner backtest results.
+If a meta-learner backtest object is passed, the function decomposes base learners' contributions before computing the final breakdown.
 }
 \details{
 The function operates in several stages:
 
 \strong{Initial Checks:}
 \itemize{
-\item Verifies that the GSM algorithm used is \code{"ols"}. If not, the function stops.
-\item Checks that the provided \code{features_m_df} object matches the one used in the backtest.
-\item Constructs a new \code{selected_id} using the selected ticker and an externally defined \code{selected_date}. It then ensures that this identifier exists within the OOS outputs.
-\item Ensures that the \code{selected_date} is not earlier than the first rebalancing date.
+\item Ensures that the provided backtest object is valid.
+\item Ensures that the \code{features_m_df} matches the backtest object's expected feature metadata.
+\item Ensures the selected ticker and date exist in the data.
 }
 
 \strong{Feature Importance and Partial Contributions:}
 \itemize{
-\item Extracts the most recent feature importance data up to the \code{selected_date} and separates the intercept from the other features.
-\item Reconstructs the corrected feature values using the helper function \code{select_and_correct_signals()}.
-\item Calculates the partial contribution for each feature (i.e. the product of the feature's importance and its current value).
-\item Identifies the most important and less important contributions for both positive and negative feature effects.
+\item Extracts the most recent feature importance data up to the \code{selected_date}.
+\item If a meta-learner backtest is used, decomposes base learners' contributions before processing further.
+\item Calculates the partial contribution for each feature as the product of its importance and current value.
 }
 
 \strong{Plot Generation:}
 \itemize{
-\item Using \code{dplyr::mutate()}, the function computes a running (cumulative) total of contributions and other helper columns required to create a waterfall plot (e.g., previous cumulative value, midpoint for text labels, and x-axis positions).
-\item A waterfall plot is then generated with \code{ggplot2}, which uses neon colors on a dark background to visually decompose the GSM prediction into its contributing components.
+\item Generates a waterfall plot using \code{ggplot2}, showing how each feature (including the intercept) contributes to the prediction.
 }
 }
 \examples{
 \dontrun{
   # Example usage:
-  # Assume that sb_backtest_results, features_m_df, selected_date, and selected_ticker are properly defined.
-  explain_prediction(sb_backtest_results, features_m_df, "ignored_value", "AAPL")
+  explain_prediction(sb_backtest_results, features_m_df, "AAPL", as.Date("2023-07-15"))
 }
 
 }

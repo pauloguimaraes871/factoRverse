@@ -2,28 +2,47 @@
 % Please edit documentation in R/constructors.R
 \name{add_turnover_constraint_policy}
 \alias{add_turnover_constraint_policy}
+\alias{add_turnover_constraint_policy,port_backtest_config,turnover_constraint_policy-method}
+\alias{add_turnover_constraint_policy,port_backtest_config,missing-method}
 \title{Add Turnover Constraint Policy}
 \usage{
-add_turnover_constraint_policy(port_backtest_config_obj, turnover_rules)
+add_turnover_constraint_policy(object, policy, ...)
+
+\S4method{add_turnover_constraint_policy}{port_backtest_config,turnover_constraint_policy}(object, policy, ...)
+
+\S4method{add_turnover_constraint_policy}{port_backtest_config,missing}(
+  object,
+  policy,
+  quantile_range_buffer,
+  turnover_cap_rules,
+  ...
+)
 }
 \arguments{
-\item{port_backtest_config_obj}{A \code{port_backtest_config} object to which the liquidity constraint policy will be added.}
+\item{object}{An object of class \code{port_backtest_config} or \code{sb_backtest_config}.}
 
-\item{turnover_rule}{A list with the following structure, specifying the turnover rule:
-#' \itemize{
-\item \strong{liquidity_classification:} One of "micro_caps", "small_caps", "mid_caps", "large_caps" or "mega_caps"
-\item \strong{turnover_cap:} A number indicating the turnover_cap
-\item \strong{top_stock_quantile_buffer:} A number indicating the minimum signal quantile
-}}
+\item{policy}{A \code{turnover_constraint_policy} object. If missing, a new one is created.}
+
+\item{...}{Additional arguments (currently unused).}
+
+\item{quantile_range_buffer}{A numeric value used to create a new policy when \code{policy} is missing.}
+
+\item{turnover_cap_rules}{A named numeric vector used to create a new policy when \code{policy} is missing.}
 }
 \value{
-The updated \code{port_backtest_config} object with the added liquidity constraint policy.
+The updated \code{object} with the turnover constraint policy added.
 }
 \description{
-Adds a turnover constraint policy to a \code{port_backtest_config} object.
+Add an existing or dynamically create a \code{turnover_constraint_policy}
+to a portfolio backtest configuration object.
 }
-\examples{
-portfolio <- create_port_backtest_config()
-portfolio <- add_turnover_constraint_policy(portfolio, turnover_rule = list(liquidity_classification = "micro_caps", turnover_cap = 0.01, top_stock_quantile_buffer = 0.66))
+\section{Functions}{
+\itemize{
+\item \code{add_turnover_constraint_policy(
+  object = port_backtest_config,
+  policy = turnover_constraint_policy
+)}: Add an existing \code{turnover_constraint_policy} to a \code{port_backtest_config}.
 
-}
+\item \code{add_turnover_constraint_policy(object = port_backtest_config, policy = missing)}: Dynamically create a \code{turnover_constraint_policy} and add it to a \code{port_backtest_config}.
+
+}}

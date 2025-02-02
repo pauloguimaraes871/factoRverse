@@ -14,8 +14,8 @@ In addition to the parent slots, it has:
 \section{Slots}{
 
 \describe{
-\item{\code{metrics}}{Character. Names of the columns (metrics).}
+\item{\code{series}}{Character. Names of the columns (metrics).}
 
-\item{\code{n_metrics}}{Numeric. Number of metric columns.}
+\item{\code{n_series}}{Numeric. Number of metric columns.}
 }}
 

@@ -6,30 +6,21 @@
 \usage{
 derive_signal_universe_m_df(
   config,
-  ss_backtest_results,
-  ss_backtest_config,
   features_m_df,
-  chosen_signals_and_positions,
   backtest_returns_m_xts,
   benchmark_returns_m_xts,
   signal_themes_m_df,
   priors_m_df,
   custom_signal_universe_metrics_m_df,
-  cov_matrix_benchmark,
-  features_object_name,
   verbose,
   parallel,
   winsorization_probs
 )
 }
 \arguments{
-\item{ss_backtest_results}{Signal selection backtest results (optional)}
-
-\item{ss_backtest_config}{Signal selection backtest configuration (optional)}
+\item{config}{SB Config}
 
 \item{features_m_df}{Feature matrix dataframe}
-
-\item{chosen_signals_and_positions}{Named vector of signals and their positions}
 
 \item{backtest_returns_m_xts}{XTS of backtest returns}
 
@@ -40,8 +31,6 @@ derive_signal_universe_m_df(
 \item{priors_m_df}{Priors dataframe (optional)}
 
 \item{custom_signal_universe_metrics_m_df}{Custom metrics dataframe (optional)}
-
-\item{cov_matrix_benchmark}{Covariance matrix benchmark (optional)}
 
 \item{verbose}{Logical to enable verbose output}
 

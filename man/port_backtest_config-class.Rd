@@ -37,29 +37,31 @@ Note that, in the context of stocks, a \code{benchmark_weights_m_d_ref} data fra
 \itemize{
 \item \code{liquidity_floor_rule}: A character indicating the liquidity classification (e.g., micro_caps, small_caps) used to filter stocks. Stocks with less liquidity than specified in \code{liquidity_floor_rule} will be considered ineligible.
 In the case of the \code{generate_box_constraints} function, \code{liquidity_constraint_policy} can also contain:
-\item \code{liquidity_cap_rule} lists: One or many lists used to create upper bounds for weights based on a liquidity classification. Each list must contain:
+\item \code{liquidity_cap_rules}: A named vector with one or many elements used to create upper bounds for weights based on a liquidity classification.
+Each element's name and corresponding value represents, respectively:
 \itemize{
-\item \code{liquidity_classification}: A character indicating the classification for the cap.
+\item \code{liquidity_classification}: The character classification for the cap.
 \item \code{liquidity_cap}: A numeric value indicating the cap (upper bound) for stocks with that liquidity classification.
-Many liquidity caps might be created, and in this case, each \code{liquidity_cap_rule} must be identified with a number (e.g., liquidity_cap_rule_1, liquidity_cap_rule_2, and so on).
+Many liquidity caps might be created.
 }
 }}
 
 \item{\code{turnover_constraint_policy}}{The policy to handle turnover constraints. It is only relevant for stocks. Its elements are used to build buffer zones and apply turnover constraints.
 \itemize{
-\item Each element will constitute a \code{buffer_zone}, being a list with three elements:
-\itemize{
-\item \code{liquidity_classification} element: A liquidity classification (e.g., "micro_caps", "small_caps") for that buffer zone.
-\item \code{top_stock_quantile_buffer}: A numeric value indicating a buffer value that relaxes \code{top_stocks_quantile} for stocks with the specified liquidity classification.
-\item \code{turnover_cap}: A numeric value specifying the turnover cap.
+\item It should contain:
+\item \code{quantile_range_buffer}: A numeric value indicating the increase of quantile eligibility (both sides) range to be used for the buffer zones.
+\item \code{turnover_cap_rules}: A named vector with one or many elements used to create maximum absolute bounds for weights in relation to the old portfolio, based on a liquidity classification.
+Each element's name and corresponding value represents, respectively:
+\item \code{liquidity_classification}: The character classification for the cap.
+\item \code{turnover_cap}: A numeric value indicating the cap (lower and upper bounds) for stocks with that liquidity classification.
+Many turnover caps might be created.
 Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the \code{liquidity_floor_rule}.
-}
 }}
 
 \item{\code{liquidity_floor_cutoffs}}{Mandatory if \code{turnover_constraint_policy} and/or \code{liquidity_constraint_policy} are provided.
-A list of named vectors containing cutoff values to classify stocks according to liquidity.
-Each element must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
-and the vector must provide named numeric values that indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
+A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
+Each liquidity_classification must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
+and numeric column indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
 Classification should be in ascending order (from least liquid to most liquid) for all metrics.
 If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
 Stocks with liquidity lower than micro_caps will receive nano_caps classification.}

@@ -582,14 +582,16 @@ run_ss_backtest_internal <- function(
     ##Start Backtest##
     ##Apply backtest only if multiple signals are being provided
     #################
-    for(d in initial_sample_size:(initial_sample_size + backtest_length - 1)){
+    for (d in initial_sample_size:(initial_sample_size + backtest_length - 1)){
       #Extract date and references
       current_date <- dates_m_vector[d]
+      if (verbose) print(current_date)
 
-      #Check if it's a rebalancing month
-      if((lubridate::month(current_date) %in% rebalancing_months) || d == (initial_sample_size)){
+      #Rebalance if it's a rebalancing month
+      is_rebalancing_month <- (lubridate::month(current_date) %in% rebalancing_months) || d == (initial_sample_size)
+      if (is_rebalancing_month){
         #Print refitting message
-        if(verbose){
+        if (verbose){
           cat("\n")
           cat(crayon::yellow(paste("Running signal selection backtest at:", current_date)))
           cat("\n")
@@ -633,7 +635,7 @@ run_ss_backtest_internal <- function(
         signal_universe_m_d_ref <- signal_eligibility_results_list$signal_universe_m_d_ref
 
         ##Add forced signals
-        if(length(forced_signals) > 0){
+        if (length(forced_signals) > 0){
           ###Create a forced_signals_m_d_ref
           forced_signals_m_d_ref <- expand.grid( #Create an expanded grid with the forced variable
             tickers = names(forced_signals),
@@ -645,7 +647,7 @@ run_ss_backtest_internal <- function(
           ) %>%
             dplyr::mutate(
               id = paste0(tickers, "-", dates),
-              top_assets = 0, #Forced variables are not treated as top assets
+              pre_eligible_assets = 0, #Forced variables are not treated as pre eligible assets
               is_eligible = 1 #But they are being elected in a forced way (same as enable_theme_representativeness)
             ) %>%
             dplyr::select(

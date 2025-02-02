@@ -870,6 +870,163 @@ setClass(
 
 
 #-----------------------------------------------------------------------
+# liquidity_constraint_policy
+#-----------------------------------------------------------------------
+
+#' @title Liquidity Constraint Policy
+#' @description An S4 class to represent a liquidity constraint policy in portfolio construction.
+#'
+#' @slot liquidity_floor_rule A character indicating the minimum liquidity classification
+#' for an asset to be considered eligible. Should be one of 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' or 'mega_caps'.
+#' This constraint will work even if port_construction_method is not 'mvo'.
+#' It can be added via add_liquidity_floor_rule function.
+#' @slot liquidity_cap_rules A named vector in which each element is a value indicating the maximum (active) weight that can be assigned to assets
+#' with the classification specified by its name. The names should be one of 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' or 'mega_caps'.
+#' A liquidity_constraint_policy can contain as many liquidity_cap_rules as needed, but names can't be repeated and a less liquid asset can't have a higher cap than a more liquid one.
+#' New cap rules can be added through the add_liquidity_cap_rule function.
+#' @export
+setClass(
+  "liquidity_constraint_policy",
+  slots = c(
+    liquidity_floor_rule = "ANY",
+    liquidity_cap_rules = "ANY"
+  ),
+  validity = function(object) {
+    # Define allowed liquidity categories in order from less liquid to more liquid.
+    allowed_categories <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+
+    ## Check liquidity_floor_rule (if provided)
+    if (!is.null(object@liquidity_floor_rule)) {
+      # Must be character.
+      if (!is.character(object@liquidity_floor_rule)) {
+        return("liquidity_floor_rule must be a character")
+      }
+      # Must be one of the allowed categories.
+      if (!object@liquidity_floor_rule %in% allowed_categories) {
+        return("liquidity_floor_rule must be one of 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' or 'mega_caps'")
+      }
+    }
+
+    ## Check liquidity_cap_rules (if provided)
+    if (!is.null(object@liquidity_cap_rules)) {
+      # Must be a named vector.
+      if (is.null(names(object@liquidity_cap_rules))) {
+        return("liquidity_cap_rules must have names")
+      }
+      # Must be numeric.
+      if (!is.numeric(object@liquidity_cap_rules)) {
+        return("liquidity_cap_rules must be numeric")
+      }
+      # All names must be valid liquidity categories.
+      if (!all(names(object@liquidity_cap_rules) %in% allowed_categories)) {
+        return("liquidity_cap_rules names must be one of 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' or 'mega_caps'")
+      }
+
+      ## If liquidity_floor_rule is provided, ensure that no liquidity cap rule is defined for a category that is less liquid than the floor.
+      if (!is.null(object@liquidity_floor_rule)) {
+        floor_index <- match(object@liquidity_floor_rule, allowed_categories)
+        for (cat in names(object@liquidity_cap_rules)) {
+          cat_index <- match(cat, allowed_categories)
+          if (cat_index < floor_index) {
+            return(paste0("Liquidity cap rule for '", cat,
+                          "' is less liquid than the liquidity_floor_rule '",
+                          object@liquidity_floor_rule, "'"))
+          }
+        }
+      }
+
+      ## Enforce monotonicity in liquidity_cap_rules.
+      # For any two categories in liquidity_cap_rules, if one category is less liquid than another then its cap must not exceed that of the more liquid category.
+      cap_rules <- object@liquidity_cap_rules
+      for (i in seq_along(cap_rules)) {
+        for (j in seq_along(cap_rules)) {
+          # Compare only if the two categories are different.
+          if (match(names(cap_rules)[i], allowed_categories) < match(names(cap_rules)[j], allowed_categories)) {
+            if (cap_rules[i] > cap_rules[j]) {
+              return(paste0("Cap for '", names(cap_rules)[i], "' (", cap_rules[i],
+                            ") cannot be greater than cap for '", names(cap_rules)[j], "' (", cap_rules[j], ")"))
+            }
+          }
+        }
+      }
+    }
+
+    # If all checks pass, return TRUE.
+    TRUE
+  }
+)
+
+#-----------------------------------------------------------------------
+# turnover_constraint_policy
+#-----------------------------------------------------------------------
+
+#' @title Turnover Constraint Policy
+#' @description An S4 class to represent a turnover constraint policy in portfolio construction.
+#'
+#' @slot quantile_range_buffer A numeric indicating the increase in the quantile_range for an asset to be considered eligible to the buffer zone.
+#' Stocks in this quantile that were present in bop_port_weights will be included in the buffer zone, if they meet buffer_zones_rules.
+#' @slot turnover_cap_rules A named vector in which each element is a value indicating the maximum absolute weight deviation in relation to the bop_port_weights
+#' that can be assigned to assets, with the classification specified by its name. The names should be one of 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' or 'mega_caps'.
+#' A turnover_constraint_policy can contain as many buffer_zone_rules as needed, but names can't be repeated and a less liquid asset can't have a higher cap than a more liquid one.
+#' New cap rules can be added through the add_turnover_cap_rule function.
+#' @export
+setClass(
+  "turnover_constraint_policy",
+  slots = c(
+    quantile_range_buffer = "numeric",
+    turnover_cap_rules = "numeric"
+  ),
+  validity = function(object) {
+    # Define allowed liquidity categories in order from less liquid to more liquid.
+    allowed_categories <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+
+    ## Check if quantile_range_buffer is a number between 0 and 1.
+    if (!is.numeric(object@quantile_range_buffer)) {
+      return("quantile_range_buffer must be a number")
+    }
+    if (object@quantile_range_buffer < 0 || object@quantile_range_buffer > 1) {
+      return("quantile_range_buffer must be a number between 0 and 1")
+    }
+
+    ## Check turnover_cap_rules (if provided)
+    if (!is.null(object@turnover_cap_rules)) {
+      # Must be a named vector.
+      if (is.null(names(object@turnover_cap_rules))) {
+        return("turnover_cap_rules must have names")
+      }
+      # Must be numeric.
+      if (!is.numeric(object@turnover_cap_rules)) {
+        return("turnover_cap_rules must be numeric")
+      }
+      # All names must be valid liquidity categories.
+      if (!all(names(object@turnover_cap_rules) %in% allowed_categories)) {
+        return("turnover_cap_rules names must be one of 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' or 'mega_caps'")
+      }
+
+      ## Enforce monotonicity in turnover_cap_rules.
+      # For any two categories in turnover_cap_rules, if one category is less liquid than another then its cap must not exceed that of the more liquid category.
+      cap_rules <- object@turnover_cap_rules
+      for (i in seq_along(cap_rules)) {
+        for (j in seq_along(cap_rules)) {
+          # Compare only if the two categories are different.
+          if (match(names(cap_rules)[i], allowed_categories) < match(names(cap_rules)[j], allowed_categories)) {
+            if (cap_rules[i] > cap_rules[j]) {
+              return(paste0("Cap for '", names(cap_rules)[i], "' (", cap_rules[i],
+                            ") cannot be greater than cap for '", names(cap_rules)[j], "' (", cap_rules[j], ")"))
+            }
+          }
+        }
+      }
+    }
+
+    # If all checks pass, return TRUE.
+    TRUE
+  }
+)
+
+
+
+#-----------------------------------------------------------------------
 # signal_port_parameters
 #-----------------------------------------------------------------------
 
@@ -2149,20 +2306,24 @@ setClass(
 #' @slot liquidity_constraint_policy The policy to handle liquidity constraints. It is only relevant for stocks. Possible elements are:
 #' - `liquidity_floor_rule`: A character indicating the liquidity classification (e.g., micro_caps, small_caps) used to filter stocks. Stocks with less liquidity than specified in `liquidity_floor_rule` will be considered ineligible.
 #'   In the case of the `generate_box_constraints` function, `liquidity_constraint_policy` can also contain:
-#' - `liquidity_cap_rule` lists: One or many lists used to create upper bounds for weights based on a liquidity classification. Each list must contain:
-#'   - `liquidity_classification`: A character indicating the classification for the cap.
+#' - `liquidity_cap_rules`: A named vector with one or many elements used to create upper bounds for weights based on a liquidity classification.
+#'   Each element's name and corresponding value represents, respectively:
+#'   - `liquidity_classification`: The character classification for the cap.
 #'   - `liquidity_cap`: A numeric value indicating the cap (upper bound) for stocks with that liquidity classification.
-#'   Many liquidity caps might be created, and in this case, each `liquidity_cap_rule` must be identified with a number (e.g., liquidity_cap_rule_1, liquidity_cap_rule_2, and so on).
+#'   Many liquidity caps might be created.
 #' @slot turnover_constraint_policy The policy to handle turnover constraints. It is only relevant for stocks. Its elements are used to build buffer zones and apply turnover constraints.
-#' - Each element will constitute a `buffer_zone`, being a list with three elements:
-#'   - `liquidity_classification` element: A liquidity classification (e.g., "micro_caps", "small_caps") for that buffer zone.
-#'   - `top_stock_quantile_buffer`: A numeric value indicating a buffer value that relaxes `top_stocks_quantile` for stocks with the specified liquidity classification.
-#'   - `turnover_cap`: A numeric value specifying the turnover cap.
+#' - It should contain:
+#'  - `quantile_range_buffer`: A numeric value indicating the increase of quantile eligibility (both sides) range to be used for the buffer zones.
+#'  - `turnover_cap_rules`: A named vector with one or many elements used to create maximum absolute bounds for weights in relation to the old portfolio, based on a liquidity classification.
+#'   Each element's name and corresponding value represents, respectively:
+#'   - `liquidity_classification`: The character classification for the cap.
+#'   - `turnover_cap`: A numeric value indicating the cap (lower and upper bounds) for stocks with that liquidity classification.
+#'   Many turnover caps might be created.
 #'   Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the `liquidity_floor_rule`.
 #' @slot liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
-#' A list of named vectors containing cutoff values to classify stocks according to liquidity.
-#' Each element must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
-#' and the vector must provide named numeric values that indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
+#' A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
+#' Each liquidity_classification must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
+#' and numeric column indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
 #' Classification should be in ascending order (from least liquid to most liquid) for all metrics.
 #' If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
 #' Stocks with liquidity lower than micro_caps will receive nano_caps classification.
@@ -2181,9 +2342,9 @@ setClass(
     sb_backtest_config = "ANY",
     sb_backtest_results = "ANY",
     main_liquidity_metric = "character",
-    liquidity_floor_cutoffs = "list",
-    liquidity_constraint_policy = "list",
-    turnover_constraint_policy = "list",
+    liquidity_floor_cutoffs = "ANY",
+    liquidity_constraint_policy = "ANY",
+    turnover_constraint_policy = "ANY",
     concentration_constraint_policy = "ANY",
     config_name = "character"
   ),
@@ -2192,6 +2353,7 @@ setClass(
       stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'")
     }
 
+    ###Check classes
     if(!is.null(sb_backtest_config)){
       if(!inherits(sb_backtest_config, "sb_backtest_config")){
         stop("sb_backtest_config must be an object of class sb_backtest_config.")
@@ -2202,10 +2364,59 @@ setClass(
         stop("sb_backtest_results must be an object of class sb_backtest_results")
       }
     }
+    ###Check if exp_ret_score_metric is provided if sb_backtest_results and sb_backtest_config are not provided
     if(is.null(sb_backtest_results) & is.null(sb_backtest_config) & is.null(exp_ret_score_metric)){
       stop("exp_ret_score_metric must be provided if sb_backtest_results and sb_backtest_config are not provided.")
     }
 
+    ###Check liquidity_floor_cutoffs
+    if (!is.null(object@liquidity_floor_cutoffs)){
+      liquidity_floor_cutoffs <- object@liquidity_floor_cutoffs
+      ###Check if liquidity_floor_cutoffs is a data.frame
+      if (!is.data.frame(liquidity_floor_cutoffs)){
+        stop("liquidity_floor_cutoffs must be a data.frame")
+      }
+      ###Check if main_liquidity_metric is in liquidity_floor_cutoffs
+      if (!object@main_liquidity_metric %in% colnames(liquidity_floor_cutoffs)){
+        stop("main_liquidity_metric is not represented in liquidity_floor_cutoffs")
+      }
+      ###Make sure liquidity_floor_cutoffs is correctly ordered
+      if (!all(liquidity_floor_cutoffs == dplyr::arrange(liquidity_floor_cutoffs, !!rlang::sym(object@main_liquidity_metric)))){
+        stop("liquidity_floor_cutoffs is not in ascending order")
+      }
+      ###Make sure orders of metrics in liquidity_floor_cutoffs_list match
+      if (!all(liquidity_floor_cutoffs %>%
+               dplyr::select(-liquidity_classification) %>%
+               apply(2, function(x) order(x)) %>% #Get the order of each col
+               apply(1, function(x) length(unique(x)) == 1))){ #Check if each row is equal
+        stop("liquidity metrics orders in liquidity_floor_cutoffs are conflicting")
+      }
+      ###Check if names match expectations
+      if (!all(dplyr::pull(object@liquidity_floor_cutoffs, liquidity_classification) %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps"))){
+        stop("liquidity_floor_cutoffs must contemplate only the following names: 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' and 'mega_caps'")
+      }
+      ###Check if all but first column is numeric
+      if (!all(sapply(liquidity_floor_cutoffs[, -1], is.numeric))){
+        stop("liquidity_floor_cutoffs elements must be numeric")
+      }
+      ###Check if there are NAs
+      if (any(is.na(liquidity_floor_cutoffs))){
+        stop("liquidity_floor_cutoffs elements must not have NAs")
+      }
+      ###Check if liquidity_floor_rule is contemplated
+      if (!is.null(object@liquidity_constraint_policy@liquidity_floor_rule) &&
+          !object@liquidity_constraint_policy@liquidity_floor_rule %in% dplyr::pull(liquidity_floor_cutoffs, liquidity_classification)){
+        stop("liquidity_floor_rule must be contemplated in liquidity_floor_cutoffs")
+      }
+
+    } else {
+      if (!is.null(object@liquidity_constraint_policy)){
+        stop("liquidity_floor_cutoffs must be provided if liquidity_constraint_policy is provided")
+      }
+      if (!is.null(object@turnover_constraint_policy)){
+        stop("liquidity_floor_cutoffs must be provided if turnover_constraint_policy is provided")
+      }
+    }
 
     TRUE
   }
@@ -3208,7 +3419,7 @@ setMethod("get_bayesian_model_parameters", "ss_backtest_config",
 
 ###########################
 
-# get concentration_constraint policy  -----------------------------------------------------
+# concentration_constraint policy  -----------------------------------------------------
 #' @title Get the Concentration Constraint Policy
 #' @description Accessor method to extract the `concentration_constraint_policy` from an object.
 #'
@@ -3262,35 +3473,7 @@ setMethod("as.list", "concentration_constraint_policy", function(x) {
 })
 ###########################
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# liquidity_constraint_policy -----------------------------------------------------
 #' @title Accessor for Liquidity Constraint Policy
 #' @description Retrieves the liquidity constraint policy from a `port_backtest_config` object.
 #' @param port_backtest_config_obj A `port_backtest_config` object.
@@ -3305,20 +3488,8 @@ setMethod("get_liquidity_constraint_policy", "port_backtest_config", function(po
   return(port_backtest_config_obj@liquidity_constraint_policy)
 })
 
-#' @title Accessor for Signal Selection Policy
-#' @description Retrieves the signal selection policy from a `port_backtest_config` object.
-#' @param port_backtest_config_obj A `port_backtest_config` object.
-#' @return The signal selection policy list.
-#' @export
-setGeneric("get_signal_selection_policy", function(port_backtest_config_obj) {
-  standardGeneric("get_signal_selection_policy")
-})
 
-#' @export
-setMethod("get_signal_selection_policy", "port_backtest_config", function(port_backtest_config_obj) {
-  return(port_backtest_config_obj@signal_selection_policy)
-})
-
+# turnover_constraint_policy -----------------------------------------------------
 #' @title Accessor for Turnover Constraint Policy
 #' @description Retrieves the turnover constraint policy from a `port_backtest_config` object.
 #' @param port_backtest_config_obj A `port_backtest_config` object.
@@ -3333,8 +3504,7 @@ setMethod("get_turnover_constraint_policy", "port_backtest_config", function(por
   return(port_backtest_config_obj@turnover_constraint_policy)
 })
 
-
-
+# liquidity_floor_cutoffs -----------------------------------------------------
 #' @title Accessor for Liquidity Floor Cutoffs
 #' @description Retrieves the liquidity floor cutoffs from a `port_backtest_config` object.
 #' @param port_backtest_config_obj A `port_backtest_config` object.

@@ -43,7 +43,7 @@ run_port_backtest_internal <- function(
     #Group and benchmark constraints (stock groups also used to fill covariance data)
     stocks_groups_m_df = NULL, benchmark_weights_m_df = NULL,
     #Return calculation (needs also liquidity and vol for net returns)
-    volatility_m_df = NULL, target_m_df,
+    volatility_m_df = NULL, target_m_df, transaction_costs_list = NULL,
     #Stock Universe Metrics
     custom_stock_universe_metrics_m_df = NULL,
     #Misc
@@ -74,7 +74,7 @@ run_port_backtest_internal <- function(
       #Group and benchmark constraints (stock groups also used to fill covariance data)
       stocks_groups_m_df = stocks_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
       #Return calculation (needs also liquidity and vol for net returns)
-      volatility_m_df = volatility_m_df, target_m_df = target_m_df,
+      volatility_m_df = volatility_m_df, target_m_df = target_m_df, transaction_costs_list = transaction_costs_list,
       #Custom Stock Universe Metrics
       custom_stock_universe_metrics_m_df = custom_stock_universe_metrics_m_df,
       #Custom Stock Weights
@@ -209,9 +209,10 @@ run_port_backtest_internal <- function(
     #####################
     ##Loop through
     for (d in (initial_buffer_period):(initial_buffer_period + backtest_length - 1)){
-      ###Current date
+      ###Current and last date
       current_date <- dates_m_vector[d]
       last_date <- lubridate::add_with_rollback(current_date, months(-1))
+      if (verbose) print(current_date)
 
       ###Get objects for current date
       ##############################
@@ -230,17 +231,34 @@ run_port_backtest_internal <- function(
           custom_stock_weights_m_d_ref <- if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
 
           #####Port Weights
-          port_weights_m_d_ref <- port_weights_m_df %>% dplyr::filter(dates == current_date)
-          lagged_port_weights_m_d_ref <- port_weights_m_df %>% dplyr::filter(dates == last_date)
+            #####Old Composition Beggining-of-Period Portfolio Weights
+            #####This is the old end-of-period portfolio with weights updated by fwd_1m_return (ie. composition from last period, with weights reflecting the current period). Delisted stocks are present at this point.
+            if (d > 1){
+              updated_port_weights_m_lstd_ref <- fwd_port_weights_m_d_ref #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
+            } else {
+              #For first period, just get the composition of last period. Weights are zero by construction.
+              updated_port_weights_m_lstd_ref <- port_weights_m_df %>% dplyr::filter(dates == last_date)
+            }
+
+            #####End-of-period portfolio weights
+              #####At this point, this is a placeholder with zero weights, reflecting all stocks that are currently in the universe.
+              #####If it is a rebalancing month, update_port_weights will generate transactions and costs needed to transform the old composition into rebalanced one.
+              #####If it is not, update_port_weights will just exclude delisted stocks and rescale weights to sum to 1, also generating a transactions_m_df.
+              #####Important: at apply_buffer_rule time, the function will look at current composition through signals_m_df and will check for positions in bop_port_weights_m_d_ref, using left_join. Therefore, delisted stocks will not be considered in the buffer rule.
+              #####After update_port_weights, eop_port_weights will then carry weights reflecting the end-of-period port. The object is then submitted to calc_port_returns, originating fwd_port_weights_m_d_ref.
+              eop_port_weights_m_d_ref <- port_weights_m_df %>% dplyr::filter(dates == current_date)
+
 
         ####Meta xts (up to date references)
         returns_m_xts_upd_ref <- returns_m_xts[which(zoo::index(returns_m_xts) <= current_date), ]
         selected_benchmark_returns_m_xts_upd_ref <- selected_benchmark_returns_m_xts[which(zoo::index(selected_benchmark_returns_m_xts) <= current_date), ]
 
-    ##############################
+     ##############################
 
-     ###Check if it's a rebalancing month
-      if ((lubridate::month(current_date) %in% rebalancing_months) || d == (initial_buffer_period)){
+     ###Rebalance if it's a rebalancing month
+     ##############################
+      is_rebalancing_month <- (lubridate::month(current_date) %in% rebalancing_months) || d == (initial_buffer_period)
+      if (is_rebalancing_month){
 
         ####Print refitting message
         if (verbose){
@@ -264,13 +282,15 @@ run_port_backtest_internal <- function(
             stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
               dplyr::left_join(
                 oos_predictions_m_d_ref %>% dplyr::select(id, pred), by = "id"
-                )
+                ) %>%
+              dplyr::rename(exp_ret_score = pred) #Rename prediction to exp_ret_score
           } else {
             #####Add signal
             stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
               dplyr::left_join(
-                signals_m_d_ref %>% dplyr::select(id, exp_ret_score), by = "id"
-              )
+                signals_m_d_ref %>% dplyr::select(id, !!rlang::sym(exp_ret_score)), by = "id"
+              ) %>%
+              dplyr::rename(exp_ret_score = !!rlang::sym(exp_ret_score)) #Rename signal to exp_ret_score
           }
 
           #####Classify Stock Universe
@@ -291,7 +311,7 @@ run_port_backtest_internal <- function(
             concentration_constraint_policy = concentration_constraint_policy, #Active weights policy
 
             ##Turnover eligibility
-            lagged_port_weights_m_d_ref = lagged_port_weights_m_d_ref, #Old portfolio weights to apply buffer rule
+            updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref, #Old portfolio weights to apply buffer rule
             turnover_constraint_policy = turnover_constraint_policy, #Turnover policy
 
             #User defined rules
@@ -301,49 +321,80 @@ run_port_backtest_internal <- function(
 
           ##############################
 
-
         ####Set Portfolio Weights
-          stock_universe_m_d_ref <-  set_portfolio_weights(
+        ##############################
+          stock_port <- set_portfolio_weights(
             #Stock universe object
             universe_m_d_ref = stock_universe_m_d_ref,
             #Stock Portfolio Construction method
-            portfolio_construction_method = portfolio_construction_method,
-            #Groups
-            groups_m_d_ref = stocks_groups_m_d_ref,
-            #Returns sample
-            returns_upd_ref = daily_active_returns_upd_ref,
-            #Covariance Estimation Method
-            covariance_estimation_method = covariance_estimation_method, covariance_matrix_sample_size = covariance_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full perior)
-            #Number of random portfolios to generate for numeric optimization
-            n_random_portfolios = n_random_portfolios,
-            #RandomPorts method
-            rp_method = rp_method,
-            #What to optimize? #Objective for MTO Optimization
-            mto_port_objective = mto_port_objective,
-            #Cap weighting metric
-            cap_weighting_metric = main_liquidity_metric,
+            port_construction_method = port_construction_method,
+            #Set liquidity constraint policy for stocks
+            liquidity_constraint_policy = liquidity_constraint_policy, liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = main_liquidity_metric,
             #Set concentration constraint policy for stocks
             concentration_constraint_policy = concentration_constraint_policy,
             #Set turnover constraint policy for stocks
             turnover_constraint_policy = turnover_constraint_policy,
-            #Set liquidity constraint policy for stocks
-            liquidity_constraint_policy = liquidity_constraint_policy,
-            #Liquidity Obj
-            liquidity_m_d_ref = liquidity_m_d_ref,
+            #Groups
+            groups_m_d_ref = stocks_groups_m_d_ref,
+            #Covariance Estimation Method
+            cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
+            active_returns = active_returns,
+            #Returns sample for covariance estimation
+            returns_m_xts_upd_ref = returns_m_xts_upd_ref, selected_benchmark_returns_m_xts_upd_ref = selected_benchmark_returns_m_xts_upd_ref,
+            #Risk-Parity method
+            rp_method = rp_method,
+            #MVO Optimization
+            n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+            #Custom Weights
+            custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
             #Winsorization
-            lower_quantile_winsorization = lower_quantile_winsorization, #Quantiles for winsorization
-            upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
+            lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
           )
 
-
-
-
-
-
-
+          ####Get stock_universe_m_d_ref
+          stock_universe_m_df_list[[which(rebalance_dates %in% current_date)]] <- stock_port@universe_m_d_ref
+          ##############################
       }
 
-      ###Get current date reference
+        ####Print
+        if(verbose){
+          cat("\n")
+          cat(crayon::green(paste("Portfolio rebalancing completed")))
+        }
+
+    ##############################
+
+    ###Calculate Port Returns
+    ##############################
+      portfolio_returns_results_list <- calculate_portfolio_returns(
+        #Date parameters
+        current_date = current_date, is_rebalancing_month = is_rebalancing_month,
+        #Stock universe object
+        stock_universe_m_d_ref = stock_universe_m_d_ref,
+        #Returns to calculate portfolio returns
+        fwd_returns_m_d_ref = fwd_returns_m_d_ref,
+        #Returns DF
+        portfolio_targets_df = portfolio_targets_df, selected_benchmark_returns_df = selected_benchmark_returns_df,
+        #Portfolio weights objects
+        portfolio_weights_m_d_ref = portfolio_weights_m_d_ref, portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref,
+        #Transaction cost calculation
+        ##Liquidity data
+        liquidity_m_d_ref = liquidity_m_d_ref, main_liquidity_metric = main_liquidity_metric,
+        ##Daily vol data
+        volatility_m_d_ref = volatility_m_d_ref,
+        ##Transaction cost info
+        transaction_costs_list = transaction_costs_list
+      )
+
+        #Fill
+        ###Portfolio weights
+        portfolio_weights_m_df[d_ref, "portfolio_weights"] <- portfolio_returns_results_list$portfolio_weights_m_d_ref$portfolio_weights
+        ###Updated Port weights (current portfolio with weights updated to next period)
+        updated_portfolio_weights <- portfolio_returns_results_list$updated_portfolio_weights #Updated weights
+        ##Portfolio Returns
+        portfolio_targets_df <- portfolio_returns_results_list$portfolio_targets_df
+        ###Transactions
+        transactions_m_df_list[[d]] <- portfolio_returns_results_list$transactions_m_d_ref
 
 
 
@@ -352,25 +403,9 @@ run_port_backtest_internal <- function(
 
 
 
-
-
-
-
-
-
-
-
-
-
+  }
 
   })
-
-
-
-
-
-
-
 
 }
 

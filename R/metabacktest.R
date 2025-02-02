@@ -26,7 +26,6 @@
 #' @return
 #' @export
 #'
-#' @examples
 metabacktest <- function(signals_m_df,
                          rebalancing_months, initial_buffer_period,
                          liquidity_m_df, benchmark_weights_m_df, volatility_m_df, target_m_df, custom_target_name = "fwd_return_1m"

@@ -4,20 +4,12 @@
 \alias{plot,sb_metabacktest_config,missing-method}
 \title{Plot Method for \code{sb_metabacktest_config}}
 \usage{
-\S4method{plot}{sb_metabacktest_config,missing}(x, y, which = NULL, ...)
+\S4method{plot}{sb_metabacktest_config,missing}(x, y, plot_id = NULL, ...)
 }
 \arguments{
 \item{x}{An object of class \code{sb_metabacktest_config}.}
 
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
-
-\item{which}{A character string specifying which configurations to plot.
-\itemize{
-\item \code{"base"}: Plots the base learners (default).
-\item \code{"meta"}: Plots the meta learner.
-\item \code{"both"}: Plots both base learners and meta learner.
-If not specified, the function will prompt the user to choose.
-}}
 
 \item{...}{Additional arguments (currently unused).}
 }

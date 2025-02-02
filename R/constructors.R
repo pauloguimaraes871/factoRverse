@@ -2966,245 +2966,6 @@ setMethod(
 )
 
 
-
-
-#-----------------------------------------------------------------------
-# liquidity_constraint_policy
-#-----------------------------------------------------------------------
-
-
-#' @title Add Liquidity Constraint Policy
-#' @description Adds a liquidity constraint policy to a `port_backtest_config` object.
-#'
-#' @param port_backtest_config_obj A `port_backtest_config` object to which the liquidity constraint policy will be added.
-#' @param liquidity_floor_rule A character string representing the liquidity floor rule (optional).
-#' @param liquidity_cap_rules A named numeric vector where names represent liquidity classifications and values represent liquidity caps (optional).
-#'
-#' @return The updated `port_backtest_config` object with the added liquidity constraint policy.
-#'
-#' @examples
-#' portfolio <- create_port_backtest_config()
-#' portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "micro_caps")
-#' portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_cap_rules = c(micro_caps = 0.01))
-#' portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "small_caps") # This should update the liquidity_floor_rule
-#'
-#' @export
-setGeneric("add_liquidity_constraint_policy", function(port_backtest_config_obj, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL) {
-  standardGeneric("add_liquidity_constraint_policy")
-})
-
-#' @export
-setMethod("add_liquidity_constraint_policy", "port_backtest_config", function(port_backtest_config_obj, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL) {
-  # Allowed classes
-  allowed_classes <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
-
-  # Validate liquidity_floor_rule
-  if (!is.null(liquidity_floor_rule)) {
-    if (!is.character(liquidity_floor_rule) || length(liquidity_floor_rule) != 1) {
-      stop("Error: liquidity_floor_rule must be a single character string.")
-    }
-    if (!liquidity_floor_rule %in% allowed_classes) {
-      stop(sprintf("Error: liquidity_floor_rule must be one of: %s.", paste(allowed_classes, collapse = ", ")))
-    }
-  }
-
-  # Validate liquidity_cap_rules
-  if (!is.null(liquidity_cap_rules)) {
-    if (!is.numeric(liquidity_cap_rules) || length(liquidity_cap_rules) == 0) {
-      stop("Error: liquidity_cap_rules must be a non-empty named numeric vector.")
-    }
-    if (!all(names(liquidity_cap_rules) %in% allowed_classes)) {
-      stop("Error: All names in liquidity_cap_rules must be one of: micro_caps, small_caps, mid_caps, large_caps, mega_caps.")
-    }
-  }
-
-  # Initialize new liquidity_constraint_policy
-  new_liquidity_constraint_policy <- list(liquidity_floor_rule = NULL)
-
-  # Add liquidity_floor_rule
-  if (!is.null(liquidity_floor_rule)) {
-    new_liquidity_constraint_policy$liquidity_floor_rule <- liquidity_floor_rule
-  } else {
-    new_liquidity_constraint_policy$liquidity_floor_rule <- port_backtest_config_obj@liquidity_constraint_policy$liquidity_floor_rule  # Keep the existing rule if it exists
-  }
-
-  # Add liquidity_cap_rules
-  existing_rules <- port_backtest_config_obj@liquidity_constraint_policy
-  existing_liquidity_floor_cap_rules <- existing_rules[!(names(existing_rules) %in% "liquidity_floor_rule")]
-
-  if (!is.null(liquidity_cap_rules)) {
-    existing_liquidity_floor_cap_rules_vector <- vapply(existing_liquidity_floor_cap_rules, function(x) x$liquidity_cap, numeric(1))
-    names(existing_liquidity_floor_cap_rules_vector) <- sapply(existing_liquidity_floor_cap_rules, function(x) x$liquidity_classification)
-
-    # Combine with new rules
-    final_liquidity_floor_cap_rules_vector <- c(existing_liquidity_floor_cap_rules_vector[!(names(existing_liquidity_floor_cap_rules_vector) %in% names(liquidity_cap_rules))],
-                                                liquidity_cap_rules)
-
-    # Transform to the right format
-    new_liquidity_cap_rules <- setNames(
-      lapply(seq_along(final_liquidity_floor_cap_rules_vector), function(i) {
-        list(
-          liquidity_classification = names(final_liquidity_floor_cap_rules_vector)[i],
-          liquidity_cap = final_liquidity_floor_cap_rules_vector[[i]]
-        )
-      }),
-      paste0("liquidity_cap_rule_", seq_along(final_liquidity_floor_cap_rules_vector))
-    )
-  } else {
-    #If there are no new rules, use old policy
-    new_liquidity_cap_rules <- existing_liquidity_floor_cap_rules
-  }
-
-
-  # Add liquidity_cap_rules to the new policy
-  new_liquidity_constraint_policy <- c(new_liquidity_constraint_policy, new_liquidity_cap_rules)
-
-
-
-
-  # Create the S4 object
-  new_port_backtest_config_obj <- new("port_backtest_config",
-                                      liquidity_constraint_policy = new_liquidity_constraint_policy,
-                                      signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
-                                      turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
-                                      concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
-                                      liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
-
-  return(new_port_backtest_config_obj)
-})
-
-
-#-----------------------------------------------------------------------
-# turnover_constraint_policy
-#-----------------------------------------------------------------------
-
-#' @title Add Turnover Constraint Policy
-#' @description Adds a turnover constraint policy to a `port_backtest_config` object.
-#'
-#' @param port_backtest_config_obj A `port_backtest_config` object to which the liquidity constraint policy will be added.
-#' @param turnover_rule A list with the following structure, specifying the turnover rule:
-#' #' \itemize{
-#'   \item \strong{liquidity_classification:} One of "micro_caps", "small_caps", "mid_caps", "large_caps" or "mega_caps"
-#'   \item \strong{turnover_cap:} A number indicating the turnover_cap
-#'   \item \strong{top_stock_quantile_buffer:} A number indicating the minimum signal quantile
-#'   }
-#'
-#' @return The updated `port_backtest_config` object with the added liquidity constraint policy.
-#'
-#' @examples
-#' portfolio <- create_port_backtest_config()
-#' portfolio <- add_turnover_constraint_policy(portfolio, turnover_rule = list(liquidity_classification = "micro_caps", turnover_cap = 0.01, top_stock_quantile_buffer = 0.66))
-#'
-#' @export
-setGeneric("add_turnover_constraint_policy", function(port_backtest_config_obj, turnover_rules) {
-  standardGeneric("add_turnover_constraint_policy")
-})
-
-#' @export
-setMethod("add_turnover_constraint_policy", "port_backtest_config", function(port_backtest_config_obj, turnover_rules) {
-
-  # Allowed classes
-  allowed_classes <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
-
-
-  # Validate turnover_rules
-  if(!is.list(turnover_rules)){
-    stop("turnover_rules must be a list or list of lists")
-  }
-
-  ##Create function to extract vector dependengin on nesting structure
-  unnest_turnover_rules <- function(argument){
-    if(all(sapply(turnover_rules, function(x) is.list(x)))){
-      return(turnover_rules %>% sapply(function(x) x[[argument]]))
-    } else {
-      return(turnover_rules[[argument]])
-    }
-  }
-
-  ##liquidity classification
-  liquidity_classification_vector <- unnest_turnover_rules("liquidity_classification")
-
-  if (!all(is.character(liquidity_classification_vector))) {
-    stop("Error: liquidity_classification must be a character string.")
-  }
-  if (!all(liquidity_classification_vector %in% allowed_classes)) {
-    stop(sprintf("Error: liquidity_classification must be one of: %s.", paste(allowed_classes, collapse = ", ")))
-  }
-
-  ##turnover_cap
-  turnover_cap_vector <- unnest_turnover_rules("turnover_cap")
-  if(!all(is.numeric(turnover_cap_vector))){
-    stop("Error: turnover_cap must be numeric")
-  }
-
-  ##top_stock_quantile_buffer
-  top_stock_quantile_buffer_vector <- unnest_turnover_rules("top_stock_quantile_buffer")
-  if(!all(is.numeric(top_stock_quantile_buffer_vector))){
-    stop("Error: top_stock_quantile_buffer must be numeric")
-  }
-
-  # Add turnover_cap_rules
-  ##Get existing rules
-  existing_rules <- port_backtest_config_obj@turnover_constraint_policy
-  existing_rules_names <- sapply(existing_rules, function(x) x$liquidity_classification)
-
-  #Combine old and new rules
-  if(length(existing_rules) != 0){
-    #Extract existing rules not to be overwritten
-    unique_existing_rules <- existing_rules[[which(!existing_rules_names %in% sapply(turnover_rules, function(x) x$liquidity_classification))]]
-
-    ###Check if unique_existing_rules is not list of lists
-    if(!all(sapply(unique_existing_rules, function(x) is.list(x)))){
-      final_rules <- list(unique_existing_rules) #Create list of lists obj
-    } else {
-      final_rules <- unique_existing_rules #do noth
-    }
-
-    #Combine new and old
-    if(all(sapply(turnover_rules, function(x) is.list(x)))){
-
-      #If new object is a list of lists, extract individually and add
-      for(new_rule in turnover_rules){
-        final_rules[[length(final_rules) + 1]] <- new_rule
-      }
-    }
-    else {
-      #In case it is not a list of lists
-      final_rules[[length(final_rules) + 1]] <- new_rule
-    }
-  }
-
-  ###In case there are no old rules
-
-  else {
-
-    if(all(sapply(turnover_rules, function(x) is.list(x)))){
-      final_rules <- turnover_rules
-    } else {
-      final_rules <- list(turnover_rules)
-    }
-  }
-
-  # Transform to the right format
-  n <- length(final_rules)
-
-  # Rename
-  names(final_rules) <- paste0("buffer_zone_", seq_len(n))
-
-
-  # Create the S4 object
-  new_port_backtest_config_obj <- new("port_backtest_config",
-                                      liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
-                                      signal_selection_policy = port_backtest_config_obj@signal_selection_policy,
-                                      turnover_constraint_policy = final_rules,
-                                      concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
-                                      liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
-
-  return(new_port_backtest_config_obj)
-})
-
-
-
 #-----------------------------------------------------------------------
 # concentration_constraint_policy
 #-----------------------------------------------------------------------
@@ -3346,334 +3107,407 @@ setMethod("add_concentration_constraint_policy",
 )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#' @title Add Signal Selection Policy
-#' @description Adds a signal selection policy to a `port_backtest_config` object.
+#-----------------------------------------------------------------------
+# liquidity_constraint_policy
+#-----------------------------------------------------------------------
+#' @title Create Liquidity Constraint Policy
+#' @description Constructor for a `liquidity_constraint_policy` object.
 #'
-#' @param port_backtest_config_obj A `port_backtest_config` object to which the signal selection policy will be added.
-#' @param signal_blending_method A method for blending signals.
-#' @param sb_benchmark_weighting A weighting strategy for the benchmark.
-#' @param max_abs_active_individual_weight A number indicating the absolute weight differential from benchmark weights.
-#' @param max_abs_active_group_weight A named vector indicating absolute group (sector) weight differentials in relation to the benchmark.
-#' @param p_correction_method Method for p-value correction.
-#' @param chosen_signals A vector of chosen signals.
-#' @param signal_positions A data structure indicating positions of signals.
-#' @param signal_significance_threshold A threshold for signal significance.
-#' @param chosen_informative_data A data structure with informative data.
-#' @param chosen_sb_metric A metric chosen for signal blending.
-#' @param priors_type Type of priors to use.
+#' @param liquidity_floor_rule A character string indicating the minimum liquidity classification.
+#' @param liquidity_cap_rules A named numeric vector indicating liquidity cap rules.
 #'
-#' @return The updated `port_backtest_config` object with the added signal selection policy.
-#'
-#' @examples
-#' portfolio <- create_port_backtest_config()
-#' portfolio <- add_signal_selection_policy(portfolio, signal_blending_method = "method1", ...)
-#'
+#' @return An S4 object of class `liquidity_constraint_policy`.
 #' @export
-setGeneric("add_signal_selection_policy", function(port_backtest_config_obj,
-                                                   #Signal Selection
-                                                   chosen_signals = NULL, signal_positions = NULL,
-                                                   #How to blend signals?
-                                                   signal_blending_method = NULL, chosen_sb_metric = NULL,
-                                                   #Restrictions on weights
-                                                   sb_benchmark_weighting_method = NULL, max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL,
-                                                   #How to select signals
-                                                   p_correction_method = "none", signal_significance_threshold = 0.05,
-                                                   priors_type = NULL, priors_informative_data = NULL) {
+create_liquidity_constraint_policy <- function(liquidity_floor_rule = NULL,
+                                               liquidity_cap_rules = NULL) {
+  obj <- new("liquidity_constraint_policy",
+                      liquidity_floor_rule = liquidity_floor_rule,
+                      liquidity_cap_rules = liquidity_cap_rules)
+  validObject(obj)
+  obj
+}
 
-  standardGeneric("add_signal_selection_policy")
+#' @title Add Liquidity Constraint Policy
+#' @description Add an existing or dynamically create a `liquidity_constraint_policy`
+#' to a portfolio backtest configuration object.
+#'
+#' @param object An object of class `port_backtest_config`.
+#' @param policy A `liquidity_constraint_policy` object. If missing, a new one is created.
+#' @param liquidity_floor_rule A character string (see details) used to create a new policy when `policy` is missing.
+#' @param liquidity_cap_rules A named numeric vector used to create a new policy when `policy` is missing.
+#' @param ... Additional arguments (currently unused).
+#'
+#' @return The updated `object` with the liquidity constraint policy added.
+#' @export
+setGeneric("add_liquidity_constraint_policy", function(object, policy, ...) {
+  standardGeneric("add_liquidity_constraint_policy")
 })
 
+#' @describeIn add_liquidity_constraint_policy
+#'   Add an existing `liquidity_constraint_policy` to a `port_backtest_config`.
 #' @export
-setMethod("add_signal_selection_policy", "port_backtest_config", function(port_backtest_config_obj,
-                                                                          #Signal Selection
-                                                                          chosen_signals = NULL, signal_positions = NULL,
-                                                                          #How to blend signals?
-                                                                          signal_blending_method = NULL, chosen_sb_metric = NULL,
-                                                                          #Restrictions on weights
-                                                                          sb_benchmark_weighting_method = "theme_sb", max_abs_active_individual_weight = NULL, max_abs_active_group_weight = NULL,
-                                                                          #How to select signals
-                                                                          p_correction_method = "none", signal_significance_threshold = 0.05,
-                                                                          priors_type = NULL, priors_informative_data = NULL
-) {
+setMethod("add_liquidity_constraint_policy",
+          signature(object = "port_backtest_config", policy = "liquidity_constraint_policy"),
+          function(object, policy, ...) {
+            object@liquidity_constraint_policy <- policy
 
-  # Validate arguments
-  ## chosen_signals
-  if(!is.null(chosen_signals)){
-    if (!all(is.character(chosen_signals))){
-      stop("chosen_signals should be a character vector.")
-    }
-    #Check if signal positions is also updated
-    if(is.null(signal_positions)){
-      stop("please always update chosen_signals with signal_positions to ensure consistency")
-    }
+            validObject(object)
+            return(object)
+          }
+)
 
-    ## signal_position
-    if (!all(is.character(signal_positions))){
-      stop("signal_positions should be a character vector.")
-    }
-    if(length(signal_positions) != length(chosen_signals)){
-      stop("lengths of signal_positions and chosen_signals should match.")
-    }
+#' @describeIn add_liquidity_constraint_policy
+#'   Dynamically create a `liquidity_constraint_policy` and add it to a `port_backtest_config`.
+#' @export
+setMethod("add_liquidity_constraint_policy",
+          signature(object = "port_backtest_config", policy = "missing"),
+          function(object, policy, liquidity_floor_rule, liquidity_cap_rules, ...) {
+            new_policy <- create_liquidity_constraint_policy(
+              liquidity_floor_rule = liquidity_floor_rule,
+              liquidity_cap_rules = liquidity_cap_rules
+            )
+            object@liquidity_constraint_policy <- new_policy
 
-    ## check for appropriate signal_blending_method
-    if(length(chosen_signals) > 1){
-      #If more than one signal is chosen, signal_blending_method can't be NULL
-      if(any(!is.null(signal_blending_method), !is.null(port_backtest_config_obj@signal_selection_policy))){
-        #Either the new signal_blending_method or the old one must be different from NULL
+            validObject(object)
+            return(object)
+          }
+)
+
+#' @title Convert Liquidity Constraint Policy to List
+#'
+#' @param x An S4 object of class `liquidity_constraint_policy`.
+#'
+#' @return A named list containing:
+#'   \itemize{
+#'     \item \code{liquidity_floor_rule}
+#'     \item \code{liquidity_cap_rules}
+#'   }
+#' @export
+setMethod("as.list", "liquidity_constraint_policy", function(x) {
+  list(
+    liquidity_floor_rule = x@liquidity_floor_rule,
+    liquidity_cap_rules = x@liquidity_cap_rules
+  )
+})
+
+
+
+
+
+
+
+
+#-----------------------------------------------------------------------
+# turnover_constraint_policy
+#-----------------------------------------------------------------------
+#' @title Create Turnover Constraint Policy
+#' @description Constructor for a `turnover_constraint_policy` object.
+#'
+#' @param quantile_range_buffer A numeric value indicating the increase in the quantile range for buffer zones.
+#' @param turnover_cap_rules A named numeric vector indicating turnover cap rules.
+#'
+#' @return An S4 object of class `turnover_constraint_policy`.
+#' @export
+create_turnover_constraint_policy <- function(quantile_range_buffer,
+                                              turnover_cap_rules = NULL) {
+  obj <- methods::new("turnover_constraint_policy",
+                      quantile_range_buffer = quantile_range_buffer,
+                      turnover_cap_rules = turnover_cap_rules)
+  methods::validObject(obj)
+  obj
+}
+
+#' @title Add Turnover Constraint Policy
+#' @description Add an existing or dynamically create a `turnover_constraint_policy`
+#' to a portfolio backtest configuration object.
+#'
+#' @param object An object of class `port_backtest_config` or `sb_backtest_config`.
+#' @param policy A `turnover_constraint_policy` object. If missing, a new one is created.
+#' @param quantile_range_buffer A numeric value used to create a new policy when `policy` is missing.
+#' @param turnover_cap_rules A named numeric vector used to create a new policy when `policy` is missing.
+#' @param ... Additional arguments (currently unused).
+#'
+#' @return The updated `object` with the turnover constraint policy added.
+#' @export
+setGeneric("add_turnover_constraint_policy", function(object, policy, ...) {
+  standardGeneric("add_turnover_constraint_policy")
+})
+
+#' @describeIn add_turnover_constraint_policy
+#'   Add an existing `turnover_constraint_policy` to a `port_backtest_config`.
+#' @export
+setMethod("add_turnover_constraint_policy",
+          signature(object = "port_backtest_config", policy = "turnover_constraint_policy"),
+          function(object, policy, ...) {
+            object@turnover_constraint_policy <- policy
+            methods::validObject(object)
+            return(object)
+          }
+)
+
+#' @describeIn add_turnover_constraint_policy
+#'   Dynamically create a `turnover_constraint_policy` and add it to a `port_backtest_config`.
+#' @export
+setMethod("add_turnover_constraint_policy",
+          signature(object = "port_backtest_config", policy = "missing"),
+          function(object, policy, quantile_range_buffer, turnover_cap_rules, ...) {
+            new_policy <- create_turnover_constraint_policy(
+              quantile_range_buffer = quantile_range_buffer,
+              turnover_cap_rules = turnover_cap_rules
+            )
+            object@turnover_constraint_policy <- new_policy
+            methods::validObject(object)
+            return(object)
+          }
+)
+
+
+#' @title Convert Turnover Constraint Policy to List
+#'
+#' @param x An S4 object of class `turnover_constraint_policy`.
+#'
+#' @return A named list containing:
+#'   \itemize{
+#'     \item \code{quantile_range_buffer}
+#'     \item \code{turnover_cap_rules}
+#'   }
+#' @export
+setMethod("as.list", "turnover_constraint_policy", function(x) {
+  list(
+    quantile_range_buffer = x@quantile_range_buffer,
+    turnover_cap_rules = x@turnover_cap_rules
+  )
+})
+
+
+
+
+
+
+#-----------------------------------------------------------------------
+# liquidity_floor_cutoffs
+#-----------------------------------------------------------------------
+
+#' @title Create Liquidity Floor Cutoffs
+#' @description Construct a liquidity_floor_cutoffs data frame from scratch.
+#'
+#' @param metric_name A character vector of metric names.
+#' @param metric_cutoffs A list of named numeric vectors, one for each metric in
+#'   metric_name. Each vector must have names exactly equal to
+#'   c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps") (order may vary).
+#'
+#' @return A data.frame with a column `liquidity_classification` and one column per metric.
+#'   The rows are ordered (after reordering each metric vector according to the allowed levels)
+#'   so that the main liquidity metric (assumed to be the first element of metric_name)
+#'   is in non-decreasing order.
+#'
+#' @details The function enforces that:
+#'   \itemize{
+#'     \item The returned object is a data.frame.
+#'     \item The column names (besides `liquidity_classification`) are numeric with no NAs.
+#'     \item The `liquidity_classification` values are exactly the allowed levels:
+#'       "micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps".
+#'     \item The main liquidity metric (the first metric in metric_name) is in ascending order.
+#'     \item The ordering (ranking) of liquidity classifications is consistent across metrics.
+#'   }
+#'
+#' @export
+create_liquidity_floor_cutoffs <- function(metric_name, metric_cutoffs) {
+  # Allowed liquidity classifications
+  allowed_levels <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+
+  # Check that lengths match
+  if (length(metric_name) != length(metric_cutoffs)) {
+    stop("Length of metric_name must equal length of metric_cutoffs")
+  }
+
+  # Process each metric: check numeric, names, and reorder according to allowed_levels.
+  metrics_list <- list()
+  for (i in seq_along(metric_name)) {
+    vec <- metric_cutoffs[[i]]
+    if (!is.numeric(vec)) {
+      stop(paste0("Metric '", metric_name[i], "' must be numeric"))
+    }
+    if (is.null(names(vec))) {
+      stop(paste0("Metric '", metric_name[i], "' must be a named vector"))
+    }
+    if (!setequal(names(vec), allowed_levels)) {
+      stop(paste0("Metric '", metric_name[i], "' must have names exactly: ",
+                  paste(allowed_levels, collapse = ", ")))
+    }
+    # Reorder the vector so that its values are arranged by the allowed levels.
+    vec <- vec[allowed_levels]
+    metrics_list[[ metric_name[i] ]] <- vec
+  }
+
+  # Build the data.frame: first column is liquidity_classification.
+  df <- data.frame(liquidity_classification = allowed_levels, stringsAsFactors = FALSE)
+  for (nm in metric_name) {
+    df[[nm]] <- unname(metrics_list[[nm]])
+  }
+
+  # Ensure all metric columns are numeric and free of NAs.
+  if (!all(sapply(df[, -1, drop = FALSE], is.numeric))) {
+    stop("All metric columns must be numeric")
+  }
+  if (any(is.na(df))) {
+    stop("liquidity_floor_cutoffs elements must not have NAs")
+  }
+
+  # Check that the main liquidity metric (first metric) is in ascending order.
+  main_metric <- metric_name[1]
+  if (!all(diff(df[[main_metric]]) >= 0)) {
+    stop("liquidity_floor_cutoffs is not in ascending order based on the main liquidity metric")
+  }
+
+  # Check that ordering of all metrics is consistent.
+  orders_matrix <- sapply(df[, metric_name, drop = FALSE], function(x) order(x))
+  for (i in seq_len(nrow(orders_matrix))) {
+    if (length(unique(orders_matrix[i, ])) != 1) {
+      stop("liquidity metrics orders in liquidity_floor_cutoffs are conflicting")
+    }
+  }
+
+  return(df)
+}
+
+## ---- add_liquidity_floor_cutoffs ----
+
+#' @title Add Liquidity Floor Cutoffs
+#' @description Add or update liquidity floor cutoff values in an existing object.
+#'
+#' @param object An object of class `port_backtest_config` or `sb_backtest_config`.
+#'   The object must have a slot `liquidity_floor_cutoffs` (which may be NULL)
+#'   and a character slot `main_liquidity_metric`.
+#' @param metric_name A character vector (or a single character) specifying the metric(s)
+#'   to add or update.
+#' @param metric_cutoffs For each metric, a named numeric vector containing cutoff values.
+#'   For a single metric, this can be a named numeric vector.
+#'
+#' @return The updated `object` with its `liquidity_floor_cutoffs` slot merged with the new values.
+#'
+#' @details If the object already has a liquidity_floor_cutoffs data.frame, the function:
+#'   \itemize{
+#'     \item Ensures that rows exist for all allowed liquidity classifications.
+#'     \item For each provided metric, if the metric column already exists, it updates the rows
+#'       corresponding to the names provided in `metric_cutoffs`; otherwise a new column is added.
+#'     \item After merging, the resulting data.frame is validated against the enforced structure:
+#'       it must be a data.frame, contain the main liquidity metric, be sorted in ascending order,
+#'       have consistent orders across metrics, contain only allowed liquidity classifications,
+#'       have numeric columns (except for the classification column) and contain no NAs.
+#'   }
+#'
+#' @export
+add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
+  # Allowed liquidity classifications
+  allowed_levels <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+
+  # Ensure metric_cutoffs is a list when multiple metrics are provided.
+  if (length(metric_name) > 1 && !is.list(metric_cutoffs)) {
+    stop("When multiple metric names are provided, metric_cutoffs must be a list")
+  }
+  if (length(metric_name) == 1 && !is.list(metric_cutoffs)) {
+    metric_cutoffs <- list(metric_cutoffs)
+  }
+
+  # If no liquidity_floor_cutoffs exists, create one from scratch.
+  if (is.null(object@liquidity_floor_cutoffs)) {
+    # For a new liquidity_floor_cutoffs, each metric must provide values for all allowed levels.
+    for (i in seq_along(metric_name)) {
+      vec <- metric_cutoffs[[i]]
+      if (!setequal(names(vec), allowed_levels)) {
+        stop(paste0("For new liquidity_floor_cutoffs, metric '", metric_name[i],
+                    "' must have values for all liquidity classifications: ",
+                    paste(allowed_levels, collapse = ", ")))
+      }
+    }
+    new_df <- create_liquidity_floor_cutoffs(metric_name, metric_cutoffs)
+    object@liquidity_floor_cutoffs <- new_df
+    return(object)
+  }
+
+  # Otherwise, merge new information with the existing liquidity_floor_cutoffs.
+  df <- object@liquidity_floor_cutoffs
+  if (!is.data.frame(df)) {
+    stop("liquidity_floor_cutoffs must be a data.frame")
+  }
+  if (!"liquidity_classification" %in% colnames(df)) {
+    stop("liquidity_floor_cutoffs must have a 'liquidity_classification' column")
+  }
+
+  # Ensure that all allowed liquidity classifications are present.
+  missing_levels <- setdiff(allowed_levels, df$liquidity_classification)
+  if (length(missing_levels) > 0) {
+    new_rows <- data.frame(liquidity_classification = missing_levels, stringsAsFactors = FALSE)
+    for (col in setdiff(colnames(df), "liquidity_classification")) {
+      new_rows[[col]] <- NA_real_
+    }
+    df <- rbind(df, new_rows)
+  }
+  # Reorder rows according to allowed_levels.
+  df <- df[match(allowed_levels, df$liquidity_classification), , drop = FALSE]
+
+  # For each provided metric, update or add its column.
+  for (i in seq_along(metric_name)) {
+    nm <- metric_name[i]
+    vec <- metric_cutoffs[[i]]
+    if (!is.numeric(vec) || is.null(names(vec))) {
+      stop(paste0("Metric '", nm, "' must be a named numeric vector"))
+    }
+    if (!all(names(vec) %in% allowed_levels)) {
+      stop(paste0("Metric '", nm, "' names must be among: ", paste(allowed_levels, collapse = ", ")))
+    }
+    if (nm %in% colnames(df)) {
+      # Update the specified liquidity classifications.
+      for (lev in names(vec)) {
+        idx <- which(df$liquidity_classification == lev)
+        df[idx, nm] <- vec[lev]
+      }
+    } else {
+      # Create a new column (with NA) and update the specified rows.
+      df[[nm]] <- NA_real_
+      for (lev in names(vec)) {
+        idx <- which(df$liquidity_classification == lev)
+        df[idx, nm] <- vec[lev]
       }
     }
   }
 
-  ## Signal Blending Method
-  if (!is.null(signal_blending_method)){
-    ###Character
-    if(!is.character(signal_blending_method)) {
-      stop("signal_blending_method should be a character")
-    }
-    ###Correct choice
-    if(!signal_blending_method %in% c("EW", "SW", "RP", "MTO", "ML")){
-      stop("signal_blending_method should be one of EW, SW, RP, MTO or ML")
-    }
+  # After merging, ensure no NAs remain in any metric column.
+  metric_cols <- setdiff(colnames(df), "liquidity_classification")
+  if (any(is.na(df[, metric_cols]))) {
+    stop("After adding, liquidity_floor_cutoffs elements must not have NAs")
   }
 
-  ##chosen_sb_metric
-  if (!is.null(chosen_sb_metric)){
-    ###Character
-    if(!is.character(chosen_sb_metric)) {
-      stop("chosen_sb_metric should be a character")
-    }
-    ###Correct choice
-    if(!chosen_sb_metric %in% c("mean_active_return", "IR", "alpha", "AP", "treynor")){
-      stop("chosen_sb_metric should be one of mean_active_return, IR, alpha, AP or treynor")
-    }
+  # Check that the main liquidity metric is present.
+  main_metric <- object@main_liquidity_metric
+  if (!(main_metric %in% colnames(df))) {
+    stop("main_liquidity_metric is not represented in liquidity_floor_cutoffs")
   }
 
-  ## Signal Blending Benchmark Weighting Method
-  if (!is.null(sb_benchmark_weighting_method)){
-    ###Character
-    if(!is.character(sb_benchmark_weighting_method)) {
-      stop("sb_benchmark_weighting_method should be a character")
-    }
-    ###Correct choice
-    if(!sb_benchmark_weighting_method %in% c("individual_sb", "theme_sb")){
-      stop("sb_benchmark_weighting_method should be one of individual_sb or theme_sb")
+  # Ensure that df is sorted in ascending order by the main liquidity metric.
+  df_sorted <- dplyr::arrange(df, !!rlang::sym(main_metric))
+  if (!all(df_sorted$liquidity_classification == df$liquidity_classification)) {
+    stop("liquidity_floor_cutoffs is not in ascending order based on main_liquidity_metric")
+  }
+
+  # Check that the ordering (ranking) is consistent across all metric columns.
+  orders_matrix <- sapply(df[, metric_cols, drop = FALSE], function(x) order(x))
+  for (i in seq_len(nrow(orders_matrix))) {
+    if (length(unique(orders_matrix[i, ])) != 1) {
+      stop("liquidity metrics orders in liquidity_floor_cutoffs are conflicting")
     }
   }
 
-  ##max_abs_active_individual_weight
-  if(!is.null(max_abs_active_individual_weight)){
-    if(!is.numeric(max_abs_active_individual_weight)){
-      stop("max_abs_active_individual_weight should be numeric")
-    }
-  }
-
-  ##max_abs_active_group_weight
-  if(!is.null(max_abs_active_group_weight)){
-    if(!is.numeric(max_abs_active_group_weight)){
-      stop("max_abs_active_group_weight should be numeric")
-    }
-  }
+  object@liquidity_floor_cutoffs <- df
+  return(object)
+}
 
 
-  ## p_correction_method
-  if (!is.null(p_correction_method)){
-    ###Character
-    if(!is.character(p_correction_method)) {
-      stop("p_correction_method should be a character")
-    }
-    ###Correct choice
-    if(!p_correction_method %in% c("bayesian", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none")){
-      stop("p_correction_method should be one of bayesian, holm, hochberg, hommel, bonferroni, BH, BY, fdr or none")
-    }
-  }
-
-  ##signal_significance_threshold
-  if(!is.numeric(signal_significance_threshold)){
-    stop("signal_significance_threshold should be numeric")
-  }
-
-  ##priors_type
-  if (!is.null(priors_type)){
-    ###Character
-    if(!is.character(priors_type)) {
-      stop("priors_type should be a character")
-    }
-    ###Correct choice
-    if(!priors_type %in% c("uninformative", "all", "mean", "user")){
-      stop("priors_type should be one of uninformative, all, mean or user")
-    }
-  }
-
-  ##priors_informative_data
-  if (!is.null(priors_informative_data)){
-    ###Character
-    if(!is.character(priors_informative_data)) {
-      stop("priors_informative_data should be a character")
-    }
-    ###Correct choice
-    if(!priors_informative_data %in% c("jkp_emerging", "cz_global")){
-      stop("priors_type should be one of jkp_emerging or cz_global")
-    }
-  }
 
 
-  # Construct new_signal_selection_policy list
-  new_signal_selection_policy <- list(
-    chosen_signals = if (!is.null(chosen_signals)) chosen_signals else port_backtest_config_obj@signal_selection_policy$chosen_signals,
-    signal_positions = if (!is.null(signal_positions)) signal_positions else port_backtest_config_obj@signal_selection_policy$signal_positions,
-    signal_blending_method = if (!is.null(signal_blending_method)) signal_blending_method else port_backtest_config_obj@signal_selection_policy$signal_blending_method,
-    chosen_sb_metric = if (!is.null(chosen_sb_metric)) chosen_sb_metric else port_backtest_config_obj@signal_selection_policy$chosen_sb_metric,
-    sb_benchmark_weighting_method = if (!missing(sb_benchmark_weighting_method) && !is.null(sb_benchmark_weighting_method)) {
-      sb_benchmark_weighting_method
-    } else if (!is.null(port_backtest_config_obj@signal_selection_policy$sb_benchmark_weighting_method)) {
-      port_backtest_config_obj@signal_selection_policy$sb_benchmark_weighting_method
-    } else {
-      "theme_sb"
-    },
-    max_abs_active_individual_weight = if (!is.null(max_abs_active_individual_weight)) max_abs_active_individual_weight else port_backtest_config_obj@signal_selection_policy$max_abs_active_individual_weight,
-    max_abs_active_group_weight = if (!is.null(max_abs_active_group_weight)) max_abs_active_group_weight else port_backtest_config_obj@signal_selection_policy$max_abs_active_group_weight,
-    p_correction_method = if (!missing(p_correction_method) && p_correction_method != "none") {
-      p_correction_method
-    } else if (!is.null(port_backtest_config_obj@signal_selection_policy$p_correction_method)) {
-      port_backtest_config_obj@signal_selection_policy$p_correction_method
-    } else {
-      "none"
-    },
-    signal_significance_threshold = if (!is.null(signal_significance_threshold)) signal_significance_threshold else port_backtest_config_obj@signal_selection_policy$signal_significance_threshold,
-      priors_type = if (!is.null(p_correction_method) && p_correction_method == "bayesian" && is.null(priors_type)) {
-    "uninformative"
-  } else if (!is.null(priors_type)) {
-    priors_type
-  } else {
-    port_backtest_config_obj@signal_selection_policy$priors_type
-  },
-    priors_informative_data = if (!is.null(priors_informative_data)) priors_informative_data else port_backtest_config_obj@signal_selection_policy$priors_informative_data
-  )
-
-  # Final consistency checks
-
-  # Check if max_abs_active_individual_weight is set but signal_blending_method is not "MTO"
-  if (!is.null(new_signal_selection_policy$signal_blending_method) &&
-      new_signal_selection_policy$signal_blending_method != "MTO" &
-      !is.null(new_signal_selection_policy$max_abs_active_individual_weight)) {
-    stop("signal_blending_method must be equal to MTO if max_abs_active_individual_weight is set")
-  }
-
-  # Check if max_abs_active_group_weight is set but signal_blending_method is not "MTO"
-  if (!is.null(new_signal_selection_policy$signal_blending_method) &&
-      new_signal_selection_policy$signal_blending_method != "MTO" &
-      !is.null(new_signal_selection_policy$max_abs_active_group_weight)) {
-    stop("signal_blending_method must be equal to MTO if max_abs_active_group_weight is set")
-  }
-
-  # Check if chosen_sb_metric is NULL when signal_blending_method is "SW" or "MTO"
-  if (!is.null(new_signal_selection_policy$signal_blending_method) &&
-      new_signal_selection_policy$signal_blending_method %in% c("SW", "MTO") &
-      is.null(new_signal_selection_policy$chosen_sb_metric)) {
-    stop("chosen_sb_metric can't be NULL if signal_blending_method is SW or MTO")
-  }
-
-  # Check if chosen_sb_metric is NULL when signal_blending_method is "SW" or "MTO"
-  if (!is.null(new_signal_selection_policy$signal_blending_method) &&
-      !new_signal_selection_policy$signal_blending_method %in% c("SW", "MTO") &
-      !is.null(new_signal_selection_policy$chosen_sb_metric)) {
-    stop("chosen_sb_metric is only needed if signal_blending_method is SW or MTO")
-  }
-
-  # Check for p_correction_method = "bayesian" and valid priors_type and priors_informative_data
-  if (!is.null(new_signal_selection_policy$p_correction_method) &&
-      new_signal_selection_policy$p_correction_method == "bayesian" &&
-      !new_signal_selection_policy$priors_type %in% c("uninformative", "user") &&
-      is.null(new_signal_selection_policy$priors_informative_data)) {
-    stop("priors_informative_data can't be NULL if p_correction_method is bayesian and priors_type is not uninformative or user")
-  }
-
-  # Create the updated port_backtest_config object
-  new_port_backtest_config_obj <- new("port_backtest_config",
-                                    liquidity_constraint_policy = port_backtest_config_obj@liquidity_constraint_policy,
-                                    signal_selection_policy = new_signal_selection_policy,
-                                    turnover_constraint_policy = port_backtest_config_obj@turnover_constraint_policy,
-                                    concentration_constraint_policy = port_backtest_config_obj@concentration_constraint_policy,
-                                    liquidity_floor_cutoffs = port_backtest_config_obj@liquidity_floor_cutoffs)
-
-  return(new_port_backtest_config_obj)
-})
 
 
-#' @title Add Liquidity Floor Cutoffs
-#' @description Add liquidity floor cutoffs to the port_backtest_config object.
-#' @param port_backtest_config_obj An S4 object of class `port_backtest_config`.
-#' @param liquidity_metric A character string representing the liquidity metric.
-#' @param cutoffs A numeric vector of length 5 representing the cutoff values for
-#' micro_caps, small_caps, mid_caps, large_caps, and mega_caps.
-#' @return An updated `port_backtest_config` object.
-#' @export
-setGeneric("add_liquidity_floor_cutoffs", function(port_backtest_config_obj, liquidity_metric, cutoffs) {
-  standardGeneric("add_liquidity_floor_cutoffs")
-})
-
-#' @export
-setMethod("add_liquidity_floor_cutoffs", "port_backtest_config", function(port_backtest_config_obj,
-                                                                        liquidity_metric,
-                                                                        cutoffs) {
-  # Validate inputs
-  if (!is.character(liquidity_metric) || length(liquidity_metric) != 1) {
-    stop("liquidity_metric should be a single character string.")
-  }
-
-  if (!is.numeric(cutoffs) || length(cutoffs) != 5 || any(cutoffs <= 0)) {
-    stop("cutoffs must be a numeric vector of length 5, and all values must be positive.")
-  }
-
-  # Check if cutoffs are in ascending order
-  if (!all(diff(cutoffs) >= 0)) {
-    stop("cutoffs must be provided in ascending order.")
-  }
-
-  # Initialize liquidity_floor_cutoffs if it doesn't exist
-  if (is.null(port_backtest_config_obj@liquidity_floor_cutoffs)) {
-    port_backtest_config_obj@liquidity_floor_cutoffs <- list(
-      micro_caps = numeric(),
-      small_caps = numeric(),
-      mid_caps = numeric(),
-      large_caps = numeric(),
-      mega_caps = numeric()
-    )
-  }
-
-  # Update each market capitalization class with the new liquidity metric cutoffs
-  port_backtest_config_obj@liquidity_floor_cutoffs$micro_caps[liquidity_metric] <- cutoffs[1]
-  port_backtest_config_obj@liquidity_floor_cutoffs$small_caps[liquidity_metric] <- cutoffs[2]
-  port_backtest_config_obj@liquidity_floor_cutoffs$mid_caps[liquidity_metric] <- cutoffs[3]
-  port_backtest_config_obj@liquidity_floor_cutoffs$large_caps[liquidity_metric] <- cutoffs[4]
-  port_backtest_config_obj@liquidity_floor_cutoffs$mega_caps[liquidity_metric] <- cutoffs[5]
-
-  # Return the updated portfolio policies object
-  return(port_backtest_config_obj)
-})
 
 
 

@@ -907,9 +907,11 @@ run_sb_backtest_internal <- function(
     for(d in (training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size - 1)){
       #Get current date
       current_date <- dates_m_vector[d]
+      if (verbose) print(current_date)
 
-      ##Check if it's a rebalancing month
-      if((lubridate::month(current_date) %in% rebalancing_months) || d == (training_sample_size + validation_sample_size)){
+      ##Rebalance if it's a rebalancing month
+      is_rebalancing_month <- (lubridate::month(current_date) %in% rebalancing_months) || d == (training_sample_size + validation_sample_size)
+      if (is_rebalancing_month){
 
           ###Print refitting message
           if(verbose){

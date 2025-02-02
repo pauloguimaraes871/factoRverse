@@ -4,7 +4,7 @@
 #' \itemize{
 #'  \item{Signal-Selection Benchmark}: A benchmark that is built using the universe of all signals in `chosen_signals`.
 #'   It is used to evaluate the performance of the signal selection process.
-#'  \item{Signal-Blending Benchmark}: A benchmark that is built using only signals derived from signal selection process (those with top_assets assigned as 1).
+#'  \item{Signal-Blending Benchmark}: A benchmark that is built using only signals derived from signal selection process (those with pre_eligible_assets assigned as 1).
 #'  It is used to evaluate the performance of the signal blending process.
 #'  }
 #'
@@ -12,7 +12,7 @@
 #'   - `id`
 #'   - `tickers`
 #'   - `dates`
-#'   - `top_assets` (indicating which signals are statistically significant)
+#'   - `pre_eligible_assets` (indicating which signals are statistically significant)
 #'
 #' @param selected_signal_themes_m_d_ref An optional data frame with signal themes. Must include columns:
 #'   - `tickers`
@@ -34,7 +34,7 @@
 create_se_benchmarks <- function(signal_universe_m_d_ref, selected_signal_themes_m_d_ref){
 
   #Create benchmark_weights_m_d_ref object for signals
-  sb_benchmark_weights_m_d_ref <- signal_universe_m_d_ref %>% dplyr::filter(top_assets == 1) %>% dplyr::select(id, tickers, dates) #Initialize sb_benchmark_weights obj
+  sb_benchmark_weights_m_d_ref <- signal_universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::select(id, tickers, dates) #Initialize sb_benchmark_weights obj
   ss_benchmark_weights_m_d_ref <- signal_universe_m_d_ref %>% dplyr::select(id, tickers, dates) #Initialize ss_benchmark_weights obj
 
   # Check if there are any significant signals

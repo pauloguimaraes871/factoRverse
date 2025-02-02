@@ -6,12 +6,13 @@
 \usage{
 classify_investment_universe(
   signals_m_d_ref,
-  top_assets_quantile = NULL,
+  eligibility_quantile_range = NULL,
+  min_eligible_assets_fallback = NULL,
   signal_significance_threshold = NULL,
   liquidity_floor_cutoffs_list = NULL,
   liquidity_m_d_ref = NULL,
   liquidity_constraint_policy = NULL,
-  portfolio_weights_m_lstd_ref = NULL,
+  updated_port_weights_m_lstd_ref = NULL,
   turnover_constraint_policy = NULL,
   benchmark_weights_m_d_ref = NULL,
   groups_m_d_ref = NULL,
@@ -24,9 +25,6 @@ classify_investment_universe(
 }
 \arguments{
 \item{signals_m_d_ref}{A data frame of stocks with signals columns.}
-
-\item{top_assets_quantile}{Optional. Numeric value to apply the \strong{Only Top Assets Rule}, indicating the top quantile for filtering assets based on signal.
-Only assets in this quantile will be considered for the \code{filtered_universe}.}
 
 \item{liquidity_floor_cutoffs_list}{Mandatory if \code{turnover_constraint_policy} and/or \code{liquidity_constraint_policy} are provided.
 A list of named vectors containing cutoff values to classify stocks according to liquidity.
@@ -51,7 +49,7 @@ Many liquidity caps might be created, and in this case, each \code{liquidity_cap
 }
 }}
 
-\item{portfolio_weights_m_lstd_ref}{A data frame containing columns for id, tickers, dates, and weights from the old portfolio (pre-rebalancing).
+\item{updated_port_weights_m_lstd_ref}{A data frame containing columns for id, tickers, dates, and weights from the old portfolio (pre-rebalancing).
 All tickers in the current stock universe must have a unique correspondence in this data frame.}
 
 \item{turnover_constraint_policy}{A named list containing objects used to build buffer zones and apply turnover constraints.
@@ -59,7 +57,7 @@ All tickers in the current stock universe must have a unique correspondence in t
 \item Each element will constitute a \code{buffer_zone}, being a list with three elements:
 \itemize{
 \item \code{liquidity_classification} element: A liquidity classification (e.g., "micro_caps", "small_caps") for that buffer zone.
-\item \code{top_quantile_buffer}: A numeric value indicating a buffer value that relaxes \code{top_assets} for stocks with the specified liquidity classification.
+\item \code{top_quantile_buffer}: A numeric value indicating a buffer value that relaxes \code{pre_eligible_assets} for stocks with the specified liquidity classification.
 \item \code{turnover_cap}: A numeric value specifying the turnover cap.
 Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the \code{liquidity_floor_rule}.
 }
@@ -80,6 +78,9 @@ The rule will be appended to the filter as a regular promotion rule, accumulatin
 All tickers in the current stock universe must have a unique correspondence in this data frame.}
 
 \item{asset_object}{A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"}
+
+\item{pre_eligible_assets_quantile}{Optional. Numeric value to apply the \strong{Only Top Assets Rule}, indicating the top quantile for filtering assets based on signal.
+Only assets in this quantile will be considered for the \code{filtered_universe}.}
 
 \item{concentration_constraints_policy}{A named list containing up to four elements:
 \itemize{

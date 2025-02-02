@@ -124,7 +124,7 @@ setMethod("show", "signal_universe_m_df", function(object) {
   cat("=================================\n")
   cat("Object name: ", object@meta_dataframe_name, " \n\n")
   cat(" Performance Metrics:\n")
-  cat(paste(setdiff(object@signals, c("top_assets", "theme_ss_bench_weights", "theme_sb_bench_weights", "theme", "is_eligible")), collapse = ", "))
+  cat(paste(setdiff(object@signals, c("pre_eligible_assets", "theme_ss_bench_weights", "theme_sb_bench_weights", "theme", "is_eligible")), collapse = ", "))
   cat("  \nNumber of performance metrics:", ncol(object@data)-3-5, "\n")
   cat(" \nDates:\n")
   print(unique(as.Date(object@data$dates)))

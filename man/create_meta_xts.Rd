@@ -7,7 +7,7 @@
 create_meta_xts(
   data,
   type = c("returns", "metrics"),
-  asset_type = NULL,
+  asset_type = "ports",
   meta_xts_name = "default_name",
   metric_name = NULL,
   workflow = NULL,

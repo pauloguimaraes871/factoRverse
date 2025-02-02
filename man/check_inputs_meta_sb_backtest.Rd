@@ -7,6 +7,7 @@
 check_inputs_meta_sb_backtest(
   config,
   features_m_df,
+  target_m_df,
   base_signal_themes_m_df,
   base_priors_m_df,
   base_custom_signal_weights_m_df,

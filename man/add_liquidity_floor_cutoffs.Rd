@@ -4,23 +4,34 @@
 \alias{add_liquidity_floor_cutoffs}
 \title{Add Liquidity Floor Cutoffs}
 \usage{
-add_liquidity_floor_cutoffs(
-  port_backtest_config_obj,
-  liquidity_metric,
-  cutoffs
-)
+add_liquidity_floor_cutoffs(object, metric_name, metric_cutoffs)
 }
 \arguments{
-\item{port_backtest_config_obj}{An S4 object of class \code{port_backtest_config}.}
+\item{object}{An object of class \code{port_backtest_config} or \code{sb_backtest_config}.
+The object must have a slot \code{liquidity_floor_cutoffs} (which may be NULL)
+and a character slot \code{main_liquidity_metric}.}
 
-\item{liquidity_metric}{A character string representing the liquidity metric.}
+\item{metric_name}{A character vector (or a single character) specifying the metric(s)
+to add or update.}
 
-\item{cutoffs}{A numeric vector of length 5 representing the cutoff values for
-micro_caps, small_caps, mid_caps, large_caps, and mega_caps.}
+\item{metric_cutoffs}{For each metric, a named numeric vector containing cutoff values.
+For a single metric, this can be a named numeric vector.}
 }
 \value{
-An updated \code{port_backtest_config} object.
+The updated \code{object} with its \code{liquidity_floor_cutoffs} slot merged with the new values.
 }
 \description{
-Add liquidity floor cutoffs to the port_backtest_config object.
+Add or update liquidity floor cutoff values in an existing object.
+}
+\details{
+If the object already has a liquidity_floor_cutoffs data.frame, the function:
+\itemize{
+\item Ensures that rows exist for all allowed liquidity classifications.
+\item For each provided metric, if the metric column already exists, it updates the rows
+corresponding to the names provided in \code{metric_cutoffs}; otherwise a new column is added.
+\item After merging, the resulting data.frame is validated against the enforced structure:
+it must be a data.frame, contain the main liquidity metric, be sorted in ascending order,
+have consistent orders across metrics, contain only allowed liquidity classifications,
+have numeric columns (except for the classification column) and contain no NAs.
+}
 }

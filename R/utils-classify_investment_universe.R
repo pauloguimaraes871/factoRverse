@@ -37,7 +37,7 @@
 #' - Assets that fail to meet **user_defined_AND_rules** will always be excluded.
 #'
 #' @param signals_m_d_ref A data frame of stocks with signals columns.
-#' @param top_assets_quantile Optional. Numeric value to apply the **Only Top Assets Rule**, indicating the top quantile for filtering assets based on signal.
+#' @param pre_eligible_assets_quantile Optional. Numeric value to apply the **Only Top Assets Rule**, indicating the top quantile for filtering assets based on signal.
 #'   Only assets in this quantile will be considered for the `filtered_universe`.
 #' @param liquidity_m_d_ref A data frame  containing columns for id, tickers, dates, and one or more market liquidity measures (e.g., inflation-adjusted mean financial volume).
 #'  All tickers in the current universe must have a unique correspondence in this data frame.
@@ -48,12 +48,12 @@
 #'   - `liquidity_classification`: A character indicating the classification for the cap.
 #'   - `liquidity_cap`: A numeric value indicating the cap (upper bound) for stocks with that liquidity classification.
 #'   Many liquidity caps might be created, and in this case, each `liquidity_cap_rule` must be identified with a number (e.g., liquidity_cap_rule_1, liquidity_cap_rule_2, and so on).
-#' @param portfolio_weights_m_lstd_ref  A data frame containing columns for id, tickers, dates, and weights from the old portfolio (pre-rebalancing).
+#' @param updated_port_weights_m_lstd_ref  A data frame containing columns for id, tickers, dates, and weights from the old portfolio (pre-rebalancing).
 #' All tickers in the current stock universe must have a unique correspondence in this data frame.
 #' @param turnover_constraint_policy A named list containing objects used to build buffer zones and apply turnover constraints.
 #' - Each element will constitute a `buffer_zone`, being a list with three elements:
 #'   - `liquidity_classification` element: A liquidity classification (e.g., "micro_caps", "small_caps") for that buffer zone.
-#'   - `top_quantile_buffer`: A numeric value indicating a buffer value that relaxes `top_assets` for stocks with the specified liquidity classification.
+#'   - `top_quantile_buffer`: A numeric value indicating a buffer value that relaxes `pre_eligible_assets` for stocks with the specified liquidity classification.
 #'   - `turnover_cap`: A numeric value specifying the turnover cap.
 #'   Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the `liquidity_floor_rule`.
 #' @param benchmark_weights_m_d_ref A data frame containing columns for id, tickers, dates, and current benchmark weights columns.
@@ -86,9 +86,9 @@
 #' @return
 #' @export
 classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
-                                         top_assets_quantile = NULL, signal_significance_threshold = NULL, #Signal classification for only_top_assets_rule
+                                         eligibility_quantile_range = NULL, min_eligible_assets_fallback = NULL, signal_significance_threshold = NULL, #Signal classification for only_pre_eligible_assets_rule
                                          liquidity_floor_cutoffs_list = NULL, liquidity_m_d_ref = NULL, liquidity_constraint_policy= NULL, #Liquidity policy
-                                         portfolio_weights_m_lstd_ref = NULL, turnover_constraint_policy = NULL, #Turnover policy
+                                         updated_port_weights_m_lstd_ref = NULL, turnover_constraint_policy = NULL, #Turnover policy
                                          benchmark_weights_m_d_ref = NULL, groups_m_d_ref = NULL, concentration_constraint_policy = NULL, #Concentration policy
                                          user_defined_AND_rules_list = NULL, user_defined_OR_rules_list = NULL, #User defined rules
                                          asset_object = "stocks", verbose = TRUE
@@ -102,23 +102,23 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
   }
 
   ##Check if liquidity_m_d_ref is for only one date
-  if(!is.null(liquidity_m_d_ref) & !length(unique(liquidity_m_d_ref$dates)) == 1){
+  if(!is.null(liquidity_m_d_ref) & !length(unique(dplyr::pull(liquidity_m_d_ref, dates))) == 1){
     stop("liquidity_m_d_ref should have only one date")
   }
 
-  ##Check if portfolio_weights_m_lstd_ref is for only one date
-  if(!is.null(portfolio_weights_m_lstd_ref) & !length(unique(portfolio_weights_m_lstd_ref$dates)) == 1){
-    stop("portfolio_weights_m_lstd_ref should have only one date")
+  ##Check if updated_port_weights_m_lstd_ref is for only one date
+  if(!is.null(updated_port_weights_m_lstd_ref) & !length(unique(dplyr::pull(updated_port_weights_m_lstd_ref, dates))) == 1){
+    stop("updated_port_weights_m_lstd_ref should have only one date")
   }
 
   ##Check if benchmark_weights_m_d_ref is for only one date
-  if(!is.null(benchmark_weights_m_d_ref) & !length(unique(benchmark_weights_m_d_ref$dates)) == 1){
+  if(!is.null(benchmark_weights_m_d_ref) & !length(unique(dplyr::pull(benchmark_weights_m_d_ref, dates))) == 1){
     stop("benchmark_weights_m_d_ref should have only one date")
   }
 
   ##Check possibilities for liquidity_floor_rule_policy
   if(!is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
-     !liquidity_constraint_policy$liquidity_floor_rule %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")){
+     !dplyr::pull(liquidity_constraint_policy, liquidity_floor_rule) %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")){
     stop("liquidity_floor_rule not supported")
   }
 
@@ -130,8 +130,8 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
 
   ##Check additional args needed for turnover_constraint_policy
   if(!is.null(turnover_constraint_policy) &&
-     (is.null(portfolio_weights_m_lstd_ref) || is.null(liquidity_m_d_ref) || is.null(liquidity_floor_cutoffs_list))){
-    stop("portfolio_weights_m_lstd_ref, liquidity_floor_cutoffs_list and liquidity_m_d_ref can't be missing if turnover_constraint_policy is set")
+     (is.null(updated_port_weights_m_lstd_ref) || is.null(liquidity_m_d_ref) || is.null(liquidity_floor_cutoffs_list))){
+    stop("updated_port_weights_m_lstd_ref, liquidity_floor_cutoffs_list and liquidity_m_d_ref can't be missing if turnover_constraint_policy is set")
   }
 
   ##Check additional args needed for max_abs_active_weight_individual_rule
@@ -166,53 +166,72 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
   ###Current Universe
   universe_m_d_ref <- signals_m_d_ref #Init dataframe
 
-  ###Only Top Assets Rule for signals
+  ###Statistical Significance for Signals
   if(asset_object == "signals"){
-    try(pd_alpha <- universe_m_d_ref[,"pd_alpha"], silent = TRUE) #Get bayesian p-value
 
-    #Bayesian choice
+    ####Check if 'pd_alpha' column exists in the data frame, which will trigger bayesian choice
+    if ("pd_alpha" %in% colnames(universe_m_d_ref)) {
+    ####Bayesian choice
     ###################
-    if(exists("pd_alpha")){
-      converted_pd_alpha <- 1 - pd_alpha #Convert to one-sided p-value (P = 1 - pd))
-        ###Define top assets
-        universe_m_d_ref$top_assets <- ifelse(converted_pd_alpha <= signal_significance_threshold, 1L, 0L)  #If PD > threshold, can asset alpha is positive
-    }
+      #####Get and convert PD
+      pd_alpha <- dplyr::pull(universe_m_d_ref, pd_alpha) #Get bayesian probability of direction
+      converted_pd_alpha <- 1 - pd_alpha #Convert to one-sided pd (P = 1 - pd))
+
+      #####Define pre_eligible assets
+      universe_m_d_ref <- universe_m_d_ref %>% dplyr::mutate(pre_eligible_assets = dplyr::if_else(converted_pd_alpha <= signal_significance_threshold, 1L, 0L))  #If PD > threshold, can asset alpha is positive
+    } else {
     #Frequentist choice
     ###################
-    else {
-      adjusted_p_value <- universe_m_d_ref[,"adjusted_p_value"] #Get frequentist adjusted p-value
-      try(alpha <- universe_m_d_ref[, "alpha"], silent = TRUE) #Get no-pooled alpha
-      if(!exists("alpha")) alpha <-  universe_m_d_ref[, "individual_alpha"] #Get pooled alpha
-        ###Define top assets
-        universe_m_d_ref$top_assets <- ifelse(adjusted_p_value <= signal_significance_threshold & alpha > 0, 1L, 0L) #If p-value < threshold, can assert alpha is positive
+      #####Get adusted p-value
+      adjusted_p_value <- universe_m_d_ref %>% dplr::pull(adjusted_p_value) #Get frequentist adjusted p-value
+      #####Check for existence of no_pooled case alpha
+      if ("alpha" %in% colnames(universe_m_d_ref)){
+        alpha <- universe_m_d_ref %>% dplyr::pull(alpha) #If so, pull it
+      } else {
+        alpha <- universe_m_d_ref %>% dplyr::pull(individual_alpha) #If not, pull partial_pooled case alpha
+      }
+      #####Define pre_eligible assets
+      universe_m_d_ref <- universe_m_d_ref %>% dplyr::mutate(pre_eligible_assets = dplyr::if_else(adjusted_p_value <= signal_significance_threshold & alpha > 0, 1L, 0L)) #If p-value < threshold, can assert alpha is positive
+
     }
-
     #Check if there are eligible signals
-    if(all(na.omit(universe_m_d_ref$top_assets) == 0)) stop("No signal was deemed significant.")
-
+    if (all(na.omit(universe_m_d_ref$pre_eligible_assets) == 0)) stop("No signal was deemed significant.")
 
     #Print
-    if(verbose){
-      cat("The following signals showed statistical significant alphas:",
-          paste(universe_m_d_ref$tickers[which(universe_m_d_ref$top_assets == 1)], collapse = ", "), "\n")
+    if (verbose){
+      pre_eligible_signals <- universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers) #Get pre_eligible_assets
+      eligibility_proportion <- length(pre_eligible_signals)/nrow(universe_m_d_ref) #Get proportion of eligible assets
+      cat(paste0("The following ", crayon::purple(length(pre_eligible_signals)), " signals (", round(eligibility_proportion*100, 2), "% of the total) ",
+                 "showed statistical significant alphas:",
+                 paste(pre_eligible_signals, collapse = ", "), "\n"))
     }
     #Create benchmark_weights
     benchmark_weights_m_d_ref <- create_se_benchmarks(signal_universe_m_d_ref = universe_m_d_ref, selected_signal_themes_m_d_ref = groups_m_d_ref)
 
   }
-  ###Only Top Assets Rule for Stocks
+  ###Eligility Quantile Rule for Stocks
   else {
-    universe_m_d_ref$top_assets <- ifelse(signals_m_d_ref[,"exp_ret_score"] >= quantile(signals_m_d_ref[,"exp_ret_score"], top_assets_quantile), 1L,0L) #Apply rule
-    #Print
-    if(verbose){
-      cat("The following stocks have a exp_ret_score above the specified quantile for top_assets:",
-          paste(universe_m_d_ref$tickers[universe_m_d_ref$top_assets == 1], collapse = ", "), "\n")
+    ####Get pre_eligible_assets, performing a while loop if min_eligible_assets_fallback is not NULL
+    universe_m_d_ref <- apply_stocks_pre_eligibility(
+      signals_m_d_ref = signals_m_d_ref, universe_m_d_ref = universe_m_d_ref, #Signals and universe
+      eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback, #Quantile range and fallback
+      verbose = verbose
+      )
+
+    # Print
+    if (verbose) {
+      pre_eligible_assets <- universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers)
+      eligibility_proportion <- length(pre_eligible_assets) / nrow(universe_m_d_ref)
+      cat(paste0("The following ", crayon::yellow(length(pre_eligible_assets)), " assets (", round(eligibility_proportion * 100, 2), "% of the total) ",
+                 "have an exp_ret_score inside the quantile range for pre_eligible_assets: ",
+                 paste(pre_eligible_assets, collapse = ", "), "\n")
+      )
     }
   }
 
   ###Liquidity Floor Rule
   #########################
-  if(!is.null(liquidity_constraint_policy)){ #If liquidity_floor_cutoffs_list is NULL, do not apply rule
+  if (!is.null(liquidity_constraint_policy)){ #If liquidity_constraint_policy is NULL, do not apply rule
 
     #Apply liquidity_floor_rule
     liquidity_floor_rule_m_d_ref <- classify_stock_liquidity(
@@ -233,7 +252,7 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
 
   ###Active Weights Constraint Policy
   ########################
-  if(!is.null(concentration_constraint_policy$benchmark)){ #If max_abs_active_individual_weight is NULL, do not apply rule
+  if (!is.null(concentration_constraint_policy$benchmark)){ #If max_abs_active_individual_weight is NULL, do not apply rule
     ##Maximum Absolute Active Individual Weight Rule DF
     #Select benchmark
     selected_benchmark <- concentration_constraint_policy$benchmark
@@ -244,8 +263,8 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
       dplyr::select(tickers, dplyr::all_of(selected_benchmark)) #Select onl tickers and weights
 
     ##Apply Maximum Absolute Active Individual Weight Rule if present in policy
-    if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight)){
-      max_abs_active_weight_individual_rule_m_d_ref$max_abs_aw_ind <- #Apply Maximum Absolute Active Individual Weight Rule
+    if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight)){
+        max_abs_active_weight_individual_rule_m_d_ref$max_abs_aw_ind <- #Apply Maximum Absolute Active Individual Weight Rule
         ifelse(max_abs_active_weight_individual_rule_m_d_ref[,2] >= concentration_constraint_policy$max_abs_active_individual_weight, 1L, 0L) #Is stock relevant in benchmark?
       }
 
@@ -262,20 +281,20 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
 
   ###Turnover Policy
   ######################
-  if(!is.null(turnover_constraint_policy)){
+  if (!is.null(turnover_constraint_policy)){
 
     #Checks for existence of liquidity_floor_cutoffs_list
-    if(is.null(liquidity_floor_cutoffs_list)){
+    if (is.null(liquidity_floor_cutoffs_list)){
       stop("Application of turnover policy depends on existence of liquidity_floor_cutoffs_list")
     }
 
     #Apply Buffer Rules Iteratively
-    for(l in 1:length(turnover_constraint_policy)){
+    for (l in 1:length(turnover_constraint_policy)){
 
       buffer_rule_m_d_ref <- apply_buffer_rule(
         signals_m_d_ref = signals_m_d_ref, #Signal DF
-        top_assets_quantile_buffer = turnover_constraint_policy[[l]]$top_stock_quantile_buffer, #Quatile for BUffer
-        portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref, #Old weights
+        pre_eligible_assets_quantile_buffer = turnover_constraint_policy[[l]]$top_stock_quantile_buffer, #Quatile for Buffer
+        updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref, #Old weights
         liquidity_floor_cutoffs_list = liquidity_floor_cutoffs_list, #Liquidity floor
         liquidity_m_d_ref= liquidity_m_d_ref, #Liquidit data
         buffer_rule = turnover_constraint_policy[[l]]$liquidity_classification #Buffer rule policy
@@ -283,7 +302,7 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
 
       #Include in universe_m_d_ref
         ##Exclude old portfolio weights col to avoid repetition
-        if(l != 1){
+        if (l != 1){
           buffer_rule_m_d_ref$old_portfolio_weights <- NULL
         }
         ##Merge
@@ -314,7 +333,7 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
 
 
   #1.1. Stock must be in the top quantile of stocks AND
-  universe_m_d_ref$is_eligible <- universe_m_d_ref$top_assets
+  universe_m_d_ref$is_eligible <- universe_m_d_ref$pre_eligible_assets
 
   #1.2. Stock must meet minimum liquidity requirements as defined by the liquidity floor rule.
   if(!is.null(liquidity_constraint_policy$liquidity_floor_rule)){
@@ -413,5 +432,122 @@ classify_investment_universe <- function(signals_m_d_ref, #Signals d_ref
   ##Return results
   return(universe_m_d_ref)
 
+}
+
+
+
+#' Apply Pre-Eligibility Filtering with Optional Fallback
+#'
+#' This function applies a pre-eligibility filter to a universe of assets based on a signal's
+#' expected return score (`exp_ret_score`). If the parameter \code{min_eligible_assets_fallback} is
+#' provided (i.e., not \code{NULL}), then the function checks whether the number of assets with
+#' scores within the quantile range defined by \code{eligibility_quantile_range} is at least the fallback
+#' number. If not, the function iteratively expands the quantile range (decreasing the lower quantile
+#' by 0.05 and increasing the upper quantile by 0.05) until either the fallback number is reached
+#' or the difference between the upper and lower quantile reaches 0.50 (in which case the function stops
+#' with an error).
+#'
+#' @param signals_m_d_ref A data frame that contains at least the column \code{exp_ret_score}.
+#' @param universe_m_d_ref A data frame that contains at least the column \code{tickers}.
+#' @param eligibility_quantile_range A numeric vector of length 2 with values in \[0,1\] indicating the initial
+#'        quantile range to select eligible assets.
+#' @param min_eligible_assets_fallback A numeric value indicating the minimum number of eligible assets desired.
+#'        If \code{NULL}, no fallback logic is applied.
+#' @param verbose Logical; if \code{TRUE} prints additional information.
+#'
+#' @return A list with two elements:
+#' \describe{
+#'   \item{universe_m_d_ref}{The updated universe data frame with a new column \code{pre_eligible_assets} (1/0).}
+#'   \item{eligibility_quantile_range}{The final quantile range used.}
+#' }
+#' @examples
+#' \dontrun{
+#'   result <- apply_pre_eligibility(
+#'     signals_m_d_ref = signals_df,
+#'     universe_m_d_ref = universe_df,
+#'     eligibility_quantile_range = c(0.45, 0.55),
+#'     min_eligible_assets_fallback = 10,
+#'     verbose = TRUE
+#'   )
+#' }
+apply_stocks_pre_eligibility <- function(signals_m_d_ref,
+                                         universe_m_d_ref,
+                                         eligibility_quantile_range,
+                                         min_eligible_assets_fallback = NULL,
+                                         verbose = FALSE) {
+  # Validate inputs
+  if (!is.numeric(eligibility_quantile_range) ||
+      length(eligibility_quantile_range) != 2 ||
+      any(eligibility_quantile_range < 0) ||
+      any(eligibility_quantile_range > 1)) {
+    stop("eligibility_quantile_range must be a numeric vector of length 2 with values in [0,1].")
+  }
+
+  # Ensure that the lower is the minimum and the upper is the maximum
+  eligibility_quantile_range <- sort(eligibility_quantile_range)
+
+  # A helper function to update the universe given the current quantile range
+  update_pre_eligible <- function(elig_range, signals, universe) {
+    lower_range <- stats::quantile(dplyr::pull(signals, exp_ret_score), probs = min(elig_range), na.rm = TRUE)
+    upper_range <- stats::quantile(dplyr::pull(signals, exp_ret_score), probs = max(elig_range), na.rm = TRUE)
+
+    universe_updated <- universe %>%
+      dplyr::mutate(pre_eligible_assets = dplyr::if_else(
+        dplyr::pull(signals, exp_ret_score) >= lower_range &
+          dplyr::pull(signals, exp_ret_score) <= upper_range,
+        1L, 0L
+      ))
+    list(universe = universe_updated, lower = lower_range, upper = upper_range)
+  }
+
+  # Initialize iteration counter (for debugging purposes)
+  iteration <- 0
+
+  # First run: update pre_eligible_assets based on the provided quantile range
+  res <- update_pre_eligible(eligibility_quantile_range, signals_m_d_ref, universe_m_d_ref)
+  universe_m_d_ref <- res$universe
+
+  # Only perform fallback logic if min_eligible_assets_fallback is provided
+  if (!is.null(min_eligible_assets_fallback)) {
+    # Check if the current count is below the fallback number
+    pre_eligible_count <- sum(universe_m_d_ref$pre_eligible_assets, na.rm = TRUE)
+
+    # If the initial count is already sufficient, optionally print a message and do not iterate.
+    if (pre_eligible_count >= min_eligible_assets_fallback) {
+      if (verbose) {
+        cat(sprintf("Pre-eligible assets count already above min_eligible_assets_fallback. No iteration required: Eligible count = %d, eligibility_quantile_range = (%.2f, %.2f)\n",
+                    pre_eligible_count, eligibility_quantile_range[1], eligibility_quantile_range[2]))
+      }
+    } else {
+    # Loop until either the fallback number is reached or the quantile range is too wide
+    while (pre_eligible_count < min_eligible_assets_fallback) {
+      iteration <- iteration + 1
+
+      # Check if the current range has reached 0.50
+      current_range <- diff(eligibility_quantile_range)
+      if (current_range >= 0.50) {
+        stop(paste("The difference between the min and max values of eligibility_quantile_range reached 0.50 without",
+                   "obtaining the minimum number of eligible assets (iteration:", iteration, ")."))
+      }
+
+      # Expand the range by 0.05 on each side, with limits 0 and 1.
+      eligibility_quantile_range[1] <- max(0, eligibility_quantile_range[1] - 0.05)
+      eligibility_quantile_range[2] <- min(1, eligibility_quantile_range[2] + 0.05)
+
+      # Update the pre_eligible_assets based on the new range
+      res <- update_pre_eligible(eligibility_quantile_range, signals_m_d_ref, universe_m_d_ref)
+      universe_m_d_ref <- res$universe
+      pre_eligible_count <- sum(universe_m_d_ref$pre_eligible_assets, na.rm = TRUE)
+
+      # Print details of the current iteration if verbose is TRUE
+      if (verbose) {
+        cat(sprintf("Iteration %d: Eligible count = %d, eligibility_quantile_range = (%.2f, %.2f)\n",
+                    iteration, pre_eligible_count, eligibility_quantile_range[1], eligibility_quantile_range[2]))
+       }
+     }
+   }
+ }
+
+  return(universe_m_d_ref)
 }
 

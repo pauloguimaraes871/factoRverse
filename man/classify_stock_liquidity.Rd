@@ -5,7 +5,7 @@
 \title{Classify stocks based on their liquidity}
 \usage{
 classify_stock_liquidity(
-  liquidity_floor_cutoffs_list,
+  liquidity_floor_cutoffs,
   liquidity_m_df,
   liquidity_floor_rule = NULL,
   apply_liquidity_floor_rule = FALSE,
@@ -14,13 +14,6 @@ classify_stock_liquidity(
 )
 }
 \arguments{
-\item{liquidity_floor_cutoffs_list}{Optional. A list of named vectors containing cutoff values for liquidity metrics specified in \code{liquidity_m_df}.
-The names should match the metrics and values should be the minimum acceptable values (adjust for inflation)
-Stocks that have all metrics higher than defined in a \code{liquidity_floor_cutoffs_list} element will receive a liquidity classification at least equal to it.
-Elements should be: "micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps"
-Classification should be in ascending order (from lest liquid to most liquid) for all metrics.
-If set in decimals, values will be interpreted as quantiles and classification will be set according to quantiles}
-
 \item{liquidity_m_df}{A data frame (similar to \code{features_m_df}) containing columns for id, tickers, dates, and one or more market liquidity measures (e.g., inflation-adjusted mean financial volume).
 All tickers in current stock universe must have a unique correspondence in this data frame.}
 
@@ -29,6 +22,13 @@ All tickers in current stock universe must have a unique correspondence in this 
 \item{apply_liquidity_floor_rule}{If TRUE, stocks that fall below the classification in liquidity_floor_rule will be assigned a value of 0}
 
 \item{filter_out_liquidity_floor_rule}{If TRUE, stocks that that fall below the classification in liquidity_floor_rule_policy will be filtered out}
+
+\item{liquidity_floor_cutoffs_list}{Optional. A list of named vectors containing cutoff values for liquidity metrics specified in \code{liquidity_m_df}.
+The names should match the metrics and values should be the minimum acceptable values (adjust for inflation)
+Stocks that have all metrics higher than defined in a \code{liquidity_floor_cutoffs_list} element will receive a liquidity classification at least equal to it.
+Elements should be: "micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps"
+Classification should be in ascending order (from lest liquid to most liquid) for all metrics.
+If set in decimals, values will be interpreted as quantiles and classification will be set according to quantiles}
 }
 \description{
 Classify stocks based on their liquidity

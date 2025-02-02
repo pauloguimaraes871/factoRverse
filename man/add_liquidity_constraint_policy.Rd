@@ -2,31 +2,50 @@
 % Please edit documentation in R/constructors.R
 \name{add_liquidity_constraint_policy}
 \alias{add_liquidity_constraint_policy}
+\alias{add_liquidity_constraint_policy,port_backtest_config,liquidity_constraint_policy-method}
+\alias{add_liquidity_constraint_policy,port_backtest_config,missing-method}
 \title{Add Liquidity Constraint Policy}
 \usage{
-add_liquidity_constraint_policy(
-  port_backtest_config_obj,
-  liquidity_floor_rule = NULL,
-  liquidity_cap_rules = NULL
+add_liquidity_constraint_policy(object, policy, ...)
+
+\S4method{add_liquidity_constraint_policy}{port_backtest_config,liquidity_constraint_policy}(object, policy, ...)
+
+\S4method{add_liquidity_constraint_policy}{port_backtest_config,missing}(
+  object,
+  policy,
+  liquidity_floor_rule,
+  liquidity_cap_rules,
+  ...
 )
 }
 \arguments{
-\item{port_backtest_config_obj}{A \code{port_backtest_config} object to which the liquidity constraint policy will be added.}
+\item{object}{An object of class \code{port_backtest_config}.}
 
-\item{liquidity_floor_rule}{A character string representing the liquidity floor rule (optional).}
+\item{policy}{A \code{liquidity_constraint_policy} object. If missing, a new one is created.}
 
-\item{liquidity_cap_rules}{A named numeric vector where names represent liquidity classifications and values represent liquidity caps (optional).}
+\item{...}{Additional arguments (currently unused).}
+
+\item{liquidity_floor_rule}{A character string (see details) used to create a new policy when \code{policy} is missing.}
+
+\item{liquidity_cap_rules}{A named numeric vector used to create a new policy when \code{policy} is missing.}
 }
 \value{
-The updated \code{port_backtest_config} object with the added liquidity constraint policy.
+The updated \code{object} with the liquidity constraint policy added.
 }
 \description{
-Adds a liquidity constraint policy to a \code{port_backtest_config} object.
+Add an existing or dynamically create a \code{liquidity_constraint_policy}
+to a portfolio backtest configuration object.
 }
-\examples{
-portfolio <- create_port_backtest_config()
-portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "micro_caps")
-portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_cap_rules = c(micro_caps = 0.01))
-portfolio <- add_liquidity_constraint_policy(portfolio, liquidity_floor_rule = "small_caps") # This should update the liquidity_floor_rule
+\section{Functions}{
+\itemize{
+\item \code{add_liquidity_constraint_policy(
+  object = port_backtest_config,
+  policy = liquidity_constraint_policy
+)}: Add an existing \code{liquidity_constraint_policy} to a \code{port_backtest_config}.
 
-}
+\item \code{add_liquidity_constraint_policy(
+  object = port_backtest_config,
+  policy = missing
+)}: Dynamically create a \code{liquidity_constraint_policy} and add it to a \code{port_backtest_config}.
+
+}}

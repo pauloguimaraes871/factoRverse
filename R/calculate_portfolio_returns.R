@@ -51,7 +51,7 @@ calculate_portfolio_returns <- function(
 
   #Get tickers info
     ##From old portfolio (portfolio with last composition but updated weights)
-    tickers_in_old_universe <- portfolio_weights_m_lstd_ref$tickers
+    tickers_in_old_universe <- lagged_portfolio_weights_m_d_ref %>% dplyr::pull(tickers)
     tickers_in_old_portfolio <- portfolio_weights_m_lstd_ref$tickers[which(portfolio_weights_m_lstd_ref$old_portfolio_weights != 0)]
     ##Get tickers in current portfolio
     tickers_in_current_universe <- portfolio_weights_m_d_ref$tickers
