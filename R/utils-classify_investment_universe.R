@@ -76,11 +76,11 @@
 #' Classification should be in ascending order (from least liquid to most liquid) for all metrics.
 #' If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
 #' Stocks with liquidity lower than micro_caps will receive nano_caps classification.
-#' @param user_defined_AND_rules_list Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
-#' For example, to apply a filter with stocks that begin with A, `user_defined_AND_rules_list` can contain a data frame element named "starts_with_A_rule".
+#' @param user_defined_AND_rules_m_df Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
+#' For example, to apply a filter with stocks that begin with A, `user_defined_AND_rules_m_df` can contain a data frame element named "starts_with_A_rule".
 #' This data frame can contain a metric column (e.g., the name of the stock), and the descriptive filter column must be named "starts_with_A_rule". In this case, the "starts_with_A_rule" column should be an integer, and its values must be either 1L (stock passes rule) or 0L (stock fails to pass rule).
 #' The rule will be appended to the filter as a regular promotion rule, accumulating with other rules.
-#' @param user_defined_OR_rules_list Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
+#' @param user_defined_OR_rules_m_df Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 #'All tickers in the current stock universe must have a unique correspondence in this data frame.
 #' @param asset_object A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"
 #' @return
@@ -90,72 +90,90 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          liquidity_floor_cutoffs = NULL, liquidity_m_d_ref = NULL, liquidity_constraint_policy= NULL, #Liquidity policy
                                          updated_port_weights_m_lstd_ref = NULL, turnover_constraint_policy = NULL, #Turnover policy
                                          benchmark_weights_m_d_ref = NULL, groups_m_d_ref = NULL, concentration_constraint_policy = NULL, #Concentration policy
-                                         user_defined_AND_rules_list = NULL, user_defined_OR_rules_list = NULL, #User defined rules
+                                         user_defined_AND_rules_m_df = NULL, user_defined_OR_rules_m_df = NULL, #User defined rules
                                          asset_object = "stocks", verbose = TRUE
 
 ){
   ###Check objects
   #################
   ##Check if last col is exp_ret_score
-  if(!"exp_ret_score" == colnames(universe_m_d_ref)[length(colnames(universe_m_d_ref))]){
+  if (!"exp_ret_score" == colnames(universe_m_d_ref)[length(colnames(universe_m_d_ref))]){
     stop("last column of universe_m_d_ref must be exp_ret_score")
   }
 
   ##Check if liquidity_m_d_ref is for only one date
-  if(!is.null(liquidity_m_d_ref) & !length(unique(dplyr::pull(liquidity_m_d_ref, dates))) == 1){
+  if (!is.null(liquidity_m_d_ref) && !length(unique(dplyr::pull(liquidity_m_d_ref, dates))) == 1){
     stop("liquidity_m_d_ref should have only one date")
   }
 
   ##Check if updated_port_weights_m_lstd_ref is for only one date
-  if(!is.null(updated_port_weights_m_lstd_ref) & !length(unique(dplyr::pull(updated_port_weights_m_lstd_ref, dates))) == 1){
+  if (!is.null(updated_port_weights_m_lstd_ref) && !length(unique(dplyr::pull(updated_port_weights_m_lstd_ref, dates))) == 1){
     stop("updated_port_weights_m_lstd_ref should have only one date")
   }
 
   ##Check if benchmark_weights_m_d_ref is for only one date
-  if(!is.null(benchmark_weights_m_d_ref) & !length(unique(dplyr::pull(benchmark_weights_m_d_ref, dates))) == 1){
+  if (!is.null(benchmark_weights_m_d_ref) && !length(unique(dplyr::pull(benchmark_weights_m_d_ref, dates))) == 1){
     stop("benchmark_weights_m_d_ref should have only one date")
   }
 
   ##Check possibilities for liquidity_floor_rule_policy
-  if(!is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
-     !dplyr::pull(liquidity_constraint_policy, liquidity_floor_rule) %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")){
+  if (!is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
+     !liquidity_constraint_policy$liquidity_floor_rule %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")){
     stop("liquidity_floor_rule not supported")
   }
 
   ##Check additional args needed for liquidity_floor_rule
-  if(!is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
+  if (!is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
      (is.null(liquidity_m_d_ref) || is.null(liquidity_floor_cutoffs))){
     stop("liquidity_m_d_ref and liquidity_floor_cutoffs can't be missing if liquidity_floor_rule is set")
   }
 
   ##Check additional args needed for turnover_constraint_policy
-  if(!is.null(turnover_constraint_policy) &&
+  if (!is.null(turnover_constraint_policy) &&
      (is.null(updated_port_weights_m_lstd_ref) || is.null(liquidity_m_d_ref) || is.null(liquidity_floor_cutoffs))){
     stop("updated_port_weights_m_lstd_ref, liquidity_floor_cutoffs and liquidity_m_d_ref can't be missing if turnover_constraint_policy is set")
   }
 
   ##Check additional args needed for max_abs_active_weight_individual_rule
-  if(!is.null(concentration_constraint_policy) && (asset_object == "stocks") &&
+  if (!is.null(concentration_constraint_policy) && (asset_object == "stocks") &&
      (is.null(benchmark_weights_m_d_ref))){
     stop("benchmark_weights_m_d_ref can't be missing if concentration_constraint_policy is set")
   }
 
   ##Check if benchmark_weights sum to 1
-  if(!is.null(benchmark_weights_m_d_ref) && any(colSums(select(benchmark_weights_m_d_ref, -tickers, -id, -dates)) != 1)){
+  if (!is.null(benchmark_weights_m_d_ref) && any(colSums(select(benchmark_weights_m_d_ref, -tickers, -id, -dates)) != 1)){
     stop("benchmark weights must sum to 1")
   }
 
-  ##Check user_defined_OR_list
-  if(!is.null(user_defined_OR_rules_list)){
-    if(!all(names(user_defined_OR_rules_list) == as.vector(sapply(user_defined_OR_rules_list, function(x) colnames(x)[ncol(x)])))){
-      stop("colnames in last element of user_defined_OR_rules_list does not match object's name")
+  ##Check user_defined_OR_m_df
+  if (!is.null(user_defined_OR_rules_m_df)){
+    ###5 columns
+    if (ncol(user_defined_OR_rules_m_df) != 5){
+      stop("user_defined_OR_rules_m_df must have 5 columns")
+    }
+    ###Last column is 0 or 1
+    if (!all(user_defined_OR_rules_m_df[[ncol(user_defined_OR_rules_m_df)]] %in% c(0, 1))){
+      stop("last column of user_defined_OR_rules_m_df must be 0 or 1")
+    }
+    ###Column before last is character
+    if (!all(sapply(user_defined_OR_rules_m_df[[ncol(user_defined_OR_rules_m_df) - 1]], is.character))){
+      stop("column before last of user_defined_OR_rules_m_df must be character")
     }
   }
 
-  ##Check user_defined_AND_list
-  if(!is.null(user_defined_AND_rules_list)){
-    if(!all(names(user_defined_AND_rules_list) == as.vector(sapply(user_defined_AND_rules_list, function(x) colnames(x)[ncol(x)])))){
-      stop("colnames in last element of user_defined_AND_rules_list does not match object's name")
+  ##Check user_defined_AND_m_df
+  if(!is.null(user_defined_AND_rules_m_df)){
+    ###5 columns
+    if (ncol(user_defined_AND_rules_m_df) != 5){
+      stop("user_defined_AND_rules_m_df must have 5 columns")
+    }
+    ###Last column is 0 or 1
+    if (!all(user_defined_AND_rules_m_df[[ncol(user_defined_AND_rules_m_df)]] %in% c(0, 1))){
+      stop("last column of user_defined_AND_rules_m_df must be 0 or 1")
+    }
+    ###Column before last is character
+    if (!all(sapply(user_defined_AND_rules_m_df[[ncol(user_defined_AND_rules_m_df) - 1]], is.character))){
+      stop("column before last of user_defined_AND_rules_m_df must be character")
     }
   }
 
@@ -168,8 +186,8 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
     ####Check if 'pd_alpha' column exists in the data frame, which will trigger bayesian choice
     if ("pd_alpha" %in% colnames(universe_m_d_ref)) {
-    ####Bayesian choice
-    ###################
+      ####Bayesian choice
+      ###################
       #####Get and convert PD
       pd_alpha <- dplyr::pull(universe_m_d_ref, pd_alpha) #Get bayesian probability of direction
       converted_pd_alpha <- 1 - pd_alpha #Convert to one-sided pd (P = 1 - pd))
@@ -177,10 +195,10 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
       #####Define pre_eligible assets
       universe_m_d_ref <- universe_m_d_ref %>% dplyr::mutate(pre_eligible_assets = dplyr::if_else(converted_pd_alpha <= signal_significance_threshold, 1L, 0L))  #If PD > threshold, can asset alpha is positive
     } else {
-    #Frequentist choice
-    ###################
+      #Frequentist choice
+      ###################
       #####Get adusted p-value
-      adjusted_p_value <- universe_m_d_ref %>% dplr::pull(adjusted_p_value) #Get frequentist adjusted p-value
+      adjusted_p_value <- universe_m_d_ref %>% dplyr::pull(adjusted_p_value) #Get frequentist adjusted p-value
       #####Check for existence of no_pooled case alpha
       if ("alpha" %in% colnames(universe_m_d_ref)){
         alpha <- universe_m_d_ref %>% dplyr::pull(alpha) #If so, pull it
@@ -198,7 +216,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
     if (verbose){
       pre_eligible_signals <- universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers) #Get pre_eligible_assets
       eligibility_proportion <- length(pre_eligible_signals)/nrow(universe_m_d_ref) #Get proportion of eligible assets
-      cat(paste0("The following ", crayon::purple(length(pre_eligible_signals)), " signals (", round(eligibility_proportion*100, 2), "% of the total) ",
+      cat(paste0("The following ", crayon::magenta(length(pre_eligible_signals)), " signals (", round(eligibility_proportion*100, 2), "% of the total) ",
                  "showed statistical significant alphas:",
                  paste(pre_eligible_signals, collapse = ", "), "\n"))
     }
@@ -208,6 +226,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
   ###Eligility Quantile Rule for Stocks
   else {
+
     ####Get pre_eligible_assets, performing a while loop if min_eligible_assets_fallback is not NULL
     universe_m_d_ref <- apply_stocks_pre_eligibility(
       stock_universe_m_d_ref = universe_m_d_ref, #Stock Universe
@@ -219,7 +238,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
     if (verbose) {
       pre_eligible_assets <- universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers)
       eligibility_proportion <- length(pre_eligible_assets) / nrow(universe_m_d_ref)
-      cat(paste0("The following ", crayon::yellow(length(pre_eligible_assets)), " assets (", round(eligibility_proportion * 100, 2), "% of the total) ",
+      cat(paste0("The following ", crayon::magenta(length(pre_eligible_assets)), " assets (", round(eligibility_proportion * 100, 2), "% of the total) ",
                  "have an exp_ret_score inside the quantile range for pre_eligible_assets: ",
                  paste(pre_eligible_assets, collapse = ", "), "\n")
       )
@@ -237,7 +256,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
       liquidity_floor_rule = liquidity_constraint_policy$liquidity_floor_rule, #Rule represents a liq. classification to apply policy
       apply_liquidity_floor_rule = !is.null(liquidity_constraint_policy$liquidity_floor_rule), #Checks if floor is provided
       filter_out_liquidity_floor_rule = FALSE, verbose = FALSE
-      )
+    )
 
     #Include in universe_m_d_ref
     universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(liquidity_floor_rule_m_d_ref %>% dplyr::select(-id, -dates), by = "tickers")
@@ -257,25 +276,25 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
       dplyr::select(id, tickers, dates, dplyr::all_of(selected_benchmark)) #Select all benchmark weights from benchmark_weights_m_d_ref, specially useful for define_signal_eligiblity
 
     ##Apply Maximum Absolute Active Individual Weight Rule if present in policy
-      ###Apply Maximum Absolute Active Individual Weight Rule
-      if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight)){
-        ####Only one benchmark allowed in this case
-        if (length(selected_benchmark) > 1) stop("Only one benchmark is allowed when setting max_abs_active_individual_weight.")
+    ###Apply Maximum Absolute Active Individual Weight Rule
+    if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight)){
+      ####Only one benchmark allowed in this case
+      if (length(selected_benchmark) > 1) stop("Only one benchmark is allowed when setting max_abs_active_individual_weight.")
 
-        ####Apply rule
-        max_abs_active_weight_individual_rule_m_d_ref <- max_abs_active_weight_individual_rule_m_d_ref %>%
-          dplyr::mutate(max_abs_aw_ind = dplyr::if_else(.[[4]] >= concentration_constraint_policy$max_abs_active_individual_weight, #if_else assures type_stability
-                                                        1L, #If weight is >= bench_weight, assign 1
-                                                        0L #0 otherwise
-                                                        ))
-      }
-
-      ###Include in universe_m_d_ref
-      universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(max_abs_active_weight_individual_rule_m_d_ref %>% dplyr::select(-id, -dates), by = "tickers")
-      #Rename
-      universe_m_d_ref <- universe_m_d_ref %>% dplyr::rename_with(.cols = dplyr::all_of(selected_benchmark), .fn = ~ paste0(., "_bench_weights"))
-
+      ####Apply rule
+      max_abs_active_weight_individual_rule_m_d_ref <- max_abs_active_weight_individual_rule_m_d_ref %>%
+        dplyr::mutate(max_abs_aw_ind = dplyr::if_else(.[[4]] >= concentration_constraint_policy$max_abs_active_individual_weight, #if_else assures type_stability
+                                                      1L, #If weight is >= bench_weight, assign 1
+                                                      0L #0 otherwise
+        ))
     }
+
+    ###Include in universe_m_d_ref
+    universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(max_abs_active_weight_individual_rule_m_d_ref %>% dplyr::select(-id, -dates), by = "tickers")
+    #Rename
+    universe_m_d_ref <- universe_m_d_ref %>% dplyr::rename_with(.cols = dplyr::all_of(selected_benchmark), .fn = ~ paste0(., "_bench_weights"))
+
+  }
 
 
   #######################
@@ -307,11 +326,16 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
       ####Include in universe_m_d_ref
         #####Exclude old portfolio weights col to avoid repetition
-        if (i != 1) turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>% dplyr::select(-old_port_weights)
+        if (i != 1) turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>% dplyr::select(-bop_port_weights)
 
         #####Merge
-        universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, turnover_cap_rule_m_d_ref, by = "tickers") %>%
-          dplyr::select(-id, -dates, -is_in_buffered_quantile_range, -was_in_old_portfolio, -does_liquidity_meets_turnover_cap_rule) #Drop those columns
+        universe_m_d_ref <- universe_m_d_ref %>%
+          dplyr::left_join(
+            turnover_cap_rule_m_d_ref %>%
+              dplyr::select(-id, -dates, -is_in_buffered_quantile_range,
+                            -was_in_old_portfolio, -does_liquidity_meets_turnover_cap_rule), #Drop those columns
+            by = "tickers"
+            )
 
       ####Rename
       new_name <- paste0("buffer_zone_", i)
@@ -321,59 +345,53 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   ######################
 
   ###Classify groups
+  ########################
   if(!is.null(groups_m_d_ref)){
       #Merge group classification
       universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, dplyr::select(groups_m_d_ref, -id, -dates), #Avoid duplication
                                            by = "tickers")
   }
+  ########################
 
   ###Promote stocks to filtered_stock_universe
+  ########################
 
   #Consolidated Promotion Criteria:
 
   ##1. Regular Eligibility
 
-
-  #1.1. Stock must be in the top quantile of stocks AND
+  #1.1. Stock must be in the eligibility quantile range AND
   universe_m_d_ref$is_eligible <- universe_m_d_ref$pre_eligible_assets
 
   #1.2. Stock must meet minimum liquidity requirements as defined by the liquidity floor rule.
   if(!is.null(liquidity_constraint_policy$liquidity_floor_rule)){
-    universe_m_d_ref$is_eligible <- universe_m_d_ref$is_eligible *
-      universe_m_d_ref$liquidity_floor #Exclude based on floor rule
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::mutate(is_eligible = is_eligible * liquidity_floor) #Exclude based on floor rule
   }
 
   ##2. Active Individual Weights Constraint Policy Eligibility
   if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight)){
-    universe_m_d_ref$is_eligible <- universe_m_d_ref$is_eligible +
-      #Select cols that start with "max_abs_aw"
-      universe_m_d_ref %>%
-      dplyr::select(dplyr::starts_with("max_abs_aw_ind")) %>% #Select cols
-      dplyr::rowwise() %>%
-      dplyr::mutate(row_sum = sum(dplyr::c_across(dplyr::everything()))) %>% #Sum
-      dplyr::pull()
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::mutate(is_eligible = is_eligible +
+                      rowSums(dplyr::across(dplyr::starts_with("max_abs_aw_ind"))) #Select cols that start with "max_abs_aw" and sum
+                    )
   }
 
   ##3. Turnover Policy Eligibility:
   if(!is.null(turnover_constraint_policy)){
-    universe_m_d_ref$is_eligible <- universe_m_d_ref$is_eligible +
-      #Select cols that start with "buffer_zone_"
-      universe_m_d_ref %>%
-      dplyr::select(dplyr::starts_with("buffer_zone")) %>% #Select cols
-      dplyr::rowwise() %>%
-      dplyr::mutate(row_sum = sum(dplyr::c_across(dplyr::everything()))) %>% #Sum
-      dplyr::pull()
-
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::mutate(is_eligible = is_eligible +
+                      rowSums(dplyr::across(dplyr::starts_with("buffer_zone"))))
   }
 
   ##4. User defined OR rules
-  if(!is.null(user_defined_OR_rules_list)){
-    for(l in 1:length(user_defined_OR_rules_list)){
-      #For each list
-      universe_m_d_ref <-  merge(universe_m_d_ref, user_defined_OR_rules_list[[l]], all = TRUE, by = "tickers")
-      #Apply rule
-      universe_m_d_ref$is_eligible <- universe_m_d_ref$is_eligible + universe_m_d_ref[, names(user_defined_OR_rules_list)[l]]
-    }
+  if(!is.null(user_defined_OR_rules_m_df)){
+    ###Join user_defined_OR_rules_m_df
+    universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, user_defined_OR_rules_m_df %>% dplyr::select(-tickers, -dates), by = "id")
+    ###Apply rules
+    OR_metric <- colnames(user_defined_OR_rules_m_df)[ncol(user_defined_OR_rules_m_df)]
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::mutate(is_eligible = is_eligible + !!rlang::sym(OR_metric))
   }
 
   ##Group Representativeness Eligibility
@@ -411,25 +429,24 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
     }
   }
 
-
   ##6. User defined AND rules
-  if(!is.null(user_defined_AND_rules_list)){
-    for(l in 1:length(user_defined_AND_rules_list)){
-      #For each list
-      universe_m_d_ref <-  merge(universe_m_d_ref, user_defined_AND_rules_list[[l]], all = TRUE, by = "tickers")
-      #Apply rule
-      universe_m_d_ref$is_eligible <- universe_m_d_ref$is_eligible * universe_m_d_ref[, names(user_defined_AND_rules_list)[l]]
-    }
+  if(!is.null(user_defined_AND_rules_m_df)){
+    ###Join user_defined_AND_rules_m_df
+    universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, user_defined_AND_rules_m_df %>% dplyr::select(-tickers, -dates), by = "id")
+    ###Apply rules
+    AND_metric <- colnames(user_defined_AND_rules_m_df)[ncol(user_defined_AND_rules_m_df)]
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::mutate(is_eligible = is_eligible * !!rlang::sym(AND_metric))
   }
 
-
-
   #Rearrange
-  universe_m_d_ref$is_eligible[universe_m_d_ref$is_eligible > 1] <- 1
-  universe_m_d_ref <- universe_m_d_ref[, c(setdiff(colnames(universe_m_d_ref), "is_eligible"), "is_eligible")]
+  universe_m_d_ref <- universe_m_d_ref %>% dplyr::mutate(is_eligible = dplyr::if_else(is_eligible >= 1, 1, 0)) #Take the resulting sum and turn into binary
+  universe_m_d_ref <- universe_m_d_ref %>% dplyr::relocate(is_eligible, .after = dplyr::last_col()) #Relocate to last column
 
   #Check for NAs in is_eligible
   if(any(is.na(universe_m_d_ref$is_eligible))) stop("NAs found in is_eligible column")
+
+  ########################
 
   ##Return results
   return(universe_m_d_ref)

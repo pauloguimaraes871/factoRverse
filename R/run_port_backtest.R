@@ -44,8 +44,8 @@ run_port_backtest_internal <- function(
     stocks_groups_m_df = NULL, benchmark_weights_m_df = NULL,
     #Return calculation (needs also liquidity and vol for net returns)
     volatility_m_df = NULL, target_m_df, transaction_costs_list = NULL,
-    #Stock Universe Metrics
-    custom_stock_universe_metrics_m_df = NULL,
+    #Stock Universe Weights
+    custom_stock_universe_weights_m_df = NULL,
     #Misc
     lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
     verbose = TRUE, parallel = TRUE){
@@ -57,7 +57,7 @@ run_port_backtest_internal <- function(
     ##Check Parameters: This function will test whether inputs match format and current functionalities
     check_inputs_port_backtest(
       #Base Objects
-      signals_m_df = signals_m_df, oos_predictions_m_df = oos_predictions_m_df, exp_ret_score_metric = exp_ret_score_metric,
+      signals_m_df = signals_m_df, oos_predictions_m_df = oos_predictions_m_df, chosen_score_metric_and_position = chosen_score_metric_and_position,
       #Backtest Scheme
       rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
       #Portfolio Construction Method
@@ -75,8 +75,8 @@ run_port_backtest_internal <- function(
       stocks_groups_m_df = stocks_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
       #Return calculation (needs also liquidity and vol for net returns)
       volatility_m_df = volatility_m_df, target_m_df = target_m_df, transaction_costs_list = transaction_costs_list,
-      #Custom Stock Universe Metrics
-      custom_stock_universe_metrics_m_df = custom_stock_universe_metrics_m_df,
+      #Custom Stock Universe Weights
+      custom_stock_universe_weights_m_df = custom_stock_universe_weights_m_df,
       #Custom Stock Weights
       custom_stock_weights_m_df = custom_stock_weights_m_df,
       #Misc
@@ -171,7 +171,13 @@ run_port_backtest_internal <- function(
         cat("\n")
         cat("Building portfolio based on:")
         cat("\n")
-        cat(paste("  Expected Return Score Metric:", if(!is.null(exp_ret_score_metric)) exp_ret_score_metric else "Signal Blend Predictions"))
+        cat(paste("  Expected Return Score Metric:"))
+        cat("\n")
+        if(!is.null(chosen_score_metric_and_position)){
+          print(chosen_score_metric_and_position)
+        } else {
+          print("OOS Signal Blend Predictions")
+        }
         cat("\n")
         if (port_construction_method %in% c("rp", "mvo")){
             cat("  Covariance Matrix:")
@@ -218,7 +224,7 @@ run_port_backtest_internal <- function(
       ##############################
         ####Meta Dataframes
           #####Base Objects
-          signals_m_d_ref <- signal_m_df %>% dplyr::filter(dates == current_date)
+          signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
           target_m_d_ref <- target_m_df %>% dplyr::filter(dates == current_date)
           oos_predictions_m_d_ref <- if (!is.null(oos_predictions_m_df)) oos_predictions_m_df %>% dplyr::filter(dates == current_date) else NULL
 
@@ -227,7 +233,6 @@ run_port_backtest_internal <- function(
           volatility_m_d_ref <- if (!is.null(volatility_m_df)) volatility_m_df %>% dplyr::filter(dates == current_date) else NULL
           benchmark_weights_m_d_ref <- if (!is.null(benchmark_weights_m_df)) benchmark_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
           stock_groups_m_d_ref <- if (!is.null(stock_groups_m_df)) stock_groups_m_df %>% dplyr::filter(dates == current_date) else NULL
-          custom_stock_universe_metrics_m_d_ref <- if (!is.null(custom_stock_universe_metrics_m_df)) custom_stock_universe_metrics_m_df %>% dplyr::filter(dates == current_date) else NULL
           custom_stock_weights_m_d_ref <- if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
 
           #####Port Weights
@@ -269,37 +274,22 @@ run_port_backtest_internal <- function(
 
         ####Create stock_universe_m_d_ref and classify it
         ##############################
-          #####Init object
-          stock_universe_m_d_ref <- data.frame(
-            id = paste0(current_tickers, "-", current_date),
-            tickers =  signals_m_d_ref %>% dplyr::pull(tickers), #Current tickers
-            dates = current_date
+          #####Derive Stock Universe
+          stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
+            #Signals
+            signals_m_d_ref = signals_m_d_ref,
+
+            #OOS Predictions
+            oos_predictions_m_d_ref = oos_predictions_m_d_ref,
+
+            #Chosen Score Metric and Position
+            chosen_score_metric_and_position = chosen_score_metric_and_position,
+
+            #Winsorization
+            lower_quantile_winsorization = lower_quantile_winsorization,
+            upper_quantile_winsorization = upper_quantile_winsorization
           )
 
-          #####Add exp_ret_score
-          if (!is.null(oos_predictions_m_df)){
-            #####Add prediction
-            stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
-              dplyr::left_join(
-                oos_predictions_m_d_ref %>% dplyr::select(id, pred), by = "id"
-                ) %>%
-              dplyr::rename(exp_ret_score = pred) %>% #Rename prediction to exp_ret_score
-              dplyr::mutate(exp_ret_score = signal_transform( #Winsorize, z-score and transform
-                lower_quantile_winsorization = lower_quantile_winsorization,
-                upper_quantile_winsorization = upper_quantile_winsorization)
-              )
-          } else {
-            #####Add signal
-            stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
-              dplyr::left_join(
-                signals_m_d_ref %>% dplyr::select(id, !!rlang::sym(exp_ret_score)), by = "id"
-              ) %>%
-              dplyr::rename(exp_ret_score = !!rlang::sym(exp_ret_score)) %>% #Rename signal to exp_ret_score
-              dplyr::mutate(exp_ret_score = signal_transform( #Winsorize, z-score and transform
-                lower_quantile_winsorization = lower_quantile_winsorization,
-                upper_quantile_winsorization = upper_quantile_winsorization)
-                )
-          }
 
           #####Classify Stock Universe
           stock_universe_m_d_ref <- classify_investment_universe(
@@ -324,14 +314,15 @@ run_port_backtest_internal <- function(
             turnover_constraint_policy = turnover_constraint_policy, #Turnover policy
 
             #User defined rules
-            user_defined_AND_rules_list = user_defined_AND_rules_list,
-            user_defined_OR_rules_list = user_defined_OR_rules_list
+            user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
+            user_defined_OR_rules_m_df = user_defined_OR_rules_m_df
           )
+
 
           ##############################
 
-        ####Set Portfolio Weights
-        ##############################
+          ####Set Portfolio Weights
+          ##############################
           stock_port <- set_portfolio_weights(
             #Stock universe object
             universe_m_d_ref = stock_universe_m_d_ref,

@@ -302,38 +302,38 @@ check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_
   ####target_m_df
   #######################
   if(signal_selection_policy$signal_blending_method == "ML"){
-  #Check for correct format in target_m_df
-  if(!(is.data.frame(target_m_df))){
-    stop("target_m_df should be a data_frame.")
-  }
+    #Check for correct format in target_m_df
+    if(!(is.data.frame(target_m_df))){
+      stop("target_m_df should be a data_frame.")
+    }
 
-  if(!all(c("id", "tickers", "dates") %in% colnames(target_m_df))){
-    stop("target_m_df should have id, tickers and dates columns.")
-  } else {}
+    if(!all(c("id", "tickers", "dates") %in% colnames(target_m_df))){
+      stop("target_m_df should have id, tickers and dates columns.")
+    } else {}
 
-  suppressWarnings(if(any(!is.na(as.numeric(target_m_df$tickers)))){
-    stop("tickers in target_m_df must be character.")
-  })
+    suppressWarnings(if(any(!is.na(as.numeric(target_m_df$tickers)))){
+      stop("tickers in target_m_df must be character.")
+    })
 
-  if(all(any(!lubridate::is.Date(target_m_df$dates)) ||
-         any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
-    stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
-  }
+    if(all(any(!lubridate::is.Date(target_m_df$dates)) ||
+           any(is.na(as.Date(target_m_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+      stop("dates in target_m_df must be a date object with format %Y-%m-%d.")
+    }
 
-  dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df$dates)[(length(unique(target_m_df$dates)) - signal_selection_policy$ml_parameters$target_fwd + 1):length(unique(target_m_df$dates))]
-  if(length(dates_allowed_to_be_NA_in_target_m_df) > signal_selection_policy$ml_parameters$target_fwd){
-    stop("number of dates in target_m_df with NAs should be at most equal to target_fwd")
-  }
+    dates_allowed_to_be_NA_in_target_m_df <- unique(target_m_df$dates)[(length(unique(target_m_df$dates)) - signal_selection_policy$ml_parameters$target_fwd + 1):length(unique(target_m_df$dates))]
+    if(length(dates_allowed_to_be_NA_in_target_m_df) > signal_selection_policy$ml_parameters$target_fwd){
+      stop("number of dates in target_m_df with NAs should be at most equal to target_fwd")
+    }
 
-  if(any(is.na(target_m_df[-which(target_m_df$dates %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
-    stop("target_m_df before target_fwd periods should contain only numeric columns with non-NAs.")
-  }
+    if(any(is.na(target_m_df[-which(target_m_df$dates %in% dates_allowed_to_be_NA_in_target_m_df),target_fwd_name]))){
+      stop("target_m_df before target_fwd periods should contain only numeric columns with non-NAs.")
+    }
 
-  #Check structure of dates_m_vector and target_m_df$dates
-  if(!all(as.character(dates_m_vector) %in% unique(as.character(target_m_df$dates))) ||
-     !all(unique(as.character(target_m_df$dates)) %in% as.character(dates_m_vector))){
-    stop("all dates in dates_m_vector must have a correspondence in target_m_df")
-  } else {}
+    #Check structure of dates_m_vector and target_m_df$dates
+    if(!all(as.character(dates_m_vector) %in% unique(as.character(target_m_df$dates))) ||
+       !all(unique(as.character(target_m_df$dates)) %in% as.character(dates_m_vector))){
+      stop("all dates in dates_m_vector must have a correspondence in target_m_df")
+    } else {}
 
   }
 

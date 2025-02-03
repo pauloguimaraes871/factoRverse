@@ -38,24 +38,24 @@ apply_turnover_cap_rule <- function(stock_universe_m_d_ref,
 
   ##Get objects
   ################
-    ###Buffer Rule DF
-    turnover_cap_rule_m_d_ref <- stock_universe_m_d_ref #Init dataframe
+    ###Init data frame without bop_port_weights in case it is a second run
+    stock_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::select(-dplyr::any_of("bop_port_weights"))
     ###Get liquidity metrics names
     liquidity_metrics <- colnames(liquidity_floor_cutoffs)[-1] #Get name of metrics
 
-  ################
+    ################
 
-  ##Buffer Zone
-  #################
+    ##Buffer Zone
+    #################
     ###Enlarge eligibility_quantile_range according to quantile_range_buffer
     buffered_quantile_range <- sort(eligibility_quantile_range)
     buffered_quantile_range[1] <- max(eligibility_quantile_range[1] - quantile_range_buffer, 0)
     buffered_quantile_range[2] <- min(eligibility_quantile_range[2] + quantile_range_buffer, 1)
 
     ###Is in top quantile buffer?
-    turnover_cap_rule_m_d_ref <-
-      classify_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref,
-                                      eligibility_quantile_range = buffered_quantile_range) %>%
+    turnover_cap_rule_m_d_ref <- classify_stocks_pre_eligibility(
+      stock_universe_m_d_ref = stock_universe_m_d_ref,
+      eligibility_quantile_range = buffered_quantile_range) %>%
       dplyr::rename(is_in_buffered_quantile_range = pre_eligible_assets)
 
     ###Was in old_portfolio?
@@ -105,12 +105,19 @@ apply_turnover_cap_rule <- function(stock_universe_m_d_ref,
     #################
 
     #Message
+    buffered_stocks <- turnover_cap_rule_m_d_ref %>% dplyr::filter(turnover_cap_rule == 1) %>% dplyr::pull(tickers)
     if(verbose){
-      cat("\n")
-      cat(paste0("The following ", turnover_cap_rule, " stocks belong to the buffer_zone and will be kept:"))
-      cat("\n")
-      cat(turnover_cap_rule_m_d_ref %>% dplyr::filter(turnover_cap_rule == 1) %>% dplyr::pull(tickers))
-      cat("\n")
+      if (length(buffered_stocks > 0)){
+        cat("\n")
+        cat(paste0("The following ", turnover_cap_rule, " stocks belong to the buffer_zone and will be kept:"))
+        cat("\n")
+        cat(buffered_stocks)
+        cat("\n")
+      } else {
+        cat("\n")
+        cat(paste0("No ", turnover_cap_rule, " stocks belong to the buffer_zone."))
+        cat("\n")
+      }
     }
 
 
