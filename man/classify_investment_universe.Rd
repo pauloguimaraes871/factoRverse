@@ -5,11 +5,11 @@
 \title{Classify the universe based on signals and other custom and user-defined rules.}
 \usage{
 classify_investment_universe(
-  signals_m_d_ref,
+  universe_m_d_ref,
   eligibility_quantile_range = NULL,
   min_eligible_assets_fallback = NULL,
   signal_significance_threshold = NULL,
-  liquidity_floor_cutoffs_list = NULL,
+  liquidity_floor_cutoffs = NULL,
   liquidity_m_d_ref = NULL,
   liquidity_constraint_policy = NULL,
   updated_port_weights_m_lstd_ref = NULL,
@@ -24,9 +24,7 @@ classify_investment_universe(
 )
 }
 \arguments{
-\item{signals_m_d_ref}{A data frame of stocks with signals columns.}
-
-\item{liquidity_floor_cutoffs_list}{Mandatory if \code{turnover_constraint_policy} and/or \code{liquidity_constraint_policy} are provided.
+\item{liquidity_floor_cutoffs}{Mandatory if \code{turnover_constraint_policy} and/or \code{liquidity_constraint_policy} are provided.
 A list of named vectors containing cutoff values to classify stocks according to liquidity.
 Each element must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
 and the vector must provide named numeric values that indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
@@ -78,6 +76,8 @@ The rule will be appended to the filter as a regular promotion rule, accumulatin
 All tickers in the current stock universe must have a unique correspondence in this data frame.}
 
 \item{asset_object}{A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"}
+
+\item{signals_m_d_ref}{A data frame of stocks with signals columns.}
 
 \item{pre_eligible_assets_quantile}{Optional. Numeric value to apply the \strong{Only Top Assets Rule}, indicating the top quantile for filtering assets based on signal.
 Only assets in this quantile will be considered for the \code{filtered_universe}.}

@@ -5,18 +5,13 @@
 \title{Apply Pre-Eligibility Filtering with Optional Fallback}
 \usage{
 apply_stocks_pre_eligibility(
-  signals_m_d_ref,
-  universe_m_d_ref,
+  stock_universe_m_d_ref,
   eligibility_quantile_range,
   min_eligible_assets_fallback = NULL,
   verbose = FALSE
 )
 }
 \arguments{
-\item{signals_m_d_ref}{A data frame that contains at least the column \code{exp_ret_score}.}
-
-\item{universe_m_d_ref}{A data frame that contains at least the column \code{tickers}.}
-
 \item{eligibility_quantile_range}{A numeric vector of length 2 with values in [0,1] indicating the initial
 quantile range to select eligible assets.}
 
@@ -24,6 +19,10 @@ quantile range to select eligible assets.}
 If \code{NULL}, no fallback logic is applied.}
 
 \item{verbose}{Logical; if \code{TRUE} prints additional information.}
+
+\item{signals_m_d_ref}{A data frame that contains at least the column \code{exp_ret_score}.}
+
+\item{universe_m_d_ref}{A data frame that contains at least the column \code{tickers}.}
 }
 \value{
 A list with two elements:

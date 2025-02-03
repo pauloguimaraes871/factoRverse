@@ -28,7 +28,7 @@ run_port_backtest_internal(
   turnover_constraint_policy,
   concentration_constraint_policy,
   liquidity_m_df = NULL,
-  liquidity_floor_cutoffs,
+  liquidity_floor_cutoffs_list,
   main_liquidity_metric,
   stocks_groups_m_df = NULL,
   benchmark_weights_m_df = NULL,

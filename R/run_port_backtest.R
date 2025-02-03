@@ -39,7 +39,7 @@ run_port_backtest_internal <- function(
     #Constraints
     liquidity_constraint_policy, turnover_constraint_policy, concentration_constraint_policy,
     #Liquidity Information (Constraints and Active Returns Calculation)
-    liquidity_m_df = NULL, liquidity_floor_cutoffs, main_liquidity_metric,
+    liquidity_m_df = NULL, liquidity_floor_cutoffs_list, main_liquidity_metric,
     #Group and benchmark constraints (stock groups also used to fill covariance data)
     stocks_groups_m_df = NULL, benchmark_weights_m_df = NULL,
     #Return calculation (needs also liquidity and vol for net returns)
@@ -70,7 +70,7 @@ run_port_backtest_internal <- function(
       #Constraints
       liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
       #Liquidity Information (Constraints and Active Returns Calculation)
-      liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
+      liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs_list = liquidity_floor_cutoffs_list, main_liquidity_metric = main_liquidity_metric,
       #Group and benchmark constraints (stock groups also used to fill covariance data)
       stocks_groups_m_df = stocks_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
       #Return calculation (needs also liquidity and vol for net returns)
@@ -234,10 +234,10 @@ run_port_backtest_internal <- function(
             #####Old Composition Beggining-of-Period Portfolio Weights
             #####This is the old end-of-period portfolio with weights updated by fwd_1m_return (ie. composition from last period, with weights reflecting the current period). Delisted stocks are present at this point.
             if (d > 1){
-              updated_port_weights_m_lstd_ref <- fwd_port_weights_m_d_ref #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
+              updated_port_weights_m_lstd_ref <- fwd_port_weights_m_d_ref %>% dplyr::rename(bop_port_weights = port_weights) #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
             } else {
               #For first period, just get the composition of last period. Weights are zero by construction.
-              updated_port_weights_m_lstd_ref <- port_weights_m_df %>% dplyr::filter(dates == last_date)
+              updated_port_weights_m_lstd_ref <- port_weights_m_df %>% dplyr::filter(dates == last_date) %>% dplyr::rename(bop_port_weights = port_weights)
             }
 
             #####End-of-period portfolio weights
@@ -283,19 +283,28 @@ run_port_backtest_internal <- function(
               dplyr::left_join(
                 oos_predictions_m_d_ref %>% dplyr::select(id, pred), by = "id"
                 ) %>%
-              dplyr::rename(exp_ret_score = pred) #Rename prediction to exp_ret_score
+              dplyr::rename(exp_ret_score = pred) %>% #Rename prediction to exp_ret_score
+              dplyr::mutate(exp_ret_score = signal_transform( #Winsorize, z-score and transform
+                lower_quantile_winsorization = lower_quantile_winsorization,
+                upper_quantile_winsorization = upper_quantile_winsorization)
+              )
           } else {
             #####Add signal
             stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
               dplyr::left_join(
                 signals_m_d_ref %>% dplyr::select(id, !!rlang::sym(exp_ret_score)), by = "id"
               ) %>%
-              dplyr::rename(exp_ret_score = !!rlang::sym(exp_ret_score)) #Rename signal to exp_ret_score
+              dplyr::rename(exp_ret_score = !!rlang::sym(exp_ret_score)) %>% #Rename signal to exp_ret_score
+              dplyr::mutate(exp_ret_score = signal_transform( #Winsorize, z-score and transform
+                lower_quantile_winsorization = lower_quantile_winsorization,
+                upper_quantile_winsorization = upper_quantile_winsorization)
+                )
           }
 
           #####Classify Stock Universe
           stock_universe_m_d_ref <- classify_investment_universe(
-            stock_universe_m_d_ref = stock_universe_m_d_ref,
+            #Stock Universe
+            universe_m_d_ref = stock_universe_m_d_ref,
 
             #Regular eligibility
             eligibility_quantile_range = eligibility_quantile_range, #Quantile range to elect stocks
