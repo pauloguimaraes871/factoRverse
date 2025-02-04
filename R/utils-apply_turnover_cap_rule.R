@@ -71,57 +71,57 @@ apply_turnover_cap_rule <- function(stock_universe_m_d_ref,
   turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
     dplyr::mutate(was_in_old_portfolio = dplyr::if_else(bop_port_weights > 0, 1L, 0L))
 
-    #################
+  #################
 
-    ##Applies buffer rule
-    #################
-    ###Meets buffer rule policy?
-    ####Gets stocks which liquidity_classification is equal to turnover_cap_rule
-    turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
-      dplyr::mutate(
-        does_liquidity_meets_turnover_cap_rule = dplyr::if_else(
-          classify_stock_liquidity(
-            liquidity_floor_cutoffs = liquidity_floor_cutoffs, #Liquidity classification thresholds
-            liquidity_m_df = liquidity_m_d_ref, #Liquidity data
-            liquidity_floor_rule = turnover_cap_rule, #Classification rule
-            apply_liquidity_floor_rule = FALSE,
-            filter_out_liquidity_floor_rule = FALSE
-          ) %>% dplyr::pull(liquidity_classification) == turnover_cap_rule, #Compare classification
-          1L, #True: meets the rule
-          0L  #False: does not meet the rule
-        )
+  ##Applies buffer rule
+  #################
+  ###Meets buffer rule policy?
+  ####Gets stocks which liquidity_classification is equal to turnover_cap_rule
+  turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
+    dplyr::mutate(
+      does_liquidity_meets_turnover_cap_rule = dplyr::if_else(
+        classify_stock_liquidity(
+          liquidity_floor_cutoffs = liquidity_floor_cutoffs, #Liquidity classification thresholds
+          liquidity_m_df = liquidity_m_d_ref, #Liquidity data
+          liquidity_floor_rule = turnover_cap_rule, #Classification rule
+          apply_liquidity_floor_rule = FALSE,
+          filter_out_liquidity_floor_rule = FALSE
+        ) %>% dplyr::pull(liquidity_classification) == turnover_cap_rule, #Compare classification
+        1L, #True: meets the rule
+        0L  #False: does not meet the rule
       )
+    )
 
-    ###Apply buffer rule
-    turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
-      dplyr::mutate(
-        turnover_cap_rule = as.integer(
-          is_in_buffered_quantile_range == 1 &
-            was_in_old_portfolio == 1 &
-            does_liquidity_meets_turnover_cap_rule == 1)
-      )
+  ###Apply buffer rule
+  turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
+    dplyr::mutate(
+      turnover_cap_rule = as.integer(
+        is_in_buffered_quantile_range == 1 &
+          was_in_old_portfolio == 1 &
+          does_liquidity_meets_turnover_cap_rule == 1)
+    )
 
 
-    #################
+  #################
 
-    #Message
-    buffered_stocks <- turnover_cap_rule_m_d_ref %>% dplyr::filter(turnover_cap_rule == 1) %>% dplyr::pull(tickers)
-    if(verbose){
-      if (length(buffered_stocks > 0)){
-        cat("\n")
-        cat(paste0("The following ", turnover_cap_rule, " stocks belong to the buffer_zone and will be kept:"))
-        cat("\n")
-        cat(buffered_stocks)
-        cat("\n")
-      } else {
-        cat("\n")
-        cat(paste0("No ", turnover_cap_rule, " stocks belong to the buffer_zone."))
-        cat("\n")
-      }
+  #Message
+  buffered_stocks <- turnover_cap_rule_m_d_ref %>% dplyr::filter(turnover_cap_rule == 1) %>% dplyr::pull(tickers)
+  if(verbose){
+    if (length(buffered_stocks > 0)){
+      cat("\n")
+      cat(paste0("The following ", turnover_cap_rule, " stocks belong to the buffer_zone and will be kept:"))
+      cat("\n")
+      cat(buffered_stocks)
+      cat("\n")
+    } else {
+      cat("\n")
+      cat(paste0("No ", turnover_cap_rule, " stocks belong to the buffer_zone."))
+      cat("\n")
     }
+  }
 
 
-    ###Return object
-    return(turnover_cap_rule_m_d_ref)
+  ###Return object
+  return(turnover_cap_rule_m_d_ref)
 
 }

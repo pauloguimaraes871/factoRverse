@@ -36,10 +36,10 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
   signal_positions <- unname(chosen_signals_and_positions) #Get signal positions
 
   ###selected_signals_m_df
-    ###Check if all signals are in signals_m_df
-    if(!any(chosen_signals %in% colnames(signals_m_df)[-c(1:3)])){
-      stop("all chosen signals should have a matching position in signals_m_df")
-    }
+  ###Check if all signals are in signals_m_df
+  if(!any(chosen_signals %in% colnames(signals_m_df)[-c(1:3)])){
+    stop("all chosen signals should have a matching position in signals_m_df")
+  }
 
   selected_signals_m_df <- signals_m_df %>% dplyr::select(id, tickers, dates, dplyr::all_of(chosen_signals)) #subset cols present in signals_m_df
   #####################
@@ -65,13 +65,13 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
   ###Subset signal_themes
   ########################
   if(!is.null(signal_themes_m_df)){
-  ###Check if all signals have a theme
-  if(!all(chosen_signals_corrected_positions %in% unique(signal_themes_m_df %>% dplyr::pull(tickers)))){
-    stop("all chosen signals should have a matching position in signal_themes_m_df")
-  }
+    ###Check if all signals have a theme
+    if(!all(chosen_signals_corrected_positions %in% unique(signal_themes_m_df %>% dplyr::pull(tickers)))){
+      stop("all chosen signals should have a matching position in signal_themes_m_df")
+    }
 
 
-  selected_signal_themes_m_df <- signal_themes_m_df %>% dplyr::filter(tickers %in% chosen_signals_corrected_positions)
+    selected_signal_themes_m_df <- signal_themes_m_df %>% dplyr::filter(tickers %in% chosen_signals_corrected_positions)
   } else {
     selected_signal_themes_m_df <- NULL
   }

@@ -124,8 +124,7 @@ create_mvo_portfolio <- function(universe_m_d_ref,
                                                                      random_ports_method = random_ports_method
   )
   ##Random weights DF
-  random_portfolios_weights_df <- as.data.frame(t(random_portfolios_weights)) %>% tibble::rownames_to_column()
-  colnames(random_portfolios_weights_df)[1] <- "tickers"
+  random_portfolios_weights_df <- as.data.frame(t(random_portfolios_weights)) %>% tibble::rownames_to_column( "tickers")
 
   random_portfolios_weights_df <- dplyr::left_join(dplyr::select(eligible_universe_m_d_ref, c(tickers, exp_ret_score)), #Get eligible stocks
                                                    random_portfolios_weights_df, #Get weights

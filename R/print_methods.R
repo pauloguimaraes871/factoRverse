@@ -24,7 +24,7 @@ setMethod("show", "meta_dataframe", function(object) {
   if(object@class == "target_m_df"){
   cat("  \nNumber of targets:", ncol(object@data)-3, "\n")
   } else {
-  cat("  \nNumber of signals:", ncol(object@data)-3, "\n")
+    cat("  \nNumber of signals:", ncol(object@data)-3, "\n")
   }
   cat(" \nDates:\n")
   print(unique(as.Date(object@data$dates)))
@@ -156,13 +156,13 @@ setMethod("show", "signal_universe_m_df", function(object) {
     cat("   \n Market Factor Proxy:", ss_wf[["market_factor_proxy"]] )
     cat("   \n P-Value Correction Method:", ss_wf[["p_correction_method"]])
     if(ss_wf[["enable_theme_representativeness"]]){
-    cat("   \n Theme Representativeness Enable")
+      cat("   \n Theme Representativeness Enable")
     }
     cat("   \n P-Value Correction Method:", ss_wf[["p_correction_method"]])
 
     if(!is.null(ss_wf[["theme_level_intercept"]])){
-    cat("   \n Theme Level Intercept:", ss_wf[["theme_level_intercept"]])
-    cat("   \n Theme Level Slope:", ss_wf[["theme_level_slope"]])
+      cat("   \n Theme Level Intercept:", ss_wf[["theme_level_intercept"]])
+      cat("   \n Theme Level Slope:", ss_wf[["theme_level_slope"]])
     }
     cat("\n\n------------------------\n")
 
@@ -668,14 +668,14 @@ setMethod("show", "sb_backtest_config", function(object) {
       signal_port_parameters <- object@signal_port_parameters
 
       # Cov Est Method
-        cat("Covariance Estimation Method:\n")
-        cat("  Method: ")
-        cat(signal_port_parameters@cov_est_method@cov_estimation_method, "\n")
-        cat("  Sample Size:", signal_port_parameters@cov_est_method@cov_matrix_sample_size, "\n")
-        cat("  Active Returns:", signal_port_parameters@cov_est_method@active_returns, "\n")
-        if(signal_port_parameters@cov_est_method@active_returns){
-          cat("  Cov Matrix Benchmark:", signal_port_parameters@cov_est_method@cov_matrix_benchmark, "\n")
-        }
+      cat("Covariance Estimation Method:\n")
+      cat("  Method: ")
+      cat(signal_port_parameters@cov_est_method@cov_estimation_method, "\n")
+      cat("  Sample Size:", signal_port_parameters@cov_est_method@cov_matrix_sample_size, "\n")
+      cat("  Active Returns:", signal_port_parameters@cov_est_method@active_returns, "\n")
+      if(signal_port_parameters@cov_est_method@active_returns){
+        cat("  Cov Matrix Benchmark:", signal_port_parameters@cov_est_method@cov_matrix_benchmark, "\n")
+      }
 
       cat("\n------------------------------\n")
 
@@ -707,7 +707,7 @@ setMethod("show", "sb_backtest_config", function(object) {
           cat("  Max Abs Active Individual Weight:", signal_port_parameters@concentration_constraint_policy@max_abs_active_individual_weight, "\n")
         }
         if (!is.null(signal_port_parameters@concentration_constraint_policy@max_abs_active_group_weight)){
-        cat("  Max Abs Active Group Weight:", signal_port_parameters@concentration_constraint_policy@max_abs_active_group_weight, "\n")
+          cat("  Max Abs Active Group Weight:", signal_port_parameters@concentration_constraint_policy@max_abs_active_group_weight, "\n")
         }
       } else {
         cat("  (No concentration constraint policy set)\n")
@@ -1076,7 +1076,7 @@ setMethod("show", "sb_backtest_results", function(object) {
     cat("-------------------------------\n")
     cat("  Base Learners Date Information:\n")
     cat("    Range of Dates Covered:", paste(c(as.Date(min(sb_backtest_workflow$dates_covered_bl)),
-                                             as.Date(max(sb_backtest_workflow$dates_covered_bl))), sep ="-"), "\n")
+                                               as.Date(max(sb_backtest_workflow$dates_covered_bl))), sep ="-"), "\n")
     cat("    Number of Dates:", sb_backtest_workflow$n_dates_bl, "\n")
     cat("-------------------------------\n")
   }
@@ -1093,7 +1093,7 @@ setMethod("show", "sb_backtest_results", function(object) {
       as.Date(min(sb_backtest_workflow$dates_testing_sample))
     } else {
       c(min(sb_backtest_workflow$dates_testing_sample), max(sb_backtest_workflow$dates_testing_sample))
-      }, sep ="-"), "\n")
+    }, sep ="-"), "\n")
   if(sb_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
     cat("  Base Learners Sample Sizes:\n")
@@ -1101,7 +1101,7 @@ setMethod("show", "sb_backtest_results", function(object) {
     cat("    Validation Sample Size:", sb_backtest_workflow$validation_sample_size_bl, "\n")
     cat("    Testing Sample Size:", sb_backtest_workflow$testing_sample_size_bl, "\n")
     cat("    Range of Dates in Testing Sample:", paste(c(as.Date(min(sb_backtest_workflow$dates_testing_sample_bl)),
-                                                        as.Date(max(sb_backtest_workflow$dates_testing_sample_bl))), sep="-"), "\n")
+                                                         as.Date(max(sb_backtest_workflow$dates_testing_sample_bl))), sep="-"), "\n")
     cat("    Rebalance Dates:", paste(as.Date(sb_backtest_workflow$rebalance_dates_bl), collapse = ", "), "\n")
 
     cat("-------------------------------\n")
@@ -1140,22 +1140,22 @@ setMethod("show", "sb_backtest_results", function(object) {
   print(sb_backtest_workflow$chosen_signals_and_positions)
   cat("Features:", paste(sb_backtest_workflow$features, collapse = ", "), "\n")
   cat("  Features Workflow:\n")
-    if(is.null(sb_backtest_workflow$features_workflow)){
-      cat("    No Features Workflow\n")
-    } else {
-      print(sb_backtest_workflow$features_workflow)
-      cat("\n")
-    }
+  if(is.null(sb_backtest_workflow$features_workflow)){
+    cat("    No Features Workflow\n")
+  } else {
+    print(sb_backtest_workflow$features_workflow)
+    cat("\n")
+  }
 
   cat("\n")
 
   cat("Top 5 most important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
-                                                             dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
-                                                             collapse = ", "), "\n")
+                                                                     dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
+                                                                   collapse = ", "), "\n")
 
   cat("Bottom 5 least important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
-                                                                   dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
-                                                                   collapse = ", "), "\n")
+                                                                         dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
+                                                                       collapse = ", "), "\n")
 
   cat("Features Object:", sb_backtest_workflow$features_object, "\n")
 
@@ -1195,10 +1195,10 @@ setMethod("show", "sb_backtest_results", function(object) {
 
   # Display Performance Information
   cat("Performance Information:\n")
-   cat("  Completion Time:", sb_backtest_workflow$completion_time, "\n")
-   cat("  Elapsed Time:", sb_backtest_workflow$elapsed_time, "seconds\n")
-   cat("  Parallel Processing:", sb_backtest_workflow$parallel, "\n")
-   cat("=================================\n")
+  cat("  Completion Time:", sb_backtest_workflow$completion_time, "\n")
+  cat("  Elapsed Time:", sb_backtest_workflow$elapsed_time, "seconds\n")
+  cat("  Parallel Processing:", sb_backtest_workflow$parallel, "\n")
+  cat("=================================\n")
 
 
   # Display Call Information
@@ -1340,11 +1340,11 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   cat("Features Object:", meta_learner_sb_backtest_workflow$features_object_name, "\n")
 
   cat("Top 5 most important features at final rebalancing:", paste(object@meta_sb_backtest_results@final_feature_importance_m_d_ref@data %>%
-                                                                   dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
+                                                                     dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
                                                                    collapse = ", "), "\n")
 
   cat("Bottom 5 least important features at final rebalancing:", paste(object@meta_sb_backtest_results@final_feature_importance_m_d_ref@data %>%
-                                                                       dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
+                                                                         dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
                                                                        collapse = ", "), "\n")
 
 
@@ -1373,11 +1373,11 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
 
   # Display Performance Information
-    cat("Performance Information:\n")
-    cat("  Completion Time:", meta_learner_sb_backtest_workflow$completion_time, "\n")
-    cat("  Elapsed Time:", meta_learner_sb_backtest_workflow$elapsed_time, "seconds\n")
-    cat("  Parallel Processing:", meta_learner_sb_backtest_workflow$parallel, "\n")
-    cat("=================================\n")
+  cat("Performance Information:\n")
+  cat("  Completion Time:", meta_learner_sb_backtest_workflow$completion_time, "\n")
+  cat("  Elapsed Time:", meta_learner_sb_backtest_workflow$elapsed_time, "seconds\n")
+  cat("  Parallel Processing:", meta_learner_sb_backtest_workflow$parallel, "\n")
+  cat("=================================\n")
 
 
   # Display Call Information
@@ -1457,7 +1457,7 @@ setMethod("show", "alpha_test_strategy", function(object) {
   cat("Enable Theme Representativeness:", object@enable_theme_representativeness, "\n\n")
 
 
-    #Display Model Structure
+  #Display Model Structure
   cat("------------------------------\n")
   cat("Model Structure:\n")
   cat("------------------------------\n")
@@ -1596,8 +1596,8 @@ setMethod("show", "ss_backtest_results", function(object) {
   cat("  Alpha Test Strategy Parameters:\n")
   cat("    Model Structure: ", ss_backtest_workflow$model_structure, "\n")
   if(!ss_backtest_workflow$model_structure == "no_pooled"){
-  cat("    Theme-Level Intercept: ", ss_backtest_workflow$theme_level_intercept, "\n")
-  cat("    Theme-Level Slope: ", ss_backtest_workflow$theme_level_slope, "\n")
+    cat("    Theme-Level Intercept: ", ss_backtest_workflow$theme_level_intercept, "\n")
+    cat("    Theme-Level Slope: ", ss_backtest_workflow$theme_level_slope, "\n")
   }
   cat("    Market Factor Proxy: ", ss_backtest_workflow$market_factor_proxy, "\n")
   cat("    Signal Significance Threshold: ", ss_backtest_workflow$signal_significance_threshold, "\n")
@@ -1945,7 +1945,7 @@ setMethod(
     }
     if (!is.null(object@groups)) {
       cat("\nGroups Provided:\n")
-      print(object@groups %>% dplyr::select(tickers, theme))
+      print(object@groups %>% dplyr::select(-id,-dates))
     } else {
       cat("\nNo groups specified.\n")
     }

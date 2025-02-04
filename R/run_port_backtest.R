@@ -26,29 +26,29 @@
 #'
 run_port_backtest_internal <- function(
     #Base Objects
-    signals_m_df, oos_predictions_m_df = NULL, exp_ret_score_metric = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
-    #Backtest Scheme
-    rebalancing_months, initial_sample_size,
-    #Portfolio Construction Method
-    port_construction_method = "EW", stock_selection_quantile_range = c(0.9, 1.0),
-    #RP/MVO Parameters
-    rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
-    #Covariance Estimation
-    cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = FALSE, cov_matrix_benchmark = NULL,
-    returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
-    #Constraints
-    liquidity_constraint_policy, turnover_constraint_policy, concentration_constraint_policy,
-    #Liquidity Information (Constraints and Active Returns Calculation)
-    liquidity_m_df = NULL, liquidity_floor_cutoffs_list, main_liquidity_metric,
-    #Group and benchmark constraints (stock groups also used to fill covariance data)
-    stocks_groups_m_df = NULL, benchmark_weights_m_df = NULL,
-    #Return calculation (needs also liquidity and vol for net returns)
-    volatility_m_df = NULL, target_m_df, transaction_costs_list = NULL,
-    #Stock Universe Weights
-    custom_stock_universe_weights_m_df = NULL,
-    #Misc
-    lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
-    verbose = TRUE, parallel = TRUE){
+  signals_m_df, oos_predictions_m_df = NULL, exp_ret_score_metric = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
+  #Backtest Scheme
+  rebalancing_months, initial_sample_size,
+  #Portfolio Construction Method
+  port_construction_method = "EW", stock_selection_quantile_range = c(0.9, 1.0),
+  #RP/MVO Parameters
+  rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
+  #Covariance Estimation
+  cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = FALSE, cov_matrix_benchmark = NULL,
+  returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
+  #Constraints
+  liquidity_constraint_policy, turnover_constraint_policy, concentration_constraint_policy,
+  #Liquidity Information (Constraints and Active Returns Calculation)
+  liquidity_m_df = NULL, liquidity_floor_cutoffs_list, main_liquidity_metric,
+  #Group and benchmark constraints (stock groups also used to fill covariance data)
+  stocks_groups_m_df = NULL, benchmark_weights_m_df = NULL,
+  #Return calculation (needs also liquidity and vol for net returns)
+  volatility_m_df = NULL, target_m_df, transaction_costs_list = NULL,
+  #Stock Universe Weights
+  custom_stock_universe_weights_m_df = NULL,
+  #Misc
+  lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+  verbose = TRUE, parallel = TRUE){
 
   #Measure time to run and run gc
   elapsed_time <- system.time({
@@ -344,8 +344,8 @@ run_port_backtest_internal <- function(
           #Risk-Parity method
           rp_method = rp_method,
           #MVO Optimization
-            n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
-            #Custom Weights
+          n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+          #Custom Weights
             custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
             #Winsorization
             lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization

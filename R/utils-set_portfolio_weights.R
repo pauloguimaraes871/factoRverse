@@ -138,17 +138,17 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   }
 
   #Create PORT Object
-    ##Define eligible universe
-    if(!port_construction_method == "custom_weights"){
-      #For general port_construction_methods, only eligible assets can have weights different from zero.
-      eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
-    } else {
-      #In case of custom weights, it is possible that non-eligible assets have weights (eg. theme_ss_bench_weights)
-      eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(weights != 0)
-    }
+  ##Define eligible universe
+  if(!port_construction_method == "custom_weights"){
+    #For general port_construction_methods, only eligible assets can have weights different from zero.
+    eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
+  } else {
+    #In case of custom weights, it is possible that non-eligible assets have weights (eg. theme_ss_bench_weights)
+    eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(weights != 0)
+  }
 
-    ##Create the s4 obj
-    port_obj <- new("port",
+  ##Create the s4 obj
+  port_obj <- new("port",
                   universe_m_d_ref = suppressWarnings(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                   port_construction_method = port_construction_method,
                   eligible_assets = eligible_universe_m_d_ref %>% dplyr::pull(tickers),

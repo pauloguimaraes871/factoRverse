@@ -685,7 +685,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
 
 
 #Stocks
-test_that("set portfolio weights works for stocks (all formats) ", {
+test_that("set portfolio weights works for stocks (all formats) - artificial_port_obj ", {
 
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
@@ -754,9 +754,6 @@ test_that("set portfolio weights works for stocks (all formats) ", {
   expected_results <- stock_universe_m_d_ref
 
   daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
-  adapted_tickers <- c("Stock_A", "Stock_C", "Stock_D", "Stock_E")
-  stock_groups_m_d_ref_adapted <- stock_groups_m_d_ref
-  stock_groups_m_d_ref_adapted$tickers <- adapted_tickers
 
   covariance_matrix <- estimate_covariance_matrix(tickers = c("Stock A", "Stock C", "Stock D", "Stock E"), returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
                                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
@@ -765,38 +762,29 @@ test_that("set portfolio weights works for stocks (all formats) ", {
                                                   )
 
   rp_results <- riskParityPortfolio::riskParityPortfolio(Sigma = covariance_matrix)
-  expected_results$risk_contribution <- rp_results$relative_risk_contribution
+  expected_results$rel_risk_contr <- rp_results$relative_risk_contribution
   expected_results$weights <- rp_results$w
 
-  stock_universe_m_d_ref_adapted <- stock_universe_m_d_ref
-  stock_universe_m_d_ref_adapted$tickers <- adapted_tickers
-
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
                                    )
 
-  results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
 
-  expect_equal(results, expected_results)
+  expect_equal(results@universe_m_d_ref@data, expected_results)
 
-  #Test MTO Unconstrained
+  #Test MVO Unconstrained
   expected_results <- stock_universe_m_d_ref
-  daily_active_returns_upd_ref <- daily_returns_df[which(daily_returns_df$dates <= current_date),]
-  adapted_tickers <- c("Stock_A", "Stock_C", "Stock_D", "Stock_E")
-  stock_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
-  stock_groups_m_d_ref_adapted$tickers <- adapted_tickers
+  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
 
-  stock_universe_m_d_ref_adapted <- stock_universe_m_d_ref
-  stock_universe_m_d_ref_adapted$tickers <- adapted_tickers
-
-  covariance_matrix <- estimate_covariance_matrix(tickers = adapted_tickers, returns_upd_ref = daily_active_returns_upd_ref,
-                                                  covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
-                                                  groups_m_d_ref = stock_groups_m_d_ref_adapted
+  covariance_matrix <- estimate_covariance_matrix(tickers = stock_universe_m_d_ref$tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                                  active_returns = FALSE,
+                                                  groups_m_d_ref = stock_groups_m_d_ref
   )
 
   #Portfolio
-  port_spec <- PortfolioAnalytics::portfolio.spec(assets = adapted_tickers)
+  port_spec <- PortfolioAnalytics::portfolio.spec(assets = expected_results$tickers)
   port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "full_investment")
   port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "box")
 
@@ -805,55 +793,67 @@ test_that("set portfolio weights works for stocks (all formats) ", {
                                                       permutations = 2000,
                                                       rp_method = "sample")
 
-  #Best Portfolio for IR
-  expected_results$weights <- c(0.588,0,0.166,0.2460) #Calculated manually
+  #Best Portfolio for Sharpe
+  rp_weights <- as.matrix(rp_weights)  # Portfolio weights
+  exp_ret_score <- as.matrix(stock_universe_m_d_ref$exp_ret_score)  # Expected return vector
+  cov_matrix <- as.matrix(covariance_matrix)  # Covariance matrix
+  # Calculate Portfolio Return (Expected Return)
+  portfolio_return <- rp_weights %*% exp_ret_score  # Matrix multiplication
+  # Calculate Portfolio Risk (Standard Deviation)
+  portfolio_risk <- sqrt(rowSums((rp_weights %*% cov_matrix) * rp_weights))
+  # Optimal Sharpe
+  optimal_sharpe_weights <- rp_weights[which.max(portfolio_return/portfolio_risk),]
+  optimal_ret <-  portfolio_return[which.max(portfolio_return/portfolio_risk),]
+  optimal_risk <- portfolio_risk[which.max(portfolio_return/portfolio_risk)]
 
   set.seed(123)
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "MTO",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
-                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
   )
-  results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
-  expect_equal(results, expected_results)
+
+  #Check for random weights generation
+  expected_weights <- t(rp_weights) %>% as.data.frame() %>% tibble::rownames_to_column("tickers")
+  expect_equal(results@random_port_weights, expected_weights)
+  expect_equal(results@weights, optimal_sharpe_weights %>% unname())
+  expect_equal(2.375, optimal_ret, tolerance = 1e-2)
+  expect_equal(0.795, optimal_risk, tolerance = 1e-2)
 
   #Best Portfolio for Return
-  expected_results$weights <- c(0.944,0.02,0.012,0.024) #Calculated manually
+  optimal_ret_weights <-  rp_weights[which.max(portfolio_return),]
 
   set.seed(123)
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "MTO",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
-                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
-                                   mto_port_objective = "AR"
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   opt_objective = "return"
   )
-  results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
-  expect_equal(results, expected_results)
+  expect_equal(results@weights, optimal_ret_weights %>% unname())
 
   #Best Portfolio for Risk
-  expected_results$weights <- c(0.340,0.072,0.256,0.332) #Calculated manually
+  optimal_risk_weights <-  rp_weights[which.min(portfolio_risk),]
 
   set.seed(123)
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "MTO",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
-                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
-                                   mto_port_objective = "TE"
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   opt_objective = "risk"
   )
-  results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
-  expect_equal(results, expected_results)
+  expect_equal(results@weights, optimal_risk_weights %>% unname())
+  expected_results$rel_risk_contr <- relative_risk_contribution(optimal_risk_weights %>% unname(), covariance_matrix)$rel_risk_contr
+  expected_results$weights <- optimal_risk_weights
 
-  #Test MTO Constrained
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
+  #Test MVO Constrained
   expected_results <- stock_universe_m_d_ref
-  daily_active_returns_upd_ref <- daily_returns_df[which(daily_returns_df$dates <= current_date),]
-  adapted_tickers <- c("Stock_A", "Stock_C", "Stock_D", "Stock_E")
-  stock_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
-  stock_groups_m_d_ref_adapted$tickers <- adapted_tickers
+  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
 
-  stock_universe_m_d_ref_adapted <- stock_universe_m_d_ref
-  stock_universe_m_d_ref_adapted$tickers <- adapted_tickers
-
-  covariance_matrix <- estimate_covariance_matrix(tickers = adapted_tickers, returns_upd_ref = daily_active_returns_upd_ref,
-                                                  covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
-                                                  groups_m_d_ref = stock_groups_m_d_ref_adapted
+  covariance_matrix <-  estimate_covariance_matrix(tickers = stock_universe_m_d_ref$tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+                                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                                   active_returns = FALSE, groups_m_d_ref = stock_groups_m_d_ref
   )
+
 
   #Portfolio
   port_spec <- PortfolioAnalytics::portfolio.spec(assets = stock_universe_m_d_ref$tickers)
@@ -869,7 +869,7 @@ test_that("set portfolio weights works for stocks (all formats) ", {
                                                               max = eligible_universe_m_d_ref$max_weight)
   #Group constraints
   group_constraints_helper <- generate_group_constraints(universe_m_d_ref = stock_universe_m_d_ref, concentration_constraint_policy = concentration_constraint_policy,
-                                                         groups_m_d_ref = stocks_groups_m_d_ref)
+                                                         groups_m_d_ref = stock_groups_m_d_ref)
 
   port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec_constrained,
                                                               type = "group",
@@ -886,20 +886,65 @@ test_that("set portfolio weights works for stocks (all formats) ", {
                                                       permutations = 2000,
                                                       rp_method = "sample")
 
-  #Best Portfolio for IR
-  expected_results$weights <- c(0.445,0.159,0.131,0.265) #Calculated manually
+  #Best Portfolio for Sharpe
+  rp_weights <- as.matrix(rp_weights)  # Portfolio weights
+  exp_ret_score <- as.matrix(stock_universe_m_d_ref$exp_ret_score)  # Expected return vector
+  cov_matrix <- as.matrix(covariance_matrix)  # Covariance matrix
+  # Calculate Portfolio Return (Expected Return)
+  portfolio_return <- rp_weights %*% exp_ret_score  # Matrix multiplication
+  # Calculate Portfolio Risk (Standard Deviation)
+  portfolio_risk <- sqrt(rowSums((rp_weights %*% cov_matrix) * rp_weights))
+  # Optimal Sharpe
+  optimal_sharpe_weights <- rp_weights[which.max(portfolio_return/portfolio_risk),]
+  optimal_ret <-  portfolio_return[which.max(portfolio_return/portfolio_risk),]
+  optimal_risk <- portfolio_risk[which.max(portfolio_return/portfolio_risk)]
 
   set.seed(123)
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "MTO",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
-                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
                                    concentration_constraint_policy = concentration_constraint_policy
   )
 
-  results$tickers <- expected_results$tickers
-  expect_equal(results, expected_results)
+  #Check for random weights generation
+  expected_weights <- t(rp_weights) %>% as.data.frame() %>% tibble::rownames_to_column("tickers")
+  expect_equal(results@random_port_weights, expected_weights)
+  expect_equal(results@weights, optimal_sharpe_weights %>% unname())
+  expect_equal(1.485, optimal_ret, tolerance = 1e-2)
+  expect_equal(0.672, optimal_risk, tolerance = 1e-2)
+
+  #Best Portfolio for Return
+  optimal_ret_weights <-  rp_weights[which.max(portfolio_return),]
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   opt_objective = "return", liquidity_constraint_policy = liquidity_constraint_policy,
+                                   turnover_constraint_policy = turnover_constraint_policy,
+                                   concentration_constraint_policy = concentration_constraint_policy
+  )
+  expect_equal(results@weights, optimal_ret_weights %>% unname())
+
+  #Best Portfolio for Risk
+  optimal_risk_weights <-  rp_weights[which.min(portfolio_risk),]
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   opt_objective = "risk", liquidity_constraint_policy = liquidity_constraint_policy,
+                                   turnover_constraint_policy = turnover_constraint_policy,
+                                   concentration_constraint_policy = concentration_constraint_policy
+  )
+  expect_equal(results@weights, optimal_risk_weights %>% unname())
+  expected_results$rel_risk_contr <- relative_risk_contribution(optimal_risk_weights %>% unname(), covariance_matrix)$rel_risk_contr
+  expected_results$weights <- optimal_risk_weights
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
 
   #Check that constraints match expectations
   #Upper box
@@ -948,6 +993,311 @@ test_that("set portfolio weights works for stocks (all formats) ", {
   ))
 
   })
+
+test_that("set portfolio weights works for stocks (all formats) - toy_preprocessed", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
+
+  #Current date
+  current_date <- "2023-04-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(vol_36m = "short"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+  stock_universe_m_d_ref <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    concentration_constraint_policy = concentration_constraint_policy
+  )
+
+  #Test EW
+  expected_results <- stock_universe_m_d_ref
+  expected_results <- expected_results %>% dplyr::mutate(weights = dplyr::if_else(is_eligible == 1, 1/sum(is_eligible), 0))
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "ew")
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
+  #Test CW
+  expected_results <- stock_universe_m_d_ref
+  expected_results$cap_score <- signal_transform(expected_results$mean_volfin_3m, lower_quantile_winsorization, upper_quantile_winsorization)
+  expected_results$weights <- expected_results$cap_score/sum(expected_results$cap_score)
+
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "cw",
+                                   liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = "mean_volfin_3m")
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
+  #Test CS
+  expected_results <- stock_universe_m_d_ref
+  expected_results$cap_score <- signal_transform(expected_results$mean_volfin_3m, lower_quantile_winsorization, upper_quantile_winsorization)
+  expected_results$weights <- (expected_results$cap_score * expected_results$exp_ret_score)/sum((expected_results$cap_score * expected_results$exp_ret_score))
+
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "cs",
+                                   liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = "mean_volfin_3m")
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
+  #Test RP
+  expected_results <- stock_universe_m_d_ref
+
+  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+
+  covariance_matrix <- estimate_covariance_matrix(tickers = c("Stock A", "Stock C", "Stock D", "Stock E"), returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                                  active_returns = FALSE,
+                                                  groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+  rp_results <- riskParityPortfolio::riskParityPortfolio(Sigma = covariance_matrix)
+  expected_results$rel_risk_contr <- rp_results$relative_risk_contribution
+  expected_results$weights <- rp_results$w
+
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
+  )
+
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
+  #Test MVO Unconstrained
+  expected_results <- stock_universe_m_d_ref
+  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+
+  covariance_matrix <- estimate_covariance_matrix(tickers = stock_universe_m_d_ref$tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                                  active_returns = FALSE,
+                                                  groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+  #Portfolio
+  port_spec <- PortfolioAnalytics::portfolio.spec(assets = expected_results$tickers)
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "full_investment")
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "box")
+
+  set.seed(123)
+  rp_weights <- PortfolioAnalytics::random_portfolios(portfolio = port_spec_constrained,
+                                                      permutations = 2000,
+                                                      rp_method = "sample")
+
+  #Best Portfolio for Sharpe
+  rp_weights <- as.matrix(rp_weights)  # Portfolio weights
+  exp_ret_score <- as.matrix(stock_universe_m_d_ref$exp_ret_score)  # Expected return vector
+  cov_matrix <- as.matrix(covariance_matrix)  # Covariance matrix
+  # Calculate Portfolio Return (Expected Return)
+  portfolio_return <- rp_weights %*% exp_ret_score  # Matrix multiplication
+  # Calculate Portfolio Risk (Standard Deviation)
+  portfolio_risk <- sqrt(rowSums((rp_weights %*% cov_matrix) * rp_weights))
+  # Optimal Sharpe
+  optimal_sharpe_weights <- rp_weights[which.max(portfolio_return/portfolio_risk),]
+  optimal_ret <-  portfolio_return[which.max(portfolio_return/portfolio_risk),]
+  optimal_risk <- portfolio_risk[which.max(portfolio_return/portfolio_risk)]
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
+  )
+
+  #Check for random weights generation
+  expected_weights <- t(rp_weights) %>% as.data.frame() %>% tibble::rownames_to_column("tickers")
+  expect_equal(results@random_port_weights, expected_weights)
+  expect_equal(results@weights, optimal_sharpe_weights %>% unname())
+  expect_equal(2.375, optimal_ret, tolerance = 1e-2)
+  expect_equal(0.795, optimal_risk, tolerance = 1e-2)
+
+  #Best Portfolio for Return
+  optimal_ret_weights <-  rp_weights[which.max(portfolio_return),]
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   opt_objective = "return"
+  )
+  expect_equal(results@weights, optimal_ret_weights %>% unname())
+
+  #Best Portfolio for Risk
+  optimal_risk_weights <-  rp_weights[which.min(portfolio_risk),]
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   opt_objective = "risk"
+  )
+  expect_equal(results@weights, optimal_risk_weights %>% unname())
+  expected_results$rel_risk_contr <- relative_risk_contribution(optimal_risk_weights %>% unname(), covariance_matrix)$rel_risk_contr
+  expected_results$weights <- optimal_risk_weights
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
+  #Test MVO Constrained
+  expected_results <- stock_universe_m_d_ref
+  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+
+  covariance_matrix <-  estimate_covariance_matrix(tickers = stock_universe_m_d_ref$tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+                                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                                   active_returns = FALSE, groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+
+  #Portfolio
+  port_spec <- PortfolioAnalytics::portfolio.spec(assets = stock_universe_m_d_ref$tickers)
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "full_investment")
+  #Box constraints
+  eligible_universe_m_d_ref <- generate_box_constraints(universe_m_d_ref = stock_universe_m_d_ref,
+                                                        liquidity_constraint_policy = liquidity_constraint_policy,
+                                                        turnover_constraint_policy = turnover_constraint_policy,
+                                                        concentration_constraint_policy = concentration_constraint_policy)
+
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(type = "box", portfolio = port_spec_constrained,
+                                                              min = eligible_universe_m_d_ref$min_weight,
+                                                              max = eligible_universe_m_d_ref$max_weight)
+  #Group constraints
+  group_constraints_helper <- generate_group_constraints(universe_m_d_ref = stock_universe_m_d_ref, concentration_constraint_policy = concentration_constraint_policy,
+                                                         groups_m_d_ref = stock_groups_m_d_ref)
+
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec_constrained,
+                                                              type = "group",
+                                                              groups = group_constraints_helper$eligible_assets_group_membership_list,
+                                                              group_min = group_constraints_helper$group_constraint_min,
+                                                              group_max = group_constraints_helper$group_constraint_max
+  )
+  expected_results$max_weight <- eligible_universe_m_d_ref$max_weight
+  expected_results$min_weight <- eligible_universe_m_d_ref$min_weight
+
+  #Generate random ports
+  set.seed(123)
+  rp_weights <- PortfolioAnalytics::random_portfolios(portfolio = port_spec_constrained,
+                                                      permutations = 2000,
+                                                      rp_method = "sample")
+
+  #Best Portfolio for Sharpe
+  rp_weights <- as.matrix(rp_weights)  # Portfolio weights
+  exp_ret_score <- as.matrix(stock_universe_m_d_ref$exp_ret_score)  # Expected return vector
+  cov_matrix <- as.matrix(covariance_matrix)  # Covariance matrix
+  # Calculate Portfolio Return (Expected Return)
+  portfolio_return <- rp_weights %*% exp_ret_score  # Matrix multiplication
+  # Calculate Portfolio Risk (Standard Deviation)
+  portfolio_risk <- sqrt(rowSums((rp_weights %*% cov_matrix) * rp_weights))
+  # Optimal Sharpe
+  optimal_sharpe_weights <- rp_weights[which.max(portfolio_return/portfolio_risk),]
+  optimal_ret <-  portfolio_return[which.max(portfolio_return/portfolio_risk),]
+  optimal_risk <- portfolio_risk[which.max(portfolio_return/portfolio_risk)]
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   liquidity_constraint_policy = liquidity_constraint_policy,
+                                   turnover_constraint_policy = turnover_constraint_policy,
+                                   concentration_constraint_policy = concentration_constraint_policy
+  )
+
+  #Check for random weights generation
+  expected_weights <- t(rp_weights) %>% as.data.frame() %>% tibble::rownames_to_column("tickers")
+  expect_equal(results@random_port_weights, expected_weights)
+  expect_equal(results@weights, optimal_sharpe_weights %>% unname())
+  expect_equal(1.485, optimal_ret, tolerance = 1e-2)
+  expect_equal(0.672, optimal_risk, tolerance = 1e-2)
+
+  #Best Portfolio for Return
+  optimal_ret_weights <-  rp_weights[which.max(portfolio_return),]
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   opt_objective = "return", liquidity_constraint_policy = liquidity_constraint_policy,
+                                   turnover_constraint_policy = turnover_constraint_policy,
+                                   concentration_constraint_policy = concentration_constraint_policy
+  )
+  expect_equal(results@weights, optimal_ret_weights %>% unname())
+
+  #Best Portfolio for Risk
+  optimal_risk_weights <-  rp_weights[which.min(portfolio_risk),]
+
+  set.seed(123)
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   opt_objective = "risk", liquidity_constraint_policy = liquidity_constraint_policy,
+                                   turnover_constraint_policy = turnover_constraint_policy,
+                                   concentration_constraint_policy = concentration_constraint_policy
+  )
+  expect_equal(results@weights, optimal_risk_weights %>% unname())
+  expected_results$rel_risk_contr <- relative_risk_contribution(optimal_risk_weights %>% unname(), covariance_matrix)$rel_risk_contr
+  expected_results$weights <- optimal_risk_weights
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
+
+  #Check that constraints match expectations
+  #Upper box
+  expect_true(all(
+    all(rp_weights[,1] <= eligible_universe_m_d_ref$max_weight[1]),
+    all(rp_weights[,2] <= eligible_universe_m_d_ref$max_weight[2]),
+    all(rp_weights[,3] <= eligible_universe_m_d_ref$max_weight[3]),
+    all(rp_weights[,4] <= eligible_universe_m_d_ref$max_weight[4])))
+
+  #Lower box
+  expect_true(all(
+    all(rp_weights[,1] >= eligible_universe_m_d_ref$min_weight[1]),
+    all(rp_weights[,2] >= eligible_universe_m_d_ref$min_weight[2]),
+    all(rp_weights[,3] >= eligible_universe_m_d_ref$min_weight[3]),
+    all(rp_weights[,4] >= eligible_universe_m_d_ref$min_weight[4])))
+
+  #Group
+  sector_cyclical <- rp_weights[,3] + rp_weights[,4]
+  sector_financial <- rp_weights[,2]
+  sector_oil <- rp_weights[,1]
+  subsector_education <- rp_weights[,4]
+  subsector_insurance <- rp_weights[,2]
+  subsector_oil <- rp_weights[,1]
+  subsector_retail <- rp_weights[,3]
+
+  #Lower Group
+  expect_true(all(
+    all(sector_cyclical >= group_constraints_helper$group_constraint_min[1]),
+    all(sector_financial >= group_constraints_helper$group_constraint_min[2]),
+    all(sector_oil >= group_constraints_helper$group_constraint_min[3]),
+    all(subsector_education >= group_constraints_helper$group_constraint_min[4]),
+    all(subsector_insurance >= group_constraints_helper$group_constraint_min[5]),
+    all(subsector_oil >= group_constraints_helper$group_constraint_min[6]),
+    all(subsector_retail >= group_constraints_helper$group_constraint_min[7])
+  ))
+
+  #Upper group
+  expect_true(all(
+    all(sector_cyclical <= group_constraints_helper$group_constraint_max[1]),
+    all(sector_financial <= group_constraints_helper$group_constraint_max[2]),
+    all(sector_oil <= group_constraints_helper$group_constraint_max[3]),
+    all(subsector_education <= group_constraints_helper$group_constraint_max[4]),
+    all(subsector_insurance <= group_constraints_helper$group_constraint_max[5]),
+    all(subsector_oil <= group_constraints_helper$group_constraint_max[6]),
+    all(subsector_retail <= group_constraints_helper$group_constraint_max[7])
+  ))
+
+})
 
 
 

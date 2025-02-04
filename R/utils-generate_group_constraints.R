@@ -15,8 +15,7 @@
 #' @return
 #' @export
 #'
-generate_group_constraints <- function(universe_m_d_ref, concentration_constraint_policy, groups_m_d_ref,
-                                       verbose = TRUE){
+generate_group_constraints <- function(universe_m_d_ref, concentration_constraint_policy, groups_m_d_ref, verbose = TRUE){
 
   #Generate benchmark_group_weights
   ###################################
@@ -58,8 +57,8 @@ generate_group_constraints <- function(universe_m_d_ref, concentration_constrain
       }
 
     ###Max
-    group_concentration_constraints$max_weight <- group_concentration_constraints$group_benchmark_weights +
-      concentration_constraint_policy$max_abs_active_group_weight[i]
+    group_concentration_constraints$max_weight <- pmin(group_concentration_constraints$group_benchmark_weights +
+                                                         concentration_constraint_policy$max_abs_active_group_weight[i], 1)
     ###Min
     group_concentration_constraints$min_weight <- pmax(group_concentration_constraints$group_benchmark_weights -
                                                          concentration_constraint_policy$max_abs_active_group_weight[i], 0)

@@ -5253,15 +5253,25 @@ setMethod(
     white          <- "#FFFFFF"
     neon_green     <- "#39FF14"
     neon_orange    <- "#FF5F1F"
+    neon_cyan       = "#00FFFF"
+    neon_blue       = "#1F51FF"
+    neon_yellow     = "#FFFF33"
+    neon_red        = "#FF073A"
+    neon_turquoise  = "#40E0D0"
+    neon_lime       = "#BFFF00"
+    neon_magenta    = "#FF00FF"
+    neon_hotpink    = "#FF69B4"
     neon_pink      <- "#FF007F"
+    neon_purple    <- "#7F00FF"
     blue_bg        <- "#001f3f"
 
     #------------------------------------------------------------------------------------------------
-    # 1) weights - Donut chart
+    # 1) weights - Bar chart
     #------------------------------------------------------------------------------------------------
     if (type == "Weights") {
       if (length(weights) == 0)
         stop("No weights found in 'x'.")
+
       if (length(asset_names) != length(weights))
         stop("Mismatch between 'eligible_assets' and 'weights' length.")
 
@@ -5273,40 +5283,124 @@ setMethod(
         stop("All weights are zero or negative. Nothing to plot.")
       }
 
+      # -- Prompt user if they want active weights
+      cat("Do you want to compute active weights? (y/n): ")
+      active_choice <- tolower(readline())
+
+      active_weights_mode <- FALSE
+      if (active_choice %in% c("y", "yes")) {
+        active_weights_mode <- TRUE
+      }
+
+
+      if (active_weights_mode){
+        bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
+        if (length(bench_cols) == 0) {
+          stop("No columns matching '_bench_weights' found in 'universe_df'.")
+        }
+        bench_col <- NULL
+        if (length(bench_cols) == 1) {
+          bench_col <- bench_cols[1]
+          message("Benchmark is: ", bench_col)
+        } else {
+          message("Multiple benchmarks found:")
+          # Present a menu to let the user pick which one to compare
+          chosen <- menu(bench_cols, title = "Select a benchmark to use for active weights:")
+          if (chosen == 0) {
+            stop("No benchmark selected. Aborting.")
+          }
+          bench_col <- bench_cols[chosen]
+          message("Benchmark is: ", bench_col)
+        }
+
+        # Join and calculate Active_Weight = portfolio Weight - benchmark Weight
+        df_pie <- df_pie %>%
+          dplyr::left_join(
+            universe_df %>% dplyr::select(tickers, !!bench_col),
+            by = c("Asset" = "tickers")
+          ) %>%
+          dplyr::mutate(Active_Weight = .data$Weight - !!rlang::sym(bench_col)) %>%
+          dplyr::select(.data$Asset, .data$Active_Weight) %>%
+          dplyr::rename(Weight = .data$Active_Weight)
+      }
+
+
+      # Create main/others distinction
+      if (x@port_construction_method != "ew"){
+        main_assets <- df_pie %>% dplyr::slice_max(.data$Weight, n = 15)
+        if (!active_weights_mode){
+        other_assets <- df_pie %>%
+          dplyr::slice_min(.data$Weight, n = nrow(df_pie) - 15) %>%
+          dplyr::summarize(Asset = "Others", Weight = sum(.data$Weight))
+        df_pie <- rbind(main_assets, other_assets)
+        } else {
+          df_pie <- main_assets
+        }
+      } else {
+        main_assets <- df_pie %>% dplyr::slice_head(n = 15)
+        if (!active_weights_mode){
+        other_assets <- df_pie %>%
+          dplyr::slice_tail(n = nrow(df_pie) - 15) %>%
+          dplyr::summarize(Asset = "Others", Weight = sum(.data$Weight))
+        df_pie <- rbind(main_assets, other_assets)
+        } else {
+          df_pie <- main_assets
+        }
+      }
+
+      # Calculate proportions for labeling
       df_pie <- df_pie %>%
         dplyr::mutate(
           prop  = .data$Weight / sum(.data$Weight),
           label = paste0(.data$Asset, "\n", scales::percent(.data$prop, accuracy = 0.1))
         )
 
-      # Create donut plot
-      p <- ggplot2::ggplot(df_pie, ggplot2::aes(x = 2, y = .data$prop, fill = .data$Asset)) +
-        ggplot2::geom_bar(stat = "identity", color = white, width = 1, size = 0.5) +
-        # Place labels inside the slices
+      #Create pallete
+      neon_pallete <- c(neon_green, neon_orange, neon_cyan, neon_blue, neon_yellow, neon_red, neon_turquoise, neon_lime,
+                        neon_magenta, neon_hotpink, neon_pink, neon_purple, vibrant_purple, black, white, blue_bg)
+
+      # Get plot title
+      plot_title <- if (active_weights_mode) {
+        paste("Portfolio Active Weights:", if (port_name == "") "not_identified" else port_name)
+      } else {
+        paste("Portfolio Weights:", if (port_name == "") "not_identified" else port_name)
+      }
+
+      # Create bar plot
+      p <- ggplot2::ggplot(df_pie, ggplot2::aes(
+        x    = reorder(.data$Asset, -.data$Weight),
+        y    = .data$Weight,
+        fill = .data$Asset
+      )) +
+        ggplot2::geom_bar(stat = "identity", color = white, width = 0.7, size = 0.5) +
         ggplot2::geom_text(
-          ggplot2::aes(label = .data$label),
-          position = ggplot2::position_stack(vjust = 0.5),
-          color = white
+          ggplot2::aes(label = scales::percent(.data$prop, accuracy = 0.1)),
+          vjust = -0.5,  # vertically place the text above each bar
+          color = white,
+          size  = 4
         ) +
-        ggplot2::coord_polar(theta = "y", start = 0) +
-        ggplot2::xlim(1.2, 2.5) +
-        ggplot2::scale_fill_brewer(palette = "Set2") +
-        ggplot2::theme_void() +
+        # Use the custom vibrant palette
+        ggplot2::scale_fill_manual(values = neon_pallete) +
+        ggplot2::labs(
+          title = plot_title,
+          x     = "Assets",
+          y     = if (active_weights_mode) "Active Weight (Port - Bench)" else "Weight"
+        ) +
+        ggplot2::theme_minimal() +
         ggplot2::theme(
           plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
           panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid       = ggplot2::element_blank(),
           plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.margin      = grid::unit(rep(0, 4), "pt"),
-          # Turn off legend since labels are inside
+          axis.text        = ggplot2::element_text(color = white),
+          axis.title       = ggplot2::element_text(color = white),
           legend.position  = "none"
-        ) +
-        ggplot2::labs(
-          title = paste("Portfolio Weights:", if (port_name == "") "not_identified" else port_name)
         )
 
       print(p)
       return(invisible(p))
     }
+
 
     #------------------------------------------------------------------------------------------------
     # 2) exp_ret_score - Bar chart

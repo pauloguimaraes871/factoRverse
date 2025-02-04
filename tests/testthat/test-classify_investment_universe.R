@@ -70,14 +70,14 @@ test_that("classify_investment_universe works with no additional rules for signa
   signal_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
                                         tickers = c("Alpha", "low_Beta", "Gamma"),
                                         dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
-                                         mean_active_return = rnorm(3, 0, 1),
-                                         tracking_error = runif(3, 0, 1),
-                                         IR = rnorm(3,0,1),
-                                         alpha = rnorm(3,0,1),
-                                         alpha_t_stat = rnorm(3,0,1),
-                                         beta = rnorm(3,0,1),
-                                         treynor = rnorm(3,0,1),
-                                         p_value = c(0.05,0.20,0.03)
+                                        mean_active_return = rnorm(3, 0, 1),
+                                        tracking_error = runif(3, 0, 1),
+                                        IR = rnorm(3,0,1),
+                                        alpha = rnorm(3,0,1),
+                                        alpha_t_stat = rnorm(3,0,1),
+                                        beta = rnorm(3,0,1),
+                                        treynor = rnorm(3,0,1),
+                                        p_value = c(0.05,0.20,0.03)
   )
 
   signal_universe_m_d_ref$alpha[2] <- NA
@@ -85,9 +85,9 @@ test_that("classify_investment_universe works with no additional rules for signa
 
 
   signal_groups_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
-                                       tickers = c("Alpha", "low_Beta", "Gamma"),
-                                       dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
-                                       theme = c("Value", "Momentum", "Value")
+                                      tickers = c("Alpha", "low_Beta", "Gamma"),
+                                      dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                      theme = c("Value", "Momentum", "Value")
   )
 
   expect_error(
@@ -113,22 +113,22 @@ test_that("classify_investment_universe works with no additional rules for signa
             #Create signal_universe_m_d_ref
             set.seed(103)
             signal_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15", "Delta-2001-07-15"),
-                                                   tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
-                                                   dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
-                                                   mean_active_return = rnorm(4, 0, 1),
-                                                   tracking_error = runif(4, 0, 1),
-                                                   IR = rnorm(4,0,1),
-                                                   alpha = rnorm(4,0,1),
-                                                   alpha_t_stat = rnorm(4,0,1),
-                                                   beta = rnorm(4,0,1),
-                                                   treynor = rnorm(4,0,1),
-                                                   p_value = c(0.05,0.20,0.03, 0.10)
+                                                  tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
+                                                  dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
+                                                  mean_active_return = rnorm(4, 0, 1),
+                                                  tracking_error = runif(4, 0, 1),
+                                                  IR = rnorm(4,0,1),
+                                                  alpha = rnorm(4,0,1),
+                                                  alpha_t_stat = rnorm(4,0,1),
+                                                  beta = rnorm(4,0,1),
+                                                  treynor = rnorm(4,0,1),
+                                                  p_value = c(0.05,0.20,0.03, 0.10)
             )
 
             signal_groups_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15", "Delta-2001-07-15"),
-                                                 tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
-                                                 dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
-                                                 theme = c("Value", "Momentum", "Value", "Momentum")
+                                                tickers = c("Alpha", "low_Beta", "Gamma", "Delta"),
+                                                dates = c("2001-07-15", "2001-07-15", "2001-07-15", "2001-07-15"),
+                                                theme = c("Value", "Momentum", "Value", "Momentum")
             )
 
 
