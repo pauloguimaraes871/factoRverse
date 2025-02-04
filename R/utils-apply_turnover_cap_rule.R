@@ -38,38 +38,38 @@ apply_turnover_cap_rule <- function(stock_universe_m_d_ref,
 
   ##Get objects
   ################
-    ###Init data frame without bop_port_weights in case it is a second run
-    stock_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::select(-dplyr::any_of("bop_port_weights"))
-    ###Get liquidity metrics names
-    liquidity_metrics <- colnames(liquidity_floor_cutoffs)[-1] #Get name of metrics
+  ###Init data frame without bop_port_weights in case it is a second run
+  stock_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::select(-dplyr::any_of("bop_port_weights"))
+  ###Get liquidity metrics names
+  liquidity_metrics <- colnames(liquidity_floor_cutoffs)[-1] #Get name of metrics
 
-    ################
+  ################
 
-    ##Buffer Zone
-    #################
-    ###Enlarge eligibility_quantile_range according to quantile_range_buffer
-    buffered_quantile_range <- sort(eligibility_quantile_range)
-    buffered_quantile_range[1] <- max(eligibility_quantile_range[1] - quantile_range_buffer, 0)
-    buffered_quantile_range[2] <- min(eligibility_quantile_range[2] + quantile_range_buffer, 1)
+  ##Buffer Zone
+  #################
+  ###Enlarge eligibility_quantile_range according to quantile_range_buffer
+  buffered_quantile_range <- sort(eligibility_quantile_range)
+  buffered_quantile_range[1] <- max(eligibility_quantile_range[1] - quantile_range_buffer, 0)
+  buffered_quantile_range[2] <- min(eligibility_quantile_range[2] + quantile_range_buffer, 1)
 
-    ###Is in top quantile buffer?
-    turnover_cap_rule_m_d_ref <- classify_stocks_pre_eligibility(
-      stock_universe_m_d_ref = stock_universe_m_d_ref,
-      eligibility_quantile_range = buffered_quantile_range) %>%
-      dplyr::rename(is_in_buffered_quantile_range = pre_eligible_assets)
+  ###Is in top quantile buffer?
+  turnover_cap_rule_m_d_ref <- classify_stocks_pre_eligibility(
+    stock_universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = buffered_quantile_range) %>%
+    dplyr::rename(is_in_buffered_quantile_range = pre_eligible_assets)
 
-    ###Was in old_portfolio?
-    turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
-      dplyr::left_join(updated_port_weights_m_lstd_ref %>% dplyr::select(-id, -dates), by = "tickers") %>% #Get old weights
-      dplyr::select(id, tickers, dates, is_in_buffered_quantile_range, bop_port_weights) #Select only those info
+  ###Was in old_portfolio?
+  turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
+    dplyr::left_join(updated_port_weights_m_lstd_ref %>% dplyr::select(-id, -dates), by = "tickers") %>% #Get old weights
+    dplyr::select(id, tickers, dates, is_in_buffered_quantile_range, bop_port_weights) #Select only those info
 
-    ####Replace NAs (new stocks) for 0
-    turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
-      dplyr::mutate(bop_port_weights = tidyr::replace_na(bop_port_weights, 0))
+  ####Replace NAs (new stocks) for 0
+  turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
+    dplyr::mutate(bop_port_weights = tidyr::replace_na(bop_port_weights, 0))
 
-    ####Create column to represent if stock was in old portfolio
-    turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
-      dplyr::mutate(was_in_old_portfolio = dplyr::if_else(bop_port_weights > 0, 1L, 0L))
+  ####Create column to represent if stock was in old portfolio
+  turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>%
+    dplyr::mutate(was_in_old_portfolio = dplyr::if_else(bop_port_weights > 0, 1L, 0L))
 
     #################
 

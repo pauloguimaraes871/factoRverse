@@ -45,10 +45,10 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
   returns_m_xts_upd_ref_dates <- zoo::index(returns_m_xts_upd_ref)
   n_dates <- length(returns_m_xts_upd_ref_dates)
 
-    ##check
-    if(n_dates < cov_matrix_sample_size){
-      stop("Not enough dates to estimate covariance matrix")
-    }
+  ##check
+  if(n_dates < cov_matrix_sample_size){
+    stop("Not enough dates to estimate covariance matrix")
+  }
 
   if(is.null(cov_matrix_sample_size)){
     dates_to_sample <- returns_m_xts_upd_ref_dates #In case of cov_matrix_sample_size = NULL, use whole period
@@ -63,42 +63,6 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
 
   ###############################
 
-  #Define active returns if the case
-  ###############################
-  if(active_returns){
-    if(verbose) cat("\n  Calculating active returns.")
-    #Get benchmark returns
-    selected_benchmark_m_xts_sample <- selected_benchmark_m_xts_upd_ref[which(zoo::index(selected_benchmark_m_xts_upd_ref) %in% dates_to_sample),]
-
-    #Get decimals
-    returns_m_xts_sample_decimals <- returns_m_xts_sample/100
-    selected_benchmark_m_xts_sample_decimals <- as.vector(selected_benchmark_m_xts_sample/100)
-
-    ##Get geometric active returns
-    ###returns_m_xts_sample_decimals
-    returns_m_xts_sample_decimals <- xts::xts(
-      sapply(
-        #For each series
-        colnames(returns_m_xts_sample_decimals), function(series) {
-          #Apply geometric return difference formula
-          purrr::map2_dbl(
-            returns_m_xts_sample_decimals[, series], #.x
-            selected_benchmark_m_xts_sample_decimals, #.y
-            ~ (1 + .x) / (1 + .y) - 1 #.f
-          )
-        }
-      ),
-      order.by = zoo::index(returns_m_xts_sample_decimals)
-    )
-
-    #Turn back to percentages
-    returns_m_xts_sample <- returns_m_xts_sample_decimals*100
-    selected_benchmark_m_xts_sample <- selected_benchmark_m_xts_sample_decimals*100
-
-  }
-  ###############################
-
-
   #Clean (just to be sure)
   ###############################
   returns_m_xts_sample_clean <- clean_returns_sample(returns_m_xts_sample = returns_m_xts_sample, #Returns
@@ -106,6 +70,42 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
                                                       verbose = verbose
   )
   ################################
+
+  #Define active returns if the case
+  ###############################
+  if(active_returns){
+    if(verbose) cat("\n  Calculating active returns.")
+    #Get benchmark returns
+    clean_dates_to_sample <- zoo::index(returns_m_xts_sample_clean)
+    selected_benchmark_m_xts_sample <- selected_benchmark_m_xts_upd_ref[which(zoo::index(selected_benchmark_m_xts_upd_ref) %in% clean_dates_to_sample),]
+
+    #Get decimals
+    returns_m_xts_sample_clean_decimals <- returns_m_xts_sample_clean/100
+    selected_benchmark_m_xts_sample_decimals <- as.vector(selected_benchmark_m_xts_sample/100)
+
+    ##Get geometric active returns
+    ###returns_m_xts_sample_clean_decimals
+    returns_m_xts_sample_clean_decimals <- xts::xts(
+      sapply(
+        #For each series
+        colnames(returns_m_xts_sample_clean_decimals), function(series) {
+          #Apply geometric return difference formula
+          purrr::map2_dbl(
+            returns_m_xts_sample_clean_decimals[, series], #.x
+            selected_benchmark_m_xts_sample_decimals, #.y
+            ~ (1 + .x) / (1 + .y) - 1 #.f
+          )
+        }
+      ),
+      order.by = zoo::index(returns_m_xts_sample_clean_decimals)
+    )
+
+    #Turn back to percentages
+    returns_m_xts_sample_clean <- returns_m_xts_sample_clean_decimals*100
+    selected_benchmark_m_xts_sample <- selected_benchmark_m_xts_sample_decimals*100
+
+  }
+  ###############################
 
   #Set covariance estimator
   ################################

@@ -125,7 +125,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   universe_m_d_ref <- port_results_list$universe_m_d_ref
 
   #Calculate relative risk contribution
-  if(!is.null(covariance_matrix)){
+  if (!is.null(covariance_matrix)){
     relative_risk_contribution_df <- relative_risk_contribution(
       weights = universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights), #Weights
       covariance_matrix = covariance_matrix #Covariance

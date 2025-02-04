@@ -19,12 +19,12 @@ test_that("classify_investment_universe works with no additional rules for signa
                                 beta = rnorm(3,0,1),
                                 treynor = rnorm(3,0,1),
                                 p_value = c(0.05,0.20,0.03)
-                                )
+  )
 
   signal_groups_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
-                                       tickers = c("Alpha", "low_Beta", "Gamma"),
-                                       dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
-                                       theme = c("Value", "Momentum", "Value")
+                                      tickers = c("Alpha", "low_Beta", "Gamma"),
+                                      dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                      theme = c("Value", "Momentum", "Value")
   )
 
   signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, "none")
@@ -68,8 +68,8 @@ test_that("classify_investment_universe works with no additional rules for signa
   #Create signal_universe_m_d_ref
   set.seed(123)
   signal_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
-                                         tickers = c("Alpha", "low_Beta", "Gamma"),
-                                         dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                        tickers = c("Alpha", "low_Beta", "Gamma"),
+                                        dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
                                          mean_active_return = rnorm(3, 0, 1),
                                          tracking_error = runif(3, 0, 1),
                                          IR = rnorm(3,0,1),
@@ -938,6 +938,9 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   updated_port_weights_m_lstd_ref <- signals_m_df %>% dplyr::filter(dates == "2022-11-15") %>% dplyr::select(id, tickers, dates) %>%
     dplyr::mutate(bop_port_weights = 0)
+  #Include some arbitrary weights to enable turnover_constraint_policy
+  updated_port_weights_m_lstd_ref <- updated_port_weights_m_lstd_ref %>% dplyr::mutate(bop_port_weights = dplyr::if_else(tickers == "MDNE3", 0.2, bop_port_weights))
+
 
   #Derive Stock Universe
   stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(roe_3m = "long"),
@@ -996,6 +999,9 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
 
   expected_results$bop_port_weights <- 0
   expected_results$buffer_zone_1 <- 0
+
+  expected_results <- expected_results %>% dplyr::mutate(bop_port_weights = dplyr::if_else(tickers == "MDNE3", 0.2, 0),
+                                                         buffer_zone_1 = dplyr::if_else(tickers == "MDNE3", 1, 0))
 
   turnover_cap_rule_m_d_ref <- apply_turnover_cap_rule(stock_universe_m_d_ref = stock_universe_m_d_ref,
                                                        eligibility_quantile_range = eligibility_quantile_range, quantile_range_buffer = turnover_constraint_policy$quantile_range_buffer,

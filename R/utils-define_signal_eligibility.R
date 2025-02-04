@@ -189,7 +189,7 @@ define_signal_eligibility <- function(
   #Backtests
   selected_backtest_returns_corrected_positions_m_xts_upd_ref,
   selected_market_factor_proxy_m_xts_upd_ref,
-  custom_signal_universe_metrics_m_upd_ref,
+  custom_signal_universe_metrics_m_upd_ref = NULL,
   #P-Values
   p_correction_method = "none", signal_significance_threshold = 0.05,
   #Theme representativeness
@@ -323,7 +323,7 @@ define_signal_eligibility <- function(
     #Classify it!
     ###################################
     signal_universe_m_d_ref <- classify_investment_universe(
-      signals_m_d_ref = signal_universe_m_d_ref, #Signal Universe
+      universe_m_d_ref = signal_universe_m_d_ref, #Signal Universe
       signal_significance_threshold = signal_significance_threshold, #Signal Significance Threshold
       groups_m_d_ref = selected_signal_themes_m_d_ref, #Groups to select
       #Build concentration constraint policy for signals

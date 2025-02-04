@@ -64,6 +64,11 @@ setClass("meta_dataframe",
              stop("Column names should not contain 'low_', as it will bring problems when running backtesting functions")
            }
 
+           #Check for spaces in tickers
+           #if(any(grepl(" ", object@data[["tickers"]]))){
+           #  stop("Tickers should not contain spaces")
+           #}
+
          })
 
 #' Define the signals_m_df S4 Class

@@ -15,63 +15,79 @@
 clean_returns_sample <- function(returns_m_xts_sample, groups_m_d_ref = NULL, fill = TRUE, fill_by = NULL, verbose = TRUE){
 
   #Remove holidays
+  ##################
   returns_df_clean <- returns_m_xts_sample %>% as.data.frame() %>% dplyr::filter(rowSums(is.na(.)) != ncol(returns_m_xts_sample))  #Rows with only NAs
-
-  ##################n
+  filtered_index <- zoo::index(returns_m_xts_sample)[rowSums(is.na(as.data.frame(returns_m_xts_sample))) != ncol(returns_m_xts_sample)] #Dates with at least one non-NA
+  ##################
 
   #Fill according to groups
   ##########################
   #Check if filling is necessary
   if(any(apply(returns_df_clean, 2, function(x) any(is.na(x)))) && fill){
 
-    #Get what will be used to fill
+    ##Get what will be used to fill
     if(!is.null(fill_by)){
       group <- fill_by
     } else {
       group <- colnames(groups_m_d_ref)[length(colnames(groups_m_d_ref))] #Last name of groups_m_d_ref will be used to fill
     }
 
-    #message
+    ##message
     if(verbose){
       cat("\n")
       cat(paste0("Using ", group, " information to fill NAs in returns sample"))
     }
 
-    #Fill NAs (by row) with groups medians or with rows-median
-    for(i in 1:nrow(returns_df_clean)){
-      #Merge tickers with daily returns and groups
-      tickers <- colnames(returns_df_clean)
+    ##Add a row identifier as a new column
+    returns_df_clean$row_id <- seq_len(nrow(returns_df_clean))
 
-      tickers_and_returns <- merge(
-        data.frame(tickers = tickers, period_return = as.numeric(returns_df_clean[i, ])),
-        groups_m_d_ref, by = "tickers")
+    ##Pivot to long format, in which each row represent one ticker's return for a period
+    returns_df_clean_long <- tidyr::pivot_longer(
+      returns_df_clean,
+      cols = -row_id,
+      names_to = "tickers",
+      values_to = "period_return"
+    ) %>% as.data.frame()
 
-      #Group Medians
-      groups_medians <- tickers_and_returns %>%
-        dplyr::group_by(!!rlang::sym(group)) %>% dplyr::summarise(group_median_period_return = median(period_return, na.rm= TRUE)) #calculate median by groups
+    ##Merge group information from groups_m_d_ref
+    returns_df_clean_long <- dplyr::left_join(returns_df_clean_long, groups_m_d_ref, by = "tickers")
 
-      #Merge eveything
-      tickers_and_returns_and_groups <- dplyr::left_join(tickers_and_returns, groups_medians, by = group)
+    ##Compute group medians by period
+    returns_df_clean_long <- returns_df_clean_long %>%
+      dplyr::group_by(row_id, !!rlang::sym(group)) %>%
+      dplyr::mutate(group_median_period_return = median(period_return, na.rm= TRUE)) %>% #calculate median by groups
+      dplyr::ungroup() %>%
+      as.data.frame()
 
-      #Re-order
-      tickers_and_returns_and_groups <- tickers_and_returns_and_groups[order(tickers_and_returns_and_groups$tickers), c("tickers", group, "period_return", "group_median_period_return")]
+    ##Replace NAs with group medians
+    returns_df_clean_long$period_return <- dplyr::coalesce(returns_df_clean_long$period_return, returns_df_clean_long$group_median_period_return)
+    ##########################
 
-      #Fill NAs with groups medians
-      tickers_and_returns_and_groups_filled <- tickers_and_returns_and_groups %>%
-        dplyr::mutate(period_return = dplyr::coalesce(period_return, group_median_period_return)) #replace with group_median_period_return
+  #For any remaining NA, replace with overall median
+  ##########################
+    ##Calcute overall median and replace
+    returns_df_clean_long <- returns_df_clean_long %>%
+      dplyr::group_by(row_id) %>%
+      dplyr::mutate(period_return = ifelse(is.na(period_return),
+                                           median(period_return, na.rm = TRUE),
+                                           period_return)) %>%
+      dplyr::ungroup() %>%
+      as.data.frame() %>%
+      dplyr::select(tickers, period_return, row_id)
 
-      #If there are remaining NAs, use series median
-      tickers_and_returns_and_groups_filled[which(is.na(tickers_and_returns_and_groups_filled$period_return)),"period_return"] <-
-        median(tickers_and_returns_and_groups_filled$period_return, na.rm = TRUE)
+    ##Pivot back to wide
+    returns_df_clean <- tidyr::pivot_wider(returns_df_clean_long, names_from = tickers, values_from = period_return) %>% as.data.frame()
 
-      #Place return vector back into returns sample clean
-      returns_df_clean[i, ] <- tickers_and_returns_and_groups_filled$period_return
-    }
-    ###################
+    ##Order by row_id and remove the row_id column to restore the original structure.
+    returns_df_clean <- returns_df_clean[order(returns_df_clean$row_id), ]
+    returns_df_clean <- returns_df_clean %>% dplyr::select(-row_id)
+
+
+  ###################
 
   }
   #Return a xts object
-  returns_m_xts_clean <- xts::xts(returns_df_clean, order.by = zoo::index(returns_m_xts_sample))
+  returns_m_xts_clean <- xts::xts(returns_df_clean, order.by = filtered_index)
   return(returns_m_xts_clean)
 
 }

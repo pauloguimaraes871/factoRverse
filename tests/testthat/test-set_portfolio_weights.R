@@ -61,7 +61,6 @@ test_that("set portfolio weights work for Custom Weights (signals)", {
 
 })
 
-
 test_that("set portfolio weights work for EW (signals)", {
 
   #Load
@@ -685,95 +684,84 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
 })
 
 
-
 #Stocks
 test_that("set portfolio weights works for stocks (all formats) ", {
 
-  #Create signals_m_d_ref_test
-  load(paste(test_path(),"/testdata/","artificial_metabacktest_obj.RData", sep =""))
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
 
-  #Change Default
-  signal_selection_policy$signal_blending_method <- "MTO"
-  covariance_estimation_method <- "PCA1"
-  signal_selection_policy$p_correction_method <- "BH"
-  top_assets_quantile <- 0.67
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
 
   #Current date
   current_date <- "2001-06-15"
 
   #Initial Preps
-  selected_benchmark_returns_df <- benchmark_returns_df[, c("dates", concentration_constraint_policy$benchmark)]
-  signals_groups_m_d_ref <- groups_m_df_list$signals[which(groups_m_df_list$signals$dates == current_date),]
-  stocks_groups_m_d_ref <- groups_m_df_list$stocks[which(groups_m_df_list$stocks$dates == current_date),]
-  liquidity_m_d_ref <- liquidity_m_df[which(liquidity_m_df$dates == current_date),]
-  benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
-  portfolio_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
-  portfolio_weights_m_lstd_ref$old_portfolio_weights <- c(0.20, 0.20, 0.20, 0.20, 0.20)
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
+  updated_port_weights_m_lstd_ref$bop_port_weights <- c(0.20, 0.20, 0.20, 0.20, 0.20)
 
-  #Blend Signals
-  signal_results_list <- blend_signals(current_date = current_date,
-                                       signals_m_df = signals_m_df,
-                                       target_m_df = target_m_df,
-                                       signal_selection_policy = signal_selection_policy,
-                                       backtest_returns_df = backtest_returns_df,
-                                       covariance_estimation_method = covariance_estimation_method,
-                                       selected_benchmark_returns_df = selected_benchmark_returns_df,
-                                       priors_m_df_list = priors_m_df_list,
-                                       signals_groups_m_d_ref = signals_groups_m_d_ref
-  )
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(Gamma = "long"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
 
   #Classify stock universe
   stock_universe_m_d_ref <- classify_investment_universe(
-    signals_m_d_ref = signal_results_list$stock_universe_m_d_ref,
-    top_assets_quantile = top_assets_quantile,
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
     liquidity_m_d_ref = liquidity_m_d_ref,
     liquidity_constraint_policy = liquidity_constraint_policy,
-    liquidity_floor_cutoffs_list = liquidity_floor_cutoffs_list,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
     benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
-    groups_m_d_ref = stocks_groups_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
     concentration_constraint_policy = concentration_constraint_policy,
-    portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
     turnover_constraint_policy = turnover_constraint_policy
   )
 
   #Test EW
   expected_results <- stock_universe_m_d_ref
   expected_results$weights <- rep(0.25, 4)
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "EW")
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "ew")
 
-  expect_equal(results, expected_results)
+  expect_equal(results@universe_m_d_ref@data, expected_results)
 
   #Test CW
   expected_results <- stock_universe_m_d_ref
-  expected_results$cap_score <- signal_transform(expected_results$mean_volfin_3m, upper_quantile_winsorization, lower_quantile_winsorization)
+  expected_results$cap_score <- signal_transform(expected_results$mean_volfin_3m, lower_quantile_winsorization, upper_quantile_winsorization)
   expected_results$weights <- expected_results$cap_score/sum(expected_results$cap_score)
 
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "CW",
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "cw",
                                    liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = "mean_volfin_3m")
 
-  expect_equal(results, expected_results)
+  expect_equal(results@universe_m_d_ref@data, expected_results)
 
   #Test CS
   expected_results <- stock_universe_m_d_ref
-  expected_results$cap_score <- signal_transform(expected_results$mean_volfin_3m, upper_quantile_winsorization, lower_quantile_winsorization)
+  expected_results$cap_score <- signal_transform(expected_results$mean_volfin_3m, lower_quantile_winsorization, upper_quantile_winsorization)
   expected_results$weights <- (expected_results$cap_score * expected_results$exp_ret_score)/sum((expected_results$cap_score * expected_results$exp_ret_score))
 
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "CS",
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "cs",
                                    liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = "mean_volfin_3m")
 
-  expect_equal(results, expected_results)
+  expect_equal(results@universe_m_d_ref@data, expected_results)
 
   #Test RP
   expected_results <- stock_universe_m_d_ref
 
-  daily_active_returns_upd_ref <- daily_returns_df[which(daily_returns_df$dates <= current_date),]
+  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
   adapted_tickers <- c("Stock_A", "Stock_C", "Stock_D", "Stock_E")
-  stocks_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
-  stocks_groups_m_d_ref_adapted$tickers <- adapted_tickers
+  stock_groups_m_d_ref_adapted <- stock_groups_m_d_ref
+  stock_groups_m_d_ref_adapted$tickers <- adapted_tickers
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = adapted_tickers, returns_upd_ref = daily_active_returns_upd_ref,
-                                                  covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
-                                                  groups_m_d_ref = stocks_groups_m_d_ref_adapted
+  covariance_matrix <- estimate_covariance_matrix(tickers = c("Stock A", "Stock C", "Stock D", "Stock E"), returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                                  active_returns = FALSE,
+                                                  groups_m_d_ref = stock_groups_m_d_ref
                                                   )
 
   rp_results <- riskParityPortfolio::riskParityPortfolio(Sigma = covariance_matrix)
@@ -782,10 +770,12 @@ test_that("set portfolio weights works for stocks (all formats) ", {
 
   stock_universe_m_d_ref_adapted <- stock_universe_m_d_ref
   stock_universe_m_d_ref_adapted$tickers <- adapted_tickers
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "RP",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
-                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method
+
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "rp",
+                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
                                    )
+
   results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
 
   expect_equal(results, expected_results)
@@ -794,15 +784,15 @@ test_that("set portfolio weights works for stocks (all formats) ", {
   expected_results <- stock_universe_m_d_ref
   daily_active_returns_upd_ref <- daily_returns_df[which(daily_returns_df$dates <= current_date),]
   adapted_tickers <- c("Stock_A", "Stock_C", "Stock_D", "Stock_E")
-  stocks_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
-  stocks_groups_m_d_ref_adapted$tickers <- adapted_tickers
+  stock_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
+  stock_groups_m_d_ref_adapted$tickers <- adapted_tickers
 
   stock_universe_m_d_ref_adapted <- stock_universe_m_d_ref
   stock_universe_m_d_ref_adapted$tickers <- adapted_tickers
 
   covariance_matrix <- estimate_covariance_matrix(tickers = adapted_tickers, returns_upd_ref = daily_active_returns_upd_ref,
                                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
-                                                  groups_m_d_ref = stocks_groups_m_d_ref_adapted
+                                                  groups_m_d_ref = stock_groups_m_d_ref_adapted
   )
 
   #Portfolio
@@ -820,7 +810,7 @@ test_that("set portfolio weights works for stocks (all formats) ", {
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "MTO",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
+                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
                                    covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method
   )
   results$tickers <- c("Stock A", "Stock C", "Stock D", "Stock E")
@@ -831,7 +821,7 @@ test_that("set portfolio weights works for stocks (all formats) ", {
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "MTO",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
+                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
                                    covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
                                    mto_port_objective = "AR"
   )
@@ -843,7 +833,7 @@ test_that("set portfolio weights works for stocks (all formats) ", {
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "MTO",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
+                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
                                    covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
                                    mto_port_objective = "TE"
   )
@@ -854,15 +844,15 @@ test_that("set portfolio weights works for stocks (all formats) ", {
   expected_results <- stock_universe_m_d_ref
   daily_active_returns_upd_ref <- daily_returns_df[which(daily_returns_df$dates <= current_date),]
   adapted_tickers <- c("Stock_A", "Stock_C", "Stock_D", "Stock_E")
-  stocks_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
-  stocks_groups_m_d_ref_adapted$tickers <- adapted_tickers
+  stock_groups_m_d_ref_adapted <- stocks_groups_m_d_ref
+  stock_groups_m_d_ref_adapted$tickers <- adapted_tickers
 
   stock_universe_m_d_ref_adapted <- stock_universe_m_d_ref
   stock_universe_m_d_ref_adapted$tickers <- adapted_tickers
 
   covariance_matrix <- estimate_covariance_matrix(tickers = adapted_tickers, returns_upd_ref = daily_active_returns_upd_ref,
                                                   covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
-                                                  groups_m_d_ref = stocks_groups_m_d_ref_adapted
+                                                  groups_m_d_ref = stock_groups_m_d_ref_adapted
   )
 
   #Portfolio
@@ -901,7 +891,7 @@ test_that("set portfolio weights works for stocks (all formats) ", {
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref_adapted, port_construction_method = "MTO",
-                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stocks_groups_m_d_ref_adapted,
+                                   returns_upd_ref = daily_active_returns_upd_ref, groups_m_d_ref = stock_groups_m_d_ref_adapted,
                                    covariance_matrix_sample_size = 252, covariance_estimation_method = covariance_estimation_method,
                                    liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,

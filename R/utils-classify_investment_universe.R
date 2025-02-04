@@ -118,25 +118,25 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
   ##Check possibilities for liquidity_floor_rule_policy
   if (!is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
-     !liquidity_constraint_policy$liquidity_floor_rule %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")){
+      !liquidity_constraint_policy$liquidity_floor_rule %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")){
     stop("liquidity_floor_rule not supported")
   }
 
   ##Check additional args needed for liquidity_floor_rule
   if (!is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
-     (is.null(liquidity_m_d_ref) || is.null(liquidity_floor_cutoffs))){
+      (is.null(liquidity_m_d_ref) || is.null(liquidity_floor_cutoffs))){
     stop("liquidity_m_d_ref and liquidity_floor_cutoffs can't be missing if liquidity_floor_rule is set")
   }
 
   ##Check additional args needed for turnover_constraint_policy
   if (!is.null(turnover_constraint_policy) &&
-     (is.null(updated_port_weights_m_lstd_ref) || is.null(liquidity_m_d_ref) || is.null(liquidity_floor_cutoffs))){
+      (is.null(updated_port_weights_m_lstd_ref) || is.null(liquidity_m_d_ref) || is.null(liquidity_floor_cutoffs))){
     stop("updated_port_weights_m_lstd_ref, liquidity_floor_cutoffs and liquidity_m_d_ref can't be missing if turnover_constraint_policy is set")
   }
 
   ##Check additional args needed for max_abs_active_weight_individual_rule
   if (!is.null(concentration_constraint_policy) && (asset_object == "stocks") &&
-     (is.null(benchmark_weights_m_d_ref))){
+      (is.null(benchmark_weights_m_d_ref))){
     stop("benchmark_weights_m_d_ref can't be missing if concentration_constraint_policy is set")
   }
 
