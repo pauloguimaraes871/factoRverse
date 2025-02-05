@@ -33,7 +33,7 @@ test_that("classify_stock_liquidity adequately classifies stocks and applies liq
 
 })
 
-test_that("classify_stock_liquidity adequately classifies stocks and applies liquidity_floor_rule - 2", {
+test_that("classify_stock_liquidity adequately classifies stocks and applies 2 liquidity_floor_rules", {
 
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
 
@@ -345,7 +345,7 @@ test_that("classify_stock_liquidity throws an error when decimals are being set 
   expect_error(classify_stock_liquidity(liquidity_floor_cutoffs = liquidity_floor_cutoffs, liquidity_m_df = liquidity_m_df,
                                       liquidity_floor_rule = liquidity_floor_rule, apply_liquidity_floor_rule = apply_liquidity_floor_rule,
                                       filter_out_liquidity_floor_rule = FALSE),
-  "For working with decimals, there should be onl one date in liquidity_m_df"
+  "For working with decimals, there should be only one date in liquidity_m_df"
   )
 
 })

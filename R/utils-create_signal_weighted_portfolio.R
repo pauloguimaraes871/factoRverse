@@ -19,15 +19,12 @@ create_signal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
 
   #Calculate Signal-Weights
   sw_weights <- universe_m_d_ref %>% dplyr::select(tickers, is_eligible, exp_ret_score) %>% #Select only two colums
-    dplyr::filter(is_eligible == 1) %>% #Filter only eligibles
-    dplyr::mutate(weights = exp_ret_score/sum(exp_ret_score)) %>% #Calculate equal-weights
-    dplyr::select(-is_eligible, -exp_ret_score) #Drop
+    dplyr::mutate(weights = dplyr::if_else(is_eligible == 1, exp_ret_score/sum(exp_ret_score[is_eligible == 1]), 0)) %>% #Calculate weights based on exp_ret_score
+    dplyr::select(-is_eligible, -exp_ret_score)
+
 
   #Left Join back to portfolio
   universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, sw_weights, by = "tickers") #Left join
-
-  #Replace NAs with zeros
-  universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
 
   #Check for weights different from 1
   if (abs(sum(universe_m_d_ref$weights) - 1) > 0.02){

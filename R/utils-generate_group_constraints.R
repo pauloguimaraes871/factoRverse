@@ -51,10 +51,10 @@ generate_group_constraints <- function(universe_m_d_ref, concentration_constrain
     group_concentration_constraints <- current_group_m_d_ref %>% dplyr::group_by(group) %>% #Group by group
       dplyr::summarise(group_benchmark_weights = sum(benchmark_weight)) #Sum group weights
 
-      ###Check if benchmark weights sum to 1
-      if(sum(group_concentration_constraints$group_benchmark_weights) - 1 > 0.02){
-        stop("Error in generating group constraints. Benchmark weights do not sum to 1.")
-      }
+    ###Check if benchmark weights sum to 1
+    if(sum(group_concentration_constraints$group_benchmark_weights) - 1 > 0.02){
+      stop("Error in generating group constraints. Benchmark weights do not sum to 1.")
+    }
 
     ###Max
     group_concentration_constraints$max_weight <- pmin(group_concentration_constraints$group_benchmark_weights +
@@ -92,6 +92,11 @@ generate_group_constraints <- function(universe_m_d_ref, concentration_constrain
   eligible_assets_group_membership_list <- do.call(c, eligible_assets_group_membership_list) #Transform into a single list
   group_constraint_max <- unlist(lapply(group_constraint_list, function(df) df$max_weight)) %>% as.numeric #Get vector of max_weights
   group_constraint_min <- unlist(lapply(group_constraint_list, function(df) df$min_weight)) %>% as.numeric #Get vector of max_weights
+
+  ##Checks if there are groups without any asset
+  if(any(sapply(eligible_assets_group_membership_list, function(x) length(x)) == 0)){
+    stop("Some groups have no eligible assets. Please enable group representativeness to force inclusion of stocks into every group.")
+  }
 
 
   ##Return complete obj

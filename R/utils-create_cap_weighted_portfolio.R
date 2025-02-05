@@ -21,33 +21,32 @@ create_cap_weighted_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, c
     cat(paste0("Deriving weights through CW. Using ", cap_weighting_metric, " as cap-weighting metric."))
   }
 
-
   #Create cw_weights object
   cw_weights <- universe_m_d_ref %>% select(tickers, is_eligible) %>%
-    merge(liquidity_m_d_ref[, c("tickers", cap_weighting_metric)], by = "tickers") #Merge with liquidity_m_d_ref
+    dplyr::left_join(liquidity_m_d_ref %>% dplyr::select(tickers, !!rlang::sym(cap_weighting_metric)), by = "tickers")
 
   #Create cap score (cw_weighting_metric signal_transformed)
-  cw_weights$cap_score <- signal_transform(cw_weights[, cap_weighting_metric],
-                                           lower_quantile_winsorization = lower_quantile_winsorization,
-                                           upper_quantile_winsorization = upper_quantile_winsorization
-                                           )
-  #Create CW Weights
-  weights <- cw_weights %>% dplyr::filter(is_eligible == 1) %>%
-    dplyr::mutate(weights = cap_score/sum(cap_score)) %>%
-    dplyr::select(-{{cap_weighting_metric}}, -is_eligible)
+  cw_weights <- cw_weights %>%
+    dplyr::mutate(cap_score = signal_transform( #Create a new column for cap metric Z-scored
+      !!rlang::sym(cap_weighting_metric),
+      lower_quantile_winsorization = lower_quantile_winsorization,
+      upper_quantile_winsorization = upper_quantile_winsorization
+    ))
+
+  #Create Weights
+  cw_weights <- cw_weights %>%
+    dplyr::mutate(weights = dplyr::if_else(is_eligible == 1, cap_score/sum(cap_score[is_eligible == 1]), 0)) %>% #Create weights depending on is_eligible
+    dplyr::select(-{{cap_weighting_metric}}, -is_eligible) #Remove cap_weighting_metric and is_eligible
 
   #Merge with current_stock_universe
-  universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, weights, by = "tickers")
-
-  #Replace NAs with zeros
-  universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+  universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, cw_weights, by = "tickers")
 
   #Check for weights different from 1
   if (abs(sum(universe_m_d_ref$weights) - 1) > 0.02){
     stop("Weights do not sum to 1")
   }
 
-  #Message
+  #MessageWhat
   if(verbose){
     cat("\n")
     cat(crayon::green(paste("Cap weights succesfully defined")))

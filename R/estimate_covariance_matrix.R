@@ -60,14 +60,13 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
   returns_m_xts_sample <- returns_m_xts_upd_ref[which(returns_m_xts_upd_ref_dates %in% dates_to_sample), #Get all dates in dates_to_sample
                                                 tickers] #Get all tickers
 
-
   ###############################
 
   #Clean (just to be sure)
   ###############################
   returns_m_xts_sample_clean <- clean_returns_sample(returns_m_xts_sample = returns_m_xts_sample, #Returns
-                                                      groups_m_d_ref = groups_m_d_ref, #Groups to fill NAs
-                                                      verbose = verbose
+                                                     groups_m_d_ref = groups_m_d_ref, #Groups to fill NAs
+                                                     verbose = verbose
   )
   ################################
 

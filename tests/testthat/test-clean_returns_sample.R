@@ -142,3 +142,56 @@ test_that("clean_returns_sample works for a daily series without holidays and NA
   expect_equal(expected_results, results)
 
 })
+
+
+test_that("clean_returns_sample works toy_preprocessed", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
+
+  #Current date
+  current_date <- "2023-09-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(vol_36m = "short"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+  stock_universe_m_d_ref <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    concentration_constraint_policy = concentration_constraint_policy
+  )
+
+  #Test
+  expected_results <- stock_universe_m_d_ref
+  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+
+  cleaned_returns_sample <- clean_returns_sample(returns_m_xts_sample = daily_returns_m_xts_upd_ref,
+                                                 groups_m_d_ref = stock_groups_m_d_ref)
+
+  #Test if a given row was filled as expected
+  stocks_in_eqma3b_sector <- stock_groups_m_d_ref %>% dplyr::filter(macro_sector == "Doméstico Defensivo") %>% dplyr::pull(tickers)
+  expect_equal(cleaned_returns_sample[4,"EQMA3B"] %>% as.numeric(),
+               median(daily_returns_m_xts_upd_ref[4,which(colnames(daily_returns_m_xts_upd_ref) %in% stocks_in_eqma3b_sector)], na.rm = TRUE))
+
+})
+
+
+

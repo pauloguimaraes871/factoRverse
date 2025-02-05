@@ -82,7 +82,7 @@ classify_stock_liquidity <- function(liquidity_floor_cutoffs, liquidity_m_df,
     }
     n_dates <- liquidity_m_df %>% dplyr::pull(dates) %>% unique() %>% length()
     if (n_dates > 1){
-      stop("For working with decimals, there should be onl one date in liquidity_m_df.")
+      stop("For working with decimals, there should be only one date in liquidity_m_df.")
     }
     #For each classification, replace quantiles with corresponding values
     liquidity_floor_cutoffs <- liquidity_floor_cutoffs %>%
@@ -106,7 +106,8 @@ classify_stock_liquidity <- function(liquidity_floor_cutoffs, liquidity_m_df,
   #########################
   liquidity_floor_rule_m_df <- liquidity_floor_rule_m_df %>%
     dplyr::rowwise() %>%
-    dplyr::mutate(liquidity_classification = {
+    dplyr::mutate(
+      liquidity_classification = {
       # For each row in liquidity_floor_cutoffs, check if all liquidity metrics
       # in the current stock row are greater than or equal to the corresponding cutoff.
       satisfied <- purrr::map_lgl(

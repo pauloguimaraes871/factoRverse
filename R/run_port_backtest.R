@@ -318,6 +318,9 @@ run_port_backtest_internal <- function(
           user_defined_OR_rules_m_df = user_defined_OR_rules_m_df
         )
 
+          #####Subset Daily Stock Returns
+        selected_returns_m_xts_upd_ref <- returns_m_xts_upd_ref[, stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+
 
         ##############################
 
@@ -340,7 +343,7 @@ run_port_backtest_internal <- function(
           cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
           active_returns = active_returns,
           #Returns sample for covariance estimation
-          returns_m_xts_upd_ref = returns_m_xts_upd_ref, selected_benchmark_returns_m_xts_upd_ref = selected_benchmark_returns_m_xts_upd_ref,
+          returns_m_xts_upd_ref = selected_returns_m_xts_upd_ref, selected_benchmark_returns_m_xts_upd_ref = selected_benchmark_returns_m_xts_upd_ref,
           #Risk-Parity method
           rp_method = rp_method,
           #MVO Optimization

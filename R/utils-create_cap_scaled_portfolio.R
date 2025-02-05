@@ -22,24 +22,29 @@ create_cap_scaled_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap
   }
 
   #Create cs_weights object
-  cs_weights <- universe_m_d_ref %>% select(tickers, is_eligible, exp_ret_score) %>%
-    merge(liquidity_m_d_ref[, c("tickers", cap_weighting_metric)], by = "tickers") #Merge with liquidity_m_d_ref
+  cs_weights <- universe_m_d_ref %>% dplyr::select(tickers, is_eligible, exp_ret_score) %>%
+    dplyr::left_join(liquidity_m_d_ref %>% dplyr::select(tickers, !!rlang::sym(cap_weighting_metric)), by = "tickers") #Merge with liquidity_m_d_ref
 
   #Create cap score (cw_weighting_metric signal_transformed)
-  cs_weights$cap_score <- signal_transform(cs_weights[, cap_weighting_metric],
-                                           lower_quantile_winsorization = lower_quantile_winsorization,
-                                           upper_quantile_winsorization = upper_quantile_winsorization
-                                           )
+  cs_weights <- cs_weights %>% dplyr::mutate(cap_score = signal_transform(
+    !!rlang::sym(cap_weighting_metric),
+    lower_quantile_winsorization = lower_quantile_winsorization,
+    upper_quantile_winsorization = upper_quantile_winsorization
+  ))
+
+
   #Create CS Weights
-  weights <- cs_weights %>% dplyr::filter(is_eligible == 1) %>%
-    dplyr::mutate(weights = (exp_ret_score*cap_score)/sum(exp_ret_score*cap_score)) %>%
+  cs_weights <- cs_weights %>%
+    dplyr::mutate(weights = dplyr::if_else(is_eligible == 1, #When is_eligible is 1
+        (exp_ret_score * cap_score) / sum((exp_ret_score * cap_score)[is_eligible == 1]), #Calculate weight based on cap-score
+        0 #Else, is 0
+      )
+    ) %>%
+    # Remove columns we no longer need in final output
     dplyr::select(-{{cap_weighting_metric}}, -is_eligible, -exp_ret_score)
 
   #Merge with universe_m_d_ref
-  universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, weights, by = "tickers")
-
-  #Replace NAs with zeros
-  universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+  universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(cs_weights, by = "tickers")
 
   #Check for weights different from 1
   if (abs(sum(universe_m_d_ref$weights) - 1) > 0.02){

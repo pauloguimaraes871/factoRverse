@@ -48,11 +48,11 @@ create_mvo_portfolio <- function(universe_m_d_ref,
     cat(paste0("Optimization objective: ", opt_objective, "."))
   }
 
-  #Eligible universe
-  eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
+  #Eligible tickers
+  eligible_tickers <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
   #Create portfolio_specification
-  port_spec <- PortfolioAnalytics::portfolio.spec(assets = eligible_universe_m_d_ref$tickers)
+  port_spec <- PortfolioAnalytics::portfolio.spec(assets = eligible_tickers)
 
   #Constraints
   ############
@@ -82,7 +82,11 @@ create_mvo_portfolio <- function(universe_m_d_ref,
     universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, dplyr::select(eligible_universe_m_d_ref, tickers, max_weight, min_weight), by = "tickers")
     universe_m_d_ref$max_weight[which(is.na(universe_m_d_ref$max_weight))] <- 0
     universe_m_d_ref$min_weight[which(is.na(universe_m_d_ref$min_weight))] <- 0
+
   } else {
+    #Create eligible_universe_m_d_ref
+    eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
+
     #Long-only box constraint
     port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "box")
   }
@@ -124,7 +128,7 @@ create_mvo_portfolio <- function(universe_m_d_ref,
                                                                      random_ports_method = random_ports_method
   )
   ##Random weights DF
-  random_portfolios_weights_df <- as.data.frame(t(random_portfolios_weights)) %>% tibble::rownames_to_column( "tickers")
+  random_portfolios_weights_df <- as.data.frame(t(random_portfolios_weights)) %>% tibble::rownames_to_column("tickers")
 
   random_portfolios_weights_df <- dplyr::left_join(dplyr::select(eligible_universe_m_d_ref, c(tickers, exp_ret_score)), #Get eligible stocks
                                                    random_portfolios_weights_df, #Get weights

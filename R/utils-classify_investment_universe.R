@@ -141,7 +141,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##Check if benchmark_weights sum to 1
-  if (!is.null(benchmark_weights_m_d_ref) && any(colSums(select(benchmark_weights_m_d_ref, -tickers, -id, -dates)) != 1)){
+  if (!is.null(benchmark_weights_m_d_ref) && any(colSums(dplyr::select(benchmark_weights_m_d_ref, -tickers, -id, -dates)) - 1 > 0.02)){
     stop("benchmark weights must sum to 1")
   }
 
@@ -249,7 +249,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   #########################
   if (!is.null(liquidity_constraint_policy)){ #If liquidity_constraint_policy is NULL, do not apply rule
 
-    #Apply liquidity_floor_rule
+    ####Apply liquidity_floor_rule
     liquidity_floor_rule_m_d_ref <- classify_stock_liquidity(
       liquidity_floor_cutoffs = liquidity_floor_cutoffs, #How to classify
       liquidity_m_df = liquidity_m_d_ref, #Liq data
@@ -258,16 +258,15 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
       filter_out_liquidity_floor_rule = FALSE, verbose = FALSE
     )
 
-    #Include in universe_m_d_ref
+    ####Include in universe_m_d_ref
     universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(liquidity_floor_rule_m_d_ref %>% dplyr::select(-id, -dates), by = "tickers")
-
   }
   #########################
 
   ###Active Weights Constraint Policy
   ########################
   if (!is.null(concentration_constraint_policy$benchmark)){ #If max_abs_active_individual_weight is NULL, do not apply rule
-    ##Maximum Absolute Active Individual Weight Rule Meta Dataframe
+    ###Maximum Absolute Active Individual Weight Rule Meta Dataframe
     #Select benchmark
     selected_benchmark <- concentration_constraint_policy$benchmark
 

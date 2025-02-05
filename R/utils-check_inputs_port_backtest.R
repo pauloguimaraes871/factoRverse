@@ -1,5 +1,5 @@
 check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_m_df, benchmark_weights_m_df,
-                                      stock_groups_m_df, signal_groups_m_df){
+                                       stock_groups_m_df, signal_groups_m_df){
 
   #######signals_m_df
   ###################

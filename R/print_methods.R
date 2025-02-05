@@ -16,13 +16,13 @@ setMethod("show", "meta_dataframe", function(object) {
   cat("=================================\n")
   cat("Meta Dataframe name: ", object@meta_dataframe_name, " \n\n")
   if(object@class == "target_m_df"){
-  cat(" Targets:\n")
+    cat(" Targets:\n")
   } else {
-  cat(" Signals:\n")
+    cat(" Signals:\n")
   }
   cat(paste(object@signals, collapse = ", "))
   if(object@class == "target_m_df"){
-  cat("  \nNumber of targets:", ncol(object@data)-3, "\n")
+    cat("  \nNumber of targets:", ncol(object@data)-3, "\n")
   } else {
     cat("  \nNumber of signals:", ncol(object@data)-3, "\n")
   }
@@ -1881,28 +1881,28 @@ setMethod(
     cat("=================================\n")
     cat("Class:                ", subclass, "\n")
     if(subclass == "stock_port"){
-    cat("Type:                 ", object@type, "\n")
+      cat("Type:                 ", object@type, "\n")
     }
     cat("Portfolio Name:       ", object@port_name, "\n")
     cat("Method:               ", object@port_construction_method, "\n")
     if(subclass == "signal_port" && object@port_construction_method %in% c("sw", "mvo")){
-    cat("Heuristic SB Metric:  ", object@heuristic_sb_metric, "\n")
+      cat("Heuristic SB Metric:  ", object@heuristic_sb_metric, "\n")
     }
     cat("Eligible Assets:      ", paste(object@eligible_assets, collapse = ", "), "\n")
     cat("Number of Assets:     ", length(object@eligible_assets), "\n")
 
     if(!is.null(object@exp_ret_score)){
-    port_exp_ret_score <- object@weights %*% object@exp_ret_score
-    cat("Port Expected Return: ", round(port_exp_ret_score, 3), "\n")
+      port_exp_ret_score <- object@weights %*% object@exp_ret_score
+      cat("Port Expected Return: ", round(port_exp_ret_score, 3), "\n")
     }
     if(!is.null(object@covariance_matrix)){
-    cov_matrix <- object@covariance_matrix
-    port_exp_risk <- sqrt(object@weights %*% cov_matrix %*% object@weights)
-    cat("Port Expected Risk:   ", round(port_exp_risk, 3), "\n")
+      cov_matrix <- object@covariance_matrix
+      port_exp_risk <- sqrt(object@weights %*% cov_matrix %*% object@weights)
+      cat("Port Expected Risk:   ", round(port_exp_risk, 3), "\n")
     }
     if(!is.null(object@exp_ret_score) && !is.null(object@covariance_matrix)){
-    port_sharpe_ratio <- port_exp_ret_score / port_exp_risk
-    cat("Port Expected Sharpe: ", round(port_sharpe_ratio, 3), "\n")
+      port_sharpe_ratio <- port_exp_ret_score / port_exp_risk
+      cat("Port Expected Sharpe: ", round(port_sharpe_ratio, 3), "\n")
     }
 
 
@@ -1938,14 +1938,14 @@ setMethod(
     # 5) Additional Fields (if they exist)
     if (!is.null(object@ind_max_weights)) {
       ind_constraints_df <- data.frame(assets = object@eligible_assets,
-                                    ind_max_weights = object@ind_max_weights, ind_min_weights = object@ind_min_weights)
+                                       ind_max_weights = object@ind_max_weights, ind_min_weights = object@ind_min_weights)
 
       cat("\nIndividual Max and Min Weights (first few):\n")
       print(utils::head(ind_constraints_df, 10))
     }
     if (!is.null(object@groups)) {
-      cat("\nGroups Provided:\n")
-      print(object@groups %>% dplyr::select(-id,-dates))
+      cat("\nGroups Provided (First 25):\n")
+      print(utils::head(dplyr::select(object@groups, -id, -dates), 25))
     } else {
       cat("\nNo groups specified.\n")
     }

@@ -5264,47 +5264,53 @@ setMethod(
     neon_pink      <- "#FF007F"
     neon_purple    <- "#7F00FF"
     blue_bg        <- "#001f3f"
+    neon_chartreuse <- "#7FFF00"
+    neon_indigo     <- "#4B0082"
+    neon_gold       <- "#FFD700"
+    neon_silver     <- "#C0C0C0"
+    neon_coral      <- "#FF7F50"
+    neon_violet     <- "#EE82EE"
 
     #------------------------------------------------------------------------------------------------
     # 1) weights - Bar chart
     #------------------------------------------------------------------------------------------------
     if (type == "Weights") {
-      if (length(weights) == 0)
+      # 1) Basic checks
+      if (length(weights) == 0) {
         stop("No weights found in 'x'.")
-
-      if (length(asset_names) != length(weights))
+      }
+      if (length(asset_names) != length(weights)) {
         stop("Mismatch between 'eligible_assets' and 'weights' length.")
-
-      # Build plotting data
-      df_pie <- data.frame(Asset = asset_names, Weight = weights) %>%
-        dplyr::filter(.data$Weight > 0)
-
-      if (nrow(df_pie) == 0) {
-        stop("All weights are zero or negative. Nothing to plot.")
       }
 
-      # -- Prompt user if they want active weights
+      # Build the main data frame (no filter yet; we will filter after user selection)
+      df_pie <- data.frame(Asset = asset_names, Weight = weights)
+
+      # If all zero or the sum is zero, there's nothing sensible to plot
+      if (all(df_pie$Weight == 0) || sum(df_pie$Weight) == 0) {
+        stop("Sum of weights is zero or all weights are zero. Nothing to plot.")
+      }
+
+      # 2) Prompt user if they want active weights
       cat("Do you want to compute active weights? (y/n): ")
       active_choice <- tolower(readline())
-
       active_weights_mode <- FALSE
       if (active_choice %in% c("y", "yes")) {
         active_weights_mode <- TRUE
       }
 
-
-      if (active_weights_mode){
+      if (active_weights_mode) {
         bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
         if (length(bench_cols) == 0) {
           stop("No columns matching '_bench_weights' found in 'universe_df'.")
         }
+
         bench_col <- NULL
         if (length(bench_cols) == 1) {
           bench_col <- bench_cols[1]
           message("Benchmark is: ", bench_col)
         } else {
           message("Multiple benchmarks found:")
-          # Present a menu to let the user pick which one to compare
           chosen <- menu(bench_cols, title = "Select a benchmark to use for active weights:")
           if (chosen == 0) {
             stop("No benchmark selected. Aborting.")
@@ -5314,72 +5320,119 @@ setMethod(
         }
 
         # Join and calculate Active_Weight = portfolio Weight - benchmark Weight
-        df_pie <- df_pie %>%
-          dplyr::left_join(
-            universe_df %>% dplyr::select(tickers, !!bench_col),
-            by = c("Asset" = "tickers")
-          ) %>%
+        df_pie <- dplyr::left_join(
+          df_pie,
+          universe_df %>% dplyr::select(tickers, !!bench_col),
+          by = c("Asset" = "tickers")
+        ) %>%
           dplyr::mutate(Active_Weight = .data$Weight - !!rlang::sym(bench_col)) %>%
           dplyr::select(.data$Asset, .data$Active_Weight) %>%
           dplyr::rename(Weight = .data$Active_Weight)
       }
 
+      # 3) Let user choose how to subset assets: top x or by names/indices
+      cat("\nHow do you want to choose which assets to display?\n")
+      cat("1: Top x weights (by absolute value)\n")
+      cat("2: Choose assets individually (by name or index)\n")
+      choice_mode <- as.integer(readline(prompt = "Your choice: "))
 
-      # Create main/others distinction
-      if (x@port_construction_method != "ew"){
-        main_assets <- df_pie %>% dplyr::slice_max(.data$Weight, n = 15)
-        if (!active_weights_mode){
-        other_assets <- df_pie %>%
-          dplyr::slice_min(.data$Weight, n = nrow(df_pie) - 15) %>%
-          dplyr::summarize(Asset = "Others", Weight = sum(.data$Weight))
-        df_pie <- rbind(main_assets, other_assets)
-        } else {
-          df_pie <- main_assets
+      if (is.na(choice_mode) || !choice_mode %in% c(1,2)) {
+        stop("Invalid choice for asset selection mode.")
+      }
+
+      if (choice_mode == 1) {
+        # -- Option (i): Top x weights
+        cat("How many assets do you want to show? ")
+        n_choice <- as.integer(readline())
+        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_pie$Asset)) {
+          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_pie$Asset)))
         }
+        # Reorder by abs weight and keep top n_choice
+        df_pie <- df_pie %>%
+          dplyr::arrange(dplyr::desc(abs(.data$Weight))) %>%
+          dplyr::slice_head(n = n_choice)
+
       } else {
-        main_assets <- df_pie %>% dplyr::slice_head(n = 15)
-        if (!active_weights_mode){
-        other_assets <- df_pie %>%
-          dplyr::slice_tail(n = nrow(df_pie) - 15) %>%
-          dplyr::summarize(Asset = "Others", Weight = sum(.data$Weight))
-        df_pie <- rbind(main_assets, other_assets)
+        # -- Option (ii): Choose assets by name or index
+        cat("\nAssets:\n")
+        for (i in seq_along(asset_names)) {
+          cat(paste0(i, ": ", asset_names[i], "\n"))
+        }
+        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
+        selection <- readline(prompt = "Your choice: ")
+        selection <- trimws(selection)
+
+        if (!nzchar(selection)) {
+          stop("No selection provided.")
+        }
+
+        if (tolower(selection) == "all") {
+          # keep everything
         } else {
-          df_pie <- main_assets
+          parts <- strsplit(selection, ",")[[1]]
+          parts <- trimws(parts)
+          # Check if numeric
+          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+          if (all_numeric) {
+            indices <- as.numeric(parts)
+            if (any(indices < 1 | indices > length(asset_names))) {
+              stop("Some indices are out of range.")
+            }
+            chosen_assets <- asset_names[indices]
+          } else {
+            # Assume strings are asset names
+            if (!all(parts %in% asset_names)) {
+              stop("Some chosen assets are not in the set of available asset_names.")
+            }
+            chosen_assets <- parts
+          }
+          # Subset to only selected assets
+          df_pie <- df_pie %>%
+            dplyr::filter(.data$Asset %in% chosen_assets)
         }
       }
 
-      # Calculate proportions for labeling
+      # 4) Create proportions (for labeling) & assemble final data
+      total_weight <- sum(df_pie$Weight)
+      if (total_weight == 0) {
+        stop("After selection, the sum of the weights is zero. Nothing to plot.")
+      }
+
       df_pie <- df_pie %>%
         dplyr::mutate(
-          prop  = .data$Weight / sum(.data$Weight),
-          label = paste0(.data$Asset, "\n", scales::percent(.data$prop, accuracy = 0.1))
+          prop = .data$Weight / total_weight,
+          label = paste0(
+            .data$Asset, "\n",
+            scales::percent(.data$prop, accuracy = 0.1)  # negative sign if Weight<0
+          )
         )
 
-      #Create pallete
-      neon_pallete <- c(neon_green, neon_orange, neon_cyan, neon_blue, neon_yellow, neon_red, neon_turquoise, neon_lime,
-                        neon_magenta, neon_hotpink, neon_pink, neon_purple, vibrant_purple, black, white, blue_bg)
+      # Create palette
+      neon_pallete <- c(
+        neon_green, neon_orange, neon_cyan, neon_blue,
+        neon_yellow, neon_red, neon_turquoise, neon_lime,
+        neon_magenta, neon_hotpink, neon_pink, neon_purple,
+        vibrant_purple, black, white, blue_bg, neon_chartreuse,
+        neon_indigo, neon_gold, neon_silver, neon_coral, neon_violet
+      )
 
-      # Get plot title
+      # Plot title
       plot_title <- if (active_weights_mode) {
         paste("Portfolio Active Weights:", if (port_name == "") "not_identified" else port_name)
       } else {
         paste("Portfolio Weights:", if (port_name == "") "not_identified" else port_name)
       }
 
-      # Create bar plot
-      p <- ggplot2::ggplot(df_pie, ggplot2::aes(
-        x    = reorder(.data$Asset, -.data$Weight),
-        y    = .data$Weight,
-        fill = .data$Asset
-      )) +
+      # 5) Create bar plot - reorder x-axis by abs(Weight), but show actual sign
+      p <- ggplot2::ggplot(
+        df_pie,
+        ggplot2::aes(
+          x = reorder(.data$Asset, -abs(.data$Weight)),  # order by abs
+          y = .data$Weight,
+          fill = .data$Asset
+        )
+      ) +
         ggplot2::geom_bar(stat = "identity", color = white, width = 0.7, size = 0.5) +
-        ggplot2::geom_text(
-          ggplot2::aes(label = scales::percent(.data$prop, accuracy = 0.1)),
-          vjust = -0.5,  # vertically place the text above each bar
-          color = white,
-          size  = 4
-        ) +
-        # Use the custom vibrant palette
         ggplot2::scale_fill_manual(values = neon_pallete) +
         ggplot2::labs(
           title = plot_title,
@@ -5390,6 +5443,8 @@ setMethod(
         ggplot2::theme(
           plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
           panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_line(color = ggplot2::alpha("white", 0.2), size = 0.5),
+          panel.grid.minor = ggplot2::element_line(color = ggplot2::alpha("white", 0.1), size = 0.3),
           panel.grid       = ggplot2::element_blank(),
           plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
           axis.text        = ggplot2::element_text(color = white),
@@ -5411,7 +5466,75 @@ setMethod(
       if (length(asset_names) != length(exp_ret_score))
         stop("Mismatch between 'eligible_assets' and 'exp_ret_score' length.")
 
+      # Create data frame
       df_bar <- data.frame(Asset = asset_names, ExpRet = exp_ret_score)
+
+      # 1) Subset logic (top x or individual selections)
+      cat("\nHow do you want to choose which assets to display?\n")
+      cat("1: Top x by absolute ExpRet\n")
+      cat("2: Choose assets individually (by name or index)\n")
+      choice_mode <- as.integer(readline(prompt = "Your choice: "))
+
+      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
+        stop("Invalid choice for asset selection mode.")
+      }
+
+      if (choice_mode == 1) {
+        # -- Option (i): Top x by absolute ExpRet
+        cat("How many assets do you want to show? ")
+        n_choice <- as.integer(readline())
+        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_bar$Asset)) {
+          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_bar$Asset)))
+        }
+
+        df_bar <- df_bar %>%
+          dplyr::arrange(dplyr::desc(abs(.data$ExpRet))) %>%
+          dplyr::slice_head(n = n_choice)
+
+      } else {
+        # -- Option (ii): Choose assets by name or index
+        cat("\nAssets:\n")
+        for (i in seq_along(asset_names)) {
+          cat(paste0(i, ": ", asset_names[i], "\n"))
+        }
+        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
+        selection <- readline(prompt = "Your choice: ")
+        selection <- trimws(selection)
+
+        if (!nzchar(selection)) {
+          stop("No selection provided.")
+        }
+
+        if (tolower(selection) == "all") {
+          # keep everything
+        } else {
+          parts <- strsplit(selection, ",")[[1]]
+          parts <- trimws(parts)
+          # Check if numeric
+          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+          if (all_numeric) {
+            indices <- as.numeric(parts)
+            if (any(indices < 1 | indices > length(asset_names))) {
+              stop("Some indices are out of range.")
+            }
+            chosen_assets <- asset_names[indices]
+          } else {
+            # Assume strings are asset names
+            if (!all(parts %in% asset_names)) {
+              stop("Some chosen assets are not in the set of available asset_names.")
+            }
+            chosen_assets <- parts
+          }
+          df_bar <- df_bar %>% dplyr::filter(.data$Asset %in% chosen_assets)
+        }
+      }
+
+      # If after selection we have no data, abort
+      if (nrow(df_bar) == 0) {
+        stop("No assets left after selection. Nothing to plot.")
+      }
+
+      # 2) Plot
       p <- ggplot2::ggplot(df_bar, ggplot2::aes(x = .data$Asset, y = .data$ExpRet, fill = .data$Asset)) +
         ggplot2::geom_bar(stat = "identity", color = black, alpha = 0.8) +
         ggplot2::theme_minimal() +
@@ -5425,7 +5548,8 @@ setMethod(
           plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
         ) +
         ggplot2::labs(
-          title = paste("Expected Return Scores:", if (port_name == "") "not_identified" else port_name),
+          title = paste("Expected Return Scores:",
+                        if (port_name == "") "not_identified" else port_name),
           x = "Assets",
           y = "Exp Ret Score"
         )
@@ -5433,6 +5557,7 @@ setMethod(
       print(p)
       return(invisible(p))
     }
+
 
     #------------------------------------------------------------------------------------------------
     # 3) risk_return - Scatterplot of risk (x) vs. exp_ret_score (y)
@@ -5457,6 +5582,68 @@ setMethod(
         ExpRet = exp_ret_score
       )
 
+      # 1) Subset logic (top x or individual selections)
+      cat("\nHow do you want to choose which assets to display?\n")
+      cat("1: Top x by absolute ExpRet\n")
+      cat("2: Choose assets individually (by name or index)\n")
+      choice_mode <- as.integer(readline(prompt = "Your choice: "))
+
+      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
+        stop("Invalid choice for asset selection mode.")
+      }
+
+      if (choice_mode == 1) {
+        cat("How many assets do you want to show? ")
+        n_choice <- as.integer(readline())
+        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_scatter$Asset)) {
+          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_scatter$Asset)))
+        }
+
+        df_scatter <- df_scatter %>%
+          dplyr::arrange(dplyr::desc(abs(.data$ExpRet))) %>%
+          dplyr::slice_head(n = n_choice)
+
+      } else {
+        cat("\nAssets:\n")
+        for (i in seq_along(asset_names)) {
+          cat(paste0(i, ": ", asset_names[i], "\n"))
+        }
+        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
+        selection <- readline(prompt = "Your choice: ")
+        selection <- trimws(selection)
+
+        if (!nzchar(selection)) {
+          stop("No selection provided.")
+        }
+
+        if (tolower(selection) == "all") {
+          # keep everything
+        } else {
+          parts <- strsplit(selection, ",")[[1]]
+          parts <- trimws(parts)
+          # Check if numeric
+          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+          if (all_numeric) {
+            indices <- as.numeric(parts)
+            if (any(indices < 1 | indices > length(asset_names))) {
+              stop("Some indices are out of range.")
+            }
+            chosen_assets <- asset_names[indices]
+          } else {
+            if (!all(parts %in% asset_names)) {
+              stop("Some chosen assets are not in the set of available asset_names.")
+            }
+            chosen_assets <- parts
+          }
+          df_scatter <- df_scatter %>% dplyr::filter(.data$Asset %in% chosen_assets)
+        }
+      }
+
+      if (nrow(df_scatter) == 0) {
+        stop("No assets left after selection. Nothing to plot.")
+      }
+
+      # 2) Plot
       p <- ggplot2::ggplot(df_scatter, ggplot2::aes(x = .data$Risk, y = .data$ExpRet, label = .data$Asset)) +
         ggplot2::geom_point(color = vibrant_purple, size = 3) +
         ggrepel::geom_text_repel(
@@ -5475,7 +5662,8 @@ setMethod(
           plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
         ) +
         ggplot2::labs(
-          title = paste("Risk vs. Expected Return Score:", if (port_name == "") "not_identified" else port_name),
+          title = paste("Risk vs. Expected Return Score:",
+                        if (port_name == "") "not_identified" else port_name),
           x = "Expected Risk",
           y = "Expected Return Score"
         )
@@ -5596,7 +5784,68 @@ setMethod(
         RRC    = rel_risk_contr
       )
 
-      # Pivot longer for side-by-side bars
+      # 1) Subset logic (top x or individual selections)
+      cat("\nHow do you want to choose which assets to display?\n")
+      cat("1: Top x by absolute RRC\n")
+      cat("2: Choose assets individually (by name or index)\n")
+      choice_mode <- as.integer(readline(prompt = "Your choice: "))
+
+      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
+        stop("Invalid choice for asset selection mode.")
+      }
+
+      if (choice_mode == 1) {
+        cat("How many assets do you want to show? ")
+        n_choice <- as.integer(readline())
+        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_rrc$Asset)) {
+          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_rrc$Asset)))
+        }
+
+        df_rrc <- df_rrc %>%
+          dplyr::arrange(dplyr::desc(abs(.data$RRC))) %>%
+          dplyr::slice_head(n = n_choice)
+
+      } else {
+        cat("\nAssets:\n")
+        for (i in seq_along(asset_names)) {
+          cat(paste0(i, ": ", asset_names[i], "\n"))
+        }
+        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
+        selection <- readline(prompt = "Your choice: ")
+        selection <- trimws(selection)
+
+        if (!nzchar(selection)) {
+          stop("No selection provided.")
+        }
+
+        if (tolower(selection) == "all") {
+          # keep everything
+        } else {
+          parts <- strsplit(selection, ",")[[1]]
+          parts <- trimws(parts)
+          # Check if numeric
+          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+          if (all_numeric) {
+            indices <- as.numeric(parts)
+            if (any(indices < 1 | indices > length(asset_names))) {
+              stop("Some indices are out of range.")
+            }
+            chosen_assets <- asset_names[indices]
+          } else {
+            if (!all(parts %in% asset_names)) {
+              stop("Some chosen assets are not in the set of available asset_names.")
+            }
+            chosen_assets <- parts
+          }
+          df_rrc <- df_rrc %>% dplyr::filter(.data$Asset %in% chosen_assets)
+        }
+      }
+
+      if (nrow(df_rrc) == 0) {
+        stop("No assets left after selection. Nothing to plot.")
+      }
+
+      # 2) Pivot to long format & plot
       df_long <- tidyr::pivot_longer(
         df_rrc,
         cols = c("Weight", "RRC"),
@@ -5622,7 +5871,8 @@ setMethod(
         ) +
         ggplot2::scale_fill_manual(values = c("Weight" = vibrant_purple, "RRC" = neon_green)) +
         ggplot2::labs(
-          title = paste("Relative Risk Contribution:", if (port_name == "") "not_identified" else port_name),
+          title = paste("Relative Risk Contribution:",
+                        if (port_name == "") "not_identified" else port_name),
           x = "Asset",
           y = "Value",
           fill = "Metric"
@@ -5631,6 +5881,7 @@ setMethod(
       print(p)
       return(invisible(p))
     }
+
 
     #------------------------------------------------------------------------------------------------
     # 6) efficient_frontier - scatterplot using random_port_weights

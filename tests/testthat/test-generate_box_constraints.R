@@ -185,3 +185,86 @@ test_that("generate_box_constraints works for stocks when max and min are the sa
 
 
 })
+
+
+
+test_that("generate_box_constraints works for toy_preprocessed data", {
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
+
+  #Current date
+  current_date <- "2023-09-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(vol_36m = "short"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+  stock_universe_m_d_ref <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    concentration_constraint_policy = concentration_constraint_policy
+  )
+
+  #Test MVO Constrained
+  expected_results <- stock_universe_m_d_ref
+  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+
+  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
+                                                  active_returns = FALSE,
+                                                  groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+
+  #Portfolio
+  port_spec <- PortfolioAnalytics::portfolio.spec(assets = eligible_tickers)
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "full_investment")
+  port_spec_constrained <- PortfolioAnalytics::add.constraint(portfolio = port_spec, type = "box")
+
+  #Box constraints
+  eligible_universe_m_d_ref <- generate_box_constraints(universe_m_d_ref = stock_universe_m_d_ref,
+                                                        liquidity_constraint_policy = liquidity_constraint_policy,
+                                                        concentration_constraint_policy = concentration_constraint_policy)
+
+
+  #Test that maximum weights are for those stocks with highest bench weights
+  expect_equal(eligible_universe_m_d_ref %>% dplyr::slice_max(max_weight, n = 20) %>% dplyr::pull(tickers),
+               eligible_universe_m_d_ref %>% dplyr::slice_max(ibov_bench_weights, n = 20) %>% dplyr::pull(tickers))
+
+  #Test that min weights are for those stocks with highest bench weights (n = 10 because there are less non-zero weights)
+  expect_equal(eligible_universe_m_d_ref %>% dplyr::slice_max(min_weight, n = 10) %>% dplyr::pull(tickers),
+               eligible_universe_m_d_ref %>% dplyr::slice_max(ibov_bench_weights, n = 10) %>% dplyr::pull(tickers))
+
+
+  #Test that nano caps are capped out
+  expect_false(any(
+    (stock_universe_m_d_ref %>% dplyr::filter(liquidity_classification == "nano_caps") %>% dplyr::pull(tickers)) %in%
+      (eligible_universe_m_d_ref %>% dplyr::pull(tickers))
+  ))
+
+  #Test that micro_caps have a weight capped
+  expect_equal(eligible_universe_m_d_ref %>% dplyr::filter(liquidity_classification == "micro_caps") %>% dplyr::pull(max_weight) %>% unique(),
+               liquidity_constraint_policy$liquidity_cap_rules[1] %>% unname())
+
+  #Test that small_caps have a weight capped
+  expect_equal(eligible_universe_m_d_ref %>% dplyr::filter(liquidity_classification == "small_caps") %>% dplyr::pull(max_weight) %>% unique(),
+               liquidity_constraint_policy$liquidity_cap_rules[2] %>% unname())
+
+})
