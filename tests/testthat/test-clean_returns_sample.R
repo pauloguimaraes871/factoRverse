@@ -123,8 +123,8 @@ test_that("clean_returns_sample works for a daily series without holidays and NA
 
   #Fill NAs
   expected_results$`Stock C`[which(is.na(expected_results$`Stock C`))] <- apply(data.frame(B = expected_results$`Stock B`[which(is.na(expected_results$`Stock C`))],
-                                                                                       E = expected_results$`Stock E`[which(is.na(expected_results$`Stock C`))],
-                                                                                       D = expected_results$`Stock D`[which(is.na(expected_results$`Stock C`))]
+                                                                                           E = expected_results$`Stock E`[which(is.na(expected_results$`Stock C`))],
+                                                                                           D = expected_results$`Stock D`[which(is.na(expected_results$`Stock C`))]
   ),
   1, function(x) median(x))
 

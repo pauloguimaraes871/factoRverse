@@ -486,44 +486,44 @@ check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_
   ##############################
   if(!is.null(concentration_constraint_policy)){
 
-      ##Check if benchmark_weights_m_d_ref are present if constraint is set
-      if(is.null(benchmark_weights_m_d_ref)){
-        stop("Error in concentration_constraint_policy: benchmark_weights_m_d_ref can't be missing if concentration_constraint_policy is set")
-      }
+    ##Check if benchmark_weights_m_d_ref are present if constraint is set
+    if(is.null(benchmark_weights_m_d_ref)){
+      stop("Error in concentration_constraint_policy: benchmark_weights_m_d_ref can't be missing if concentration_constraint_policy is set")
+    }
 
-      ##Check if chosen benchmark is present in benchmark_weights_m_d_ref
-      if(!concentration_constraint_policy$benchmark %in% colnames(benchmark_weights_m_df)){
-        stop("Error in concentration_constraint_policy: chosen_benchmark is not present in benchmark_weights_m_df")
-      }
+    ##Check if chosen benchmark is present in benchmark_weights_m_d_ref
+    if(!concentration_constraint_policy$benchmark %in% colnames(benchmark_weights_m_df)){
+      stop("Error in concentration_constraint_policy: chosen_benchmark is not present in benchmark_weights_m_df")
+    }
 
-      ##Check if max_abs_active_individual_weight is numeric
-      if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) &
-         !is.numeric(concentration_constraint_policy$max_abs_active_individual_weight)){
-       stop("Error in concentration_constraint_policy: max_abs_active_individual_weight must be numeric")
-      }
+    ##Check if max_abs_active_individual_weight is numeric
+    if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) &
+       !is.numeric(concentration_constraint_policy$max_abs_active_individual_weight)){
+      stop("Error in concentration_constraint_policy: max_abs_active_individual_weight must be numeric")
+    }
 
-     ##Check if max_abs_active_group_weight is numeric
-     if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &
-        !is.numeric(concentration_constraint_policy$max_abs_active_group_weight)){
+    ##Check if max_abs_active_group_weight is numeric
+    if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &
+       !is.numeric(concentration_constraint_policy$max_abs_active_group_weight)){
       stop("Error in concentration_constraint_policy: max_abs_active_group_weight must be numeric")
     }
 
-     ##Check if stock_groups_m_df are present if group constraint is set
-     if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) && (is.null(stock_groups_m_df))){
-        stop("Error in concentration_constraint_policy: stock_groups_m_df can't be missing if max_abs_active_group_weight of concentration_constraint_policy is set")
-     }
+    ##Check if stock_groups_m_df are present if group constraint is set
+    if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) && (is.null(stock_groups_m_df))){
+      stop("Error in concentration_constraint_policy: stock_groups_m_df can't be missing if max_abs_active_group_weight of concentration_constraint_policy is set")
+    }
 
-     ##Check if groups in stock_groups_m_df match group constraints
-     if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &&
-        names(concentration_constraint_policy$max_abs_active_group_weight) != colnames(stock_groups_m_df[,-c(1:3)])){
-        stop("Error in concentration_constraint_policy: names of group constraints must match groups in stock_groups_m_df")
-     }
+    ##Check if groups in stock_groups_m_df match group constraints
+    if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &&
+       names(concentration_constraint_policy$max_abs_active_group_weight) != colnames(stock_groups_m_df[,-c(1:3)])){
+      stop("Error in concentration_constraint_policy: names of group constraints must match groups in stock_groups_m_df")
+    }
 
-     ##Check if names in concentration_constraint_policy match possible options
-     if(any(!names(concentration_constraint_policy) %in%
+    ##Check if names in concentration_constraint_policy match possible options
+    if(any(!names(concentration_constraint_policy) %in%
            c("benchmark", "max_abs_active_individual_weight", "max_abs_active_group_weight"))){
       stop("Error in concentration_constraint_policy: elements of concentration_constraint_policy should be one of benchmark, max_abs_active_individual_weight or max_abs_active_group_weight.")
-     }
+    }
   }
 
   ##############################
@@ -549,20 +549,20 @@ check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_
 
 
     ##Check if liquidity caps are numeric
-      if(any(unlist(sapply(liquidity_constraint_policy, function(x) {
-        if(is.list(x)) {
-          # Check if liquidity_classification is NOT in the specified categories
-          !is.numeric(x$liquidity_cap)
-        }
-      })))){
-        stop("Error in liquidity_constraint_policy: liquidity_cap is not numeric")
+    if(any(unlist(sapply(liquidity_constraint_policy, function(x) {
+      if(is.list(x)) {
+        # Check if liquidity_classification is NOT in the specified categories
+        !is.numeric(x$liquidity_cap)
       }
+    })))){
+      stop("Error in liquidity_constraint_policy: liquidity_cap is not numeric")
+    }
 
 
-  ##Check if elements of liquidity_constraint_policy are correct
+    ##Check if elements of liquidity_constraint_policy are correct
     if(!any(substr(names(liquidity_constraint_policy), 1, nchar(names(liquidity_constraint_policy)) - 1) %in%
-        c("liquidity_floor_rul", "liquidity_cap_rule_"))){
-     stop("Error in liquidity_constraint_policy: elements of liquidity_constraint_policy should be one of liquidity_floor_rule or liquidity_cap_rule")
+            c("liquidity_floor_rul", "liquidity_cap_rule_"))){
+      stop("Error in liquidity_constraint_policy: elements of liquidity_constraint_policy should be one of liquidity_floor_rule or liquidity_cap_rule")
     }
 
   }
@@ -579,7 +579,7 @@ check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_
 
     #check if metrics are present in liquidity_m_df
     if(any(sapply(liquidity_floor_cutoffs_list, function(x){
-        !all(names(x) %in% colnames(liquidity_m_df))
+      !all(names(x) %in% colnames(liquidity_m_df))
     }))){
       stop("liquidity_metrics of liquidity_floor_cutoffs_list must be present in liquidity_m_df.")
     }
@@ -590,38 +590,38 @@ check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_
 
   #Check turnover constraint policy
   ##################################
-    ##Check liquidity classification
-    if(!is.null(turnover_constraint_policy)){
-      if(any(sapply(turnover_constraint_policy, function(x){
-        !x$liquidity_classification %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
-      }))){
-        stop("liquidity_classification in buffer_zone not supported")
-      }
+  ##Check liquidity classification
+  if(!is.null(turnover_constraint_policy)){
+    if(any(sapply(turnover_constraint_policy, function(x){
+      !x$liquidity_classification %in% c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+    }))){
+      stop("liquidity_classification in buffer_zone not supported")
     }
+  }
 
-    ##Check for presence of top_stock_quantile_buffer and liquidity_classification
-    if(!is.null(turnover_constraint_policy)){
-      if(!all(sapply(turnover_constraint_policy, function(x){
-          all(c("liquidity_classification", "top_stock_quantile_buffer") %in% names(x))
-      }))){
-        stop("liquidity_classification and top_stock_quantile_buffer elements are mandatory if turnover_constraint_policy is set")
-      }
+  ##Check for presence of top_stock_quantile_buffer and liquidity_classification
+  if(!is.null(turnover_constraint_policy)){
+    if(!all(sapply(turnover_constraint_policy, function(x){
+      all(c("liquidity_classification", "top_stock_quantile_buffer") %in% names(x))
+    }))){
+      stop("liquidity_classification and top_stock_quantile_buffer elements are mandatory if turnover_constraint_policy is set")
     }
+  }
 
-    ##Check if elements of turnover_constraint_policy are correct
-    if(!is.null(turnover_constraint_policy)){
-      if(!any(substr(names(turnover_constraint_policy), 1, nchar(names(turnover_constraint_policy)) - 1) %in%
-              c("buffer_zone_"))){
-        stop("elements of turnover_constraint_policy should be buffer_zone")
-      }
+  ##Check if elements of turnover_constraint_policy are correct
+  if(!is.null(turnover_constraint_policy)){
+    if(!any(substr(names(turnover_constraint_policy), 1, nchar(names(turnover_constraint_policy)) - 1) %in%
+            c("buffer_zone_"))){
+      stop("elements of turnover_constraint_policy should be buffer_zone")
     }
+  }
 
-    ##Check if is possible to classify liquidity in case turnover_constraint_policy is set
-    if(!is.null(turnover_constraint_policy)){
-      if(is.null(liquidity_floor_cutoffs_list) || is.null(liquidity_m_df)){
-        stop("liquidity_floor_cutoffs_list and liquidity_m_df are needed if turnover_constraint_policy is set")
-      }
+  ##Check if is possible to classify liquidity in case turnover_constraint_policy is set
+  if(!is.null(turnover_constraint_policy)){
+    if(is.null(liquidity_floor_cutoffs_list) || is.null(liquidity_m_df)){
+      stop("liquidity_floor_cutoffs_list and liquidity_m_df are needed if turnover_constraint_policy is set")
     }
+  }
 
   ##################################
 
@@ -650,88 +650,88 @@ check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_
     stop("Error in signal_selection_policy: option not supported.")
   }
 
-    #signal_blending_method
-      ##check if null
-      if(is.null(signal_selection_policy$signal_blending_method)){
-        stop("Error in signal_selection_policy: signal_blending_method can't be missing")
-      }
+  #signal_blending_method
+  ##check if null
+  if(is.null(signal_selection_policy$signal_blending_method)){
+    stop("Error in signal_selection_policy: signal_blending_method can't be missing")
+  }
 
-      ##check if among viable options
-      if(!signal_selection_policy$signal_blending_method %in% c("EW", "SW", "RP", "MTO", "ML")){
-       stop("Error in signal_selection_policy: signal_blending_method should be one of EW, SW, RP, MTO or ML")
-      }
+  ##check if among viable options
+  if(!signal_selection_policy$signal_blending_method %in% c("EW", "SW", "RP", "MTO", "ML")){
+    stop("Error in signal_selection_policy: signal_blending_method should be one of EW, SW, RP, MTO or ML")
+  }
 
-      ##check if backtest_return_df is provided in case signal_blending_method != EW
-      if(signal_blending_method != "EW" & is.null(backtest_return_df)){
-       stop("backtest_return_df can't be NULL if signal_blending_method is not EW")
-      }
+  ##check if backtest_return_df is provided in case signal_blending_method != EW
+  if(signal_blending_method != "EW" & is.null(backtest_return_df)){
+    stop("backtest_return_df can't be NULL if signal_blending_method is not EW")
+  }
 
-      ##check if chosen_signals are present in signals_m_df
-      if(any(!signal_selection_policy$chosen_signals %in% colnames(signals_m_df))){
-        stop("Error in signal_selection_policy: one of chosen_signals not found in signals_m_df")
-      }
+  ##check if chosen_signals are present in signals_m_df
+  if(any(!signal_selection_policy$chosen_signals %in% colnames(signals_m_df))){
+    stop("Error in signal_selection_policy: one of chosen_signals not found in signals_m_df")
+  }
 
-      ##check if signals_positions are present in signals_m_df
-      if(any(!signal_selection_policy$chosen_signals %in% names(signal_selection_policy$signal_positions))){
-        stop("Error in signal_selection_policy: All chosen_signals should have a signal position.")
-      }
+  ##check if signals_positions are present in signals_m_df
+  if(any(!signal_selection_policy$chosen_signals %in% names(signal_selection_policy$signal_positions))){
+    stop("Error in signal_selection_policy: All chosen_signals should have a signal position.")
+  }
 
-      ##check if sb_benchmark_weighting is provided in case restrictions on signal concentration are set
-      if((!is.null(signal_selection_policy$max_abs_active_individual_weight) ||
-         !is.null(signal_selection_policy$max_abs_active_group_weight)) &
-         is.null(signal_selection_policy$sb_benchmark_weighting)
-      ){
-        stop("Error in signal_selection_policy: sb_benchmark_weighting can't be missing if signal concentration constraints are set.")
-      }
+  ##check if sb_benchmark_weighting is provided in case restrictions on signal concentration are set
+  if((!is.null(signal_selection_policy$max_abs_active_individual_weight) ||
+      !is.null(signal_selection_policy$max_abs_active_group_weight)) &
+     is.null(signal_selection_policy$sb_benchmark_weighting)
+  ){
+    stop("Error in signal_selection_policy: sb_benchmark_weighting can't be missing if signal concentration constraints are set.")
+  }
 
 
-    #backtest_returns_df
-      #In case backtest_returns_df is not NULL, define_signal_elibility is triggered
-      if(!is.null(backtest_returns_df)){
-        ##check for dates
-        if(all(any(!lubridate::is.Date(backtest_returns_df$dates)) ||
-               any(is.na(as.Date(backtest_returns_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
-          stop("dates in backtest_returns_df must be a date object with format %Y-%m-%d.")
-        }
+  #backtest_returns_df
+  #In case backtest_returns_df is not NULL, define_signal_elibility is triggered
+  if(!is.null(backtest_returns_df)){
+    ##check for dates
+    if(all(any(!lubridate::is.Date(backtest_returns_df$dates)) ||
+           any(is.na(as.Date(backtest_returns_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+      stop("dates in backtest_returns_df must be a date object with format %Y-%m-%d.")
+    }
 
-        ##check if chosen_sb_metric is one of viable options
-        if(is.null(signal_selection_policy$chosen_sb_metric)){
-         stop("Error in signal_selection_policy: chosen_sb_metric can't be NULL is backtest_returns_df is set")
-        }
-        if(!signal_selection_policy$chosen_sb_metric %in% c("mean_active_return", "IR", "alpha", "AP", "beta", "treynor")){
-         stop("Error in signal_selection_policy: chosen_sb_metric must be one of mean_active_return, IR, alpha, AP, beta or treynor")
-        }
-        ##check if dates_backtest are all contemplated in backtest_returns_df
-        if(any(!dates_backtest %in% backtest_returns_df$dates)){
-         stop("all backtest dates should be present in backtest_returns_df dates")
-        }
-        ##check if data_availability_cutoff is set
-        if(!is.null(signal_selection_policy$data_avaialability_cutoff) || !is.numeric(signal_selection_policy$data_avaialability_cutoff)){
-         stop("Error in signal_selection_policy: data_availability_cutoff must be numeric")
-        }
+    ##check if chosen_sb_metric is one of viable options
+    if(is.null(signal_selection_policy$chosen_sb_metric)){
+      stop("Error in signal_selection_policy: chosen_sb_metric can't be NULL is backtest_returns_df is set")
+    }
+    if(!signal_selection_policy$chosen_sb_metric %in% c("mean_active_return", "IR", "alpha", "AP", "beta", "treynor")){
+      stop("Error in signal_selection_policy: chosen_sb_metric must be one of mean_active_return, IR, alpha, AP, beta or treynor")
+    }
+    ##check if dates_backtest are all contemplated in backtest_returns_df
+    if(any(!dates_backtest %in% backtest_returns_df$dates)){
+      stop("all backtest dates should be present in backtest_returns_df dates")
+    }
+    ##check if data_availability_cutoff is set
+    if(!is.null(signal_selection_policy$data_avaialability_cutoff) || !is.numeric(signal_selection_policy$data_avaialability_cutoff)){
+      stop("Error in signal_selection_policy: data_availability_cutoff must be numeric")
+    }
 
-       ##signal significance
-         ###threshold
-          if(is.null(signal_selection_policy$signal_significance_threshold) ||
-            !is.numeric(signal_selection_policy$signal_significance_threshold)){
-           stop("Error in signal_selection_policy: signal_significance_threshold should be numeric in case backtest_returns_df is provided. If one wants to,
+    ##signal significance
+    ###threshold
+    if(is.null(signal_selection_policy$signal_significance_threshold) ||
+       !is.numeric(signal_selection_policy$signal_significance_threshold)){
+      stop("Error in signal_selection_policy: signal_significance_threshold should be numeric in case backtest_returns_df is provided. If one wants to,
                 consider all signals, set signal_significance_threshold to 1")
-         }
-          ###p_correction_method
-          if(is.null(signal_selection_policy$p_correction_method)){
-            stop("p_correction_method can't be missing if backtest_returns_df is provided")
-          }
+    }
+    ###p_correction_method
+    if(is.null(signal_selection_policy$p_correction_method)){
+      stop("p_correction_method can't be missing if backtest_returns_df is provided")
+    }
 
-          if(!signal_selection_policy$p_correction_method %in% c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY",
-                                                                 "fdr", "none", "bayesian")){
-            stop("Error in signal_selection_policy: p_correction_method not supported.")
-          }
+    if(!signal_selection_policy$p_correction_method %in% c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY",
+                                                           "fdr", "none", "bayesian")){
+      stop("Error in signal_selection_policy: p_correction_method not supported.")
+    }
 
-          ##sb_benchmark_weighting
-          if(!signal_selection_policy$sb_benchmark_weighting %in% c("individual", "theme")){
-            stop("Error in signal_selection_policy: should be one of individual_sb or theme_sb")
-          }
-        }
+    ##sb_benchmark_weighting
+    if(!signal_selection_policy$sb_benchmark_weighting %in% c("individual", "theme")){
+      stop("Error in signal_selection_policy: should be one of individual_sb or theme_sb")
+    }
+  }
   ##################################
 
   #User constraints
@@ -770,14 +770,14 @@ check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_
     }
 
     if(if(any(!dates_backtest %in% daily_active_returns_df$dates)){
-        stop("all backtest dates should be present in daily_active_returns_df dates")
+      stop("all backtest dates should be present in daily_active_returns_df dates")
     })
 
-    ##check for dates
-    if(all(any(!lubridate::is.Date(daily_active_returns_df$dates)) ||
-           any(is.na(as.Date(daily_active_returns_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
-      stop("dates in backtest_returns_df must be a date object with format %Y-%m-%d.")
-    }
+      ##check for dates
+      if(all(any(!lubridate::is.Date(daily_active_returns_df$dates)) ||
+             any(is.na(as.Date(daily_active_returns_df$dates, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
+        stop("dates in backtest_returns_df must be a date object with format %Y-%m-%d.")
+      }
 
     if(is.null(covariance_estimation_method)){
       stop("covariance_estimation_method can't be missing if portfolio_construction_method is RP or MTO")
@@ -808,7 +808,7 @@ check_inputs_port_backtest <- function(signals_m_df, liquidity_m_df, volatility_
 
 
 
-  }
+}
 
 
 
