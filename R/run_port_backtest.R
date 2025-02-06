@@ -120,7 +120,7 @@ run_port_backtest_internal <- function(
     ###Port Objects
     ####Create object to store portfolio weights
     port_weights_m_df <- signals_m_df %>% dplyr::select(id, tickers, dates) #These are most up-to-date portfolio weights
-    port_weights_m_df$port_weights <- 0 #Initialize portfolio weights
+    port_weights_m_df$eop_port_weights <- 0 #Initialize portfolio weights
 
     ####Create object to store portfolio returns
     port_returns_m_xts <- xts::xts(data.frame(
@@ -239,10 +239,10 @@ run_port_backtest_internal <- function(
       #####Old Composition Beggining-of-Period Portfolio Weights
       #####This is the old end-of-period portfolio with weights updated by fwd_1m_return (ie. composition from last period, with weights reflecting the current period). Delisted stocks are present at this point.
       if (d > 1){
-        updated_port_weights_m_lstd_ref <- fwd_port_weights_m_d_ref %>% dplyr::rename(bop_port_weights = port_weights) #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
+        updated_port_weights_m_lstd_ref <- fwd_port_weights_m_d_ref %>% dplyr::rename(bop_port_weights = updated_port_weights) #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
       } else {
         #For first period, just get the composition of last period. Weights are zero by construction.
-        updated_port_weights_m_lstd_ref <- port_weights_m_df %>% dplyr::filter(dates == last_date) %>% dplyr::rename(bop_port_weights = port_weights)
+        updated_port_weights_m_lstd_ref <- port_weights_m_df %>% dplyr::filter(dates == last_date) %>% dplyr::rename(bop_port_weights = eop_port_weights)
       }
 
       #####End-of-period portfolio weights
@@ -251,7 +251,7 @@ run_port_backtest_internal <- function(
       #####If it is not, update_port_weights will just exclude delisted stocks and rescale weights to sum to 1, also generating a transactions_m_df.
       #####Important: at apply_buffer_rule time, the function will look at current composition through signals_m_df and will check for positions in bop_port_weights_m_d_ref, using left_join. Therefore, delisted stocks will not be considered in the buffer rule.
       #####After update_port_weights, eop_port_weights will then carry weights reflecting the end-of-period port. The object is then submitted to calc_port_returns, originating fwd_port_weights_m_d_ref.
-      eop_port_weights_m_d_ref <- port_weights_m_df %>% dplyr::filter(dates == current_date)
+      port_weights_m_d_ref <- port_weights_m_df %>% dplyr::filter(dates == current_date)
 
 
       ####Meta xts (up to date references)
@@ -318,7 +318,7 @@ run_port_backtest_internal <- function(
           user_defined_OR_rules_m_df = user_defined_OR_rules_m_df
         )
 
-          #####Subset Daily Stock Returns
+        #####Subset Daily Stock Returns
         selected_returns_m_xts_upd_ref <- returns_m_xts_upd_ref[, stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
 
 
@@ -349,26 +349,26 @@ run_port_backtest_internal <- function(
           #MVO Optimization
           n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
           #Custom Weights
-            custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
-            #Winsorization
-            lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
-          )
+          custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
+          #Winsorization
+          lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
+        )
 
-          ####Get stock_universe_m_d_ref
-          stock_universe_m_df_list[[which(rebalance_dates %in% current_date)]] <- stock_port@universe_m_d_ref
-          ##############################
+        ####Get stock_universe_m_d_ref
+        stock_universe_m_df_list[[which(rebalance_dates %in% current_date)]] <- stock_port@universe_m_d_ref
+        ##############################
       }
 
-        ####Print
-        if(verbose){
-          cat("\n")
-          cat(crayon::green(paste("Portfolio rebalancing completed")))
-        }
+      ####Print
+      if(verbose){
+        cat("\n")
+        cat(crayon::green(paste("Portfolio rebalancing completed")))
+      }
 
-    ##############################
+      ##############################
 
-    ###Calculate Port Returns
-    ##############################
+      ###Calculate Port Returns
+      ##############################
       portfolio_returns_results_list <- calculate_portfolio_returns(
         #Date parameters
         current_date = current_date, is_rebalancing_month = is_rebalancing_month,
@@ -389,15 +389,15 @@ run_port_backtest_internal <- function(
         transaction_costs_list = transaction_costs_list
       )
 
-        #Fill
-        ###Portfolio weights
-        portfolio_weights_m_df[d_ref, "portfolio_weights"] <- portfolio_returns_results_list$portfolio_weights_m_d_ref$portfolio_weights
-        ###Updated Port weights (current portfolio with weights updated to next period)
-        updated_portfolio_weights <- portfolio_returns_results_list$updated_portfolio_weights #Updated weights
-        ##Portfolio Returns
-        portfolio_targets_df <- portfolio_returns_results_list$portfolio_targets_df
-        ###Transactions
-        transactions_m_df_list[[d]] <- portfolio_returns_results_list$transactions_m_d_ref
+      #Fill
+      ###Portfolio weights
+      portfolio_weights_m_df[d_ref, "portfolio_weights"] <- portfolio_returns_results_list$portfolio_weights_m_d_ref$portfolio_weights
+      ###Updated Port weights (current portfolio with weights updated to next period)
+      updated_portfolio_weights <- portfolio_returns_results_list$updated_portfolio_weights #Updated weights
+      ##Portfolio Returns
+      portfolio_targets_df <- portfolio_returns_results_list$portfolio_targets_df
+      ###Transactions
+      transactions_m_df_list[[d]] <- portfolio_returns_results_list$transactions_m_d_ref
 
 
 
@@ -406,7 +406,7 @@ run_port_backtest_internal <- function(
 
 
 
-  }
+    }
 
   })
 

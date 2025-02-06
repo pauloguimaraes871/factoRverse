@@ -25,8 +25,9 @@ merge_and_rescale_weights <- function(port_weights_m_d_ref, updated_port_weights
         if (length(delisted_tickers_old_universe) != 0){
           cat("\n")
           message(paste0(
-            "Delisted tickers: ", delisted_tickers_old_universe, ". Of those, the following were in the portfolio: ",
-            if (length(delisted_tickers_old_portfolio) != 0) crayon::yellow(delisted_tickers_old_portfolio)))
+            "Delisted tickers: ", paste0(delisted_tickers_old_universe, collapse = ", "), ". Of those, the following were in the portfolio: ",
+            if (length(delisted_tickers_old_portfolio) != 0) crayon::yellow(paste0(delisted_tickers_old_portfolio, collapse = ", ")))
+          )
         }
         ###IPOs
         if (length(ipo_tickers) != 0){
@@ -35,10 +36,10 @@ merge_and_rescale_weights <- function(port_weights_m_d_ref, updated_port_weights
         }
       }
 
-  ###########################
+    ###########################
 
-  #Elaborate new portfolio
-  ###########################
+    #Elaborate new portfolio
+    ###########################
     ##If stock_universe_m_d_ref is not NULL, use new weights
     if (!is.null(stock_universe_m_d_ref)){
       port_weights_m_d_ref <- port_weights_m_d_ref %>%
@@ -46,12 +47,12 @@ merge_and_rescale_weights <- function(port_weights_m_d_ref, updated_port_weights
         dplyr::mutate(eop_port_weights = weights) %>% #Make the from -> to
         dplyr::select(-weights) #Unselect weights
     } else {
-    ##Otherwise, get updated weights from last period
+      ##Otherwise, get updated weights from last period
       port_weights_m_d_ref <- port_weights_m_d_ref %>%
         dplyr::left_join(updated_port_weights_m_lstd_ref %>% dplyr::select(tickers, bop_port_weights), by = "tickers") %>% #Get updated weights from last period
         dplyr::mutate(eop_port_weights = bop_port_weights) %>% #Make the from -> to
         dplyr::select(-bop_port_weights) #Unselect weights
-    ##Rescale to 100%
+      ##Rescale to 100%
       sum_weights <- sum(port_weights_m_d_ref$eop_port_weights[!is.na(port_weights_m_d_ref$eop_port_weights)])
       if (sum_weights == 0) stop("Sum of weights is 0. Can't rescale weights.")
 
@@ -60,12 +61,19 @@ merge_and_rescale_weights <- function(port_weights_m_d_ref, updated_port_weights
                         dplyr::if_else(is.na(eop_port_weights),
                                        0, #If there is a NA, it is an IPO stock
                                        eop_port_weights/sum_weights #Else rescale
-                                       )
-                      )
+                        )
+        )
     }
-      ###Check if weights sum to 1
-      if ((sum(port_weights_m_d_ref$eop_port_weights, na.rm = TRUE) - 1) > 0.02) stop("Weights do not sum to 1.")
+    ###Check if weights sum to 1
+    if ((sum(port_weights_m_d_ref$eop_port_weights, na.rm = TRUE) - 1) > 0.02) stop("Weights do not sum to 1.")
     ###########################
 
-    return(port_weights_m_d_ref)
+    #Get all outputs
+    results_list <- list(port_weights_m_d_ref = port_weights_m_d_ref,
+                         tickers_both_universes = tickers_both_universes,
+                         delisted_tickers_old_universe = delisted_tickers_old_universe,
+                         delisted_tickers_old_portfolio = delisted_tickers_old_portfolio,
+                         ipo_tickers = ipo_tickers)
+
+    return(results_list)
 }

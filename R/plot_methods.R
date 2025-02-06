@@ -5951,28 +5951,31 @@ setMethod(
     #------------------------------------------------------------------------------------------------
     # 7) weight distribution
     #------------------------------------------------------------------------------------------------
-    if (type == "Random Weights Distribution"){
+    if (type == "Random Weights Distribution") {
       # Extract relevant slots
       random_port_weights <- x@random_port_weights
-      if(any(is.null(x@ind_max_weights), is.null(x@ind_min_weights))){
-        stop("Random Weights Distribution is only avaiable when max_abs_active_individual_weight is set.")
+      if (any(is.null(x@ind_max_weights), is.null(x@ind_min_weights))) {
+        stop("Random Weights Distribution is only available when max_abs_active_individual_weight is set.")
       }
       ind_max_weights <- x@ind_max_weights
       ind_min_weights <- x@ind_min_weights
-      asset_names <- x@eligible_assets
+      asset_names     <- x@eligible_assets
 
-      # Check for required inputs
+      # Basic checks
       if (is.null(random_port_weights) || is.null(ind_max_weights) || is.null(ind_min_weights)) {
         stop("random_port_weights, ind_max_weights, and ind_min_weights must be provided.")
       }
-
-      if (length(ind_max_weights) != length(asset_names) || length(ind_min_weights) != length(asset_names)) {
+      if (length(ind_max_weights) != length(asset_names) ||
+          length(ind_min_weights) != length(asset_names)) {
         stop("Mismatch between constraints and eligible assets.")
       }
 
       # Prepare data for plotting
+      # random_port_weights is assumed to have first column named 'tickers'
+      # and subsequent columns with random weight draws
       weights_long <- as.data.frame(t(random_port_weights[, -1]))
       colnames(weights_long) <- random_port_weights$tickers
+
       weights_long <- tidyr::pivot_longer(
         weights_long,
         cols = dplyr::everything(),
@@ -5981,41 +5984,115 @@ setMethod(
       )
 
       constraints <- data.frame(
-        assets = asset_names,
+        assets          = asset_names,
         ind_max_weights = ind_max_weights,
         ind_min_weights = ind_min_weights
       )
 
       plot_data <- dplyr::left_join(weights_long, constraints, by = "assets")
 
+      # Subset logic: Let user choose how to filter the displayed assets
+      cat("\nHow do you want to choose which assets to display?\n")
+      cat("1: Top x by average absolute random weight\n")
+      cat("2: Choose assets individually (by name or index)\n")
+      choice_mode <- as.integer(readline(prompt = "Your choice: "))
+
+      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
+        stop("Invalid choice for asset selection mode.")
+      }
+
+      if (choice_mode == 1) {
+        # 1a) Calculate a ranking metric: for example, average absolute weight
+        df_avg <- plot_data %>%
+          dplyr::group_by(.data$assets) %>%
+          dplyr::summarize(avg_abs_weight = mean(abs(.data$weights), na.rm = TRUE)) %>%
+          dplyr::arrange(dplyr::desc(.data$avg_abs_weight))
+
+        # 1b) Ask how many top assets user wants
+        cat("How many assets do you want to show? ")
+        n_choice <- as.integer(readline())
+        if (is.na(n_choice) || n_choice < 1 || n_choice > nrow(df_avg)) {
+          stop(paste0("Invalid number of assets. Must be between 1 and ", nrow(df_avg)))
+        }
+
+        # 1c) Keep only those top assets in both plot_data & constraints
+        top_assets <- df_avg$assets[1:n_choice]
+        plot_data  <- dplyr::filter(plot_data, .data$assets %in% top_assets)
+        constraints <- dplyr::filter(constraints, .data$assets %in% top_assets)
+
+      } else {
+        # 2) User picks assets by name or index
+        cat("\nAssets:\n")
+        for (i in seq_along(asset_names)) {
+          cat(paste0(i, ": ", asset_names[i], "\n"))
+        }
+        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
+        selection <- readline(prompt = "Your choice: ")
+        selection <- trimws(selection)
+
+        if (!nzchar(selection)) {
+          stop("No selection provided.")
+        }
+
+        if (tolower(selection) == "all") {
+          # keep everything
+        } else {
+          parts <- strsplit(selection, ",")[[1]]
+          parts <- trimws(parts)
+          # Check if numeric
+          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+          if (all_numeric) {
+            indices <- as.numeric(parts)
+            if (any(indices < 1 | indices > length(asset_names))) {
+              stop("Some indices are out of range.")
+            }
+            chosen_assets <- asset_names[indices]
+          } else {
+            # Assume strings are asset names
+            if (!all(parts %in% asset_names)) {
+              stop("Some chosen assets are not in the set of available asset_names.")
+            }
+            chosen_assets <- parts
+          }
+          plot_data  <- dplyr::filter(plot_data, .data$assets %in% chosen_assets)
+          constraints <- dplyr::filter(constraints, .data$assets %in% chosen_assets)
+        }
+      }
+
+      # Final check
+      if (nrow(plot_data) == 0) {
+        stop("No assets left after selection. Nothing to plot.")
+      }
+
       # Create the jitter plot
       p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = .data$assets, y = .data$weights)) +
         ggplot2::geom_jitter(width = 0.2, color = "#6A0DAD", alpha = 0.5, size = 2) +
+        # Show max constraint
         ggplot2::geom_point(
-          data = constraints,
+          data  = constraints,
           ggplot2::aes(x = .data$assets, y = .data$ind_max_weights),
           color = "#FF5F1F", size = 3, shape = 17
         ) +
+        # Show min constraint
         ggplot2::geom_point(
-          data = constraints,
+          data  = constraints,
           ggplot2::aes(x = .data$assets, y = .data$ind_min_weights),
           color = "#39FF14", size = 3, shape = 17
         ) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+          plot.background  = ggplot2::element_rect(fill = "#001f3f", color = NA),
           panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-          panel.grid = ggplot2::element_blank(),
-          axis.text = ggplot2::element_text(color = "white"),
-          axis.title = ggplot2::element_text(color = "white"),
-          plot.title = ggplot2::element_text(color = "white", size = 14, face = "bold")
+          panel.grid       = ggplot2::element_blank(),
+          axis.text        = ggplot2::element_text(color = "white"),
+          axis.title       = ggplot2::element_text(color = "white"),
+          plot.title       = ggplot2::element_text(color = "white", size = 14, face = "bold")
         ) +
         ggplot2::labs(
           title = "Weight Distribution with Constraints",
-          x = "Assets",
-          y = "Weights"
+          x     = "Assets",
+          y     = "Weights"
         )
-
 
       print(p)
       return(invisible(p))
