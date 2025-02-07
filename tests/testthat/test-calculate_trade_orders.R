@@ -50,12 +50,10 @@ test_that("calculate trade order works for a first rebalancing scenario with del
                                                         stock_universe_m_d_ref = sw_port@universe_m_d_ref@data)
 
   #Result
-  results <- calculate_trade_orders(port_weights_m_d_ref = port_weights_m_d_ref,
-                                    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                    stock_universe_m_d_ref = sw_port@universe_m_d_ref@data,
+  results <- calculate_trade_orders(merged_port_results = merged_port_results_list,
                                     liquidity_m_d_ref = liquidity_m_d_ref,
                                     volatility_m_d_ref = volatility_m_d_ref,
-                                    strategy_aum = 1000000,
+                                    strategy_aum = 100,
                                     main_liquidity_metric = "mean_volfin_3m"
   )
 
@@ -94,7 +92,7 @@ test_that("calculate trade order works for a first rebalancing scenario with del
   #delta is as expected
   expect_equal(results %>% dplyr::pull(delta) %>% sum(), 1)
   #order is as expected
-  expect_equal(results %>% dplyr::pull(order) %>% sum(), 1000000)
+  expect_equal(results %>% dplyr::pull(order) %>% sum(), 100)
 
   #Check that NA fills are right
   results[5, "id"] = c("Stock B-2001-05-15")
@@ -154,12 +152,10 @@ test_that("calculate trade order works for non-rebalancing scenario with delisti
                                                         stock_universe_m_d_ref = NULL)
 
   #Result
-  results <- calculate_trade_orders(port_weights_m_d_ref = port_weights_m_d_ref,
-                                    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                    stock_universe_m_d_ref = NULL,
+  results <- calculate_trade_orders(merged_port_results = merged_port_results_list,
                                     liquidity_m_d_ref = liquidity_m_d_ref,
                                     volatility_m_d_ref = volatility_m_d_ref,
-                                    strategy_aum = 1000000,
+                                    strategy_aum = 100,
                                     main_liquidity_metric = "mean_volfin_3m"
   )
 
@@ -195,7 +191,7 @@ test_that("calculate trade order works for non-rebalancing scenario with delisti
   expect_equal(results %>% dplyr::filter(tickers %in% merged_port_results_list$ipo_tickers) %>% dplyr::pull(obs) %>% unique(),
                "IPO")
   #order is as expected
-  expect_equal(results %>% dplyr::pull(order) %>% sum(), (results %>% dplyr::pull(delta) * 1e+6) %>% sum())
+  expect_equal(results %>% dplyr::pull(order) %>% sum(), (results %>% dplyr::pull(delta) * 100) %>% sum())
 
   #Check that NA fills are right
   results[5, "id"] = c("Stock B-2001-05-15")
@@ -254,12 +250,10 @@ test_that("calculate trade order works for a first rebalancing scenario with del
                                                            stock_universe_m_d_ref = cw_port@universe_m_d_ref@data)
 
   #Result
-  results <- calculate_trade_orders(port_weights_m_d_ref = port_weights_m_d_ref,
-                                    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                    stock_universe_m_d_ref = cw_port@universe_m_d_ref@data,
+  results <- calculate_trade_orders(merged_port_results = merged_port_results_list,
                                     liquidity_m_d_ref = liquidity_m_d_ref,
                                     volatility_m_d_ref = volatility_m_d_ref,
-                                    strategy_aum = 1000000,
+                                    strategy_aum = 100,
                                     main_liquidity_metric = "mean_volfin_3m"
   )
 
@@ -306,6 +300,6 @@ test_that("calculate trade order works for a first rebalancing scenario with del
   #delta is as expected
   expect_equal(results %>% dplyr::pull(delta) %>% sum(), 1)
   #order is as expected
-  expect_equal(results %>% dplyr::pull(order) %>% sum(), 1000000)
+  expect_equal(results %>% dplyr::pull(order) %>% sum(), 100)
 
 })

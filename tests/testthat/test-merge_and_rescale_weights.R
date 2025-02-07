@@ -43,11 +43,11 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
   #Results
   #Expect delisting message
   expect_message(
-  results <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
-                                       updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                       stock_universe_m_d_ref = sw_port@universe_m_d_ref@data
-                                       ),
-  "Delisted tickers: Stock B. Of those, the following were in the portfolio: "
+    results <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
+                                         updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+                                         stock_universe_m_d_ref = sw_port@universe_m_d_ref@data
+    ),
+    "Delisted tickers: Stock B. Of those, the following were in the portfolio: "
   )
 
   #Checks that only new tickers are contemplated in results
