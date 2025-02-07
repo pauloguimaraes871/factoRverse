@@ -37,6 +37,7 @@
 #' }
 #'
 merge_and_rescale_weights <- function(port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref,
+                                      selected_benchmark_weights_m_d_ref,
                                       stock_universe_m_d_ref = NULL, verbose = TRUE){
 
   #Get portfolio compositions
@@ -88,23 +89,36 @@ merge_and_rescale_weights <- function(port_weights_placeholder_m_d_ref, updated_
   } else {
     ##Otherwise, get updated weights from last period
     port_weights_m_d_ref <- port_weights_placeholder_m_d_ref %>%
-        dplyr::left_join(updated_port_weights_m_lstd_ref %>% dplyr::select(tickers, bop_port_weights), by = "tickers") %>% #Get updated weights from last period
-        dplyr::mutate(eop_port_weights = bop_port_weights) %>% #Make the from -> to
-        dplyr::select(-bop_port_weights) #Unselect weights
-      ##Rescale to 100%
-      sum_weights <- sum(port_weights_m_d_ref$eop_port_weights[!is.na(port_weights_m_d_ref$eop_port_weights)])
-      if (sum_weights == 0) stop("Sum of weights is 0. Can't rescale weights.")
+      dplyr::left_join(updated_port_weights_m_lstd_ref %>% dplyr::select(tickers, bop_port_weights), by = "tickers") %>% #Get updated weights from last period
+      dplyr::mutate(eop_port_weights = bop_port_weights) %>% #Make the from -> to
+      dplyr::select(-bop_port_weights) #Unselect weights
+    ##Rescale to 100%
+    sum_weights <- sum(port_weights_m_d_ref$eop_port_weights[!is.na(port_weights_m_d_ref$eop_port_weights)])
+    if (sum_weights == 0) stop("Sum of weights is 0. Can't rescale weights.")
 
-      port_weights_m_d_ref <- port_weights_m_d_ref %>%
-        dplyr::mutate(eop_port_weights =  #Change eop_port_weights
-                        dplyr::if_else(is.na(eop_port_weights),
-                                       0, #If there is a NA, it is an IPO stock
-                                       eop_port_weights/sum_weights #Else rescale
-                        )
-        )
+    port_weights_m_d_ref <- port_weights_m_d_ref %>%
+      dplyr::mutate(eop_port_weights =  #Change eop_port_weights
+                      dplyr::if_else(is.na(eop_port_weights),
+                                     0, #If there is a NA, it is an IPO stock
+                                     eop_port_weights/sum_weights #Else rescale
+                      )
+      )
   }
   ###Check if weights sum to 1
   if ((sum(port_weights_m_d_ref$eop_port_weights, na.rm = TRUE) - 1) > 0.02) stop("Weights do not sum to 1.")
+  ###########################
+
+  ##Add benchmark weights if not NULL
+  ###########################
+  if (!is.null(selected_benchmark_weights_m_d_ref)){
+    port_weights_m_d_ref <- port_weights_m_d_ref %>%
+      dplyr::left_join(selected_benchmark_weights_m_d_ref %>%
+                         dplyr::rename_with(~ "bench_weights", .cols = 4), #Rename bench_weights
+                       by = "id") #Join bench_weights
+  } else {
+    port_weights_m_d_ref <- port_weights_m_d_ref
+  }
+
   ###########################
 
   #Get all outputs

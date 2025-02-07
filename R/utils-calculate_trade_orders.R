@@ -69,24 +69,24 @@ calculate_trade_orders <- function(merged_port_results_list,
     )) %>%
     dplyr::mutate(id = dplyr::if_else(obs == "delisted",
                                       paste0(tickers, "-", dates), #Replace id for delisted stocks as last id
-                                            id #Else do nothing
-          ))
-         ####replace remaining NAs in all columns with 0
-         transactions_m_d_ref <- transactions_m_d_ref %>%
-           dplyr::mutate(dplyr::across(dplyr::everything(), ~tidyr::replace_na(.x, 0)))
+                                      id #Else do nothing
+    ))
+  ####replace remaining NAs in all columns with 0
+  transactions_m_d_ref <- transactions_m_d_ref %>%
+    dplyr::mutate(dplyr::across(dplyr::everything(), ~tidyr::replace_na(.x, 0)))
 
 
-         ###IPO Tickers
-         ####remove NAs in bop weights with 0 (NAs are possible if stocks are IPOs
-         transactions_m_d_ref$bop_port_weights[which(is.na(transactions_m_d_ref$bop_port_weights))] <- 0
+  ###IPO Tickers
+  ####remove NAs in bop weights with 0 (NAs are possible if stocks are IPOs
+  transactions_m_d_ref$bop_port_weights[which(is.na(transactions_m_d_ref$bop_port_weights))] <- 0
 
 
 
-         ###########################
+  ###########################
 
-         #Add order data
-         ###########################
-         transactions_m_d_ref <- transactions_m_d_ref %>%
+  #Add order data
+  ###########################
+  transactions_m_d_ref <- transactions_m_d_ref %>%
            dplyr::mutate(delta = eop_port_weights - bop_port_weights) %>%
            dplyr::mutate(order = delta*strategy_aum) %>%
            dplyr::mutate(relative_order_size = abs(order)/!!rlang::sym(main_liquidity_metric))

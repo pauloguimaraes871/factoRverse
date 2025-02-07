@@ -25,26 +25,26 @@
 #' @export
 #'
 run_port_backtest_internal <- function(
-    #Base Objects
+  #Base Objects
   signals_m_df, oos_predictions_m_df = NULL, exp_ret_score_metric = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
   #Backtest Scheme
   rebalancing_months, initial_sample_size,
-  #Portfolio Construction Method
-  port_construction_method = "EW", stock_selection_quantile_range = c(0.9, 1.0),
+  #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
+  port_construction_method = "ew", stock_selection_quantile_range = c(0.9, 1.0), selected_benchmark = NULL,
   #RP/MVO Parameters
   rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
   #Covariance Estimation
   cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = FALSE, cov_matrix_benchmark = NULL,
-  returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
+  daily_assets_returns_m_xts = NULL, daily_benchmark_returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
   #Constraints
   liquidity_constraint_policy, turnover_constraint_policy, concentration_constraint_policy,
   #Liquidity Information (Constraints and Active Returns Calculation)
-  liquidity_m_df = NULL, liquidity_floor_cutoffs_list, main_liquidity_metric,
+  liquidity_m_df = NULL, liquidity_floor_cutoffs, main_liquidity_metric,
   #Group and benchmark constraints (stock groups also used to fill covariance data)
   stocks_groups_m_df = NULL, benchmark_weights_m_df = NULL,
   #Return calculation (needs also liquidity and vol for net returns)
   volatility_m_df = NULL, target_m_df, transaction_costs_list = NULL,
-  #Stock Universe Weights
+  #Stock Weights
   custom_stock_universe_weights_m_df = NULL,
   #Misc
   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
@@ -66,19 +66,17 @@ run_port_backtest_internal <- function(
       rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
       #Covariance Estimation
       cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
-      returns_m_xts = returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
+      daily_assets_returns_m_xts = daily_assets_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
       #Constraints
       liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
       #Liquidity Information (Constraints and Active Returns Calculation)
-      liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs_list = liquidity_floor_cutoffs_list, main_liquidity_metric = main_liquidity_metric,
+      liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
       #Group and benchmark constraints (stock groups also used to fill covariance data)
       stocks_groups_m_df = stocks_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
       #Return calculation (needs also liquidity and vol for net returns)
       volatility_m_df = volatility_m_df, target_m_df = target_m_df, transaction_costs_list = transaction_costs_list,
-      #Custom Stock Universe Weights
-      custom_stock_universe_weights_m_df = custom_stock_universe_weights_m_df,
-      #Custom Stock Weights
-      custom_stock_weights_m_df = custom_stock_weights_m_df,
+      #Custom Stock Weights and Metrics
+      custom_stock_universe_weights_m_df = custom_stock_universe_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
       #Misc
       lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
       verbose = verbose, parallel = parallel
@@ -121,40 +119,64 @@ run_port_backtest_internal <- function(
     ####Create port_weights list structure to stored merged port weights results
     port_weights_m_d_ref_list <- list()
     ####Create transaction_list
-    transactions_m_d_ref_list <- list()
+    transactions_log_m_d_ref_list <- list()
 
     ####Create object to store portfolio returns
     port_returns_m_xts <- xts::xts(data.frame(
       raw_return = rep(NA, length(dates_port_returns)), #Raw target returns
       raw_active_return = rep(NA, length(dates_port_returns)), #Raw active returns
       net_return = rep(NA, length(dates_port_returns)), #Net target returns
-      net_active_return = rep(NA, length(dates_port_returns)), #Net active returns
+      net_active_return = rep(NA, length(dates_port_returns)) #Net active returns
+    ), order.by = dates_port_returns) #These are most up-to-date portfolio returns (one month-ahead in time of dates backtest)
+
+    ###Create object to store portfolio costs, with one day ahead of current_dates, as allocation is done the following day
+    port_costs_m_xts <- xts::xts(data.frame(
       direct_cost = rep(NA, length(dates_port_returns)), #Direct cost
       market_impact_cost = rep(NA, length(dates_port_returns)), #Market impact cost
       total_cost = rep(NA, length(dates_port_returns)), #Total cost
-      turnover = rep(NA, length(dates_port_returns)), #Turnover
-      bench_return = rep(NA, length(dates_port_returns)) #Benchmark returns
-    ), order.by = dates_port_returns) #These are most up-to-date portfolio returns
+      turnover = rep(NA, length(dates_port_returns)) #Turnover
+    ), order.by = dates_backtest + 1) #These are most up-to-date portfolio costs (one day-ahead in time of dates backtest)
 
     ###Create object to store portfolio metrics
-    port_metrics_m_xts <- xts::xts(as.data.frame(
-      lapply(custom_stock_universe_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
-             function(x) rep(NA, length(dates_port_returns)))
-    ), order.by = dates_port_returns) #These are most up-to-date portfolio metrics
-
-    ###Selected benchmark
-    selected_benchmark <- if (!is.null(concentration_constraint_policy)) concentration_constraint_policy$benchmark else cov_matrix_benchmark
-    ####Insert benchmark name in port_returns_m_xts
-    names(port_returns_m_xts)[which(names(port_returns_m_xts) == "bench_return")] <- selected_benchmark
-    ####Select benchmark_m_xts
-    selected_benchmark_returns_m_xts <- benchmark_returns_m_xts[ ,selected_benchmark]
-    ####Create object to store benchmark metrics
-    if (!is.null(selected_benchmark)){
-      benchmark_metrics_m_xts <- xts::xts(as.data.frame(
+    if (!is.null(custom_stock_metrics_m_df)){
+      port_metrics_m_xts <- xts::xts(as.data.frame(
         lapply(custom_stock_universe_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
                function(x) rep(NA, length(dates_port_returns)))
-      ), order.by = dates_port_returns) #These are most up-to-date benchmark metrics
+      ), order.by = dates_backtest) #These are most up-to-date portfolio metrics (matching current date)
+      colnames(port_metrics_m_xts) <- colnames(custom_stock_universe_metrics_m_df %>% dplyr::select(-id, -tickers, -dates)) #Get colnames
     }
+
+    ###Benchmark objects
+    ####Create objects
+    if (!is.null(selected_benchmark)){
+      ####Insert benchmark in port_returns_m_xts
+      port_returns_m_xts <- merge(port_returns_m_xts,
+                                  xts::xts(data.frame(selected_bench_return = rep(NA, length(dates_port_returns)),
+                                                      order.by = dates_port_returns)) #Create a bench_returns column
+      )
+      ####Select benchmark_m_xts
+      selected_benchmark_returns_m_xts <- benchmark_returns_m_xts[ ,selected_benchmark]
+
+      ####Select daily benchmark_m_xts
+      selected_daily_cov_matrix_bench_m_xts <- daily_bench_returns_m_xts[ ,cov_matrix_benchmark]
+
+      ####Select benchmark_weights_m_df
+      selected_benchmark_weights_m_df <- benchmark_weights_m_df %>%
+        dplyr::select(!!rlang::sym(selected_benchmark)) #Select only selected_benchmark
+
+      ####Create object to store benchmark metrics
+      if (!is.null(custom_stock_metrics_m_df)){
+        benchmark_metrics_m_xts <- xts::xts(as.data.frame(
+          lapply(custom_stock_universe_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
+                 function(x) rep(NA, length(dates_port_returns)))
+        ), order.by = dates_port_returns) #These are most up-to-date benchmark metrics
+      }
+    } else {
+      selected_benchmark_returns_m_xts <- NULL
+      selected_benchmark_weights_m_df <- NULL
+      selected_daily_bench_returns_m_xts <- NULL
+    }
+
 
     ###Create stock universe list to get results
     stock_universe_m_d_ref_list <- list()
@@ -165,10 +187,8 @@ run_port_backtest_internal <- function(
     #########################
     if (verbose){
       ###Text otherwise
-      cat("\n")
-      cat(crayon::cyan(paste("Starting portfolio backtest")))
-      cat("\n")
-      cat(paste("Portfolio Construction Method:", port_construction_method))
+      cat("=============================\n")
+      cat(crayon::cyan(paste("Portfolio Construction Method:", port_construction_method)))
       cat("\n")
       cat("Building portfolio based on:")
       cat("\n")
@@ -218,7 +238,8 @@ run_port_backtest_internal <- function(
     for (d in (initial_buffer_period):(initial_buffer_period + backtest_length - 1)){
       ###Current and last date
       current_date <- dates_m_vector[d]
-      last_date <- lubridate::add_with_rollback(current_date, months(-1))
+      last_date <- lubridate::add_with_rollback(current_date, months(-1)) #Get last month date
+      next_date <- lubridate::add_with_rollback(current_date, months(1)) #Get next month date
       if (verbose) print(current_date)
 
       ###Get objects for current date
@@ -232,9 +253,10 @@ run_port_backtest_internal <- function(
       #####Stock Info
       liquidity_m_d_ref <- if (!is.null(liquidity_m_df)) liquidity_m_df %>% dplyr::filter(dates == current_date) else NULL
       volatility_m_d_ref <- if (!is.null(volatility_m_df)) volatility_m_df %>% dplyr::filter(dates == current_date) else NULL
-      benchmark_weights_m_d_ref <- if (!is.null(benchmark_weights_m_df)) benchmark_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
+      selected_benchmark_weights_m_d_ref <- if (!is.null(selected_benchmark_weights_m_df)) selected_benchmark_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
       stock_groups_m_d_ref <- if (!is.null(stock_groups_m_df)) stock_groups_m_df %>% dplyr::filter(dates == current_date) else NULL
-      custom_stock_weights_m_d_ref <- if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
+      custom_stock_universe_weights_m_d_ref <- if (!is.null(custom_stock_universe_weights_m_df)) custom_stock_universe_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
+      custom_stock_metrics_m_d_ref <- if (!is.null(custom_stock_metrics_m_df)) custom_stock_metrics_m_df %>% dplyr::filter(dates == current_date) else NULL
 
       #####Port Weights
       #####End-of-period portfolio weights placeholder
@@ -251,6 +273,7 @@ run_port_backtest_internal <- function(
       #####This is the old end-of-period portfolio with weights updated by fwd_1m_return (ie. composition from last period, with weights reflecting the current period). Delisted stocks are present at this point.
       if (d > 1){
         updated_port_weights_m_lstd_ref <- rolled_fwd_port_weights_m_d_ref %>%
+          dplyr::select(id, tickers, dates, updated_port_weights) %>% #Unselect benchmark weights, if its the case
           dplyr::rename(bop_port_weights = updated_port_weights) #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
       } else {
         #For first period, just get the composition of last period. Weights are initialized as zero.
@@ -260,7 +283,13 @@ run_port_backtest_internal <- function(
       }
 
       ####Meta xts (up to date references)
-      returns_m_xts_upd_ref <- returns_m_xts[which(zoo::index(returns_m_xts) <= current_date), ]
+      #####Daily Up-to-date reference
+      daily_assets_returns_m_xts_upd_ref <- daily_assets_returns_m_xts[which(zoo::index(daily_assets_returns_m_xts) <= current_date), ]
+      selected_daily_cov_matrix_bench_m_xts_upd_ref <- selected_daily_cov_matrix_bench_m_xts[which(zoo::index(selected_daily_cov_matrix_bench_m_xts) <= current_date), ]
+
+      #####Fwd benchmark reference
+      fwd_selected_benchmark_return <- selected_benchmark_returns_m_xts[which(zoo::index(selected_benchmark_returns_m_xts) == next_date), ] %>% as.numeric()
+
 
       ##############################
 
@@ -306,10 +335,10 @@ run_port_backtest_internal <- function(
           ##Liquidity floor rule and classification
           liquidity_m_d_ref = liquidity_m_d_ref, #Liquidity information to apply liquidity floor rule
           liquidity_constraint_policy =  liquidity_constraint_policy, #Liquidity policy
-          liquidity_floor_cutoffs_list = liquidity_floor_cutoffs_list, #Definitions about liquidity
+          liquidity_floor_cutoffs = liquidity_floor_cutoffs, #Definitions about liquidity
 
           ##Active concentration eligiblity
-          benchmark_weights_m_d_ref = benchmark_weights_m_d_ref, #Benchmark weights information to apply
+          benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref, #Selected benchmark weights information to apply
           groups_m_d_ref = stock_groups_m_d_ref, #Sectors data
           concentration_constraint_policy = concentration_constraint_policy, #Active weights policy
 
@@ -323,7 +352,7 @@ run_port_backtest_internal <- function(
         )
 
         #####Subset Daily Stock Returns
-        selected_returns_m_xts_upd_ref <- returns_m_xts_upd_ref[, stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+        selected_daily_assets_returns_m_xts_upd_ref <- daily_assets_returns_m_xts_upd_ref[, stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
 
 
         ##############################
@@ -347,7 +376,7 @@ run_port_backtest_internal <- function(
           cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
           active_returns = active_returns,
           #Returns sample for covariance estimation
-          returns_m_xts_upd_ref = selected_returns_m_xts_upd_ref, selected_benchmark_returns_m_xts_upd_ref = selected_benchmark_returns_m_xts_upd_ref,
+          returns_m_xts_upd_ref = selected_daily_assets_returns_m_xts_upd_ref, selected_benchmark_returns_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
           #Risk-Parity method
           rp_method = rp_method,
           #MVO Optimization
@@ -371,16 +400,17 @@ run_port_backtest_internal <- function(
 
       ##############################
 
-      ###Calculate Port Returns
+      ###Allocate Portfolio
       ##############################
       ####Print
       if(verbose){
         cat("\n")
-        cat("Calculating net portfolio returns")
+        cat("Allocating portfolio")
+        cat("\n")
       }
 
-      ####Calculate Portfolio Returns
-      port_performance_results_list <- calculate_port_performance(
+      ###Allocate the portfolio and register transactions and costs
+      port_allocation_results_list <- allocate_port(
         #Compute Transactions
         ##Bop and eop port weights (bop will be passed to be rescaled in case of no rebalancing and then added to placeholder)
         port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
@@ -389,49 +419,176 @@ run_port_backtest_internal <- function(
 
         #Transaction costs data
         ##Liquidity and vol data
-        liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref,
-        main_liquidity_metric = main_liquidity_metric,
-
+        liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref, main_liquidity_metric = main_liquidity_metric,
         ##BARRA parameters and direct cost
         transaction_costs_list <- transaction_cost_list,
 
-        #Stock returns
-        target_m_d_ref = target_m_d_ref,
-        selected_benchmark_returns_m_xts = selected_benchmark_returns_m_xts,
+        #Selected benchmark weights
+        selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
 
         #Misc
         verbose = verbose
       )
 
+        ####Collect data
+          #####Portfolio weights
+          port_weights_m_d_ref_list[[d - initial_buffer_period + 1]] <- port_allocation_results_list$port_weights_m_d_ref
+          transactions_log_m_d_ref_list[[d - initial_buffer_period + 1]] <- port_allocation_results_list$transactions_log_m_d_ref
 
+          #####Portfolio costs
+          port_costs_m_xts[current_date + 1, ] <- port_allocation_results_list$port_costs_d_ref %>%
+            dplyr::select(colnames(port_costs_m_xts)) %>% #Ensure order
+            as.numeric() #Convert to numeric
 
+      ##############################
 
+      ###Calculate Port Metrics
+      ##############################
+      ####Calculate Port Metrics if provided
+      if (!is.null(custom_stock_metrics_m_d_ref)){
+        port_metrics_d_ref <- calculate_port_metrics(
+          #Port Weights
+          port_weights_m_d_ref = port_allocation_results_list$port_weights_m_d_ref,
+          #Custom Metrics
+          custom_stock_metrics_m_d_ref = custom_stock_metrics_m_d_ref,
+          #Verbose
+          verbose = verbose
+        )
 
+        ####Collect data
+        #####Portfolio costs
+        port_metrics_m_xts[current_date, ] <- port_metrics_d_ref %>%
+          dplyr::select(colnames(port_metrics_m_xts)) %>% #Ensure order
+          as.numeric() #Convert to numeric
 
+      }
 
+      ##############################
 
+      ###Roll Portfolio
+      ##############################
 
+          ####Roll Portfolio
+          rolled_port_results_list <- roll_port(
+            #Fwd Returns
+            target_m_d_ref = target_m_d_ref, fwd_selected_benchmark_return,
+            #Current Weights
+            port_weights_m_d_ref = port_allocation_results_list$port_weights_m_d_ref,
+            #Total cost
+            total_cost = port_allocation_results_list$port_costs_d_ref %>% dplyr::pull(total_cost)
+          )
 
-      #Fill
-      ###Portfolio weights
-      portfolio_weights_m_df[d_ref, "portfolio_weights"] <- portfolio_returns_results_list$portfolio_weights_m_d_ref$portfolio_weights
-      ###Updated Port weights (current portfolio with weights updated to next period)
-      updated_portfolio_weights <- portfolio_returns_results_list$updated_portfolio_weights #Updated weights
-      ##Portfolio Returns
-      portfolio_targets_df <- portfolio_returns_results_list$portfolio_targets_df
-      ###Transactions
-      transactions_m_df_list[[d]] <- portfolio_returns_results_list$transactions_m_d_ref
+          ####Collect data
+          if (!is.null(rolled_port_results_list$fwd_port_returns_d_ref)){
+            ####Returns
+            port_returns_m_xts[next_date, ] <- rolled_port_results_list$fwd_port_returns_d_ref %>%
+              dplyr::rename_with(~stringr::str_remove(., "fwd_")) %>% #Remove fwd_ prefix
+              dplyr::select(colnames(port_returns_m_xts)) %>% #Ensure order
+              as.numeric() #Convert to numeric
 
+            ####Updated Port weights (current portfolio with weights updated to next period)
+            rolled_fwd_port_weights_m_d_ref <- rolled_port_results_list$rolled_fwd_port_weights_m_d_ref #Updated weights
+          }
 
-
-
-
-
-
-
+      ##############################
     }
+    #End backtest
+    #####################
 
   })
+
+  #Print elapsed time
+  print(elapsed_time)
+  if(verbose) cat("=============================\n")
+
+
+  ##Build Final Objs
+  ##################
+
+    ###Port Weights
+    port_weights_m_df <- create_meta_dataframe(do.call(rbind, port_weights_m_d_ref_list) %>% dplyr::arrange(id), type = "weights")
+    ###Port Allocationg Log
+    transactions_log_m_df <- create_meta_dataframe(do.call(rbind, transactions_log_m_d_ref_list) %>% dplyr::arrange(id))
+    ###Port Costs
+    port_costs_m_xts <- create_meta_xts(port_costs_m_xts, type = "metrics", source = rep("not_identified", ncol(port_costs_m_xts)))
+    ###Port Metrics
+    if (!is.null(custom_stock_metrics_m_d_ref)){
+      port_metrics_m_xts <- create_meta_xts(port_metrics_m_xts, type = "metrics", source = rep("not_identified", ncol(port_metrics_m_xts)))
+    } else {
+      port_metrics_m_xts <- NULL
+    }
+    ###Port Returns
+    port_returns_m_xts <- create_meta_xts(port_returns_m_xts, type = "returns", source = rep("not_identified", ncol(port_returns_m_xts)))
+
+    ###port_backtest_workflow
+    port_backtest_workflow <- list(
+      #Method
+      port_construction_metrod = port_construction_method,
+      exp_ret_score_metric = exp_ret_score_metric,
+      stock_selection_quantile_range = stock_selection_quantile_range,
+      selected_benchmark = selected_benchmark,
+      config_name = "not_identified",
+      backtest_identifier = "not_identified",
+      oos_sb_outputs_object_name = "not_identified",
+      #Dates
+      dates_covered = dates_m_vector,
+      n_dates = length(dates_m_vector),
+      dates_backtest = dates_backtest,
+      initial_sample_size = initial_sample_size,
+      dates_port_returns = dates_port_returns,
+      first_rebalance_date = first_rebalance_date,
+      rebalance_dates = rebalance_dates,
+      last_rebalance_date = last_rebalance_date,
+      n_rebalance_months = n_rebalance_months,
+      rebalancing_months = rebalancing_months,
+      #Stocks
+      ids = signals_m_df %>% dplyr::pull(id),
+      nobs = length(signals_m_df %>% dplyr::pull(id)),
+      tickers = unique(signals_m_df %>% dplyr::pull(tickers)),
+      n_stocks = length(unique(signals_m_df %>% dplyr::pull(tickers))),
+      #Signals
+      signals = colnames(signals_m_df[,-c(1:3)]),
+      signals_workflow = NULL,
+      signals_object_name = "not_identified",
+      #Target
+      target_fwd_name = target_fwd_name,
+      target_fwd = target_fwd,
+      target_workflow = NULL,
+      target_object_name = "not_identified",
+      #RP/MVO Parameters
+      rp_method = rp_method,
+      n_random_ports = n_random_ports,
+      random_ports_method = random_ports_method,
+      opt_objective = opt_objective,
+      opt_method = opt_method,
+      #Covariance Estimation
+      cov_estimation_method = cov_estimation_method,
+      cov_matrix_sample_size = cov_matrix_sample_size,
+      active_returns = active_returns,
+      cov_matrix_benchmark = cov_matrix_benchmark,
+      benchmark_returns_object_name = "not_identified",
+      daily_assets_returns_object_name = "not_identified",
+      daily_bench_returns_object_name = "not_identified",
+      #Constraints
+      liquidity_constraint_policy = liquidity_constraint_policy,
+      turnover_constraint_policy = turnover_constraint_policy,
+      concentration_constraint_policy = concentration_constraint_policy,
+      #Liquidity Information (Constraints and Active Returns Calculation)
+      liquidity_floor_cutoffs = liquidity_floor_cutoffs,
+      main_liquidity_metric = main_liquidity_metric,
+      transaction_costs_list = transaction_costs_list,
+      benchmark_weights_object_name = "not_identified",
+      #Misc
+      lower_quantile_winsorization = lower_quantile_winsorization,
+      upper_quantile_winsorization = upper_quantile_winsorization,
+      #Call
+      call = match.call()
+    )
+
+
+
+
+
 
 }
 

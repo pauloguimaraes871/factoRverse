@@ -71,7 +71,7 @@ roll_fwd_port_weights <- function(port_weights_m_d_ref, clean_fwd_return_1m_m_d_
     dplyr::mutate(
       updated_port_weights = updated_port_weights/sum(updated_port_weights) #Normalize updated_port_weights
     ) %>%
-    dplyr::select(-eop_port_weights, -fwd_return_1m) #Remove eop_port_weights and fwd_return_1m
+    dplyr::select(-dplyr::any_of("eop_port_weights", "fwd_return_1m", "bench_weights")) #Remove eop_port_weights, fwd_return_1m and possibly bench-weights
 
   return(rolled_fwd_port_weights_m_d_ref)
 

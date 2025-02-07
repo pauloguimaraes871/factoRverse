@@ -51,16 +51,20 @@
 calculate_transaction_costs <- function(transactions_m_d_ref,
                                         alpha, lambda,
                                         direct_transaction_cost,
-                                        strategy_aum){
+                                        strategy_aum,
+                                        verbose){
+
+  #Init transactions_and_costs_m_d_ref
+  transactions_and_costs_m_d_ref <- transactions_m_d_ref
 
   #Get BARRA Model Parameters
   ##########################
   ####Alpha
-  transactions_m_d_ref[,"alpha"] <- alpha
+  transactions_and_costs_m_d_ref[,"alpha"] <- alpha
   ####Lambda
   if (lambda == "dynamic"){
     #Dynamically adjust lambda according to trade size
-    transactions_m_d_ref <- transactions_m_d_ref %>%
+    transactions_and_costs_m_d_ref <- transactions_and_costs_m_d_ref %>%
       dplyr::mutate(lambda = dplyr::case_when(
         ##For very small trades, use lambda = 1
         relative_order_size <= 0.002 ~ 1,
@@ -72,14 +76,14 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
         TRUE ~ 0.1
       ))
   } else {
-    transactions_m_d_ref[,"lambda"] <- lambda
+    transactions_and_costs_m_d_ref[,"lambda"] <- lambda
   }
 
   ##########################
 
   #Calculate Transaction Costs
   ##########################
-  transactions_m_d_ref <- transactions_m_d_ref %>%
+  transactions_and_costs_m_d_ref <- transactions_and_costs_m_d_ref %>%
     dplyr::mutate(direct_cost = (direct_transaction_cost * abs(order))/strategy_aum) %>%
     dplyr::mutate(market_impact_cost = alpha/2*(relative_order_size^lambda)*daily_vol) %>% ##Barra Model
     dplyr::mutate(total_cost = direct_cost + market_impact_cost)
@@ -87,18 +91,37 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
 
   ##Get costs
   ##########################
-  total_direct_cost <- sum(transactions_m_d_ref$direct_cost)
-  total_market_impact_cost <- sum(transactions_m_d_ref$market_impact_cost)
-  total_cost <- total_direct_cost + total_market_impact_cost
+  direct_cost <- sum(transactions_and_costs_m_d_ref$direct_cost)
+  market_impact_cost <- sum(transactions_and_costs_m_d_ref$market_impact_cost)
+  total_cost <- direct_cost + market_impact_cost
+  turnover <- mean(abs(transactions_and_costs_m_d_ref$delta))
+
+  ###Aggregate costs
+  port_costs_d_ref <- data.frame(
+    direct_cost = transaction_costs_results_list$direct_cost, #Direct Costs
+    market_impact_cost = transaction_costs_results_list$market_impact_cost, #Indirect costs
+    total_cost = transaction_costs_results_list$total_cost, #Total costs
+    turnover = transaction_costs_results_list$turnover #Turnover
+  )
 
   ##########################
 
+  ###Print message
+  ###Messages
+  if(verbose){
+    cat("\n")
+    cat(crayon::green("Transaction costs:"))
+    cat("\n")
+    message("Total Direct Cost: ", crayon::red(direct_cost))
+    message("Total Market Impact Cost: ", crayon::red(market_impact_cost))
+    message("Total Cost: ", crayon::red(total_cost))
+    message("Turnover: ", turnover)
+    }
+
   ##Get brokerage statement
   transaction_costs_results_list <- list(
-    transactions_m_d_ref = transactions_m_d_ref,
-    total_direct_cost = total_direct_cost,
-    total_market_impact_cost = total_market_impact_cost,
-    total_cost = total_cost
+    transactions_and_costs_m_d_ref = transactions_and_costs_m_d_ref,
+    port_costs_d_ref = port_costs_d_ref
   )
 
   return(transaction_costs_results_list)

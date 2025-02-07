@@ -35,7 +35,7 @@ run_port_backtest_internal(
   volatility_m_df = NULL,
   target_m_df,
   transaction_costs_list = NULL,
-  custom_stock_universe_metrics_m_df = NULL,
+  custom_stock_universe_weights_m_df = NULL,
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
   verbose = TRUE,
