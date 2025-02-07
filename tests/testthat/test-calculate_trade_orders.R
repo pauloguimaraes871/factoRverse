@@ -50,7 +50,8 @@ test_that("calculate trade order works for a first rebalancing scenario with del
                                                         stock_universe_m_d_ref = sw_port@universe_m_d_ref@data)
 
   #Result
-  results <- calculate_trade_orders(merged_port_results = merged_port_results_list,
+  results <- calculate_trade_orders(merged_port_results_list = merged_port_results_list,
+                                    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
                                     liquidity_m_d_ref = liquidity_m_d_ref,
                                     volatility_m_d_ref = volatility_m_d_ref,
                                     strategy_aum = 100,
@@ -152,7 +153,8 @@ test_that("calculate trade order works for non-rebalancing scenario with delisti
                                                         stock_universe_m_d_ref = NULL)
 
   #Result
-  results <- calculate_trade_orders(merged_port_results = merged_port_results_list,
+  results <- calculate_trade_orders(merged_port_results_list = merged_port_results_list,
+                                    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
                                     liquidity_m_d_ref = liquidity_m_d_ref,
                                     volatility_m_d_ref = volatility_m_d_ref,
                                     strategy_aum = 100,
@@ -250,7 +252,8 @@ test_that("calculate trade order works for a first rebalancing scenario with del
                                                            stock_universe_m_d_ref = cw_port@universe_m_d_ref@data)
 
   #Result
-  results <- calculate_trade_orders(merged_port_results = merged_port_results_list,
+  results <- calculate_trade_orders(merged_port_results_list = merged_port_results_list,
+                                    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
                                     liquidity_m_d_ref = liquidity_m_d_ref,
                                     volatility_m_d_ref = volatility_m_d_ref,
                                     strategy_aum = 100,

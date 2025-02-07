@@ -11,7 +11,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
-  port_weights_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
@@ -43,7 +43,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
   #Results
   #Expect delisting message
   expect_message(
-    results <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
+    results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                          updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
                                          stock_universe_m_d_ref = sw_port@universe_m_d_ref@data
     ),
@@ -62,7 +62,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
   #Check that delisted_tickers are correct
   expect_equal(results$delisted_tickers_old_universe, "Stock B")
   expect_equal(results$delisted_tickers_old_portfolio, character(0))
-  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
+  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_placeholder_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
 
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, character(0))
@@ -83,7 +83,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 IPO", {
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
-  port_weights_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
@@ -118,7 +118,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 IPO", {
   #Results
   #Expect ipo message
   expect_message(
-    results <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
+    results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                          updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
                                          stock_universe_m_d_ref = sw_port@universe_m_d_ref@data
     ),
@@ -137,7 +137,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 IPO", {
   #Check that delisted_tickers are correct
   expect_equal(results$delisted_tickers_old_universe, "Stock B")
   expect_equal(results$delisted_tickers_old_portfolio, character(0))
-  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
+  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_placeholder_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
 
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, "Stock A")
@@ -158,7 +158,7 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 delisting", {
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
-  port_weights_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
@@ -168,13 +168,13 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 delisting", {
   #Results
   #Expect delisting message
   expect_message(
-    results <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
+    results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                          updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref
     )
   )
 
   #Checks that only new tickers are contemplated in results
-  expect_equal(results$port_weights_m_d_ref$tickers, port_weights_m_d_ref$tickers)
+  expect_equal(results$port_weights_m_d_ref$tickers, port_weights_placeholder_m_d_ref$tickers)
   expect_false("Stock B" %in% results$port_weights_m_d_ref$tickers)
 
   #Check that weights sum to 1
@@ -186,7 +186,7 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 delisting", {
   #Check that delisted_tickers are correct
   expect_equal(results$delisted_tickers_old_universe, "Stock B")
   expect_equal(results$delisted_tickers_old_portfolio, "Stock B")
-  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
+  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_placeholder_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
 
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, character(0))
@@ -209,7 +209,7 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 IPO", {
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
-  port_weights_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
@@ -223,13 +223,13 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 IPO", {
   #Results
   #Expect delisting message
   expect_message(
-    results <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
+    results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                          updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref
     )
   )
 
   #Checks that only new tickers are contemplated in results
-  expect_equal(results$port_weights_m_d_ref$tickers, port_weights_m_d_ref$tickers)
+  expect_equal(results$port_weights_m_d_ref$tickers, port_weights_placeholder_m_d_ref$tickers)
   expect_false("Stock B" %in% results$port_weights_m_d_ref$tickers)
   expect_true("Stock D" %in% results$port_weights_m_d_ref$tickers)
 
@@ -242,7 +242,7 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 IPO", {
   #Check that delisted_tickers are correct
   expect_equal(results$delisted_tickers_old_universe, "Stock B")
   expect_equal(results$delisted_tickers_old_portfolio, "Stock B")
-  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
+  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_placeholder_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
 
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, "Stock D")
@@ -265,7 +265,7 @@ test_that("merge_and_rescale weights works for toy_preprocessed_data in a new re
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
-  port_weights_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
@@ -294,7 +294,7 @@ test_that("merge_and_rescale weights works for toy_preprocessed_data in a new re
                                    liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = "mean_volfin_3m")
 
   #merge_and_rescale
-  results <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
+  results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                        updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
                                        stock_universe_m_d_ref = cw_port@universe_m_d_ref@data)
 
@@ -302,7 +302,7 @@ test_that("merge_and_rescale weights works for toy_preprocessed_data in a new re
   expect_equal(sum(results$port_weights_m_d_ref$eop_port_weights), 1)
 
   #Check that delisted stocks are not present
-  delisted_tickers <- updated_port_weights_m_lstd_ref$tickers[which(!updated_port_weights_m_lstd_ref$tickers %in% port_weights_m_d_ref$tickers)]
+  delisted_tickers <- updated_port_weights_m_lstd_ref$tickers[which(!updated_port_weights_m_lstd_ref$tickers %in% port_weights_placeholder_m_d_ref$tickers)]
   expect_false(any(delisted_tickers %in% results$port_weights_m_d_ref$tickers))
 
   #Check that weight match
@@ -312,7 +312,7 @@ test_that("merge_and_rescale weights works for toy_preprocessed_data in a new re
   #Check that delisted_tickers are correct
   expect_equal(results$delisted_tickers_old_universe, delisted_tickers)
   expect_equal(results$delisted_tickers_old_portfolio, character(0))
-  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
+  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_placeholder_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
 
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, character(0))

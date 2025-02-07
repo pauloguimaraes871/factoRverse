@@ -7,7 +7,6 @@
 #' which uses PerformanceAnalytics functions to computer the higher-order moments
 #'
 #' @return
-#' @export
 #'
 #' @examples
 set_custom_moments = function(R, portfolio, user_moments=NULL, user_method=c(returns, input, two_moment)) {

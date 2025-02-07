@@ -117,10 +117,11 @@ run_port_backtest_internal <- function(
     ###Last rebalance date
     last_rebalance_date <- max(rebalance_dates)
 
-    ###Port Objects
-    ####Create object to store portfolio weights
-    port_weights_m_df <- signals_m_df %>% dplyr::select(id, tickers, dates) #These are most up-to-date portfolio weights
-    port_weights_m_df$eop_port_weights <- 0 #Initialize portfolio weights
+    ###Port Objects List
+    ####Create port_weights list structure to stored merged port weights results
+    port_weights_m_d_ref_list <- list()
+    ####Create transaction_list
+    transactions_m_d_ref_list <- list()
 
     ####Create object to store portfolio returns
     port_returns_m_xts <- xts::xts(data.frame(
@@ -236,27 +237,30 @@ run_port_backtest_internal <- function(
       custom_stock_weights_m_d_ref <- if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
 
       #####Port Weights
+      #####End-of-period portfolio weights placeholder
+      #####At this point, this is a placeholder with zero weights, reflecting all stocks that are currently in the universe.
+      #####If it is a rebalancing month, merge_and_rescale_weights and calculate_trade_orders will generate transactions and costs needed to transform the old composition into rebalanced one.
+      #####If it is not, merge_and_rescale will just exclude delisted stocks and rescale weights to sum to 1, with calculate_trade_orders also generating a transactions_m_df.
+      #####Important: at apply_buffer_rule time, the function will look at current composition through signals_m_df and will check for positions in bop_port_weights_m_d_ref, using left_join. Therefore, delisted stocks will not be considered in the buffer rule.
+      #####After merge_and_rescale_weights, eop_port_weights will then carry weights reflecting the end-of-period port. The object is then submitted to calc_port_returns, originating fwd_port_weights_m_d_ref.
+      port_weights_placeholder_m_d_ref <- signals_m_d_ref %>%
+        dplyr::select(id, tickers, dates) %>% #This represents most up-to-date portfolio weights
+        dplyr::mutate(eop_port_weights = 0) #Initialize portfolio weights
+
       #####Old Composition Beggining-of-Period Portfolio Weights
       #####This is the old end-of-period portfolio with weights updated by fwd_1m_return (ie. composition from last period, with weights reflecting the current period). Delisted stocks are present at this point.
       if (d > 1){
-        updated_port_weights_m_lstd_ref <- fwd_port_weights_m_d_ref %>% dplyr::rename(bop_port_weights = updated_port_weights) #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
+        updated_port_weights_m_lstd_ref <- rolled_fwd_port_weights_m_d_ref %>%
+          dplyr::rename(bop_port_weights = updated_port_weights) #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
       } else {
-        #For first period, just get the composition of last period. Weights are zero by construction.
-        updated_port_weights_m_lstd_ref <- port_weights_m_df %>% dplyr::filter(dates == last_date) %>% dplyr::rename(bop_port_weights = eop_port_weights)
+        #For first period, just get the composition of last period. Weights are initialized as zero.
+        updated_port_weights_m_lstd_ref <- signals_m_df %>%
+          dplyr::filter(dates == last_date) %>%
+          dplyr::mutate(bop_port_weights = 0)
       }
-
-      #####End-of-period portfolio weights
-      #####At this point, this is a placeholder with zero weights, reflecting all stocks that are currently in the universe.
-      #####If it is a rebalancing month, update_port_weights will generate transactions and costs needed to transform the old composition into rebalanced one.
-      #####If it is not, update_port_weights will just exclude delisted stocks and rescale weights to sum to 1, also generating a transactions_m_df.
-      #####Important: at apply_buffer_rule time, the function will look at current composition through signals_m_df and will check for positions in bop_port_weights_m_d_ref, using left_join. Therefore, delisted stocks will not be considered in the buffer rule.
-      #####After update_port_weights, eop_port_weights will then carry weights reflecting the end-of-period port. The object is then submitted to calc_port_returns, originating fwd_port_weights_m_d_ref.
-      port_weights_m_d_ref <- port_weights_m_df %>% dplyr::filter(dates == current_date)
-
 
       ####Meta xts (up to date references)
       returns_m_xts_upd_ref <- returns_m_xts[which(zoo::index(returns_m_xts) <= current_date), ]
-      selected_benchmark_returns_m_xts_upd_ref <- selected_benchmark_returns_m_xts[which(zoo::index(selected_benchmark_returns_m_xts) <= current_date), ]
 
       ##############################
 
@@ -369,25 +373,44 @@ run_port_backtest_internal <- function(
 
       ###Calculate Port Returns
       ##############################
-      portfolio_returns_results_list <- calculate_portfolio_returns(
-        #Date parameters
-        current_date = current_date, is_rebalancing_month = is_rebalancing_month,
-        #Stock universe object
-        stock_universe_m_d_ref = stock_universe_m_d_ref,
-        #Returns to calculate portfolio returns
-        fwd_returns_m_d_ref = fwd_returns_m_d_ref,
-        #Returns DF
-        portfolio_targets_df = portfolio_targets_df, selected_benchmark_returns_df = selected_benchmark_returns_df,
-        #Portfolio weights objects
-        portfolio_weights_m_d_ref = portfolio_weights_m_d_ref, portfolio_weights_m_lstd_ref = portfolio_weights_m_lstd_ref,
-        #Transaction cost calculation
-        ##Liquidity data
-        liquidity_m_d_ref = liquidity_m_d_ref, main_liquidity_metric = main_liquidity_metric,
-        ##Daily vol data
-        volatility_m_d_ref = volatility_m_d_ref,
-        ##Transaction cost info
-        transaction_costs_list = transaction_costs_list
+      ####Print
+      if(verbose){
+        cat("\n")
+        cat("Calculating net portfolio returns")
+      }
+
+      ####Calculate Portfolio Returns
+      port_performance_results_list <- calculate_port_performance(
+        #Compute Transactions
+        ##Bop and eop port weights (bop will be passed to be rescaled in case of no rebalancing and then added to placeholder)
+        port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+        ##Stock universe (If rebalancing month, rebalanced weights will be passed along)
+        stock_universe_m_d_ref = if (is_rebalancing_month) stock_universe_m_d_ref else NULL,
+
+        #Transaction costs data
+        ##Liquidity and vol data
+        liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref,
+        main_liquidity_metric = main_liquidity_metric,
+
+        ##BARRA parameters and direct cost
+        transaction_costs_list <- transaction_cost_list,
+
+        #Stock returns
+        target_m_d_ref = target_m_d_ref,
+        selected_benchmark_returns_m_xts = selected_benchmark_returns_m_xts,
+
+        #Misc
+        verbose = verbose
       )
+
+
+
+
+
+
+
+
+
 
       #Fill
       ###Portfolio weights

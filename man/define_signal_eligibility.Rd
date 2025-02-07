@@ -7,7 +7,7 @@
 define_signal_eligibility(
   selected_backtest_returns_corrected_positions_m_xts_upd_ref,
   selected_market_factor_proxy_m_xts_upd_ref,
-  custom_signal_universe_metrics_m_upd_ref,
+  custom_signal_universe_metrics_m_upd_ref = NULL,
   p_correction_method = "none",
   signal_significance_threshold = 0.05,
   enable_theme_representativeness = TRUE,

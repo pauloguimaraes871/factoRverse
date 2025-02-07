@@ -5,7 +5,7 @@
 #' prints the results. The final set of weights is then rescaled to ensure the sum of weights equals 1.
 #' If the sum of weights is zero or significantly different from 1, the function stops with an error.
 #'
-#' @param port_weights_m_d_ref A data frame containing the current universe of stocks
+#' @param port_weights_placeholder_m_d_ref A data frame containing the current universe of stocks
 #'   (typically with columns \code{tickers}, \code{id}, and any other relevant columns for the current period).
 #' @param updated_port_weights_m_lstd_ref A data frame containing the updated or lagged portfolio weights,
 #'   (typically with columns \code{tickers} and \code{bop_port_weights}) referring to weights carried over from the last period.
@@ -36,58 +36,58 @@
 #'   \item{\code{ipo_tickers}}{A character vector of newly introduced tickers in the current universe (i.e., IPOs).}
 #' }
 #'
-merge_and_rescale_weights <- function(port_weights_m_d_ref, updated_port_weights_m_lstd_ref,
+merge_and_rescale_weights <- function(port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref,
                                       stock_universe_m_d_ref = NULL, verbose = TRUE){
 
   #Get portfolio compositions
   ###########################
-    ##Lagged Universe (use portfolio with last composition but updated weights)
-    tickers_old_universe <- updated_port_weights_m_lstd_ref %>% dplyr::pull(tickers)
-    tickers_old_portfolio <- updated_port_weights_m_lstd_ref %>% dplyr::filter(bop_port_weights > 0) %>% dplyr::pull(tickers)
+  ##Lagged Universe (use portfolio with last composition but updated weights)
+  tickers_old_universe <- updated_port_weights_m_lstd_ref %>% dplyr::pull(tickers)
+  tickers_old_portfolio <- updated_port_weights_m_lstd_ref %>% dplyr::filter(bop_port_weights > 0) %>% dplyr::pull(tickers)
 
-    ##Current Universe
-    tickers_current_universe <- port_weights_m_d_ref %>% dplyr::pull(tickers)
+  ##Current Universe
+  tickers_current_universe <- port_weights_placeholder_m_d_ref %>% dplyr::pull(tickers)
 
-    ##Tickers in common
-    tickers_both_universes <- dplyr::intersect(tickers_old_universe, tickers_current_universe)
+  ##Tickers in common
+  tickers_both_universes <- dplyr::intersect(tickers_old_universe, tickers_current_universe)
 
-    ##Delisted stocks
-    delisted_tickers_old_universe <- dplyr::setdiff(tickers_old_universe, tickers_current_universe)
-    delisted_tickers_old_portfolio <- dplyr::setdiff(tickers_old_portfolio, tickers_current_universe)
+  ##Delisted stocks
+  delisted_tickers_old_universe <- dplyr::setdiff(tickers_old_universe, tickers_current_universe)
+  delisted_tickers_old_portfolio <- dplyr::setdiff(tickers_old_portfolio, tickers_current_universe)
 
-    ##IPOs (new tickers)
-    ipo_tickers <- dplyr::setdiff(tickers_current_universe, tickers_old_universe)
+  ##IPOs (new tickers)
+  ipo_tickers <- dplyr::setdiff(tickers_current_universe, tickers_old_universe)
 
-      ###Print changes
-      if (verbose){
-        ###Deslisted tickers
-        if (length(delisted_tickers_old_universe) != 0){
-          cat("\n")
-          message(paste0(
-            "Delisted tickers: ", paste0(delisted_tickers_old_universe, collapse = ", "), ". Of those, the following were in the portfolio: ",
-            if (length(delisted_tickers_old_portfolio) != 0) crayon::yellow(paste0(delisted_tickers_old_portfolio, collapse = ", ")))
-          )
-        }
-        ###IPOs
-        if (length(ipo_tickers) != 0){
-          cat("\n")
-          message(paste("IPOs:", ipo_tickers))
-        }
-      }
+  ###Print changes
+  if (verbose){
+    ###Deslisted tickers
+    if (length(delisted_tickers_old_universe) != 0){
+      cat("\n")
+      message(paste0(
+        "Delisted tickers: ", paste0(delisted_tickers_old_universe, collapse = ", "), ". Of those, the following were in the portfolio: ",
+        if (length(delisted_tickers_old_portfolio) != 0) crayon::yellow(paste0(delisted_tickers_old_portfolio, collapse = ", ")))
+      )
+    }
+    ###IPOs
+    if (length(ipo_tickers) != 0){
+      cat("\n")
+      message(paste("IPOs:", ipo_tickers))
+    }
+  }
 
-    ###########################
+  ###########################
 
-    #Elaborate new portfolio
-    ###########################
-    ##If stock_universe_m_d_ref is not NULL, use new weights
-    if (!is.null(stock_universe_m_d_ref)){
-      port_weights_m_d_ref <- port_weights_m_d_ref %>%
-        dplyr::left_join(stock_universe_m_d_ref %>% dplyr::select(id, weights), by = "id") %>% #Get rebalanced weights from stock_universe
-        dplyr::mutate(eop_port_weights = weights) %>% #Make the from -> to
-        dplyr::select(-weights) #Unselect weights
-    } else {
-      ##Otherwise, get updated weights from last period
-      port_weights_m_d_ref <- port_weights_m_d_ref %>%
+  #Elaborate new portfolio
+  ###########################
+  ##If stock_universe_m_d_ref is not NULL, use new weights
+  if (!is.null(stock_universe_m_d_ref)){
+    port_weights_m_d_ref <- port_weights_placeholder_m_d_ref %>%
+      dplyr::left_join(stock_universe_m_d_ref %>% dplyr::select(id, weights), by = "id") %>% #Get rebalanced weights from stock_universe
+      dplyr::mutate(eop_port_weights = weights) %>% #Make the from -> to
+      dplyr::select(-weights) #Unselect weights
+  } else {
+    ##Otherwise, get updated weights from last period
+    port_weights_m_d_ref <- port_weights_placeholder_m_d_ref %>%
         dplyr::left_join(updated_port_weights_m_lstd_ref %>% dplyr::select(tickers, bop_port_weights), by = "tickers") %>% #Get updated weights from last period
         dplyr::mutate(eop_port_weights = bop_port_weights) %>% #Make the from -> to
         dplyr::select(-bop_port_weights) #Unselect weights
@@ -102,20 +102,19 @@ merge_and_rescale_weights <- function(port_weights_m_d_ref, updated_port_weights
                                        eop_port_weights/sum_weights #Else rescale
                         )
         )
-    }
-    ###Check if weights sum to 1
-    if ((sum(port_weights_m_d_ref$eop_port_weights, na.rm = TRUE) - 1) > 0.02) stop("Weights do not sum to 1.")
-    ###########################
+  }
+  ###Check if weights sum to 1
+  if ((sum(port_weights_m_d_ref$eop_port_weights, na.rm = TRUE) - 1) > 0.02) stop("Weights do not sum to 1.")
+  ###########################
 
-    #Get all outputs
-    merged_port_results <- list(
-      port_weights_m_d_ref = port_weights_m_d_ref,
-      updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-      tickers_both_universes = tickers_both_universes,
-      delisted_tickers_old_universe = delisted_tickers_old_universe,
-      delisted_tickers_old_portfolio = delisted_tickers_old_portfolio,
-      ipo_tickers = ipo_tickers
-    )
+  #Get all outputs
+  merged_port_results_list <- list(
+    port_weights_m_d_ref = port_weights_m_d_ref,
+    tickers_both_universes = tickers_both_universes,
+    delisted_tickers_old_universe = delisted_tickers_old_universe,
+    delisted_tickers_old_portfolio = delisted_tickers_old_portfolio,
+    ipo_tickers = ipo_tickers
+  )
 
-    return(merged_port_results)
+  return(merged_port_results_list)
 }
