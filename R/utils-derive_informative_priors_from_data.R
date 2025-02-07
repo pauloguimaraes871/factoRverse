@@ -99,7 +99,6 @@
 #' derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "none")
 #'
 #'
-#' @export
 derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_theme_level,
                                                 half_t_df = 30, lmer_optimizer = "nloptwrap", lmer_optimization_objective = "REML"){
 
