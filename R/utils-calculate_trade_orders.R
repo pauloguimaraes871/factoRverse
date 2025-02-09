@@ -87,13 +87,13 @@ calculate_trade_orders <- function(merged_port_results_list,
   #Add order data
   ###########################
   transactions_m_d_ref <- transactions_m_d_ref %>%
-           dplyr::mutate(delta = eop_port_weights - bop_port_weights) %>%
-           dplyr::mutate(order = delta*strategy_aum) %>%
-           dplyr::mutate(relative_order_size = abs(order)/!!rlang::sym(main_liquidity_metric))
+    dplyr::mutate(delta = eop_port_weights - bop_port_weights) %>%
+    dplyr::mutate(order = delta*strategy_aum) %>%
+    dplyr::mutate(relative_order_size = abs(order)/!!rlang::sym(main_liquidity_metric))
 
 
-         ###########################
+  ###########################
 
-         return(transactions_m_d_ref)
+  return(transactions_m_d_ref)
 
 }

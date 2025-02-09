@@ -11,7 +11,7 @@
 #' @param volatility_m_d_ref A data frame containing volatility metrics.
 #' @param main_liquidity_metric The name (or indicator) of the primary liquidity metric to use.
 #'   By default, it is expected to be defined externally if not explicitly passed.
-#' @param transaction_cost_list A list of transaction cost parameters. Expected elements are:
+#' @param transaction_costs_parameters A list of transaction cost parameters. Expected elements are:
 #'   \itemize{
 #'     \item \code{strategy_aum} - Strategy Assets Under Management.
 #'     \item \code{alpha} - Parameter for indirect transaction cost calculation.
@@ -33,7 +33,7 @@
 #' @details
 #' The function performs the following steps:
 #' \enumerate{
-#'   \item **Initial Prep:** Extracts transaction cost parameters from \code{transaction_cost_list}.
+#'   \item **Initial Prep:** Extracts transaction cost parameters from \code{transaction_costs_parameters}.
 #'   \item **Merge Portfolio Weights:** Uses \code{merge_and_rescale_weights()} to merge placeholder and updated weights,
 #'         ensuring alignment with the stock universe.
 #'   \item **Calculate Transactions:** Computes trade orders using \code{calculate_trade_orders()} with liquidity and
@@ -54,7 +54,7 @@
 #'     liquidity_m_d_ref = liquidity_data,
 #'     volatility_m_d_ref = volatility_data,
 #'     main_liquidity_metric = "liquidity_metric",
-#'     transaction_cost_list = list(
+#'     transaction_costs_parameters = list(
 #'       strategy_aum = 1000000,
 #'       alpha = 0.01,
 #'       lambda = 0.02,
@@ -78,7 +78,7 @@ allocate_port <- function(
   stock_universe_m_d_ref,
   #Transaction costs
   liquidity_m_d_ref, volatility_m_d_ref, main_liquidity_metric = main_liquidity_metric, ##Vol and Liquidity
-  transaction_cost_list, ##BARRA model parameters and direct transaction cost
+  transaction_costs_parameters, ##BARRA model parameters and direct transaction cost
   #Selected bench weights
   selected_benchmark_weights_m_d_ref,
   #Misc
@@ -89,10 +89,10 @@ allocate_port <- function(
   ####################
 
   ##Get transaction_cost parameters
-  strategy_aum <- transaction_cost_list$strategy_aum
-  alpha <- transaction_cost_list$alpha
-  lambda <- transaction_cost_list$lambda
-  direct_transaction_cost <- transaction_cost_list$direct_transaction_cost
+  strategy_aum <- transaction_costs_parameters$strategy_aum
+  alpha <- transaction_costs_parameters$alpha
+  lambda <- transaction_costs_parameters$lambda
+  direct_transaction_cost <- transaction_costs_parameters$direct_transaction_cost
 
   ####################
 

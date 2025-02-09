@@ -245,12 +245,12 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_m_xts o
   signals_m_df <- signals_m_df %>% dplyr::filter(!dates == "2001-03-15")
 
   expect_no_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
-                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
-                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
-                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
-                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
-                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
-                                        rebalancing_months = 6)
+                                           backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                           enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                           market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                           signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                           signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                           rebalancing_months = 6)
   )
 
 

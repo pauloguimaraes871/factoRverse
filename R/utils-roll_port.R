@@ -4,7 +4,7 @@
 #' based on forward one-month stock returns. It filters the target return data to remove missing values, computes
 #' net portfolio returns (using a helper function), and then rolls the portfolio weights (using another helper function).
 #'
-#' @param target_m_d_ref A data frame containing stock return information with at least the columns:
+#' @param fwd_return_m_d_ref A data frame containing stock return information with at least the columns:
 #'   \code{id}, \code{tickers}, \code{dates}, and \code{fwd_return_1m} (forward 1-month returns).
 #' @param fwd_selected_benchmark_return The forward return of the selected benchmark. This can be a numeric value or a data structure as required by the helper functions.
 #' @param port_weights_m_d_ref A data frame of current portfolio weights.
@@ -20,7 +20,7 @@
 #' @details
 #' The function follows these steps:
 #' \enumerate{
-#'   \item Extracts the forward 1-month stock returns from \code{target_m_d_ref}, dropping any rows with missing values.
+#'   \item Extracts the forward 1-month stock returns from \code{fwd_return_m_d_ref}, dropping any rows with missing values.
 #'   \item If there are valid returns (i.e., at least one row remains), it prints a message (if \code{verbose} is \code{TRUE}),
 #'         calculates the net portfolio return using \code{calculate_port_returns()}, and then rolls the portfolio weights
 #'         to the next period using \code{roll_fwd_port_weights()}.
@@ -29,7 +29,7 @@
 #'
 roll_port <- function(
     #Return information
-    target_m_d_ref, fwd_selected_benchmark_return,
+    fwd_return_m_d_ref, fwd_selected_benchmark_return,
     #Portfolio weights
     port_weights_m_d_ref,
     #Transaction costs
@@ -43,7 +43,7 @@ roll_port <- function(
 
     ##Calculate port returns
       ###Get fwd_1m stock returns
-      clean_fwd_return_1m_m_d_ref <- target_m_d_ref %>%
+      clean_fwd_return_1m_m_d_ref <- fwd_return_m_d_ref %>%
         dplyr::select(id, tickers, dates, fwd_return_1m) %>% #Select only relevant columns
         tidyr::drop_na(fwd_return_1m) #Filter out NA values
 
@@ -76,30 +76,30 @@ roll_port <- function(
           clean_fwd_return_1m_m_d_ref = clean_fwd_return_1m_m_d_ref
         )
 
-    } else {
+      } else {
 
-      ####Print
-      if(verbose){
-        cat("\n")
-        cat("End of backtest. No more dates to roll port")
+        ####Print
+        if(verbose){
+          cat("\n")
+          cat("End of backtest. No more dates to roll port")
+        }
+
+        fwd_port_returns_d_ref <- NULL
+        rolled_fwd_port_weights_m_d_ref <- NULL
       }
 
-      fwd_port_returns_d_ref <- NULL
-      rolled_fwd_port_weights_m_d_ref <- NULL
-    }
+      ############################
 
-  ############################
+      #Return results
+      rolled_port_results_list <- list(
+        rolled_fwd_port_weights_m_d_ref = rolled_fwd_port_weights_m_d_ref,
+        fwd_port_returns_d_ref = fwd_port_returns_d_ref
+      )
 
-  #Return results
-  rolled_port_results_list <- list(
-    rolled_fwd_port_weights_m_d_ref = rolled_fwd_port_weights_m_d_ref,
-    fwd_port_returns_d_ref = fwd_port_returns_d_ref
-  )
-
-  return(rolled_port_results_list)
+      return(rolled_port_results_list)
 
 
-  ####################
+      ####################
 
 
 }

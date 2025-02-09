@@ -151,9 +151,9 @@ check_inputs_ss_backtest <- function(
     stop("chosen_signals_and_positions should not contain 'low_'.")
   }
 
-  #initial_sample_size and
+  #initial_sample_size
   if(any(!is.numeric(initial_sample_size))){
-    stop("initial_sample_size and  must be numeric")
+    stop("initial_sample_size must be numeric")
   }
 
   #backtest_returns_m_xts
@@ -215,10 +215,6 @@ check_inputs_ss_backtest <- function(
     stop("dates in benchmark_returns_m_xts and backtest_returns_m_xts must be the same")
   }
 
-  if(any(!backtest_returns_dates %in% benchmark_returns_dates)){
-    stop("dates in benchmark_returns_m_xts and backtest_returns_m_xts must be the same")
-  }
-
   if(any(apply(benchmark_returns_m_xts, 2, function(x) all(is.na(x))))){
     stop("benchmark_returns_m_xts must not have any NA values")
   }
@@ -233,6 +229,11 @@ check_inputs_ss_backtest <- function(
   }
 
   #signal_themes_m_df
+  ##Check if it is coercible
+  if(!is_coercible_to_meta_dataframe(signal_themes_m_df)){
+    stop("signal_themes_m_df must be coercible to a meta dataframe")
+   }
+
   ###Check if signal_themes_m_df contemplates theme column
   if(enable_theme_representativeness & is.null(signal_themes_m_df)){
     stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
@@ -258,16 +259,16 @@ check_inputs_ss_backtest <- function(
   }
 
   ##Check if dates in signal_themes_m_df and signals_m_df are the same
-    signal_dates_m_vector <- as.Date(unique(signals_m_df %>% dplyr::pull(dates)))
-    signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df %>% dplyr::pull(dates)))
-    if(any(!signal_dates_m_vector %in% signal_themes_dates_m_vector)){
-      stop("dates in signal_themes_m_df and signals_m_df must be the same")
-    }
+  signal_dates_m_vector <- as.Date(unique(signals_m_df %>% dplyr::pull(dates)))
+  signal_themes_dates_m_vector <- as.Date(unique(signal_themes_m_df %>% dplyr::pull(dates)))
+  if(any(!signal_dates_m_vector %in% signal_themes_dates_m_vector)){
+    stop("dates in signal_themes_m_df and signals_m_df must be the same")
+  }
 
-    ###Check for NAs
-    if (any(is.na(signal_themes_m_df))){
-      stop("signal_themes_m_df should not have NAs")
-    }
+  ###Check for NAs
+  if (any(is.na(signal_themes_m_df))){
+    stop("signal_themes_m_df should not have NAs")
+  }
 
   ##Check if there is a theme classification for every date
   expected_ids_in_signal_themes <- expand.grid(tickers = names(chosen_signals_corrected_positions), dates = signal_dates_m_vector) %>%
@@ -276,277 +277,277 @@ check_inputs_ss_backtest <- function(
     stop("chosen_signals_and_positions must have a theme classification for every date")
   }
 
-   #model_structure
-   if(!model_structure %in% c("no_pooled", "partial_pooled")){
-     stop("model_structure must be one of 'no_pooled' or 'partial_pooled'")
-   }
-    if(model_structure == "partial_pooled"){
-      #lmer control
-      if(!is.null(lmer_control)){
-        if(any(!names(lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective", "hierarchical_p_value_method"))){
-          stop("lmer_control should have only 'lmer_optimizer', 'lmer_optimization_objective' or 'hierarchical_p_value_method' as names.")
-        }
+  #model_structure
+  if(!model_structure %in% c("no_pooled", "partial_pooled")){
+    stop("model_structure must be one of 'no_pooled' or 'partial_pooled'")
+  }
+  if(model_structure == "partial_pooled"){
+    #lmer control
+    if(!is.null(lmer_control)){
+      if(any(!names(lmer_control) %in% c("lmer_optimizer", "lmer_optimization_objective", "hierarchical_p_value_method"))){
+        stop("lmer_control should have only 'lmer_optimizer', 'lmer_optimization_objective' or 'hierarchical_p_value_method' as names.")
+      }
 
-        if(!is.null(lmer_control$lmer_optimizer) && !lmer_control$lmer_optimizer %in% c("Nelder_Mead", "bobyqa", "nlminbwrap", "nloptwrap")){
-          stop("lmer_optimizer should be one of 'Nelder_Mead', 'bobyqa', 'nlminbwrap' or 'nloptwrap'")
-        }
+      if(!is.null(lmer_control$lmer_optimizer) && !lmer_control$lmer_optimizer %in% c("Nelder_Mead", "bobyqa", "nlminbwrap", "nloptwrap")){
+        stop("lmer_optimizer should be one of 'Nelder_Mead', 'bobyqa', 'nlminbwrap' or 'nloptwrap'")
+      }
 
-        if(!is.null(lmer_control$lmer_optimization_objective) && !lmer_control$lmer_optimization_objective %in% c("likelihood", "REML")){
-          stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
-        }
+      if(!is.null(lmer_control$lmer_optimization_objective) && !lmer_control$lmer_optimization_objective %in% c("likelihood", "REML")){
+        stop("lmer_optimization_objective should be one of 'likelihood' or 'REML'")
+      }
 
-        if(!is.null(lmer_control$hierarchical_p_value_method) && !lmer_control$hierarchical_p_value_method %in% c("Satterthwaite", "Kenward-Roger", "lme4")){
-          stop("hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
-        }
-        if(any(is.null(theme_level_intercept), is.null(theme_level_slope))){
-          stop("For 'partial_pooled' model structure, 'theme_level_intercept' and 'theme_level_slope' must be provided.")
-        }
+      if(!is.null(lmer_control$hierarchical_p_value_method) && !lmer_control$hierarchical_p_value_method %in% c("Satterthwaite", "Kenward-Roger", "lme4")){
+        stop("hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
+      }
+      if(any(is.null(theme_level_intercept), is.null(theme_level_slope))){
+        stop("For 'partial_pooled' model structure, 'theme_level_intercept' and 'theme_level_slope' must be provided.")
       }
     }
-    #p_correction_method
-    if(!p_correction_method %in% c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "bayesian", "none")){
-      stop("p_correction_method must be one of 'holm', 'hochberg', 'hommel', 'bonferroni', 'BH', 'BY', 'fdr', 'bayesian' or 'none'")
+  }
+  #p_correction_method
+  if(!p_correction_method %in% c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "bayesian", "none")){
+    stop("p_correction_method must be one of 'holm', 'hochberg', 'hommel', 'bonferroni', 'BH', 'BY', 'fdr', 'bayesian' or 'none'")
+  }
+
+  if(p_correction_method == "bayesian" && model_structure == "no_pooled"){
+    stop("bayesian p_correction_method is currently only available for partial_pooled model_structure")
+  }
+
+  #signal_significance_threshold
+  if(any(signal_significance_threshold < 0, signal_significance_threshold > 1)){
+    stop("signal_significance_threshold must be between 0 and 1")
+  }
+
+  #priors_m_df
+  if(!is.null(priors_m_df)){
+
+    ###Coercible
+    if(!(is_coercible_to_meta_dataframe(priors_m_df))){
+      stop("priors_m_df should be coercible to meta_dataframe object")
+    }
+    ###Check if all required columns are present
+    if (any(!colnames(priors_m_df) == c("id", "tickers", "dates", "return", "market_factor_proxy", "theme"))) {
+      stop("priors_m_df must have columns 'id', 'tickers', 'dates', 'return', 'market_factor_proxy' and 'theme'")
     }
 
-    if(p_correction_method == "bayesian" && model_structure == "no_pooled"){
-      stop("bayesian p_correction_method is currently only available for partial_pooled model_structure")
+    ###Check if priors_m_df has themes for every date
+    chosen_signals_themes <- signal_themes_m_df %>% dplyr::filter(tickers %in% names(chosen_signals_corrected_positions)) %>% dplyr::pull(theme) %>% unique()
+    expected_theme_ids_in_priors <- expand.grid(tickers = chosen_signals_themes, dates = signal_dates_m_vector) %>%
+      dplyr::mutate(id = paste0(tickers, "-", dates)) %>% dplyr::pull(id)
+    actual_theme_ids_in_priors <- priors_m_df %>% dplyr::mutate(theme_id = paste0(theme, "-", dates)) %>% dplyr::pull(theme_id) %>% unique()
+
+    if(any(!expected_theme_ids_in_priors %in% actual_theme_ids_in_priors)){
+      stop("priors_m_df themes must contemplate all themes of chosen_signals_and_positions throughout all backtest dates")
     }
 
-    #signal_significance_threshold
-    if(any(signal_significance_threshold < 0, signal_significance_threshold > 1)){
-      stop("signal_significance_threshold must be between 0 and 1")
+    ###Check if all themes are present
+    if(!all(unique(priors_m_df %>% dplyr::pull(theme)) %in% unique(signal_themes_m_df %>% dplyr::pull(theme))) ||
+       !all(unique(signal_themes_m_df %>% dplyr::pull(theme)) %in% unique(priors_m_df %>% dplyr::pull(theme)))
+    ){
+      stop("themes in priors_m_df and signal_themes_m_df should match")
     }
 
-    #priors_m_df
-    if(!is.null(priors_m_df)){
-
-      ###Coercible
-      if(!(is_coercible_to_meta_dataframe(priors_m_df))){
-        stop("priors_m_df should be coercible to meta_dataframe object")
-      }
-      ###Check if all required columns are present
-      if (any(!colnames(priors_m_df) == c("id", "tickers", "dates", "return", "market_factor_proxy", "theme"))) {
-        stop("priors_m_df must have columns 'id', 'tickers', 'dates', 'return', 'market_factor_proxy' and 'theme'")
-      }
-
-      ###Check if priors_m_df has themes for every date
-      chosen_signals_themes <- signal_themes_m_df %>% dplyr::filter(tickers %in% names(chosen_signals_corrected_positions)) %>% dplyr::pull(theme) %>% unique()
-      expected_theme_ids_in_priors <- expand.grid(tickers = chosen_signals_themes, dates = signal_dates_m_vector) %>%
-        dplyr::mutate(id = paste0(tickers, "-", dates)) %>% dplyr::pull(id)
-      actual_theme_ids_in_priors <- priors_m_df %>% dplyr::mutate(theme_id = paste0(theme, "-", dates)) %>% dplyr::pull(theme_id) %>% unique()
-
-      if(any(!expected_theme_ids_in_priors %in% actual_theme_ids_in_priors)){
-        stop("priors_m_df themes must contemplate all themes of chosen_signals_and_positions throughout all backtest dates")
-      }
-
-      ###Check if all themes are present
-      if(!all(unique(priors_m_df %>% dplyr::pull(theme)) %in% unique(signal_themes_m_df %>% dplyr::pull(theme))) ||
-         !all(unique(signal_themes_m_df %>% dplyr::pull(theme)) %in% unique(priors_m_df %>% dplyr::pull(theme)))
-      ){
-        stop("themes in priors_m_df and signal_themes_m_df should match")
-      }
-
-      ###Check for NAs
-      if (any(is.na(priors_m_df))){
-        stop("priors_m_df should not have NAs")
-      }
-
+    ###Check for NAs
+    if (any(is.na(priors_m_df))){
+      stop("priors_m_df should not have NAs")
     }
 
-    #custom_signal_universe_metrics_m_df
-    if (!is.null(custom_signal_universe_metrics_m_df)){
+  }
 
-      ###Coercible
-      if (!(is_coercible_to_meta_dataframe(custom_signal_universe_metrics_m_df))){
-        stop("custom_signal_universe_metrics_m_df should be coercible to meta_dataframe object")
+  #custom_signal_universe_metrics_m_df
+  if (!is.null(custom_signal_universe_metrics_m_df)){
+
+    ###Coercible
+    if (!(is_coercible_to_meta_dataframe(custom_signal_universe_metrics_m_df))){
+      stop("custom_signal_universe_metrics_m_df should be coercible to meta_dataframe object")
+    }
+
+    ###Check if signals match
+    if (any(!names(chosen_signals_corrected_positions) %in% dplyr::pull(custom_signal_universe_metrics_m_df, tickers))){
+      stop("all chosen signals should be contemplated in custom_signal_universe_metrics_m_df")
+    }
+
+    ###Check if first rebalancing date is contemplated in custom_signal_universe_metrics_m_df
+    first_rebalancing_date <- signal_dates_m_vector[initial_sample_size]
+    if (first_rebalancing_date < min(dplyr::pull(custom_signal_universe_metrics_m_df, dates))){
+      stop("first rebalancing date should be contemplated in custom_signal_universe_metrics_m_df")
+    }
+
+    ###Check if nrows match tickers * dates
+    if (custom_signal_universe_metrics_m_df %>% nrow() != length(unique(dplyr::pull(custom_signal_universe_metrics_m_df, tickers))) * length(unique(dplyr::pull(custom_signal_universe_metrics_m_df, dates)))){
+      stop("custom_signal_universe_metrics_m_df should have nrows equal to tickers * dates")
+    }
+
+    ###Check for NAs
+    if (any(is.na(custom_signal_universe_metrics_m_df))){
+      stop("custom_signal_universe_metrics_m_df should not have NAs")
+    }
+
+    ###Check if any colname match the usual output from summarize_performance
+    valid_heuristic_sb_metrics <- c(
+      "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
+      "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
+      "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
+      "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
+      "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
+      "prob_sharpe_ratio", "modigliani", "ann_modigliani",
+      "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
+      "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
+      "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
+      "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
+      "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
+      "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
+      "act_modigliani", "act_ann_modigliani",
+      "alpha", "theme_alpha", "individual_alpha", "alpha_se", "theme_beta", "individual_beta", "specific_risk",
+      "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
+      "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
+      "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
+    )
+
+    if (any(colnames(custom_signal_universe_metrics_m_df) %in% valid_heuristic_sb_metrics)){
+      stop("custom_signal_universe_metrics_m_df should not have colnames that match the usual output from summarize_performance")
+    }
+
+
+  }
+
+
+  ###Check if bayesian fit can be run
+  if(p_correction_method == "bayesian"){
+    if (is.null(user_priors) && is.null(priors_m_df)){
+      stop("Currently, bayesian fit requires user_priors or priors_m_df.") #This warning is because using uninformative priors has not been tested yet.
+    }
+
+    if(is.null(signal_themes_m_df)){
+      stop("bayesian fit requires signal_themes_m_df.")
+    }
+
+    if(!is.null(user_priors) && !all(class(user_priors) == c("brmsprior", "data.frame"))){
+      stop("user_priors should contain only brmsprior objects.")
+    }
+
+
+    #User priors
+    if(!is.null(user_priors)){
+      if (!is.data.frame(user_priors)) {
+        stop("user_priors must be a data.frame.")
       }
 
-      ###Check if signals match
-      if (any(!names(chosen_signals_corrected_positions) %in% dplyr::pull(custom_signal_universe_metrics_m_df, tickers))){
-        stop("all chosen signals should be contemplated in custom_signal_universe_metrics_m_df")
+      # Extract selected themes from signal_themes_m_df
+      themes <- unique(signal_themes_m_df %>% dplyr::filter(tickers %in% names(chosen_signals_corrected_positions)) %>% dplyr::pull(theme))
+      n_themes <- length(themes)
+
+      # Define expected structures based on `model_spec_theme_level`
+      model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
+      if(!model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
+        stop("Invalid model specification at theme-level")
       }
 
-      ###Check if first rebalancing date is contemplated in custom_signal_universe_metrics_m_df
-      first_rebalancing_date <- signal_dates_m_vector[initial_sample_size]
-      if (first_rebalancing_date < min(dplyr::pull(custom_signal_universe_metrics_m_df, dates))){
-        stop("first rebalancing date should be contemplated in custom_signal_universe_metrics_m_df")
-      }
-
-      ###Check if nrows match tickers * dates
-      if (custom_signal_universe_metrics_m_df %>% nrow() != length(unique(dplyr::pull(custom_signal_universe_metrics_m_df, tickers))) * length(unique(dplyr::pull(custom_signal_universe_metrics_m_df, dates)))){
-        stop("custom_signal_universe_metrics_m_df should have nrows equal to tickers * dates")
-      }
-
-      ###Check for NAs
-      if (any(is.na(custom_signal_universe_metrics_m_df))){
-        stop("custom_signal_universe_metrics_m_df should not have NAs")
-      }
-
-      ###Check if any colname match the usual output from summarize_performance
-      valid_heuristic_sb_metrics <- c(
-        "arith_mean_ret", "geom_mean_ret", "ann_ret", "std_dev", "ann_std_dev",
-        "semi_dev", "down_dev", "dd_dev", "down_freq", "exp_short", "pain", "ulcer", "max_dd", "skew", "kurt",
-        "sharpe_ratio", "ann_sharpe_ratio", "sharpe_ratio_semi_dev", "sortino_ratio", "ann_burke_ratio",
-        "inv_d_ratio", "sharpe_ratio_exp_short", "ann_pain_ratio", "ann_martin_ratio", "ann_calmar_ratio",
-        "ann_adj_sharpe_ratio", "omega", "rachev_ratio", "avg_dd_rec", "avg_dd_length", "hurst", "min_track_record",
-        "prob_sharpe_ratio", "modigliani", "ann_modigliani",
-        "act_arith_mean_ret", "act_geom_mean_ret", "act_ann_ret", "track_err", "ann_track_err",
-        "act_semi_dev", "act_down_dev", "act_dd_dev", "act_down_freq", "act_exp_short", "act_pain", "act_ulcer",
-        "act_max_dd", "act_skew", "act_kurt", "info_ratio", "ann_info_ratio", "info_ratio_semi_dev",
-        "act_sortino_ratio", "act_ann_burke_ratio", "act_inv_d_ratio", "info_ratio_exp_short", "act_ann_pain_ratio",
-        "act_ann_martin_ratio", "act_ann_calmar_ratio", "ann_adj_info_ratio", "act_omega", "act_rachev_ratio",
-        "act_avg_dd_rec", "act_avg_dd_length", "act_hurst", "act_min_track_record", "prob_info_ratio",
-        "act_modigliani", "act_ann_modigliani",
-        "alpha", "theme_alpha", "individual_alpha", "alpha_se", "theme_beta", "individual_beta", "specific_risk",
-        "alpha_t_stat", "treynor_ratio", "appraisal_ratio", "p_value",
-        "posterior_theme_alpha", "posterior_individual_alpha", "posterior_alpha_se", "posterior_theme_beta", "posterior_individual_beta",
-        "posterior_specific_risk", "posterior_alpha_t_stat", "posterior_treynor_ratio", "posterior_appraisal_ratio", "pd_theme_alpha", "pd_alpha"
+      expected_rows <- switch(
+        model_spec_theme_level,
+        "random_intercept_fixed_slope" = 7,
+        "theme_specific_intercept_fixed_slope" = n_themes + 5,
+        "theme_specific_intercept_theme_specific_slope" = n_themes * 2 + 4,
+        "fixed_intercept_fixed_slope" = 6,
+        stop("Invalid model specification at themelevel")
       )
 
-      if (any(colnames(custom_signal_universe_metrics_m_df) %in% valid_heuristic_sb_metrics)){
-        stop("custom_signal_universe_metrics_m_df should not have colnames that match the usual output from summarize_performance")
+      # Check number of rows
+      if (nrow(user_priors) != expected_rows) {
+        stop(sprintf("Expected %d rows for theme-level model specification '%s', but got %d.",
+                     expected_rows, model_spec_theme_level, nrow(user_priors)))
       }
 
+      # Define validation rules for each model_spec_theme_level
+      validate_structure <- switch(
+        model_spec_theme_level,
+        "random_intercept_fixed_slope" = {
+          required_rows <- data.frame(
+            class = c("Intercept", "b", "sd", "sd", "sd", "sigma", "cor"),
+            coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "Intercept", "", ""),
+            group = c("", "", "theme:tickers", "theme:tickers", "theme", "", "")
+          )
+          all(apply(required_rows, 1, function(row) {
+            any(user_priors$class == row["class"] &
+                  user_priors$coef == row["coef"] &
+                  user_priors$group == row["group"])
+          }))
+        },
+        "theme_specific_intercept_fixed_slope" = {
+          intercept_rows <- data.frame(
+            class = "b",
+            coef = sprintf("theme%s", themes),
+            group = ""
+          )
+          common_rows <- data.frame(
+            class = c("b", "sd", "sd", "sigma", "cor"),
+            coef = c("market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
+            group = c("", "theme:tickers", "theme:tickers", "", "")
+          )
+          all(apply(rbind(intercept_rows, common_rows), 1, function(row) {
+            any(user_priors$class == row["class"] &
+                  user_priors$coef == row["coef"] &
+                  user_priors$group == row["group"])
+          }))
+        },
+        "theme_specific_intercept_theme_specific_slope" = {
+          intercept_rows <- data.frame(
+            class = "b",
+            coef = sprintf("theme%s", themes),
+            group = ""
+          )
+          slope_rows <- data.frame(
+            class = "b",
+            coef = sprintf("theme%s:market_factor_proxy", themes),
+            group = ""
+          )
+          common_rows <- data.frame(
+            class = c("sd", "sd", "sigma", "cor"),
+            coef = c("Intercept", "market_factor_proxy", "", ""),
+            group = c("theme:tickers", "theme:tickers", "", "")
+          )
+          all(apply(rbind(intercept_rows, slope_rows, common_rows), 1, function(row) {
+            any(user_priors$class == row["class"] &
+                  user_priors$coef == row["coef"] &
+                  user_priors$group == row["group"])
+          }))
+        },
+        "fixed_intercept_fixed_slope" = {
+          required_rows <- data.frame(
+            class = c("Intercept", "b", "sd", "sd", "sigma", "cor"),
+            coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
+            group = c("", "", "theme:tickers", "theme:tickers", "", "")
+          )
+          all(apply(required_rows, 1, function(row) {
+            any(user_priors$class == row["class"] &
+                  user_priors$coef == row["coef"] &
+                  user_priors$group == row["group"])
+          }))
+        }
+      )
+
+      if (!validate_structure) {
+        stop(sprintf("user_priors structure is invalid for theme-level model specification '%s'.", model_spec_theme_level))
+      }
 
     }
 
-
-    ###Check if bayesian fit can be run
-    if(p_correction_method == "bayesian"){
-      if (is.null(user_priors) && is.null(priors_m_df)){
-        stop("Currently, bayesian fit requires user_priors or priors_m_df.") #This warning is because using uninformative priors has not been tested yet.
+    #Prior derivation control
+    if(!is.null(prior_derivation_control)){
+      if(any(!names(prior_derivation_control) %in% c("half_t_df"))){
+        stop("prior_derivation_control should have only 'half_t_df' as names.")
       }
+    }
 
-      if(is.null(signal_themes_m_df)){
-        stop("bayesian fit requires signal_themes_m_df.")
+    #BRMS control
+    if(!is.null(brms_control)){
+      if(any(!names(brms_control) %in% c("chains", "iter", "warmup", "thin", "seed", "adapt_delta"))){
+        stop("brms_control must be a list containing 'chains', 'iter', 'warmup', 'thin', 'seed' and/or 'adapt_delta'.")
       }
-
-      if(!is.null(user_priors) && !all(class(user_priors) == c("brmsprior", "data.frame"))){
-        stop("user_priors should contain only brmsprior objects.")
+      #chains
+      if(!is.null(brms_control$chains) && (!is.numeric(brms_control$chains) || brms_control$chains <= 0)){
+        stop("chains must be a positive number.")
       }
-
-
-      #User priors
-      if(!is.null(user_priors)){
-        if (!is.data.frame(user_priors)) {
-          stop("user_priors must be a data.frame.")
-        }
-
-        # Extract selected themes from signal_themes_m_df
-        themes <- unique(signal_themes_m_df %>% dplyr::filter(tickers %in% names(chosen_signals_corrected_positions)) %>% dplyr::pull(theme))
-        n_themes <- length(themes)
-
-        # Define expected structures based on `model_spec_theme_level`
-        model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
-        if(!model_spec_theme_level %in% c("random_intercept_fixed_slope", "theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope", "fixed_intercept_fixed_slope")){
-          stop("Invalid model specification at theme-level")
-        }
-
-        expected_rows <- switch(
-          model_spec_theme_level,
-          "random_intercept_fixed_slope" = 7,
-          "theme_specific_intercept_fixed_slope" = n_themes + 5,
-          "theme_specific_intercept_theme_specific_slope" = n_themes * 2 + 4,
-          "fixed_intercept_fixed_slope" = 6,
-          stop("Invalid model specification at themelevel")
-        )
-
-        # Check number of rows
-        if (nrow(user_priors) != expected_rows) {
-          stop(sprintf("Expected %d rows for theme-level model specification '%s', but got %d.",
-                       expected_rows, model_spec_theme_level, nrow(user_priors)))
-        }
-
-        # Define validation rules for each model_spec_theme_level
-        validate_structure <- switch(
-          model_spec_theme_level,
-          "random_intercept_fixed_slope" = {
-            required_rows <- data.frame(
-              class = c("Intercept", "b", "sd", "sd", "sd", "sigma", "cor"),
-              coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "Intercept", "", ""),
-              group = c("", "", "theme:tickers", "theme:tickers", "theme", "", "")
-            )
-            all(apply(required_rows, 1, function(row) {
-              any(user_priors$class == row["class"] &
-                    user_priors$coef == row["coef"] &
-                    user_priors$group == row["group"])
-            }))
-          },
-          "theme_specific_intercept_fixed_slope" = {
-            intercept_rows <- data.frame(
-              class = "b",
-              coef = sprintf("theme%s", themes),
-              group = ""
-            )
-            common_rows <- data.frame(
-              class = c("b", "sd", "sd", "sigma", "cor"),
-              coef = c("market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
-              group = c("", "theme:tickers", "theme:tickers", "", "")
-            )
-            all(apply(rbind(intercept_rows, common_rows), 1, function(row) {
-              any(user_priors$class == row["class"] &
-                    user_priors$coef == row["coef"] &
-                    user_priors$group == row["group"])
-            }))
-          },
-          "theme_specific_intercept_theme_specific_slope" = {
-            intercept_rows <- data.frame(
-              class = "b",
-              coef = sprintf("theme%s", themes),
-              group = ""
-            )
-            slope_rows <- data.frame(
-              class = "b",
-              coef = sprintf("theme%s:market_factor_proxy", themes),
-              group = ""
-            )
-            common_rows <- data.frame(
-              class = c("sd", "sd", "sigma", "cor"),
-              coef = c("Intercept", "market_factor_proxy", "", ""),
-              group = c("theme:tickers", "theme:tickers", "", "")
-            )
-            all(apply(rbind(intercept_rows, slope_rows, common_rows), 1, function(row) {
-              any(user_priors$class == row["class"] &
-                    user_priors$coef == row["coef"] &
-                    user_priors$group == row["group"])
-            }))
-          },
-          "fixed_intercept_fixed_slope" = {
-            required_rows <- data.frame(
-              class = c("Intercept", "b", "sd", "sd", "sigma", "cor"),
-              coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
-              group = c("", "", "theme:tickers", "theme:tickers", "", "")
-            )
-            all(apply(required_rows, 1, function(row) {
-              any(user_priors$class == row["class"] &
-                    user_priors$coef == row["coef"] &
-                    user_priors$group == row["group"])
-            }))
-          }
-        )
-
-        if (!validate_structure) {
-          stop(sprintf("user_priors structure is invalid for theme-level model specification '%s'.", model_spec_theme_level))
-        }
-
-      }
-
-      #Prior derivation control
-      if(!is.null(prior_derivation_control)){
-        if(any(!names(prior_derivation_control) %in% c("half_t_df"))){
-          stop("prior_derivation_control should have only 'half_t_df' as names.")
-        }
-      }
-
-      #BRMS control
-      if(!is.null(brms_control)){
-        if(any(!names(brms_control) %in% c("chains", "iter", "warmup", "thin", "seed", "adapt_delta"))){
-          stop("brms_control must be a list containing 'chains', 'iter', 'warmup', 'thin', 'seed' and/or 'adapt_delta'.")
-        }
-        #chains
-        if(!is.null(brms_control$chains) && (!is.numeric(brms_control$chains) || brms_control$chains <= 0)){
-          stop("chains must be a positive number.")
-        }
       #iter
       if(!is.null(brms_control$iter) && (!is.numeric(brms_control$iter) || brms_control$iter <= 0)){
         stop("iter must be a positive number.")
@@ -569,7 +570,7 @@ check_inputs_ss_backtest <- function(
       }
     }
 
- }
+  }
 
   #Check structure of rebalancing_months
   if(!is.numeric(rebalancing_months)){

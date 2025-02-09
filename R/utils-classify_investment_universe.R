@@ -324,17 +324,17 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
 
       ####Include in universe_m_d_ref
-        #####Exclude old portfolio weights col to avoid repetition
-        if (i != 1) turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>% dplyr::select(-bop_port_weights)
+      #####Exclude old portfolio weights col to avoid repetition
+      if (i != 1) turnover_cap_rule_m_d_ref <- turnover_cap_rule_m_d_ref %>% dplyr::select(-bop_port_weights)
 
-        #####Merge
-        universe_m_d_ref <- universe_m_d_ref %>%
-          dplyr::left_join(
-            turnover_cap_rule_m_d_ref %>%
-              dplyr::select(-id, -dates, -is_in_buffered_quantile_range,
-                            -was_in_old_portfolio, -does_liquidity_meets_turnover_cap_rule), #Drop those columns
-            by = "tickers"
-            )
+      #####Merge
+      universe_m_d_ref <- universe_m_d_ref %>%
+        dplyr::left_join(
+          turnover_cap_rule_m_d_ref %>%
+            dplyr::select(-id, -dates, -is_in_buffered_quantile_range,
+                          -was_in_old_portfolio, -does_liquidity_meets_turnover_cap_rule), #Drop those columns
+          by = "tickers"
+        )
 
       ####Rename
       new_name <- paste0("buffer_zone_", i)
@@ -346,9 +346,9 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   ###Classify groups
   ########################
   if(!is.null(groups_m_d_ref)){
-      #Merge group classification
-      universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, dplyr::select(groups_m_d_ref, -id, -dates), #Avoid duplication
-                                           by = "tickers")
+    #Merge group classification
+    universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, dplyr::select(groups_m_d_ref, -id, -dates), #Avoid duplication
+                                         by = "tickers")
   }
   ########################
 
@@ -373,7 +373,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
     universe_m_d_ref <- universe_m_d_ref %>%
       dplyr::mutate(is_eligible = is_eligible +
                       rowSums(dplyr::across(dplyr::starts_with("max_abs_aw_ind"))) #Select cols that start with "max_abs_aw" and sum
-                    )
+      )
   }
 
   ##3. Turnover Policy Eligibility:
@@ -506,8 +506,25 @@ apply_stocks_pre_eligibility <- function(stock_universe_m_d_ref,
   # Initialize iteration counter (for debugging purposes)
   iteration <- 0
 
+  # Check if exp_ret_score_metric only contains two values (categorial variable case)
+  if (length(unique(dplyr::pull(stock_universe_m_d_ref, exp_ret_score))) == 2) {
+
+    if (verbose){
+      cat("Categorical variable identified. Ignoring elibility_quantile_range and setting all assets identified as 1 as pre-eligible. \n")
+    }
+
+    ##Update pre_eligible_assets based on the being in category
+    stock_universe_m_d_ref <- classify_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref,
+                                                              eligibility_quantile_range = eligibility_quantile_range,
+                                                              categorical_variable = TRUE)
+
+    return(stock_universe_m_d_ref)
+  }
+
   # First run: update pre_eligible_assets based on the provided quantile range
-  stock_universe_m_d_ref <- classify_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref, eligibility_quantile_range = eligibility_quantile_range)
+  stock_universe_m_d_ref <- classify_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref,
+                                                            eligibility_quantile_range = eligibility_quantile_range,
+                                                            categorical_variable = FALSE)
 
 
   # Only perform fallback logic if min_eligible_assets_fallback is provided
@@ -582,23 +599,44 @@ apply_stocks_pre_eligibility <- function(stock_universe_m_d_ref,
 #' updated_universe <- classify_stocks_pre_eligibility(eligibility_quantile_range, stock_universe_m_d_ref)
 #' }
 #'
-classify_stocks_pre_eligibility <- function(stock_universe_m_d_ref, eligibility_quantile_range) {
+classify_stocks_pre_eligibility <- function(stock_universe_m_d_ref, eligibility_quantile_range, categorical_variable = FALSE) {
+
   ##Extract expected return score
   exp_ret_score <- stock_universe_m_d_ref %>% dplyr::pull(exp_ret_score)
 
-  ##Calculate quantiles
-  lower_range <- quantile(exp_ret_score, probs = min(eligibility_quantile_range), na.rm = TRUE)
-  upper_range <- quantile(exp_ret_score, probs = max(eligibility_quantile_range), na.rm = TRUE)
-
-  ##Update stock universe
-  updated_stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
-    dplyr::mutate(pre_eligible_assets = dplyr::if_else(
-      exp_ret_score >= lower_range & exp_ret_score <= upper_range, #Check if exp_ret_score is inside tunnel
-      1L,
-      0L
-    ))
+  ##Categorical case
+  if (categorical_variable){
+    ###Mark all '1' assets as eligible
+      updated_stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
+      dplyr::mutate(pre_eligible_assets = dplyr::if_else(
+        exp_ret_score == max(exp_ret_score), #If equal to max value, is eligible
+        1L,
+        0L
+      ))
 
   return(updated_stock_universe_m_d_ref)
+
+  } else {
+    ##Non-categorical case
+
+      ###Calculate quantiles
+      lower_range <- quantile(exp_ret_score, probs = min(eligibility_quantile_range), na.rm = TRUE)
+      upper_range <- quantile(exp_ret_score, probs = max(eligibility_quantile_range), na.rm = TRUE)
+
+      ###Update stock universe
+      updated_stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
+        dplyr::mutate(pre_eligible_assets = dplyr::if_else(
+          exp_ret_score >= lower_range & exp_ret_score <= upper_range, #Check if exp_ret_score is inside tunnel
+          1L,
+          0L
+        ))
+
+    return(updated_stock_universe_m_d_ref)
+  }
+
+
+
+
 
 }
 

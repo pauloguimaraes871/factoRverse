@@ -47,20 +47,20 @@
 #'
 check_inputs_sb_backtest <- function(
     #Data
-    features_m_df, target_m_df, training_sample_size, target_fwd_name,
-    #Time
-    validation_sample_size, rebalancing_months, split_method,
-    #SB heuristic
-    signal_universe_m_df, backtest_returns_m_xts, benchmark_returns_m_xts, cov_matrix_benchmark,
-    cov_matrix_sample_size, cov_estimation_method, active_returns, signal_themes_m_df,
-    rp_method, n_random_ports, random_ports_method, opt_objective, concentration_constraint_policy,
-    custom_signal_weights_m_df,
-    #SB algorithm
-    sb_algorithm, gsm_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
-    #Tuning
-    hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
-    #Etc
-    early_stop, keras_architecture_parameters, parallel, verbose = TRUE, .test_seed
+  features_m_df, target_m_df, training_sample_size, target_fwd_name,
+  #Time
+  validation_sample_size, rebalancing_months, split_method,
+  #SB heuristic
+  signal_universe_m_df, backtest_returns_m_xts, benchmark_returns_m_xts, cov_matrix_benchmark,
+  cov_matrix_sample_size, cov_estimation_method, active_returns, signal_themes_m_df,
+  rp_method, n_random_ports, random_ports_method, opt_objective, concentration_constraint_policy,
+  custom_signal_weights_m_df,
+  #SB algorithm
+  sb_algorithm, gsm_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
+  #Tuning
+  hyper_grid_domain_list, tuning_method, n_iter, k_iter, acq, init_points,
+  #Etc
+  early_stop, keras_architecture_parameters, parallel, verbose = TRUE, .test_seed
 ){
 
   ###Initial Checks###
@@ -335,9 +335,24 @@ check_inputs_sb_backtest <- function(
         stop("signal_themes_m_df is only needed when sb_algorithm is either rp or mvo.")
       }
 
-      if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) & is.null(signal_themes_m_df)){
-        stop("signal_themes_m_df must be provided if max_abs_active_group_weight is given.")
+      ##Accordance with concentration_constraint_policy
+      if(!is.null(concentration_constraint_policy$max_abs_active_group_weight)){
+        ##null
+        if(is.null(signal_themes_m_df)){
+         stop("signal_themes_m_df must be provided if max_abs_active_group_weight is given.")
+        }
+        #Check if all themes are contenmplated by eligible signals
+          ##Get eligible signals and themes
+          eligible_signals <- signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers) %>% unique()
+          eligible_themes <- signal_themes_m_df %>% dplyr::filter(tickers %in% eligible_signals) %>% dplyr::pull(theme) %>% unique()
+
+          ##Check if all themes are present in eligible signals
+          if (length(setdiff(unique(signal_themes_m_df$theme), eligible_themes)) > 0) {
+            stop("All themes in signal_themes_m_df must be present in eligible signals when max_abs_active_group_weight is given.
+                 Running run_ss_backtest with enable_theme_representativeness as TRUE may help.")
+          }
       }
+
 
       if(!is.null(signal_themes_m_df)){
         ##Check if signal_themes_m_df contemplates theme column

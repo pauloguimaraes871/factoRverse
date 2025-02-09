@@ -3036,14 +3036,16 @@ setMethod("add_concentration_constraint_policy",
           signature(object = "port_backtest_config", policy = "missing"),
           function(object,
                    policy,
-                   benchmark,
                    max_abs_active_individual_weight = NULL,
                    max_abs_active_group_weight = NULL,
                    ...) {
 
+            # Get benchmark from object
+            selected_benchmark <- object@selected_benchmark
+
             # Build a new policy on the fly
             new_policy <- create_concentration_constraint_policy(
-              benchmark = benchmark,
+              benchmark = selected_benchmark,
               max_abs_active_individual_weight = max_abs_active_individual_weight,
               max_abs_active_group_weight = max_abs_active_group_weight
             )
@@ -3121,8 +3123,8 @@ setMethod("add_concentration_constraint_policy",
 create_liquidity_constraint_policy <- function(liquidity_floor_rule = NULL,
                                                liquidity_cap_rules = NULL) {
   obj <- new("liquidity_constraint_policy",
-                      liquidity_floor_rule = liquidity_floor_rule,
-                      liquidity_cap_rules = liquidity_cap_rules)
+             liquidity_floor_rule = liquidity_floor_rule,
+             liquidity_cap_rules = liquidity_cap_rules)
   validObject(obj)
   obj
 }
@@ -3172,27 +3174,6 @@ setMethod("add_liquidity_constraint_policy",
             return(object)
           }
 )
-
-#' @title Convert Liquidity Constraint Policy to List
-#'
-#' @param x An S4 object of class `liquidity_constraint_policy`.
-#'
-#' @return A named list containing:
-#'   \itemize{
-#'     \item \code{liquidity_floor_rule}
-#'     \item \code{liquidity_cap_rules}
-#'   }
-#' @export
-setMethod("as.list", "liquidity_constraint_policy", function(x) {
-  list(
-    liquidity_floor_rule = x@liquidity_floor_rule,
-    liquidity_cap_rules = x@liquidity_cap_rules
-  )
-})
-
-
-
-
 
 
 
@@ -3261,27 +3242,83 @@ setMethod("add_turnover_constraint_policy",
           }
 )
 
-
-#' @title Convert Turnover Constraint Policy to List
+#-----------------------------------------------------------------------
+# transaction_cost_parameters
+#-----------------------------------------------------------------------
+#' Create a New Transaction Cost Parameters Object
 #'
-#' @param x An S4 object of class `turnover_constraint_policy`.
+#' This function constructs a new \code{transaction_cost_parameters} S4 object.
 #'
-#' @return A named list containing:
-#'   \itemize{
-#'     \item \code{quantile_range_buffer}
-#'     \item \code{turnover_cap_rules}
-#'   }
+#' @param direct_transaction_cost A numeric value for the direct transaction cost.
+#' @param strategy_aum A numeric value for the strategy's assets under management.
+#' @param alpha A numeric value for the alpha parameter.
+#' @param lambda A numeric value or the string "dynamic" for the lambda parameter.
+#'
+#' @return An object of class \code{transaction_cost_parameters}.
+#'
 #' @export
-setMethod("as.list", "turnover_constraint_policy", function(x) {
-  list(
-    quantile_range_buffer = x@quantile_range_buffer,
-    turnover_cap_rules = x@turnover_cap_rules
+create_transaction_cost_parameters <- function(direct_transaction_cost, strategy_aum, alpha, lambda) {
+
+  transaction_costs_parameters <- list(
+    direct_transaction_cost = direct_transaction_cost,
+    strategy_aum = strategy_aum,
+    alpha = alpha,
+    lambda = lambda
   )
+
+  # Validate the parameters using the validation function
+  validate_transaction_cost_parameters(transaction_costs_parameters)
+
+  methods::new("transaction_cost_parameters",
+               direct_transaction_cost = direct_transaction_cost,
+               strategy_aum = strategy_aum,
+               alpha = alpha,
+               lambda = lambda)
+}
+
+#' Add Transaction Cost Parameters to a Portfolio Backtest Configuration
+#'
+#' This generic function adds an existing or dynamically creates a
+#' \code{transaction_cost_parameters} object to a portfolio backtest configuration object.
+#'
+#' @param object An object of class \code{port_backtest_config}.
+#' @param transaction_cost_parameters A \code{transaction_cost_parameters} object. If missing, a new one is created.
+#' @param ... Additional arguments used when creating a new transaction cost parameters object.
+#'
+#' @return The updated \code{object} with the transaction cost parameters added.
+#'
+#' @export
+setGeneric("add_transaction_cost_parameters", function(object, transaction_cost_parameters, ...) {
+  standardGeneric("add_transaction_cost_parameters")
 })
 
+#' @describeIn add_transaction_cost_parameters
+#'   Add an existing \code{transaction_cost_parameters} to a \code{port_backtest_config}.
+#' @export
+setMethod("add_transaction_cost_parameters",
+          signature(object = "port_backtest_config", transaction_cost_parameters = "transaction_cost_parameters"),
+          function(object, transaction_cost_parameters, ...) {
+            object@transaction_cost_parameters <- transaction_cost_parameters
+            methods::validObject(object)
+            return(object)
+          }
+)
 
-
-
+#' @describeIn add_transaction_cost_parameters
+#'   Dynamically create a \code{transaction_cost_parameters} object and add it to a \code{port_backtest_config}.
+#'
+#'   Additional arguments (such as \code{direct_transaction_cost}, \code{strategy_aum}, \code{alpha}, and \code{lambda})
+#'   are passed to \code{new_transaction_cost_parameters}.
+#' @export
+setMethod("add_transaction_cost_parameters",
+          signature(object = "port_backtest_config", transaction_cost_parameters = "missing"),
+          function(object, transaction_cost_parameters, ...) {
+            new_tc_params <- create_transaction_cost_parameters(...)
+            object@transaction_cost_parameters <- new_tc_params
+            methods::validObject(object)
+            return(object)
+          }
+)
 
 
 #-----------------------------------------------------------------------

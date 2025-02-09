@@ -246,6 +246,22 @@ setMethod("run_sb_backtest",
                 benchmark_returns_object_name <- benchmark_returns_m_xts@meta_xts_name
                 benchmark_returns_workflow <- benchmark_returns_m_xts@workflow
                 benchmark_returns_m_xts <- benchmark_returns_m_xts@data
+
+                #Check for enable_theme_representativeness when grup constraint is enabled
+                if (sb_algorithm == "mvo" & !is.null(concentration_constraint_policy$max_abs_active_group_weight)){
+                  if (!is.null(ss_backtest_config)){
+                    if (!ss_backtest_config@alpha_test_strategy@enable_theme_representativeness){
+                      warning("enable_theme_representativeness should be enabled in alpha_test_strategy when group constraints are enabled,",
+                              "to ensure that all themes have representatives when defining group constraints.")
+                    }
+                    if (!is.null(ss_backtest_results)){
+                      if (!ss_backtest_results@ss_backtest_workflow@enable_theme_representativeness){
+                        warning("enable_theme_representativeness should be enabled in alpha_test_strategy when group constraints are enabled,",
+                                "to ensure that all themes have representatives when defining group constraints.")
+                      }
+                    }
+                  }
+                }
               } else {
                 if(!is.null(backtest_returns_m_xts)){
                   message("backtest_returns_m_xts assigned as NULL, as it is not used in sb_algorithm choice")

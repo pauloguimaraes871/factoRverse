@@ -16,9 +16,9 @@
 #' Mean Tracking-Error (MTO) and Risk-Parity (RP)
 #' @param covariance_estimation_method One of SAM (Sample), EWMA, CC (Constant Correlation), PCA1, PCA2, Shrink_ID or Shrink_CC.
 #' If NULL, blending_method can only be EW or IR
-#' @param custom_target_name A character indicating a custom target to be used in the backtest. Default is to use fwd_return_1m in `target_m_df`. If
-#' a different variable is provided, the function will first seek that variable in columns of `target_m_df` and then in `signals_m_df`, in that order. If a variable
-#' in target_m_df is chosen, the function will derive its prediction horizon based on naming convention and then name the time series accordingly. Otherwise,
+#' @param custom_target_name A character indicating a custom target to be used in the backtest. Default is to use fwd_return_1m in `fwd_return_m_df`. If
+#' a different variable is provided, the function will first seek that variable in columns of `fwd_return_m_df` and then in `signals_m_df`, in that order. If a variable
+#' in fwd_return_m_df is chosen, the function will derive its prediction horizon based on naming convention and then name the time series accordingly. Otherwise,
 #' ir will refer to current date.
 #'
 #' @return
@@ -26,7 +26,7 @@
 #'
 run_port_backtest_internal <- function(
   #Base Objects
-  signals_m_df, oos_predictions_m_df = NULL, exp_ret_score_metric = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
+  signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
   #Backtest Scheme
   rebalancing_months, initial_sample_size,
   #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
@@ -35,7 +35,7 @@ run_port_backtest_internal <- function(
   rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
   #Covariance Estimation
   cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = FALSE, cov_matrix_benchmark = NULL,
-  daily_assets_returns_m_xts = NULL, daily_benchmark_returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
+  daily_stock_returns_m_xts = NULL, daily_benchmark_returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
   #Constraints
   liquidity_constraint_policy, turnover_constraint_policy, concentration_constraint_policy,
   #Liquidity Information (Constraints and Active Returns Calculation)
@@ -43,7 +43,7 @@ run_port_backtest_internal <- function(
   #Group and benchmark constraints (stock groups also used to fill covariance data)
   stocks_groups_m_df = NULL, benchmark_weights_m_df = NULL,
   #Return calculation (needs also liquidity and vol for net returns)
-  volatility_m_df = NULL, target_m_df, transaction_costs_list = NULL,
+  volatility_m_df = NULL, fwd_return_m_df, transaction_costs_parameters = NULL,
   #Stock Weights
   custom_stock_universe_weights_m_df = NULL,
   #Misc
@@ -66,7 +66,7 @@ run_port_backtest_internal <- function(
       rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
       #Covariance Estimation
       cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
-      daily_assets_returns_m_xts = daily_assets_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
       #Constraints
       liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
       #Liquidity Information (Constraints and Active Returns Calculation)
@@ -74,7 +74,7 @@ run_port_backtest_internal <- function(
       #Group and benchmark constraints (stock groups also used to fill covariance data)
       stocks_groups_m_df = stocks_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
       #Return calculation (needs also liquidity and vol for net returns)
-      volatility_m_df = volatility_m_df, target_m_df = target_m_df, transaction_costs_list = transaction_costs_list,
+      volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
       #Custom Stock Weights and Metrics
       custom_stock_universe_weights_m_df = custom_stock_universe_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
       #Misc
@@ -97,7 +97,7 @@ run_port_backtest_internal <- function(
     dates_backtest <- dates_m_vector[(initial_buffer_period):(initial_buffer_period + backtest_length - 1)] #These are dates of backtest
 
     ###Create dates vector for port returns (move all dates vector 1m in time)
-    ####Extended dates for port returns according to target_m_df (target_fwd = 1)
+    ####Extended dates for port returns according to fwd_return_m_df (target_fwd = 1)
     dates_port_returns <- c(dates_backtest, lubridate::add_with_rollback(dates_backtest[backtest_length], months(1)))
     ####Remove first date
     dates_port_returns <- dates_port_returns[-1]
@@ -161,8 +161,7 @@ run_port_backtest_internal <- function(
       selected_daily_cov_matrix_bench_m_xts <- daily_bench_returns_m_xts[ ,cov_matrix_benchmark]
 
       ####Select benchmark_weights_m_df
-      selected_benchmark_weights_m_df <- benchmark_weights_m_df %>%
-        dplyr::select(!!rlang::sym(selected_benchmark)) #Select only selected_benchmark
+      selected_benchmark_weights_m_df <- benchmark_weights_m_df %>% dplyr::select(id, tickers, dates, !!rlang::sym(selected_benchmark)) #Select only selected_benchmark
 
       ####Create object to store benchmark metrics
       if (!is.null(custom_stock_metrics_m_df)){
@@ -247,7 +246,7 @@ run_port_backtest_internal <- function(
       ####Meta Dataframes
       #####Base Objects
       signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
-      target_m_d_ref <- target_m_df %>% dplyr::filter(dates == current_date)
+      fwd_return_m_d_ref <- fwd_return_m_df %>% dplyr::filter(dates == current_date)
       oos_predictions_m_d_ref <- if (!is.null(oos_predictions_m_df)) oos_predictions_m_df %>% dplyr::filter(dates == current_date) else NULL
 
       #####Stock Info
@@ -284,7 +283,7 @@ run_port_backtest_internal <- function(
 
       ####Meta xts (up to date references)
       #####Daily Up-to-date reference
-      daily_assets_returns_m_xts_upd_ref <- daily_assets_returns_m_xts[which(zoo::index(daily_assets_returns_m_xts) <= current_date), ]
+      daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
       selected_daily_cov_matrix_bench_m_xts_upd_ref <- selected_daily_cov_matrix_bench_m_xts[which(zoo::index(selected_daily_cov_matrix_bench_m_xts) <= current_date), ]
 
       #####Fwd benchmark reference
@@ -352,7 +351,7 @@ run_port_backtest_internal <- function(
         )
 
         #####Subset Daily Stock Returns
-        selected_daily_assets_returns_m_xts_upd_ref <- daily_assets_returns_m_xts_upd_ref[, stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+        selected_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts_upd_ref[, stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
 
 
         ##############################
@@ -376,7 +375,7 @@ run_port_backtest_internal <- function(
           cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
           active_returns = active_returns,
           #Returns sample for covariance estimation
-          returns_m_xts_upd_ref = selected_daily_assets_returns_m_xts_upd_ref, selected_benchmark_returns_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
+          returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_returns_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
           #Risk-Parity method
           rp_method = rp_method,
           #MVO Optimization
@@ -421,7 +420,7 @@ run_port_backtest_internal <- function(
         ##Liquidity and vol data
         liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref, main_liquidity_metric = main_liquidity_metric,
         ##BARRA parameters and direct cost
-        transaction_costs_list <- transaction_cost_list,
+        transaction_costs_parameters <- transaction_cost_list,
 
         #Selected benchmark weights
         selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
@@ -471,7 +470,7 @@ run_port_backtest_internal <- function(
           ####Roll Portfolio
           rolled_port_results_list <- roll_port(
             #Fwd Returns
-            target_m_d_ref = target_m_d_ref, fwd_selected_benchmark_return,
+            fwd_return_m_d_ref = fwd_return_m_d_ref, fwd_selected_benchmark_return,
             #Current Weights
             port_weights_m_d_ref = port_allocation_results_list$port_weights_m_d_ref,
             #Total cost
@@ -576,7 +575,7 @@ run_port_backtest_internal <- function(
       #Liquidity Information (Constraints and Active Returns Calculation)
       liquidity_floor_cutoffs = liquidity_floor_cutoffs,
       main_liquidity_metric = main_liquidity_metric,
-      transaction_costs_list = transaction_costs_list,
+      transaction_costs_parameters = transaction_costs_parameters,
       benchmark_weights_object_name = "not_identified",
       #Misc
       lower_quantile_winsorization = lower_quantile_winsorization,

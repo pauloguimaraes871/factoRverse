@@ -248,8 +248,8 @@ test_that("calculate trade order works for a first rebalancing scenario with del
 
   #merge_and_rescale
   merged_port_results_list <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
-                                                           updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                                           stock_universe_m_d_ref = cw_port@universe_m_d_ref@data)
+                                                        updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+                                                        stock_universe_m_d_ref = cw_port@universe_m_d_ref@data)
 
   #Result
   results <- calculate_trade_orders(merged_port_results_list = merged_port_results_list,

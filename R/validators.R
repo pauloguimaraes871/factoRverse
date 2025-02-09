@@ -210,3 +210,458 @@ setMethod("hyperparameters", signature(object = "sb_backtest_config"),
           })
 
 
+
+#' Validate Concentration Constraint Policy
+#'
+#' Internal function to validate the structure and values of the concentration constraint policy.
+#'
+#' @param concentration_constraint_policy A list with the following possible elements:
+#'   \describe{
+#'     \item{benchmark}{Benchmark weights (not validated by this function).}
+#'     \item{max_abs_active_individual_weight}{A numeric value in (0, 1] representing the maximum absolute active weight for an individual asset.}
+#'     \item{max_abs_active_group_weight}{A named numeric vector in (0, 1] representing the maximum absolute active weight for groups of assets. Names must be unique.}
+#'   }
+#'
+#' @return Invisibly returns TRUE if the policy is valid.
+#' @keywords internal
+validate_concentration_constraint_policy <- function(concentration_constraint_policy){
+
+  ## Check if the input is a list
+  if (!is.list(concentration_constraint_policy)) {
+    stop("Error in concentration_constraint_policy: must be a list")
+  }
+
+  ##Check if names in concentration_constraint_policy match possible options
+  if(any(!names(concentration_constraint_policy) %in%
+         c("benchmark", "max_abs_active_individual_weight", "max_abs_active_group_weight"))){
+    stop("Error in concentration_constraint_policy: elements of concentration_constraint_policy should be one of benchmark, max_abs_active_individual_weight or max_abs_active_group_weight.")
+  }
+
+  ##Check if benchmark is always set
+  if(is.null(concentration_constraint_policy$benchmark)){
+    stop("Error in concentration_constraint_policy: benchmark must be set")
+  }
+
+  ##Check if one of max_abs_active_individual_weight or max_abs_active_group_weight is set
+  if(is.null(concentration_constraint_policy$max_abs_active_individual_weight) &
+     is.null(concentration_constraint_policy$max_abs_active_group_weight)){
+    stop("Error in concentration_constraint_policy: either max_abs_active_individual_weight or max_abs_active_group_weight must be set")
+  }
+
+  ##Check if max_abs_active_individual_weight is numeric
+  if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) &
+     !is.numeric(concentration_constraint_policy$max_abs_active_individual_weight)){
+    stop("Error in concentration_constraint_policy: max_abs_active_individual_weight must be numeric")
+  }
+
+  ##Check if max_abs_active_group_weight is numeric
+  if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &
+     !is.numeric(concentration_constraint_policy$max_abs_active_group_weight)){
+    stop("Error in concentration_constraint_policy: max_abs_active_group_weight must be numeric")
+  }
+
+  ##Constraints are bounded in (0,1]
+  if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) &&
+      (concentration_constraint_policy$max_abs_active_individual_weight <= 0 || concentration_constraint_policy$max_abs_active_individual_weight > 1)){
+    stop("Error in concentration_constraint_policy: max_abs_active_individual_weight must be in (0,1]")
+  }
+
+  ##Constraints are bounded in (0,1]
+  if (!is.null(concentration_constraint_policy$max_abs_active_group_weight) &&
+      (any(concentration_constraint_policy$max_abs_active_group_weight <= 0) ||
+       any(concentration_constraint_policy$max_abs_active_group_weight > 1))){
+    stop("Error in concentration_constraint_policy: max_abs_active_group_weight must be in (0,1]")
+  }
+
+  ## Check if max_abs_active_group_weight contains duplicated names
+  if (!is.null(concentration_constraint_policy$max_abs_active_group_weight)) {
+    grp_names <- names(concentration_constraint_policy$max_abs_active_group_weight)
+    if (!is.null(grp_names) && any(duplicated(grp_names))) {
+      stop("Error in concentration_constraint_policy: max_abs_active_group_weight can't contain duplicated names")
+    }
+  }
+
+
+}
+
+
+
+#' Validate Liquidity Constraint Policy
+#'
+#' Internal function to validate the liquidity constraint policy.
+#'
+#' The policy is provided as a list that may contain two elements:
+#' \describe{
+#'   \item{liquidity_floor_rule}{(Optional) A character string indicating the liquidity floor.
+#'      Must be one of "micro_caps", "small_caps", "mid_caps", "large_caps", or "mega_caps".}
+#'   \item{liquidity_cap_rules}{(Optional) A named numeric vector containing liquidity caps.
+#'      The names must be valid liquidity categories (see above), there must be no duplicated names,
+#'      and the numeric values must lie in the interval (0, 1]. If liquidity_floor_rule is provided,
+#'      no liquidity cap can be set for a category that is less liquid than the floor.
+#'      Moreover, monotonicity is enforced: for any two categories, if one category is less liquid than
+#'      another, its cap must not exceed that of the more liquid category.}
+#' }
+#'
+#' @param liquidity_constraint_policy A list with the elements described above.
+#'
+#' @return Invisibly returns TRUE if the policy is valid.
+#'
+#' @keywords internal
+validate_liquidity_constraint_policy <- function(liquidity_constraint_policy) {
+  ## Check that input is a list
+  if (!is.list(liquidity_constraint_policy)) {
+    stop("Error in liquidity_constraint_policy: must be a list")
+  }
+
+  ##Either liquidity_floor_rule or liquidity_cap_rules must be set
+  if (is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
+      is.null(liquidity_constraint_policy$liquidity_cap_rules)) {
+    stop("Error in liquidity_constraint_policy: either liquidity_floor_rule or liquidity_cap_rules must be set")
+  }
+
+  allowed_elements <- c("liquidity_floor_rule", "liquidity_cap_rules")
+  if (!is.null(names(liquidity_constraint_policy)) &&
+      !all(names(liquidity_constraint_policy) %in% allowed_elements)) {
+    stop("Error in liquidity_constraint_policy: elements of liquidity_constraint_policy should be one of liquidity_floor_rule or liquidity_cap_rules")
+  }
+
+  ## Define allowed liquidity categories (from less liquid to more liquid)
+  allowed_categories <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+
+  ## Validate liquidity_floor_rule if provided
+  if (!is.null(liquidity_constraint_policy$liquidity_floor_rule)) {
+    if (!is.character(liquidity_constraint_policy$liquidity_floor_rule) ||
+        length(liquidity_constraint_policy$liquidity_floor_rule) != 1) {
+      stop("Error in liquidity_constraint_policy: liquidity_floor_rule must be a character string")
+    }
+    if (!liquidity_constraint_policy$liquidity_floor_rule %in% allowed_categories) {
+      stop("Error in liquidity_constraint_policy: liquidity_floor_rule must be one of 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' or 'mega_caps'")
+    }
+  }
+
+  ## Validate liquidity_cap_rules if provided
+  if (!is.null(liquidity_constraint_policy$liquidity_cap_rules)) {
+    cap_rules <- liquidity_constraint_policy$liquidity_cap_rules
+
+    ## Must be numeric
+    if (!is.numeric(cap_rules)) {
+      stop("Error in liquidity_constraint_policy: liquidity_cap_rules must be numeric")
+    }
+    ## Must have names
+    if (is.null(names(cap_rules))) {
+      stop("Error in liquidity_constraint_policy: liquidity_cap_rules must have names")
+    }
+    ## All names must be valid liquidity categories
+    if (!all(names(cap_rules) %in% allowed_categories)) {
+      stop("Error in liquidity_constraint_policy: liquidity_cap_rules names must be one of 'micro_caps', 'small_caps', 'mid_caps', 'large_caps' or 'mega_caps'")
+    }
+    ## Check for duplicated names
+    if (any(duplicated(names(cap_rules)))) {
+      stop("Error in liquidity_constraint_policy: liquidity_cap_rules can't have duplicated names")
+    }
+    ## Check that liquidity_cap_rules are bounded in (0,1]
+    if (any(cap_rules <= 0 | cap_rules > 1)) {
+      stop("Error in liquidity_constraint_policy: liquidity_cap_rules must be in (0,1]")
+    }
+
+    ## If liquidity_floor_rule is provided, ensure that no liquidity cap rule is defined
+    ## for a category that is less liquid than the floor.
+    if (!is.null(liquidity_constraint_policy$liquidity_floor_rule)) {
+      floor_rule <- liquidity_constraint_policy$liquidity_floor_rule
+      floor_index <- match(floor_rule, allowed_categories)
+      for (cat in names(cap_rules)) {
+        cat_index <- match(cat, allowed_categories)
+        if (cat_index < floor_index) {
+          stop(
+            paste0("Error in liquidity_constraint_policy: Liquidity cap rule for '", cat,
+                         "' is less liquid than the liquidity_floor_rule '", floor_rule, "'")
+          )
+        }
+      }
+    }
+
+    ## Enforce monotonicity in liquidity_cap_rules.
+    ## For any two categories in liquidity_cap_rules, if one category is less liquid than another then its
+    ## cap must not exceed that of the more liquid category.
+    for (i in seq_along(cap_rules)) {
+      for (j in seq_along(cap_rules)) {
+        if (match(names(cap_rules)[i], allowed_categories) <
+            match(names(cap_rules)[j], allowed_categories)) {
+          if (cap_rules[i] > cap_rules[j]) {
+            stop(
+              paste0("Error in liquidity_constraint_policy: Cap for '", names(cap_rules)[i],
+                           "' (", cap_rules[i],
+                           ") cannot be greater than cap for '", names(cap_rules)[j],
+                           "' (", cap_rules[j], ")")
+            )
+          }
+        }
+      }
+    }
+  }
+
+  invisible(TRUE)
+}
+
+
+#' Validate Turnover Constraint Policy
+#'
+#' Internal function to validate the turnover constraint policy.
+#'
+#' The policy is provided as a list that must contain the following elements:
+#' \describe{
+#'   \item{quantile_range_buffer}{A numeric value between 0 and 1 that defines the buffer for turnover quantiles.}
+#'   \item{turnover_cap_rules}{A named numeric vector whose names correspond to valid liquidity categories
+#'      ("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps"). Each value must be between 0 and 1.
+#'      Additionally, for any two categories, if one category is less liquid than another then its cap must not exceed
+#'      that of the more liquid category.}
+#' }
+#'
+#' @param turnover_constraint_policy A list with the elements described above.
+#'
+#' @return Invisibly returns TRUE if the policy is valid.
+#'
+#' @keywords internal
+validate_turnover_constraint_policy <- function(turnover_constraint_policy) {
+  # Check that the input is a list
+  if (!is.list(turnover_constraint_policy)) {
+    stop("Error in turnover_constraint_policy: must be a list")
+  }
+
+  allowed_elements <- c("quantile_range_buffer", "turnover_cap_rules")
+  if (!is.null(names(turnover_constraint_policy)) &&
+      !all(names(turnover_constraint_policy) %in% allowed_elements)) {
+    stop("Error in turnover_constraint_policy: elements of turnover_constraint_policy should be one of quantile_range_buffer or turnover_cap_rules")
+  }
+
+  # Validate quantile_range_buffer
+  if (is.null(turnover_constraint_policy$quantile_range_buffer)) {
+    stop("Error in turnover_constraint_policy: quantile_range_buffer can't be missing")
+  }
+  if (!is.numeric(turnover_constraint_policy$quantile_range_buffer) ||
+      length(turnover_constraint_policy$quantile_range_buffer) != 1) {
+    stop("Error in turnover_constraint_policy: quantile_range_buffer must be a number")
+  }
+  if (turnover_constraint_policy$quantile_range_buffer < 0 ||
+      turnover_constraint_policy$quantile_range_buffer > 1) {
+    stop("Error in turnover_constraint_policy: quantile_range_buffer must be a number between 0 and 1")
+  }
+
+  # Validate turnover_cap_rules
+  if (is.null(turnover_constraint_policy$turnover_cap_rules)) {
+    stop("Error in turnover_constraint_policy: turnover_cap_rules can't be missing")
+  }
+  cap_rules <- turnover_constraint_policy$turnover_cap_rules
+  if (!is.numeric(cap_rules)) {
+    stop("Error in turnover_constraint_policy: turnover_cap_rules must be numeric")
+  }
+  if (is.null(names(cap_rules))) {
+    stop("Error in turnover_constraint_policy: turnover_cap_rules must have names")
+  }
+
+  allowed_categories <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+  if (!all(names(cap_rules) %in% allowed_categories)) {
+    stop("Error in turnover_constraint_policy: names of turnover_cap_rules must be in accordance to micro_caps, small_caps, mid_caps, large_caps, mega_caps")
+  }
+  if (any(duplicated(names(cap_rules)))) {
+    stop("Error in turnover_constraint_policy: names of turnover_cap_rules must not be duplicated")
+  }
+  if (!all(cap_rules >= 0 & cap_rules <= 1)) {
+    stop("Error in turnover_constraint_policy: turnover_cap_rules must be bounded between 0 and 1")
+  }
+
+  # Enforce monotonicity in turnover_cap_rules.
+  # For any two categories, if one category is less liquid than another then its cap must not exceed that of the more liquid category.
+  for (i in seq_along(cap_rules)) {
+    for (j in seq_along(cap_rules)) {
+      if (match(names(cap_rules)[i], allowed_categories) < match(names(cap_rules)[j], allowed_categories)) {
+        if (cap_rules[i] > cap_rules[j]) {
+          stop(paste0("Error in turnover_constraint_policy: Cap for '", names(cap_rules)[i],
+                      "' (", cap_rules[i],
+                      ") cannot be greater than cap for '", names(cap_rules)[j],
+                      "' (", cap_rules[j], ")"))
+        }
+      }
+    }
+  }
+
+  invisible(TRUE)
+}
+
+
+#' Validate Transaction Cost Parameters
+#'
+#' This function validates a list of transaction cost parameters based on the BARRA model.
+#' It checks that the list contains the names: "direct_transaction_cost", "strategy_aum",
+#' "alpha", and "lambda". Additionally, it ensures that:
+#' \itemize{
+#'   \item \code{direct_transaction_cost} is a single numeric value and positive.
+#'   \item \code{strategy_aum} is a single numeric value and positive.
+#'   \item \code{alpha} is a single numeric value and positive.
+#'   \item \code{lambda} is a single value that is either numeric or exactly the string "dynamic".
+#' }
+#'
+#' @param transaction_costs_parameters A list containing transaction cost parameters.
+#'
+#' @return TRUE if all validations pass; otherwise, the function stops with an error.
+#'
+#' @examples
+#' params <- list(
+#'   direct_transaction_cost = 0.01,
+#'   strategy_aum = 1000000,
+#'   alpha = 0.05,
+#'   lambda = 0.5
+#' )
+#' validate_transaction_cost_parameters(params)
+#'
+#' @export
+validate_transaction_cost_parameters <- function(transaction_costs_parameters) {
+  # Check if all required names are present
+  required_names <- c("direct_transaction_cost", "strategy_aum", "alpha", "lambda")
+  if (!all(required_names %in% names(transaction_costs_parameters))) {
+    stop("transaction_costs_parameters should have names 'direct_transaction_cost', 'strategy_aum', 'alpha' and 'lambda'")
+  }
+
+  # Check if direct_transaction_cost is numeric of length 1
+  if (!is.numeric(transaction_costs_parameters$direct_transaction_cost) ||
+      length(transaction_costs_parameters$direct_transaction_cost) != 1) {
+    stop("direct_transaction_cost should be a single numeric")
+  }
+  # Check if direct_transaction_cost is positive
+  if (transaction_costs_parameters$direct_transaction_cost <= 0) {
+    stop("direct_transaction_cost should be a positive value")
+  }
+
+  # Check if strategy_aum is numeric of length 1
+  if (!is.numeric(transaction_costs_parameters$strategy_aum) ||
+      length(transaction_costs_parameters$strategy_aum) != 1) {
+    stop("strategy_aum should be a single numeric")
+  }
+  # Check if strategy_aum is positive
+  if (transaction_costs_parameters$strategy_aum <= 0) {
+    stop("strategy_aum should be a positive value")
+  }
+
+  # Check if alpha is numeric of length 1
+  if (!is.numeric(transaction_costs_parameters$alpha) ||
+      length(transaction_costs_parameters$alpha) != 1) {
+    stop("alpha should be a single numeric")
+  }
+  # Check if alpha is positive
+  if (transaction_costs_parameters$alpha <= 0) {
+    stop("alpha should be a positive value")
+  }
+
+  # Check if lambda is of length 1
+  if (length(transaction_costs_parameters$lambda) != 1) {
+    stop("lambda should be a single value")
+  }
+  # Check if lambda is either numeric or "dynamic"
+  if (!is.numeric(transaction_costs_parameters$lambda) &&
+      transaction_costs_parameters$lambda != "dynamic") {
+    stop("lambda should be numeric or 'dynamic'")
+  }
+
+  TRUE
+}
+
+#' Validate Liquidity Floor Cutoffs
+#'
+#' Internal function to validate a liquidity_floor_cutoffs data frame.
+#'
+#' This function checks that the liquidity_floor_cutoffs data frame meets the following requirements:
+#' \itemize{
+#'   \item It is a data.frame with at least two columns.
+#'   \item The first column is named \code{"liquidity_classification"}.
+#'   \item It has at most 5 rows.
+#'   \item The values in the \code{liquidity_classification} column are among
+#'         \code{"micro_caps"}, \code{"small_caps"}, \code{"mid_caps"}, \code{"large_caps"}, or \code{"mega_caps"}
+#'         and contain no duplicates.
+#'   \item All other columns are numeric and contain no missing values.
+#'   \item If \code{main_liquidity_metric} is provided, then it must be one of the non-classification
+#'         column names, the data frame must be arranged in ascending order by that metric, and the
+#'         ranking (order) of the values across all liquidity metric columns must be identical.
+#'   \item The liquidity metric values must not be normalized; that is, it is an error if all values in each
+#'         liquidity metric column (all but the first) are between -1 and 1.
+#' }
+#'
+#' @param liquidity_floor_cutoffs A data.frame containing liquidity floor cutoffs.
+#' @param main_liquidity_metric Optional character string specifying the column (other than
+#'   \code{"liquidity_classification"}) that should be used to check ascending order.
+#'
+#' @return Invisibly returns \code{TRUE} if the data frame passes all validations.
+#'
+#' @keywords internal
+validate_liquidity_floor_cutoffs <- function(liquidity_floor_cutoffs, main_liquidity_metric = NULL) {
+  # Must be a data.frame
+  if (!is.data.frame(liquidity_floor_cutoffs)) {
+    stop("liquidity_floor_cutoffs must be a data.frame")
+  }
+
+  # Must have at least 2 columns
+  if (ncol(liquidity_floor_cutoffs) < 2) {
+    stop("liquidity_floor_cutoffs must have at least 2 columns")
+  }
+
+  # First column must be "liquidity_classification"
+  if (colnames(liquidity_floor_cutoffs)[1] != "liquidity_classification") {
+    stop("liquidity_floor_cutoffs must have liquidity_classification as the first column")
+  }
+
+  # Must have at most 5 rows
+  if (nrow(liquidity_floor_cutoffs) > 5) {
+    stop("liquidity_floor_cutoffs must have at most 5 rows")
+  }
+
+  # liquidity_classification values must have no duplicates
+  if (any(duplicated(liquidity_floor_cutoffs$liquidity_classification))) {
+    stop("liquidity_classification must not have duplicates")
+  }
+
+  # Check that liquidity_classification values are supported
+  allowed_categories <- c("micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps")
+  if (any(!liquidity_floor_cutoffs$liquidity_classification %in% allowed_categories)) {
+    stop("liquidity_classification must be one of micro_caps, small_caps, mid_caps, large_caps or mega_caps")
+  }
+
+  # All columns except the first must be numeric
+  if (!all(sapply(liquidity_floor_cutoffs[, -1, drop = FALSE], is.numeric))) {
+    stop("liquidity_floor_cutoffs elements (except liquidity_classification) must be numeric")
+  }
+
+  # There must be no missing values
+  if (any(is.na(liquidity_floor_cutoffs))) {
+    stop("liquidity_floor_cutoffs must not contain NAs")
+  }
+
+  # If a main liquidity metric is provided, check that:
+  if (!is.null(main_liquidity_metric)) {
+    # (1) It is present among the non-classification columns
+    if (!main_liquidity_metric %in% colnames(liquidity_floor_cutoffs)[-1]) {
+      stop("main_liquidity_metric must be present in liquidity_floor_cutoffs")
+    }
+    # (2) The data.frame is arranged in ascending order according to that metric
+    ordered_df <- dplyr::arrange(liquidity_floor_cutoffs, !!rlang::sym(main_liquidity_metric))
+    if (!identical(ordered_df, liquidity_floor_cutoffs)) {
+      stop("liquidity_floor_cutoffs is not in ascending order according to main_liquidity_metric")
+    }
+    # (3) Check that the ranking order across all liquidity metric columns is identical.
+    #       Compute, for each liquidity metric column, the order (i.e. ranking of row indices)
+    order_matrix <- sapply(liquidity_floor_cutoffs[, -1, drop = FALSE], order)
+    # For each row in the order matrix, the ordered indices should be the same across columns.
+    if (!all(apply(order_matrix, 1, function(x) length(unique(x)) == 1))) {
+      stop("liquidity metrics orders in liquidity_floor_cutoffs are conflicting")
+    }
+  }
+
+  # Check if the liquidity metric values appear normalized.
+  #     If every non-classification column has all values between -1 and 1, assume they are normalized.
+  normalized <- sapply(liquidity_floor_cutoffs[, -1, drop = FALSE], function(x) all(x >= -1 & x <= 1))
+  if (all(normalized)) {
+    stop("liquidity_floor_cutoffs values must not be normalized")
+  }
+
+  invisible(TRUE)
+}
+
+
