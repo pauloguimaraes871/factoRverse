@@ -122,16 +122,16 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
   #IDs not match
   expect_error(
     check_inputs_port_backtest(
-    signals_m_df = signals_m_df,
-    oos_predictions_m_df = wrong_oos_predictions_m_df,
-    chosen_score_metric_and_position = NULL,
-    rebalancing_months = 7,
-    initial_buffer_period = 4,
-    port_construction_method = "sw",
-    eligibility_quantile_range = c(0.5,0.75),
-    daily_stock_returns_m_xts = daily_stock_returns_m_xts,
-    daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
-  ), "all id's from signals_m_df after initial_buffer_period must have a correspondence in oos_predictions_m_df"
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = wrong_oos_predictions_m_df,
+      chosen_score_metric_and_position = NULL,
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
+    ), "all id's from signals_m_df after initial_buffer_period must have a correspondence in oos_predictions_m_df"
   )
 
   #Create a wrong mocked oos_predictions_m_df wwithout pred
@@ -1204,37 +1204,37 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
   wrong_fwd_return_m_df[3,4] <- NA
 
   expect_error(
-  check_inputs_port_backtest(
-    signals_m_df = signals_m_df,
-    oos_predictions_m_df = NULL,
-    chosen_score_metric_and_position = c(Alpha = "long"),
-    rebalancing_months = 7,
-    initial_buffer_period = 4,
-    port_construction_method = "sw",
-    eligibility_quantile_range = c(0.5,0.75),
-    daily_stock_returns_m_xts = NULL,
-    daily_bench_returns_m_xts = NULL,
-    cov_matrix_benchmark = "ibov",
-    cov_matrix_sample_size = 25,
-    selected_benchmark = "ibov",
-    benchmark_returns_m_xts = benchmark_returns_m_xts,
-    stock_groups_m_df = stock_groups_m_df,
-    liquidity_m_df = liquidity_m_df,
-    main_liquidity_metric = "mean_volfin_3m",
-    volatility_m_df = volatility_m_df,
-    benchmark_weights_m_df = benchmark_weights_m_df,
-    custom_stock_weights_m_df = NULL,
-    fwd_return_m_df = wrong_fwd_return_m_df,
-    custom_stock_metrics_m_df = NULL,
-    concentration_constraint_policy = NULL,
-    liquidity_constraint_policy = NULL,
-    turnover_constraint_policy = NULL,
-    liquidity_floor_cutoffs = NULL,
-    user_defined_OR_rules_m_df = NULL,
-    user_defined_AND_rules_m_df = NULL,
-    transaction_costs_parameters = list(strategy_aum = 10, direct_transaction_cost = 0.07, alpha = 0.5, lambda = "dynamic"),
-    verbose = TRUE
-  ),"fwd_return_m_df before last period should contain only numeric columns with non-NAs.")
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = NULL,
+      daily_bench_returns_m_xts = NULL,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 25,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = wrong_fwd_return_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = NULL,
+      liquidity_constraint_policy = NULL,
+      turnover_constraint_policy = NULL,
+      liquidity_floor_cutoffs = NULL,
+      user_defined_OR_rules_m_df = NULL,
+      user_defined_AND_rules_m_df = NULL,
+      transaction_costs_parameters = list(strategy_aum = 10, direct_transaction_cost = 0.07, alpha = 0.5, lambda = "dynamic"),
+      verbose = TRUE
+    ),"fwd_return_m_df before last period should contain only numeric columns with non-NAs.")
 
 
   #IDs do not match
@@ -3124,7 +3124,7 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
 
   #Strategy aum does not match liquidity_m_df units
   wrong_transaction_costs_parameters <- transaction_costs_parameters
-  wrong_transaction_costs_parameters$strategy_aum <- 1000000
+  wrong_transaction_costs_parameters$strategy_aum <- 10000000
 
   expect_warning(
     check_inputs_port_backtest(

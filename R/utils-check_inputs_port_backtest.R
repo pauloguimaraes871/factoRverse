@@ -216,32 +216,32 @@ check_inputs_port_backtest <- function(
     }
 
     #Check if there are missing or non-consecutive days or months
-      ##Days
-      year_month <- format(stock_returns_dates, "%Y-%m")
-      day_count <- table(year_month)
-      inner_dates_day_count <- day_count[-c(1, length(day_count))] #Exclude first and last month
-      first_last_dates_day_count <- day_count[c(1, length(day_count))] #Last month
+    ##Days
+    year_month <- format(stock_returns_dates, "%Y-%m")
+    day_count <- table(year_month)
+    inner_dates_day_count <- day_count[-c(1, length(day_count))] #Exclude first and last month
+    first_last_dates_day_count <- day_count[c(1, length(day_count))] #Last month
 
-      ##Months
-      ##Generate the full sequence of months from the first to the last date
-      start_date <- as.Date(paste0(format(min(stock_returns_dates), "%Y-%m"), "-01"))
-      end_date <- as.Date(paste0(format(max(stock_returns_dates), "%Y-%m"), "-01"))
+    ##Months
+    ##Generate the full sequence of months from the first to the last date
+    start_date <- as.Date(paste0(format(min(stock_returns_dates), "%Y-%m"), "-01"))
+    end_date <- as.Date(paste0(format(max(stock_returns_dates), "%Y-%m"), "-01"))
 
-      ##Create a sequence of all months between start and end date
-      expected_months <- seq(from = start_date, to = end_date, by = "months")
-      expected_year_months <- format(expected_months, "%Y-%m")
+    ##Create a sequence of all months between start and end date
+    expected_months <- seq(from = start_date, to = end_date, by = "months")
+    expected_year_months <- format(expected_months, "%Y-%m")
 
-      ##Find missing months
-      actual_year_months <- unique(year_month)
-      missing_months <- setdiff(expected_year_months, actual_year_months)
+    ##Find missing months
+    actual_year_months <- unique(year_month)
+    missing_months <- setdiff(expected_year_months, actual_year_months)
 
-      ##Check
-      if(any(inner_dates_day_count <= 15) || any(first_last_dates_day_count >= 30) || ##Missing
-         !all(diff(stock_returns_dates) > 0) || !all(diff(stock_returns_dates) < 15) ||
-         length(missing_months) > 0 || ##Non-consecutive
-         any(duplicated(stock_returns_dates))){
-        stop("daily_stock_returns_m_xts structure is wrong. It should have unique consecutive days and there should not be less than 15 trading days in any month.")
-      }
+    ##Check
+    if(any(inner_dates_day_count <= 15) || any(first_last_dates_day_count >= 30) || ##Missing
+       !all(diff(stock_returns_dates) > 0) || !all(diff(stock_returns_dates) < 15) ||
+       length(missing_months) > 0 || ##Non-consecutive
+       any(duplicated(stock_returns_dates))){
+      stop("daily_stock_returns_m_xts structure is wrong. It should have unique consecutive days and there should not be less than 15 trading days in any month.")
+    }
 
   }
 
@@ -560,7 +560,7 @@ check_inputs_port_backtest <- function(
 
     ###Check structure between custom_stock_metrics_m_df and signals_m_df
     if (any(!(signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% dplyr::pull(id)) %in%
-             (custom_stock_metrics_m_df %>% dplyr::pull(id)))){
+            (custom_stock_metrics_m_df %>% dplyr::pull(id)))){
       stop("all id's from signals_m_df after initial_buffer_period must have a correspondence in custom_stock_metrics_m_df")
     }
 
@@ -766,7 +766,7 @@ check_inputs_port_backtest <- function(
   median_main_liq_metric <- median(liquidity_m_df[[main_liquidity_metric]])
   median_order_size_est <- ((transaction_costs_parameters$strategy_aum)/100)/median_main_liq_metric
 
-  if (median_order_size_est > 0.025 || median_order_size_est < 0.0002){
+  if (median_order_size_est > 0.25 || median_order_size_est < 0.0002){
     warning("Please be sure that strategy_aum is in same units as main_liquidity_metric")
   }
 

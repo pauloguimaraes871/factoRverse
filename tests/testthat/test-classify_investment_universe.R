@@ -462,7 +462,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, 2 buffe
 
 
   benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
-  expected_results$IBOV_bench_weights <- benchmark_weights_m_d_ref$IBOV
+  expected_results$ibov_bench_weights <- benchmark_weights_m_d_ref$ibov
   expected_results$max_abs_aw_ind <- c(1,1,1,1,1)
 
 
@@ -519,7 +519,7 @@ test_that("classify_investment_universe works when concentration_constraint_poli
   expected_results$pre_eligible_assets <- c(1,1,0,0,1)
 
   benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
-  expected_results$IBOV_bench_weights <- benchmark_weights_m_d_ref$IBOV
+  expected_results$ibov_bench_weights <- benchmark_weights_m_d_ref$ibov
 
 
   expected_results$is_eligible <- c(1,1,0,0,1)
@@ -573,7 +573,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, 2 buffe
   expected_results$liquidity_classification <- liquidity_classification_m_d_ref$liquidity_classification
   expected_results$liquidity_floor <- liquidity_classification_m_d_ref$liquidity_floor
 
-  expected_results$IBOV_bench_weights <- benchmark_weights_m_d_ref$IBOV
+  expected_results$ibov_bench_weights <- benchmark_weights_m_d_ref$ibov
 
   turnover_cap_rule_m_d_ref <- apply_turnover_cap_rule(
     stock_universe_m_d_ref = stock_universe_m_d_ref,
@@ -662,7 +662,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
     id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
     tickers = c("Stock A", "Stock B", "Stock C"),
     dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15"), format = "%Y-%m-%d"),
-    IBOV = c(0.25, 0.50, 0.25)
+    ibov = c(0.25, 0.50, 0.25)
   )
 
   #Create user_defined_OR_rules_m_df
@@ -756,7 +756,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
     id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
     tickers = c("Stock A", "Stock B", "Stock C"),
     dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15"), format = "%Y-%m-%d"),
-    IBOV = c(0.25, 0.50, 0.25)
+    ibov = c(0.25, 0.50, 0.25)
   )
 
   #Create user_defined_OR_rules_m_df
@@ -788,7 +788,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
   expected_results$presence <- liquidity_m_d_ref$presence
   expected_results$liquidity_classification <- c("nano_caps", "small_caps", "small_caps")
   expected_results$liquidity_floor <- c(0,1,1)
-  expected_results$IBOV_bench_weights <- c(0.25,0.50,0.25)
+  expected_results$ibov_bench_weights <- c(0.25,0.50,0.25)
   expected_results$max_abs_aw_ind <- c(0,1,0)
   expected_results$bop_port_weights <- c(0, 0.25, 0)
   expected_results$buffer_zone_1 <- c(0,0,0)
@@ -812,7 +812,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
   )
 
   concentration_constraint_policy <- list(
-    benchmark = "IBOV",
+    benchmark = "ibov",
     max_abs_active_individual_weight = 0.50
   )
 
@@ -869,7 +869,7 @@ test_that("classify_investment_universe works inside run_port_backtest flow - ar
   expected_results$liquidity_classification <- liquidity_floor_rule_m_d_ref$liquidity_classification
   expected_results$liquidity_floor <- liquidity_floor_rule_m_d_ref$liquidity_floor
   #Bench weights
-  expected_results$IBOV_bench_weights <- benchmark_weights_m_d_ref$IBOV
+  expected_results$ibov_bench_weights <- benchmark_weights_m_d_ref$ibov
   expected_results$max_abs_aw_ind <- c(1,1,1,1)
   #Buffer Zones
   turnover_cap_rule_m_d_ref <- apply_turnover_cap_rule(stock_universe_m_d_ref = stock_universe_m_d_ref,

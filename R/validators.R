@@ -374,7 +374,7 @@ validate_liquidity_constraint_policy <- function(liquidity_constraint_policy) {
         if (cat_index < floor_index) {
           stop(
             paste0("Error in liquidity_constraint_policy: Liquidity cap rule for '", cat,
-                         "' is less liquid than the liquidity_floor_rule '", floor_rule, "'")
+                   "' is less liquid than the liquidity_floor_rule '", floor_rule, "'")
           )
         }
       }
@@ -390,9 +390,9 @@ validate_liquidity_constraint_policy <- function(liquidity_constraint_policy) {
           if (cap_rules[i] > cap_rules[j]) {
             stop(
               paste0("Error in liquidity_constraint_policy: Cap for '", names(cap_rules)[i],
-                           "' of ", cap_rules[i],
-                           " cannot be greater than cap for '", names(cap_rules)[j],
-                           "' of ", cap_rules[j])
+                     "' of ", cap_rules[i],
+                     " cannot be greater than cap for '", names(cap_rules)[j],
+                     "' of ", cap_rules[j])
             )
           }
         }
@@ -540,7 +540,7 @@ validate_transaction_costs_parameters <- function(transaction_costs_parameters) 
   if (!is.numeric(transaction_costs_parameters$alpha) ||
       length(transaction_costs_parameters$alpha) != 1 ||
       (transaction_costs_parameters$alpha <= 0 || transaction_costs_parameters$alpha > 1)
-      ) {
+  ) {
     stop("alpha should be a single numeric between 0 and 1")
   }
 

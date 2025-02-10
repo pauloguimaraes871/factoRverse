@@ -118,10 +118,10 @@ setMethod(
         if(length(dates) == 1){
           dates <- as.Date(date_range)
         } else {
-        dates <- seq.Date(as.Date(date_range[1]), as.Date(date_range[2]), by = "day")
+          dates <- seq.Date(as.Date(date_range[1]), as.Date(date_range[2]), by = "day")
         }
       }
-     }
+    }
 
     # Prompt for 'calc_stat' if not specified
     if (is.null(calc_stat) && type %in% c("cross_sectional", "time_series", "waterfall")) {
@@ -1183,81 +1183,81 @@ setMethod(
 
       # Group by Cluster and Dates, then apply calc_stat on variable if numeric
       if(is.numeric(df[[variable]])){
-      df_summary <- df %>%
-        dplyr::group_by(Cluster, dates) %>%
-        dplyr::summarize(
-          Calc_Stat = FUN(!!rlang::sym(variable)),
-          .groups = "drop"
-        )
-
-      # Check if there are valid rows to process
-      if (nrow(df_summary) == 0) stop("No data available after filtering or summarization.")
-
-      # Define the number of bins and labels based on numeric_aggregation
-      bins <- switch(numeric_aggregation,
-                     decile = 10,
-                     quartile = 4,
-                     tercile = 3,
-                     median = 2,
-                     stop("Invalid numeric_aggregation. Choose from 'decile', 'quartile', 'tercile', or 'median'."))
-
-      label_list <- switch(numeric_aggregation,
-                           decile = sprintf("D%02d", 1:10),
-                           quartile = sprintf("Q%02d", 1:4),
-                           tercile = sprintf("T%02d", 1:3),
-                           median = c("Below_Median", "Above_Median"))
-
-
-      # Categorize each Cluster by Calc_Stat for each date
-      df_summary <- df_summary %>%
-        dplyr::group_by(dates) %>%
-        dplyr::mutate(
-          bin = dplyr::ntile(Calc_Stat,
-                      switch(numeric_aggregation,
-                             decile = 10,
-                             quartile = 4,
-                             tercile = 3,
-                             median = 2)),
-          bin_label = dplyr::case_when(
-            numeric_aggregation == "decile" ~ sprintf("D%02d", bin),
-            numeric_aggregation == "quartile" ~ sprintf("Q%02d", bin),
-            numeric_aggregation == "tercile" ~ sprintf("T%02d", bin),
-            numeric_aggregation == "median" ~ ifelse(bin == 1, "Below_Median", "Above_Median")
+        df_summary <- df %>%
+          dplyr::group_by(Cluster, dates) %>%
+          dplyr::summarize(
+            Calc_Stat = FUN(!!rlang::sym(variable)),
+            .groups = "drop"
           )
-        ) %>%
-        dplyr::ungroup()
 
-      # Color palette for bins
-      color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
+        # Check if there are valid rows to process
+        if (nrow(df_summary) == 0) stop("No data available after filtering or summarization.")
 
-      # Create the plot
-      p <- ggplot2::ggplot(df_summary, ggplot2::aes(x = dates, y = Cluster, fill = bin_label)) +
-        ggplot2::geom_tile(color = white) +
-        ggplot2::scale_fill_manual(
-          values = setNames(color_palette[1:bins], label_list),
-          na.value = "grey50"
-        ) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          axis.text.x = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-          axis.text.y = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.subtitle = ggplot2::element_text(color = white, size = 12, face = "italic"),
-          legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          panel.grid = ggplot2::element_blank()
-        ) +
-        ggplot2::labs(
-          title = paste("Tile Heatmap of", variable," by dates and", clustering_variables),
-          subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
-          x = "Dates",
-          y = clustering_variables,
-          fill = variable
-        )
+        # Define the number of bins and labels based on numeric_aggregation
+        bins <- switch(numeric_aggregation,
+                       decile = 10,
+                       quartile = 4,
+                       tercile = 3,
+                       median = 2,
+                       stop("Invalid numeric_aggregation. Choose from 'decile', 'quartile', 'tercile', or 'median'."))
+
+        label_list <- switch(numeric_aggregation,
+                             decile = sprintf("D%02d", 1:10),
+                             quartile = sprintf("Q%02d", 1:4),
+                             tercile = sprintf("T%02d", 1:3),
+                             median = c("Below_Median", "Above_Median"))
+
+
+        # Categorize each Cluster by Calc_Stat for each date
+        df_summary <- df_summary %>%
+          dplyr::group_by(dates) %>%
+          dplyr::mutate(
+            bin = dplyr::ntile(Calc_Stat,
+                               switch(numeric_aggregation,
+                                      decile = 10,
+                                      quartile = 4,
+                                      tercile = 3,
+                                      median = 2)),
+            bin_label = dplyr::case_when(
+              numeric_aggregation == "decile" ~ sprintf("D%02d", bin),
+              numeric_aggregation == "quartile" ~ sprintf("Q%02d", bin),
+              numeric_aggregation == "tercile" ~ sprintf("T%02d", bin),
+              numeric_aggregation == "median" ~ ifelse(bin == 1, "Below_Median", "Above_Median")
+            )
+          ) %>%
+          dplyr::ungroup()
+
+        # Color palette for bins
+        color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
+
+        # Create the plot
+        p <- ggplot2::ggplot(df_summary, ggplot2::aes(x = dates, y = Cluster, fill = bin_label)) +
+          ggplot2::geom_tile(color = white) +
+          ggplot2::scale_fill_manual(
+            values = setNames(color_palette[1:bins], label_list),
+            na.value = "grey50"
+          ) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            axis.text.x = ggplot2::element_text(color = white, angle = 45, hjust = 1),
+            axis.text.y = ggplot2::element_text(color = white),
+            axis.title = ggplot2::element_text(color = white),
+            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = white, size = 12, face = "italic"),
+            legend.position = "bottom",
+            legend.title = ggplot2::element_text(color = white),
+            legend.text = ggplot2::element_text(color = white),
+            panel.grid = ggplot2::element_blank()
+          ) +
+          ggplot2::labs(
+            title = paste("Tile Heatmap of", variable," by dates and", clustering_variables),
+            subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+            x = "Dates",
+            y = clustering_variables,
+            fill = variable
+          )
       } else {
         #Treatment for character
         df_summary <- df %>% dplyr::select(Cluster, dates, !!rlang::sym(variable)) %>% dplyr::rename(bin_label = !!rlang::sym(variable))
@@ -1295,7 +1295,7 @@ setMethod(
             y = clustering_variables,
             fill = variable
           )
-    }
+      }
       print(p)
     }
 
@@ -1435,18 +1435,18 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
               }
 
               # Prompt for active_returns
-                active_returns <- readline(prompt = "Compute active returns relative to the benchmark? (yes/no): ")
-                if (active_returns == "yes") {
-                  if (is.null(benchmark_returns_m_xts)){
-                    stop("You must provide a 'benchmark_returns_m_xts' object to compute active returns.")
-                  }
-                  if (ncol(benchmark_returns_m_xts@data) > 1){
-                    stop("The 'benchmark_returns_m_xts' object must have only one column.")
-                  }
-                  active_returns <- TRUE
-                } else {
-                  active_returns <- FALSE
+              active_returns <- readline(prompt = "Compute active returns relative to the benchmark? (yes/no): ")
+              if (active_returns == "yes") {
+                if (is.null(benchmark_returns_m_xts)){
+                  stop("You must provide a 'benchmark_returns_m_xts' object to compute active returns.")
                 }
+                if (ncol(benchmark_returns_m_xts@data) > 1){
+                  stop("The 'benchmark_returns_m_xts' object must have only one column.")
+                }
+                active_returns <- TRUE
+              } else {
+                active_returns <- FALSE
+              }
 
 
               # Generate performance data
@@ -1553,224 +1553,224 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 
             } else {
 
-            # If x is returns_meta_xts, ask about cumulative if not specified
-            if (methods::is(x, "returns_meta_xts")) {
-              # If user didn't specify 'cumulative', prompt them
-              if (is.null(cumulative)) {
-                response_cum <- readline(prompt = "Do you want to plot cumulative returns? (yes/no): ")
-                cumulative <- tolower(response_cum) == "yes"
+              # If x is returns_meta_xts, ask about cumulative if not specified
+              if (methods::is(x, "returns_meta_xts")) {
+                # If user didn't specify 'cumulative', prompt them
+                if (is.null(cumulative)) {
+                  response_cum <- readline(prompt = "Do you want to plot cumulative returns? (yes/no): ")
+                  cumulative <- tolower(response_cum) == "yes"
+                }
+              } else {
+                # If x is not returns_meta_xts, ignore 'cumulative' (force it to FALSE)
+                cumulative <- FALSE
               }
-            } else {
-              # If x is not returns_meta_xts, ignore 'cumulative' (force it to FALSE)
-              cumulative <- FALSE
-            }
 
-            # Ask user if they want to facet by year if the argument is not provided
-            if (is.null(facet_by_year)) {
-              response_facet <- readline(prompt = "Do you want to facet the plot by year? (yes/no): ")
-              facet_by_year <- tolower(response_facet) == "yes"
-            }
-
-            # Ask user if they want to add overall mean lines if the argument is not provided
-            if (is.null(add_overall_means) && !cumulative) {
-              response_means <- readline(prompt = "Do you want to add overall mean lines? (yes/no): ")
-              add_overall_means <- tolower(response_means) == "yes"
-            } else {
-              add_overall_means <- FALSE
-            }
-
-
-            # Define the neon color palette
-            neon_colors <- c(
-              "#00BFFF",  # Neon Blue
-              "#FF1493",  # Neon Pink
-              "#FFFF00",  # Neon Yellow
-              "#8A2BE2",  # Neon Purple
-              "#FF4500",  # Neon Orange
-              "#39FF14",  # Neon Green
-              "#FF69B4",  # Hot Pink
-              "#32CD32",  # Lime Green
-              "#FFA500"   # Bright Orange
-            )
-
-            blue_bg <- "#001f3f"
-            faint_blue <- "#003366"
-            white <- "#FFFFFF"
-            vertical_line_color <- "#CCCC00"  # Dark Neon Yellow
-
-            # Extract slots
-            frequency <- x@frequency
-            metric_name <- x@metric_name
-            main_xts <- x@data
-
-            # Convert xts -> data frame -> long format
-            df_data <- as.data.frame(main_xts)
-            df_data$dates <- as.Date(zoo::index(main_xts))
-            df_data$year <- lubridate::year(df_data$dates)
-
-            long_data <- reshape2::melt(
-              df_data,
-              id.vars = c("dates", "year"),
-              variable.name = "series",
-              value.name = "value"
-            )
-
-            # Sort by date to ensure correct plotting order
-            long_data <- long_data[order(long_data$dates), ]
-
-            # Validate user-specified dates for vertical lines
-            if (!is.null(vertical_lines)) {
-              if (!all(class(vertical_lines) %in% c("Date", "POSIXt"))) {
-                stop("The 'vertical_lines' argument must be a Date or POSIXct vector.")
+              # Ask user if they want to facet by year if the argument is not provided
+              if (is.null(facet_by_year)) {
+                response_facet <- readline(prompt = "Do you want to facet the plot by year? (yes/no): ")
+                facet_by_year <- tolower(response_facet) == "yes"
               }
-              vertical_lines <- as.Date(vertical_lines)  # Convert to Date if not already
-            }
 
-            # Remove missing values and single-observation series
-            series_counts <- long_data %>%
-              dplyr::group_by(series) %>%
-              dplyr::summarize(non_na_count = sum(!is.na(value)), .groups = "drop")
+              # Ask user if they want to add overall mean lines if the argument is not provided
+              if (is.null(add_overall_means) && !cumulative) {
+                response_means <- readline(prompt = "Do you want to add overall mean lines? (yes/no): ")
+                add_overall_means <- tolower(response_means) == "yes"
+              } else {
+                add_overall_means <- FALSE
+              }
 
-            multi_obs_series <- series_counts %>%
-              dplyr::filter(non_na_count > 1) %>%
-              dplyr::pull(series)
 
-            plot_data_multi <- dplyr::filter(long_data, series %in% multi_obs_series & !is.na(value))
+              # Define the neon color palette
+              neon_colors <- c(
+                "#00BFFF",  # Neon Blue
+                "#FF1493",  # Neon Pink
+                "#FFFF00",  # Neon Yellow
+                "#8A2BE2",  # Neon Purple
+                "#FF4500",  # Neon Orange
+                "#39FF14",  # Neon Green
+                "#FF69B4",  # Hot Pink
+                "#32CD32",  # Lime Green
+                "#FFA500"   # Bright Orange
+              )
 
-            # If cumulative = TRUE and x is returns_meta_xts, compute cumulative returns
-            if (cumulative && methods::is(x, "returns_meta_xts")) {
-              # Transform each series by cumulative product
-              plot_data_multi <- plot_data_multi %>%
+              blue_bg <- "#001f3f"
+              faint_blue <- "#003366"
+              white <- "#FFFFFF"
+              vertical_line_color <- "#CCCC00"  # Dark Neon Yellow
+
+              # Extract slots
+              frequency <- x@frequency
+              metric_name <- x@metric_name
+              main_xts <- x@data
+
+              # Convert xts -> data frame -> long format
+              df_data <- as.data.frame(main_xts)
+              df_data$dates <- as.Date(zoo::index(main_xts))
+              df_data$year <- lubridate::year(df_data$dates)
+
+              long_data <- reshape2::melt(
+                df_data,
+                id.vars = c("dates", "year"),
+                variable.name = "series",
+                value.name = "value"
+              )
+
+              # Sort by date to ensure correct plotting order
+              long_data <- long_data[order(long_data$dates), ]
+
+              # Validate user-specified dates for vertical lines
+              if (!is.null(vertical_lines)) {
+                if (!all(class(vertical_lines) %in% c("Date", "POSIXt"))) {
+                  stop("The 'vertical_lines' argument must be a Date or POSIXct vector.")
+                }
+                vertical_lines <- as.Date(vertical_lines)  # Convert to Date if not already
+              }
+
+              # Remove missing values and single-observation series
+              series_counts <- long_data %>%
                 dplyr::group_by(series) %>%
-                dplyr::arrange(dates) %>%
-                dplyr::mutate(value = cumprod(1 + value/100) - 1) %>%
-                dplyr::ungroup()
-              # Also rename the y-label so user sees it's cumulative
-              metric_name <- paste0("cumulative ", metric_name)
-            }
+                dplyr::summarize(non_na_count = sum(!is.na(value)), .groups = "drop")
 
-            # Compute overall mean per series if requested
-            if (add_overall_means) {
-              overall_means <- plot_data_multi %>%
-                dplyr::group_by(series) %>%
-                dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop") %>%
-                dplyr::mutate(series = as.factor(series))
-            }
+              multi_obs_series <- series_counts %>%
+                dplyr::filter(non_na_count > 1) %>%
+                dplyr::pull(series)
 
-            # Apply clustering if provided
-            if (!is.null(clustering_list)) {
-              plot_data_multi$group <- NA
-              for (grp in names(clustering_list)) {
-                assigned_series <- clustering_list[[grp]]
-                plot_data_multi$group[plot_data_multi$series %in% assigned_series] <- grp
+              plot_data_multi <- dplyr::filter(long_data, series %in% multi_obs_series & !is.na(value))
+
+              # If cumulative = TRUE and x is returns_meta_xts, compute cumulative returns
+              if (cumulative && methods::is(x, "returns_meta_xts")) {
+                # Transform each series by cumulative product
+                plot_data_multi <- plot_data_multi %>%
+                  dplyr::group_by(series) %>%
+                  dplyr::arrange(dates) %>%
+                  dplyr::mutate(value = cumprod(1 + value/100) - 1) %>%
+                  dplyr::ungroup()
+                # Also rename the y-label so user sees it's cumulative
+                metric_name <- paste0("cumulative ", metric_name)
               }
 
-              unique_groups <- unique(plot_data_multi$group)
+              # Compute overall mean per series if requested
+              if (add_overall_means) {
+                overall_means <- plot_data_multi %>%
+                  dplyr::group_by(series) %>%
+                  dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop") %>%
+                  dplyr::mutate(series = as.factor(series))
+              }
 
-              if (length(unique_groups) == 1) {
-                warning("Only one group detected, plotting without grouping.")
+              # Apply clustering if provided
+              if (!is.null(clustering_list)) {
+                plot_data_multi$group <- NA
+                for (grp in names(clustering_list)) {
+                  assigned_series <- clustering_list[[grp]]
+                  plot_data_multi$group[plot_data_multi$series %in% assigned_series] <- grp
+                }
+
+                unique_groups <- unique(plot_data_multi$group)
+
+                if (length(unique_groups) == 1) {
+                  warning("Only one group detected, plotting without grouping.")
+                  plot_data_multi$group <- plot_data_multi$series
+                  linetype_legend_title <- NULL
+                } else {
+                  linetype_legend_title <- "Group"
+                }
+              } else {
                 plot_data_multi$group <- plot_data_multi$series
                 linetype_legend_title <- NULL
-              } else {
-                linetype_legend_title <- "Group"
               }
-            } else {
-              plot_data_multi$group <- plot_data_multi$series
-              linetype_legend_title <- NULL
-            }
 
-            # Assign colors to series
-            unique_series <- unique(plot_data_multi$series)
-            color_mapping <- setNames(rep(neon_colors, length.out = length(unique_series)), unique_series)
+              # Assign colors to series
+              unique_series <- unique(plot_data_multi$series)
+              color_mapping <- setNames(rep(neon_colors, length.out = length(unique_series)), unique_series)
 
-            # Create a mapping from unique series to numbers
-            series_mapping <- setNames(seq_along(unique(plot_data_multi$series)), unique(plot_data_multi$series))
-            plot_data_multi$series <- factor(series_mapping[plot_data_multi$series])
-            color_mapping <- color_mapping[names(series_mapping)]
-            names(color_mapping) <- series_mapping
+              # Create a mapping from unique series to numbers
+              series_mapping <- setNames(seq_along(unique(plot_data_multi$series)), unique(plot_data_multi$series))
+              plot_data_multi$series <- factor(series_mapping[plot_data_multi$series])
+              color_mapping <- color_mapping[names(series_mapping)]
+              names(color_mapping) <- series_mapping
 
-            # Create the ggplot object
-            plot_obj <- ggplot2::ggplot(plot_data_multi, ggplot2::aes(
-              x = dates,
-              y = value,
-              color = series,
-              group = series
-            )) +
-              ggplot2::geom_line(size = 0.8, na.rm = TRUE) +
-              ggplot2::labs(
-                title = paste("Time series of", metric_name, "for", frequency, "frequency"),
-                x = "Date",
-                y = metric_name,
-                color = "Series Label",
-                linetype = linetype_legend_title
-              ) +
-              ggplot2::scale_color_manual(values = color_mapping) +
-              ggplot2::theme_minimal() +
-              ggplot2::theme(
-                plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-                panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-                plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
-                axis.text        = ggplot2::element_text(color = white),
-                axis.title       = ggplot2::element_text(color = white),
-                legend.title     = ggplot2::element_text(color = white),
-                legend.text      = ggplot2::element_text(color = white),
-                panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-                panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
-              ) +
-              ggplot2::scale_x_date(labels = scales::date_format("%b-%y"))
-
-            # Add faceting if enabled
-            if (facet_by_year) {
-              plot_obj <- plot_obj +
-                ggplot2::facet_wrap(~year, scales = "free") +
+              # Create the ggplot object
+              plot_obj <- ggplot2::ggplot(plot_data_multi, ggplot2::aes(
+                x = dates,
+                y = value,
+                color = series,
+                group = series
+              )) +
+                ggplot2::geom_line(size = 0.8, na.rm = TRUE) +
+                ggplot2::labs(
+                  title = paste("Time series of", metric_name, "for", frequency, "frequency"),
+                  x = "Date",
+                  y = metric_name,
+                  color = "Series Label",
+                  linetype = linetype_legend_title
+                ) +
+                ggplot2::scale_color_manual(values = color_mapping) +
+                ggplot2::theme_minimal() +
                 ggplot2::theme(
-                  strip.text = ggplot2::element_text(color = white, face = "bold"),
-                  legend.position = "right"
-                )
-            }
+                  plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+                  panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+                  plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
+                  axis.text        = ggplot2::element_text(color = white),
+                  axis.title       = ggplot2::element_text(color = white),
+                  legend.title     = ggplot2::element_text(color = white),
+                  legend.text      = ggplot2::element_text(color = white),
+                  panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
+                  panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+                ) +
+                ggplot2::scale_x_date(labels = scales::date_format("%b-%y"))
 
-            # Add overall mean lines if requested
-            if (add_overall_means) {
-              overall_means <- plot_data_multi %>%
-                dplyr::group_by(series) %>%
-                dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop")
+              # Add faceting if enabled
+              if (facet_by_year) {
+                plot_obj <- plot_obj +
+                  ggplot2::facet_wrap(~year, scales = "free") +
+                  ggplot2::theme(
+                    strip.text = ggplot2::element_text(color = white, face = "bold"),
+                    legend.position = "right"
+                  )
+              }
 
-              # Match the factor levels so geom_hline uses the same color mapping
-              # 'series' in plot_data_multi is a factor with custom numeric labels, e.g. 1,2,3,...
-              # Make sure overall_means$series has the exact same factor levels
-              overall_means$series <- factor(overall_means$series,
-                                             levels = levels(plot_data_multi$series))
+              # Add overall mean lines if requested
+              if (add_overall_means) {
+                overall_means <- plot_data_multi %>%
+                  dplyr::group_by(series) %>%
+                  dplyr::summarize(overall_mean = mean(value, na.rm = TRUE), .groups = "drop")
 
-              # Then add dashed lines colored by 'series'
-              plot_obj <- plot_obj +
-                ggplot2::geom_hline(data = overall_means,
-                                    ggplot2::aes(yintercept = overall_mean, color = series),
-                                    linetype = "dashed", show.legend = FALSE)
-            }
+                # Match the factor levels so geom_hline uses the same color mapping
+                # 'series' in plot_data_multi is a factor with custom numeric labels, e.g. 1,2,3,...
+                # Make sure overall_means$series has the exact same factor levels
+                overall_means$series <- factor(overall_means$series,
+                                               levels = levels(plot_data_multi$series))
 
-            # Add vertical dashed lines at specified timestamps
-            if (!is.null(vertical_lines)) {
-              plot_obj <- plot_obj +
-                ggplot2::geom_vline(xintercept = as.numeric(vertical_lines),
-                                    linetype = "dashed", color = vertical_line_color, size = 0.5) +
-                ggplot2::annotate("text",
-                                  x = vertical_lines,
-                                  y = max(plot_data_multi$value, na.rm = TRUE) * 0.95,
-                                  label = format(vertical_lines, "%Y-%m-%d"),
-                                  color = vertical_line_color,
-                                  angle = 90,
-                                  vjust = 0.5,
-                                  size = 1)
-            }
+                # Then add dashed lines colored by 'series'
+                plot_obj <- plot_obj +
+                  ggplot2::geom_hline(data = overall_means,
+                                      ggplot2::aes(yintercept = overall_mean, color = series),
+                                      linetype = "dashed", show.legend = FALSE)
+              }
 
-            # Print the legend mapping Backtest labels to identifiers
-            cat("\nLegend:\n")
-            for (i in seq_along(series_mapping)) {
-              cat(paste(series_mapping[i], ":", names(series_mapping)[i], "\n"))
-            }
+              # Add vertical dashed lines at specified timestamps
+              if (!is.null(vertical_lines)) {
+                plot_obj <- plot_obj +
+                  ggplot2::geom_vline(xintercept = as.numeric(vertical_lines),
+                                      linetype = "dashed", color = vertical_line_color, size = 0.5) +
+                  ggplot2::annotate("text",
+                                    x = vertical_lines,
+                                    y = max(plot_data_multi$value, na.rm = TRUE) * 0.95,
+                                    label = format(vertical_lines, "%Y-%m-%d"),
+                                    color = vertical_line_color,
+                                    angle = 90,
+                                    vjust = 0.5,
+                                    size = 1)
+              }
 
-            print(plot_obj)
-            invisible(plot_obj)
+              # Print the legend mapping Backtest labels to identifiers
+              cat("\nLegend:\n")
+              for (i in seq_along(series_mapping)) {
+                cat(paste(series_mapping[i], ":", names(series_mapping)[i], "\n"))
+              }
+
+              print(plot_obj)
+              invisible(plot_obj)
             }
           })
 
@@ -2326,7 +2326,7 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
       time_series_validation_metrics = results$time_series_validation_metrics,
       base_learners = all_sb_backtest_results,
       plot_name = plot_name
-      )
+    )
 
 
     #Plot base and meta learners hyperparameters
@@ -2347,36 +2347,64 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
       stop("Invalid selection.")
     }
 
-  # Initialize a list to hold plots
-  plot_list <- list()
+    # Initialize a list to hold plots
+    plot_list <- list()
 
-  # Plot base learners if requested
-  if (which %in% c("base", "both")) {
-    # Determine whether to use configs or results
-    if (!is.null(x@base_sb_backtest_configs)) {
-      base_configs <- x@base_sb_backtest_configs
-    } else if (!is.null(x@base_sb_backtest_results)) {
-      # Use get_sb_backtest_config to extract configs from results
-      base_configs <- lapply(x@base_sb_backtest_results, get_sb_backtest_config)
-    } else {
-      stop("No base_sb_backtest_configs or base_sb_backtest_results found in the object.")
+    # Plot base learners if requested
+    if (which %in% c("base", "both")) {
+      # Determine whether to use configs or results
+      if (!is.null(x@base_sb_backtest_configs)) {
+        base_configs <- x@base_sb_backtest_configs
+      } else if (!is.null(x@base_sb_backtest_results)) {
+        # Use get_sb_backtest_config to extract configs from results
+        base_configs <- lapply(x@base_sb_backtest_results, get_sb_backtest_config)
+      } else {
+        stop("No base_sb_backtest_configs or base_sb_backtest_results found in the object.")
+      }
+
+      # Loop through each sb_backtest_config in the base_configs
+      for (config in base_configs) {
+        # Check if the algorithm is not OLS
+        if (config@sb_algorithm != "ols") {
+          # Create the plot using the existing plot method for sb_backtest_config
+          p <- plot(config)  # Call the existing plot method
+
+          # Store the plot in the list and add a centered subtitle
+          plot_list[[length(plot_list) + 1]] <- p +
+            ggplot2::ggtitle(paste("Algorithm:", config@sb_algorithm,
+                                   if(config@sb_algorithm == "nn") paste("with", length(config@keras_architecture_parameters@units), "layers"),
+                                   "  | Custom Obj:", config@custom_objective,
+                                   "\nTuning Strategy:", config@tuning_strategy@tuning_method,
+                                   "  |  Chosen Eval Metric:", config@tuning_strategy@chosen_eval_metric,
+                                   "  |  Val Sample Size:", config@tuning_strategy@validation_sample_size)
+            ) +  # Combined title
+            ggplot2::theme(
+              plot.title = ggplot2::element_text(size = 10),
+              plot.subtitle = ggplot2::element_text(hjust = 0.5, color = "white", size = 9),
+              panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
+            )
+        } else {
+          message("Skipping plotting for `ols` sb_algorithm in one of the configs.")
+        }
+      }
     }
 
-    # Loop through each sb_backtest_config in the base_configs
-    for (config in base_configs) {
+    # Plot meta learner if requested
+    if (which %in% c("meta", "both")) {
+      meta_config <- x@meta_sb_backtest_config
       # Check if the algorithm is not OLS
-      if (config@sb_algorithm != "ols") {
+      if (meta_config@sb_algorithm != "ols") {
         # Create the plot using the existing plot method for sb_backtest_config
-        p <- plot(config)  # Call the existing plot method
+        p <- plot(meta_config)  # Call the existing plot method
 
         # Store the plot in the list and add a centered subtitle
         plot_list[[length(plot_list) + 1]] <- p +
-          ggplot2::ggtitle(paste("Algorithm:", config@sb_algorithm,
-                                 if(config@sb_algorithm == "nn") paste("with", length(config@keras_architecture_parameters@units), "layers"),
-                                 "  | Custom Obj:", config@custom_objective,
-                                 "\nTuning Strategy:", config@tuning_strategy@tuning_method,
-                                 "  |  Chosen Eval Metric:", config@tuning_strategy@chosen_eval_metric,
-                                 "  |  Val Sample Size:", config@tuning_strategy@validation_sample_size)
+          ggplot2::ggtitle(paste("Meta Learner - Algorithm:", meta_config@sb_algorithm,
+                                 if(meta_config@sb_algorithm == "nn") paste("with", length(meta_config@keras_architecture_parameters@units), "layers"),
+                                 "  | Custom Obj:", meta_config@custom_objective,
+                                 "\nTuning Strategy:", meta_config@tuning_strategy@tuning_method,
+                                 "  |  Chosen Eval Metric:", meta_config@tuning_strategy@chosen_eval_metric,
+                                 "  |  Val Sample Size:", meta_config@tuning_strategy@validation_sample_size)
           ) +  # Combined title
           ggplot2::theme(
             plot.title = ggplot2::element_text(size = 10),
@@ -2384,70 +2412,42 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
             panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
           )
       } else {
-        message("Skipping plotting for `ols` sb_algorithm in one of the configs.")
+        message("Skipping plotting for `ols` sb_algorithm in the meta learner config.")
       }
     }
-  }
 
-  # Plot meta learner if requested
-  if (which %in% c("meta", "both")) {
-    meta_config <- x@meta_sb_backtest_config
-    # Check if the algorithm is not OLS
-    if (meta_config@sb_algorithm != "ols") {
-      # Create the plot using the existing plot method for sb_backtest_config
-      p <- plot(meta_config)  # Call the existing plot method
+    # Check if there are any plots to display
+    if (length(plot_list) > 0) {
+      # Create an empty plot for the main title with the blue background
+      title_text <- switch(which,
+                           "base" = "SB Metabacktest Base Learner Tuning Strategies",
+                           "meta" = "SB Metabacktest Meta Learner Tuning Strategy",
+                           "both" = "SB Metabacktest Tuning Strategies"
+      )
 
-      # Store the plot in the list and add a centered subtitle
-      plot_list[[length(plot_list) + 1]] <- p +
-        ggplot2::ggtitle(paste("Meta Learner - Algorithm:", meta_config@sb_algorithm,
-                               if(meta_config@sb_algorithm == "nn") paste("with", length(meta_config@keras_architecture_parameters@units), "layers"),
-                               "  | Custom Obj:", meta_config@custom_objective,
-                               "\nTuning Strategy:", meta_config@tuning_strategy@tuning_method,
-                               "  |  Chosen Eval Metric:", meta_config@tuning_strategy@chosen_eval_metric,
-                               "  |  Val Sample Size:", meta_config@tuning_strategy@validation_sample_size)
-        ) +  # Combined title
-        ggplot2::theme(
-          plot.title = ggplot2::element_text(size = 10),
-          plot.subtitle = ggplot2::element_text(hjust = 0.5, color = "white", size = 9),
-          panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
-        )
-    } else {
-      message("Skipping plotting for `ols` sb_algorithm in the meta learner config.")
+      title_plot <- ggplot2::ggplot() +
+        ggplot2::theme_void() +  # No grid lines or axes
+        ggplot2::annotate("text", x = 0.5, y = 0.5,  # Centered position
+                          label = title_text,
+                          size = 6.25, color = "white", fontface = "bold", hjust = 0.5) +  # Centered title
+        ggplot2::theme(plot.background = ggplot2::element_rect(fill = "#001f3f"))  # Set background to blue_bg
+
+      # Determine the number of columns in the layout
+      ncol_layout <- ifelse(length(plot_list) > 1, 2, 1)
+
+      # Combine all individual plots into a single grid layout
+      combined_plot <- gridExtra::grid.arrange(
+        title_plot,
+        do.call(gridExtra::arrangeGrob, c(plot_list, ncol = ncol_layout)),
+        nrow = 2,
+        heights = c(0.1, 0.9)  # Adjust height ratios for title and plots
+      )
+
+      # Display the combined plot
+      grid::grid.newpage()
+      grid::grid.draw(combined_plot)
+
     }
-  }
-
-  # Check if there are any plots to display
-  if (length(plot_list) > 0) {
-    # Create an empty plot for the main title with the blue background
-    title_text <- switch(which,
-                         "base" = "SB Metabacktest Base Learner Tuning Strategies",
-                         "meta" = "SB Metabacktest Meta Learner Tuning Strategy",
-                         "both" = "SB Metabacktest Tuning Strategies"
-    )
-
-    title_plot <- ggplot2::ggplot() +
-      ggplot2::theme_void() +  # No grid lines or axes
-      ggplot2::annotate("text", x = 0.5, y = 0.5,  # Centered position
-                        label = title_text,
-                        size = 6.25, color = "white", fontface = "bold", hjust = 0.5) +  # Centered title
-      ggplot2::theme(plot.background = ggplot2::element_rect(fill = "#001f3f"))  # Set background to blue_bg
-
-    # Determine the number of columns in the layout
-    ncol_layout <- ifelse(length(plot_list) > 1, 2, 1)
-
-    # Combine all individual plots into a single grid layout
-    combined_plot <- gridExtra::grid.arrange(
-      title_plot,
-      do.call(gridExtra::arrangeGrob, c(plot_list, ncol = ncol_layout)),
-      nrow = 2,
-      heights = c(0.1, 0.9)  # Adjust height ratios for title and plots
-    )
-
-    # Display the combined plot
-    grid::grid.newpage()
-    grid::grid.draw(combined_plot)
-
-  }
 
 
   } else {
@@ -2485,26 +2485,26 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   # List of available plots
   if(x@sb_backtest_workflow$sb_algorithm %in% c("glmnet", "rf", "xgb", "nn")){
-  available_plots <- c(
-    "Chosen Evaluation Metric Over Time",
-    "Test vs Validation Chosen Evaluation Metric Over Time",
-    "Best Hyperparameters Over Time",
-    "Hyperparameters vs Error",
-    "All Evaluation Metrics Over Time",
-    "Consolidated OOS Testing Metrics",
-    "OOS Predictions, Errors and Targets",
-    "Consolidated OOS Testing Metrics vs Average Validation",
-    "Final Signal-Blending Model",
-    "Time-Series Feature Importance by Signal",
-    "Average Time-Series Feature Importance by Theme",
-    "Compare Feature Importance Side-by-Side by Signal",
-    "Compare Feature Importance Side-by-Side by Theme",
-    "Feature Importance Box-Plot by Signal",
-    "Feature Importance Box-Plot by Theme",
-    "Feature Importance Heatmap by Signal",
-    "Feature Importance Heatmap by Theme",
-    "Explain Prediction"
-  )
+    available_plots <- c(
+      "Chosen Evaluation Metric Over Time",
+      "Test vs Validation Chosen Evaluation Metric Over Time",
+      "Best Hyperparameters Over Time",
+      "Hyperparameters vs Error",
+      "All Evaluation Metrics Over Time",
+      "Consolidated OOS Testing Metrics",
+      "OOS Predictions, Errors and Targets",
+      "Consolidated OOS Testing Metrics vs Average Validation",
+      "Final Signal-Blending Model",
+      "Time-Series Feature Importance by Signal",
+      "Average Time-Series Feature Importance by Theme",
+      "Compare Feature Importance Side-by-Side by Signal",
+      "Compare Feature Importance Side-by-Side by Theme",
+      "Feature Importance Box-Plot by Signal",
+      "Feature Importance Box-Plot by Theme",
+      "Feature Importance Heatmap by Signal",
+      "Feature Importance Heatmap by Theme",
+      "Explain Prediction"
+    )
   }
 
   if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo", "custom_weights")){
@@ -2594,7 +2594,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     lr <- droprate <- regularizer_l2 <- regularizer_l1 <- min_child_weight <- subsample <- gamma <- nrounds <- NULL
 
   # Get 'consolidated' row
-    consolidated_oos_testing_metrics <- consolidated_eval_metrics %>% dplyr::select(metric, cons_oos)
+  consolidated_oos_testing_metrics <- consolidated_eval_metrics %>% dplyr::select(metric, cons_oos)
 
   # Get 'average' row from validation_eval_metrics_hyper_choice before time series plots
   if (length(validation_eval_metrics_hyper_choice) > 0) {
@@ -3250,7 +3250,22 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   } else if (plot_name == "OOS Predictions, Errors and Targets"){
 
-    plot(x@oos_sb_outputs_m_df)
+    #Ask if the user wants to plot a regression-scatterplot
+    resp_scat <- readline(prompt = "Do you want to plot a regression scatterplot? (yes/no): ")
+
+    if (resp_scat %in% c("yes", "y")){
+      dep_y <- readline(prompt = "Which variable do you want to be the dependent one? Choose between error, target and pred.")
+
+      ##Check
+      if (!dep_y %in% c("error", "target", "pred")){
+        stop("Please choose between error, target and pred.")
+      }
+      #Plot scatter
+      plot(x@oos_sb_outputs_m_df, dep_y = dep_y, type = "regression")
+    } else {
+      #Plot others
+      plot(x@oos_sb_outputs_m_df, dep_y = dep_y)
+    }
 
 
   } else if (plot_name == "Consolidated OOS Testing Metrics vs Average Validation") {

@@ -116,7 +116,7 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
     message("Total Market Impact Cost: ", crayon::red(market_impact_cost))
     message("Total Cost: ", crayon::red(total_cost))
     message("Turnover: ", turnover)
-    }
+  }
 
   ##Get brokerage statement
   transaction_costs_results_list <- list(
