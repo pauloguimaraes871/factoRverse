@@ -390,9 +390,9 @@ validate_liquidity_constraint_policy <- function(liquidity_constraint_policy) {
           if (cap_rules[i] > cap_rules[j]) {
             stop(
               paste0("Error in liquidity_constraint_policy: Cap for '", names(cap_rules)[i],
-                           "' (", cap_rules[i],
-                           ") cannot be greater than cap for '", names(cap_rules)[j],
-                           "' (", cap_rules[j], ")")
+                           "' of ", cap_rules[i],
+                           " cannot be greater than cap for '", names(cap_rules)[j],
+                           "' of ", cap_rules[j])
             )
           }
         }
@@ -477,9 +477,9 @@ validate_turnover_constraint_policy <- function(turnover_constraint_policy) {
       if (match(names(cap_rules)[i], allowed_categories) < match(names(cap_rules)[j], allowed_categories)) {
         if (cap_rules[i] > cap_rules[j]) {
           stop(paste0("Error in turnover_constraint_policy: Cap for '", names(cap_rules)[i],
-                      "' (", cap_rules[i],
-                      ") cannot be greater than cap for '", names(cap_rules)[j],
-                      "' (", cap_rules[j], ")"))
+                      "' of", cap_rules[i],
+                      " cannot be greater than cap for '", names(cap_rules)[j],
+                      "' of ", cap_rules[j]))
         }
       }
     }
@@ -515,7 +515,7 @@ validate_turnover_constraint_policy <- function(turnover_constraint_policy) {
 #' validate_transaction_cost_parameters(params)
 #'
 #' @export
-validate_transaction_cost_parameters <- function(transaction_costs_parameters) {
+validate_transaction_costs_parameters <- function(transaction_costs_parameters) {
   # Check if all required names are present
   required_names <- c("direct_transaction_cost", "strategy_aum", "alpha", "lambda")
   if (!all(required_names %in% names(transaction_costs_parameters))) {
@@ -524,43 +524,37 @@ validate_transaction_cost_parameters <- function(transaction_costs_parameters) {
 
   # Check if direct_transaction_cost is numeric of length 1
   if (!is.numeric(transaction_costs_parameters$direct_transaction_cost) ||
-      length(transaction_costs_parameters$direct_transaction_cost) != 1) {
-    stop("direct_transaction_cost should be a single numeric")
-  }
-  # Check if direct_transaction_cost is positive
-  if (transaction_costs_parameters$direct_transaction_cost <= 0) {
-    stop("direct_transaction_cost should be a positive value")
+      length(transaction_costs_parameters$direct_transaction_cost) != 1 ||
+      (transaction_costs_parameters$direct_transaction_cost <= 0.0001 || transaction_costs_parameters$direct_transaction_cost >= 0.1)){
+    stop("direct_transaction_cost should be a single numeric between 0.0001 and 0.1")
   }
 
   # Check if strategy_aum is numeric of length 1
   if (!is.numeric(transaction_costs_parameters$strategy_aum) ||
-      length(transaction_costs_parameters$strategy_aum) != 1) {
-    stop("strategy_aum should be a single numeric")
-  }
-  # Check if strategy_aum is positive
-  if (transaction_costs_parameters$strategy_aum <= 0) {
-    stop("strategy_aum should be a positive value")
+      length(transaction_costs_parameters$strategy_aum) != 1 ||
+      transaction_costs_parameters$strategy_aum <= 0){
+    stop("strategy_aum should be a single positive numeric")
   }
 
   # Check if alpha is numeric of length 1
   if (!is.numeric(transaction_costs_parameters$alpha) ||
-      length(transaction_costs_parameters$alpha) != 1) {
-    stop("alpha should be a single numeric")
-  }
-  # Check if alpha is positive
-  if (transaction_costs_parameters$alpha <= 0) {
-    stop("alpha should be a positive value")
+      length(transaction_costs_parameters$alpha) != 1 ||
+      (transaction_costs_parameters$alpha <= 0 || transaction_costs_parameters$alpha > 1)
+      ) {
+    stop("alpha should be a single numeric between 0 and 1")
   }
 
   # Check if lambda is of length 1
-  if (length(transaction_costs_parameters$lambda) != 1) {
-    stop("lambda should be a single value")
+  if (length(transaction_costs_parameters$lambda) != 1 ||
+      (!is.numeric(transaction_costs_parameters$lambda) && transaction_costs_parameters$lambda != "dynamic")){
+    stop("lambda should be a single numeric value or 'dynamic'")
   }
-  # Check if lambda is either numeric or "dynamic"
-  if (!is.numeric(transaction_costs_parameters$lambda) &&
-      transaction_costs_parameters$lambda != "dynamic") {
-    stop("lambda should be numeric or 'dynamic'")
+
+  if(is.numeric(transaction_costs_parameters$lambda) && (transaction_costs_parameters$lambda <= 0 || transaction_costs_parameters$lambda > 1)){
+    stop("lambda should be a single numeric value between 0 and 1")
   }
+
+
 
   TRUE
 }
@@ -593,6 +587,7 @@ validate_transaction_cost_parameters <- function(transaction_costs_parameters) {
 #'
 #' @keywords internal
 validate_liquidity_floor_cutoffs <- function(liquidity_floor_cutoffs, main_liquidity_metric = NULL) {
+
   # Must be a data.frame
   if (!is.data.frame(liquidity_floor_cutoffs)) {
     stop("liquidity_floor_cutoffs must be a data.frame")
@@ -657,7 +652,7 @@ validate_liquidity_floor_cutoffs <- function(liquidity_floor_cutoffs, main_liqui
   # Check if the liquidity metric values appear normalized.
   #     If every non-classification column has all values between -1 and 1, assume they are normalized.
   normalized <- sapply(liquidity_floor_cutoffs[, -1, drop = FALSE], function(x) all(x >= -1 & x <= 1))
-  if (all(normalized)) {
+  if (any(normalized)) {
     stop("liquidity_floor_cutoffs values must not be normalized")
   }
 

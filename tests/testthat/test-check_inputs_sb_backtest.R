@@ -928,7 +928,7 @@ test_that("run_sb_backtest_internal does not throw an error when hyperparameters
 
   #GLMNET
   suppressWarnings(
-  expect_no_error(
+    expect_no_error(
       run_sb_backtest_internal(
         features_m_df = features_m_df,
         signal_universe_m_df = signal_universe_m_df,
@@ -947,7 +947,7 @@ test_that("run_sb_backtest_internal does not throw an error when hyperparameters
         sb_algorithm = "glmnet",
         chosen_eval_metric = "rss",
         target_fwd_name = "fwd_premium_1m")
-  )
+    )
   )
 
 
@@ -1111,11 +1111,11 @@ test_that("run_sb_backtest_internal throws an error when hyperparameters_grid_li
         hyper_grid_domain_list = list(mtry = list(distribution_choice = "uniform",
                                                   pars = c(min = 0.5, max = 1)),
                                       num.trees = list(distribution_choice = "uniform",
-                                                  pars = c(min = 2, max = 3)),
+                                                       pars = c(min = 2, max = 3)),
                                       max.depth = list(distribution_choice = "uniform",
-                                                  pars = c(min = 1L, max = 2L)),
+                                                       pars = c(min = 1L, max = 2L)),
                                       min.bucket = list(distribution_choice = "uniform",
-                                                  pars = c(min = 1, max = 3))),
+                                                        pars = c(min = 1, max = 3))),
         sb_algorithm = "rf",
         show_plots = FALSE,
         n_iter = 2,
@@ -1181,13 +1181,13 @@ test_that("run_sb_backtest_internal throws an error when hyperparameters_grid_li
                                       regularizer_l2 = list(distribution_choice = "uniform",
                                                             pars = c(min = 2, max = 5)),
                                       droprate = list(distribution_choice = "uniform",
-                                                            pars = c(min = 2, max = 5)),
+                                                      pars = c(min = 2, max = 5)),
                                       lr = list(distribution_choice = "constant",
-                                                            value = c(0, 1)),
+                                                value = c(0, 1)),
                                       size_of_batch = list(distribution_choice = "constant",
-                                                            value = c(0, 1)),
+                                                           value = c(0, 1)),
                                       number_of_epochs = list(distribution_choice = "constant",
-                                                            value = c(0, 1))),
+                                                              value = c(0, 1))),
         sb_algorithm = "nn",
         keras_architecture_parameters = list(units = 32, n_layers = 1, activation = 'relu', nn_optimizer = 'Adam', batch_norm_option = TRUE),
         chosen_eval_metric = "rss",

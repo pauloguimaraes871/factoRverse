@@ -27,12 +27,12 @@
 #' @param liquidity_m_df A data frame containing liquidity information. It must be coercible to a meta_dataframe, with non-normalized numeric columns free of NAs, and must cover all stocks from \code{signals_m_df}.
 #' @param liquidity_floor_cutoffs A data frame providing liquidity floor cutoff values. It is validated by \code{validate_liquidity_floor_cutoffs} and must include the \code{main_liquidity_metric}.
 #' @param main_liquidity_metric A character string specifying the primary liquidity metric. It must be present in \code{liquidity_m_df} and include the substring \code{"mean_volfin"}.
-#' @param stocks_groups_m_df (Optional) A data frame containing stock group data, coercible to a meta_dataframe. All stocks in \code{signals_m_df} should be represented, and group columns must be of type character.
+#' @param stock_groups_m_df (Optional) A data frame containing stock group data, coercible to a meta_dataframe. All stocks in \code{signals_m_df} should be represented, and group columns must be of type character.
 #' @param benchmark_weights_m_df (Optional) A data frame with benchmark weights. It must be coercible to a meta_dataframe, have numeric columns with values between 0 and 1 (summing to 1 per date), and cover all stocks in \code{signals_m_df}.
 #' @param volatility_m_df A data frame containing volatility data, coercible to a meta_dataframe. Numeric columns must have no NAs, include a \code{"daily_vol"} column, and cover all stocks in \code{signals_m_df}.
 #' @param fwd_return_m_df A data frame containing forward returns, coercible to a meta_dataframe. It must contain a column named \code{"fwd_return_1m"}; the data should be numeric (with NAs allowed only at the final dates) and must match the structure of \code{signals_m_df} (IDs, tickers, dates).
 #' @param transaction_costs_parameters An object (or list) containing transaction cost parameters. It must have the names \code{"direct_transaction_cost"}, \code{"strategy_aum"}, \code{"alpha"}, and \code{"lambda"}, and is validated via \code{validate_transaction_cost_parameters}.
-#' @param custom_stock_universe_weights_m_df (Optional) A data frame containing custom stock universe weights that is coercible to a meta_dataframe.
+#' @param custom_stock_weights_m_df (Optional) A data frame containing custom stock universe weights that is coercible to a meta_dataframe.
 #' @param custom_stock_metrics_m_df (Optional) A data frame containing custom stock metrics that is coercible to a meta_dataframe.
 #' @param lower_quantile_winsorization A numeric value specifying the lower winsorization quantile.
 #' @param upper_quantile_winsorization A numeric value specifying the upper winsorization quantile.
@@ -54,12 +54,11 @@
 #' @export
 check_inputs_port_backtest <- function(
   # Base Objects
-  signals_m_df, oos_predictions_m_df,
-  chosen_score_metric_and_position = chosen_score_metric_and_position,
+  signals_m_df, oos_predictions_m_df, chosen_score_metric_and_position,
   # Backtest Scheme
   rebalancing_months, initial_buffer_period,
   # Portfolio Construction Method
-  port_construction_method, eligibility_quantile_range,
+  port_construction_method, eligibility_quantile_range, selected_benchmark,
   # RP/MVO Parameters
   rp_method, n_random_ports, random_ports_method, opt_objective, opt_method,
   # Covariance Estimation
@@ -70,13 +69,16 @@ check_inputs_port_backtest <- function(
   # Liquidity Information (Constraints and Active Returns Calculation)
   liquidity_m_df, liquidity_floor_cutoffs, main_liquidity_metric,
   # Group and benchmark constraints (stock groups also used to fill covariance data)
-  stocks_groups_m_df, benchmark_weights_m_df,
+  stock_groups_m_df, benchmark_weights_m_df,
   # Return calculation (needs also liquidity and vol for net returns)
   volatility_m_df, fwd_return_m_df, transaction_costs_parameters,
   # Custom Stock Weights and Metrics
-  custom_stock_universe_weights_m_df, custom_stock_metrics_m_df,
+  custom_stock_weights_m_df, custom_stock_metrics_m_df,
+  #User Defined
+  user_defined_OR_rules_m_df, user_defined_AND_rules_m_df,
   # Misc
-  lower_quantile_winsorization, upper_quantile_winsorization
+  lower_quantile_winsorization, upper_quantile_winsorization,
+  verbose
 ){
   #######signals_m_df
   ###################
@@ -86,22 +88,30 @@ check_inputs_port_backtest <- function(
     stop("signals_m_df should be coercible to meta_dataframe object")
   }
 
-  if(any(sapply(signals_m_df[,-c(1:3)], function(x) any(is.na(as.numeric(as.character(x))))))){
-    stop("signals_m_df should contain only numeric columns with non-NAs.")
-  }
-
   if(!all(sapply(signals_m_df[,-c(1:3)], function(x) is.numeric(x) && all(!is.na(x))))){
     stop("signals_m_df should contain only numeric columns with non-NAs.")
-  }
-
-  if(all(any(!lubridate::is.Date(signals_m_df %>% dplyr::pull(dates))) ||
-         any(is.na(as.Date(signals_m_df %>% dplyr::pull(dates), format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d")))))){
-    stop("dates in signals_m_df must be a date object with format %Y-%m-%d.")
   }
 
   #Check for presence of low
   if(any(grepl("low_", colnames(signals_m_df)))){
     stop("signals_m_df column names should not contain 'low_'.")
+  }
+
+  #######eligibility_quantile_range
+  ##################
+  #Check if length is different from 2
+  if(length(eligibility_quantile_range) != 2){
+    stop("eligibility_quantile_range should have length 2.")
+  }
+
+  #Check if it is positive between 0 and 1
+  if(any(eligibility_quantile_range < 0) || any(eligibility_quantile_range > 1)){
+    stop("eligibility_quantile_range should be between 0 and 1.")
+  }
+
+  #Check if elements are in incresing order
+  if(any(diff(eligibility_quantile_range) < 0)){
+    stop("eligibility_quantile_range should be in increasing order.")
   }
 
   #######exp_ret_score_metric
@@ -124,28 +134,9 @@ check_inputs_port_backtest <- function(
     }
   }
 
-  ######oos_predictions_m_df
-  if (!is.null(oos_predictions_m_df)){
-
-    #Check for correct format in oos_predictions_m_df
-    if (!is_coercible_to_meta_dataframe(oos_predictions_m_df)){
-      stop("oos_predictions_m_df should be coercible to meta_dataframe object")
-    }
-    if (!all(colnames(oos_predictions_m_df) != c("id", "tickers", "dates", "target", "pred", "error"))){
-      stop("oos_predictions_m_df should contain columns 'id', 'tickers', 'dates', 'target', 'pred', 'error'")
-    }
-
-    #Check if id's match after initial buffer period
-    if (any(!(signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% dplyr::pull(id)) %in%
-            (oos_predictions_m_df %>% dplyr::pull(id)))){
-      stop("all id's from signals_m_df after initial_buffer_period must have a correspondence in oos_predictions_m_df")
-    }
-  }
-
-
   #######dates objs
   ###################
-  dates_m_vector <- signals_m_df %>% dplyr::pull(dates) %>% unique()
+  dates_m_vector <- signals_m_df %>% dplyr::pull(dates) %>% unique() %>% sort()
 
   #Check structure of rebalancing_months
   if(!is.numeric(rebalancing_months)){
@@ -161,70 +152,126 @@ check_inputs_port_backtest <- function(
     stop("initial_buffer_period must be numeric")
   }
 
-  #######daily stock returns
-  ###################
-  #daily_stock_returns_m_xts
-  if(!xts::is.xts(daily_stock_returns_m_xts)){
-    stop("daily_stock_returns_m_xts must be a xts object")
-  }
-  #get dates
-  stock_returns_dates <- zoo::index(daily_stock_returns_m_xts)
+  ######oos_predictions_m_df
+  if (!is.null(oos_predictions_m_df)){
 
-  if(class(stock_returns_dates) != "Date"){
-    stop("dates in daily_stock_returns_m_xts must be of class Date")
-  }
+    #Check if chosen_score_metric_and_position is not NULL
+    if (!is.null(chosen_score_metric_and_position)){
+      stop("either chosen_score_metric_and_position or oos_predictions_m_df should be provided.")
+    }
 
-  if(nrow(daily_stock_returns_m_xts) < cov_matrix_sample_size){
-    stop("daily_stock_returns_m_xts must have at least cov_matrix_sample_size rows")
-  }
-
-  if(any(!unique(dplyr::pull(signals_m_df, tickers)) %in% colnames(daily_stock_returns_m_xts))){
-    stop("all tickers derived from signals_m_df must be present in daily_stock_returns_m_xts")
-  }
-
-  #Check if backtest dates are contemplated
-  stock_returns_dates_before_first_buffer <- stock_returns_dates[which(stock_returns_dates <= dates_m_vector[initial_buffer_period])]
-  if (length(stock_returns_dates_before_first_buffer) < cov_matrix_sample_size) {
-    stop("There is not enought cov_matrix_sample_size dates in daily_stock_returns_m_xts before initial_buffer_period")
-  }
-
-  for (i in seq_len(dates_m_vector)){
-    stock_returns_dates_before_i <- stock_returns_dates[which(stock_returns_dates <= i)]
-    if (length(stock_returns_dates_before_i) < cov_matrix_sample_size) {
-      stop("There is not enought cov_matrix_sample_size dates in daily_stock_returns_m_xts at backtesting date ", i)
+    #Check for correct format in oos_predictions_m_df
+    if (!is_coercible_to_meta_dataframe(oos_predictions_m_df)){
+      stop("oos_predictions_m_df should be coercible to meta_dataframe object")
+    }
+    if (!all(colnames(oos_predictions_m_df) == c("id", "tickers", "dates", "target", "pred", "error"))){
+      stop("oos_predictions_m_df should contain columns 'id', 'tickers', 'dates', 'target', 'pred', 'error'")
+    }
+    #Check if id's match after initial buffer period
+    if (any(!(signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% dplyr::pull(id)) %in%
+            (oos_predictions_m_df %>% dplyr::pull(id)))){
+      stop("all id's from signals_m_df after initial_buffer_period must have a correspondence in oos_predictions_m_df")
     }
   }
 
-  #Check if dates are daily
-  year_month <- format(stock_returns_dates, "%Y-%m")
-  day_count <- table(year_month)
-  if(any(day_count <= 15)){
-    warning("daily_stock_returns_m_xts have less than 15 trading days in one or more months. Please check your data.")
+  #Check that at least one of chosen_score_metric_and_position or oos_predictions_m_df is provided
+  if (is.null(chosen_score_metric_and_position) && is.null(oos_predictions_m_df)){
+    stop("either chosen_score_metric_and_position or oos_predictions_m_df should be provided.")
   }
-  #Check if dates are consecutive
-  if (!all(diff(stock_returns_dates) > 0)) {
-    stop("daily_stock_returns_m_xts must have consecutive dates")
+
+  #######daily stock returns
+  ###################
+  #daily_stock_returns_m_xts
+  if(!is.null(daily_stock_returns_m_xts)){
+
+    if(!xts::is.xts(daily_stock_returns_m_xts)){
+      stop("daily_stock_returns_m_xts must be a xts object")
+    }
+
+    if(is.null(cov_matrix_sample_size)){
+      stop("cov_matrix_sample_size must be provided together with daily_stock_returns_m_xts")
+    }
+
+    #get dates
+    stock_returns_dates <- zoo::index(daily_stock_returns_m_xts)
+
+    if(class(stock_returns_dates) != "Date"){
+      stop("dates in daily_stock_returns_m_xts must be of class Date")
+    }
+
+    if(nrow(daily_stock_returns_m_xts) < cov_matrix_sample_size){
+      stop("daily_stock_returns_m_xts must have at least cov_matrix_sample_size rows")
+    }
+
+    if(any(!unique(dplyr::pull(signals_m_df, tickers)) %in% colnames(daily_stock_returns_m_xts))){
+      stop("all tickers derived from signals_m_df must be present in daily_stock_returns_m_xts")
+    }
+
+    #Check if all backtest dates have enough data for cov estimation
+    for (i in dates_m_vector[initial_buffer_period:length(dates_m_vector)]){
+      stock_returns_dates_before_i <- stock_returns_dates[which(stock_returns_dates <= i)]
+      if (length(stock_returns_dates_before_i) < cov_matrix_sample_size) {
+        stop("There is not enought cov_matrix_sample_size dates in daily_stock_returns_m_xts at backtesting date ", as.Date(i))
+      }
+    }
+
+    #Check if there are missing or non-consecutive days or months
+      ##Days
+      year_month <- format(stock_returns_dates, "%Y-%m")
+      day_count <- table(year_month)
+      inner_dates_day_count <- day_count[-c(1, length(day_count))] #Exclude first and last month
+      first_last_dates_day_count <- day_count[c(1, length(day_count))] #Last month
+
+      ##Months
+      ##Generate the full sequence of months from the first to the last date
+      start_date <- as.Date(paste0(format(min(stock_returns_dates), "%Y-%m"), "-01"))
+      end_date <- as.Date(paste0(format(max(stock_returns_dates), "%Y-%m"), "-01"))
+
+      ##Create a sequence of all months between start and end date
+      expected_months <- seq(from = start_date, to = end_date, by = "months")
+      expected_year_months <- format(expected_months, "%Y-%m")
+
+      ##Find missing months
+      actual_year_months <- unique(year_month)
+      missing_months <- setdiff(expected_year_months, actual_year_months)
+
+      ##Check
+      if(any(inner_dates_day_count <= 15) || any(first_last_dates_day_count >= 30) || ##Missing
+         !all(diff(stock_returns_dates) > 0) || !all(diff(stock_returns_dates) < 15) ||
+         length(missing_months) > 0 || ##Non-consecutive
+         any(duplicated(stock_returns_dates))){
+        stop("daily_stock_returns_m_xts structure is wrong. It should have unique consecutive days and there should not be less than 15 trading days in any month.")
+      }
+
   }
+
 
   #######daily bench returns
   ###################
   #daily_bench_returns_m_xts
-  if(!xts::is.xts(daily_bench_returns_m_xts)){
-    stop("daily_bench_returns_m_xts must be a xts object")
-  }
-  #get dates
-  bench_returns_dates <- zoo::index(daily_bench_returns_m_xts)
+  if(!is.null(daily_bench_returns_m_xts)){
 
-  if(any(!bench_returns_dates %in% stock_returns_dates)){
-    stop("dates in daily_bench_returns_m_xts and daily_stock_returns_m_xts must be the same")
-  }
+    if(is.null(daily_stock_returns_m_xts)){
+      stop("daily_stock_returns_m_xts must be provided together with daily_bench_returns_m_xts")
+    }
 
-  if(any(apply(daily_bench_returns_m_xts, 2, function(x) all(is.na(x))))){
-    stop("daily_bench_returns_m_xts must not have any NA values")
-  }
+    if(!xts::is.xts(daily_bench_returns_m_xts)){
+      stop("daily_bench_returns_m_xts must be a xts object")
+    }
+    #get dates
+    bench_returns_dates <- zoo::index(daily_bench_returns_m_xts)
 
-  if(!cov_matrix_benchmark %in% colnames(daily_bench_returns_m_xts)){
-    stop("cov_matrix_benchmark must be present in daily_bench_returns_m_xts")
+    if(!setequal(bench_returns_dates, stock_returns_dates)){
+      stop("dates in daily_bench_returns_m_xts and daily_stock_returns_m_xts must be the same")
+    }
+
+    if(any(apply(daily_bench_returns_m_xts, 2, function(x) any(is.na(x))))){
+      stop("daily_bench_returns_m_xts must not have any NA values")
+    }
+
+    if(!cov_matrix_benchmark %in% colnames(daily_bench_returns_m_xts)){
+      stop("cov_matrix_benchmark must be present in daily_bench_returns_m_xts")
+    }
   }
 
   #######benchmark_returns_m_xts
@@ -248,21 +295,18 @@ check_inputs_port_backtest <- function(
   }
 
   #Check if all dates in dates_m_vector are present
-  if(!all(dates_m_vector) %in% benchmark_returns_dates){
-    stop("all dates in dates_m_vector must be present in benchmark_returns_m_xts")
+  if(!all(dates_m_vector %in% benchmark_returns_dates)){
+    stop("all dates in signals_m_df must be present in benchmark_returns_m_xts")
   }
 
-  benchmark_returns_dates_after_initial_buffer <- backtest_returns_dates[which(backtest_returns_dates > dates_m_vector[initial_buffer_period])]
+  benchmark_returns_dates_after_initial_buffer <- benchmark_returns_dates[which(benchmark_returns_dates > dates_m_vector[initial_buffer_period])]
   if (length(benchmark_returns_dates_after_initial_buffer) < 1) {
     stop("There must be at least one date in benchmark_returns_m_xts after initial_buffer_period")
   }
 
-  if(!all(diff(as.numeric(format(benchmark_returns_dates, "%Y")) * 12 + as.numeric(format(benchmark_returns_dates, "%m"))) == 1)){
-    stop("benchmark_returns_m_xts must have consecutive dates")
-  }
-
-  if(any(seq.Date(from = benchmark_returns_dates[1], to = benchmark_returns_dates[length(benchmark_returns_dates)], by = "month") != benchmark_returns_dates)){
-    stop("benchmark_returns_m_xts must have sequential monthly dates")
+  if(!setequal(seq.Date(from = benchmark_returns_dates[1], to = benchmark_returns_dates[length(benchmark_returns_dates)], by = "month"), benchmark_returns_dates) ||
+     length(unique(benchmark_returns_dates)) != length(benchmark_returns_dates)){
+    stop("benchmark_returns_m_xts must have sequential unique monthly dates")
   }
 
   ####stock_groups_m_df
@@ -281,13 +325,6 @@ check_inputs_port_backtest <- function(
     ##Check if all stocks of signals_m_df are covered in stock_groups_m_df
     if(any(!unique(signals_m_df$id) %in% (stock_groups_m_df %>% dplyr::pull(id)))){
       stop("all ids from signals_m_df should be present in stock_groups_m_df")
-    }
-
-    ##Check if dates in signal_groups_m_df and signals_m_df are the same
-    signal_dates_m_vector <- as.Date(unique(signals_m_df %>% dplyr::pull(dates)))
-    signal_groups_dates_m_vector <- as.Date(unique(stock_groups_m_df %>% dplyr::pull(dates)))
-    if(any(!signal_dates_m_vector %in% signal_groups_dates_m_vector)){
-      stop("dates in stock_groups_m_df and signals_m_df must be the same")
     }
 
     ###Check for NAs
@@ -316,18 +353,13 @@ check_inputs_port_backtest <- function(
   }
 
   ##Check if main_liquidity_metric is covered and correct
+  if(!stringr::str_detect(main_liquidity_metric, "mean_volfin")){
+    stop("main_liquidity_metric must contain the string 'mean_volfin'")
+  }
   if(!main_liquidity_metric %in% colnames(liquidity_m_df)){
     stop("main_liquidity_metric must be present in liquidity_m_df")
   }
-  if(!str_detect("mean_volfin", main_liquidity_metric)){
-    stop("main_liquidity_metric must contain the string 'mean_volfin'")
-  }
 
-  #Check structure of dates_m_vector and liquidity_m_df$dates
-  if(!all(as.character(dates_m_vector) %in% unique(as.character(liquidity_m_df$dates))) ||
-     !all(unique(as.character(liquidity_m_df$dates)) %in% as.character(dates_m_vector))){
-    stop("all dates in dates_m_vector must have a correspondence in liquidity_m_df")
-  }
   #Check normalization
   if(any(apply(as.data.frame(liquidity_m_df[,-c(1:3)]), 2, function(x) all(x >= -1 & x <= 1)))){
     stop("values in liquidity_m_df should not be normalized")
@@ -388,8 +420,9 @@ check_inputs_port_backtest <- function(
     if(!selected_benchmark %in% colnames(benchmark_weights_m_df)){
       stop("selected_benchmark should be present in benchmark_weights_m_df")
     }
+
     #Check if w are right
-    if(any(apply(as.data.frame(benchmark_weights_m_df[,-c(1:3)]), 2, function(x) all(x >= 0 & x <= 1)))){
+    if(any(apply(as.data.frame(benchmark_weights_m_df[,-c(1:3)]), 2, function(x) !all(x >= 0 & x <= 1)))){
       stop("values in benchmark_weights_m_df should be between 0 and 1")
     }
 
@@ -398,7 +431,7 @@ check_inputs_port_backtest <- function(
       dplyr::group_by(dates) %>%
       dplyr::summarise(dplyr::across(dplyr::where(is.numeric), ~ sum(., na.rm = TRUE), .names = "sum_{col}"))
 
-    if(!all(apply(as.data.frame(benchmark_weights_sum[,-1]), 2, function(x) sum(x) != 1))){
+    if(any(apply(as.data.frame(benchmark_weights_sum[,-1]), 2, function(x) any(abs(x - 1) > 0.02)))){
       stop("weights in benchmark_weights_m_df should sum to 1 in every date.")
     }
   }
@@ -437,7 +470,7 @@ check_inputs_port_backtest <- function(
       dplyr::group_by(dates) %>%
       dplyr::summarise(dplyr::across(dplyr::where(is.numeric), ~ sum(., na.rm = TRUE), .names = "sum_{col}"))
 
-    if(!all(apply(as.data.frame(stock_weights_sum[,-1]), 2, function(x) sum(x) != 1))){
+    if(any(apply(as.data.frame(stock_weights_sum[,-1]), 2, function(x) any(abs(x - 1) > 0.02)))){
       stop("weights in custom_stock_weights_m_df should sum to 1 in every date.")
     }
   }
@@ -451,16 +484,13 @@ check_inputs_port_backtest <- function(
   if(!(is_coercible_to_meta_dataframe(fwd_return_m_df))){
     stop("fwd_return_m_df should be coercible to meta_dataframe object")
   }
-  if(!all(sapply(fwd_return_m_df[,-c(1:3)], function(x) any(is.numeric(x) | is.na(x))))){
-    stop("fwd_return_m_df should contain only numeric columns (NAs allowed at ending dates).")
-  }
 
   #fwd_returm_1m presence
   if (!c("fwd_return_1m") %in% colnames(fwd_return_m_df)){
     stop("fwd_return_1m should be present in fwd_return_m_df")
   }
 
-  fwd_dates <- unique(fwd_return_m_df %>% dplyr::pull(dates))
+  fwd_dates <- unique(fwd_return_m_df %>% dplyr::pull(dates)) %>% sort()
   #Check for only NAs in first rebalancing period
   if (all(is.na(fwd_return_m_df %>% dplyr::filter(dates %in% fwd_dates[initial_buffer_period]) %>% dplyr::pull(fwd_return_1m)))){
     stop("fwd_return_m_df can't have NAs in the first backtesting period")
@@ -512,7 +542,7 @@ check_inputs_port_backtest <- function(
   }
 
   #Normalization
-  if(any(apply(as.data.frame(fwd_return_m_df[,-c(1:3)]), 2, function(x) all(x >= -1 & x <= 1)))){
+  if (all(fwd_return_m_df %>% dplyr::pull(fwd_return_1m) >= -1 & fwd_return_m_df %>% dplyr::pull(fwd_return_1m) <= 1)){
     stop("values in fwd_return_m_df should not be normalized")
   }
 
@@ -554,12 +584,12 @@ check_inputs_port_backtest <- function(
       stop("Error in concentration_constraint_policy: benchmark must match selected_benchmark")
     }
 
-    ##Check if benchmark_weights_m_d_ref are present if constraint is set
-    if(is.null(benchmark_weights_m_d_ref)){
-      stop("Error in concentration_constraint_policy: benchmark_weights_m_d_ref can't be missing if concentration_constraint_policy is set")
+    ##Check if benchmark_weights_m_df are present if constraint is set
+    if(is.null(benchmark_weights_m_df)){
+      stop("Error in concentration_constraint_policy: benchmark_weights_m_df can't be missing if concentration_constraint_policy is set")
     }
 
-    ##Check if chosen benchmark is present in benchmark_weights_m_d_ref
+    ##Check if chosen benchmark is present in benchmark_weights_m_df
     if(!concentration_constraint_policy$benchmark %in% colnames(benchmark_weights_m_df)){
       stop("Error in concentration_constraint_policy: chosen_benchmark is not present in benchmark_weights_m_df")
     }
@@ -587,7 +617,7 @@ check_inputs_port_backtest <- function(
 
     ##Check if liquidity_m_df are present if constraint is set
     if(is.null(liquidity_m_df)){
-      stop("Error in concentration_constraint_policy: liquidity_m_df can't be missing if liquidity_constraint_policy is set")
+      stop("Error in liquidity_constraint_policy: liquidity_m_df can't be missing if liquidity_constraint_policy is set")
     }
 
     ##Check if liquidity_floor_cutoffs is null
@@ -597,7 +627,7 @@ check_inputs_port_backtest <- function(
 
     ##Check if its present in liquidity_floor_cutoffs
     if (!is.null(liquidity_constraint_policy$liquidity_floor_rule) &&
-        !liquidity_constraint_policy$liquidity_floor_rule %in% dplry::pull(liquidity_floor_cutoffs, liquidity_classification)){
+        !liquidity_constraint_policy$liquidity_floor_rule %in% dplyr::pull(liquidity_floor_cutoffs, liquidity_classification)){
       stop("Error in liquidity_constraint_policy: liquidity_floor_rule not present in liquidity_floor_cutoffs")
     }
 
@@ -647,18 +677,13 @@ check_inputs_port_backtest <- function(
       stop("user_defined_OR_rules_m_df should have 5 columns")
     }
 
-    #Check that fourth column is a character
-    if(!is.character(user_defined_OR_rules_m_df[[4]])){
-      stop("fourth column of user_defined_OR_rules_m_df should be a character")
-    }
-
     #Check that fifth column is binary (0 or 1)
     if(!all(user_defined_OR_rules_m_df[[5]] %in% c(0,1))){
-      stop("fifth column of user_defined_OR_rules_m_df should be binary (0 or 1)")
+      stop("fifth column of user_defined_OR_rules_m_df should be 0 or 1")
     }
 
     #Check that it contemplates all signals_m_df id's after initial_buffer_period
-    if(!all((signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% pull(id)) %in%
+    if(!all((signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% dplyr::pull(id)) %in%
             user_defined_OR_rules_m_df$id)){
       stop("user_defined_OR_rules_m_df should contemplate all signals_m_df id's after initial_buffer_period")
     }
@@ -678,18 +703,13 @@ check_inputs_port_backtest <- function(
       stop("user_defined_AND_rules_m_df should have 5 columns")
     }
 
-    #Check that fourth column is a character
-    if(!is.character(user_defined_AND_rules_m_df[[4]])){
-      stop("fourth column of user_defined_AND_rules_m_df should be a character")
-    }
-
     #Check that fifth column is binary (0 or 1)
     if(!all(user_defined_AND_rules_m_df[[5]] %in% c(0,1))){
-      stop("fifth column of user_defined_AND_rules_m_df should be binary (0 or 1)")
+      stop("fifth column of user_defined_AND_rules_m_df should be 0 or 1")
     }
 
     #Check that it contemplates all signals_m_df id's after initial_buffer_period
-    if(!all((signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% pull(id)) %in%
+    if(!all((signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% dplyr::pull(id)) %in%
             user_defined_AND_rules_m_df$id)){
       stop("user_defined_AND_rules_m_df should contemplate all signals_m_df id's after initial_buffer_period")
     }
@@ -704,8 +724,8 @@ check_inputs_port_backtest <- function(
     stop("port_construction_method can't be missing")
   }
 
-  if(!port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo")){
-    stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' and 'mvo'")
+  if(!port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "custom_weights")){
+    stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo' or 'custom_weights'")
   }
 
   #RP or MVO
@@ -717,9 +737,13 @@ check_inputs_port_backtest <- function(
     if(is.null(cov_matrix_sample_size)){
       stop("cov_matrix_sample_size can't be missing if port_construction_method is 'rp' or 'mvo'")
     }
+    if(is.null(daily_stock_returns_m_xts)){
+      stop("daily_stock_returns_m_xts can't be missing if port_construction_method is 'rp' or 'mvo'")
+    }
     if(active_returns && is.null(daily_bench_returns_m_xts)){
       stop("daily_bench_returns_m_xts can't be NULL if active_returns is TRUE")
     }
+
   }
 
   #Custom Weights
@@ -736,37 +760,16 @@ check_inputs_port_backtest <- function(
   }
 
   #Validate
-  validate_transaction_cost_parameters(transaction_cost_parameters)
+  validate_transaction_costs_parameters(transaction_costs_parameters)
 
   #Check if strategy_aum and main_liquidity_metric can be expected to be in same units
   median_main_liq_metric <- median(liquidity_m_df[[main_liquidity_metric]])
-  median_order_size_est <- ((transaction_cost_parameters$strategy_aum)/100)/median_main_liq_metric
+  median_order_size_est <- ((transaction_costs_parameters$strategy_aum)/100)/median_main_liq_metric
 
   if (median_order_size_est > 0.025 || median_order_size_est < 0.0002){
     warning("Please be sure that strategy_aum is in same units as main_liquidity_metric")
   }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

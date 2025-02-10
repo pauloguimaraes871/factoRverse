@@ -41,11 +41,12 @@ run_port_backtest_internal <- function(
   #Liquidity Information (Constraints and Active Returns Calculation)
   liquidity_m_df = NULL, liquidity_floor_cutoffs, main_liquidity_metric,
   #Group and benchmark constraints (stock groups also used to fill covariance data)
-  stocks_groups_m_df = NULL, benchmark_weights_m_df = NULL,
+  stock_groups_m_df = NULL, benchmark_weights_m_df = NULL,
   #Return calculation (needs also liquidity and vol for net returns)
   volatility_m_df = NULL, fwd_return_m_df, transaction_costs_parameters = NULL,
   #Stock Weights
-  custom_stock_universe_weights_m_df = NULL,
+  custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL,
+  user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
   #Misc
   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
   verbose = TRUE, parallel = TRUE){
@@ -61,7 +62,7 @@ run_port_backtest_internal <- function(
       #Backtest Scheme
       rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
       #Portfolio Construction Method
-      port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range,
+      port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = selected_benchmark,
       #RP/MVO Parameters
       rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
       #Covariance Estimation
@@ -72,11 +73,12 @@ run_port_backtest_internal <- function(
       #Liquidity Information (Constraints and Active Returns Calculation)
       liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
       #Group and benchmark constraints (stock groups also used to fill covariance data)
-      stocks_groups_m_df = stocks_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
+      stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
       #Return calculation (needs also liquidity and vol for net returns)
       volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
-      #Custom Stock Weights and Metrics
-      custom_stock_universe_weights_m_df = custom_stock_universe_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
+      #Custom Stock Weights, Metrics and OR/AND rules
+      custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
+      user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
       #Misc
       lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
       verbose = verbose, parallel = parallel
@@ -254,7 +256,7 @@ run_port_backtest_internal <- function(
       volatility_m_d_ref <- if (!is.null(volatility_m_df)) volatility_m_df %>% dplyr::filter(dates == current_date) else NULL
       selected_benchmark_weights_m_d_ref <- if (!is.null(selected_benchmark_weights_m_df)) selected_benchmark_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
       stock_groups_m_d_ref <- if (!is.null(stock_groups_m_df)) stock_groups_m_df %>% dplyr::filter(dates == current_date) else NULL
-      custom_stock_universe_weights_m_d_ref <- if (!is.null(custom_stock_universe_weights_m_df)) custom_stock_universe_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
+      custom_stock_universe_weights_m_d_ref <- if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
       custom_stock_metrics_m_d_ref <- if (!is.null(custom_stock_metrics_m_df)) custom_stock_metrics_m_df %>% dplyr::filter(dates == current_date) else NULL
 
       #####Port Weights
