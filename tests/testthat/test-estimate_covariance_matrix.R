@@ -8,13 +8,13 @@ test_that("estimate_covariance_matrix works for sample and raw_returns", {
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date), ]
   stocks_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   covariance_matrix_sample_size <- 200
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date), ]
+  daily_stock_returns_m_xts <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
 
   #eligible stocks
   eligible_stocks <- c("Stock A", "Stock B", "Stock C", "Stock E")
 
   #exoected_results
-  expected_results <- daily_returns_m_xts_upd_ref[,eligible_stocks]
+  expected_results <- daily_stock_returns_m_xts[,eligible_stocks]
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
@@ -30,7 +30,7 @@ test_that("estimate_covariance_matrix works for sample and raw_returns", {
 
   results <- estimate_covariance_matrix(
     tickers = eligible_stocks,
-    returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+    returns_m_xts_upd_ref = daily_stock_returns_m_xts,
     cov_matrix_sample_size = covariance_matrix_sample_size,
     cov_estimation_method = "sample",
     active_returns = FALSE,
@@ -52,14 +52,14 @@ test_that("estimate_covariance_matrix works for ewma and active returns", {
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date), ]
   stocks_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   covariance_matrix_sample_size <- 200
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date), ]
+  daily_stock_returns_m_xts <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
 
 
   #eligible stocks
   eligible_stocks <- c("Stock A", "Stock B", "Stock C", "Stock E")
 
   #exoected_results
-  expected_results <- daily_returns_m_xts_upd_ref[,eligible_stocks]
+  expected_results <- daily_stock_returns_m_xts[,eligible_stocks]
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
@@ -71,19 +71,19 @@ test_that("estimate_covariance_matrix works for ewma and active returns", {
                                            groups_m_d_ref = stocks_groups_m_d_ref)
 
   selected_benchmark_returns_m_xts_upd_ref <-
-    benchmark_returns_m_xts[which(zoo::index(benchmark_returns_m_xts) %in% zoo::index(expected_results)), "IBOV" ]
+    daily_benchmark_returns_m_xts[which(zoo::index(daily_benchmark_returns_m_xts) %in% zoo::index(expected_results)), "ibov" ]
 
   #calculate active
-  expected_results$`Stock A` <- ((1 + expected_results$`Stock A`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock B` <- ((1 + expected_results$`Stock B`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock C` <- ((1 + expected_results$`Stock C`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
+  expected_results$`Stock A` <- ((1 + expected_results$`Stock A`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock B` <- ((1 + expected_results$`Stock B`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock C` <- ((1 + expected_results$`Stock C`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
 
   expected_results <- PerformanceAnalytics::M2.ewma(as.matrix(expected_results))
 
   results <- estimate_covariance_matrix(
     tickers = eligible_stocks,
-    returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+    returns_m_xts_upd_ref = daily_stock_returns_m_xts,
     cov_matrix_sample_size = covariance_matrix_sample_size,
     cov_estimation_method = "ewma",
     active_returns = TRUE,
@@ -106,14 +106,14 @@ test_that("estimate_covariance_matrix works for shrink_cc and active returns", {
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date), ]
   stocks_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   covariance_matrix_sample_size <- 200
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date), ]
+  daily_stock_returns_m_xts <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
 
 
   #eligible stocks
   eligible_stocks <- c("Stock A", "Stock B", "Stock C", "Stock E")
 
   #exoected_results
-  expected_results <- daily_returns_m_xts_upd_ref[,eligible_stocks]
+  expected_results <- daily_stock_returns_m_xts[,eligible_stocks]
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
@@ -125,20 +125,20 @@ test_that("estimate_covariance_matrix works for shrink_cc and active returns", {
                                            groups_m_d_ref = stocks_groups_m_d_ref)
 
   selected_benchmark_returns_m_xts_upd_ref <-
-    benchmark_returns_m_xts[which(zoo::index(benchmark_returns_m_xts) %in% zoo::index(expected_results)), "IBOV" ]
+    daily_benchmark_returns_m_xts[which(zoo::index(daily_benchmark_returns_m_xts) %in% zoo::index(expected_results)), "ibov" ]
 
   #calculate active
-  expected_results$`Stock A` <- ((1 + expected_results$`Stock A`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock B` <- ((1 + expected_results$`Stock B`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock C` <- ((1 + expected_results$`Stock C`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
+  expected_results$`Stock A` <- ((1 + expected_results$`Stock A`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock B` <- ((1 + expected_results$`Stock B`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock C` <- ((1 + expected_results$`Stock C`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
 
   expected_results <- PerformanceAnalytics::M2.shrink(as.matrix(expected_results), target = 4)
   expected_results <- expected_results$M2sh
 
   results <- estimate_covariance_matrix(
     tickers = eligible_stocks,
-    returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+    returns_m_xts_upd_ref = daily_stock_returns_m_xts,
     cov_matrix_sample_size = covariance_matrix_sample_size,
     cov_estimation_method = "shrink_cc",
     active_returns = TRUE,
@@ -161,14 +161,14 @@ test_that("estimate_covariance_matrix works for pca1 and active_returns", {
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date), ]
   stocks_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   covariance_matrix_sample_size <- 200
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date), ]
+  daily_stock_returns_m_xts <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
 
 
   #eligible stocks
   eligible_stocks <- c("Stock A", "Stock B", "Stock C", "Stock E")
 
   #exoected_results
-  expected_results <- daily_returns_m_xts_upd_ref[,eligible_stocks]
+  expected_results <- daily_stock_returns_m_xts[,eligible_stocks]
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
@@ -180,13 +180,13 @@ test_that("estimate_covariance_matrix works for pca1 and active_returns", {
                                            groups_m_d_ref = stocks_groups_m_d_ref)
 
   selected_benchmark_returns_m_xts_upd_ref <-
-    benchmark_returns_m_xts[which(zoo::index(benchmark_returns_m_xts) %in% zoo::index(expected_results)), "IBOV" ]
+    daily_benchmark_returns_m_xts[which(zoo::index(daily_benchmark_returns_m_xts) %in% zoo::index(expected_results)), "ibov" ]
 
   #calculate active
-  expected_results$`Stock A` <- ((1 + expected_results$`Stock A`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock B` <- ((1 + expected_results$`Stock B`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock C` <- ((1 + expected_results$`Stock C`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
+  expected_results$`Stock A` <- ((1 + expected_results$`Stock A`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock B` <- ((1 + expected_results$`Stock B`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock C` <- ((1 + expected_results$`Stock C`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
 
 
   #how many factors
@@ -195,7 +195,7 @@ test_that("estimate_covariance_matrix works for pca1 and active_returns", {
 
   results <- estimate_covariance_matrix(
     tickers = eligible_stocks,
-    returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+    returns_m_xts_upd_ref = daily_stock_returns_m_xts,
     cov_matrix_sample_size = covariance_matrix_sample_size,
     cov_estimation_method = "pca1",
     active_returns = TRUE,
@@ -218,14 +218,14 @@ test_that("estimate_covariance_matrix works for pca2 and active_returns", {
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date), ]
   stocks_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   covariance_matrix_sample_size <- 200
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date), ]
+  daily_stock_returns_m_xts <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
 
 
   #eligible stocks
   eligible_stocks <- c("Stock A", "Stock B", "Stock C", "Stock E")
 
   #exoected_results
-  expected_results <- daily_returns_m_xts_upd_ref[,eligible_stocks]
+  expected_results <- daily_stock_returns_m_xts[,eligible_stocks]
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
@@ -237,13 +237,13 @@ test_that("estimate_covariance_matrix works for pca2 and active_returns", {
                                            groups_m_d_ref = stocks_groups_m_d_ref)
 
   selected_benchmark_returns_m_xts_upd_ref <-
-    benchmark_returns_m_xts[which(zoo::index(benchmark_returns_m_xts) %in% zoo::index(expected_results)), "IBOV" ]
+    daily_benchmark_returns_m_xts[which(zoo::index(daily_benchmark_returns_m_xts) %in% zoo::index(expected_results)), "ibov" ]
 
   #calculate active
-  expected_results$`Stock A` <- ((1 + expected_results$`Stock A`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock B` <- ((1 + expected_results$`Stock B`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock C` <- ((1 + expected_results$`Stock C`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
-  expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$IBOV/100) - 1)*100
+  expected_results$`Stock A` <- ((1 + expected_results$`Stock A`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock B` <- ((1 + expected_results$`Stock B`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock C` <- ((1 + expected_results$`Stock C`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
+  expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
 
 
   #how many factors
@@ -254,7 +254,7 @@ test_that("estimate_covariance_matrix works for pca2 and active_returns", {
 
   results <- estimate_covariance_matrix(
     tickers = eligible_stocks,
-    returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+    returns_m_xts_upd_ref = daily_stock_returns_m_xts,
     cov_matrix_sample_size = covariance_matrix_sample_size,
     cov_estimation_method = "pca2",
     active_returns = TRUE,

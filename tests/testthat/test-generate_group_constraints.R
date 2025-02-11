@@ -105,8 +105,8 @@ test_that("generate_group_constraints correctly maps stocks into groups and sets
                                                         concentration_constraint_policy = concentration_constraint_policy
                                                         )
 
-  eligible_universe_m_d_ref %>% dplyr::group_by(Subsector) %>% dplyr::summarize(sector_sum = sum(IBOV_bench_weights))
-  eligible_universe_m_d_ref %>% dplyr::group_by(Sector) %>% dplyr::summarize(sector_sum = sum(IBOV_bench_weights))
+  eligible_universe_m_d_ref %>% dplyr::group_by(Subsector) %>% dplyr::summarize(sector_sum = sum(ibov_bench_weights))
+  eligible_universe_m_d_ref %>% dplyr::group_by(Sector) %>% dplyr::summarize(sector_sum = sum(ibov_bench_weights))
 
   #Generate group constraints
   eligible_assets_group_membership_list <- list(
@@ -140,7 +140,7 @@ test_that("generate_group_constraints correctly maps stocks into groups and sets
   eligibility_quantile_range <- c(0.67, 1)
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -167,10 +167,10 @@ test_that("generate_group_constraints correctly maps stocks into groups and sets
 
   #Test MVO Constrained
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                                   cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                                   active_returns = FALSE,
                                                   groups_m_d_ref = stock_groups_m_d_ref
@@ -288,7 +288,7 @@ test_that("generate_group_constraints stops when there are groups with no eligib
   eligibility_quantile_range <- c(0.99, 1)
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -318,10 +318,10 @@ test_that("generate_group_constraints stops when there are groups with no eligib
   stock_universe_m_d_ref[stock_universe_m_d_ref$tickers == "WHRL3", "is_eligible"] <- 0
 
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                                   cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                                   active_returns = FALSE,
                                                   groups_m_d_ref = stock_groups_m_d_ref

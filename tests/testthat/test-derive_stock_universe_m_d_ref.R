@@ -56,7 +56,6 @@ test_that("derive_stock_universe_m_d_ref works for oos_predictions_m_df", {
   ols_config <- create_sb_backtest_config(sb_algorithm = "ols", training_sample_size = 6, rebalancing_months = 6,
                                           target_fwd_name = c("fwd_premium_3m"))
 
-
   target_m_df <- target_m_df %>% create_meta_dataframe()
   features_m_df <- signals_m_df %>% create_meta_dataframe()
 

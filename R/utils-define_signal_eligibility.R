@@ -210,7 +210,6 @@ define_signal_eligibility <- function(
   verbose = TRUE, parallel = TRUE
 ){
 
-
   #Initial Preparations
   ################
   #Create model_spec_theme_level

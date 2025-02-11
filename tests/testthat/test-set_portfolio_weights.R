@@ -930,9 +930,9 @@ test_that("set portfolio weights works for stocks (rp) - artificial_port_obj ", 
   #Test RP
   expected_results <- stock_universe_m_d_ref
 
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = c("Stock A", "Stock C", "Stock D", "Stock E"), returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+  covariance_matrix <- estimate_covariance_matrix(tickers = c("Stock A", "Stock C", "Stock D", "Stock E"), returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                                   active_returns = FALSE,
                                                   groups_m_d_ref = stock_groups_m_d_ref
@@ -943,7 +943,7 @@ test_that("set portfolio weights works for stocks (rp) - artificial_port_obj ", 
   expected_results$weights <- rp_results$w
 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
   )
 
@@ -993,9 +993,9 @@ test_that("set portfolio weights works for stocks (mvo_unc) - artificial_port_ob
 
   #Test MVO Unconstrained
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = stock_universe_m_d_ref$tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+  covariance_matrix <- estimate_covariance_matrix(tickers = stock_universe_m_d_ref$tickers, returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                                   active_returns = FALSE,
                                                   groups_m_d_ref = stock_groups_m_d_ref
@@ -1026,7 +1026,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
   )
 
@@ -1042,7 +1042,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    opt_objective = "return"
   )
@@ -1053,7 +1053,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    opt_objective = "risk"
   )
@@ -1107,9 +1107,9 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
 
   #Test MVO Constrained
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
 
-  covariance_matrix <-  estimate_covariance_matrix(tickers = stock_universe_m_d_ref$tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+  covariance_matrix <-  estimate_covariance_matrix(tickers = stock_universe_m_d_ref$tickers, returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                                    active_returns = FALSE, groups_m_d_ref = stock_groups_m_d_ref
   )
@@ -1161,7 +1161,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
@@ -1180,7 +1180,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    opt_objective = "return", liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
@@ -1193,7 +1193,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    opt_objective = "risk", liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
@@ -1263,9 +1263,26 @@ test_that("set portfolio weights works for stocks (ew) - toy_preprocessed", {
 
   #Quantile Range
   eligibility_quantile_range <- c(0.67, 1)
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "ew",
+                             eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
+
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -1307,9 +1324,25 @@ test_that("set portfolio weights works for stocks (cw) - toy_preprocessed", {
 
   #Quantile Range
   eligibility_quantile_range <- c(0.67, 1)
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "cw",
+                             eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -1356,9 +1389,25 @@ test_that("set portfolio weights works for stocks (sw) - toy_preprocessed", {
 
   #Quantile Range
   eligibility_quantile_range <- c(0.67, 1)
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "sw",
+                             eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -1406,9 +1455,25 @@ test_that("set portfolio weights works for stocks (cs) - toy_preprocessed", {
 
   #Quantile Range
   eligibility_quantile_range <- c(0.67, 1)
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "cw",
+                             eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -1453,11 +1518,29 @@ test_that("set portfolio weights works for stocks (rp) - toy_preprocessed", {
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
 
-  #Quantile Range
+  #Quantile Range and others
   eligibility_quantile_range <- c(0.67, 1)
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+  cov_matrix_sample_size <- 60
+  cov_estimation_method <- "cc"
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "rp",
+                             eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -1484,11 +1567,11 @@ test_that("set portfolio weights works for stocks (rp) - toy_preprocessed", {
 
   #Test RP
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
+  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                                   active_returns = FALSE,
                                                   groups_m_d_ref = stock_groups_m_d_ref
   )
@@ -1506,8 +1589,8 @@ test_that("set portfolio weights works for stocks (rp) - toy_preprocessed", {
 
 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = 60, cov_estimation_method = "cc",
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                    active_returns = FALSE
   )
 
@@ -1522,11 +1605,30 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
 
-  #Quantile Range
+  #Quantile Range and others
   eligibility_quantile_range <- c(0.67, 1)
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+  cov_matrix_sample_size <- 60
+  cov_estimation_method <- "cc"
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "mvo",
+                             eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
+
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -1553,11 +1655,11 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
 
   #Test MVO Unconstrained
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
+  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                                   active_returns = FALSE,
                                                   groups_m_d_ref = stock_groups_m_d_ref
   )
@@ -1588,24 +1690,24 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = 60, cov_estimation_method = "cc"
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method
   )
 
   #Check for random weights generation
   expected_weights <- t(rp_weights) %>% as.data.frame() %>% tibble::rownames_to_column("tickers")
   expect_equal(results@random_port_weights, expected_weights)
   expect_equal(results@weights, optimal_sharpe_weights %>% unname())
-  expect_equal(2.326, optimal_ret, tolerance = 1e-2)
-  expect_equal(0.542, optimal_risk, tolerance = 1e-2)
+  expect_equal(1.907, optimal_ret, tolerance = 1e-2)
+  expect_equal(0.547, optimal_risk, tolerance = 1e-2)
 
   #Best Portfolio for Return
   optimal_ret_weights <-  rp_weights[which.max(portfolio_return),]
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = 60, cov_estimation_method = "cc",
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                    opt_objective = "return"
   )
   expect_equal(results@weights, optimal_ret_weights %>% unname())
@@ -1615,8 +1717,8 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = 60, cov_estimation_method = "cc",
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                    opt_objective = "risk"
   )
   expect_equal(results@weights, optimal_risk_weights %>% unname())
@@ -1642,7 +1744,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
   eligibility_quantile_range <- c(0.67, 1)
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -1669,10 +1771,10 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
 
   #Test MVO Constrained
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                                   cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                                   active_returns = FALSE,
                                                   groups_m_d_ref = stock_groups_m_d_ref
@@ -1731,7 +1833,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                    liquidity_constraint_policy = liquidity_constraint_policy,
                                    concentration_constraint_policy = concentration_constraint_policy
@@ -1741,15 +1843,15 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
   expected_weights <- t(rp_weights) %>% as.data.frame() %>% tibble::rownames_to_column("tickers")
   expect_equal(results@random_port_weights, expected_weights)
   expect_equal(results@weights, optimal_sharpe_weights %>% unname())
-  expect_equal(1.998, optimal_ret, tolerance = 1e-2)
-  expect_equal(0.475, optimal_risk, tolerance = 1e-2)
+  expect_equal(1.911, optimal_ret, tolerance = 1e-2)
+  expect_equal(0.574, optimal_risk, tolerance = 1e-2)
 
   #Best Portfolio for Return
   optimal_ret_weights <-  rp_weights[which.max(portfolio_return),]
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                    opt_objective = "return",
                                    liquidity_constraint_policy = liquidity_constraint_policy,
@@ -1763,7 +1865,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                    opt_objective = "risk",
                                    liquidity_constraint_policy = liquidity_constraint_policy,
@@ -1824,6 +1926,71 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
 
 })
 
+test_that("set portfolio weights works for stocks (custom_weights) - toy_preprocessed", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Quantile Range and other preps
+  eligibility_quantile_range <- c(0.67, 1)
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+  custom_stock_weights_m_df <- benchmark_weights_m_df %>% dplyr::rename(weights = ibov)
+
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "custom_weights",
+                             eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
+
+  #Current date
+  current_date <- "2023-04-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  custom_stock_weights_m_d_ref <- custom_stock_weights_m_df %>% dplyr::filter(dates == current_date)
+
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(vol_36m = "short"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+  stock_universe_m_d_ref <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    concentration_constraint_policy = concentration_constraint_policy
+  )
+
+  #Test custom weights
+  expected_results <- stock_universe_m_d_ref
+  expected_results <- expected_results %>% dplyr::left_join(custom_stock_weights_m_d_ref %>% dplyr::select(-tickers, -dates), by = "id")
+
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "custom_weights",
+                                   custom_weights_m_d_ref = custom_stock_weights_m_d_ref)
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+  expect_equal(results@universe_m_d_ref@data$weights %>% sum(), 1)
+  expect_equal(results@universe_m_d_ref@data$weights, results@universe_m_d_ref@data$ibov_bench_weights)
+
+})
 
 
 

@@ -208,13 +208,13 @@ setClass(
     # Check if columns adhere to expectations
     colnames <- colnames(object@data)
 
-    if(any(!colnames %in% c("id", "tickers", "dates", valid_performance_metrics_names, "adjusted_p_value", "top_assets", "is_eligible",
+    if(any(!colnames %in% c("id", "tickers", "dates", valid_performance_metrics_names, "adjusted_p_value", "pre_eligible_assets", "is_eligible",
                             "theme", "theme_ss_bench_weights", "theme_sb_bench_weights"))){
       message("User-inputed metrics were identified in signal_universe_m_df object")
     }
 
-    if(any(!c("top_assets", "is_eligible") %in% colnames)){
-      return("signal_universe_m_df object must contain top_assets and is_eligible columns.")
+    if(any(!c("pre_eligible_assets", "is_eligible") %in% colnames)){
+      return("signal_universe_m_df object must contain pre_eligible_assets and is_eligible columns.")
     }
 
     if(any(!c("theme_ss_bench_weights", "theme_sb_bench_weights", "theme") %in% colnames)){

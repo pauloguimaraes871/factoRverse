@@ -931,6 +931,22 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
   #Current date
   current_date <- "2022-12-15"
 
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = c(roe_3m = "long"),
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "ew",
+                             eligibility_quantile_range = c(0.75, 0.90), selected_benchmark = "ibov",
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
+
+
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)

@@ -66,7 +66,7 @@ is_coercible_to_meta_dataframe <- function(obj) {
 
     # Check for NA values in remaining columns
     remaining_columns <- setdiff(names(obj), required_columns)
-    na_remaining <- sapply(obj[, remaining_columns], function(col) any(is.na(col)))
+    na_remaining <- sapply(obj[, remaining_columns, drop = FALSE], function(col) any(is.na(col)))
     if (any(na_remaining)) {
       message("The following columns contain NA values: ",
               paste(remaining_columns[na_remaining], collapse = ", "))

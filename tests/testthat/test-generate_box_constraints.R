@@ -94,11 +94,11 @@ test_that("generate_box_constraints works for stocks", {
   #Generate box constraints
   expected_results <- stock_universe_m_d_ref
   #Benchmark-relative simple constraints
-  expected_results$max_weight <- expected_results$IBOV_bench_weights + concentration_constraint_policy$max_abs_active_individual_weight
-  expected_results$min_weight <- expected_results$IBOV_bench_weights - concentration_constraint_policy$max_abs_active_individual_weight
+  expected_results$max_weight <- expected_results$ibov_bench_weights + concentration_constraint_policy$max_abs_active_individual_weight
+  expected_results$min_weight <- expected_results$ibov_bench_weights - concentration_constraint_policy$max_abs_active_individual_weight
 
   #Adjust Liq Caps
-  liquidity_max <- expected_results$IBOV_bench_weights[2] + liquidity_constraint_policy$liquidity_cap_rules[1]
+  liquidity_max <- expected_results$ibov_bench_weights[2] + liquidity_constraint_policy$liquidity_cap_rules[1]
 
   #Adjust turnover cap
   turnover_max <- expected_results$bop_port_weights[2] + turnover_constraint_policy$turnover_cap_rules[1]
@@ -106,7 +106,7 @@ test_that("generate_box_constraints works for stocks", {
 
   #Adjust bench-weight relative
   expected_results$max_weight[2] <- liquidity_max
-  expected_results$min_weight[2] <- expected_results$IBOV_bench_weights[2]
+  expected_results$min_weight[2] <- expected_results$ibov_bench_weights[2]
 
   results <- generate_box_constraints(universe_m_d_ref = stock_universe_m_d_ref, liquidity_constraint_policy = liquidity_constraint_policy,
                                       turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy)
@@ -159,11 +159,11 @@ test_that("generate_box_constraints works for stocks when max and min are the sa
   expected_results <- stock_universe_m_d_ref
 
   #Benchmark-relative simple constraints
-  expected_results$max_weight <- expected_results$IBOV_bench_weights + concentration_constraint_policy$max_abs_active_individual_weight
-  expected_results$min_weight <- expected_results$IBOV_bench_weights - concentration_constraint_policy$max_abs_active_individual_weight
+  expected_results$max_weight <- expected_results$ibov_bench_weights + concentration_constraint_policy$max_abs_active_individual_weight
+  expected_results$min_weight <- expected_results$ibov_bench_weights - concentration_constraint_policy$max_abs_active_individual_weight
 
   #Adjust Liq Caps
-  liquidity_max <- expected_results$IBOV_bench_weights[2] + liquidity_constraint_policy$liquidity_cap_rules[1]
+  liquidity_max <- expected_results$ibov_bench_weights[2] + liquidity_constraint_policy$liquidity_cap_rules[1]
 
   #Adjust turnover cap
   turnover_max <- expected_results$bop_port_weights[2] + turnover_constraint_policy$turnover_cap_rules[1]
@@ -171,7 +171,7 @@ test_that("generate_box_constraints works for stocks when max and min are the sa
 
   #Adjust bench-weight relative
   expected_results$max_weight[2] <- liquidity_max
-  expected_results$min_weight[2] <- expected_results$IBOV_bench_weights[2]
+  expected_results$min_weight[2] <- expected_results$ibov_bench_weights[2]
 
   #Create wiggle room
   expected_results$max_weight[2] <- expected_results$max_weight[2] + 0.002
@@ -196,7 +196,7 @@ test_that("generate_box_constraints works for toy_preprocessed data", {
   eligibility_quantile_range <- c(0.67, 1)
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -223,10 +223,10 @@ test_that("generate_box_constraints works for toy_preprocessed data", {
 
   #Test MVO Constrained
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_returns_m_xts_upd_ref,
+  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers, returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                                   cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                                   active_returns = FALSE,
                                                   groups_m_d_ref = stock_groups_m_d_ref

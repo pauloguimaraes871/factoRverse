@@ -50,12 +50,12 @@ test_that("clean_returns_sample works for a daily series WITH holidays and NAs (
   signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date), ]
   stocks_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   covariance_matrix_sample_size <- 200
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date), ]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
 
   #eligible stocks
   eligible_stocks <- c("Stock A", "Stock B", "Stock C", "Stock E")
 
-  returns_sample <- daily_returns_m_xts_upd_ref[, eligible_stocks]
+  returns_sample <- daily_stock_returns_m_xts_upd_ref[, eligible_stocks]
 
   #min date
   dates <- zoo::index(returns_sample) %>% as.Date()
@@ -105,12 +105,12 @@ test_that("clean_returns_sample works for a daily series without holidays and NA
   stocks_groups_m_d_ref$Sector[4:5] <- "Financials"
   covariance_matrix_sample_size <- 50
   stocks_groups_m_d_ref$Subsector <- NULL
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date), ]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
 
   #eligible stocks
   eligible_stocks <- c("Stock A", "Stock B", "Stock C", "Stock D", "Stock E")
 
-  returns_sample <- daily_returns_m_xts_upd_ref[, eligible_stocks]
+  returns_sample <- daily_stock_returns_m_xts_upd_ref[, eligible_stocks]
 
   #min date
   dates <- zoo::index(returns_sample) %>% as.Date()
@@ -153,7 +153,7 @@ test_that("clean_returns_sample works toy_preprocessed", {
   eligibility_quantile_range <- c(0.67, 1)
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
@@ -180,16 +180,16 @@ test_that("clean_returns_sample works toy_preprocessed", {
 
   #Test
   expected_results <- stock_universe_m_d_ref
-  daily_returns_m_xts_upd_ref <- daily_returns_m_xts[which(zoo::index(daily_returns_m_xts) <= current_date),]
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   eligible_tickers <- expected_results %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  cleaned_returns_sample <- clean_returns_sample(returns_m_xts_sample = daily_returns_m_xts_upd_ref,
+  cleaned_returns_sample <- clean_returns_sample(returns_m_xts_sample = daily_stock_returns_m_xts_upd_ref,
                                                  groups_m_d_ref = stock_groups_m_d_ref)
 
   #Test if a given row was filled as expected
   stocks_in_eqma3b_sector <- stock_groups_m_d_ref %>% dplyr::filter(macro_sector == "Doméstico Defensivo") %>% dplyr::pull(tickers)
   expect_equal(cleaned_returns_sample[4,"EQMA3B"] %>% as.numeric(),
-               median(daily_returns_m_xts_upd_ref[4,which(colnames(daily_returns_m_xts_upd_ref) %in% stocks_in_eqma3b_sector)], na.rm = TRUE))
+               median(daily_stock_returns_m_xts_upd_ref[4,which(colnames(daily_stock_returns_m_xts_upd_ref) %in% stocks_in_eqma3b_sector)], na.rm = TRUE))
 
 })
 

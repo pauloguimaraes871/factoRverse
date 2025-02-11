@@ -607,7 +607,7 @@ run_ss_backtest_internal <- function(
         selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[which(zoo::index(selected_market_factor_proxy_m_xts) <= current_date), ]
 
 
-        ###Elect signals0
+        ###Elect signals
         signal_eligibility_results_list <- define_signal_eligibility(
           #Backtests
           selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
