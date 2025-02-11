@@ -72,7 +72,7 @@ merge_and_rescale_weights <- function(port_weights_placeholder_m_d_ref, updated_
     ###IPOs
     if (length(ipo_tickers) != 0){
       cat("\n")
-      message(paste("IPOs:", ipo_tickers))
+      message(paste("IPOs:", paste0(ipo_tickers, collapse = ", ")))
     }
   }
 
@@ -113,7 +113,8 @@ merge_and_rescale_weights <- function(port_weights_placeholder_m_d_ref, updated_
   if (!is.null(selected_benchmark_weights_m_d_ref)){
     port_weights_m_d_ref <- port_weights_m_d_ref %>%
       dplyr::left_join(selected_benchmark_weights_m_d_ref %>%
-                         dplyr::rename_with(~ "bench_weights", .cols = 4), #Rename bench_weights
+                         dplyr::select(-tickers, -dates) %>% #Unselect tickers and dates
+                         dplyr::rename_with(~ "bench_weights", .cols = 2), #Rename bench_weights
                        by = "id") #Join bench_weights
   } else {
     port_weights_m_d_ref <- port_weights_m_d_ref

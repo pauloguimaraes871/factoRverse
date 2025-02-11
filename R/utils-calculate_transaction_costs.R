@@ -98,10 +98,10 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
 
   ###Aggregate costs
   port_costs_d_ref <- data.frame(
-    direct_cost = transaction_costs_results_list$direct_cost, #Direct Costs
-    market_impact_cost = transaction_costs_results_list$market_impact_cost, #Indirect costs
-    total_cost = transaction_costs_results_list$total_cost, #Total costs
-    turnover = transaction_costs_results_list$turnover #Turnover
+    direct_cost = direct_cost, #Direct Costs
+    market_impact_cost = market_impact_cost, #Indirect costs
+    total_cost = total_cost, #Total costs
+    turnover = turnover #Turnover
   )
 
   ##########################
@@ -113,8 +113,8 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
     cat(crayon::green("Transaction costs:"))
     cat("\n")
     message("Total Direct Cost: ", crayon::red(direct_cost))
-    message("Total Market Impact Cost: ", crayon::red(market_impact_cost))
-    message("Total Cost: ", crayon::red(total_cost))
+    message("Total Market Impact Cost: ", crayon::red(round(market_impact_cost, 2)))
+    message("Total Cost: ", crayon::red(round(total_cost, 2)))
     message("Turnover: ", turnover)
   }
 

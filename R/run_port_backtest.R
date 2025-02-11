@@ -422,7 +422,7 @@ run_port_backtest_internal <- function(
         ##Liquidity and vol data
         liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref, main_liquidity_metric = main_liquidity_metric,
         ##BARRA parameters and direct cost
-        transaction_costs_parameters <- transaction_cost_list,
+        transaction_costs_parameters <- transaction_costs_parameters,
 
         #Selected benchmark weights
         selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,

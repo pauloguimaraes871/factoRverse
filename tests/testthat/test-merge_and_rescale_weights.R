@@ -13,7 +13,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
   port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
-  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  selected_benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date) %>% dplyr::select(-smll)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
   updated_port_weights_m_lstd_ref$bop_port_weights <- c(0, 0, 0, 0, 0)
@@ -30,7 +30,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
     liquidity_m_d_ref = liquidity_m_d_ref,
     liquidity_constraint_policy = liquidity_constraint_policy,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
-    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
     groups_m_d_ref = stock_groups_m_d_ref,
     concentration_constraint_policy = concentration_constraint_policy,
     updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
@@ -45,7 +45,8 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
   expect_message(
     results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                          updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                         stock_universe_m_d_ref = sw_port@universe_m_d_ref@data
+                                         stock_universe_m_d_ref = sw_port@universe_m_d_ref@data,
+                                         selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref
     ),
     "Delisted tickers: Stock B. Of those, the following were in the portfolio: "
   )
@@ -67,6 +68,9 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, character(0))
 
+  #Check that bench weights are right
+  expect_equal(results$port_weights_m_d_ref$bench_weights, selected_benchmark_weights_m_d_ref$ibov)
+
 })
 
 
@@ -85,7 +89,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 IPO", {
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
   port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
-  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  selected_benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date) %>% dplyr::select(-smll)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
   updated_port_weights_m_lstd_ref$bop_port_weights <- c(0, 0, 0, 0, 0)
@@ -105,7 +109,7 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 IPO", {
     liquidity_m_d_ref = liquidity_m_d_ref,
     liquidity_constraint_policy = liquidity_constraint_policy,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
-    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
     groups_m_d_ref = stock_groups_m_d_ref,
     concentration_constraint_policy = concentration_constraint_policy,
     updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
@@ -120,7 +124,8 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 IPO", {
   expect_message(
     results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                          updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                         stock_universe_m_d_ref = sw_port@universe_m_d_ref@data
+                                         stock_universe_m_d_ref = sw_port@universe_m_d_ref@data,
+                                         selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref
     ),
     "IPOs: Stock A"
   )
@@ -142,6 +147,10 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 IPO", {
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, "Stock A")
 
+  #Check that bench weights are right
+  expect_equal(results$port_weights_m_d_ref$bench_weights, selected_benchmark_weights_m_d_ref$ibov)
+
+
 
 })
 
@@ -160,7 +169,7 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 delisting", {
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
   port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
-  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  selected_benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date) %>% dplyr::select(-smll)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
   updated_port_weights_m_lstd_ref$bop_port_weights <- c(0.25, 0.15, 0.35, 0, 0.50)
@@ -169,7 +178,8 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 delisting", {
   #Expect delisting message
   expect_message(
     results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
-                                         updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref
+                                         updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+                                         selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref
     )
   )
 
@@ -191,6 +201,8 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 delisting", {
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, character(0))
 
+  #Check that bench weights are right
+  expect_equal(results$port_weights_m_d_ref$bench_weights, selected_benchmark_weights_m_d_ref$ibov)
 
 
 })
@@ -211,7 +223,7 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 IPO", {
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
   port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
-  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  selected_benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date) %>% dplyr::select(-smll)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
   updated_port_weights_m_lstd_ref$bop_port_weights <- c(0.25, 0.15, 0.35, 0, 0.50)
@@ -224,7 +236,8 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 IPO", {
   #Expect delisting message
   expect_message(
     results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
-                                         updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref
+                                         updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+                                         selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref
     )
   )
 
@@ -247,6 +260,8 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 IPO", {
   #Check that ipos tickers are right
   expect_equal(results$ipo_tickers, "Stock D")
 
+  #Check that bench weights are right
+  expect_equal(results$port_weights_m_d_ref$bench_weights, selected_benchmark_weights_m_d_ref$ibov)
 
 
 })
@@ -261,15 +276,15 @@ test_that("merge_and_rescale weights works for toy_preprocessed_data in a new re
   eligibility_quantile_range <- c(0.67, 1)
 
   #Current date
-  current_date <- "2023-09-15"
+  current_date <- "2023-04-15"
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
   port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
-  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  selected_benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
-  updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2023-08-15"), c(1:3)]
+  updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2023-03-15"), c(1:3)]
   updated_port_weights_m_lstd_ref$bop_port_weights <- 0
 
   #Derive Stock Universe
@@ -284,7 +299,7 @@ test_that("merge_and_rescale weights works for toy_preprocessed_data in a new re
     liquidity_m_d_ref = liquidity_m_d_ref,
     liquidity_constraint_policy = liquidity_constraint_policy,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
-    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
     groups_m_d_ref = stock_groups_m_d_ref,
     concentration_constraint_policy = concentration_constraint_policy
   )
@@ -296,7 +311,8 @@ test_that("merge_and_rescale weights works for toy_preprocessed_data in a new re
   #merge_and_rescale
   results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                        updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                       stock_universe_m_d_ref = cw_port@universe_m_d_ref@data)
+                                       stock_universe_m_d_ref = cw_port@universe_m_d_ref@data,
+                                       selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref)
 
   #Check that weights sum to 1
   expect_equal(sum(results$port_weights_m_d_ref$eop_port_weights), 1)
@@ -315,7 +331,8 @@ test_that("merge_and_rescale weights works for toy_preprocessed_data in a new re
   expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_placeholder_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
 
   #Check that ipos tickers are right
-  expect_equal(results$ipo_tickers, character(0))
+  ipos <- setdiff(port_weights_placeholder_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers)
+  expect_equal(results$ipo_tickers, ipos)
 
 
 })

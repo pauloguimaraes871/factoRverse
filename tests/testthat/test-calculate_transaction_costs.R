@@ -11,10 +11,10 @@ test_that("calculate transaction costs works for constant lambda", {
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
-  port_weights_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
   volatility_m_d_ref <- volatility_m_df %>% dplyr::filter(dates == current_date)
-  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  selected_benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date) %>% dplyr::select(-smll)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
   updated_port_weights_m_lstd_ref$bop_port_weights <- 0
@@ -31,7 +31,7 @@ test_that("calculate transaction costs works for constant lambda", {
     liquidity_m_d_ref = liquidity_m_d_ref,
     liquidity_constraint_policy = liquidity_constraint_policy,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
-    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
     groups_m_d_ref = stock_groups_m_d_ref,
     concentration_constraint_policy = concentration_constraint_policy,
     updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
@@ -42,16 +42,19 @@ test_that("calculate transaction costs works for constant lambda", {
   sw_port <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "sw")
 
   #merge_and_rescale
-  merged_port_results_list <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
+  merged_port_results_list <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                                         updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                                        stock_universe_m_d_ref = sw_port@universe_m_d_ref@data)
+                                                        stock_universe_m_d_ref = sw_port@universe_m_d_ref@data,
+                                                        selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref
+                                                        )
 
   #Get transactions
   transactions_m_d_ref <- calculate_trade_orders(merged_port_results = merged_port_results_list,
-                                    liquidity_m_d_ref = liquidity_m_d_ref,
-                                    volatility_m_d_ref = volatility_m_d_ref,
-                                    strategy_aum = 1,
-                                    main_liquidity_metric = "mean_volfin_3m"
+                                                 updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+                                                 liquidity_m_d_ref = liquidity_m_d_ref,
+                                                 volatility_m_d_ref = volatility_m_d_ref,
+                                                 strategy_aum = 1,
+                                                 main_liquidity_metric = "mean_volfin_3m"
   )
 
   #Get transaction costs
@@ -59,14 +62,15 @@ test_that("calculate transaction costs works for constant lambda", {
     transactions_m_d_ref = transactions_m_d_ref,
     alpha = 1, lambda = .5,
     direct_transaction_cost = 0.07,
-    strategy_aum = 1
+    strategy_aum = 1,
+    verbose = FALSE
   )
 
   #Compare with hand-calculated (transaction_cost_calc)
-  expect_equal(results$total_direct_cost, 0.07)
-  expect_equal(results$total_market_impact_cost, 0.5998625, tolerance = 1e-02)
-  expect_equal(results$transactions_m_d_ref$direct_cost, c(0.038360417, 0.011398279, 0.008843025, 0.011398279, 0))
-  expect_equal(results$transactions_m_d_ref$market_impact_cost, c(0.320905569, 0.012953017, 0.202202027, 0.063801961,0))
+  expect_equal(results$port_costs_d_ref$direct_cost , 0.07)
+  expect_equal(results$port_costs_d_ref$market_impact_cost, 0.5998625, tolerance = 1e-02)
+  expect_equal(results$transactions_and_costs_m_d_ref$direct_cost, c(0.038360417, 0.011398279, 0.008843025, 0.011398279, 0))
+  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(0.320905569, 0.012953017, 0.202202027, 0.063801961,0))
 
 
 })
@@ -85,10 +89,10 @@ test_that("calculate transaction costs works for dynamic lambda", {
 
   #Initial Preps
   signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
-  port_weights_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
   volatility_m_d_ref <- volatility_m_df %>% dplyr::filter(dates == current_date)
-  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  selected_benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date) %>% dplyr::select(-smll)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
   updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
   updated_port_weights_m_lstd_ref$bop_port_weights <- 0
@@ -116,12 +120,15 @@ test_that("calculate transaction costs works for dynamic lambda", {
   sw_port <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "sw")
 
   #merge_and_rescale
-  merged_port_results_list <- merge_and_rescale_weights(port_weights_m_d_ref = port_weights_m_d_ref,
+  merged_port_results_list <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
                                                         updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                                        stock_universe_m_d_ref = sw_port@universe_m_d_ref@data)
+                                                        stock_universe_m_d_ref = sw_port@universe_m_d_ref@data,
+                                                        selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref
+                                                        )
 
   #Get transactions
   transactions_m_d_ref <- calculate_trade_orders(merged_port_results = merged_port_results_list,
+                                                 updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
                                                  liquidity_m_d_ref = liquidity_m_d_ref,
                                                  volatility_m_d_ref = volatility_m_d_ref,
                                                  strategy_aum = 10,
@@ -133,14 +140,15 @@ test_that("calculate transaction costs works for dynamic lambda", {
     transactions_m_d_ref = transactions_m_d_ref,
     alpha = 1, lambda = "dynamic",
     direct_transaction_cost = 0.07,
-    strategy_aum = 10
+    strategy_aum = 10,
+    verbose = FALSE
   )
 
   #Compare with hand-calculated (transaction_cost_calc)
-  expect_equal(results$total_direct_cost, 0.07)
-  expect_equal(results$total_market_impact_cost, 3.9249022, tolerance = 1e-02)
-  expect_equal(results$transactions_m_d_ref$direct_cost, c(0.038360417, 0.011398279, 0.008843025, 0.011398279, 0))
-  expect_equal(results$transactions_m_d_ref$market_impact_cost, c(2.2217659, 0.1012557, 1.1984754, 0.4034053, 0.0000000), tolerance = 1e-3)
+  expect_equal(results$port_costs_d_ref$direct_cost, 0.07)
+  expect_equal(results$port_costs_d_ref$market_impact_cost , 3.9249022, tolerance = 1e-02)
+  expect_equal(results$transactions_and_costs_m_d_ref$direct_cost, c(0.038360417, 0.011398279, 0.008843025, 0.011398279, 0))
+  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(2.2217659, 0.1012557, 1.1984754, 0.4034053, 0.0000000), tolerance = 1e-3)
 
 
 })

@@ -138,6 +138,8 @@ allocate_port <- function(
     alpha = alpha, lambda = lambda,
     #Direct transaction cost
     direct_transaction_cost = direct_transaction_cost,
+    #Strategy AuM
+    strategy_aum = strategy_aum,
     #Verbose
     verbose = verbose
   )
@@ -146,7 +148,7 @@ allocate_port <- function(
 
   #Create porfolio_allocation_log (an enhanced transactions_and_costs_m_d_ref, containing more strategic data)
   ####################
-  transactions_log_m_d_ref <- transaction_cost_results_list$transactions_and_costs_m_d_ref
+  transactions_log_m_d_ref <- transaction_costs_results_list$transactions_and_costs_m_d_ref
 
   ####################
 
@@ -155,7 +157,7 @@ allocate_port <- function(
   port_allocation_results_list <- list(
     transactions_log_m_d_ref = transactions_log_m_d_ref,
     port_weights_m_d_ref = merged_port_results_list$port_weights_m_d_ref,
-    port_costs_d_ref = transaction_costs_results_list$port_costs_d_ref,
+    port_costs_d_ref = transaction_costs_results_list$port_costs_d_ref
   )
 
   return(port_allocation_results_list)
