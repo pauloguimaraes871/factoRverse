@@ -87,10 +87,10 @@ calculate_port_returns <- function(
     cat("\n")
     cat(crayon::green("Portfolio returns:"))
     cat("\n")
-    message("Raw Return: ", if (fwd_raw_return > 0) crayon::green(fwd_raw_return) else crayon::red(fwd_raw_return))
-    message("Raw Active Return: ", if (fwd_raw_active_return > 0) crayon::green(fwd_raw_active_return) else crayon::red(fwd_raw_active_return))
-    message("Net Return: ", if (fwd_net_return > 0) crayon::green(fwd_net_return) else crayon::red(fwd_net_return))
-    message("Net Active Return: ", if (fwd_net_active_return > 0) crayon::green(fwd_net_active_return) else crayon::red(fwd_net_active_return))
+    message("Raw Return: ", if (fwd_raw_return > 0) crayon::green(round(fwd_raw_return, 2)) else crayon::red(round(fwd_raw_return, 2)))
+    message("Raw Active Return: ", if (fwd_raw_active_return > 0) crayon::green(round(fwd_raw_active_return, 2)) else crayon::red(round(fwd_raw_active_return, 2)))
+    message("Net Return: ", if (fwd_net_return > 0) crayon::green(round(fwd_net_return, 2)) else crayon::red(round(fwd_net_return, 2)))
+    message("Net Active Return: ", if (fwd_net_active_return > 0) crayon::green(round(fwd_net_active_return, 2)) else crayon::red(round(fwd_net_active_return, 2)))
   }
 
   #Results

@@ -104,6 +104,11 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
     turnover = turnover #Turnover
   )
 
+  ###Warns if total cost is too high
+  if (total_cost > 1){
+    warning("Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint.")
+  }
+
   ##########################
 
   ###Print message

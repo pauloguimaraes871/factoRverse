@@ -451,9 +451,7 @@ run_port_backtest_internal <- function(
           #Port Weights
           port_weights_m_d_ref = port_allocation_results_list$port_weights_m_d_ref,
           #Custom Metrics
-          custom_stock_metrics_m_d_ref = custom_stock_metrics_m_d_ref,
-          #Verbose
-          verbose = verbose
+          custom_stock_metrics_m_d_ref = custom_stock_metrics_m_d_ref
         )
 
         ####Collect data

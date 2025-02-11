@@ -85,12 +85,12 @@ calculate_port_metrics <- function(port_weights_m_d_ref, #Base object with weigh
     bench_metrics_d_ref <- port_weights_and_metrics_m_d_ref %>%
       dplyr::summarise(
         dplyr::across(
-          -exclude_cols, #Exclude these columns
+          -dplyr::all_of(exclude_cols), #Exclude these columns
           ~ sum(bench_weights * .x, na.rm = TRUE)  #Calculate weighted sum of each column
         )
       ) %>% as.data.frame()
     ###Reforce names
-    colnames(bench_metrics_d_ref) <- port_weights_and_metrics_m_d_ref %>% dplyr::select(-exclude_cols) %>% colnames() %>% stringr::str_c("bench_", .)
+    colnames(bench_metrics_d_ref) <- port_weights_and_metrics_m_d_ref %>% dplyr::select(-dplyr::all_of(exclude_cols)) %>% colnames() %>% stringr::str_c("bench_", .)
 
     ###Merge with port_metrics_d_ref
     port_metrics_d_ref <- merge(port_metrics_d_ref, bench_metrics_d_ref)

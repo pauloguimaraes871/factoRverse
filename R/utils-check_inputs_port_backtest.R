@@ -604,6 +604,11 @@ check_inputs_port_backtest <- function(
        !all(names(concentration_constraint_policy$max_abs_active_group_weight) != colnames(stock_groups_m_df[,-c(1:3)]))){
       stop("Error in concentration_constraint_policy: names of group constraints must match groups in stock_groups_m_df")
     }
+
+    #Check accordance with port_construction_method
+    if (!is.null(concentration_constraint_policy) && port_construction_method != "mvo"){
+      message("concentration_constraint_policy is only available for port_construction_method = 'mvo'. Ignoring concentration_constraint_policy")
+    }
   }
 
   ##############################
@@ -631,6 +636,11 @@ check_inputs_port_backtest <- function(
       stop("Error in liquidity_constraint_policy: liquidity_floor_rule not present in liquidity_floor_cutoffs")
     }
 
+    #Check accordance with port_construction_method
+    if (!is.null(liquidity_constraint_policy$liquidity_cap_rules) && port_construction_method != "mvo"){
+      message("liquidity_cap_rules are only available for port_construction_method = 'mvo'. Ignoring liquidity_cap_rules")
+    }
+
   }
 
   ##########################
@@ -656,6 +666,11 @@ check_inputs_port_backtest <- function(
     ##Check if is possible to classify liquidity in case turnover_constraint_policy is set
     if(is.null(liquidity_floor_cutoffs) || is.null(liquidity_m_df)){
       stop("liquidity_floor_cutoffs and liquidity_m_df are needed if turnover_constraint_policy is set")
+    }
+
+    #Check accordance with port_construction_method
+    if (!is.null(turnover_constraint_policy) && port_construction_method != "mvo"){
+      message("turnover_constraint_policy is only available for port_construction_method = 'mvo'. Ignoring turnover_constraint_policy")
     }
   }
 
