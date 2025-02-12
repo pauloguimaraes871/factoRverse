@@ -387,9 +387,31 @@ run_port_backtest_internal <- function(
           #Winsorization
           lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
         )
+          #####Transform port_obj into stock_port obj
+          stock_port <- new(
+            "stock_port",
+            universe_m_d_ref = stock_port@universe_m_d_ref,
+            port_construction_method = stock_port@port_construction_method,
+            eligible_assets = stock_port@eligible_assets,
+            exp_ret_score = stock_port@exp_ret_score,
+            covariance_matrix = stock_port@covariance_matrix,
+            correlation_matrix = stock_port@correlation_matrix,
+            weights = stock_port@weights,
+            rel_risk_contr = stock_port@rel_risk_contr,
+            mvo_port_spec = stock_port@mvo_port_spec,
+            random_port_weights = stock_port@random_port_weights,
+            ind_max_weights = stock_port@ind_max_weights,
+            ind_min_weights = stock_port@ind_min_weights,
+            groups = stock_port@groups,
+            port_name = stock_port@port_name,
+            type = if (port_construction_method == "custom_weights") "custom_weights" else if (!is.null(oos_predictions_m_df)) "signal_blend" else "single_signal",
+            main_liquidity_metric = main_liquidity_metric
+          )
 
-        ####Get stock_universe_m_d_ref
-        stock_universe_m_df_list[[which(rebalance_dates %in% current_date)]] <- stock_port@universe_m_d_ref
+
+          #####Get stock_universe_m_d_ref
+          stock_universe_m_d_ref <- stock_port@universe_m_d_ref@data
+          stock_universe_m_df_list[[which(rebalance_dates %in% current_date)]] <- stock_universe_m_d_ref
         ##############################
       }
 
@@ -504,20 +526,6 @@ run_port_backtest_internal <- function(
   ##Build Final Objs
   ##################
 
-  ###Port Weights
-  port_weights_m_df <- create_meta_dataframe(do.call(rbind, port_weights_m_d_ref_list) %>% dplyr::arrange(id), type = "weights")
-  ###Port Allocationg Log
-  transactions_log_m_df <- create_meta_dataframe(do.call(rbind, transactions_log_m_d_ref_list) %>% dplyr::arrange(id))
-  ###Port Costs
-  port_costs_m_xts <- create_meta_xts(port_costs_m_xts, type = "metrics", source = rep("not_identified", ncol(port_costs_m_xts)))
-  ###Port Metrics
-  if (!is.null(custom_stock_metrics_m_d_ref)){
-    port_metrics_m_xts <- create_meta_xts(port_metrics_m_xts, type = "metrics", source = rep("not_identified", ncol(port_metrics_m_xts)))
-  } else {
-    port_metrics_m_xts <- NULL
-  }
-  ###Port Returns
-  port_returns_m_xts <- create_meta_xts(port_returns_m_xts, type = "returns", source = rep("not_identified", ncol(port_returns_m_xts)))
 
   ###port_backtest_workflow
   port_backtest_workflow <- list(
@@ -529,6 +537,7 @@ run_port_backtest_internal <- function(
     config_name = "not_identified",
     backtest_identifier = "not_identified",
     oos_sb_outputs_object_name = "not_identified",
+    oos_sb_outputs_workflow = "not_identified",
     #Dates
     dates_covered = dates_m_vector,
     n_dates = length(dates_m_vector),
@@ -549,11 +558,18 @@ run_port_backtest_internal <- function(
     signals = colnames(signals_m_df[,-c(1:3)]),
     signals_workflow = NULL,
     signals_object_name = "not_identified",
-    #Target
-    target_fwd_name = target_fwd_name,
-    target_fwd = target_fwd,
-    target_workflow = NULL,
-    target_object_name = "not_identified",
+    #Fwd Returns
+    fwd_returns_object_name = "not_identified",
+    fwd_returns_workflow = NULL,
+    fwd_returns_object_name = "not_identified",
+    #Stock Groups
+    stock_groups_object_name = "not_identified",
+    stock_groups_workflow = NULL,
+    #Custom
+    custom_stock_metrics_object_name = "not_identified",
+    custom_stock_metrics_workflow = NULL,
+    custom_stock_weights_object_name = "not_identified",
+    custom_stock_weights_workflow = NULL,
     #RP/MVO Parameters
     rp_method = rp_method,
     n_random_ports = n_random_ports,
@@ -566,28 +582,87 @@ run_port_backtest_internal <- function(
     active_returns = active_returns,
     cov_matrix_benchmark = cov_matrix_benchmark,
     benchmark_returns_object_name = "not_identified",
+    benchmark_returns_workflow = NULL,
     daily_assets_returns_object_name = "not_identified",
+    daily_assets_returns_workflow = NULL,
     daily_bench_returns_object_name = "not_identified",
+    daily_bench_returns_workflow = NULL,
     #Constraints
     liquidity_constraint_policy = liquidity_constraint_policy,
     turnover_constraint_policy = turnover_constraint_policy,
     concentration_constraint_policy = concentration_constraint_policy,
     #Liquidity Information (Constraints and Active Returns Calculation)
+    liquidity_object_name = "not_identified",
+    liquidity_workflow = NULL,
+    volatility_object_name = "not_identified",
+    volatility_workflow = NULL,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs,
     main_liquidity_metric = main_liquidity_metric,
     transaction_costs_parameters = transaction_costs_parameters,
     benchmark_weights_object_name = "not_identified",
+    benchmark_weights_workflow = NULL,
     #Misc
+    user_defined_OR_rules_object_name = "not_identified",
+    user_defined_OR_rules_workflow = NULL,
+    user_defined_AND_rules_object_name = "not_identified",
+    user_defined_AND_rules_workflow = NULL,
     lower_quantile_winsorization = lower_quantile_winsorization,
     upper_quantile_winsorization = upper_quantile_winsorization,
     #Call
     call = match.call()
   )
 
+  ###Port Weights
+  port_weights_m_df <- create_meta_dataframe(do.call(rbind, port_weights_m_d_ref_list) %>% dplyr::arrange(id), type = "weights")
+  ###Port Allocationg Log
+  transactions_log_m_df <- create_meta_dataframe(do.call(rbind, transactions_log_m_d_ref_list) %>% dplyr::arrange(id),
+                                                 type = "transactions_log", port_backtest_workflow = port_backtest_workflow)
+  ###Port Costs
+  port_costs_m_xts <- create_meta_xts(port_costs_m_xts, type = "metrics",
+                                      metric_name = "port_costs",
+                                      meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_costs_m_xts)))
+  ###Port Metrics
+  if (!is.null(custom_stock_metrics_m_d_ref)){
+    metrics <- paste0(custom_stock_metrics_m_d_ref %>% dplyr::select(-id, -tickers, -dates) %>% colnames(), collapse = "_") #Derive metrics names
+    port_metrics_m_xts <- create_meta_xts(port_metrics_m_xts, type = "metrics",
+                                          metric_name = metrics,
+                                          meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_metrics_m_xts)))
+  } else {
+    port_metrics_m_xts <- NULL
+  }
+  ###Port Returns
+  port_returns_m_xts <- create_meta_xts(port_returns_m_xts, type = "returns", asset_type = "ports",
+                                        meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_returns_m_xts)))
 
+  ###Stock Universe (turn into a signle meta_dataframe)
+    ####Complete
+    stock_universe_m_df <- do.call(rbind, stock_universe_m_df_list) %>% dplyr::arrange(id)
+    rownames(stock_universe_m_df) <- NULL
+    stock_universe_m_df <- create_meta_dataframe(stock_universe_m_df, type = "stock_universe", port_backtest_workflow = port_backtest_workflow)
+    ####Final
+    final_stock_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::arrange(id)
+    rownames(final_stock_universe_m_d_ref) <- NULL
+    final_stock_universe_m_d_ref <- create_meta_dataframe(final_stock_universe_m_d_ref, type = "stock_universe", port_backtest_workflow = port_backtest_workflow)
 
+  ###Get final object
+    port_backtest_results <- new(
+      "port_backtest_results",
+      port_weights_m_df = port_weights_m_df,
+      transactions_log_m_df = transactions_log_m_df,
+      port_costs_m_xts = port_costs_m_xts,
+      port_metrics_m_xts = port_metrics_m_xts,
+      port_returns_m_xts = port_returns_m_xts,
+      final_stock_port = stock_port,
+      port_construction_method = port_construction_method,
+      sb_backtest_results = NULL,
+      stock_universe_m_df = stock_universe_m_df,
+      final_stock_universe_m_d_ref = final_stock_universe_m_d_ref,
+      port_backtest_workflow = port_backtest_workflow,
+      backtest_identifier = port_backtest_workflow$backtest_identifier
+    )
 
-
+    #Return
+    return(port_backtest_results)
 
 }
 

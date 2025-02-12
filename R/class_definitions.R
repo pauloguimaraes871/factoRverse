@@ -260,6 +260,85 @@ setClass(
   }
 )
 
+#' Define the transactions_log_m_df S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a
+#' port_backtest_workflow
+#'
+#' @export
+setClass(
+  "transactions_log_m_df",
+  contains = "meta_dataframe",
+  slots = c(
+    port_backtest_workflow = "ANY"
+  ),
+  validity = function(object) {
+    #Colnames adherence
+    if(!any(c("id", "tickers", "dates", "eop_port_weights", "daily_vol", "bop_port_weights", "obs", "delta", "order", "relative_order_size", "alpha",
+             "lambda", "direct_cost", "market_impact_cost", "total_cost")) %in% colnames(object@data)){
+      stop("Column names do not adhere to expected transactions_log_m_df object")
+    }
+
+    # Check if there are NAs
+    if (any(is.na(object@data))) {
+      stop("NAs are not allowed in transactions_log_m_df object.")
+    }
+
+    #Check if unique dates length is equal to 2
+    if(length(unique(object@data$dates)) != 2){
+      stop("transactions_log_m_df object must contain two unique dates.")
+    }
+
+    #Check if alpha and lambda are between 0 and 1
+    if(any(object@data$alpha <= 0 | object@data$alpha >= 1)){
+      stop("Alpha must be between 0 and 1.")
+    }
+    if(any(object@data$lambda <= 0 | object@data$lambda >= 1)){
+      stop("Lambda must be between 0 and 1.")
+    }
+
+    #Check if total_cost equals direct_cost + market_impact_cost for each row
+    if(any(object@data$total_cost != object@data$direct_cost + object@data$market_impact_cost)){
+      stop("Total cost must equal direct cost + market impact cost.")
+    }
+
+  }
+)
+
+#' Define the signal_universe_meta_dataframe S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
+#'
+#' @slot universe_name A \code{character} string describing the universe name.
+#' @slot port_backtest_workflow A \code{list} storing the ss_backtest_workflow that generated the signal_universe_meta_dataframe object.
+#'
+#'
+#' @export
+setClass(
+  "stock_universe_m_df",
+  slots = c(
+    port_backtest_workflow = "ANY"
+  ),
+  contains = "meta_dataframe",
+  validity = function(object) {
+
+    #Check for exp_ret_score, pre_eligible_assets and is_eligible
+    colnames <- colnames(object@data)
+
+    if(any(!c("pre_eligible_assets", "is_eligible", "exp_ret_score") %in% colnames)){
+      return("stock_universe_m_df object must contain exp_ret_score, pre_eligible_assets and is_eligible columns.")
+    }
+
+    if(any(!colnames %in% c("id", "tickers", "dates", valid_performance_metrics_names, "adjusted_p_value", "pre_eligible_assets", "is_eligible",
+                            "theme", "theme_ss_bench_weights", "theme_sb_bench_weights"))){
+      message("User-inputed metrics were identified in signal_universe_m_df object")
+    }
+
+    # If all checks pass
+    TRUE
+  }
+)
+
 #' Define the weights_m_df S4 Class
 #'
 #' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a weights_meta_dataframe
@@ -2319,9 +2398,6 @@ setClass(
       if (!all(names(object@liquidity_constraint_policy@liquidity_cap_rules) %in% dplyr::pull(liquidity_floor_cutoffs, liquidity_classification))){
         stop("liquidity_cap_rules must match liquidity_floor_cutoffs")
       }
-
-
-
     }
 
     TRUE
@@ -2545,10 +2621,71 @@ setClass(
         stop("main_liquidity_metric cannot be NULL when port_construction_method is 'cw' or 'cs'.")
       }
     }
-    if(object@type %in% c("signal_blend", "single_signal")){
-      stop("type must be one of 'signal_blend' or 'single_signal'")
+    if(object@type %in% c("signal_blend", "single_signal", "custom_weights")){
+      stop("type must be one of 'signal_blend', 'single_signal' or 'custom_weights'")
     }
 
+    TRUE
+  }
+)
+
+#-----------------------------------------------------------------------
+# port_backtest_results
+#-----------------------------------------------------------------------
+
+
+#' S4 Class for Portfolio Backtest Results
+#'
+#' This S4 class encapsulates the results and parameters from running a portfolio backtest based on
+#' signals derived from simple stock characteristics or expected returns from machine learning model predictions.
+#'
+#' @slot port_weights_m_df A meta dataframe containing the portfolio weights across different dates.
+#' @slot transactions_log_m_df A meta dataframe containing the transaction logs from portfolio allocations.
+#' @slot port_costs_m_xts A meta xts object containing portfolio costs (e.g., direct cost, market impact cost, total cost, turnover) indexed by dates.
+#' @slot port_metrics_m_xts A meta xts object containing portfolio performance metrics (if provided) indexed by dates.
+#' @slot port_returns_m_xts A meta xts object containing portfolio returns (raw and net returns) indexed by dates.
+#' @slot port_backtest_workflow A list detailing the portfolio backtest workflow, including parameters, rebalancing dates, and other metadata.
+#' @slot backtest_identifier A character string representing the backtest identifier.
+#'
+#' @export
+setClass(
+  "port_backtest_results",
+  slots = list(
+    port_weights_m_df = "meta_dataframe",
+    transactions_log_m_df = "meta_dataframe",
+    port_costs_m_xts = "meta_xts",
+    final_stock_port = "stock_port",
+    port_construction_method = "character",
+    sb_backtest_results = "ANY",
+    stock_universe_m_df = "stock_universe_m_df",
+    final_stock_universe_m_df = "stock_universe_m_df",
+    port_metrics_m_xts = "ANY",
+    port_returns_m_xts = "meta_xts",
+    port_backtest_workflow = "list",
+    backtest_identifier = "character"
+  ),
+  validity = function(object) {
+    if (!inherits(object@port_weights_m_df, "meta_dataframe")) {
+      return("port_weights_m_df must be a 'meta_dataframe' object")
+    }
+    if (!inherits(object@transactions_log_m_df, "meta_dataframe")) {
+      return("transactions_log_m_df must be a 'meta_dataframe' object")
+    }
+    if (!inherits(object@port_costs_m_xts, "meta_xts")) {
+      return("port_costs_m_xts must be a 'meta_xts' object")
+    }
+    if (!is.null(object@port_metrics_m_xts) && !inherits(object@port_metrics_m_xts, "meta_xts")) {
+      return("port_metrics_m_xts must be a 'meta_xts' object or NULL")
+    }
+    if (!inherits(object@port_returns_m_xts, "meta_xts")) {
+      return("port_returns_m_xts must be a 'meta_xts' object")
+    }
+    if (!is.list(object@port_backtest_workflow)) {
+      return("port_backtest_workflow must be a list")
+    }
+    if (length(object@backtest_identifier) != 1) {
+      return("backtest_identifier must be a single character string")
+    }
     TRUE
   }
 )

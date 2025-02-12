@@ -94,11 +94,12 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 #' @exportMethod create_meta_dataframe
 setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
 
-          function(data, meta_dataframe_name = "not_identified", workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, type = "generic", ...) {
+          function(data, meta_dataframe_name = "not_identified",
+                   workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL, type = "generic", ...) {
 
             #Check for type argument
-              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features")){
-                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
+              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "transactions_log", "groups", "target", "weights", "priors", "signals", "features")){
+                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'transactions_log', 'groups', 'target',
                      'weights', 'priors'.")
               }
 
@@ -188,6 +189,48 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                     n_obs = total_observations_count,
                     meta_dataframe_name = meta_dataframe_name,
                     sb_backtest_workflow = sb_backtest_workflow)
+              )
+            }
+
+            if (type == "transactions_log"){
+
+              #Check for workflow
+              if(is.null(port_backtest_workflow)){
+                stop("port_backtest_workflow argument must be provided for transactions_log type")
+              }
+
+              # Store metadata and column names
+              return(
+                new("transactions_log_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name,
+                    port_backtest_workflow = port_backtest_workflow)
+              )
+            }
+
+            if (type == "stock_universe"){
+
+              #Check for workflow
+              if(is.null(port_backtest_workflow)){
+                stop("port_backtest_workflow argument must be provided for stock_universe type")
+              }
+
+              # Store metadata and column names
+              return(
+                new("stock_universe_m_df",
+                    data = data,
+                    workflow = NULL,
+                    signals = names(data)[-c(1:3)],
+                    unique_dates = unique_dates_count,
+                    unique_tickers = unique_tickers_count,
+                    n_obs = total_observations_count,
+                    meta_dataframe_name = meta_dataframe_name,
+                    port_backtest_workflow = port_backtest_workflow)
               )
             }
             if(type == "groups"){
