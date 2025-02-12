@@ -131,7 +131,7 @@ setMethod("run_ss_backtest",
 
             if(p_correction_method == "bayesian"){
               #Get information that is specific to bayesian approach
-browser()
+
               ##priors_m_df
               if(!is.null(priors_m_df)){
                 priors_workflow <- priors_m_df@workflow #Get workflow

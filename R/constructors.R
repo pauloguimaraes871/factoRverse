@@ -1351,7 +1351,7 @@ setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning
                                                                chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
                                                                init_points = init_points, k_iter = k_iter)
             } else {
-              stop("OLS, SW, EW, RP and MTO do not require tuning.")
+              stop("ols, sw, ew, rp and mvo do not require tuning.")
             }
 
 

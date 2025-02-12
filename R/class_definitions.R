@@ -2325,13 +2325,15 @@ setClass(
 setClass(
   "port_backtest_config",
   slots = list(
-    exp_ret_score_metric = "ANY",
+    chosen_score_metric_and_position = "ANY",
+    eligibility_quantile_range = "numeric",
     selected_benchmark = "character",
+    initial_buffer_period = "numeric",
+    rebalancing_months = "numeric",
     cov_est_method = "cov_est_method",
     port_construction_method = "character",
     mvo_parameters = "mvo_parameters",
     rp_parameters = "rp_parameters",
-    sb_backtest_config = "ANY",
     sb_backtest_results = "ANY",
     main_liquidity_metric = "character",
     liquidity_floor_cutoffs = "ANY",
@@ -2346,20 +2348,39 @@ setClass(
       stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'")
     }
 
+    #Check if eligibility_quantile_range has length of 2 between 0 and 1
+    if (length(object@eligibility_quantile_range) != 2 | any(object@eligibility_quantile_range < 0) | any(object@eligibility_quantile_range > 1)){
+      stop("eligibility_quantile_range must be a numeric vector of length 2 between 0 and 1.")
+    }
+
     ###Check classes
     if (!is.null(sb_backtest_config)){
       if(!inherits(sb_backtest_config, "sb_backtest_config")){
         stop("sb_backtest_config must be an object of class sb_backtest_config.")
       }
+      if(!is.null(sb_backtest_results)){
+        stop("sb_backtest_results must be NULL if sb_backtest_config is provided.")
+      }
     }
+
     if (!is.null(sb_backtest_results)){
       if(!inherits(sb_backtest_results, "sb_backtest_results")){
         stop("sb_backtest_results must be an object of class sb_backtest_results")
       }
+      if(!is.null(sb_backtest_config)){
+        stop("sb_backtest_config must be NULL if sb_backtest_results is provided.")
+      }
     }
-    ###Check if exp_ret_score_metric is provided if sb_backtest_results and sb_backtest_config are not provided
-    if (is.null(sb_backtest_results) & is.null(sb_backtest_config) & is.null(exp_ret_score_metric)){
-      stop("exp_ret_score_metric must be provided if sb_backtest_results and sb_backtest_config are not provided.")
+
+    ###Check if chosen_score_metric_and_position is provided if sb_backtest_results and sb_backtest_config are not provided
+    if (is.null(sb_backtest_results) & is.null(sb_backtest_config) & is.null(chosen_score_metric_and_position)){
+      stop("chosen_score_metric_and_position must be provided if sb_backtest_results and sb_backtest_config are not provided.")
+    }
+
+    ##Check chosen_score_metric_and_position
+    if(!is.null(chosen_score_metric_and_position) &&
+       (length(chosen_score_metric_and_position) != 1 || !chosen_score_metric_and_position %in% c("long", "short"))){
+      stop("chosen_score_metric_and_position must a single named vector with either 'long' or 'short' values")
     }
 
     ###Check benchmark of cov_est_method
@@ -2397,6 +2418,18 @@ setClass(
       #Check if liquidity_cap_rules match liquidity_floor_cutoffs
       if (!all(names(object@liquidity_constraint_policy@liquidity_cap_rules) %in% dplyr::pull(liquidity_floor_cutoffs, liquidity_classification))){
         stop("liquidity_cap_rules must match liquidity_floor_cutoffs")
+      }
+    }
+
+    #Concentration constraint policy
+    if (!is.null(object@concentration_constraint_policy)){
+      #S4 Class
+      if(!inherits(object@concentration_constraint_policy, "concentration_constraint_policy")){
+        stop("concentration_constraint_policy must be an object of class concentration_constraint_policy.")
+      }
+      #Check benchmark
+      if(object@concentration_constraint_policy@benchmark != object@selected_benchmark){
+        stop("concentration_constraint_policy benchmark must be the same as selected_benchmark")
       }
     }
 
@@ -2654,35 +2687,26 @@ setClass(
     port_weights_m_df = "meta_dataframe",
     transactions_log_m_df = "meta_dataframe",
     port_costs_m_xts = "meta_xts",
+    port_metrics_m_xts = "ANY",
+    port_returns_m_xts = "meta_xts",
     final_stock_port = "stock_port",
     port_construction_method = "character",
     sb_backtest_results = "ANY",
     stock_universe_m_df = "stock_universe_m_df",
     final_stock_universe_m_df = "stock_universe_m_df",
-    port_metrics_m_xts = "ANY",
-    port_returns_m_xts = "meta_xts",
     port_backtest_workflow = "list",
     backtest_identifier = "character"
   ),
   validity = function(object) {
-    if (!inherits(object@port_weights_m_df, "meta_dataframe")) {
-      return("port_weights_m_df must be a 'meta_dataframe' object")
-    }
-    if (!inherits(object@transactions_log_m_df, "meta_dataframe")) {
-      return("transactions_log_m_df must be a 'meta_dataframe' object")
-    }
-    if (!inherits(object@port_costs_m_xts, "meta_xts")) {
-      return("port_costs_m_xts must be a 'meta_xts' object")
-    }
+
     if (!is.null(object@port_metrics_m_xts) && !inherits(object@port_metrics_m_xts, "meta_xts")) {
       return("port_metrics_m_xts must be a 'meta_xts' object or NULL")
     }
-    if (!inherits(object@port_returns_m_xts, "meta_xts")) {
-      return("port_returns_m_xts must be a 'meta_xts' object")
-    }
-    if (!is.list(object@port_backtest_workflow)) {
-      return("port_backtest_workflow must be a list")
-    }
+
+     if (!is.null(sb_backtest_results) && !inherits(sb_backtest_results, "sb_backtest_results")) {
+      return("sb_backtest_results must be a 'sb_backtest_results' object")
+     }
+
     if (length(object@backtest_identifier) != 1) {
       return("backtest_identifier must be a single character string")
     }

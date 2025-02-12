@@ -63,20 +63,32 @@ calculate_port_returns <- function(
   ###Raw Return
   fwd_raw_return <- sum(port_weights_and_fwd_returns_m_d_ref$eop_port_weights * port_weights_and_fwd_returns_m_d_ref$fwd_return_1m, na.rm = TRUE)
   ###Raw Active Return
-  fwd_raw_active_return <- fwd_raw_return - fwd_selected_benchmark_return
+  if (!is.null(fwd_selected_benchmark_return)){
+    fwd_raw_active_return <- fwd_raw_return - fwd_selected_benchmark_return
+  } else {
+    fwd_raw_active_return <- NA
+  }
 
-  ##Active
+
+  ##Net
   ###Net Return
   fwd_net_return <- fwd_raw_return - total_cost
   ###Net Active Return
+  if (!is.null(fwd_selected_benchmark_return)){
   fwd_net_active_return <- fwd_net_return - fwd_selected_benchmark_return
+  } else {
+    fwd_net_active_return <- NA
+  }
 
   ##Aggregate
-  fwd_port_returns_d_ref <- data.frame(
-    fwd_raw_return = fwd_raw_return, fwd_raw_active_return = fwd_raw_active_return, #Raw Returns
-    fwd_net_return = fwd_net_return, fwd_net_active_return = fwd_net_active_return, #Net Returns
-    fwd_selected_bench_return = fwd_selected_benchmark_return
-  )
+  fwd_port_returns_d_ref <- data.frame(fwd_raw_return = fwd_raw_return, fwd_net_return = fwd_net_return) #Raw and Net Returns
+  if (!is.null(fwd_selected_benchmark_return)){
+    fwd_port_returns_d_ref <- fwd_port_returns_d_ref %>%
+      dplyr::mutate(fwd_selected_bench_return = fwd_selected_benchmark_return, #Benchmark Returns
+                    fwd_raw_active_return = fwd_raw_active_return, #Active Raw Returns
+                    fwd_net_active_return = fwd_net_active_return #Active Net Returns
+                    )
+  }
 
 
   ####################
@@ -87,10 +99,20 @@ calculate_port_returns <- function(
     cat("\n")
     cat(crayon::green("Portfolio returns:"))
     cat("\n")
+    ###Raw Returns
     message("Raw Return: ", if (fwd_raw_return > 0) crayon::green(round(fwd_raw_return, 2)) else crayon::red(round(fwd_raw_return, 2)))
-    message("Raw Active Return: ", if (fwd_raw_active_return > 0) crayon::green(round(fwd_raw_active_return, 2)) else crayon::red(round(fwd_raw_active_return, 2)))
+    if (is.null(fwd_selected_benchmark_return)){
+      message("Raw Active Return: ", crayon::red("No benchmark selected"))
+    } else {
+      message("Raw Active Return: ", if (fwd_raw_active_return > 0) crayon::green(round(fwd_raw_active_return, 2)) else crayon::red(round(fwd_raw_active_return, 2)))
+    }
+    ###Net Returns
     message("Net Return: ", if (fwd_net_return > 0) crayon::green(round(fwd_net_return, 2)) else crayon::red(round(fwd_net_return, 2)))
+    if (is.null(fwd_selected_benchmark_return)){
+      message("Net Active Return: ", crayon::red("No benchmark selected"))
+    } else {
     message("Net Active Return: ", if (fwd_net_active_return > 0) crayon::green(round(fwd_net_active_return, 2)) else crayon::red(round(fwd_net_active_return, 2)))
+    }
   }
 
   #Results
