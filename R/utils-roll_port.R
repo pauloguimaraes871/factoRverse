@@ -81,7 +81,7 @@ roll_port <- function(
         ####Print
         if(verbose){
           cat("\n")
-          cat("End of backtest. No more dates to roll port")
+          message("End of backtest. No more dates to roll port")
         }
 
         fwd_port_returns_d_ref <- NULL

@@ -129,6 +129,7 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       initial_buffer_period = 4,
       port_construction_method = "sw",
       eligibility_quantile_range = c(0.5,0.75),
+      custom_stock_weights_m_df = NULL,
       daily_stock_returns_m_xts = daily_stock_returns_m_xts,
       daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
     ), "all id's from signals_m_df after initial_buffer_period must have a correspondence in oos_predictions_m_df"
@@ -147,6 +148,7 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
+      custom_stock_weights_m_df = NULL,
       eligibility_quantile_range = c(0.5,0.75),
       daily_stock_returns_m_xts = daily_stock_returns_m_xts,
       daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
@@ -163,10 +165,11 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
+      custom_stock_weights_m_df = NULL,
       eligibility_quantile_range = c(0.5,0.75),
       daily_stock_returns_m_xts = daily_stock_returns_m_xts,
       daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
-    ), "either chosen_score_metric_and_position or oos_predictions_m_df should be provided."
+    ), "either chosen_score_metric_and_position, oos_predictions_m_df or custom_stock_weights_m_df should be provided."
   )
 
   #Neither is provided
@@ -178,6 +181,7 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
+      custom_stock_weights_m_df = NULL,
       eligibility_quantile_range = c(0.5,0.75),
       daily_stock_returns_m_xts = daily_stock_returns_m_xts,
       daily_bench_returns_m_xts = daily_benchmark_returns_m_xts

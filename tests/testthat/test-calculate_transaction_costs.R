@@ -1,4 +1,4 @@
-test_that("calculate transaction costs works for constant lambda", {
+test_that("calculate transaction costs works for constant lambda at new rebalancing", {
 
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
@@ -76,7 +76,7 @@ test_that("calculate transaction costs works for constant lambda", {
 })
 
 
-test_that("calculate transaction costs works for dynamic lambda and associated warning for too high costs", {
+test_that("calculate transaction costs works for dynamic lambda and associated warning for too high costs at new rebalancing", {
 
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
@@ -152,6 +152,83 @@ test_that("calculate transaction costs works for dynamic lambda and associated w
   expect_equal(results$port_costs_d_ref$market_impact_cost , 3.9249022, tolerance = 1e-02)
   expect_equal(results$transactions_and_costs_m_d_ref$direct_cost, c(0.038360417, 0.011398279, 0.008843025, 0.011398279, 0))
   expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(2.2217659, 0.1012557, 1.1984754, 0.4034053, 0.0000000), tolerance = 1e-3)
+
+
+})
+
+test_that("calculate transaction costs works for constant lambda at non-rebalancing", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
+
+  #Current date
+  current_date <- "2001-06-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  volatility_m_d_ref <- volatility_m_df %>% dplyr::filter(dates == current_date)
+  selected_benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date) %>% dplyr::select(-smll)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
+  updated_port_weights_m_lstd_ref$bop_port_weights <- 0.20
+
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(Gamma = "long"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+  stock_universe_m_d_ref <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    concentration_constraint_policy = concentration_constraint_policy,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    turnover_constraint_policy = turnover_constraint_policy
+  )
+
+  #Set Portfolio Weights
+  sw_port <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "sw")
+
+  #merge_and_rescale
+  merged_port_results_list <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
+                                                        updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+                                                        stock_universe_m_d_ref = sw_port@universe_m_d_ref@data,
+                                                        selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref
+  )
+
+  #Get transactions
+  transactions_m_d_ref <- calculate_trade_orders(merged_port_results = merged_port_results_list,
+                                                 updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+                                                 liquidity_m_d_ref = liquidity_m_d_ref,
+                                                 volatility_m_d_ref = volatility_m_d_ref,
+                                                 strategy_aum = 1,
+                                                 main_liquidity_metric = "mean_volfin_3m"
+  )
+
+  #Get transaction costs
+  results <- calculate_transaction_costs(
+    transactions_m_d_ref = transactions_m_d_ref,
+    alpha = 1, lambda = .5,
+    direct_transaction_cost = 0.07,
+    strategy_aum = 1,
+    verbose = FALSE
+  )
+
+  #Compare with hand-calculated (transaction_cost_calc)
+  expect_equal(results$port_costs_d_ref$direct_cost , 0.0487, tolerance = 1e-2)
+  expect_equal(results$port_costs_d_ref$market_impact_cost, 0.61947, tolerance = 1e-02)
+  expect_equal(results$transactions_and_costs_m_d_ref$direct_cost, c(0.02436, 0.002602, 0.005157, 0.002602, 0.014), tolerance = 1e-2)
+  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(0.2557, 0.00618, 0.1544125, 0.03048209, 0.172664503), tolerance = 1e-2)
 
 
 })
@@ -249,5 +326,8 @@ test_that("calculate_transaction_costs works for toypreprocessed ", {
 
   #Expect direct cost
   expect_equal(results$port_costs_d_ref$direct_cost, 0.07)
+
+
+
 
 })

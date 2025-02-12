@@ -156,8 +156,9 @@ check_inputs_port_backtest <- function(
   if (!is.null(oos_predictions_m_df)){
 
     #Check if chosen_score_metric_and_position is not NULL
-    if (!is.null(chosen_score_metric_and_position)){
-      stop("either chosen_score_metric_and_position or oos_predictions_m_df should be provided.")
+    if (!is.null(chosen_score_metric_and_position) ||
+       (!is.null(custom_stock_weights_m_df) && port_construction_method == "custom_weights")){
+      stop("either chosen_score_metric_and_position, oos_predictions_m_df or custom_stock_weights_m_df should be provided.")
     }
 
     #Check for correct format in oos_predictions_m_df
