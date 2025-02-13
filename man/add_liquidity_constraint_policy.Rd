@@ -13,8 +13,8 @@ add_liquidity_constraint_policy(object, policy, ...)
 \S4method{add_liquidity_constraint_policy}{port_backtest_config,missing}(
   object,
   policy,
-  liquidity_floor_rule,
-  liquidity_cap_rules,
+  liquidity_floor_rule = NULL,
+  liquidity_cap_rules = NULL,
   ...
 )
 }

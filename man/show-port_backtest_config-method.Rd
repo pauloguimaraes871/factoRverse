@@ -2,7 +2,7 @@
 % Please edit documentation in R/print_methods.R
 \name{show,port_backtest_config-method}
 \alias{show,port_backtest_config-method}
-\title{Show Portfolio Policies}
+\title{Show Port Backtest Config}
 \usage{
 \S4method{show}{port_backtest_config}(object)
 }
@@ -10,6 +10,6 @@
 \item{object}{A \code{port_backtest_config} object to be displayed.}
 }
 \description{
-Prints the contents of a \code{port_backtest_config} object, detailing
-the various policies and their configurations.
+Prints the contents of a \code{port_backtest_config} object, detailing its various
+parameters and configurations for stock-level portfolio backtesting.
 }

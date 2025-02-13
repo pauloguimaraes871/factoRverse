@@ -2,17 +2,17 @@
 % Please edit documentation in R/run_port_backtest.R
 \name{run_port_backtest_internal}
 \alias{run_port_backtest_internal}
-\title{Backtest a porfolio based on signals derived from simple stock characteristics (simple factors) or
-expected returns from ml model predictions}
+\title{Run Port Backtest}
 \usage{
 run_port_backtest_internal(
   signals_m_df,
   oos_predictions_m_df = NULL,
-  exp_ret_score_metric = NULL,
+  chosen_score_metric_and_position = NULL,
   rebalancing_months,
-  initial_sample_size,
-  port_construction_method = "EW",
-  stock_selection_quantile_range = c(0.9, 1),
+  initial_buffer_period,
+  port_construction_method = "ew",
+  eligibility_quantile_range = c(0.9, 1),
+  selected_benchmark = NULL,
   rp_method = "cyclical-spinu",
   n_random_ports = 2000,
   random_ports_method = "sample",
@@ -22,20 +22,24 @@ run_port_backtest_internal(
   cov_matrix_sample_size = 252,
   active_returns = FALSE,
   cov_matrix_benchmark = NULL,
-  returns_m_xts = NULL,
+  daily_stock_returns_m_xts = NULL,
+  daily_bench_returns_m_xts = NULL,
   benchmark_returns_m_xts = NULL,
   liquidity_constraint_policy,
   turnover_constraint_policy,
   concentration_constraint_policy,
-  liquidity_m_df = NULL,
-  liquidity_floor_cutoffs_list,
+  liquidity_m_df,
+  liquidity_floor_cutoffs = NULL,
   main_liquidity_metric,
-  stocks_groups_m_df = NULL,
+  stock_groups_m_df = NULL,
   benchmark_weights_m_df = NULL,
-  volatility_m_df = NULL,
-  target_m_df,
-  transaction_costs_list = NULL,
-  custom_stock_universe_weights_m_df = NULL,
+  volatility_m_df,
+  fwd_return_m_df,
+  transaction_costs_parameters,
+  custom_stock_weights_m_df = NULL,
+  custom_stock_metrics_m_df = NULL,
+  user_defined_OR_rules_m_df = NULL,
+  user_defined_AND_rules_m_df = NULL,
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
   verbose = TRUE,
@@ -43,37 +47,102 @@ run_port_backtest_internal(
 )
 }
 \arguments{
-\item{signals_m_df}{A matrix or data frame containing simple features, with columns: id, tickers, dates,
-to be used for signal-portfolio construction}
+\item{signals_m_df}{A matrix or data frame containing simple features with at least the columns: \code{id}, \code{tickers}, and \code{dates}. These are used for constructing the expected return score.}
 
-\item{oos_predictions_m_df}{A meta_dataframe object containing predictions from sb models, result of a run_sb_backtest call.}
+\item{oos_predictions_m_df}{A meta_dataframe object containing out-of-sample predictions from sb models (result of a \code{run_sb_backtest} call). Can be \code{NULL} if not provided.}
 
-\item{rebalancing_months}{Months (numeric) when portfolio should be rebalanced.}
+\item{chosen_score_metric_and_position}{An object or list specifying the expected return score metric and its associated position. This is required when \code{oos_predictions_m_df} is not provided.}
 
-\item{liquidity_m_df}{A data frame (similar to \code{features_m_df}) containing columns for id, tickers, dates,
-and one or more market liquidity measures (e.g., inflation-adjusted mean financial volume).}
+\item{rebalancing_months}{A numeric vector indicating the months (1-12) when the portfolio should be rebalanced.}
 
-\item{nmonths_until_first_rebalancing_date}{The amount of dates in dates_m_vector to be skipped before backtest starts}
+\item{initial_buffer_period}{An integer specifying the number of initial dates (from the ordered dates vector) to skip before starting the backtest.}
 
-\item{selected_signal}{One of ml_model, characteristics or meta_signal IS THIS REALLY NECESSARY????????}
+\item{port_construction_method}{A character string indicating the portfolio construction method. Possibilities include \code{"ew"}, \code{"sw"}, \code{"cw"}, \code{"cs"}, \code{"rp"}, or \code{"mvo"}.}
 
-\item{chosen_characteristics}{A vector of characteristics that indicates which cols in features_m_df should be used as signals}
+\item{eligibility_quantile_range}{A numeric vector (of length 2) specifying the quantile range to determine eligible assets.}
 
-\item{chosen_ml_algorithms}{A vector of ml_algorithms that indicate which ml model predictions of ml_walk_forward_validation_results_list
-should be used as signals. If NULL, all objects of ml_walk_forward_validation_results wil be considered}
+\item{selected_benchmark}{(Optional) A character string indicating the benchmark to use for a benchmark-relative backtest.}
 
-\item{portfolio_construction_method}{The type of portfolio construction method for setting weights. Possibilities are heuristics (EW, CW, CS, SW),
-Mean Tracking-Error (MTO) and Risk-Parity (RP)}
+\item{rp_method}{A character string specifying the risk parity method (e.g., \code{"cyclical-spinu"}).}
 
-\item{covariance_estimation_method}{One of SAM (Sample), EWMA, CC (Constant Correlation), PCA1, PCA2, Shrink_ID or Shrink_CC.
-If NULL, blending_method can only be EW or IR}
+\item{n_random_ports}{An integer specifying the number of random portfolios to generate for optimization (applicable for MVO/RP).}
 
-\item{custom_target_name}{A character indicating a custom target to be used in the backtest. Default is to use fwd_return_1m in \code{target_m_df}. If
-a different variable is provided, the function will first seek that variable in columns of \code{target_m_df} and then in \code{signals_m_df}, in that order. If a variable
-in target_m_df is chosen, the function will derive its prediction horizon based on naming convention and then name the time series accordingly. Otherwise,
-ir will refer to current date.}
+\item{random_ports_method}{A character string specifying the method for generating random portfolios (e.g., \code{"sample"}).}
+
+\item{opt_objective}{A character string indicating the optimization objective (e.g., \code{"sharpe"}).}
+
+\item{opt_method}{A character string specifying the optimization method (e.g., \code{"random"}).}
+
+\item{cov_estimation_method}{A character string specifying the covariance estimation method. Options include \code{"sample"}, \code{"ewma"}, \code{"cc"} (constant correlation),
+\code{"pca1"}, \code{"pca2"}, \code{"shrink_id"} (shrinkage to identity), or \code{"shrink_cc"} (shrinkage to constant correlation).}
+
+\item{cov_matrix_sample_size}{An integer specifying the sample size to use when estimating the covariance matrix.}
+
+\item{active_returns}{A logical indicating whether to compute active returns.}
+
+\item{cov_matrix_benchmark}{(Optional) An object specifying the benchmark for covariance estimation.}
+
+\item{daily_stock_returns_m_xts}{A meta_xts object containing daily stock returns.}
+
+\item{daily_bench_returns_m_xts}{A meta_xts object containing daily benchmark returns.}
+
+\item{benchmark_returns_m_xts}{A meta_xts object containing benchmark returns.}
+
+\item{liquidity_constraint_policy}{An object (or list) specifying the liquidity constraint policy.}
+
+\item{turnover_constraint_policy}{An object (or list) specifying the turnover constraint policy.}
+
+\item{concentration_constraint_policy}{An object (or list) specifying the concentration constraint policy.}
+
+\item{liquidity_m_df}{A data frame containing liquidity measures for stocks, with columns such as \code{id}, \code{tickers}, and \code{dates}.}
+
+\item{liquidity_floor_cutoffs}{A data frame defining cutoff thresholds for liquidity classification.}
+
+\item{main_liquidity_metric}{A character string indicating the primary liquidity metric to be used.}
+
+\item{stock_groups_m_df}{(Optional) A data frame providing stock group or sector information.}
+
+\item{benchmark_weights_m_df}{(Optional) A data frame containing benchmark weights for stocks.}
+
+\item{volatility_m_df}{A data frame containing volatility measures for return calculations.}
+
+\item{fwd_return_m_df}{A data frame with forward returns.}
+
+\item{transaction_costs_parameters}{(Optional) An object specifying parameters for transaction cost calculations.}
+
+\item{custom_stock_weights_m_df}{(Optional) A data frame containing custom stock weights.}
+
+\item{custom_stock_metrics_m_df}{(Optional) A data frame containing custom metrics for stocks.}
+
+\item{user_defined_OR_rules_m_df}{(Optional) A data frame containing user-defined OR rules.}
+
+\item{user_defined_AND_rules_m_df}{(Optional) A data frame containing user-defined AND rules.}
+
+\item{lower_quantile_winsorization}{A numeric value specifying the lower quantile cutoff for winsorization (default is 0.025).}
+
+\item{upper_quantile_winsorization}{A numeric value specifying the upper quantile cutoff for winsorization (default is 0.975).}
+
+\item{verbose}{A logical indicating whether to print detailed progress messages (default is \code{TRUE}).}
+
+\item{parallel}{A logical indicating whether to execute portions of the backtest in parallel (default is \code{TRUE}).}
+}
+\value{
+An S4 object of class \code{port_backtest_results} containing:
+\itemize{
+\item \code{port_weights_m_df}: A meta_dataframe with the portfolio weights.
+\item \code{transactions_log_m_df}: A meta_dataframe logging the portfolio transactions.
+\item \code{port_costs_m_xts}: A meta_xts object with portfolio cost metrics.
+\item \code{port_metrics_m_xts}: (Optional) A meta_xts object with portfolio performance metrics.
+\item \code{port_returns_m_xts}: A meta_xts object with portfolio return series.
+\item \code{final_stock_port}: The final stock portfolio object used in the backtest.
+\item \code{stock_universe_m_df} and \code{final_stock_universe_m_d_ref}: Meta dataframes representing the stock universe during the backtest.
+\item \code{port_backtest_workflow}: A list detailing the backtest workflow, including dates, parameters, and configuration settings.
+\item \code{backtest_identifier}: A character string identifier for the backtest.
+}
 }
 \description{
-Backtest a porfolio based on signals derived from simple stock characteristics (simple factors) or
-expected returns from ml model predictions
+The \code{run_port_backtest_internal} function backtests a portfolio based on signals derived from simple stock characteristics (simple factors) or expected returns obtained from sb model predictions.
+It supports a myriad of portfolio construction methods, including equal-weighted (EW), cap-weighted (CW), custom-weighted, signal-weighted (SW), cap-scaled (CS), mean-variance optimization (MVO) and risk-parity (RP).
+In the case of mean-variance optimization, various constraints (turnover, concentration, and liquidity) can be introduced to reduce transaction costs and tracking error.
+Furthermore, the function accommodates multiple covariance estimation methods (e.g., sample, EWMA, constant correlation, PCA, shrinkage) and supports both agnostic and benchmark-relative backtests.
 }

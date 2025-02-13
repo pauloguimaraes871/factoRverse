@@ -6,7 +6,7 @@
 \usage{
 derive_stock_universe_m_d_ref(
   signals_m_d_ref,
-  oos_predictions_m_df = NULL,
+  oos_predictions_m_d_ref = NULL,
   chosen_score_metric_and_position = NULL,
   lower_quantile_winsorization,
   upper_quantile_winsorization
@@ -15,10 +15,6 @@ derive_stock_universe_m_d_ref(
 \arguments{
 \item{signals_m_d_ref}{A data frame containing at least the columns \code{id}, \code{tickers},
 and one or more signal metrics.}
-
-\item{oos_predictions_m_df}{Optional. A data frame with out-of-sample predictions.
-It must contain columns \code{id} and \code{pred}. If not provided (i.e. \code{NULL}), the signal
-from \code{signals_m_d_ref} is used.}
 
 \item{chosen_score_metric_and_position}{A named character vector indicating the chosen
 signal metric and its associated position. For example, \code{c("signal" = "long")}
@@ -30,6 +26,10 @@ in \code{signal_transform}.}
 
 \item{upper_quantile_winsorization}{Numeric. Upper quantile value for winsorization
 in \code{signal_transform}.}
+
+\item{oos_predictions_m_df}{Optional. A data frame with out-of-sample predictions.
+It must contain columns \code{id} and \code{pred}. If not provided (i.e. \code{NULL}), the signal
+from \code{signals_m_d_ref} is used.}
 
 \item{signal_transform}{A function that transforms the score. It should accept at least
 three arguments: the score vector, \code{lower_quantile_winsorization}, and

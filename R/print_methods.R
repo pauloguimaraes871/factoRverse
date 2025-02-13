@@ -1783,6 +1783,15 @@ setMethod("show", "port_backtest_config", function(object) {
     cat("\n")
   }
 
+  # Liquidity Floor Cutoffs
+  if(!is.null(object@liquidity_floor_cutoffs)){
+    cat("------------------------------\n")
+    cat("Liquidity Floor Cutoffs:\n")
+    cat("------------------------------\n")
+    show(object@liquidity_floor_cutoffs)
+    cat("\n")
+  }
+
   cat("=================================\n")
 })
 
@@ -2032,12 +2041,12 @@ setMethod("show", "turnover_constraint_policy", function(object) {
 })
 
 #' @title Show Transaction Cost Parameters
-#' @description Prints the contents of a `transaction_cost_parameters` object,
+#' @description Prints the contents of a `transaction_costs_parameters` object,
 #' including direct transaction cost, strategy AUM, alpha, and lambda.
-#' @param object A `transaction_cost_parameters` object.
-#' @method show transaction_cost_parameters
+#' @param object A `transaction_costs_parameters` object.
+#' @method show transaction_costs_parameters
 #' @export
-setMethod("show", "transaction_cost_parameters", function(object) {
+setMethod("show", "transaction_costs_parameters", function(object) {
   cat("\nTransaction Cost Parameters:\n")
   cat("------------------------------\n")
   cat("Direct Transaction Cost: ", object@direct_transaction_cost, "\n")
@@ -2075,9 +2084,9 @@ setMethod("show", "port_backtest_results", function(object) {
   cat("Date Information:\n")
   cat("  Dates Covered: ", paste(range(workflow$dates_covered), collapse = " - "), "\n")
   cat("  Number of Dates: ", workflow$n_dates, "\n")
-  cat("  First Rebalance Date: ", workflow$first_rebalance_date, "\n")
+  cat("  First Rebalance Date: ", paste(as.Date(workflow$first_rebalance_date), "\n"))
   cat("  Rebalance Dates: ", paste(workflow$rebalance_dates, collapse = ", "), "\n")
-  cat("  Last Rebalance Date: ", workflow$last_rebalance_date, "\n\n")
+  cat("  Last Rebalance Date: ", paste(as.Date(workflow$last_rebalance_date), "\n\n"))
 
   # Display sample/stock universe information
   cat("Stock Universe:\n")
@@ -2087,14 +2096,16 @@ setMethod("show", "port_backtest_results", function(object) {
   # Display performance information
   cat("Performance Information:\n")
   if (!is.null(object@port_metrics_m_xts)) {
-    cat("  Portfolio Metrics: Available\n")
+    cat("  Portfolio Metrics Means: \n")
+    print(object@port_metrics_m_xts@data %>% sapply(function(x) round(mean(x), 2)))
   } else {
     cat("  Portfolio Metrics: Not available\n")
   }
-  cat("  Portfolio Returns: ", ncol(object@port_returns_m_xts@data), " series\n\n")
+  cat("  Portfolio Returns Means: \n")
+  print(object@port_returns_m_xts@data %>% sapply(function(x) round(mean(x), 2)))
 
   # Display final stock portfolio information
-  cat("Final Stock Portfolio:\n")
+  cat("\nFinal Stock Portfolio:\n")
   show(object@final_stock_port)
   cat("\n")
 

@@ -6,7 +6,8 @@
 \usage{
 classify_stocks_pre_eligibility(
   stock_universe_m_d_ref,
-  eligibility_quantile_range
+  eligibility_quantile_range,
+  categorical_variable = FALSE
 )
 }
 \arguments{

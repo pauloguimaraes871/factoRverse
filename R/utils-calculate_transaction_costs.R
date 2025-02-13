@@ -117,10 +117,10 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
     cat("\n")
     cat(crayon::green("Transaction costs:"))
     cat("\n")
-    message("Total Direct Cost: ", crayon::red(direct_cost))
+    message("Total Direct Cost: ", crayon::red(round(direct_cost, 2)))
     message("Total Market Impact Cost: ", crayon::red(round(market_impact_cost, 2)))
     message("Total Cost: ", crayon::red(round(total_cost, 2)))
-    message("Turnover: ", turnover)
+    message("Turnover: ", round(turnover, 2))
   }
 
   ##Get brokerage statement

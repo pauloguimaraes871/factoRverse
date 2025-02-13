@@ -15,7 +15,6 @@ add_concentration_constraint_policy(object, policy, ...)
 \S4method{add_concentration_constraint_policy}{port_backtest_config,missing}(
   object,
   policy,
-  benchmark,
   max_abs_active_individual_weight = NULL,
   max_abs_active_group_weight = NULL,
   ...

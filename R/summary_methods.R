@@ -859,7 +859,7 @@ setMethod("summary", "sb_metabacktest_config",
               #   model_structure
               #   p_correction_method
               #
-              # If there's no SS config or workflow, we skip.
+              # If there's no SS config or workflow, skip.
               ###################################################################
               # 3a) model_structures
               model_structures <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
@@ -2309,6 +2309,209 @@ methods::setMethod("summary", "ss_backtest_results", function(object, summary_id
 })
 
 
+#' @title Summary Method for port_backtest_results Class
+#' @description Provides a detailed summary of `port_backtest_results` object.
+#' Users can select which summary table to display by specifying the `summary_id` parameter.
+#' The summary includes interactive tables styled using the `DT` package.
+#'
+#' @param object An object of class `port_backtest_results`.
+#' @param summary_id A character string or numeric value specifying which table to display.
+#' @return Invisibly returns the input `object`.
+#' @export
+methods::setMethod("summary", "port_backtest_results", function(object, summary_id = NULL) {
+  # Define colors
+  deep_navy <- "#000033"
+  black <- "#000000"
+  white <- "#FFFFFF"
+
+  # Available tables
+  available_tables <- c(
+    "Returns Summary",
+    "Costs Summary",
+    "Metrics Summary",
+    "Stock Universe Summary",
+    "Final Stock Universe Summary",
+    "Transactions Log"
+  )
+
+  # Print summary header
+  cat("==============================\n")
+  cat("Port Backtest Results Summary\n")
+  cat("==============================\n\n")
+  cat("Backtest Config Name:", object@backtest_identifier, "\n")
+
+  # If no summary_id provided, prompt the user to select
+  if (is.null(summary_id)) {
+    cat("\nPlease choose a table to display:\n")
+    for (i in seq_along(available_tables)) {
+      cat(paste0(i, ": ", available_tables[i], "\n"))
+    }
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    summary_id <- as.numeric(selection)
+    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_tables)) {
+      stop("Invalid selection.")
+    }
+  }
+
+  # Resolve summary_id to table name
+  if (is.numeric(summary_id)) {
+    if (summary_id >= 1 && summary_id <= length(available_tables)) {
+      table_name <- available_tables[summary_id]
+    } else {
+      stop("Invalid table number. Please select a number between 1 and ", length(available_tables), ".")
+    }
+  } else if (is.character(summary_id)) {
+    if (summary_id %in% available_tables) {
+      table_name <- summary_id
+    } else {
+      stop("Invalid 'summary_id' specified. Available options are:\n",
+           paste(available_tables, collapse = ", "))
+    }
+  } else {
+    stop("'summary_id' must be either a string or a number corresponding to the table.")
+  }
+
+  # Get objects
+  port_returns_m_xts <- object@port_returns_m_xts
+  port_costs_m_xts <- object@port_costs_m_xts
+  port_metrics_m_xts <- object@port_metrics_m_xts
+  port_weights_m_df <- object@port_weights_m_df
+  stock_universe_m_df <- object@stock_universe_m_df
+  final_stock_universe_m_d_ref <- object@final_stock_universe_m_d_ref
+  transactions_log <- object@transactions_log@data
+
+  # Display the selected table
+
+  if (table_name == "Returns Summary"){
+
+    if("selected_bench_return" %in% colnames(port_returns_m_xts@data)){
+      bench_returns_m_xts <- port_returns_m_xts
+      bench_returns_m_xts@data <- bench_returns_m_xts@data[, "selected_bench_return"]
+    } else {
+      bench_returns_m_xts <- NULL
+    }
+
+    port_returns_m_xts <- port_returns_m_xts
+    port_returns_m_xts@data <- port_returns_m_xts@data[, c("raw_return", "net_return", "raw_active_return", "net_active_return")]
+
+    summary(port_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts)
+
+  } else if (table_name == "Costs Summary"){
+
+    summary(port_costs_m_xts)
+
+  } else if (table_name == "Metrics Summary"){
+
+    if(!is.null(port_metrics_m_xts)){
+      summary(port_metrics_m_xts)
+    } else {
+      cat("No metrics available.")
+    }
+
+  } else if (table_name == "Stock Universe Summary"){
+
+    summary(stock_universe_m_df)
+
+  } else if (table_name == "Final Stock Universe Summary"){
+
+    summary(final_stock_universe_m_d_ref)
+
+  } else if (table_name == "Transactions Log"){
+
+    available_dates <- names(transactions_log)
+
+    if (length(available_dates) == 0) {
+      stop("The transactions_log object does not contain any dated entries.")
+    }
+
+      cat("Available dates in the transactions log:\n")
+      for (i in seq_along(available_dates)) {
+        cat(paste0(i, ": ", available_dates[i], "\n"))
+      }
+      selection <- readline(prompt = "Enter the number of the date you want to summarize: ")
+      selection <- as.numeric(selection)
+      if (is.na(selection) || selection < 1 || selection > length(available_dates)) {
+        stop("Invalid selection.")
+      }
+      date <- available_dates[selection]
+
+    df <- transactions_log[[date]]
+    df <- df %>%
+      # Round all numeric columns to 2 decimals
+      dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(., 2))) %>%
+      # Keep only rows where relative_order_size is greater than 0
+      dplyr::filter(relative_order_size > 0)
+
+    if (length(df) == 0) {
+      stop("No transactions found for the selected date.")
+    }
+
+    cat("\nSummary for date:", date, "\n")
+
+    # Define color palette (using your stylistics)
+    deep_navy <- "#000033"                  # Deep Navy for data rows
+    black <- "#000000"                      # Black for headers and captions
+    white <- "#FFFFFF"                      # White text
+    vibrant_purple <- "#6A0DAD"             # Vibrant Purple
+    teal_blue <- "#00BFFF"                  # Teal Blue
+    soft_pink <- "#FF69B4"                  # Soft Pink
+    bright_yellow_orange <- "#FFA500"       # Bright Yellow-Orange
+    blue_bg <- "#001f3f"                    # Blue background for plots
+
+    caption_text <- paste0(date, ": Transactions Log")
+
+    # Create a DT datatable with similar styling as in your example
+    dt_obj <- DT::datatable(
+      df,
+      rownames = FALSE,
+      extensions = c('FixedColumns', 'Scroller'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't',
+        ordering = FALSE
+      ),
+      class = 'cell-border stripe',
+      caption = htmltools::tags$caption(
+        style = paste0('caption-side: top; text-align: center; color: ', white,
+                       '; background-color: ', black, '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'),
+        caption_text
+      )
+    ) %>% DT::formatStyle(
+      columns = names(df),
+      backgroundColor = deep_navy,
+      color = white
+    )
+
+    # Apply additional CSS styling
+    css_styles <- paste0("
+      table.dataTable thead th {
+        background-color: ", black, " !important;
+        color: ", white, " !important;
+      }
+      table.dataTable tbody tr {
+        background-color: ", deep_navy, " !important;
+      }
+      table.dataTable tbody td {
+        border-color: #333333 !important;
+      }
+      .dataTable {
+        background-color: ", deep_navy, " !important;
+        color: ", white, ";
+      }
+  ")
+
+    dt_obj <- htmlwidgets::prependContent(dt_obj, htmltools::tags$style(css_styles))
+
+    print(dt_obj)
+    invisible(dt_obj)
+
+
+  }
+
+})
 
 
 

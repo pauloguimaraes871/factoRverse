@@ -1554,7 +1554,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             } else {
 
               # If x is returns_meta_xts, ask about cumulative if not specified
-              if (methods::is(x, "returns_meta_xts")) {
+              if (is(x, "returns_meta_xts")) {
                 # If user didn't specify 'cumulative', prompt them
                 if (is.null(cumulative)) {
                   response_cum <- readline(prompt = "Do you want to plot cumulative returns? (yes/no): ")
@@ -1643,7 +1643,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                 plot_data_multi <- plot_data_multi %>%
                   dplyr::group_by(series) %>%
                   dplyr::arrange(dates) %>%
-                  dplyr::mutate(value = cumprod(1 + value/100) - 1) %>%
+                  dplyr::mutate(value = (cumprod(1 + value/100) - 1)*100) %>%
                   dplyr::ungroup()
                 # Also rename the y-label so user sees it's cumulative
                 metric_name <- paste0("cumulative ", metric_name)
@@ -2455,6 +2455,23 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
   }
 
 })
+
+
+
+
+#' Plot Method for 'sb_model' Objects
+#'
+#' This method generates plots for a \code{sb_model} object, depending on the \code{model} slot.
+#' @export
+setMethod(
+  "plot",
+  signature(x = "sb_model", y = "missing"),
+  function(x, type = NULL, ...) {
+
+    plot(x@model)
+
+  }
+)
 
 
 # Define the plot method for sb_backtest_results
@@ -5194,6 +5211,102 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 })
 
 
+
+#' Plot Method for port_backtest_config: Faceted Liquidity Floor Cutoffs (Ordered Within Facets)
+#'
+#' This method generates a faceted bar plot displaying liquidity floor cutoff metrics
+#' from a \code{port_backtest_config} object. The liquidity floor cutoffs data is expected to
+#' contain one grouping column (automatically identified as the first non-numeric column)
+#' and one or more numeric columns. The data is pivoted into a long format and, within each metric facet,
+#' the grouping variable is reordered (from left to right) based on its numeric value (smallest to largest).
+#' All text in the plot (including facet titles) is displayed in white.
+#'
+#' @param x A \code{port_backtest_config} object containing liquidity floor cutoffs data in the
+#'   \code{liquidity_floor_cutoffs} slot.
+#' @param ... Additional arguments (currently not used).
+#' @return A \code{ggplot} object representing the faceted liquidity floor cutoffs plot.
+#' @export
+setMethod(
+  "plot",
+  signature(x = "port_backtest_config", y = "missing"),
+  function(x, ...) {
+    # Check if liquidity_floor_cutoffs data is available
+    if (is.null(x@liquidity_floor_cutoffs)) {
+      stop("No liquidity floor cutoffs data available in this port_backtest_config object.")
+    }
+
+    df <- x@liquidity_floor_cutoffs
+
+    # Identify the grouping column: first column that is not numeric
+    non_numeric_cols <- names(df)[!sapply(df, is.numeric)]
+    if (length(non_numeric_cols) == 0) {
+      stop("Liquidity floor cutoffs data must contain at least one non-numeric column to be used as the grouping variable.")
+    }
+    group_col <- non_numeric_cols[1]
+
+    # Identify numeric columns (other than the grouping column)
+    numeric_cols <- setdiff(names(df), group_col)
+    if (length(numeric_cols) == 0) {
+      stop("No numeric columns found for plotting.")
+    }
+
+    # Pivot the data into long format
+    df_long <- tidyr::pivot_longer(
+      df,
+      cols = numeric_cols,
+      names_to = "Metric",
+      values_to = "Value"
+    )
+
+    # For each Metric facet, reorder the grouping variable by Value.
+    # Since each (Metric, group_col) pair is unique, we can arrange by Value and then
+    # set new_group factor levels to the order within that group.
+    df_long <- df_long %>%
+      dplyr::group_by(Metric) %>%
+      dplyr::arrange(Value, .by_group = TRUE) %>%
+      dplyr::mutate(new_group = factor(.data[[group_col]], levels = unique(.data[[group_col]]))) %>%
+      dplyr::ungroup()
+
+    # Define custom colors following the stylistic guidelines
+    deep_navy      <- "#000033"
+    black          <- "#000000"
+    white          <- "#FFFFFF"
+    vibrant_purple <- "#6A0DAD"
+    blue_bg        <- "#001f3f"
+
+    # Create the faceted bar plot: each facet corresponds to a numeric metric.
+    # Within each facet, the x-axis uses new_group which is ordered by Value.
+    p <- ggplot2::ggplot(df_long, ggplot2::aes(x = new_group, y = Value)) +
+      ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = black) +
+      ggplot2::geom_text(ggplot2::aes(label = scales::scientific(Value, digits = 2)),
+                         vjust = -0.5, color = white, size = 3.5) +
+      ggplot2::facet_wrap(ggplot2::vars(Metric), scales = "free_y") +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        axis.text        = ggplot2::element_text(color = white),
+        axis.title       = ggplot2::element_text(color = white),
+        plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        plot.subtitle    = ggplot2::element_text(color = white, size = 10, face = "italic"),
+        legend.position  = "bottom",
+        legend.title     = ggplot2::element_text(color = white),
+        legend.text      = ggplot2::element_text(color = white),
+        strip.text       = ggplot2::element_text(color = white)  # Facet titles in white
+      ) +
+      ggplot2::labs(
+        title    = "Liquidity Floor Cutoffs",
+        subtitle = paste("Faceted bar plots by metric (grouped by", group_col, ")"),
+        x        = group_col,
+        y        = "Value"
+      )
+
+    print(p)
+    invisible(p)
+  }
+)
+
+
 #' Plot Method for 'port' Objects
 #'
 #' This method generates plots for a \code{port} object, depending on the specified \code{type}.
@@ -6041,7 +6154,7 @@ setMethod(
         for (i in seq_along(asset_names)) {
           cat(paste0(i, ": ", asset_names[i], "\n"))
         }
-        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
+        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'PETR4, VALE3'):\n")
         selection <- readline(prompt = "Your choice: ")
         selection <- trimws(selection)
 
@@ -6260,16 +6373,221 @@ setMethod(
 )
 
 
-#' Plot Method for 'sb_model' Objects
-#'
-#' This method generates plots for a \code{sb_model} object, depending on the \code{model} slot.
+
+
+
+#' @title Plot Method for port_backtest_results Class
+#' @description Generates various plots to visualize metrics from the `port_backtest_results` object.
+#' Users can select which plot to display by specifying the `plot_id` parameter.
+#' @param x An object of class `port_backtest_results`.
+#' @param plot_id A character string or numeric value specifying which plot to display.
+#' @return Invisibly returns the input object.
 #' @export
-setMethod(
-  "plot",
-  signature(x = "sb_model", y = "missing"),
-  function(x, type = NULL, ...) {
+setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
 
-    plot(x@model)
+  # Define colors for plotting
+  deep_navy <- "#000033"
+  black <- "#000000"
+  white <- "#FFFFFF"
+  vibrant_purple <- "#6A0DAD"
+  neon_green <- "#39FF14"
+  neon_orange <- "#FF5F1F"
+  blue_bg <- "#001f3f"
+  neon_yellow <- "#FFDC00"
+  neon_pink <- "#FF007F"
+  cyan <- "#7FDBFF"
 
-}
-)
+  # Ensure Contribution_Type uses "Positive" and "Negative" for consistency
+  pos_color <- neon_green    # Define positive contribution color
+  neg_color <- "red"         # Define negative contribution color
+
+  # List of available plots
+    available_plots <- c(
+      "Time-Series Weights by Tickers",
+      "Time-Series Weights by Stock Group",
+      "Cross-Sectional Weights Statistic by Tickers",
+      "Cross-Sectional Weights Statistic by Stock Group",
+      "Tile Heatmap of Weights by Tickers",
+      "Tile Heatmap of Weights by Stock Group",
+      "Time-Series of Group Composition",
+      "Time-Series of Expected Return Score by Tickers",
+      "Time-Series of Expected Return Score by Stock Group",
+      "Time-Series of Expected Return Score by Eligibility",
+      "Box-plot of Expected Return Score by Stock Group",
+      "Box-plot of Expected Return Score by Eligibility",
+      "Plot Subjacent Final Port",
+      "Time-Series of Port Returns",
+      "Cross-Sectional Performance Metric Plot",
+      "Time-Series of Transaction Costs",
+      "Time-Series of Port Metrics"
+      )
+
+
+  if (is.null(plot_id)) {
+    cat("\nPlease choose a plot to display:\n")
+    for (i in seq_along(available_plots)) {
+      cat(paste0(i, ": ", available_plots[i], "\n"))
+    }
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    plot_id <- as.numeric(selection)
+    if (is.na(plot_id) || plot_id < 1 || plot_id > length(available_plots)) {
+      stop("Invalid selection.")
+    }
+  }
+
+  # Determine plot name from the selection
+  if (is.numeric(plot_id)) {
+    if (plot_id >= 1 && plot_id <= length(available_plots)) {
+      plot_name <- available_plots[plot_id]
+    } else {
+      stop("Invalid plot number. Please select a valid plot.")
+    }
+  } else if (is.character(plot_id)) {
+    if (plot_id %in% available_plots) {
+      plot_name <- plot_id
+    } else {
+      stop("Invalid 'plot_id' specified. Available options are:\n",
+           paste(available_plots, collapse = ", "))
+    }
+  } else {
+    stop("'plot_id' must be either a string or a number corresponding to the plot.")
+  }
+
+  # Define the data sources
+  port_weights_m_df <- x@port_weights_m_df
+  stock_universe_m_df <- x@stock_universe_m_df
+  final_stock_universe_m_d_ref <- x@final_stock_universe_m_d_ref
+  port_returns_m_xts <- x@port_returns_m_xts
+  port_costs_m_xts <- x@port_costs_m_xts
+  port_metrics_m_xts <- x@port_metrics_m_xts
+  final_stock_port <- x@final_stock_port
+
+
+  # Plot 1: Time-Series Metrics by Ticker
+  if (plot_name == "Time-Series Weights by Tickers") {
+
+    plot_type <- "time_series"
+    clustering_variables <- "tickers"
+    calc_stat <- "mean"
+
+
+    plot(port_weights_m_df, type = plot_type, calc_stat = calc_stat, clustering_variables = clustering_variables)
+
+
+  } else if (plot_name == "Time-Series Weights by Stock Group") {
+
+  } else if (plot_name == "Cross-Sectional Weights Statistic by Tickers"){
+
+    plot_type <- "cross_sectional"
+    clustering_variables <- "tickers"
+
+    plot(port_weights_m_df, type = plot_type, clustering_variables = clustering_variables)
+
+
+  } else if (plot_name == "Cross-Sectional Weights Statistic by Stock Group"){
+
+  } else if (plot_name == "Tile Heatmap of Weights by Tickers"){
+
+    plot_type <- "tile_heatmap"
+    clustering_variables <- "tickers"
+
+    plot(port_weights_m_df, type = plot_type, clustering_variables = clustering_variables)
+
+  } else if (plot_name == "Tile Heatmap of Weights by Stock Group"){
+
+  } else if (plot_name == "Time-Series of Groups Composition"){
+
+  } else if (plot_name == "Time-Series of Expected Return Score by Tickers"){
+
+    plot_type <- "time_series"
+    clustering_variables <- "tickers"
+    variable <- "exp_ret_score"
+    calc_stat <- "mean"
+
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+
+
+  } else if (plot_name == "Time-Series of Expected Return Score by Stock Group"){
+
+  } else if (plot_name == "Time-Series of Expected Return Score by Eligibility"){
+
+    stock_universe_m_df$eligibility <- ifelse(stock_universe_m_df@data$is_eligible == 1, "elected", "not_elected")
+
+    plot_type <- "time_series"
+    clustering_variables <- "eligibility"
+    variable <- "exp_ret_score"
+    calc_stat <- "mean"
+
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+
+
+  } else if (plot_name == "Box-plot of Expected Return Score by Stock Group"){
+
+
+
+
+  } else if (plot_name == "Box-plot of Expected Return Score by Eligibility"){
+
+    stock_universe_m_df$eligibility <- ifelse(stock_universe_m_df@data$is_eligible == 1, "elected", "not_elected")
+
+    plot_type <- "box_plot"
+    clustering_variables <- "eligibility"
+    variable <- "exp_ret_score"
+    calc_stat <- "mean"
+
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+
+
+  } else if (plot_name == "Plot Subjacent Final Port"){
+
+    plot(final_stock_port)
+
+
+  } else if (plot_name == "Time-Series of Returns"){
+
+    plot_perf_metric = FALSE
+    if("selected_bench_return" %in% colnames(port_returns_m_xts@data)){
+      bench_returns_m_xts <- port_returns_m_xts
+      bench_returns_m_xts@data <- bench_returns_m_xts@data[, "selected_bench_return"]
+    } else {
+      bench_returns_m_xts <- NULL
+    }
+
+    port_returns_m_xts <- port_returns_m_xts
+    port_returns_m_xts@data <- port_returns_m_xts@data[, c("raw_return", "net_return", "raw_active_return", "net_active_return")]
+
+
+    plot(port_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, cumulative = cumulative, active_returns = active_returns, plot_perf_metric = plot_perf_metric)
+
+  } else if (plot_name == "Cross-Sectional Performance Metric Plot"){
+
+    plot_perf_metric = TRUE
+    if("selected_bench_return" %in% colnames(port_returns_m_xts@data)){
+      bench_returns_m_xts <- port_returns_m_xts
+      bench_returns_m_xts@data <- bench_returns_m_xts@data[, "selected_bench_return"]
+    } else {
+      bench_returns_m_xts <- NULL
+    }
+
+    port_returns_m_xts <- port_returns_m_xts
+    port_returns_m_xts@data <- port_returns_m_xts@data[, c("raw_return", "net_return", "raw_active_return", "net_active_return")]
+
+    plot(port_metrics_m_xts,  benchmark_returns_m_xts = bench_returns_m_xts, active_returns = active_returns, plot_perf_metric = plot_perf_metric)
+
+  } else if (plot_name == "Time-Series of Transaction Costs"){
+
+    plot(port_costs_m_xts)
+
+  } else if (plot_name == "Time-Series of Port Metrics"){
+
+    if (!is.null(port_metrics_m_xts)){
+      plot(port_metrics_m_xts)
+    } else {
+      stop("No port_metrics available to plot.")
+    }
+
+  } else {
+    stop("The plot name provided is not valid. Please choose one of the following: ", paste(available_plots, collapse = ", "))
+  }
+
+})

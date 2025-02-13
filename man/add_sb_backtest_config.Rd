@@ -2,18 +2,31 @@
 % Please edit documentation in R/constructors.R
 \name{add_sb_backtest_config}
 \alias{add_sb_backtest_config}
-\title{Add one or more sb_backtest_config objects to an sb_metabacktest_config}
+\alias{add_sb_backtest_config,sb_metabacktest_config-method}
+\alias{add_sb_backtest_config,port_backtest_config-method}
+\title{Add one or more sb_backtest_config objects to a sb_metabacktest_config or port_backtest_config}
 \usage{
 add_sb_backtest_config(object, ...)
+
+\S4method{add_sb_backtest_config}{sb_metabacktest_config}(object, new_configs, ...)
+
+\S4method{add_sb_backtest_config}{port_backtest_config}(object, new_config, ...)
 }
 \arguments{
-\item{object}{An \code{sb_metabacktest_config} object.}
+\item{object}{A \code{sb_metabacktest_config} or a \code{port_backtest_config} object.}
 
 \item{...}{One or more \code{sb_backtest_config} objects to add.}
 }
 \value{
-An updated \code{sb_metabacktest_config} object with added configurations.
+An updated \code{sb_metabacktest_config} or \code{port_backtest_config} object with added configurations.
 }
 \description{
-Add one or more sb_backtest_config objects to an sb_metabacktest_config
+Add one or more sb_backtest_config objects to a sb_metabacktest_config or port_backtest_config
 }
+\section{Methods (by class)}{
+\itemize{
+\item \code{add_sb_backtest_config(sb_metabacktest_config)}: Add one or more sb_backtest_config objects to a sb_metabacktest_config
+
+\item \code{add_sb_backtest_config(port_backtest_config)}: Add one or more sb_backtest_config objects to a port_backtest_config
+
+}}

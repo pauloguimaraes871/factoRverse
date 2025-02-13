@@ -9,7 +9,8 @@ calculate_transaction_costs(
   alpha,
   lambda,
   direct_transaction_cost,
-  strategy_aum
+  strategy_aum,
+  verbose
 )
 }
 \arguments{

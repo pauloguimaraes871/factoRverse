@@ -6,9 +6,9 @@
 \usage{
 calculate_port_returns(
   clean_fwd_return_1m_m_d_ref,
-  selected_benchmark_fwd_return,
-  transactions_m_d_ref,
-  transactions_costs_m_xts_d_ref,
+  fwd_selected_benchmark_return,
+  port_weights_m_d_ref,
+  total_cost,
   verbose = TRUE
 )
 }
@@ -16,7 +16,11 @@ calculate_port_returns(
 \item{clean_fwd_return_1m_m_d_ref}{A data frame containing forward stock returns. Must include
 a column named \code{id} (or an equivalent identifier) and a column named \code{fwd_return_1m} for returns.}
 
-\item{selected_benchmark_fwd_return}{Numeric. The forward return of the selected benchmark.}
+\item{fwd_selected_benchmark_return}{Numeric. The forward return of the selected benchmark.}
+
+\item{total_cost}{Numeric. The total cost of all transactions, typically \code{total_direct_cost + total_market_impact_cost}.}
+
+\item{verbose}{Logical. If \code{TRUE}, the function may provide additional messages. Defaults to \code{TRUE}.}
 
 \item{transactions_m_d_ref}{A data frame of transactions. Must include columns:
 \itemize{
@@ -25,13 +29,9 @@ a column named \code{id} (or an equivalent identifier) and a column named \code{
 \item \code{delta}: Change in holdings (used for turnover calculation).
 }}
 
-\item{verbose}{Logical. If \code{TRUE}, the function may provide additional messages. Defaults to \code{TRUE}.}
-
 \item{total_direct_cost}{Numeric. The total direct cost of the portfolio's transactions.}
 
 \item{total_market_impact_cost}{Numeric. The total market impact cost of the portfolio's transactions.}
-
-\item{total_cost}{Numeric. The total cost of all transactions, typically \code{total_direct_cost + total_market_impact_cost}.}
 }
 \value{
 A list containing:

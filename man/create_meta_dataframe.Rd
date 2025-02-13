@@ -14,6 +14,7 @@ create_meta_dataframe(data, meta_dataframe_name = "not_identified", ...)
   workflow = NULL,
   ss_backtest_workflow = NULL,
   sb_backtest_workflow = NULL,
+  port_backtest_workflow = NULL,
   type = "generic",
   ...
 )

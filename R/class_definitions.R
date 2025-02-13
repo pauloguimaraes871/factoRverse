@@ -260,50 +260,6 @@ setClass(
   }
 )
 
-#' Define the transactions_log_m_df S4 Class
-#'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a
-#' port_backtest_workflow
-#'
-#' @export
-setClass(
-  "transactions_log_m_df",
-  contains = "meta_dataframe",
-  slots = c(
-    port_backtest_workflow = "ANY"
-  ),
-  validity = function(object) {
-    #Colnames adherence
-    if(!any(c("id", "tickers", "dates", "eop_port_weights", "daily_vol", "bop_port_weights", "obs", "delta", "order", "relative_order_size", "alpha",
-             "lambda", "direct_cost", "market_impact_cost", "total_cost")) %in% colnames(object@data)){
-      stop("Column names do not adhere to expected transactions_log_m_df object")
-    }
-
-    # Check if there are NAs
-    if (any(is.na(object@data))) {
-      stop("NAs are not allowed in transactions_log_m_df object.")
-    }
-
-    #Check if unique dates length is equal to 2
-    if(length(unique(object@data$dates)) != 2){
-      stop("transactions_log_m_df object must contain two unique dates.")
-    }
-
-    #Check if alpha and lambda are between 0 and 1
-    if(any(object@data$alpha <= 0 | object@data$alpha >= 1)){
-      stop("Alpha must be between 0 and 1.")
-    }
-    if(any(object@data$lambda <= 0 | object@data$lambda >= 1)){
-      stop("Lambda must be between 0 and 1.")
-    }
-
-    #Check if total_cost equals direct_cost + market_impact_cost for each row
-    if(any(object@data$total_cost != object@data$direct_cost + object@data$market_impact_cost)){
-      stop("Total cost must equal direct cost + market impact cost.")
-    }
-
-  }
-)
 
 #' Define the signal_universe_meta_dataframe S4 Class
 #'
@@ -329,11 +285,6 @@ setClass(
       return("stock_universe_m_df object must contain exp_ret_score, pre_eligible_assets and is_eligible columns.")
     }
 
-    if(any(!colnames %in% c("id", "tickers", "dates", valid_performance_metrics_names, "adjusted_p_value", "pre_eligible_assets", "is_eligible",
-                            "theme", "theme_ss_bench_weights", "theme_sb_bench_weights"))){
-      message("User-inputed metrics were identified in signal_universe_m_df object")
-    }
-
     # If all checks pass
     TRUE
   }
@@ -348,19 +299,33 @@ setClass(
   "weights_m_df",
   contains = "meta_dataframe",
   validity = function(object) {
-    #Colnames adherence
-    if(!any(colnames(object@data) == c("id", "tickers", "dates", "weights"))){
-      stop("Column names do not adhere to expected weights_m_df object")
+
+
+    #Check that all columns except for id, tickers and dates are between 0 and 1
+    if(any(apply(object@data %>% dplyr::select(-id, -tickers, -dates), 2, function(x) any(x < 0 | x > 1)))){
+      stop("All columns except for id, tickers and dates must be between 0 and 1.")
     }
 
     #Check if weights sum to 1
-    object@data %>%
-      dplyr::group_by(dates) %>%
-      dplyr::summarise(sum_w = sum(weights)) %>%
-      dplyr::mutate(check_sum_1 = abs(sum_w - 1) < 0.02)
-    if(any(object@data$check_sum_1 == FALSE)){
-      stop(paste("Weights do not sum to 1 at dates:", object@data$dates[which(object@data$check_sum_1 == FALSE)], collapse = ", "))
+    # Pivot the data longer (all columns except id, tickers, dates)
+    res_long <- object@data %>%
+      tidyr::pivot_longer(
+        cols = -c(id, tickers, dates),
+        names_to = "variable",
+        values_to = "weight"
+      ) %>%
+      dplyr::group_by(dates, variable) %>%
+      dplyr::summarise(sum_w = sum(weight), .groups = "drop") %>%
+      dplyr::mutate(check_sum = abs(sum_w - 1) < 0.02)
+
+    # Check if any group does not satisfy the condition
+    if(any(!res_long$check_sum)) {
+      problematic <- res_long %>% dplyr::filter(!check_sum)
+      stop(paste("Weights do not sum to 1 for the following variable-date combinations:",
+                 paste0(problematic$variable, " at ", problematic$dates, collapse = "; ")))
     }
+
+    return(TRUE)
 
 
   }
@@ -547,7 +512,54 @@ setClass(
 )
 
 
+#' Define the transactions_log S4 Class
+#'
+#' This class enforces that the underlying data is adherent to the output of a
+#' port_backtest_workflow
+#'
+#' @export
+setClass(
+  "transactions_log",
+  slots = c(
+    data = "list",
+    workflow = "ANY"
+  ),
+  validity = function(object) {
+    #Check that all elements of the list are dataframes
+    if(!all(sapply(object@data, is.data.frame))){
+      stop("All elements of the list must be dataframes.")
+    }
+    #Check that all have required colnames
+    required_colnames <- c("id", "tickers", "dates", "eop_port_weights", "daily_vol", "bop_port_weights", "obs", "delta", "order", "relative_order_size", "alpha",
+                           "lambda", "direct_cost", "market_impact_cost", "total_cost")
+    if(!all(sapply(object@data, function(x) all(required_colnames %in% colnames(x))))){
+      stop("Column names do not adhere to expected transactions_log object")
+    }
 
+    # Check if there are NAs
+    if(any(sapply(object@data, function(x) any(is.na(x))))){
+      stop("NAs are not allowed in transactions_log object.")
+    }
+
+    #Check if unique dates length is equal to 2 for each element in list
+    if(any(sapply(object@data, function(x) length(unique(x$dates)) != 2))){
+      stop("transactions_log object must contain two unique dates for each element.")
+    }
+
+    #Check if alpha and lambda are between 0 and 1 for each element
+    if(any(purrr::map_lgl(object@data, function(x) any(x$alpha <= 0 | x$alpha > 1)))){
+      stop("Alpha must be between 0 and 1.")
+    }
+    if(any(purrr::map_lgl(object@data, function(x) any(x$lambda <= 0 | x$lambda > 1)))){
+      stop("Lambda must be between 0 and 1.")
+    }
+
+    #Check if total_cost equals direct_cost + market_impact_cost for each row
+    if(any(purrr::map_lgl(object@data, function(x) any(x$total_cost != x$direct_cost + x$market_impact_cost)))){
+      stop("Total cost must equal direct cost + market impact cost.")
+    }
+  }
+)
 
 
 #-----------------------------------------------------------------------
@@ -1001,7 +1013,7 @@ setClass(
 #'
 #' @export
 methods::setClass(
-  Class = "transaction_cost_parameters",
+  Class = "transaction_costs_parameters",
   slots = c(
     direct_transaction_cost = "numeric",
     strategy_aum = "numeric",
@@ -1010,7 +1022,7 @@ methods::setClass(
   ),
   validity = function(object) {
 
-    validate_transaction_cost_parameters(as.list(object))
+    validate_transaction_costs_parameters(as.list(object))
 
   }
 )
@@ -1080,7 +1092,7 @@ setClass(
 #' @description The alpha_test_strategy class is designed to specify parameters of hypothesis testing regarding
 #' CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches.
 #' In the latter, the user can change the hierarchical model specification and how priors are going to be set.
-#' @slot model_structure
+#' @slot model_structure A character describing the model structure.
 #' @slot signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
 #' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
 #' @slot p_correction_method The method for p-value correction. Possible options are:
@@ -2332,8 +2344,8 @@ setClass(
     rebalancing_months = "numeric",
     cov_est_method = "cov_est_method",
     port_construction_method = "character",
-    mvo_parameters = "mvo_parameters",
-    rp_parameters = "rp_parameters",
+    mvo_parameters = "ANY",
+    rp_parameters = "ANY",
     sb_backtest_config = "ANY",
     sb_backtest_results = "ANY",
     main_liquidity_metric = "character",
@@ -2355,23 +2367,36 @@ setClass(
     }
 
     ###Check classes
-    if (!is.null(object@sb_backtest_config)){
-      if(!inherits(object@sb_backtest_config, "sb_backtest_config")){
-        stop("sb_backtest_config must be an object of class sb_backtest_config.")
+      ####SB Config
+      if (!is.null(object@sb_backtest_config)){
+        if(!inherits(object@sb_backtest_config, "sb_backtest_config")){
+          stop("sb_backtest_config must be an object of class sb_backtest_config.")
+        }
+        if(!is.null(object@sb_backtest_results)){
+          stop("sb_backtest_results must be NULL if sb_backtest_config is provided.")
+        }
       }
-      if(!is.null(object@sb_backtest_results)){
-        stop("sb_backtest_results must be NULL if sb_backtest_config is provided.")
+      ####SB Results
+      if (!is.null(object@sb_backtest_results)){
+        if(!inherits(object@sb_backtest_results, "sb_backtest_results")){
+          stop("sb_backtest_results must be an object of class sb_backtest_results")
+        }
+        if(!is.null(object@sb_backtest_config)){
+          stop("sb_backtest_config must be NULL if sb_backtest_results is provided.")
+        }
       }
-    }
-
-    if (!is.null(object@sb_backtest_results)){
-      if(!inherits(object@sb_backtest_results, "sb_backtest_results")){
-        stop("sb_backtest_results must be an object of class sb_backtest_results")
+      ####MVO
+      if (!is.null(object@mvo_parameters)){
+        if(!inherits(object@mvo_parameters, "mvo_parameters")){
+          stop("mvo_parameters must be an object of class mvo_parameters.")
+        }
       }
-      if(!is.null(object@sb_backtest_config)){
-        stop("sb_backtest_config must be NULL if sb_backtest_results is provided.")
+      ####RP Pars
+      if (!is.null(object@rp_parameters)){
+        if(!inherits(object@rp_parameters, "rp_parameters")){
+          stop("rp_parameters must be an object of class rp_parameters.")
+        }
       }
-    }
 
     ###Check if chosen_score_metric_and_position is provided if sb_backtest_results and sb_backtest_config are not provided
     if (is.null(object@sb_backtest_results) & is.null(object@sb_backtest_config) & is.null(object@chosen_score_metric_and_position)){
@@ -2396,7 +2421,7 @@ setClass(
 
       ###Check if liquidity_floor_rule is contemplated
       if (!is.null(object@liquidity_constraint_policy@liquidity_floor_rule) &&
-          !object@liquidity_constraint_policy@liquidity_floor_rule %in% dplyr::pull(liquidity_floor_cutoffs, liquidity_classification)){
+          !object@liquidity_constraint_policy@liquidity_floor_rule %in% dplyr::pull(object@liquidity_floor_cutoffs, liquidity_classification)){
         stop("liquidity_floor_rule must be contemplated in liquidity_floor_cutoffs")
       }
 
@@ -2655,7 +2680,7 @@ setClass(
         stop("main_liquidity_metric cannot be NULL when port_construction_method is 'cw' or 'cs'.")
       }
     }
-    if(object@type %in% c("signal_blend", "single_signal", "custom_weights")){
+    if(!object@type %in% c("signal_blend", "single_signal", "custom_weights")){
       stop("type must be one of 'signal_blend', 'single_signal' or 'custom_weights'")
     }
 
@@ -2686,7 +2711,7 @@ setClass(
   "port_backtest_results",
   slots = list(
     port_weights_m_df = "meta_dataframe",
-    transactions_log_m_df = "meta_dataframe",
+    transactions_log = "transactions_log",
     port_costs_m_xts = "meta_xts",
     port_metrics_m_xts = "ANY",
     port_returns_m_xts = "meta_xts",
@@ -2694,7 +2719,7 @@ setClass(
     port_construction_method = "character",
     sb_backtest_results = "ANY",
     stock_universe_m_df = "stock_universe_m_df",
-    final_stock_universe_m_df = "stock_universe_m_df",
+    final_stock_universe_m_d_ref = "stock_universe_m_df",
     port_backtest_workflow = "list",
     backtest_identifier = "character"
   ),
@@ -2704,7 +2729,7 @@ setClass(
       return("port_metrics_m_xts must be a 'meta_xts' object or NULL")
     }
 
-     if (!is.null(sb_backtest_results) && !inherits(sb_backtest_results, "sb_backtest_results")) {
+     if (!is.null(object@sb_backtest_results) && !inherits(object@sb_backtest_results, "sb_backtest_results")) {
       return("sb_backtest_results must be a 'sb_backtest_results' object")
      }
 
@@ -3614,33 +3639,33 @@ setMethod("as.list", "turnover_constraint_policy", function(x, ...) {
 })
 
 
-# transaction_cost_parameters -----------------------------------------------------
+# transaction_costs_parameters -----------------------------------------------------
 #' @title Accessor for Transaction Cost Parameters
-#' @description Retrieves the transaction_cost_parameters from a `port_backtest_config` object.
+#' @description Retrieves the transaction_costs_parameters from a `port_backtest_config` object.
 #' @param port_backtest_config_obj A `port_backtest_config` object.
 #' @return The turnover constraint policy list.
 #' @export
-setGeneric("get_transaction_cost_parameters", function(port_backtest_config_obj) {
-  standardGeneric("get_transaction_cost_parameters")
+setGeneric("get_transaction_costs_parameters", function(port_backtest_config_obj) {
+  standardGeneric("get_transaction_costs_parameters")
 })
 
 #' @export
-setMethod("get_transaction_cost_parameters", "port_backtest_config", function(port_backtest_config_obj) {
-  return(port_backtest_config_obj@transaction_cost_parameters)
+setMethod("get_transaction_costs_parameters", "port_backtest_config", function(port_backtest_config_obj) {
+  return(port_backtest_config_obj@transaction_costs_parameters)
 })
 
-#' as.list Method for transaction_cost_parameters S4 Class
+#' as.list Method for transaction_costs_parameters S4 Class
 #'
-#' Converts a transaction_cost_parameters S4 object to a list with elements
+#' Converts a transaction_costs_parameters S4 object to a list with elements
 #' \code{direct_transaction_cost}, \code{alpha}, \code{lambda} and \code{strategy_aum}.
 #'
-#' @param x A transaction_cost_parameters S4 object.
+#' @param x A transaction_costs_parameters S4 object.
 #' @param ... Additional arguments (unused).
 #'
 #' @return A list with elements \code{quantile_range_buffer} and \code{turnover_cap_rules}.
 #'
 #' @export
-setMethod("as.list", "transaction_cost_parameters", function(x, ...) {
+setMethod("as.list", "transaction_costs_parameters", function(x, ...) {
   list(
     direct_transaction_cost = x@direct_transaction_cost,
     strategy_aum = x@strategy_aum,

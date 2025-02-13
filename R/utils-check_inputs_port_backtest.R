@@ -277,37 +277,43 @@ check_inputs_port_backtest <- function(
 
   #######benchmark_returns_m_xts
   ###################
-  if(!xts::is.xts(benchmark_returns_m_xts)){
-    stop("benchmark_returns_m_xts must be a xts object")
-  }
-  #get dates
-  benchmark_returns_dates <- zoo::index(benchmark_returns_m_xts)
+  if (!is.null(benchmark_returns_m_xts)){
+    if(!xts::is.xts(benchmark_returns_m_xts)){
+      stop("benchmark_returns_m_xts must be a xts object")
+    }
+    #get dates
+    benchmark_returns_dates <- zoo::index(benchmark_returns_m_xts)
 
-  if(class(benchmark_returns_dates) != "Date"){
-    stop("dates in benchmark_returns_m_xts must be of class Date")
-  }
+    if(class(benchmark_returns_dates) != "Date"){
+      stop("dates in benchmark_returns_m_xts must be of class Date")
+    }
 
-  if(!is.null(selected_benchmark) && !selected_benchmark %in% colnames(benchmark_returns_m_xts)){
-    stop("selected_benchmark should be present in benchmark_returns_m_xts")
-  }
+    if(!is.null(selected_benchmark) && !selected_benchmark %in% colnames(benchmark_returns_m_xts)){
+      stop("selected_benchmark should be present in benchmark_returns_m_xts")
+    }
 
-  if(any(apply(benchmark_returns_m_xts, 2, function(x) any(is.na(x))))){
-    stop("benchmark_returns_m_xts must not have any NA")
-  }
+    if(any(apply(benchmark_returns_m_xts, 2, function(x) any(is.na(x))))){
+      stop("benchmark_returns_m_xts must not have any NA")
+    }
 
-  #Check if all dates in dates_m_vector are present
-  if(!all(dates_m_vector %in% benchmark_returns_dates)){
-    stop("all dates in signals_m_df must be present in benchmark_returns_m_xts")
-  }
+    #Check if all dates in dates_m_vector are present
+    if(!all(dates_m_vector %in% benchmark_returns_dates)){
+      stop("all dates in signals_m_df must be present in benchmark_returns_m_xts")
+    }
 
-  benchmark_returns_dates_after_initial_buffer <- benchmark_returns_dates[which(benchmark_returns_dates > dates_m_vector[initial_buffer_period])]
-  if (length(benchmark_returns_dates_after_initial_buffer) < 1) {
-    stop("There must be at least one date in benchmark_returns_m_xts after initial_buffer_period")
-  }
+    benchmark_returns_dates_after_initial_buffer <- benchmark_returns_dates[which(benchmark_returns_dates > dates_m_vector[initial_buffer_period])]
+    if (length(benchmark_returns_dates_after_initial_buffer) < 1) {
+      stop("There must be at least one date in benchmark_returns_m_xts after initial_buffer_period")
+    }
 
-  if(!setequal(seq.Date(from = benchmark_returns_dates[1], to = benchmark_returns_dates[length(benchmark_returns_dates)], by = "month"), benchmark_returns_dates) ||
-     length(unique(benchmark_returns_dates)) != length(benchmark_returns_dates)){
-    stop("benchmark_returns_m_xts must have sequential unique monthly dates")
+    if(!setequal(seq.Date(from = benchmark_returns_dates[1], to = benchmark_returns_dates[length(benchmark_returns_dates)], by = "month"), benchmark_returns_dates) ||
+       length(unique(benchmark_returns_dates)) != length(benchmark_returns_dates)){
+      stop("benchmark_returns_m_xts must have sequential unique monthly dates")
+    }
+  } else {
+    if (!is.null(selected_benchmark)) {
+      stop("benchmark_returns_m_xts must be provided when selected_benchmark is provided")
+    }
   }
 
   ####stock_groups_m_df
@@ -404,7 +410,6 @@ check_inputs_port_backtest <- function(
   #######benchmark_weights_m_df
   ###################
   if (!is.null(benchmark_weights_m_df)){
-
     #Coercibility
     if(!is_coercible_to_meta_dataframe(benchmark_weights_m_df)){
       stop("benchmark_weights_m_df must be coercible to a meta dataframe")
@@ -771,7 +776,7 @@ check_inputs_port_backtest <- function(
 
   #Transaction_cost
   ##########################
-  if (is.null(transaction_costs_parameters)){
+  if (length(transaction_costs_parameters) == 0){
     stop("transaction_costs_parameters can't be missing")
   }
 

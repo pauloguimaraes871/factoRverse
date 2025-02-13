@@ -98,8 +98,8 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                    workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL, type = "generic", ...) {
 
             #Check for type argument
-              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "transactions_log", "groups", "target", "weights", "priors", "signals", "features")){
-                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'transactions_log', 'groups', 'target',
+              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features")){
+                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
                      'weights', 'priors'.")
               }
 
@@ -189,27 +189,6 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
                     n_obs = total_observations_count,
                     meta_dataframe_name = meta_dataframe_name,
                     sb_backtest_workflow = sb_backtest_workflow)
-              )
-            }
-
-            if (type == "transactions_log"){
-
-              #Check for workflow
-              if(is.null(port_backtest_workflow)){
-                stop("port_backtest_workflow argument must be provided for transactions_log type")
-              }
-
-              # Store metadata and column names
-              return(
-                new("transactions_log_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name,
-                    port_backtest_workflow = port_backtest_workflow)
               )
             }
 
@@ -3366,7 +3345,8 @@ setMethod("add_liquidity_constraint_policy",
 #' @export
 setMethod("add_liquidity_constraint_policy",
           signature(object = "port_backtest_config", policy = "missing"),
-          function(object, policy, liquidity_floor_rule, liquidity_cap_rules, ...) {
+          function(object, policy, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL, ...) {
+
             new_policy <- create_liquidity_constraint_policy(
               liquidity_floor_rule = liquidity_floor_rule,
               liquidity_cap_rules = liquidity_cap_rules
@@ -3460,7 +3440,7 @@ setMethod("add_turnover_constraint_policy",
 #' @return An object of class \code{transaction_cost_parameters}.
 #'
 #' @export
-create_transaction_cost_parameters <- function(direct_transaction_cost, strategy_aum, alpha, lambda) {
+create_transaction_costs_parameters <- function(direct_transaction_cost, strategy_aum, alpha, lambda) {
 
   transaction_costs_parameters <- list(
     direct_transaction_cost = direct_transaction_cost,
@@ -3470,9 +3450,9 @@ create_transaction_cost_parameters <- function(direct_transaction_cost, strategy
   )
 
   # Validate the parameters using the validation function
-  validate_transaction_cost_parameters(transaction_costs_parameters)
+  validate_transaction_costs_parameters(transaction_costs_parameters)
 
-  methods::new("transaction_cost_parameters",
+  methods::new("transaction_costs_parameters",
                direct_transaction_cost = direct_transaction_cost,
                strategy_aum = strategy_aum,
                alpha = alpha,
@@ -3485,39 +3465,39 @@ create_transaction_cost_parameters <- function(direct_transaction_cost, strategy
 #' \code{transaction_cost_parameters} object to a portfolio backtest configuration object.
 #'
 #' @param object An object of class \code{port_backtest_config}.
-#' @param transaction_cost_parameters A \code{transaction_cost_parameters} object. If missing, a new one is created.
+#' @param transaction_costs_parameters A \code{transaction_cost_parameters} object. If missing, a new one is created.
 #' @param ... Additional arguments used when creating a new transaction cost parameters object.
 #'
 #' @return The updated \code{object} with the transaction cost parameters added.
 #'
 #' @export
-setGeneric("add_transaction_cost_parameters", function(object, transaction_cost_parameters, ...) {
-  standardGeneric("add_transaction_cost_parameters")
+setGeneric("add_transaction_costs_parameters", function(object, transaction_costs_parameters, ...) {
+  standardGeneric("add_transaction_costs_parameters")
 })
 
-#' @describeIn add_transaction_cost_parameters
+#' @describeIn add_transaction_costs_parameters
 #'   Add an existing \code{transaction_cost_parameters} to a \code{port_backtest_config}.
 #' @export
-setMethod("add_transaction_cost_parameters",
-          signature(object = "port_backtest_config", transaction_cost_parameters = "transaction_cost_parameters"),
-          function(object, transaction_cost_parameters, ...) {
-            object@transaction_cost_parameters <- transaction_cost_parameters
+setMethod("add_transaction_costs_parameters",
+          signature(object = "port_backtest_config", transaction_costs_parameters = "transaction_costs_parameters"),
+          function(object, transaction_costs_parameters, ...) {
+            object@transaction_costs_parameters <- transaction_costs_parameters
             methods::validObject(object)
             return(object)
           }
 )
 
-#' @describeIn add_transaction_cost_parameters
+#' @describeIn add_transaction_costs_parameters
 #'   Dynamically create a \code{transaction_cost_parameters} object and add it to a \code{port_backtest_config}.
 #'
 #'   Additional arguments (such as \code{direct_transaction_cost}, \code{strategy_aum}, \code{alpha}, and \code{lambda})
 #'   are passed to \code{new_transaction_cost_parameters}.
 #' @export
-setMethod("add_transaction_cost_parameters",
-          signature(object = "port_backtest_config", transaction_cost_parameters = "missing"),
-          function(object, transaction_cost_parameters, ...) {
-            new_tc_params <- create_transaction_cost_parameters(...)
-            object@transaction_cost_parameters <- new_tc_params
+setMethod("add_transaction_costs_parameters",
+          signature(object = "port_backtest_config", transaction_costs_parameters = "missing"),
+          function(object, transaction_costs_parameters, ...) {
+            new_tc_params <- create_transaction_costs_parameters(...)
+            object@transaction_costs_parameters <- new_tc_params
             methods::validObject(object)
             return(object)
           }

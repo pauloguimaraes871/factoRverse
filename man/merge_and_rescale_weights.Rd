@@ -7,6 +7,7 @@
 merge_and_rescale_weights(
   port_weights_placeholder_m_d_ref,
   updated_port_weights_m_lstd_ref,
+  selected_benchmark_weights_m_d_ref,
   stock_universe_m_d_ref = NULL,
   verbose = TRUE
 )
