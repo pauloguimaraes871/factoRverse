@@ -315,12 +315,34 @@ setMethod("run_port_backtest",
            ###########################
              ##Add signal_blending_results
              port_backtest_results@sb_backtest_results <- sb_backtest_results
-             ##Add chosen_score_metric_and_position
-             port_backtest_results@port_backtest_workflow$chosen_score_metric_and_position <- chosen_score_metric_and_position
+
              ##IDs
              port_backtest_results@port_backtest_workflow$config_name <- config@config_name
              port_backtest_results@port_backtest_workflow$backtest_identifier <-
                paste0("c:", config@config_name, "_s:", signals_object_name, "_f:", fwd_return_object_name)
+
+             ##Workflow and names for stock_universe, port_returns, port_metrics etc
+               ###Workflow/Source
+                 ####Meta Dataframes
+                 port_backtest_results@stock_universe_m_df@workflow <- list(paste0("stock_universe_m_df result of ", port_backtest_results@backtest_identifier))
+                 port_backtest_results@final_stock_universe_m_df@workflow <- list(paste0("final_stock_universe_m_df result of ", port_backtest_results@backtest_identifier))
+                 port_backtest_results@port_weights_m_df@workflow <- list(paste0("port_weights_m_df result of ", port_backtest_results@backtest_identifier))
+                 port_backtest_results@transactions_log_m_df@workflow <- list(paste0("transactions_log_m_df result of ", port_backtest_results@backtest_identifier))
+
+                 ####Meta xts
+                 port_backtest_results@port_returns_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_returns_m_xts@data))
+                 port_backtest_results@port_costs_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_costs_m_xts@data))
+                 if (!is.null(custom_stock_metrics_m_df)){
+                   port_backtest_results@port_metrics_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_metrics_m_xts@data))
+                 }
+
+                ###Names
+                 ####Meta Dataframes
+                 port_backtest_results@stock_universe_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+                 port_backtest_results@final_stock_universe_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+                 port_backtest_results@port_weights_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+                 port_backtest_results@transactions_log_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+
 
              ##Add workflows, config_names and objects
               ###Fwd Returns
@@ -378,24 +400,10 @@ setMethod("run_port_backtest",
                 port_backtest_results@port_backtest_workflow$custom_stock_metrics_workflow <- custom_stock_metrics_workflow
               }
 
-            ##Workflow and names for stock_universe, port_returns, port_metrics
-              ###Workflow
-                ####Meta Dataframes
-                port_backtest_results@stock_universe_m_df@workflow <- list(paste0("stock_universe_m_df result of ", port_backtest_results@backtest_identifier))
-                port_backtest_results@final_stock_universe_m_df@workflow <- list(paste0("final_stock_universe_m_df result of ", port_backtest_results@backtest_identifier))
+            ##Call
+            port_backtest_results@port_backtest_workflow$call <- sys.call(-2)
 
-
-
-                ####Meta xts
-                port_backtest_results@port_returns_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_returns_m_xts@data))
-                port_backtest_results@port_costs_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_costs_m_xts@data))
-                if (!is.null(custom_stock_metrics_m_df)){
-                  port_backtest_results@port_metrics_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_metrics_m_xts@data))
-                }
-
-
-
-            return(result)
+            return(port_backtest_results)
           })
 
 
@@ -977,7 +985,7 @@ run_port_backtest_internal <- function(
   port_backtest_workflow <- list(
     #Method
     port_construction_metrod = port_construction_method,
-    exp_ret_score_metric = exp_ret_score_metric,
+    chosen_score_metric_and_position = chosen_score_metric_and_position,
     stock_selection_quantile_range = stock_selection_quantile_range,
     selected_benchmark = selected_benchmark,
     config_name = "not_identified",

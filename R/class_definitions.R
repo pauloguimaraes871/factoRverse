@@ -2334,6 +2334,7 @@ setClass(
     port_construction_method = "character",
     mvo_parameters = "mvo_parameters",
     rp_parameters = "rp_parameters",
+    sb_backtest_config = "ANY",
     sb_backtest_results = "ANY",
     main_liquidity_metric = "character",
     liquidity_floor_cutoffs = "ANY",
@@ -2354,37 +2355,37 @@ setClass(
     }
 
     ###Check classes
-    if (!is.null(sb_backtest_config)){
-      if(!inherits(sb_backtest_config, "sb_backtest_config")){
+    if (!is.null(object@sb_backtest_config)){
+      if(!inherits(object@sb_backtest_config, "sb_backtest_config")){
         stop("sb_backtest_config must be an object of class sb_backtest_config.")
       }
-      if(!is.null(sb_backtest_results)){
+      if(!is.null(object@sb_backtest_results)){
         stop("sb_backtest_results must be NULL if sb_backtest_config is provided.")
       }
     }
 
-    if (!is.null(sb_backtest_results)){
-      if(!inherits(sb_backtest_results, "sb_backtest_results")){
+    if (!is.null(object@sb_backtest_results)){
+      if(!inherits(object@sb_backtest_results, "sb_backtest_results")){
         stop("sb_backtest_results must be an object of class sb_backtest_results")
       }
-      if(!is.null(sb_backtest_config)){
+      if(!is.null(object@sb_backtest_config)){
         stop("sb_backtest_config must be NULL if sb_backtest_results is provided.")
       }
     }
 
     ###Check if chosen_score_metric_and_position is provided if sb_backtest_results and sb_backtest_config are not provided
-    if (is.null(sb_backtest_results) & is.null(sb_backtest_config) & is.null(chosen_score_metric_and_position)){
+    if (is.null(object@sb_backtest_results) & is.null(object@sb_backtest_config) & is.null(object@chosen_score_metric_and_position)){
       stop("chosen_score_metric_and_position must be provided if sb_backtest_results and sb_backtest_config are not provided.")
     }
 
     ##Check chosen_score_metric_and_position
-    if(!is.null(chosen_score_metric_and_position) &&
-       (length(chosen_score_metric_and_position) != 1 || !chosen_score_metric_and_position %in% c("long", "short"))){
+    if(!is.null(object@chosen_score_metric_and_position) &&
+       (length(object@chosen_score_metric_and_position) != 1 || !object@chosen_score_metric_and_position %in% c("long", "short"))){
       stop("chosen_score_metric_and_position must a single named vector with either 'long' or 'short' values")
     }
 
     ###Check benchmark of cov_est_method
-    if (cov_est_method@cov_matrix_benchmark != object@selected_benchmark){
+    if (object@cov_est_method@cov_matrix_benchmark != object@selected_benchmark){
       stop("cov_est_method benchmark must be the same as selected_benchmark")
     }
 
@@ -2416,7 +2417,7 @@ setClass(
       }
 
       #Check if liquidity_cap_rules match liquidity_floor_cutoffs
-      if (!all(names(object@liquidity_constraint_policy@liquidity_cap_rules) %in% dplyr::pull(liquidity_floor_cutoffs, liquidity_classification))){
+      if (!all(names(object@liquidity_constraint_policy@liquidity_cap_rules) %in% dplyr::pull(object@liquidity_floor_cutoffs, liquidity_classification))){
         stop("liquidity_cap_rules must match liquidity_floor_cutoffs")
       }
     }

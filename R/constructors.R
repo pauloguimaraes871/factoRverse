@@ -2067,6 +2067,12 @@ setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_e
               stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
             }
 
+            #Check for existence of selected_benchmark
+            if(!is.null(object@selected_benchmark) && object@active_returns){
+              message("Using port_backtest_config selected benchmark as active covariance matrix benchmark.")
+              cov_est_method@cov_matrix_benchmark <- object@selected_benchmark
+            }
+
             object@cov_est_method <- cov_est_method
 
             return(object)
@@ -2086,6 +2092,12 @@ setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_e
             #Check for sb algo
             if(!object@port_construction_method %in% c("rp", "mvo")){
               stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+            }
+
+            #Check for existence of selected_benchmark
+            if(!is.null(object@selected_benchmark) && active_returns){
+              message("Using port_backtest_config selected benchmark as active covariance matrix benchmark.")
+              cov_matrix_benchmark <- object@selected_benchmark
             }
 
             object@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
@@ -2864,22 +2876,24 @@ setMethod("create_sb_metabacktest_config",
           }
 )
 
-#' Add one or more sb_backtest_config objects to an sb_metabacktest_config
+#' Add one or more sb_backtest_config objects to a sb_metabacktest_config or port_backtest_config
 #'
-#' @param object An `sb_metabacktest_config` object.
+#' @param object A `sb_metabacktest_config` or a `port_backtest_config` object.
 #' @param ... One or more `sb_backtest_config` objects to add.
 #'
-#' @return An updated `sb_metabacktest_config` object with added configurations.
+#' @return An updated `sb_metabacktest_config` or `port_backtest_config` object with added configurations.
 #' @export
 setGeneric("add_sb_backtest_config", function(object, ...) standardGeneric("add_sb_backtest_config"))
 
-setMethod("add_sb_backtest_config", "sb_metabacktest_config", function(object, ...) {
+#' @describeIn add_sb_backtest_config Add one or more sb_backtest_config objects to a sb_metabacktest_config
+setMethod("add_sb_backtest_config", "sb_metabacktest_config", function(object, new_configs, ...) {
 
+  # Check that new_configs is a list os base_sb_backtest_configs
   # Check that all new_configs are complete sb_backtest_config objects
   if(!all(sapply(new_configs, function(x){
     (!x@sb_algorithm %in% c("ols", "rp", "mvo", "ew", "sw", "custom") && !is.null(x@tuning_strategy))
   }))){
-    stop("All elements in '...' must be complete (with tuning_strategy) 'sb_backtest_config' objects.")
+    stop("All elements in 'new_configs' must be complete (with tuning_strategy) 'sb_backtest_config' objects.")
   }
 
   # Combine the current base_sb_backtest_configs with the new configurations
@@ -2892,6 +2906,47 @@ setMethod("add_sb_backtest_config", "sb_metabacktest_config", function(object, .
   return(object)
 })
 
+#' @describeIn add_sb_backtest_config Add one or more sb_backtest_config objects to a port_backtest_config
+setMethod("add_sb_backtest_config", "port_backtest_config", function(object, new_config, ...){
+
+  # Check that new_config is a complete sb_backtest_config object
+  if(!new_config@sb_algorithm %in% c("ols", "rp", "mvo", "ew", "sw", "custom") &&
+     !is.null(new_config@tuning_strategy)){
+    stop("'new_config' must be complete (with tuning_strategy) 'sb_backtest_config' object.")
+  }
+
+  #Add obj
+  object@sb_backtest_config <- new_config
+
+  # Validate the object explicitly
+  validObject(object)
+
+  # Return the updated object
+  return(object)
+
+})
+
+#' Add one sb_backtest_results object to a port_backtest_config
+#'
+#' @param object A`port_backtest_config` object.
+#' @param  One or more `sb_backtest_results` objects to add.
+#'
+#' @return An updated `port_backtest_config` object with added sb_backtest_results.
+#' @export
+setGeneric("add_sb_backtest_results", function(object, ...) standardGeneric("add_sb_backtest_results"))
+
+setMethod("add_sb_backtest_results", "port_backtest_config", function(object, sb_backtest_results, ...){
+
+  #Add obj
+  object@sb_backtest_results <- sb_backtest_results
+
+  # Validate the object explicitly
+  validObject(object)
+
+  # Return the updated object
+  return(object)
+
+})
 
 
 #' Remove an sb_backtest_config by name from an sb_metabacktest_config
@@ -3007,6 +3062,111 @@ setMethod(
     return(new_object)
   }
 )
+
+#-----------------------------------------------------------------------
+# port_backtest_config
+#-----------------------------------------------------------------------
+
+#' @title Create port_backtest_config Object
+#' @description Constructs a `port_backtest_config` object containing all necessary parameters for backtesting stock-level portfolios.
+#'
+#' @param chosen_score_metric_and_position An object (or named vector) specifying the expected return score metric and its associated position. Required if `sb_backtest_results` is not provided.
+#' @param eligibility_quantile_range A numeric vector of length 2 (e.g., c(0.9, 1.0)) specifying the quantile range used to determine eligible assets.
+#' @param selected_benchmark A character string indicating the benchmark to use for benchmark-relative backtests.
+#' @param initial_buffer_period A numeric value indicating the number of initial dates to skip before starting the backtest.
+#' @param rebalancing_months A numeric vector (e.g., c(3,6,9,12)) indicating the months when the portfolio should be rebalanced.
+#' @param cov_est_method A `cov_est_method` object specifying the covariance estimation method and its parameters.
+#' If not provided, a default using method "sample", sample size 36, active returns = TRUE, and the provided selected_benchmark is created.
+#' @param port_construction_method A character string representing the portfolio construction method.
+#' Must be one of "ew", "sw", "cw", "cs", "rp", or "mvo".
+#' @param mvo_parameters An object of class `mvo_parameters` for mean-variance optimization. Only required if `port_construction_method` is "mvo".
+#' If missing and port_construction_method is "mvo", a default is created.
+#' @param rp_parameters An object of class `rp_parameters` for risk parity portfolios. Only required if `port_construction_method` is "rp".
+#' If missing and port_construction_method is "rp", a default is created.
+#' @param sb_backtest_results An object of class `sb_backtest_results`. Must be NULL if using an independent signal backtest configuration.
+#' @param main_liquidity_metric A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.
+#' @param liquidity_floor_cutoffs An object (e.g., a data frame) containing liquidity cutoff values.
+#' @param liquidity_constraint_policy An object of class `liquidity_constraint_policy` (optional).
+#' @param turnover_constraint_policy An object of class `turnover_constraint_policy` (optional).
+#' @param concentration_constraint_policy An object of class `concentration_constraint_policy` (optional).
+#' @param transaction_costs_parameters An object specifying transaction cost parameters (optional).
+#' @param config_name A character string representing the name of the configuration.
+#'
+#' @return An object of class `port_backtest_config`.
+#' @export
+create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
+                                        eligibility_quantile_range = c(0.9, 1.0),
+                                        selected_benchmark = "",
+                                        initial_buffer_period,
+                                        rebalancing_months,
+                                        cov_est_method = NULL,
+                                        port_construction_method = "ew",
+                                        mvo_parameters = NULL,
+                                        rp_parameters = NULL,
+                                        sb_backtest_config = NULL,
+                                        sb_backtest_results = NULL,
+                                        main_liquidity_metric,
+                                        liquidity_floor_cutoffs = NULL,
+                                        liquidity_constraint_policy = NULL,
+                                        turnover_constraint_policy = NULL,
+                                        concentration_constraint_policy = NULL,
+                                        transaction_costs_parameters = NULL,
+                                        config_name = "not_identified") {
+
+  # Create a default covariance estimation method if none is provided
+  if (is.null(cov_est_method)) {
+    cov_est_method <- create_cov_est_method(
+      cov_estimation_method = "sample",
+      cov_matrix_sample_size = 252,
+      active_returns = TRUE,
+      cov_matrix_benchmark = selected_benchmark
+    )
+  }
+
+  # If the portfolio construction method is "mvo" but no mvo_parameters provided, create defaults
+  if (port_construction_method == "mvo" && is.null(mvo_parameters)) {
+    mvo_parameters <- create_mvo_parameters(
+      opt_method = "random",
+      random_ports_method = "sample",
+      n_random_ports = 1000,
+      opt_objective = "sharpe"
+    )
+  }
+
+  # Similarly, if the method is "rp" and no rp_parameters are provided, create defaults
+  if (port_construction_method == "rp" && is.null(rp_parameters)) {
+    rp_parameters <- create_rp_parameters(
+      rp_method = "cyclical-spinu"
+    )
+  }
+
+  # Ensure that at least one of sb_backtest_results or chosen_score_metric_and_position is provided
+  if (is.null(sb_backtest_results) && is.null(chosen_score_metric_and_position)) {
+    stop("chosen_score_metric_and_position must be provided if sb_backtest_results is NULL.")
+  }
+
+  # Create and return the new port_backtest_config object
+  new("port_backtest_config",
+      chosen_score_metric_and_position = chosen_score_metric_and_position,
+      eligibility_quantile_range = eligibility_quantile_range,
+      selected_benchmark = selected_benchmark,
+      initial_buffer_period = initial_buffer_period,
+      rebalancing_months = rebalancing_months,
+      cov_est_method = cov_est_method,
+      port_construction_method = port_construction_method,
+      mvo_parameters = mvo_parameters,
+      rp_parameters = rp_parameters,
+      sb_backtest_config = sb_backtest_config,
+      sb_backtest_results = sb_backtest_results,
+      main_liquidity_metric = main_liquidity_metric,
+      liquidity_floor_cutoffs = liquidity_floor_cutoffs,
+      liquidity_constraint_policy = liquidity_constraint_policy,
+      turnover_constraint_policy = turnover_constraint_policy,
+      concentration_constraint_policy = concentration_constraint_policy,
+      transaction_costs_parameters = transaction_costs_parameters,
+      config_name = config_name
+  )
+}
 
 
 #-----------------------------------------------------------------------

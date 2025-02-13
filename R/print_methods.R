@@ -1703,136 +1703,89 @@ setMethod("show", "ss_backtest_results", function(object) {
 
 #############################################
 
-#' @title Show Portfolio Policies
-#' @description Prints the contents of a `port_backtest_config` object, detailing
-#' the various policies and their configurations.
+#' @title Show Port Backtest Config
+#' @description Prints the contents of a `port_backtest_config` object, detailing its various
+#' parameters and configurations for stock-level portfolio backtesting.
 #'
 #' @param object A `port_backtest_config` object to be displayed.
 #'
 #' @method show port_backtest_config
 #' @export
 setMethod("show", "port_backtest_config", function(object) {
-  cat("Portfolio Policie:\n")
+  cat("==============================\n")
+  cat("Port Backtest Configuration\n\n")
 
-  # Display Signal Selection Policy
-  cat("\nSignal Selection Policy:\n")
-  if (length(object@signal_selection_policy) == 0) {
-    cat("  No signal selection policy set.\n")
-  } else {
-    cat("  Main info\n")
-    # Show chosen signals with their respective positions
-    chosen_signals_with_positions <- paste0(
-      object@signal_selection_policy$chosen_signals,
-      " (",
-      object@signal_selection_policy$signal_positions,
-      ")",
-      collapse = ", "
-    )
-    cat("  Chosen Signals:", chosen_signals_with_positions, "\n")
-    cat("  Blending Method:", object@signal_selection_policy$signal_blending_method, "\n")
+  # Main Information
+  cat("------------------------------\n")
+  cat("Main Information:\n")
+  cat("------------------------------\n")
+  cat("Config Name: ", object@config_name, "\n")
+  cat("Portfolio Construction Method: ", object@port_construction_method, "\n")
+  cat("Chosen Score Metric & Position: ", object@chosen_score_metric_and_position, "\n")
+  cat("Eligibility Quantile Range: ", paste(object@eligibility_quantile_range, collapse = " - "), "\n")
+  cat("Initial Buffer Period: ", object@initial_buffer_period, "\n")
+  cat("Rebalancing Months: ", paste(object@rebalancing_months, collapse = " "), "\n")
+  cat("Selected Benchmark: ", object@selected_benchmark, "\n")
+  cat("Main Liquidity Metric: ", object@main_liquidity_metric, "\n\n")
 
-    if (object@signal_selection_policy$signal_blending_method %in% c("SW", "MTO")) {
-      cat("  Chosen Signal-Blending Metric:", object@signal_selection_policy$chosen_sb_metric, "\n")
-    }
-
-    cat("\n")
-    cat("  Signal Eligibility Criteria\n")
-    cat("  Alpha Significance Threshold:", object@signal_selection_policy$signal_significance_threshold, "\n")
-    cat("  Multiple Testing Adjustment:", object@signal_selection_policy$p_correction_method, "\n")
-
-    if (object@signal_selection_policy$p_correction_method == "bayesian") {
-      cat("\n")
-      cat("  Bayesian Adjustment Criteria\n")
-      cat("  Priors Type:", object@signal_selection_policy$priors_type, "\n")
-      if(object@signal_selection_policy$priors_type %in% c("all", "mean")){
-        cat("  Dataset Used to Inform Priors:", object@signal_selection_policy$priors_informative_data, "\n")
-      }
-
-    }
-
-    if (object@signal_selection_policy$signal_blending_method == "MTO") {
-      cat("\n")
-      cat("  Signal Blending Restrictions:\n")
-      cat("  Multisignal Portfolio Benchmark:", object@signal_selection_policy$sb_benchmark_weighting, "\n")
-      cat("  Max Abs Active Individual Weight:", object@signal_selection_policy$max_abs_active_individual_weight, "\n")
-      cat("  Max Abs Active Group Weight:", object@signal_selection_policy$max_abs_active_group_weight, "\n")
-    }
-  }
-
-  cat("\n=================================\n")
-
-  # Display Liquidity Constraint Policy
-  cat("\nLiquidity Constraint Policy:\n")
-  if (length(object@liquidity_constraint_policy) == 0) {
-    cat("  No liquidity constraint policy set.\n")
-  } else {
-    if (!is.null(object@liquidity_constraint_policy$liquidity_floor_rule)) {
-      cat("  Liquidity Floor Rule:", object@liquidity_constraint_policy$liquidity_floor_rule, "\n")
-    } else {
-      cat("  No liquidity floor rule set.\n")
-    }
-    if (length(object@liquidity_constraint_policy) > 1) {
-      cat("  Liquidity Cap Rules:\n")
-      for (rule in names(object@liquidity_constraint_policy)[-1]) {
-        liquidity_rule <- object@liquidity_constraint_policy[[rule]]
-        cat("    - Liquidity Classification:", liquidity_rule$liquidity_classification,
-            "| Liquidity Cap:", liquidity_rule$liquidity_cap, "\n")
-      }
-    } else {
-      cat("  No liquidity cap rules set.\n")
-    }
-  }
-
-  cat("\n=================================\n")
-
-  # Display Turnover Constraint Policy
-  cat("\nTurnover Constraint Policy:\n")
-  if (length(object@turnover_constraint_policy) == 0) {
-    cat("  No turnover constraint policy set.\n")
-  } else {
-    cat("  Number of Turnover Rules:", length(object@turnover_constraint_policy), "\n")
-    for (rule in object@turnover_constraint_policy) {
-      cat("    - Liquidity Classification:", rule$liquidity_classification,
-          "| Turnover Cap:", rule$turnover_cap,
-          "| Top Stock Quantile Buffer Rule:", rule$top_stock_quantile_buffer, "\n")
-    }
-  }
-
-  cat("\n=================================\n")
-
-  # Display Concentration Constraint Policy
-  cat("\nConcentration Constraint Policy:\n")
-  if (length(object@concentration_constraint_policy) == 0) {
-    cat("  No concentration constraint policy set.\n")
-  } else {
-    cat("  Benchmark:", object@concentration_constraint_policy$benchmark, "\n")
-    cat("  Max Absolute Active Individual Weight:", object@concentration_constraint_policy$max_abs_active_individual_weight, "\n")
-    cat("  Max Absolute Active Group Weights:\n")
-    if (!is.null(object@concentration_constraint_policy$max_abs_active_group_weight)) {
-      for (name in names(object@concentration_constraint_policy$max_abs_active_group_weight)) {
-        cat("    -", name, ":", object@concentration_constraint_policy$max_abs_active_group_weight[[name]], "\n")
-      }
-    }
-  }
-
-  cat("\n=================================\n")
-
-  # Display Liquidity Floor Cutoffs
-  cat("\nLiquidity Floor Cutoffs:\n")
-  if (length(object@liquidity_floor_cutoffs) == 0) {
-    cat("  No liquidity floor cutoffs set.\n")
-  } else {
-    for (classification in names(object@liquidity_floor_cutoffs)) {
-      cat("  Classification:", classification, "\n")
-      for (metric in names(object@liquidity_floor_cutoffs[[classification]])) {
-        cat("    - Metric:", metric, "| Value:", object@liquidity_floor_cutoffs[[classification]][[metric]], "\n")
-      }
-    }
-  }
-
+  # Covariance Estimation
+  cat("------------------------------\n")
+  cat("Covariance Estimation Method:\n")
+  cat("------------------------------\n")
+  show(object@cov_est_method)
   cat("\n")
+
+  # Portfolio-specific parameters
+  if(object@port_construction_method == "mvo"){
+    cat("------------------------------\n")
+    cat("MVO Parameters:\n")
+    cat("------------------------------\n")
+    show(object@mvo_parameters)
+    cat("\n")
+  }
+  if(object@port_construction_method == "rp"){
+    cat("------------------------------\n")
+    cat("Risk-Parity Parameters:\n")
+    cat("------------------------------\n")
+    show(object@rp_parameters)
+    cat("\n")
+  }
+
+  # Constraint Policies
+  if(!is.null(object@liquidity_constraint_policy)){
+    cat("------------------------------\n")
+    cat("Liquidity Constraint Policy:\n")
+    cat("------------------------------\n")
+    show(object@liquidity_constraint_policy)
+    cat("\n")
+  }
+  if(!is.null(object@turnover_constraint_policy)){
+    cat("------------------------------\n")
+    cat("Turnover Constraint Policy:\n")
+    cat("------------------------------\n")
+    show(object@turnover_constraint_policy)
+    cat("\n")
+  }
+  if(!is.null(object@concentration_constraint_policy)){
+    cat("------------------------------\n")
+    cat("Concentration Constraint Policy:\n")
+    cat("------------------------------\n")
+    show(object@concentration_constraint_policy)
+    cat("\n")
+  }
+
+  # Transaction Costs
+  if(!is.null(object@transaction_costs_parameters)){
+    cat("------------------------------\n")
+    cat("Transaction Cost Parameters:\n")
+    cat("------------------------------\n")
+    show(object@transaction_costs_parameters)
+    cat("\n")
+  }
+
   cat("=================================\n")
 })
+
 
 
 #' @title Show a \code{port} object
@@ -1957,3 +1910,201 @@ setMethod(
     invisible(object)
   }
 )
+
+#' @title Show Covariance Estimation Method
+#' @description Displays the configuration of a `cov_est_method` object, including the estimation method,
+#' the sample size used for the covariance matrix, whether active returns are used, and the benchmark used.
+#' @param object A `cov_est_method` object.
+#' @method show cov_est_method
+#' @export
+setMethod("show", "cov_est_method", function(object) {
+  cat("\nCovariance Estimation Method Configuration:\n")
+  cat("--------------------------------------------\n")
+  cat("Covariance Estimation Method: ", object@cov_estimation_method, "\n")
+  cat("Covariance Matrix Sample Size: ", object@cov_matrix_sample_size, "\n")
+  cat("Active Returns: ", object@active_returns, "\n")
+  cat("Covariance Matrix Benchmark: ", object@cov_matrix_benchmark, "\n")
+})
+
+
+#' @title Show MVO Parameters
+#' @description Displays the mean-variance optimization parameters contained in a `mvo_parameters` object.
+#' @param object A `mvo_parameters` object.
+#' @method show mvo_parameters
+#' @export
+setMethod("show", "mvo_parameters", function(object) {
+  cat("\nMean-Variance Optimization Parameters:\n")
+  cat("-----------------------------------------\n")
+  cat("Optimization Method: ", object@opt_method, "\n")
+  cat("Random Ports Method: ", object@random_ports_method, "\n")
+  cat("Number of Random Ports: ", object@n_random_ports, "\n")
+  cat("Optimization Objective: ", object@opt_objective, "\n")
+})
+
+
+#' @title Show Risk-Parity Parameters
+#' @description Displays the risk-parity configuration contained in a `rp_parameters` object.
+#' @param object A `rp_parameters` object.
+#' @method show rp_parameters
+#' @export
+setMethod("show", "rp_parameters", function(object) {
+  cat("\nRisk-Parity Parameters:\n")
+  cat("-------------------------\n")
+  cat("Risk-Parity Method: ", object@rp_method, "\n")
+})
+
+
+#' @title Show Concentration Constraint Policy
+#' @description Prints the contents of a `concentration_constraint_policy` object,
+#' detailing the benchmark, the maximum absolute active weight for individual assets,
+#' and the maximum absolute active group weights.
+#' @param object A `concentration_constraint_policy` object.
+#' @method show concentration_constraint_policy
+#' @export
+setMethod("show", "concentration_constraint_policy", function(object) {
+  cat("\nConcentration Constraint Policy:\n")
+  cat("------------------------------\n")
+  cat("Benchmark: ", object@benchmark, "\n")
+  cat("Max Abs Active Individual Weight: ", object@max_abs_active_individual_weight, "\n")
+
+  cat("Max Abs Active Group Weight:\n")
+  if (!is.null(object@max_abs_active_group_weight)) {
+    if (!is.null(names(object@max_abs_active_group_weight))) {
+      for (grp in names(object@max_abs_active_group_weight)) {
+        cat("   ", grp, ": ", object@max_abs_active_group_weight[[grp]], "\n")
+      }
+    } else {
+      cat("   ", object@max_abs_active_group_weight, "\n")
+    }
+  } else {
+    cat("   Not set.\n")
+  }
+})
+
+#' @title Show Liquidity Constraint Policy
+#' @description Prints the contents of a `liquidity_constraint_policy` object,
+#' including the liquidity floor rule and liquidity cap rules.
+#' @param object A `liquidity_constraint_policy` object.
+#' @method show liquidity_constraint_policy
+#' @export
+setMethod("show", "liquidity_constraint_policy", function(object) {
+  cat("\nLiquidity Constraint Policy:\n")
+  cat("------------------------------\n")
+  cat("Liquidity Floor Rule: ", object@liquidity_floor_rule, "\n")
+
+  cat("Liquidity Cap Rules:\n")
+  if (!is.null(object@liquidity_cap_rules)) {
+    if (!is.null(names(object@liquidity_cap_rules))) {
+      for (rule in names(object@liquidity_cap_rules)) {
+        cat("   ", rule, ": ", object@liquidity_cap_rules[[rule]], "\n")
+      }
+    } else {
+      cat("   ", object@liquidity_cap_rules, "\n")
+    }
+  } else {
+    cat("   Not set.\n")
+  }
+})
+
+#' @title Show Turnover Constraint Policy
+#' @description Prints the contents of a `turnover_constraint_policy` object,
+#' including the quantile range buffer and the turnover cap rules.
+#' @param object A `turnover_constraint_policy` object.
+#' @method show turnover_constraint_policy
+#' @export
+setMethod("show", "turnover_constraint_policy", function(object) {
+  cat("\nTurnover Constraint Policy:\n")
+  cat("------------------------------\n")
+  cat("Quantile Range Buffer: ", object@quantile_range_buffer, "\n")
+
+  cat("Turnover Cap Rules:\n")
+  if (!is.null(object@turnover_cap_rules)) {
+    if (!is.null(names(object@turnover_cap_rules))) {
+      for (rule in names(object@turnover_cap_rules)) {
+        cat("   ", rule, ": ", object@turnover_cap_rules[[rule]], "\n")
+      }
+    } else {
+      cat("   ", object@turnover_cap_rules, "\n")
+    }
+  } else {
+    cat("   Not set.\n")
+  }
+})
+
+#' @title Show Transaction Cost Parameters
+#' @description Prints the contents of a `transaction_cost_parameters` object,
+#' including direct transaction cost, strategy AUM, alpha, and lambda.
+#' @param object A `transaction_cost_parameters` object.
+#' @method show transaction_cost_parameters
+#' @export
+setMethod("show", "transaction_cost_parameters", function(object) {
+  cat("\nTransaction Cost Parameters:\n")
+  cat("------------------------------\n")
+  cat("Direct Transaction Cost: ", object@direct_transaction_cost, "\n")
+  cat("Strategy AUM: ", object@strategy_aum, "\n")
+  cat("Alpha: ", object@alpha, "\n")
+  cat("Lambda: ", object@lambda, "\n")
+})
+
+#' @title Show Port Backtest Results
+#' @description Displays a detailed summary of the `port_backtest_results` object,
+#' including workflow metadata, portfolio construction details, date and stock information,
+#' performance metrics (if available), and the final stock portfolio.
+#'
+#' @param object An instance of the `port_backtest_results` class.
+#'
+#' @return The object is returned invisibly.
+#'
+#' @export
+setMethod("show", "port_backtest_results", function(object) {
+  workflow <- object@port_backtest_workflow
+
+  cat("==============================\n")
+  cat("Portfolio Backtest Results\n")
+  cat("Backtest Identifier: ", object@backtest_identifier, "\n")
+  cat("==============================\n\n")
+
+  # Display configuration information
+  cat("Configuration:\n")
+  cat("  Config Name: ", workflow$config_name, "\n")
+  cat("  Portfolio Construction Method: ", object@port_construction_method, "\n")
+  cat("  Chosen Score & Position: ", workflow$chosen_score_metric_and_position, "\n")
+  cat("  Selected Benchmark: ", ifelse(is.null(workflow$selected_benchmark), "None", workflow$selected_benchmark), "\n\n")
+
+  # Display date information
+  cat("Date Information:\n")
+  cat("  Dates Covered: ", paste(range(workflow$dates_covered), collapse = " - "), "\n")
+  cat("  Number of Dates: ", workflow$n_dates, "\n")
+  cat("  First Rebalance Date: ", workflow$first_rebalance_date, "\n")
+  cat("  Rebalance Dates: ", paste(workflow$rebalance_dates, collapse = ", "), "\n")
+  cat("  Last Rebalance Date: ", workflow$last_rebalance_date, "\n\n")
+
+  # Display sample/stock universe information
+  cat("Stock Universe:\n")
+  cat("  Number of Stocks: ", workflow$n_stocks, "\n")
+  cat("  Number of Observations: ", workflow$nobs, "\n\n")
+
+  # Display performance information
+  cat("Performance Information:\n")
+  if (!is.null(object@port_metrics_m_xts)) {
+    cat("  Portfolio Metrics: Available\n")
+  } else {
+    cat("  Portfolio Metrics: Not available\n")
+  }
+  cat("  Portfolio Returns: ", ncol(object@port_returns_m_xts@data), " series\n\n")
+
+  # Display final stock portfolio information
+  cat("Final Stock Portfolio:\n")
+  show(object@final_stock_port)
+  cat("\n")
+
+  # Display workflow information (call)
+  cat("Call Information:\n")
+  cat("  Function Call:\n")
+  print(workflow$call)
+  cat("\n")
+
+  invisible(object)
+})
+
+
