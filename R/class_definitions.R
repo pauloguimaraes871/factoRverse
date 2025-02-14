@@ -2339,6 +2339,7 @@ setClass(
   slots = list(
     chosen_score_metric_and_position = "ANY",
     eligibility_quantile_range = "numeric",
+    min_eligible_assets_fallback = "ANY",
     selected_benchmark = "character",
     initial_buffer_period = "numeric",
     rebalancing_months = "numeric",
@@ -2364,6 +2365,14 @@ setClass(
     #Check if eligibility_quantile_range has length of 2 between 0 and 1
     if (length(object@eligibility_quantile_range) != 2 | any(object@eligibility_quantile_range < 0) | any(object@eligibility_quantile_range > 1)){
       stop("eligibility_quantile_range must be a numeric vector of length 2 between 0 and 1.")
+    }
+
+    #Check if min_eligible_assets_fallback is a integer single numeric value if not null
+    if (!is.null(object@min_eligible_assets_fallback)){
+      if (!is.numeric(object@min_eligible_assets_fallback) | length(object@min_eligible_assets_fallback) != 1 | !is.numeric(object@min_eligible_assets_fallback) |
+          !(object@min_eligible_assets_fallback %% 1 == 0)){
+        stop("min_eligible_assets_fallback must be a single integer numeric value.")
+      }
     }
 
     ###Check classes

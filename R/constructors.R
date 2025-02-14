@@ -3075,6 +3075,7 @@ setMethod(
 #' @export
 create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         eligibility_quantile_range = c(0.9, 1.0),
+                                        min_eligible_assets_fallback = NULL,
                                         selected_benchmark = "",
                                         initial_buffer_period,
                                         rebalancing_months,
@@ -3127,6 +3128,7 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
   # Create and return the new port_backtest_config object
   new("port_backtest_config",
       chosen_score_metric_and_position = chosen_score_metric_and_position,
+      min_eligible_assets_fallback = min_eligible_assets_fallback,
       eligibility_quantile_range = eligibility_quantile_range,
       selected_benchmark = selected_benchmark,
       initial_buffer_period = initial_buffer_period,

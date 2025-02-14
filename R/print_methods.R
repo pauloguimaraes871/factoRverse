@@ -1723,6 +1723,8 @@ setMethod("show", "port_backtest_config", function(object) {
   cat("Portfolio Construction Method: ", object@port_construction_method, "\n")
   cat("Chosen Score Metric & Position: ", object@chosen_score_metric_and_position, "\n")
   cat("Eligibility Quantile Range: ", paste(object@eligibility_quantile_range, collapse = " - "), "\n")
+  cat("Min Eligible Assets Fallback: ")
+  if(is.null(object@min_eligible_assets_fallback)) cat("Not available.\n") else cat(object@min_eligible_assets_fallback, "\n")
   cat("Initial Buffer Period: ", object@initial_buffer_period, "\n")
   cat("Rebalancing Months: ", paste(object@rebalancing_months, collapse = " "), "\n")
   cat("Selected Benchmark: ", object@selected_benchmark, "\n")
