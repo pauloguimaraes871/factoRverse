@@ -935,6 +935,7 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = c(roe_3m = "long"),
                              rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "ew",
                              eligibility_quantile_range = c(0.75, 0.90), selected_benchmark = "ibov",
+                             min_eligible_assets_fallback = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,

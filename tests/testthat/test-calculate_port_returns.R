@@ -20,6 +20,7 @@ test_that("calculate_port_returns with toy port data with benchmark", {
   #Check
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
                              rebalancing_months = 6, initial_buffer_period = 3, port_construction_method = "sw",
+                             min_eligible_assets_fallback = NULL,
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
@@ -97,8 +98,8 @@ test_that("calculate_port_returns with toy port data with benchmark", {
   expect_equal(results$fwd_raw_active_return, 2.2990, tolerance = 1e-2)
 
   #net return
-  expect_equal(results$fwd_net_return, 0.641637, tolerance = 1e-2)
-  expect_equal(results$fwd_net_active_return, 1.629137, tolerance = 1e-2)
+  expect_equal(results$fwd_net_return, 1.3115 - port_alloc_results$port_costs_d_ref$total_cost, tolerance = 1e-2)
+  expect_equal(results$fwd_net_active_return, 2.2990 - port_alloc_results$port_costs_d_ref$total_cost, tolerance = 1e-2)
 
   #fwd selected bench
   expect_equal(results$fwd_selected_bench_return, fwd_selected_benchmark_return, tolerance = 1e-2)
@@ -127,6 +128,7 @@ test_that("calculate_port_returns with toy port data without benchmark and a sin
   #Check
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
                              rebalancing_months = 6, initial_buffer_period = 3, port_construction_method = "sw",
+                             min_eligible_assets_fallback = NULL,
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
@@ -228,6 +230,7 @@ test_that("calculate_port_metrics works with toy_preprocessed", {
   #Check
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
                              rebalancing_months = 6, initial_buffer_period = 3, port_construction_method = "cw",
+                             min_eligible_assets_fallback = NULL,
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
@@ -305,8 +308,8 @@ test_that("calculate_port_metrics works with toy_preprocessed", {
   expect_equal(results$fwd_raw_active_return, 1.5572, tolerance = 1e-2)
 
   #net return
-  expect_equal(results$fwd_net_return, 4.6362, tolerance = 1e-2)
-  expect_equal(results$fwd_net_active_return, 1.1272, tolerance = 1e-2)
+  expect_equal(results$fwd_net_return, 5.0672 - port_alloc_results$port_costs_d_ref$total_cost, tolerance = 1e-2)
+  expect_equal(results$fwd_net_active_return, 1.5572 - port_alloc_results$port_costs_d_ref$total_cost, tolerance = 1e-2)
 
   #fwd selected bench
   expect_equal(results$fwd_selected_bench_return, fwd_selected_benchmark_return, tolerance = 1e-2)

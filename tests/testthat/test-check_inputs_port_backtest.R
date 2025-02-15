@@ -9,6 +9,7 @@ test_that("check_inputs_port_backtest throws an error when chosen_score_metric_a
   expect_error(check_inputs_port_backtest(
     signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
     chosen_score_metric_and_position = wrong_chosen_score_metric_and_position,
+    min_eligible_assets_fallback = NULL,
     rebalancing_months = 7,
     initial_buffer_period = 12,
     port_construction_method = "sw",
@@ -27,6 +28,7 @@ test_that("check_inputs_port_backtest throws an error when chosen_score_metric_a
   expect_error(check_inputs_port_backtest(
     signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
     chosen_score_metric_and_position = wrong_chosen_score_metric_and_position,
+    min_eligible_assets_fallback = NULL,
     rebalancing_months = 7,
     initial_buffer_period = 12,
     port_construction_method = "sw",
@@ -45,6 +47,7 @@ test_that("check_inputs_port_backtest throws an error when chosen_score_metric_a
   expect_error(check_inputs_port_backtest(
     signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
     chosen_score_metric_and_position = wrong_chosen_score_metric_and_position,
+    min_eligible_assets_fallback = NULL,
     rebalancing_months = 7,
     initial_buffer_period = 12,
     port_construction_method = "sw",
@@ -67,6 +70,7 @@ test_that("check_inputs_port_backtest throws an error when eligibility_quantile_
   expect_error(check_inputs_port_backtest(
     signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
     chosen_score_metric_and_position = c(Alpha = "long"),
+    min_eligible_assets_fallback = NULL,
     rebalancing_months = 7,
     initial_buffer_period = 12,
     port_construction_method = "sw",
@@ -82,6 +86,7 @@ test_that("check_inputs_port_backtest throws an error when eligibility_quantile_
   expect_error(check_inputs_port_backtest(
     signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
     chosen_score_metric_and_position = c(Alpha = "long"),
+    min_eligible_assets_fallback = NULL,
     rebalancing_months = 7,
     initial_buffer_period = 12,
     port_construction_method = "sw",
@@ -97,6 +102,7 @@ test_that("check_inputs_port_backtest throws an error when eligibility_quantile_
   expect_error(check_inputs_port_backtest(
     signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
     chosen_score_metric_and_position = c(Alpha = "long"),
+    min_eligible_assets_fallback = NULL,
     rebalancing_months = 7,
     initial_buffer_period = 12,
     port_construction_method = "sw",
@@ -115,8 +121,9 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
 
   #Create a wrong mocked oos_predictions_m_df
-  oos_predictions_m_df <- signals_m_df %>% dplyr::filter(dates >= "2001-08-15")
-  colnames(oos_predictions_m_df) <- c("id", "tickers", "dates", "target", "pred", "error")
+  oos_predictions_m_df <- signals_m_df %>% dplyr::filter(dates >= "2001-08-15") %>%
+    dplyr::select(-Beta, -Gamma)
+  colnames(oos_predictions_m_df) <- c("id", "tickers", "dates", "pred")
   wrong_oos_predictions_m_df <- oos_predictions_m_df[-1,]
 
   #IDs not match
@@ -125,6 +132,7 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       signals_m_df = signals_m_df,
       oos_predictions_m_df = wrong_oos_predictions_m_df,
       chosen_score_metric_and_position = NULL,
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -136,8 +144,9 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
   )
 
   #Create a wrong mocked oos_predictions_m_df wwithout pred
-  wrong_oos_predictions_m_df <- signals_m_df %>% dplyr::filter(dates >= "2001-08-15")
-  colnames(wrong_oos_predictions_m_df) <- c("id", "tickers", "dates", "target", "preds", "error")
+  wrong_oos_predictions_m_df <- signals_m_df %>% dplyr::filter(dates >= "2001-08-15") %>%
+    dplyr::select(-Beta, -Gamma)
+  colnames(wrong_oos_predictions_m_df) <- c("id", "tickers", "dates", "preds")
 
   #wrong column names
   expect_error(
@@ -145,6 +154,7 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       signals_m_df = signals_m_df,
       oos_predictions_m_df = wrong_oos_predictions_m_df,
       chosen_score_metric_and_position = NULL,
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -152,7 +162,7 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       eligibility_quantile_range = c(0.5,0.75),
       daily_stock_returns_m_xts = daily_stock_returns_m_xts,
       daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
-    ), "oos_predictions_m_df should contain columns 'id', 'tickers', 'dates', 'target', 'pred', 'error'"
+    ), "oos_predictions_m_df should contain columns 'id', 'tickers', 'dates', 'pred'"
   )
 
 
@@ -162,6 +172,7 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       signals_m_df = signals_m_df,
       oos_predictions_m_df = oos_predictions_m_df,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -178,6 +189,7 @@ test_that("check_inputs_port_backtest throws an error when oos_predictions_m_df 
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = NULL,
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -202,6 +214,7 @@ test_that("check_inputs_port_backtest throws an error when daily_stock_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -218,6 +231,7 @@ test_that("check_inputs_port_backtest throws an error when daily_stock_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -235,6 +249,7 @@ test_that("check_inputs_port_backtest throws an error when daily_stock_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -252,6 +267,7 @@ test_that("check_inputs_port_backtest throws an error when daily_stock_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 2,
       port_construction_method = "sw",
@@ -269,6 +285,7 @@ test_that("check_inputs_port_backtest throws an error when daily_stock_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 2,
       port_construction_method = "sw",
@@ -293,6 +310,7 @@ test_that("check_inputs_port_backtest throws an error when daily_stock_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 2,
       port_construction_method = "sw",
@@ -319,6 +337,7 @@ test_that("check_inputs_port_backtest throws an error when daily_bench_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -339,6 +358,7 @@ test_that("check_inputs_port_backtest throws an error when daily_bench_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -355,6 +375,7 @@ test_that("check_inputs_port_backtest throws an error when daily_bench_returns_m
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -380,6 +401,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_returns_m_x
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -402,6 +424,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_returns_m_x
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -424,6 +447,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_returns_m_x
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -443,6 +467,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_returns_m_x
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 6,
       port_construction_method = "sw",
@@ -464,6 +489,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_returns_m_x
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -495,6 +521,7 @@ test_that("check_inputs_port_backtest throws an error when stock_groups_m_df is 
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -520,6 +547,7 @@ test_that("check_inputs_port_backtest throws an error when stock_groups_m_df is 
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -550,6 +578,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_m_df is not
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -574,6 +603,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_m_df is not
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -595,6 +625,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_m_df is not
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -617,6 +648,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_m_df is not
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -644,6 +676,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_m_df is not
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -676,6 +709,7 @@ test_that("check_inputs_port_backtest throws an error when volatility_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -702,6 +736,7 @@ test_that("check_inputs_port_backtest throws an error when volatility_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -728,6 +763,7 @@ test_that("check_inputs_port_backtest throws an error when volatility_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -757,6 +793,7 @@ test_that("check_inputs_port_backtest throws an error when volatility_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -790,6 +827,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_weights_m_d
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -818,6 +856,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_weights_m_d
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -845,6 +884,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_weights_m_d
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -872,6 +912,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_weights_m_d
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -899,6 +940,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_weights_m_d
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -936,6 +978,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_weights_
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -965,6 +1008,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_weights_
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -993,6 +1037,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_weights_
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1021,6 +1066,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_weights_
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1049,6 +1095,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_weights_
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1084,6 +1131,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1113,6 +1161,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1145,6 +1194,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 7,
       port_construction_method = "sw",
@@ -1174,6 +1224,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1212,6 +1263,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1250,6 +1302,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1290,6 +1343,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1328,6 +1382,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1372,6 +1427,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_metrics_
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 2,
       port_construction_method = "sw",
@@ -1403,6 +1459,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_metrics_
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 2,
       port_construction_method = "sw",
@@ -1441,6 +1498,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1474,6 +1532,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 2,
       port_construction_method = "sw",
@@ -1505,6 +1564,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1539,6 +1599,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1568,6 +1629,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1597,6 +1659,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1630,6 +1693,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1665,6 +1729,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1706,6 +1771,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
   expect_error(
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
+      min_eligible_assets_fallback = NULL,
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
@@ -1742,6 +1808,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1775,6 +1842,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1809,6 +1877,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1842,6 +1911,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1876,6 +1946,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1898,7 +1969,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
       concentration_constraint_policy = NULL,
       liquidity_constraint_policy = wrong_liquidity_constraint_policy,
       verbose = TRUE
-    ), "Error in liquidity_constraint_policy: Cap for 'micro_caps' of 0.01 cannot be greater than cap for 'small_caps' of 0.0001"
+    )
   )
 
   #liquidity_floor_cutoffs missing
@@ -1906,6 +1977,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1940,6 +2012,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1982,6 +2055,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2016,6 +2090,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2051,6 +2126,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2085,6 +2161,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2120,6 +2197,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2154,6 +2232,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2190,6 +2269,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2227,6 +2307,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2261,6 +2342,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2304,6 +2386,7 @@ test_that("check_inputs_port_backtest throws an error when turnover_constraint_p
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2341,6 +2424,7 @@ test_that("check_inputs_port_backtest throws an error when turnover_constraint_p
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2377,6 +2461,7 @@ test_that("check_inputs_port_backtest throws an error when turnover_constraint_p
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2412,6 +2497,7 @@ test_that("check_inputs_port_backtest throws an error when turnover_constraint_p
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2448,6 +2534,7 @@ test_that("check_inputs_port_backtest throws an error when turnover_constraint_p
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2484,6 +2571,7 @@ test_that("check_inputs_port_backtest throws an error when turnover_constraint_p
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2508,7 +2596,7 @@ test_that("check_inputs_port_backtest throws an error when turnover_constraint_p
       turnover_constraint_policy = wrong_turnover_constraint_policy,
       liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
       verbose = TRUE
-    ), "Error in turnover_constraint_policy: Cap for 'micro_caps' of0.005 cannot be greater than cap for 'small_caps' of 0.0001"
+    )
   )
 
 
@@ -2517,6 +2605,7 @@ test_that("check_inputs_port_backtest throws an error when turnover_constraint_p
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2561,6 +2650,7 @@ test_that("check_inputs_port_backtest throws an error when user_defined_OR_rules
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2597,6 +2687,7 @@ test_that("check_inputs_port_backtest throws an error when user_defined_OR_rules
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2634,6 +2725,7 @@ test_that("check_inputs_port_backtest throws an error when user_defined_OR_rules
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2681,6 +2773,7 @@ test_that("check_inputs_port_backtest throws an error when user_defined_AND_rule
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2718,6 +2811,7 @@ test_that("check_inputs_port_backtest throws an error when user_defined_AND_rule
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2756,6 +2850,7 @@ test_that("check_inputs_port_backtest throws an error when user_defined_AND_rule
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2797,6 +2892,7 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2831,6 +2927,7 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2866,6 +2963,7 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2901,6 +2999,7 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2938,6 +3037,7 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2982,6 +3082,7 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -3020,6 +3121,7 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -3058,6 +3160,7 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -3096,6 +3199,7 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -3134,6 +3238,7 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
     check_inputs_port_backtest(
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,

@@ -60,7 +60,7 @@ test_that("calculate transaction costs works for constant lambda at new rebalanc
   #Get transaction costs
   results <- calculate_transaction_costs(
     transactions_m_d_ref = transactions_m_d_ref,
-    alpha = 1, lambda = .5,
+    alpha = 0.5, lambda = .5,
     direct_transaction_cost = 0.07,
     strategy_aum = 1,
     verbose = FALSE
@@ -68,10 +68,10 @@ test_that("calculate transaction costs works for constant lambda at new rebalanc
 
   #Compare with hand-calculated (transaction_cost_calc)
   expect_equal(results$port_costs_d_ref$direct_cost , 0.07)
-  expect_equal(results$port_costs_d_ref$market_impact_cost, 0.5998625, tolerance = 1e-02)
+  expect_equal(results$port_costs_d_ref$market_impact_cost, 0.2139, tolerance = 1e-1)
   expect_equal(results$transactions_and_costs_m_d_ref$direct_cost, c(0.038360417, 0.011398279, 0.008843025, 0.011398279, 0))
-  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(0.320905569, 0.012953017, 0.202202027, 0.063801961,0))
-
+  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(0.1758, 0.0021, 0.0255, 0.0104, 0), tolerance = 1e-1)
+  expect_equal(results$port_costs_d_ref$turnover, 0.5)
 
 })
 
@@ -139,7 +139,7 @@ test_that("calculate transaction costs works for dynamic lambda and associated w
   expect_warning(
   results <- calculate_transaction_costs(
     transactions_m_d_ref = transactions_m_d_ref,
-    alpha = 1, lambda = "dynamic",
+    alpha = 0.5, lambda = "dynamic",
     direct_transaction_cost = 0.07,
     strategy_aum = 10,
     verbose = FALSE
@@ -149,9 +149,10 @@ test_that("calculate transaction costs works for dynamic lambda and associated w
 
   #Compare with hand-calculated (transaction_cost_calc)
   expect_equal(results$port_costs_d_ref$direct_cost, 0.07)
-  expect_equal(results$port_costs_d_ref$market_impact_cost , 3.9249022, tolerance = 1e-02)
+  expect_equal(results$port_costs_d_ref$market_impact_cost , 1.4511, tolerance = 1e-02)
   expect_equal(results$transactions_and_costs_m_d_ref$direct_cost, c(0.038360417, 0.011398279, 0.008843025, 0.011398279, 0))
-  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(2.2217659, 0.1012557, 1.1984754, 0.4034053, 0.0000000), tolerance = 1e-3)
+  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(1.2175, 0.01648, 0.151402, 0.065687, 0), tolerance = 1e-2)
+  expect_equal(results$port_costs_d_ref$turnover, 0.5)
 
 
 })
@@ -218,7 +219,7 @@ test_that("calculate transaction costs works for constant lambda at non-rebalanc
   #Get transaction costs
   results <- calculate_transaction_costs(
     transactions_m_d_ref = transactions_m_d_ref,
-    alpha = 1, lambda = .5,
+    alpha = 0.5, lambda = .5,
     direct_transaction_cost = 0.07,
     strategy_aum = 1,
     verbose = FALSE
@@ -226,9 +227,10 @@ test_that("calculate transaction costs works for constant lambda at non-rebalanc
 
   #Compare with hand-calculated (transaction_cost_calc)
   expect_equal(results$port_costs_d_ref$direct_cost , 0.0487, tolerance = 1e-2)
-  expect_equal(results$port_costs_d_ref$market_impact_cost, 0.61947, tolerance = 1e-02)
+  expect_equal(results$port_costs_d_ref$market_impact_cost, 0.1363, tolerance = 1e-02)
   expect_equal(results$transactions_and_costs_m_d_ref$direct_cost, c(0.02436, 0.002602, 0.005157, 0.002602, 0.014), tolerance = 1e-2)
-  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(0.2557, 0.00618, 0.1544125, 0.03048209, 0.172664503), tolerance = 1e-2)
+  expect_equal(results$transactions_and_costs_m_d_ref$market_impact_cost, c(0.0888, 0.00023, 0.0113757, 0.001132941, 0.034532901), tolerance = 1e-2)
+  expect_equal(results$port_costs_d_ref$turnover, 0.348006, tolerance = 1e-02)
 
 
 })

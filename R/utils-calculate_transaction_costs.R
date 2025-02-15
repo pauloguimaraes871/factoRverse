@@ -85,7 +85,7 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
   ##########################
   transactions_and_costs_m_d_ref <- transactions_and_costs_m_d_ref %>%
     dplyr::mutate(direct_cost = (direct_transaction_cost * abs(order))/strategy_aum) %>%
-    dplyr::mutate(market_impact_cost = alpha/2*(relative_order_size^lambda)*daily_vol) %>% ##Barra Model
+    dplyr::mutate(market_impact_cost = (alpha*(relative_order_size^lambda)*daily_vol)*abs(order)/strategy_aum) %>% ##Barra Model
     dplyr::mutate(total_cost = direct_cost + market_impact_cost)
   ##########################
 
@@ -94,7 +94,7 @@ calculate_transaction_costs <- function(transactions_m_d_ref,
   direct_cost <- sum(transactions_and_costs_m_d_ref$direct_cost)
   market_impact_cost <- sum(transactions_and_costs_m_d_ref$market_impact_cost)
   total_cost <- direct_cost + market_impact_cost
-  turnover <- mean(abs(transactions_and_costs_m_d_ref$delta))
+  turnover <- sum(abs(transactions_and_costs_m_d_ref$delta))/2
 
   ###Aggregate costs
   port_costs_d_ref <- data.frame(

@@ -51,6 +51,7 @@
 calculate_port_metrics <- function(port_weights_m_d_ref, #Base object with weight information
                                    custom_stock_metrics_m_d_ref #Metrics
 ){
+
   #Initial prep
   ################
   #Join custom_stock_metrics_m_d_ref to port_allocation_log_m_d_ref
