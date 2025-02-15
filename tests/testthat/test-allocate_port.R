@@ -11,6 +11,7 @@ test_that("allocate_port pipeline works with benchmark", {
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
                              rebalancing_months = 6, initial_buffer_period = 3, port_construction_method = "sw",
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             min_eligible_assets_fallback = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -124,6 +125,7 @@ test_that("allocate_port pipeline works without benchmark", {
   #Check
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
                              rebalancing_months = 6, initial_buffer_period = 3, port_construction_method = "sw",
+                             min_eligible_assets_fallback = NULL,
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
@@ -241,6 +243,7 @@ test_that("allocate_port pipeline works for toy preprocessed data", {
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
                              rebalancing_months = 6, initial_buffer_period = 3, port_construction_method = "cw",
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             min_eligible_assets_fallback = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
