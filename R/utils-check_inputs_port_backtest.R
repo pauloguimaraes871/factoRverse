@@ -165,10 +165,14 @@ check_inputs_port_backtest <- function(
     stop("rebalancing_months should be between 1 and 12.")
   }
 
-  #initial_buffer_period
-  if(any(!is.numeric(initial_buffer_period))){
+  #Check that initial_buffer_period is positive and higher than 1
+  if(!is.numeric(initial_buffer_period)){
     stop("initial_buffer_period must be numeric")
   }
+  if(initial_buffer_period <= 1){
+    stop("initial_buffer_period must be higher than 1")
+  }
+
 
   ######oos_predictions_m_df
   if (!is.null(oos_predictions_m_df)){
@@ -183,8 +187,8 @@ check_inputs_port_backtest <- function(
     if (!is_coercible_to_meta_dataframe(oos_predictions_m_df)){
       stop("oos_predictions_m_df should be coercible to meta_dataframe object")
     }
-    if (!all(colnames(oos_predictions_m_df) == c("id", "tickers", "dates", "target", "pred", "error"))){
-      stop("oos_predictions_m_df should contain columns 'id', 'tickers', 'dates', 'target', 'pred', 'error'")
+    if (!all(colnames(oos_predictions_m_df) == c("id", "tickers", "dates", "pred"))){
+      stop("oos_predictions_m_df should contain columns 'id', 'tickers', 'dates', 'pred'")
     }
     #Check if id's match after initial buffer period
     if (any(!(signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% dplyr::pull(id)) %in%
