@@ -160,6 +160,11 @@ check_inputs_sb_backtest <- function(
     stop("target_m_df should be coercible to meta_dataframe object")
   }
 
+  #Check if target_fwd_name is in target_m_df
+  if(!(target_fwd_name %in% colnames(target_m_df))){
+    stop("target_fwd_name is not in target_m_df")
+  }
+
   if(any(!grepl(target_fwd_name_right_pattern, colnames(target_m_df[,-c(1:3)])))){
     stop("target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.")
   }
