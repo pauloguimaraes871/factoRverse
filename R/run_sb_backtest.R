@@ -96,6 +96,7 @@ setMethod("run_sb_backtest",
               n_random_ports <- 2000
               random_ports_method <- "sample"
               opt_objective <- "sharpe"
+              opt_method <- "random"
               concentration_constraint_policy <- NULL
 
 

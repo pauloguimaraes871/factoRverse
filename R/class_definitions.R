@@ -433,13 +433,13 @@ setClass(
         "quarterly" = seq(idx[1], idx[length(idx)], by = "quarter"),
         "yearly"    = seq(idx[1], idx[length(idx)], by = "year")
       )
-      if (length(full_seq) != length(idx) || !all(full_seq == idx)) {
-        return(paste0("Dates are not consecutive for detected frequency: ", discovered_scale, "."))
+      if (length(full_seq)*0.5 > length(idx)) {
+        return(paste0("Dates are probably not consecutive for detected frequency: ", discovered_scale, "."))
       }
     }
 
     all_values <- as.numeric(main_xts)
-    if (median(abs(all_values)) < 1) {
+    if (median(abs(all_values[!is.na(all_values)])) < 1) {
       warning("Data might be in decimal form (e.g. 0.02 for 2%). ",
               "Some functions depend on a percent representation (use 2.0 instead of 0.02), but this check might ",
               "be wrong. Please confirm if data format is right.")
@@ -463,7 +463,7 @@ setClass(
     if (any(is.na(main_xts))) {
       if(object@asset_type == "ports"){
         #NA Values are forbidden for ports
-        return("There are NA values in the time series.")
+        stop("There are NA values in the time series.")
       } else {
         warning("There are NA values in the time series.")
       }
@@ -2340,7 +2340,7 @@ setClass(
     chosen_score_metric_and_position = "ANY",
     eligibility_quantile_range = "numeric",
     min_eligible_assets_fallback = "ANY",
-    selected_benchmark = "character",
+    selected_benchmark = "ANY",
     initial_buffer_period = "numeric",
     rebalancing_months = "numeric",
     cov_est_method = "cov_est_method",
@@ -2358,6 +2358,14 @@ setClass(
     config_name = "character"
   ),
   validity = function(object){
+    #Check if selected benchmark is character if not NULL
+    if (!is.null(object@selected_benchmark)){
+      if (!is.character(object@selected_benchmark)){
+        stop("selected_benchmark must be a character.")
+      }
+    }
+
+    #Port method
     if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo")){
       stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'")
     }
@@ -2419,8 +2427,10 @@ setClass(
     }
 
     ###Check benchmark of cov_est_method
-    if (object@cov_est_method@cov_matrix_benchmark != object@selected_benchmark){
-      stop("cov_est_method benchmark must be the same as selected_benchmark")
+    if(!is.null(object@selected_benchmark)){
+      if (object@cov_est_method@cov_matrix_benchmark != object@selected_benchmark){
+        stop("cov_est_method benchmark must be the same as selected_benchmark")
+      }
     }
 
     ###Check liquidity_floor_cutoffs

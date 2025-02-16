@@ -445,6 +445,9 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   #Check for NAs in is_eligible
   if(any(is.na(universe_m_d_ref$is_eligible))) stop("NAs found in is_eligible column")
 
+  #Check for no eligibles
+  if(sum(universe_m_d_ref$is_eligible) == 0) stop("No eligible assets found")
+
   ########################
 
   ##Return results

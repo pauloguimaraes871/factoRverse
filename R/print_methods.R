@@ -1721,18 +1721,29 @@ setMethod("show", "port_backtest_config", function(object) {
   cat("------------------------------\n")
   cat("Config Name: ", object@config_name, "\n")
   cat("Portfolio Construction Method: ", object@port_construction_method, "\n")
-  cat("Chosen Score Metric & Position: ", object@chosen_score_metric_and_position, "\n")
-  cat("Eligibility Quantile Range: ", paste(object@eligibility_quantile_range, collapse = " - "), "\n")
-  cat("Min Eligible Assets Fallback: ")
-  if(is.null(object@min_eligible_assets_fallback)) cat("Not available.\n") else cat(object@min_eligible_assets_fallback, "\n")
   cat("Initial Buffer Period: ", object@initial_buffer_period, "\n")
   cat("Rebalancing Months: ", paste(object@rebalancing_months, collapse = " "), "\n")
   cat("Selected Benchmark: ", object@selected_benchmark, "\n")
   cat("Main Liquidity Metric: ", object@main_liquidity_metric, "\n\n")
 
-  # Covariance Estimation
+  # Expected Return Score
   cat("------------------------------\n")
-  cat("Covariance Estimation Method:\n")
+  cat("Expected Return Score:\n")
+  cat("------------------------------\n")
+  if(!is.null(object@sb_backtest_results)){
+    cat("Stock-Level Predictions from Backtest: ", object@sb_backtest_results@backtest_identifier, "\n")
+  }
+  if(!is.null(object@sb_backtest_config)){
+    cat("Stock-Level Predictions from Config: ", object@sb_backtest_config@config_name, "\n")
+  }
+  if(!is.null(object@chosen_score_metric_and_position)){
+    cat("Chosen Score Metric & Position: ", object@chosen_score_metric_and_position, "\n")
+  }
+  cat("Eligibility Quantile Range: ", paste(object@eligibility_quantile_range, collapse = " - "), "\n")
+  cat("Min Eligible Assets Fallback: ")
+  if(is.null(object@min_eligible_assets_fallback)) cat("Not available.\n") else cat(object@min_eligible_assets_fallback, "\n")
+
+  # Covariance Estimation
   cat("------------------------------\n")
   show(object@cov_est_method)
   cat("\n")
@@ -1740,14 +1751,10 @@ setMethod("show", "port_backtest_config", function(object) {
   # Portfolio-specific parameters
   if(object@port_construction_method == "mvo"){
     cat("------------------------------\n")
-    cat("MVO Parameters:\n")
-    cat("------------------------------\n")
     show(object@mvo_parameters)
     cat("\n")
   }
   if(object@port_construction_method == "rp"){
-    cat("------------------------------\n")
-    cat("Risk-Parity Parameters:\n")
     cat("------------------------------\n")
     show(object@rp_parameters)
     cat("\n")
@@ -1756,21 +1763,15 @@ setMethod("show", "port_backtest_config", function(object) {
   # Constraint Policies
   if(!is.null(object@liquidity_constraint_policy)){
     cat("------------------------------\n")
-    cat("Liquidity Constraint Policy:\n")
-    cat("------------------------------\n")
     show(object@liquidity_constraint_policy)
     cat("\n")
   }
   if(!is.null(object@turnover_constraint_policy)){
     cat("------------------------------\n")
-    cat("Turnover Constraint Policy:\n")
-    cat("------------------------------\n")
     show(object@turnover_constraint_policy)
     cat("\n")
   }
   if(!is.null(object@concentration_constraint_policy)){
-    cat("------------------------------\n")
-    cat("Concentration Constraint Policy:\n")
     cat("------------------------------\n")
     show(object@concentration_constraint_policy)
     cat("\n")
@@ -1779,16 +1780,12 @@ setMethod("show", "port_backtest_config", function(object) {
   # Transaction Costs
   if(!is.null(object@transaction_costs_parameters)){
     cat("------------------------------\n")
-    cat("Transaction Cost Parameters:\n")
-    cat("------------------------------\n")
     show(object@transaction_costs_parameters)
     cat("\n")
   }
 
   # Liquidity Floor Cutoffs
   if(!is.null(object@liquidity_floor_cutoffs)){
-    cat("------------------------------\n")
-    cat("Liquidity Floor Cutoffs:\n")
     cat("------------------------------\n")
     show(object@liquidity_floor_cutoffs)
     cat("\n")

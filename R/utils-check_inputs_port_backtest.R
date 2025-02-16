@@ -292,7 +292,7 @@ check_inputs_port_backtest <- function(
       stop("daily_bench_returns_m_xts must not have any NA values")
     }
 
-    if(!cov_matrix_benchmark %in% colnames(daily_bench_returns_m_xts)){
+    if(!is.null(cov_matrix_benchmark) && !cov_matrix_benchmark %in% colnames(daily_bench_returns_m_xts)){
       stop("cov_matrix_benchmark must be present in daily_bench_returns_m_xts")
     }
   }
@@ -629,7 +629,7 @@ check_inputs_port_backtest <- function(
 
     ##Check if groups in stock_groups_m_df match group constraints
     if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &&
-       !all(names(concentration_constraint_policy$max_abs_active_group_weight) != colnames(stock_groups_m_df[,-c(1:3)]))){
+       !all(names(concentration_constraint_policy$max_abs_active_group_weight) == colnames(stock_groups_m_df[,-c(1:3)]))){
       stop("Error in concentration_constraint_policy: names of group constraints must match groups in stock_groups_m_df")
     }
 

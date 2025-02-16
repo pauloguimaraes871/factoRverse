@@ -1589,8 +1589,6 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
     ), "Error in concentration_constraint_policy: max_abs_active_group_weight can't contain duplicated names"
   )
 
-
-
   #benchmark do not match
   wrong_concentration_constraint_policy <- concentration_constraint_policy
   wrong_concentration_constraint_policy$benchmark <- "IBOV"

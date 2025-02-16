@@ -27,6 +27,28 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
   blue_bg <- "#001f3f"                    # Blue background for plots
   cluster_colors <- c(vibrant_purple, teal_blue, soft_pink, bright_yellow_orange)
 
+  # Prompt user for date filtering if a 'dates' column exists
+  if ("dates" %in% names(object@data)) {
+    filter_date_choice <- readline(prompt = "\nDo you want to filter by a specific date? (yes/no): ")
+    if (tolower(trimws(filter_date_choice)) %in% c("yes", "y")) {
+      date_input <- readline(prompt = "Enter the date (YYYY-MM-DD): ")
+      date_input_parsed <- as.Date(date_input)
+      if (is.na(date_input_parsed)) {
+        stop("Invalid date format. Please enter date in YYYY-MM-DD format.")
+      }
+      original_row_count <- base::nrow(object@data)
+      object@data <- object@data[as.Date(object@data$dates) == date_input_parsed, , drop = FALSE]
+      filtered_row_count <- base::nrow(object@data)
+      if (filtered_row_count == 0) {
+        stop("No data available for the specified date.")
+      } else {
+        cat("Data filtered from", original_row_count, "to", filtered_row_count, "rows for date", date_input, "\n")
+      }
+    }
+  } else {
+    cat("\nNo 'dates' column in the data. Skipping date filtering.\n")
+  }
+
   # List of available summaries
   available_summaries <- c(
     "Numeric Summary Table",
@@ -2438,9 +2460,10 @@ methods::setMethod("summary", "port_backtest_results", function(object, summary_
     df <- transactions_log[[date]]
     df <- df %>%
       # Round all numeric columns to 2 decimals
-      dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(., 2))) %>%
+      dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(., 3))) %>%
       # Keep only rows where relative_order_size is greater than 0
-      dplyr::filter(relative_order_size > 0)
+      dplyr::filter(relative_order_size > 0) %>%
+      dplyr::arrange(desc(total_cost))
 
     if (length(df) == 0) {
       stop("No transactions found for the selected date.")

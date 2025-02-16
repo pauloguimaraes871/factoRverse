@@ -35,7 +35,7 @@ setMethod("run_port_backtest",
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, #Covariance Estimation
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
                    winsorization_probs = c(0.025, 0.975), #Winsorization
-                   verbose = TRUE, parallel = TRUE, ...) {
+                   verbose = TRUE, parallel = TRUE) {
 
             ##Assign default values for internal function
             ###########################
@@ -45,6 +45,7 @@ setMethod("run_port_backtest",
               selected_benchmark <- NULL
               oos_predictions_m_df <- NULL
               eligibility_quantile_range = c(0.9, 1.0)
+              min_eligible_assets_fallback <- NULL
 
               ###Portfolio objs
               port_construction_method <- "ew"
@@ -56,6 +57,7 @@ setMethod("run_port_backtest",
               n_random_ports <- 2000
               random_ports_method <- "sample"
               opt_objective <- "sharpe"
+              opt_method <- "random"
               concentration_constraint_policy <- NULL
               liquidity_constraint_policy <- NULL
               turnover_constraint_policy <- NULL
@@ -102,9 +104,10 @@ setMethod("run_port_backtest",
 
               ###Extract oos_predictions_m_df
               if (!is.null(sb_backtest_results)){
-                oos_predictions_m_df <- sb_backtest_results@oos_sb_outputs_m_df #Get OOS Predictions
-                oos_predictions_workflow <- oos_predictions_m_df@workflow
-                oos_predictions_object_name <- oos_predictions_m_df@meta_dataframe_name
+                oos_predictions_m_df <- sb_backtest_results@oos_sb_outputs_m_df@data %>%
+                  dplyr::select(id, tickers, dates, pred) #Get OOS Predictions and exclude target to be more confident of no data leakage
+                oos_predictions_workflow <- sb_backtest_results@oos_sb_outputs_m_df@workflow
+                oos_predictions_object_name <- sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name
               } else {
                 oos_predictions_m_df <- NULL
               }
@@ -154,6 +157,7 @@ setMethod("run_port_backtest",
                 chosen_score_metric_and_position <- config@chosen_score_metric_and_position
                 selected_benchmark <- config@selected_benchmark
                 eligibility_quantile_range <- config@eligibility_quantile_range
+                min_eligible_assets_fallback <- config@min_eligible_assets_fallback
                 initial_buffer_period <- config@initial_buffer_period
                 rebalancing_months <- config@rebalancing_months
 
@@ -162,17 +166,8 @@ setMethod("run_port_backtest",
                   ####Liquidity
                   main_liquidity_metric <- config@main_liquidity_metric
                   liquidity_floor_cutoffs <- config@liquidity_floor_cutoffs
+                  liquidity_constraint_policy <- as.list(config@liquidity_constraint_policy) #All port construction can have liquidity floor rule
 
-                  ####Constraints
-                  if (!is.null(config@liquidity_constraint_policy)){
-                    liquidity_constraint_policy <- as.list(config@liquidity_constraint_policy)
-                  }
-                  if (!is.null(config@turnover_constraint_policy)){
-                    turnover_constraint_policy <- as.list(config@turnover_constraint_policy)
-                  }
-                  if (!is.null(config@concentration_constraint_policy)){
-                  concentration_constraint_policy <- config@concentration_constraint_policy
-                  }
 
                   ####Transaction costs
                   transaction_costs_parameters <- as.list(config@transaction_costs_parameters)
@@ -230,27 +225,21 @@ setMethod("run_port_backtest",
 
                   ####Determine portfolio construction parameters based on the method
                   if (port_construction_method %in% c("rp")) {
+
                     ####RP Parameters
                     rp_parameters <- config@rp_parameters
-                    rp_method <- rp_parameters@rp_method
-                    n_random_ports <- rp_parameters@n_random_ports
-                    random_ports_method <- rp_parameters@random_ports_method
-                    opt_objective <- NA  # Not applicable for heuristic RP portfolios
-                    opt_method <- NA
-                  } else if (port_construction_method %in% c("mvo")) {
+                      rp_method <- rp_parameters@rp_method
+
+                    } else if (port_construction_method %in% c("mvo")) {
                     ####MVO Parameters
                     mvo_parameters <- config@mvo_parameters
-                    n_random_ports <- mvo_parameters@n_random_ports
-                    random_ports_method <- mvo_parameters@random_ports_method
-                    opt_objective <- mvo_parameters@opt_objective
-                    opt_method <- mvo_parameters@opt_method
-                  } else {
-                    # For simpler portfolio constructions (e.g., EW, SW, CW, CS)
-                    rp_method <- NA
-                    n_random_ports <- NA
-                    random_ports_method <- NA
-                    opt_objective <- NA
-                    opt_method <- NA
+                      n_random_ports <- mvo_parameters@n_random_ports
+                      random_ports_method <- mvo_parameters@random_ports_method
+                      opt_objective <- mvo_parameters@opt_objective
+                      opt_method <- mvo_parameters@opt_method
+                      ##Constraints
+                      if (!is.null(config@turnover_constraint_policy)) turnover_constraint_policy <- as.list(config@turnover_constraint_policy)
+                      if (!is.null(config@concentration_constraint_policy)) concentration_constraint_policy <- as.list(config@concentration_constraint_policy)
                   }
 
                   ####Custom
@@ -289,7 +278,8 @@ setMethod("run_port_backtest",
              #Backtest Scheme
              rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
              #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
-             port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = selected_benchmark,
+             port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
+             selected_benchmark = selected_benchmark,
              #RP/MVO Parameters
              rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
              #Covariance Estimation
@@ -484,7 +474,7 @@ run_port_backtest_internal <- function(
   #Backtest Scheme
   rebalancing_months, initial_buffer_period,
   #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
-  port_construction_method = "ew", eligibility_quantile_range = c(0.9, 1.0), selected_benchmark = NULL,
+  port_construction_method = "ew", eligibility_quantile_range = c(0.9, 1.0), selected_benchmark = NULL, min_eligible_assets_fallback = NULL,
   #RP/MVO Parameters
   rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
   #Covariance Estimation
@@ -516,7 +506,8 @@ run_port_backtest_internal <- function(
       #Backtest Scheme
       rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
       #Portfolio Construction Method
-      port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = selected_benchmark,
+      port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
+      selected_benchmark = selected_benchmark,
       #RP/MVO Parameters
       rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
       #Covariance Estimation
@@ -593,11 +584,13 @@ run_port_backtest_internal <- function(
 
     ###Create object to store portfolio metrics
     if (!is.null(custom_stock_metrics_m_df)){
-      port_metrics_m_xts <- xts::xts(as.data.frame(
-        lapply(custom_stock_universe_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
-               function(x) rep(NA, length(dates_port_returns)))
-      ), order.by = dates_backtest) #These are most up-to-date portfolio metrics (matching current date)
-      colnames(port_metrics_m_xts) <- colnames(custom_stock_universe_metrics_m_df %>% dplyr::select(-id, -tickers, -dates)) #Get colnames
+      ##Get most up-to-date portfolio metrics (matching current date)
+      port_metrics_m_xts <- xts::xts(as.data.frame(lapply(
+        custom_stock_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
+               function(x) rep(NA, length(dates_backtest)))
+      ), order.by = dates_backtest)
+      ##Get colnames
+      colnames(port_metrics_m_xts) <- colnames(custom_stock_metrics_m_df %>% dplyr::select(-id, -tickers, -dates))
     }
 
     ###Benchmark objects
@@ -626,14 +619,19 @@ run_port_backtest_internal <- function(
       ####Create object to store benchmark metrics
       if (!is.null(custom_stock_metrics_m_df)){
         benchmark_metrics_m_xts <- xts::xts(as.data.frame(
-          lapply(custom_stock_universe_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
-                 function(x) rep(NA, length(dates_port_returns)))
-        ), order.by = dates_port_returns) #These are most up-to-date benchmark metrics
+          lapply(custom_stock_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
+                 function(x) rep(NA, length(dates_backtest)))
+        ), order.by = dates_backtest) #These are most up-to-date benchmark metrics
+        colnames(benchmark_metrics_m_xts) <- paste0("bench_", colnames(benchmark_metrics_m_xts))
+        ####Insert benchmark in port_metrics_m_xts
+        port_metrics_m_xts <- merge(port_metrics_m_xts, benchmark_metrics_m_xts)
       }
+
     } else {
       selected_benchmark_returns_m_xts <- NULL
       selected_benchmark_weights_m_df <- NULL
       selected_daily_bench_returns_m_xts <- NULL
+      selected_daily_cov_matrix_bench_m_xts <- NULL
     }
 
 
@@ -654,9 +652,9 @@ run_port_backtest_internal <- function(
       cat(paste("  Expected Return Score Metric:"))
       cat("\n")
       if(!is.null(chosen_score_metric_and_position)){
-        print(chosen_score_metric_and_position)
+        cat(paste0(names(chosen_score_metric_and_position), ": ", chosen_score_metric_and_position))
       } else {
-        print("OOS Signal Blend Predictions")
+        cat("OOS Signal Blend Predictions")
       }
       cat("\n")
       if (port_construction_method %in% c("rp", "mvo")){
@@ -667,26 +665,26 @@ run_port_backtest_internal <- function(
 
         if (port_construction_method == "mvo"){
           if (any(!is.null(concentration_constraint_policy), !is.null(liquidity_constraint_policy), !is.null(turnover_constraint_policy))){
-            cat("  Constraints:")
+            cat("  \n\nConstraints:")
             if (!is.null(concentration_constraint_policy)){
-              cat("   Concentration Constraint Policy:")
+              cat("   \nConcentration Constraint Policy:")
               cat(paste("    Benchmark:", concentration_constraint_policy$benchmark))
               cat(paste("    Individual Constraints:", concentration_constraint_policy$max_abs_active_individual_weight))
               cat(paste("    Group Constraints:", concentration_constraint_policy$max_abs_active_group_weight))
             }
             if (!is.null(liquidity_constraint_policy)){
-              cat(paste("   Liquidity Constraint Policy:", liquidity_constraint_policy$policy))
+              cat(paste("   \nLiquidity Constraint Policy:", liquidity_constraint_policy$policy))
               cat(paste("   Liquidity Constraint Threshold:", liquidity_constraint_policy$threshold))
               cat(paste("   Liquidity Constraint Benchmark:", liquidity_constraint_policy$benchmark))
             }
             if (!is.null(turnover_constraint_policy)){
-              cat(paste("   Turnover Constraint Policy:", turnover_constraint_policy$policy))
+              cat(paste("   \nTurnover Constraint Policy:", turnover_constraint_policy$policy))
               cat(paste("   Turnover Constraint Threshold:", turnover_constraint_policy$threshold))
             }
           }
         }
       }
-      cat(paste("  Selected Benchmark:", if(!is.null(selected_benchmark)) selected_benchmark else "None"))
+      cat(paste("  \n\nSelected Benchmark:", if(!is.null(selected_benchmark)) selected_benchmark else "None"))
       cat("\n")
     }
     #########################
@@ -745,11 +743,19 @@ run_port_backtest_internal <- function(
       ####Meta xts (up to date references)
       #####Daily Up-to-date reference
       daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
-      selected_daily_cov_matrix_bench_m_xts_upd_ref <- selected_daily_cov_matrix_bench_m_xts[which(zoo::index(selected_daily_cov_matrix_bench_m_xts) <= current_date), ]
+      if (!is.null(selected_daily_cov_matrix_bench_m_xts)){
+        selected_daily_cov_matrix_bench_m_xts_upd_ref <-  selected_daily_cov_matrix_bench_m_xts[which(zoo::index(selected_daily_cov_matrix_bench_m_xts) <= current_date), ]
+      } else {
+        selected_daily_cov_matrix_bench_m_xts_upd_ref <- NULL
+      }
+
 
       #####Fwd benchmark reference
-      fwd_selected_benchmark_return <- selected_benchmark_returns_m_xts[which(zoo::index(selected_benchmark_returns_m_xts) == next_date), ] %>% as.numeric()
-
+      if (!is.null(selected_benchmark_returns_m_xts)){
+        fwd_selected_benchmark_return <- selected_benchmark_returns_m_xts[which(zoo::index(selected_benchmark_returns_m_xts) == next_date), ] %>% as.numeric()
+      } else {
+        fwd_selected_benchmark_returns_m_xts_upd_ref <- NULL
+      }
 
       ##############################
 
@@ -783,7 +789,6 @@ run_port_backtest_internal <- function(
           upper_quantile_winsorization = upper_quantile_winsorization
         )
 
-
         #####Classify Stock Universe
         stock_universe_m_d_ref <- classify_investment_universe(
           #Stock Universe
@@ -791,6 +796,7 @@ run_port_backtest_internal <- function(
 
           #Regular eligibility
           eligibility_quantile_range = eligibility_quantile_range, #Quantile range to elect stocks
+          min_eligible_assets_fallback = min_eligible_assets_fallback, #Min number of assets to elect
 
           ##Liquidity floor rule and classification
           liquidity_m_d_ref = liquidity_m_d_ref, #Liquidity information to apply liquidity floor rule
@@ -896,16 +902,16 @@ run_port_backtest_internal <- function(
       ###Allocate the portfolio and register transactions and costs
       port_allocation_results_list <- allocate_port(
         #Compute Transactions
-        ##Bop and eop port weights (bop will be passed to be rescaled in case of no rebalancing and then added to placeholder)
-        port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-        ##Stock universe (If rebalancing month, rebalanced weights will be passed along)
-        stock_universe_m_d_ref = if (is_rebalancing_month) stock_universe_m_d_ref else NULL,
+          ##Bop and eop port weights (bop will be passed to be rescaled in case of no rebalancing and then added to placeholder)
+          port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+          ##Stock universe (If rebalancing month, rebalanced weights will be passed along)
+          stock_universe_m_d_ref = if (is_rebalancing_month) stock_universe_m_d_ref else NULL,
 
         #Transaction costs data
-        ##Liquidity and vol data
-        liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref, main_liquidity_metric = main_liquidity_metric,
-        ##BARRA parameters and direct cost
-        transaction_costs_parameters <- transaction_costs_parameters,
+          ##Liquidity and vol data
+          liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref, main_liquidity_metric = main_liquidity_metric,
+          ##BARRA parameters and direct cost
+          transaction_costs_parameters <- transaction_costs_parameters,
 
         #Selected benchmark weights
         selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
@@ -996,6 +1002,7 @@ run_port_backtest_internal <- function(
     port_construction_metrod = port_construction_method,
     chosen_score_metric_and_position = chosen_score_metric_and_position,
     eligibility_quantile_range = eligibility_quantile_range,
+    min_eligible_assets_fallback = min_eligible_assets_fallback,
     selected_benchmark = selected_benchmark,
     config_name = "not_identified",
     backtest_identifier = "not_identified",

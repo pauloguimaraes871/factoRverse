@@ -759,7 +759,7 @@ run_ss_backtest_internal <- function(
   ##Create meta_xts
   ###Create selected_market_factor_proxy_m_xts
   selected_market_factor_proxy_m_xts <- withCallingHandlers({
-    create_meta_xts(selected_market_factor_proxy_m_xts, type = "returns", source = ss_backtest_workflow$backtest_identifier)
+    create_meta_xts(selected_market_factor_proxy_m_xts, type = "returns", asset_type = "benchmark", source = ss_backtest_workflow$backtest_identifier)
   },
   warning = function(w) {
     warning("Market factor proxy creation warning: ", conditionMessage(w))

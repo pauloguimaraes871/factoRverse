@@ -211,6 +211,7 @@ setMethod(
     neon_yellow <- "#FFDC00"
     neon_pink <- "#FF007F"
     cyan <- "#7FDBFF"
+    neon_red <- "#FF4136"
 
     df <- x@data
     date_range_text <- ""
@@ -1228,7 +1229,7 @@ setMethod(
           dplyr::ungroup()
 
         # Color palette for bins
-        color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
+        color_palette <- c(vibrant_purple, cyan, neon_green, neon_yellow, neon_yellow, neon_yellow, neon_orange, neon_red, neon_pink)
 
         # Create the plot
         p <- ggplot2::ggplot(df_summary, ggplot2::aes(x = dates, y = Cluster, fill = bin_label)) +
@@ -1414,6 +1415,37 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                    add_overall_means = NULL, vertical_lines = NULL, cumulative = NULL,
                    plot_perf_metric = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
 
+
+            #Prompt for column selection
+            # Get available column names
+            cols <- colnames(x@data)
+
+            # Display available options to the user
+            numbered_cols <- paste0(seq_along(cols), "-", cols)
+            message("Available columns:\n", crayon::white(paste(numbered_cols, collapse = "\n")))
+
+            # Prompt the user interactively
+            input <- readline(prompt = "Enter column names separated by commas or 'all' for all columns: ")
+            # Remove leading and trailing whitespace
+            input <- trimws(input)
+
+            # Check if the user selected_cols 'all'
+            if (tolower(input) == "all"){
+              selected_cols <- cols
+            } else {
+              # Split the input by comma to get individual column names and trim whitespace
+              selected_cols <- unlist(strsplit(input, split = ","))
+              selected_cols <- trimws(selected_cols)
+            }
+
+            #Check if all columns exist
+            if (!all(selected_cols %in% cols)) {
+              missing_cols <- selected_cols[!selected_cols %in% cols]
+              stop("The following columns do not exist in the data: ", paste(missing_cols, collapse = ", "))
+            }
+
+            #Filter xts
+            x@data <- x@data[, selected_cols]
 
             # If x is returns_meta_xts, decide if user wants to plot performance metric
             is_returns_xts <- methods::is(x, "returns_meta_xts")
@@ -6543,7 +6575,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
     plot(final_stock_port)
 
 
-  } else if (plot_name == "Time-Series of Returns"){
+  } else if (plot_name == "Time-Series of Port Returns"){
 
     plot_perf_metric = FALSE
     if("selected_bench_return" %in% colnames(port_returns_m_xts@data)){
@@ -6557,7 +6589,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
     port_returns_m_xts@data <- port_returns_m_xts@data[, c("raw_return", "net_return", "raw_active_return", "net_active_return")]
 
 
-    plot(port_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, cumulative = cumulative, active_returns = active_returns, plot_perf_metric = plot_perf_metric)
+    plot(port_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric)
 
   } else if (plot_name == "Cross-Sectional Performance Metric Plot"){
 

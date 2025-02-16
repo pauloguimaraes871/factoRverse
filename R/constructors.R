@@ -445,8 +445,8 @@ setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name 
 #' @export
 create_meta_xts <- function(data,
                             type = c("returns", "metrics"),
-                            asset_type = "ports",
-                            meta_xts_name = "default_name",
+                            asset_type = "not_identified",
+                            meta_xts_name = "not_identified",
                             metric_name = NULL,
                             workflow = NULL,
                             source = NULL) {
@@ -477,6 +477,8 @@ create_meta_xts <- function(data,
   # 5) Depending on 'type', build the appropriate subclass
   if (type == "returns") {
     # For assets_meta_xts, we fill the specialized slots:
+    if(asset_type == "not_identified") message("Asset_type not identified for 'returns_meta_xts' subclass")
+
     obj <- methods::new(
       "returns_meta_xts",
       data = common_slots$data,
@@ -2041,7 +2043,7 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
 setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "cov_est_method"),
           function(object, cov_est_method, ...) {
 
-            #Check for sb algo
+            #Check for port construction method
             if(!object@port_construction_method %in% c("rp", "mvo")){
               stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
             }
@@ -3076,7 +3078,7 @@ setMethod(
 create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         eligibility_quantile_range = c(0.9, 1.0),
                                         min_eligible_assets_fallback = NULL,
-                                        selected_benchmark = "",
+                                        selected_benchmark = NULL,
                                         initial_buffer_period,
                                         rebalancing_months,
                                         cov_est_method = NULL,
@@ -3095,12 +3097,21 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
 
   # Create a default covariance estimation method if none is provided
   if (is.null(cov_est_method)) {
-    cov_est_method <- create_cov_est_method(
-      cov_estimation_method = "sample",
-      cov_matrix_sample_size = 252,
-      active_returns = TRUE,
-      cov_matrix_benchmark = selected_benchmark
-    )
+    if (!is.null(selected_benchmark)){
+      cov_est_method <- create_cov_est_method(
+        cov_estimation_method = "sample",
+        cov_matrix_sample_size = 252,
+        active_returns = TRUE,
+        cov_matrix_benchmark = selected_benchmark
+      )
+    } else {
+      cov_est_method <- create_cov_est_method(
+        cov_estimation_method = "sample",
+        cov_matrix_sample_size = 252,
+        active_returns = FALSE,
+        cov_matrix_benchmark = NULL
+      )
+    }
   }
 
   # If the portfolio construction method is "mvo" but no mvo_parameters provided, create defaults
@@ -3208,6 +3219,16 @@ setMethod("add_concentration_constraint_policy",
           signature(object = "port_backtest_config", policy = "concentration_constraint_policy"),
           function(object, policy, ...) {
 
+            #Check for a selected_benchmark
+            if (length(object@selected_benchmark) == 0) {
+              stop("A selected_benchmark must be provided to add a concentration constraint policy.")
+            }
+
+            #Check if port_construction_method is 'mvo'
+            if (object@port_construction_method != 'mvo') {
+              stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+            }
+
             object@concentration_constraint_policy <- policy
             methods::validObject(object)  # optional validity check
             return(object)
@@ -3224,8 +3245,18 @@ setMethod("add_concentration_constraint_policy",
                    max_abs_active_group_weight = NULL,
                    ...) {
 
+            #Check for a selected_benchmark
+            if (length(object@selected_benchmark) == 0) {
+              stop("A selected_benchmark must be provided to add a concentration constraint policy.")
+            }
+
             # Get benchmark from object
             selected_benchmark <- object@selected_benchmark
+
+            #Check if port_construction_method is 'mvo'
+            if (object@port_construction_method != 'mvo') {
+              stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+            }
 
             # Build a new policy on the fly
             new_policy <- create_concentration_constraint_policy(
@@ -3405,6 +3436,11 @@ setGeneric("add_turnover_constraint_policy", function(object, policy, ...) {
 setMethod("add_turnover_constraint_policy",
           signature(object = "port_backtest_config", policy = "turnover_constraint_policy"),
           function(object, policy, ...) {
+            #Check if port_construction_method is 'mvo'
+            if (object@port_construction_method != 'mvo') {
+              stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+            }
+
             object@turnover_constraint_policy <- policy
             methods::validObject(object)
             return(object)
@@ -3417,6 +3453,12 @@ setMethod("add_turnover_constraint_policy",
 setMethod("add_turnover_constraint_policy",
           signature(object = "port_backtest_config", policy = "missing"),
           function(object, policy, quantile_range_buffer, turnover_cap_rules, ...) {
+
+            #Check if port_construction_method is 'mvo'
+            if (object@port_construction_method != 'mvo') {
+              stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+            }
+
             new_policy <- create_turnover_constraint_policy(
               quantile_range_buffer = quantile_range_buffer,
               turnover_cap_rules = turnover_cap_rules
