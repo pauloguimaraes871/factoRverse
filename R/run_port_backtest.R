@@ -714,6 +714,8 @@ run_port_backtest_internal <- function(
       stock_groups_m_d_ref <- if (!is.null(stock_groups_m_df)) stock_groups_m_df %>% dplyr::filter(dates == current_date) else NULL
       custom_stock_weights_m_d_ref <- if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
       custom_stock_metrics_m_d_ref <- if (!is.null(custom_stock_metrics_m_df)) custom_stock_metrics_m_df %>% dplyr::filter(dates == current_date) else NULL
+      user_defined_AND_rules_m_d_ref <- if (!is.null(user_defined_AND_rules_m_df)) user_defined_AND_rules_m_df %>% dplyr::filter(dates == current_date) else NULL
+      user_defined_OR_rules_m_d_ref <- if (!is.null(user_defined_OR_rules_m_df)) user_defined_OR_rules_m_df %>% dplyr::filter(dates == current_date) else NULL
 
       #####Port Weights
       #####End-of-period portfolio weights placeholder
@@ -754,7 +756,7 @@ run_port_backtest_internal <- function(
       if (!is.null(selected_benchmark_returns_m_xts)){
         fwd_selected_benchmark_return <- selected_benchmark_returns_m_xts[which(zoo::index(selected_benchmark_returns_m_xts) == next_date), ] %>% as.numeric()
       } else {
-        fwd_selected_benchmark_returns_m_xts_upd_ref <- NULL
+        fwd_selected_benchmark_return <- NULL
       }
 
       ##############################
@@ -813,8 +815,8 @@ run_port_backtest_internal <- function(
           turnover_constraint_policy = turnover_constraint_policy, #Turnover policy
 
           #User defined rules
-          user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
-          user_defined_OR_rules_m_df = user_defined_OR_rules_m_df
+          user_defined_AND_rules_m_d_ref = user_defined_AND_rules_m_d_ref,
+          user_defined_OR_rules_m_d_ref = user_defined_OR_rules_m_d_ref
         )
 
         #####Subset Daily Stock Returns
@@ -959,7 +961,7 @@ run_port_backtest_internal <- function(
       ####Roll Portfolio
       rolled_port_results_list <- roll_port(
         #Fwd Returns
-        fwd_return_m_d_ref = fwd_return_m_d_ref, fwd_selected_benchmark_return,
+        fwd_return_m_d_ref = fwd_return_m_d_ref, fwd_selected_benchmark_return = fwd_selected_benchmark_return,
         #Current Weights
         port_weights_m_d_ref = port_allocation_results_list$port_weights_m_d_ref,
         #Total cost

@@ -76,11 +76,11 @@
 #' Classification should be in ascending order (from least liquid to most liquid) for all metrics.
 #' If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
 #' Stocks with liquidity lower than micro_caps will receive nano_caps classification.
-#' @param user_defined_AND_rules_m_df Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
-#' For example, to apply a filter with stocks that begin with A, `user_defined_AND_rules_m_df` can contain a data frame element named "starts_with_A_rule".
+#' @param user_defined_AND_rules_m_d_ref Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
+#' For example, to apply a filter with stocks that begin with A, `user_defined_AND_rules_m_d_ref` can contain a data frame element named "starts_with_A_rule".
 #' This data frame can contain a metric column (e.g., the name of the stock), and the descriptive filter column must be named "starts_with_A_rule". In this case, the "starts_with_A_rule" column should be an integer, and its values must be either 1L (stock passes rule) or 0L (stock fails to pass rule).
 #' The rule will be appended to the filter as a regular promotion rule, accumulating with other rules.
-#' @param user_defined_OR_rules_m_df Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
+#' @param user_defined_OR_rules_m_d_ref Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 #'All tickers in the current stock universe must have a unique correspondence in this data frame.
 #' @param asset_object A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"
 #' @return
@@ -90,7 +90,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          liquidity_floor_cutoffs = NULL, liquidity_m_d_ref = NULL, liquidity_constraint_policy= NULL, #Liquidity policy
                                          updated_port_weights_m_lstd_ref = NULL, turnover_constraint_policy = NULL, #Turnover policy
                                          benchmark_weights_m_d_ref = NULL, groups_m_d_ref = NULL, concentration_constraint_policy = NULL, #Concentration policy
-                                         user_defined_AND_rules_m_df = NULL, user_defined_OR_rules_m_df = NULL, #User defined rules
+                                         user_defined_AND_rules_m_d_ref = NULL, user_defined_OR_rules_m_d_ref = NULL, #User defined rules
                                          asset_object = "stocks", verbose = TRUE
 
 ){
@@ -146,34 +146,34 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##Check user_defined_OR_m_df
-  if (!is.null(user_defined_OR_rules_m_df)){
+  if (!is.null(user_defined_OR_rules_m_d_ref)){
     ###5 columns
-    if (ncol(user_defined_OR_rules_m_df) != 5){
-      stop("user_defined_OR_rules_m_df must have 5 columns")
+    if (ncol(user_defined_OR_rules_m_d_ref) != 5){
+      stop("user_defined_OR_rules_m_d_ref must have 5 columns")
     }
     ###Last column is 0 or 1
-    if (!all(user_defined_OR_rules_m_df[[ncol(user_defined_OR_rules_m_df)]] %in% c(0, 1))){
-      stop("last column of user_defined_OR_rules_m_df must be 0 or 1")
+    if (!all(user_defined_OR_rules_m_d_ref[[ncol(user_defined_OR_rules_m_d_ref)]] %in% c(0, 1))){
+      stop("last column of user_defined_OR_rules_m_d_ref must be 0 or 1")
     }
     ###Column before last is character
-    if (!all(sapply(user_defined_OR_rules_m_df[[ncol(user_defined_OR_rules_m_df) - 1]], is.character))){
-      stop("column before last of user_defined_OR_rules_m_df must be character")
+    if (!all(sapply(user_defined_OR_rules_m_d_ref[[ncol(user_defined_OR_rules_m_d_ref) - 1]], is.character))){
+      stop("column before last of user_defined_OR_rules_m_d_ref must be character")
     }
   }
 
   ##Check user_defined_AND_m_df
-  if(!is.null(user_defined_AND_rules_m_df)){
+  if(!is.null(user_defined_AND_rules_m_d_ref)){
     ###5 columns
-    if (ncol(user_defined_AND_rules_m_df) != 5){
-      stop("user_defined_AND_rules_m_df must have 5 columns")
+    if (ncol(user_defined_AND_rules_m_d_ref) != 5){
+      stop("user_defined_AND_rules_m_d_ref must have 5 columns")
     }
     ###Last column is 0 or 1
-    if (!all(user_defined_AND_rules_m_df[[ncol(user_defined_AND_rules_m_df)]] %in% c(0, 1))){
-      stop("last column of user_defined_AND_rules_m_df must be 0 or 1")
+    if (!all(user_defined_AND_rules_m_d_ref[[ncol(user_defined_AND_rules_m_d_ref)]] %in% c(0, 1))){
+      stop("last column of user_defined_AND_rules_m_d_ref must be 0 or 1")
     }
     ###Column before last is character
-    if (!all(sapply(user_defined_AND_rules_m_df[[ncol(user_defined_AND_rules_m_df) - 1]], is.character))){
-      stop("column before last of user_defined_AND_rules_m_df must be character")
+    if (!all(sapply(user_defined_AND_rules_m_d_ref[[ncol(user_defined_AND_rules_m_d_ref) - 1]], is.character))){
+      stop("column before last of user_defined_AND_rules_m_d_ref must be character")
     }
   }
 
@@ -384,11 +384,11 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##4. User defined OR rules
-  if(!is.null(user_defined_OR_rules_m_df)){
-    ###Join user_defined_OR_rules_m_df
-    universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, user_defined_OR_rules_m_df %>% dplyr::select(-tickers, -dates), by = "id")
+  if(!is.null(user_defined_OR_rules_m_d_ref)){
+    ###Join user_defined_OR_rules_m_d_ref
+    universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, user_defined_OR_rules_m_d_ref %>% dplyr::select(-tickers, -dates), by = "id")
     ###Apply rules
-    OR_metric <- colnames(user_defined_OR_rules_m_df)[ncol(user_defined_OR_rules_m_df)]
+    OR_metric <- colnames(user_defined_OR_rules_m_d_ref)[ncol(user_defined_OR_rules_m_d_ref)]
     universe_m_d_ref <- universe_m_d_ref %>%
       dplyr::mutate(is_eligible = is_eligible + !!rlang::sym(OR_metric))
   }
@@ -429,11 +429,11 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##6. User defined AND rules
-  if(!is.null(user_defined_AND_rules_m_df)){
-    ###Join user_defined_AND_rules_m_df
-    universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, user_defined_AND_rules_m_df %>% dplyr::select(-tickers, -dates), by = "id")
+  if(!is.null(user_defined_AND_rules_m_d_ref)){
+    ###Join user_defined_AND_rules_m_d_ref
+    universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, user_defined_AND_rules_m_d_ref %>% dplyr::select(-tickers, -dates), by = "id")
     ###Apply rules
-    AND_metric <- colnames(user_defined_AND_rules_m_df)[ncol(user_defined_AND_rules_m_df)]
+    AND_metric <- colnames(user_defined_AND_rules_m_d_ref)[ncol(user_defined_AND_rules_m_d_ref)]
     universe_m_d_ref <- universe_m_d_ref %>%
       dplyr::mutate(is_eligible = is_eligible * !!rlang::sym(AND_metric))
   }

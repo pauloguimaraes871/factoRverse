@@ -665,15 +665,14 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
     ibov = c(0.25, 0.50, 0.25)
   )
 
-  #Create user_defined_OR_rules_m_df
-  user_defined_OR_rules_m_df <- data.frame(
+  #Create user_defined_OR_rules_m_d_ref
+  user_defined_OR_rules_m_d_ref <- data.frame(
     id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
     tickers = c("Stock A", "Stock B", "Stock C"),
     dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
     beauty = c("pretty", "pretty", "ugly"),
     pretty_stocks = c(1,1,0)
   )
-
 
   stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates, exp_ret_score)
   expected_results <- stock_universe_m_d_ref
@@ -709,7 +708,7 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
                                  eligibility_quantile_range = eligibility_quantile_range,
                                  liquidity_constraint_policy = liquidity_constraint_policy, liquidity_floor_cutoffs = liquidity_floor_cutoffs, liquidity_m_d_ref = liquidity_m_d_ref,
                                  turnover_constraint_policy = turnover_constraint_policy, updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-                                 benchmark_weights_m_d_ref = benchmark_weights_m_d_ref, user_defined_OR_rules_m_df = user_defined_OR_rules_m_df),
+                                 benchmark_weights_m_d_ref = benchmark_weights_m_d_ref, user_defined_OR_rules_m_d_ref = user_defined_OR_rules_m_d_ref),
     expected_results
   )
 
@@ -759,8 +758,8 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
     ibov = c(0.25, 0.50, 0.25)
   )
 
-  #Create user_defined_OR_rules_m_df
-  user_defined_OR_rules_m_df <- data.frame(
+  #Create user_defined_OR_rules_m_d_ref
+  user_defined_OR_rules_m_d_ref <- data.frame(
     id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
     tickers = c("Stock A", "Stock B", "Stock C"),
     dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
@@ -768,8 +767,8 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
     pretty_stocks = c(1,1,0)
   )
 
-  #Create user_defined_AND_rules_m_df
-  user_defined_AND_rules_m_df <- data.frame(
+  #Create user_defined_AND_rules_m_d_ref
+  user_defined_AND_rules_m_d_ref <- data.frame(
     id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
     tickers = c("Stock A", "Stock B", "Stock C"),
     dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
@@ -817,13 +816,13 @@ test_that("classify_investment_universe works with liquidity_floor_rule, turnove
   )
 
 
-  expect_equal(
+  expect_error(
     classify_investment_universe(universe_m_d_ref = stock_universe_m_d_ref, eligibility_quantile_range = eligibility_quantile_range,
                                  liquidity_constraint_policy = liquidity_constraint_policy, liquidity_floor_cutoffs = liquidity_floor_cutoffs, liquidity_m_d_ref = liquidity_m_d_ref,
                                  turnover_constraint_policy = turnover_constraint_policy, updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
                                  benchmark_weights_m_d_ref = benchmark_weights_m_d_ref, concentration_constraint_policy = concentration_constraint_policy,
-                                 user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df),
-    expected_results
+                                 user_defined_OR_rules_m_d_ref = user_defined_OR_rules_m_d_ref, user_defined_AND_rules_m_d_ref = user_defined_AND_rules_m_d_ref),
+    "No eligible assets found"
   )
 
 })

@@ -3767,11 +3767,268 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
   return(object)
 }
 
+#-----------------------------------------------------------------------
+# create_port_backtest_cohort
+#-----------------------------------------------------------------------
+#' Create Portfolio Backtest Cohort
+#'
+#' This function creates a `port_backtest_cohort` object by merging a list of
+#' `port_backtest_results` objects. It checks for compatibility across backtests by
+#' verifying that key elements of the `port_backtest_workflow` slot are identical.
+#'
+#' The function then merges:
+#' \itemize{
+#'   \item{\strong{port_weights_m_df:}} Merges the underlying meta data.frames (accessed via `@data`) by matching `id`, `tickers` and `dates`.
+#'         The individual `eop_port_weights` columns are renamed to the corresponding backtest identifier.
+#'         If a benchmark was used (i.e. `selected_benchmark` is not `NULL`), the common `bench_weights` column is
+#'         checked for consistency and included only once.
+#'   \item{\strong{port_costs_m_xts:}} For each cost type (direct_cost, market_impact_cost, total_cost, turnover),
+#'         the function extracts the respective column from each backtest’s `@port_costs_m_xts@data`,
+#'         renames it to the backtest identifier, and then merges them (after checking that dates match).
+#'   \item{\strong{port_returns_m_xts:}} Separately merges columns for raw_return, net_return, raw_active_return, and net_active_return.
+#'         For raw_return and net_return, if a benchmark is present the common `selected_bench_return` column is included
+#'         after checking consistency.
+#'   \item{\strong{port_metrics_m_xts:}} As the metrics may be built from custom stock metrics,
+#'         the function iterates over the primary metric columns (i.e. those not starting with `bench_`)
+#'         and merges them across backtests. If a corresponding bench column exists (and benchmarks are used)
+#'         and is identical across backtests, it is included once.
+#' }
+#'
+#' After merging, the function uses `create_meta_dataframe` and `create_meta_xts` (from your package)
+#' to reconstruct the meta objects. The resulting `port_backtest_cohort` object contains the merged data
+#' and the common backtest workflow parameters.
+#'
+#' @param backtest_results_list A list of `port_backtest_results` objects.
+#' @param cohort_name A character string representing the name for the merged cohort.
+#'
+#' @return An object of class `port_backtest_cohort`.
+#' @export
+create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
+  # Input validation
+  if (!is.list(backtest_results_list) || length(backtest_results_list) == 0) {
+    stop("backtest_results_list must be a non-empty list of port_backtest_results objects.")
+  }
+  if (!is.character(cohort_name) || length(cohort_name) != 1) {
+    stop("cohort_name must be a single character string.")
+  }
+  if (!all(sapply(backtest_results_list, function(x) methods::is(x, "port_backtest_results")))) {
+    stop("All elements of backtest_results_list must be of class 'port_backtest_results'.")
+  }
 
+  # Step 1: Check compatibility across port_backtest_workflow slots
+  required_params <- c("selected_benchmark", "dates_covered", "initial_buffer_period", "dates_backtest",
+                       "signals_object_name", "fwd_returns_object_name", "stock_groups_object_name",
+                       "benchmark_returns_object_name", "daily_assets_returns_object_name", "daily_bench_returns_object_name",
+                       "liquidity_object_name", "volatility_object_name", "benchmark_weights_object_name")
 
+  workflow_list <- lapply(backtest_results_list, function(x) x@port_backtest_workflow)
+  common_values <- workflow_list[[1]][required_params]
+  for (i in seq_along(workflow_list)) {
+    current_values <- workflow_list[[i]][required_params]
+    for (param in required_params) {
+      if (!identical(common_values[[param]], current_values[[param]])) {
+        stop(paste("Incompatibility found in parameter:", param, "for backtest result at index", i))
+      }
+    }
+  }
 
+  # Determine if benchmark is used based on selected_benchmark in the workflow
+  benchmark_used <- !is.null(common_values[["selected_benchmark"]])
 
+  # Step 2: Merge port_weights_m_df -------------------------------------------------
+  weights_m_dfs <- lapply(backtest_results_list, function(x) {
+    m_df <- x@port_weights_m_df@data
+    if (benchmark_used) {
+      required_cols <- c("id", "tickers", "dates", "eop_port_weights", "bench_weights")
+    } else {
+      required_cols <- c("id", "tickers", "dates", "eop_port_weights")
+    }
+    if (!all(required_cols %in% names(m_df))) {
+      stop("Each port_weights_m_df must contain columns: ", paste(required_cols, collapse = ", "))
+    }
+    # Rename 'eop_port_weights' to the backtest identifier
+    colnames(m_df)[colnames(m_df) == "eop_port_weights"] <- x@backtest_identifier
+    m_df
+  })
 
+  # Check that id, tickers, dates and (if applicable) bench_weights match across m_df objects
+  base_m_df <- weights_m_dfs[[1]][, c("id", "tickers", "dates", if (benchmark_used) "bench_weights" else NULL)]
+  for (i in seq_along(weights_m_dfs)) {
+    current_m_df <- weights_m_dfs[[i]][, c("id", "tickers", "dates", if (benchmark_used) "bench_weights" else NULL)]
+    if (!all(base_m_df$id == current_m_df$id &
+             base_m_df$tickers == current_m_df$tickers &
+             base_m_df$dates == current_m_df$dates)) {
+      stop("Mismatch in id, tickers, or dates in port_weights_m_df of backtest result at index ", i)
+    }
+    if (benchmark_used) {
+      if (!all(base_m_df$bench_weights == current_m_df$bench_weights)) {
+        stop("Mismatch in bench_weights in port_weights_m_df of backtest result at index ", i)
+      }
+    }
+  }
 
+  # Merge the individual backtest eop_port_weights columns into one m_df
+  merged_weights_m_df <- base_m_df
+  for (i in seq_along(weights_m_dfs)) {
+    current_m_df <- weights_m_dfs[[i]][, setdiff(names(weights_m_dfs[[i]]), c("id", "tickers", "dates", if (benchmark_used) "bench_weights" else NULL)), drop = FALSE]
+    merged_weights_m_df <- dplyr::left_join(merged_weights_m_df, current_m_df, by = c("id", "tickers", "dates"))
+  }
+  # Ensure bench_weights is the last column if benchmark is used
+  if (benchmark_used) {
+    bench_weights <- merged_weights_m_df$bench_weights
+    merged_weights_m_df <- merged_weights_m_df %>% dplyr::select(-bench_weights) %>% dplyr::mutate(bench_weights = bench_weights)
+  }
 
+  # Create the merged meta_dataframe using the provided function (type = "weights")
+  merged_port_weights_m_df <- create_meta_dataframe(data = merged_weights_m_df,
+                                                    meta_dataframe_name = cohort_name,
+                                                    type = "weights")
 
+  # Step 3: Merge port_costs_m_xts --------------------------------------------------
+  cost_types <- c("direct_cost", "market_impact_cost", "total_cost", "turnover")
+  port_costs_m_xts_list <- list()
+  for (cost in cost_types) {
+    cost_m_xts_list <- lapply(backtest_results_list, function(x) {
+      m_xts <- x@port_costs_m_xts@data[, cost, drop = FALSE]
+      colnames(m_xts) <- x@backtest_identifier
+      m_xts
+    })
+    # Check that dates match across m_xts objects
+    dates_list <- lapply(cost_m_xts_list, function(x) as.character(xts::index(x)))
+    if (!all(sapply(dates_list, function(d) identical(d, dates_list[[1]])))) {
+      stop("Dates do not match across port_costs_m_xts for cost type: ", cost)
+    }
+    merged_cost_m_xts <- do.call(xts::merge.xts, cost_m_xts_list)
+    port_costs_m_xts_list[[paste0(cost, "_m_xts")]] <- create_meta_xts(data = merged_cost_m_xts,
+                                                                       type = "metrics",
+                                                                       meta_xts_name = cohort_name,
+                                                                       metric_name = cost,
+                                                                       source = sapply(backtest_results_list, function(x) x@backtest_identifier))
+  }
+
+  # Step 4: Merge port_returns_m_xts -----------------------------------------------
+  # For returns, if benchmark is used we expect a column "selected_bench_return".
+  if (benchmark_used) {
+    bench_returns_list <- lapply(backtest_results_list, function(x) {
+      m_xts <- x@port_returns_m_xts@data[, "selected_bench_return", drop = FALSE]
+      m_xts
+    })
+    bench_ref <- bench_returns_list[[1]]
+    for (i in seq_along(bench_returns_list)) {
+      if (!all(bench_returns_list[[i]] == bench_ref)) {
+        stop("selected_bench_return mismatch in port_returns_m_xts for backtest result at index ", i)
+      }
+    }
+  } else {
+    bench_ref <- NULL
+  }
+
+  merge_return_column <- function(colname, include_bench = FALSE) {
+    ret_m_xts_list <- lapply(backtest_results_list, function(x) {
+      m_xts <- x@port_returns_m_xts@data[, colname, drop = FALSE]
+      colnames(m_xts) <- x@backtest_identifier
+      m_xts
+    })
+    dates_list <- lapply(ret_m_xts_list, function(x) as.character(xts::index(x)))
+    if (!all(sapply(dates_list, function(d) identical(d, dates_list[[1]])))) {
+      stop("Dates do not match across port_returns_m_xts for column: ", colname)
+    }
+    merged_ret_m_xts <- do.call(xts::merge.xts, ret_m_xts_list)
+    if (include_bench && !is.null(bench_ref)) {
+      merged_ret_m_xts <- cbind(merged_ret_m_xts, bench_ref)
+      merged_ret_m_xts <- merged_ret_m_xts[, c(colnames(merged_ret_m_xts)[-ncol(merged_ret_m_xts)],
+                                               colnames(merged_ret_m_xts)[ncol(merged_ret_m_xts)])]
+    }
+    merged_ret_m_xts
+  }
+
+  include_bench <- benchmark_used  # Only include benchmark returns if benchmark is used
+  raw_returns_m_xts <- merge_return_column("raw_return", include_bench = include_bench)
+  net_return_m_xts  <- merge_return_column("net_return", include_bench = include_bench)
+  raw_active_return_m_xts <- merge_return_column("raw_active_return", include_bench = FALSE)
+  net_active_return_m_xts <- merge_return_column("net_active_return", include_bench = FALSE)
+
+  port_returns_m_xts_list <- list(
+    raw_returns_m_xts = create_meta_xts(data = raw_returns_m_xts,
+                                        type = "returns",
+                                        asset_type = "ports",
+                                        meta_xts_name = cohort_name,
+                                        metric_name = "raw_return",
+                                        source = sapply(backtest_results_list, function(x) x@backtest_identifier)),
+    net_return_m_xts = create_meta_xts(data = net_return_m_xts,
+                                       type = "returns",
+                                       asset_type = "ports",
+                                       meta_xts_name = cohort_name,
+                                       metric_name = "net_return",
+                                       source = sapply(backtest_results_list, function(x) x@backtest_identifier)),
+    raw_active_return_m_xts = create_meta_xts(data = raw_active_return_m_xts,
+                                              type = "returns",
+                                              asset_type = "ports",
+                                              meta_xts_name = cohort_name,
+                                              metric_name = "raw_active_return",
+                                              source = sapply(backtest_results_list, function(x) x@backtest_identifier)),
+    net_active_return_m_xts = create_meta_xts(data = net_active_return_m_xts,
+                                              type = "returns",
+                                              asset_type = "ports",
+                                              meta_xts_name = cohort_name,
+                                              metric_name = "net_active_return",
+                                              source = sapply(backtest_results_list, function(x) x@backtest_identifier))
+  )
+
+  # Step 5: Merge port_metrics_m_xts -----------------------------------------------
+  metrics_data_first <- backtest_results_list[[1]]@port_metrics_m_xts@data
+  all_metric_cols <- colnames(metrics_data_first)
+  primary_metrics <- all_metric_cols[!grepl("^bench_", all_metric_cols)]
+  port_metrics_m_xts_list <- list()
+
+  for (metric in primary_metrics) {
+    metric_m_xts_list <- lapply(backtest_results_list, function(x) {
+      m_xts <- x@port_metrics_m_xts@data[, metric, drop = FALSE]
+      colnames(m_xts) <- x@backtest_identifier
+      m_xts
+    })
+    dates_list <- lapply(metric_m_xts_list, function(x) as.character(xts::index(x)))
+    if (!all(sapply(dates_list, function(d) identical(d, dates_list[[1]])))) {
+      stop("Dates do not match across port_metrics_m_xts for metric: ", metric)
+    }
+    merged_metric_m_xts <- do.call(xts::merge.xts, metric_m_xts_list)
+
+    # If benchmark is used, check for a corresponding bench column (e.g., "bench_book_yield")
+    bench_col <- paste0("bench_", metric)
+    if (benchmark_used && bench_col %in% all_metric_cols) {
+      bench_m_xts_list <- lapply(backtest_results_list, function(x) {
+        m_xts <- x@port_metrics_m_xts@data[, bench_col, drop = FALSE]
+        m_xts
+      })
+      bench_ref_metric <- bench_m_xts_list[[1]]
+      bench_consistent <- TRUE
+      for (i in seq_along(bench_m_xts_list)) {
+        if (!all(bench_m_xts_list[[i]] == bench_ref_metric)) {
+          bench_consistent <- FALSE
+          break
+        }
+      }
+      if (bench_consistent) {
+        merged_metric_m_xts <- cbind(merged_metric_m_xts, bench_ref_metric)
+        merged_metric_m_xts <- merged_metric_m_xts[, c(colnames(merged_metric_m_xts)[!grepl("^bench_", colnames(merged_metric_m_xts))],
+                                                       bench_col)]
+      }
+    }
+    port_metrics_m_xts_list[[paste0(metric, "_m_xts")]] <- create_meta_xts(data = merged_metric_m_xts,
+                                                                           type = "metrics",
+                                                                           meta_xts_name = cohort_name,
+                                                                           metric_name = metric,
+                                                                           source = sapply(backtest_results_list, function(x) x@backtest_identifier))
+  }
+
+  # Step 6: Create and return the port_backtest_cohort object -----------------------
+  cohort_obj <- new("port_backtest_cohort",
+                    cohort_name = cohort_name,
+                    port_weights_m_df = merged_port_weights_m_df,
+                    port_costs_m_xts_list = port_costs_m_xts_list,
+                    port_returns_m_xts_list = port_returns_m_xts_list,
+                    port_metrics_m_xts_list = port_metrics_m_xts_list,
+                    backtest_workflow_common = common_values)
+
+  return(cohort_obj)
+}

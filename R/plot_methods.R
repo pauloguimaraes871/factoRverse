@@ -6441,7 +6441,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
       "Cross-Sectional Weights Statistic by Stock Group",
       "Tile Heatmap of Weights by Tickers",
       "Tile Heatmap of Weights by Stock Group",
-      "Time-Series of Group Composition",
+      "Time-Series of Groups Composition",
       "Time-Series of Expected Return Score by Tickers",
       "Time-Series of Expected Return Score by Stock Group",
       "Time-Series of Expected Return Score by Eligibility",
@@ -6494,6 +6494,51 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
   port_metrics_m_xts <- x@port_metrics_m_xts
   final_stock_port <- x@final_stock_port
 
+  #Select Group if plot_name contains "Stock Group"
+  if (grepl("Stock Group", plot_name)) {
+
+    # Get character columns, excluding the first three columns
+    char_cols <- names(which(sapply(stock_universe_m_df@data[,-c(1:3)], is.character)))
+
+    #Stop if char_cols is empty
+    if (length(char_cols) == 0) {
+      stop("No character columns found in the stock universe data.")
+    }
+
+    # Display available columns with numbers
+    cat(crayon::white("\nPlease choose a column to consider as group:\n"))
+    for (i in seq_along(char_cols)) {
+      cat(crayon::white(paste0(i, ": ", char_cols[i], "\n")))
+    }
+
+    # Prompt user input
+    selection <- readline(prompt = crayon::white("Enter the column name or number: "))
+
+    # Check if the input is numeric (choosing by index) or a name
+    if (nzchar(selection)) {
+      if (grepl("^[0-9]+$", selection)) {  # If input is numeric
+        selection <- as.numeric(selection)
+        if (selection < 1 || selection > length(char_cols)) {
+          stop("Invalid selection. Please enter a valid number from the list.")
+        }
+        group_col <- char_cols[selection]
+      } else {  # If input is a column name
+        if (!(selection %in% char_cols)) {
+          stop("Invalid selection. Please enter a valid column name from the list.")
+        }
+        group_col <- selection
+      }
+    } else {
+      stop("No input provided. Please enter a valid selection.")
+    }
+
+    #Check if the column is in the dataframe
+    if (!(group_col %in% names(stock_universe_m_df@data))){
+      stop("The column entered is not available in the stock universe.")
+    }
+
+  }
+
 
   # Plot 1: Time-Series Metrics by Ticker
   if (plot_name == "Time-Series Weights by Tickers") {
@@ -6502,11 +6547,17 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
     clustering_variables <- "tickers"
     calc_stat <- "mean"
 
-
     plot(port_weights_m_df, type = plot_type, calc_stat = calc_stat, clustering_variables = clustering_variables)
 
 
   } else if (plot_name == "Time-Series Weights by Stock Group") {
+
+    plot_type <- "time_series"
+    clustering_variables <- group_col
+    variable <- "weights"
+
+    plot(stock_universe_m_df, type = plot_type, variable = variable, clustering_variables = clustering_variables)
+
 
   } else if (plot_name == "Cross-Sectional Weights Statistic by Tickers"){
 
@@ -6518,6 +6569,14 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Cross-Sectional Weights Statistic by Stock Group"){
 
+    plot_type <- "cross_sectional"
+    clustering_variables <- group_col
+    variable <- "weights"
+
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable)
+
+
+
   } else if (plot_name == "Tile Heatmap of Weights by Tickers"){
 
     plot_type <- "tile_heatmap"
@@ -6527,7 +6586,18 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Tile Heatmap of Weights by Stock Group"){
 
+    plot_type <- "tile_heatmap"
+    clustering_variables <- group_col
+    variable <- "weights"
+
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable)
+
   } else if (plot_name == "Time-Series of Groups Composition"){
+
+    plot_type <- "composition"
+
+    plot(stock_universe_m_df, type = plot_type, variable = group_col)
+
 
   } else if (plot_name == "Time-Series of Expected Return Score by Tickers"){
 
@@ -6541,9 +6611,16 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Time-Series of Expected Return Score by Stock Group"){
 
+    plot_type <- "time_series"
+    clustering_variables <- group_col
+    variable <- "exp_ret_score"
+    calc_stat <- "mean"
+
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+
   } else if (plot_name == "Time-Series of Expected Return Score by Eligibility"){
 
-    stock_universe_m_df$eligibility <- ifelse(stock_universe_m_df@data$is_eligible == 1, "elected", "not_elected")
+    stock_universe_m_df@data$eligibility <- ifelse(stock_universe_m_df@data$is_eligible == 1, "elected", "not_elected")
 
     plot_type <- "time_series"
     clustering_variables <- "eligibility"
@@ -6555,14 +6632,19 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Box-plot of Expected Return Score by Stock Group"){
 
+    plot_type <- "boxplot"
+    clustering_variables <- group_col
+    variable <- "exp_ret_score"
+    calc_stat <- "mean"
 
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
 
 
   } else if (plot_name == "Box-plot of Expected Return Score by Eligibility"){
 
-    stock_universe_m_df$eligibility <- ifelse(stock_universe_m_df@data$is_eligible == 1, "elected", "not_elected")
+    stock_universe_m_df@data$eligibility <- ifelse(stock_universe_m_df@data$is_eligible == 1, "elected", "not_elected")
 
-    plot_type <- "box_plot"
+    plot_type <- "boxplot"
     clustering_variables <- "eligibility"
     variable <- "exp_ret_score"
     calc_stat <- "mean"
