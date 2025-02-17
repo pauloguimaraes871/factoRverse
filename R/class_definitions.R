@@ -454,11 +454,6 @@ setClass(
       return("Slot 'assets' does not match the colnames of the xts slot 'data'.")
     }
 
-    # If all columns do not share the same source, just warn:
-    if (length(unique(object@source)) > 1) {
-      warning("Source is not the same for all columns. Please confirm if this is intended.")
-    }
-
     #Check for NAs
     if (any(is.na(main_xts))) {
       if(object@asset_type == "ports"){
@@ -2763,7 +2758,36 @@ setClass(
 #################################################################
 
 
-
+#' S4 Class for Portfolio Backtest Cohort
+#'
+#' This S4 class encapsulates the merged results of multiple portfolio backtests.
+#' It contains the merged portfolio weights (as a meta_dataframe), portfolio costs,
+#' portfolio returns, and portfolio metrics (each as lists of meta_xts objects), as well as
+#' the common backtest workflow parameters.
+#'
+#' @slot cohort_name A character string representing the cohort name.
+#' @slot port_weights_m_df A meta_dataframe containing merged portfolio weights.
+#' @slot port_costs_m_xts_list A list of meta_xts objects for portfolio costs (direct_cost, market_impact_cost, total_cost, turnover).
+#' @slot port_returns_m_xts_list A list of meta_xts objects for portfolio returns (raw_return, net_return, raw_active_return, net_active_return).
+#' @slot port_metrics_m_xts_list A list of meta_xts objects for portfolio metrics.
+#' @slot backtest_workflow_common A list containing the common backtest workflow parameters (used for compatibility).
+#'
+#' @export
+setClass("port_backtest_cohort",
+         slots = list(
+           cohort_name = "character",
+           port_weights_m_df = "meta_dataframe",
+           port_costs_m_xts_list = "list",
+           port_returns_m_xts_list = "list",
+           port_metrics_m_xts_list = "list",
+           backtest_workflow_common = "list"
+         ),
+         validity = function(object) {
+           if (length(object@cohort_name) != 1)
+             return("cohort_name must be a single character string")
+           TRUE
+         }
+)
 
 
 
@@ -2918,7 +2942,7 @@ setGeneric("get_final_model", function(object) standardGeneric("get_final_model"
 
 #' @export
 setMethod("get_final_model", "sb_backtest_results", function(object) {
-    return(object@final_model)
+  return(object@final_model)
 })
 
 #' @export
@@ -3145,7 +3169,7 @@ setMethod("get_sb_backtest_config", "sb_backtest_results", function(object) {
                                                  units = keras_architecture_parameters$units,
                                                  activation = keras_architecture_parameters$activation,
                                                  batch_norm_option = keras_architecture_parameters$batch_norm_option
-                                                 )
+    )
   }
 
   return(sb_backtest_config)
@@ -3218,7 +3242,7 @@ setMethod("get_tuning_strategy", "sb_backtest_results", function(object){
                                               acq = if(sb_backtest_workflow$tuning_method == "bayesian_opt") sb_backtest_workflow$acq else NULL,
                                               init_points = if(sb_backtest_workflow$tuning_method == "bayesian_opt") sb_backtest_workflow$init_points else NULL,
                                               k_iter = if(sb_backtest_workflow$tuning_method == "bayesian_opt") sb_backtest_workflow$k_iter else NULL
-                                              )
+    )
   }
 
   return(tuning_strategy)
@@ -3249,7 +3273,7 @@ setMethod("get_hyper_grid_domain", "sb_backtest_config", function(object) {
 })
 
 setMethod("get_hyper_grid_domain", "tuning_strategy", function(object) {
-    return(object@hyper_grid_domain)
+  return(object@hyper_grid_domain)
 })
 
 #' @rdname get_hyper_grid_domain
@@ -3314,12 +3338,12 @@ setMethod("get_keras_architecture_parameters", "sb_backtest_results", function(o
     stop("keras_architecture_parameters not available for non-neural network algorithms.")
   } else {
 
-  keras_architecture_parameters <- create_keras_architecture(
-    nn_optimizer = object@sb_backtest_workflow$keras_architecture_parameters$nn_optimizer,
-    units = object@sb_backtest_workflow$keras_architecture_parameters$units,
-    activation = object@sb_backtest_workflow$keras_architecture_parameters$activation,
-    batch_norm_option = object@sb_backtest_workflow$keras_architecture_parameters$batch_norm_option
-  )
+    keras_architecture_parameters <- create_keras_architecture(
+      nn_optimizer = object@sb_backtest_workflow$keras_architecture_parameters$nn_optimizer,
+      units = object@sb_backtest_workflow$keras_architecture_parameters$units,
+      activation = object@sb_backtest_workflow$keras_architecture_parameters$activation,
+      batch_norm_option = object@sb_backtest_workflow$keras_architecture_parameters$batch_norm_option
+    )
 
   }
 
@@ -3333,13 +3357,13 @@ setMethod("get_keras_architecture_parameters", "sb_model", function(object) {
   if(object@sb_algorithm != "nn"){
     stop("keras_architecture_parameters not available for non-neural network algorithms.")
   } else {
-  keras_architecture_parameters <- create_keras_architecture(
-    nn_optimizer = object@keras_architecture_parameters$nn_optimizer,
-    units = object@keras_architecture_parameters$units,
-    activation = object@keras_architecture_parameters$activation,
-    batch_norm_option = object@keras_architecture_parameters$batch_norm_option
-  )
- }
+    keras_architecture_parameters <- create_keras_architecture(
+      nn_optimizer = object@keras_architecture_parameters$nn_optimizer,
+      units = object@keras_architecture_parameters$units,
+      activation = object@keras_architecture_parameters$activation,
+      batch_norm_option = object@keras_architecture_parameters$batch_norm_option
+    )
+  }
 
   return(keras_architecture_parameters)
 
@@ -3415,7 +3439,7 @@ setMethod("get_alpha_test_strategy", "ss_backtest_results", function(object){
                                      user_priors = ss_backtest_workflow$user_priors,
                                      prior_derivation_control = ss_backtest_workflow$prior_derivation_control,
                                      brms_control = ss_backtest_workflow$brms_control
-                                     )
+    )
   } else {
     bayesian_model_parameters <- NULL
   }
@@ -3477,7 +3501,7 @@ setMethod("get_brms_prior", "ss_backtest_config", function(object){
   alpha_test_strategy <- object@alpha_test_strategy
 
   if(!is.null(alpha_test_strategy) && !is.null(alpha_test_strategy@bayesian_model_parameters) && !is.null(alpha_test_strategy@bayesian_model_parameters@user_priors)){
-     return(alpha_test_strategy@bayesian_model_parameters@user_priors)
+    return(alpha_test_strategy@bayesian_model_parameters@user_priors)
   } else {
     stop("brms prior not available.")
   }

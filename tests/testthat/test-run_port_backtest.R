@@ -2628,10 +2628,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
 
 })
 
-
-test_that("run_port_backtest expectations for relationship between cw, cs and sw are met", {
-
-  testthat::skip()
+test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and sw ports", {
 
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
@@ -2654,7 +2651,7 @@ test_that("run_port_backtest expectations for relationship between cw, cs and sw
                                              rebalancing_months = 4,
                                              port_construction_method = "sw",
                                              main_liquidity_metric = "mean_volfin_3m",
-                                             config_name = "guara_model"
+                                             config_name = "sw_book_yield"
   ) %>%
     add_liquidity_floor_cutoffs(
       metric_name = c("mean_volfin_3m", "presence"),
@@ -2691,7 +2688,7 @@ test_that("run_port_backtest expectations for relationship between cw, cs and sw
                                            rebalancing_months = 4,
                                            port_construction_method = "cs",
                                            main_liquidity_metric = "mean_volfin_3m",
-                                           config_name = "guara_model"
+                                           config_name = "cs_book_yield"
   ) %>%
     add_liquidity_floor_cutoffs(
       metric_name = c("mean_volfin_3m", "presence"),
@@ -2726,7 +2723,7 @@ test_that("run_port_backtest expectations for relationship between cw, cs and sw
                                            rebalancing_months = 4,
                                            port_construction_method = "cw",
                                            main_liquidity_metric = "mean_volfin_3m",
-                                           config_name = "guara_model"
+                                           config_name = "cw_book_yield"
   ) %>%
     add_liquidity_floor_cutoffs(
       metric_name = c("mean_volfin_3m", "presence"),
@@ -2752,10 +2749,9 @@ test_that("run_port_backtest expectations for relationship between cw, cs and sw
                                     verbose = TRUE)
   )
 
-  #Check that roe_3m is higher for sw and lower for cw
-  expect_true(mean(sw_results@port_metrics_m_xts@data$book_yield) > mean(cw_results@port_metrics_m_xts@data$book_yield))
-  expect_true(mean(sw_results@port_metrics_m_xts@data$book_yield) > mean(cs_results@port_metrics_m_xts@data$book_yield))
-  expect_true(mean(cs_results@port_metrics_m_xts@data$book_yield) > mean(cw_results@port_metrics_m_xts@data$book_yield))
+  #Create cohort
+  port_cohort <- create_port_backtest_cohort(list(sw_results, cs_results, cw_results),
+                                             cohort_name = "book_yield_cohort")
 
 
 

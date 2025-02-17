@@ -2117,4 +2117,119 @@ setMethod("show", "port_backtest_results", function(object) {
   invisible(object)
 })
 
+#' @title Show Method for port_backtest_cohort Class
+#' @description Displays a detailed summary of a `port_backtest_cohort` object.
+#' It focuses on the configuration settings contained in the common
+#' port_backtest_workflow slot (e.g., selected_benchmark, port_construction_method,
+#' object names, dates, and more).
+#'
+#' @param object An object of class `port_backtest_cohort`.
+#' @export
+setMethod("show", "port_backtest_cohort", function(object) {
 
+  # Header
+  cat(crayon::cyan("Portfolio Backtest Cohort Summary\n"))
+  cat("Cohort Name:", object@cohort_name, "\n")
+  cat("========================================\n")
+
+  # Display Workflow Configuration
+  cat("Backtest Workflow Configuration:\n")
+  ## Method & Benchmark
+  cat("  Construction Method:", object@backtest_workflow_common$port_construction_metrod, "\n")
+  cat("  Chosen Score Metric & Position:", object@backtest_workflow_common$chosen_score_metric_and_position, "\n")
+  cat("  Eligibility Quantile Range:", object@backtest_workflow_common$eligibility_quantile_range, "\n")
+  cat("  Minimum Eligible Assets Fallback:", object@backtest_workflow_common$min_eligible_assets_fallback, "\n")
+  if (!is.null(object@backtest_workflow_common$selected_benchmark)) {
+    cat("  Selected Benchmark:", object@backtest_workflow_common$selected_benchmark, "\n")
+    cat("  Benchmark Returns Object Name:", object@backtest_workflow_common$benchmark_returns_object_name, "\n")
+  } else {
+    cat("  Selected Benchmark: None\n")
+  }
+
+  ## General Configuration
+  cat("  Config Name:", object@backtest_workflow_common$config_name, "\n")
+  cat("  Backtest Identifier:", object@backtest_workflow_common$backtest_identifier, "\n")
+  cat("  OOS SB Outputs Object Name:", object@backtest_workflow_common$oos_sb_outputs_object_name, "\n")
+
+  # Date Information
+  cat("\nDate Information:\n")
+  cat("  Dates Covered:", paste(range(object@backtest_workflow_common$dates_covered), collapse = " - "), "\n")
+  cat("  Number of Dates:", object@backtest_workflow_common$n_dates, "\n")
+  cat("  Backtest Date Range:", paste(range(object@backtest_workflow_common$dates_backtest), collapse = " - "), "\n")
+  cat("  Initial Buffer Period:", object@backtest_workflow_common$initial_buffer_period, "\n")
+  cat("  First Rebalance Date:", object@backtest_workflow_common$first_rebalance_date, "\n")
+  cat("  Rebalance Dates:", paste(object@backtest_workflow_common$rebalance_dates, collapse = ", "), "\n")
+  cat("  Last Rebalance Date:", object@backtest_workflow_common$last_rebalance_date, "\n")
+
+  # Stocks & Signals
+  cat("\nStocks and Signals:\n")
+  cat("  Number of Stocks:", object@backtest_workflow_common$n_stocks, "\n")
+  cat("  Tickers:", paste(object@backtest_workflow_common$tickers, collapse = ", "), "\n")
+  cat("  Number of Observations:", object@backtest_workflow_common$nobs, "\n")
+  cat("  Signals Object Name:", object@backtest_workflow_common$signals_object_name, "\n")
+  cat("  Signals:", paste(object@backtest_workflow_common$signals, collapse = ", "), "\n")
+
+  # Forward Returns & Stock Groups
+  cat("\nForward Returns and Stock Groups:\n")
+  cat("  Fwd Returns Object Name:", object@backtest_workflow_common$fwd_returns_object_name, "\n")
+  cat("  Stock Groups Object Name:", object@backtest_workflow_common$stock_groups_object_name, "\n")
+
+  # RP/MVO Parameters
+  cat("\nRP/MVO Parameters:\n")
+  cat("  RP Method:", object@backtest_workflow_common$rp_method, "\n")
+  cat("  Number of Random Portfolios:", object@backtest_workflow_common$n_random_ports, "\n")
+  cat("  Random Ports Method:", object@backtest_workflow_common$random_ports_method, "\n")
+  cat("  Optimization Objective:", object@backtest_workflow_common$opt_objective, "\n")
+  cat("  Optimization Method:", object@backtest_workflow_common$opt_method, "\n")
+
+  # Covariance Estimation
+  cat("\nCovariance Estimation:\n")
+  cat("  Covariance Estimation Method:", object@backtest_workflow_common$cov_estimation_method, "\n")
+  cat("  Covariance Matrix Sample Size:", object@backtest_workflow_common$cov_matrix_sample_size, "\n")
+  cat("  Active Returns:", object@backtest_workflow_common$active_returns, "\n")
+  cat("  Covariance Matrix Benchmark:", object@backtest_workflow_common$cov_matrix_benchmark, "\n")
+
+  # Liquidity & Transaction Costs
+  cat("\nLiquidity and Transaction Costs:\n")
+  cat("  Liquidity Constraint Policy:", object@backtest_workflow_common$liquidity_constraint_policy, "\n")
+  cat("  Turnover Constraint Policy:", object@backtest_workflow_common$turnover_constraint_policy, "\n")
+  cat("  Concentration Constraint Policy:", object@backtest_workflow_common$concentration_constraint_policy, "\n")
+  cat("  Transaction Costs Parameters:", paste(object@backtest_workflow_common$transaction_costs_parameters, collapse = ", "), "\n")
+
+  # Call Information
+  cat("\nCall Information:\n")
+  cat("  Function Call:\n")
+  print(object@backtest_workflow_common$call)
+  cat("========================================\n")
+
+  # Summary of Merged Data Structures
+  cat("\nMerged Data Structures:\n")
+  ## Weights (meta_dataframe)
+  cat("Weights (meta_dataframe):\n")
+  print(utils::head(object@port_weights_m_df@data, 5))
+  cat("  [Rows:", nrow(object@port_weights_m_df@data), "Columns:", ncol(object@port_weights_m_df@data), "]\n")
+
+  ## Costs (meta_xts)
+  cat("\nCosts (meta_xts objects):\n")
+  for (name in names(object@port_costs_m_xts_list)) {
+    cat("  ", name, ": ", nrow(object@port_costs_m_xts_list[[name]]@data), "dates, Columns: ",
+        paste(colnames(object@port_costs_m_xts_list[[name]]@data), collapse = ", "), "\n")
+  }
+
+  ## Returns (meta_xts)
+  cat("\nReturns (meta_xts objects):\n")
+  for (name in names(object@port_returns_m_xts_list)) {
+    cat("  ", name, ": ", nrow(object@port_returns_m_xts_list[[name]]@data), "dates, Columns: ",
+        paste(colnames(object@port_returns_m_xts_list[[name]]@data), collapse = ", "), "\n")
+  }
+
+  ## Metrics (meta_xts)
+  cat("\nMetrics (meta_xts objects):\n")
+  for (name in names(object@port_metrics_m_xts_list)) {
+    cat("  ", name, ": ", nrow(object@port_metrics_m_xts_list[[name]]@data), "dates, Columns: ",
+        paste(colnames(object@port_metrics_m_xts_list[[name]]@data), collapse = ", "), "\n")
+  }
+
+  cat("========================================\n")
+
+})

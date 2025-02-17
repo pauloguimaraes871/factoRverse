@@ -309,8 +309,8 @@ setMethod("run_port_backtest",
 
              ##IDs
              port_backtest_results@port_backtest_workflow$config_name <- config@config_name
-             port_backtest_results@port_backtest_workflow$backtest_identifier <-
-               paste0("c:", config@config_name, "_s:", signals_object_name, "_f:", fwd_return_object_name)
+             port_backtest_results@backtest_identifier <- paste0("c:", config@config_name, "_s:", signals_object_name, "_f:", fwd_return_object_name)
+             port_backtest_results@port_backtest_workflow$backtest_identifier <- port_backtest_results@backtest_identifier
 
              ##Workflow and names for stock_universe, port_returns, port_metrics etc
                ###Workflow/Source
