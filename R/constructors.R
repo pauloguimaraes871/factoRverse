@@ -3958,9 +3958,9 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
   ## Set include_bench flag based on benchmark_used and merge individual return columns using the helper function
   include_bench <- benchmark_used  # Only include benchmark returns if benchmark is used
   raw_returns_m_xts <- merge_return_column("raw_return", include_bench = include_bench)
-  net_return_m_xts  <- merge_return_column("net_return", include_bench = include_bench)
-  raw_active_return_m_xts <- merge_return_column("raw_active_return", include_bench = FALSE)
-  net_active_return_m_xts <- merge_return_column("net_active_return", include_bench = FALSE)
+  net_returns_m_xts  <- merge_return_column("net_return", include_bench = include_bench)
+  raw_active_returns_m_xts <-  if(benchmark_used) merge_return_column("raw_active_return", include_bench = FALSE) else NULL
+  net_active_returns_m_xts <- if (benchmark_used) merge_return_column("net_active_return", include_bench = FALSE) else NULL
   ## Define the benchmark source (if applicable) and backtest sources
   if (include_bench) {
     bench_source <- port_backtest_results_list[[1]]@port_backtest_workflow$benchmark_returns_object_name
@@ -3975,32 +3975,41 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
                                         meta_xts_name = cohort_name,
                                         metric_name = "raw_return",
                                         source = if (include_bench) c(backtest_sources, bench_source) else backtest_sources),
-    net_return_m_xts = create_meta_xts(data = net_return_m_xts,
+    net_returns_m_xts = create_meta_xts(data = net_returns_m_xts,
                                        type = "returns",
                                        asset_type = "ports",
                                        meta_xts_name = cohort_name,
                                        metric_name = "net_return",
-                                       source = if (include_bench) c(backtest_sources, bench_source) else backtest_sources),
-    raw_active_return_m_xts = create_meta_xts(data = raw_active_return_m_xts,
-                                              type = "returns",
-                                              asset_type = "ports",
-                                              meta_xts_name = cohort_name,
-                                              metric_name = "raw_active_return",
-                                              source = backtest_sources),
-    net_active_return_m_xts = create_meta_xts(data = net_active_return_m_xts,
-                                              type = "returns",
-                                              asset_type = "ports",
-                                              meta_xts_name = cohort_name,
-                                              metric_name = "net_active_return",
-                                              source = backtest_sources)
+                                       source = if (include_bench) c(backtest_sources, bench_source) else backtest_sources)
   )
+
+  if (benchmark_used) {
+    port_returns_m_xts_list <- c(port_returns_m_xts_list,
+                                 raw_active_returns_m_xts = create_meta_xts(data = raw_active_returns_m_xts,
+                                                                           type = "returns",
+                                                                           asset_type = "ports",
+                                                                           meta_xts_name = cohort_name,
+                                                                           metric_name = "raw_active_return",
+                                                                           source = backtest_sources),
+                                 net_active_returns_m_xts = create_meta_xts(data = net_active_returns_m_xts,
+                                                                           type = "returns",
+                                                                           asset_type = "ports",
+                                                                           meta_xts_name = cohort_name,
+                                                                           metric_name = "net_active_return",
+                                                                           source = backtest_sources)
+                                 )
+  }
 
   # Step 5: Merge port_metrics_m_xts
   ## Consolidate all primary metric names across all backtests (excluding bench_* columns)
   all_primary_metrics_list <- lapply(port_backtest_results_list, function(x) {
-    cols <- colnames(x@port_metrics_m_xts@data)
-    primary <- cols[!grepl("^bench_", cols)]
-    return(primary)
+    if (is.null(x@port_metrics_m_xts)) {
+      return(character(0))
+    } else {
+      cols <- colnames(x@port_metrics_m_xts@data)
+      primary <- cols[!grepl("^bench_", cols)]
+      return(primary)
+    }
   })
   union_primary_metrics <- sort(unique(unlist(all_primary_metrics_list)))
 
@@ -4011,7 +4020,7 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
   for (metric in union_primary_metrics) {
     ### Create a list to hold the metric data from each backtest (if available)
     metric_m_xts_list <- lapply(port_backtest_results_list, function(x) {
-      if (metric %in% colnames(x@port_metrics_m_xts@data)) {
+      if (!is.null(x@port_metrics_m_xts) && metric %in% colnames(x@port_metrics_m_xts@data)) {
         m_xts <- x@port_metrics_m_xts@data[, metric, drop = FALSE]
         colnames(m_xts) <- x@backtest_identifier
         return(m_xts)
@@ -4037,7 +4046,7 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
     ### Handle the corresponding bench metric column (if benchmark is used)
     bench_col <- paste0("bench_", metric)
     bench_m_xts_list <- lapply(port_backtest_results_list, function(x) {
-      if (benchmark_used && bench_col %in% colnames(x@port_metrics_m_xts@data)) {
+      if (!is.null(x@port_metrics_m_xts) && benchmark_used && bench_col %in% colnames(x@port_metrics_m_xts@data)) {
         return(x@port_metrics_m_xts@data[, bench_col, drop = FALSE])
       } else {
         return(NULL)
@@ -4067,7 +4076,10 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
     }
 
     ### Define backtest sources for this metric
-    backtest_sources <- sapply(port_backtest_results_list, function(x) x@backtest_identifier)
+    backtest_sources <- sapply(port_backtest_results_list, function(x){
+      if(!is.null(x@port_metrics_m_xts) && metric %in% colnames(x@port_metrics_m_xts@data)) x@backtest_identifier
+    }) %>% unlist()
+
     ### If bench metric was added, include the bench source as well
     if (bench_consistent) {
       bench_source <- port_backtest_results_list[[1]]@port_backtest_workflow$benchmark_returns_object_name

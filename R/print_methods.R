@@ -831,7 +831,12 @@ setMethod("show", "sb_metabacktest_config",
                 neon_blue = crayon::blue,
                 neon_purple = crayon::make_style("#8A2BE2"),
                 neon_orange = crayon::red,
-                neon_green = crayon::green
+                neon_green = crayon::green,
+                neon_yellow = crayon::yellow,
+                neon_red = crayon::make_style("#FF4500"),
+                neon_silver = crayon::make_style("#C0C0C0"),
+                neon_gold = crayon::make_style("#FFD700"),
+                neon_teal = crayon::make_style("#008080")
               )
 
               # Loop through configurations
@@ -2133,103 +2138,114 @@ setMethod("show", "port_backtest_cohort", function(object) {
   cat("========================================\n")
 
   # Display Workflow Configuration
-  cat("Backtest Workflow Configuration:\n")
-  ## Method & Benchmark
-  cat("  Construction Method:", object@backtest_workflow_common$port_construction_metrod, "\n")
-  cat("  Chosen Score Metric & Position:", object@backtest_workflow_common$chosen_score_metric_and_position, "\n")
-  cat("  Eligibility Quantile Range:", object@backtest_workflow_common$eligibility_quantile_range, "\n")
-  cat("  Minimum Eligible Assets Fallback:", object@backtest_workflow_common$min_eligible_assets_fallback, "\n")
-  if (!is.null(object@backtest_workflow_common$selected_benchmark)) {
-    cat("  Selected Benchmark:", object@backtest_workflow_common$selected_benchmark, "\n")
-    cat("  Benchmark Returns Object Name:", object@backtest_workflow_common$benchmark_returns_object_name, "\n")
-  } else {
-    cat("  Selected Benchmark: None\n")
+  cat("Cohort Common Information:\n")
+  backtest_workflow_common <- object@backtest_workflow_common
+  cat("  Selected Benchmark: ", backtest_workflow_common$selected_benchmark, "\n")
+  cat("  Dates Covered: ", paste0(as.Date(min(backtest_workflow_common$dates_covered)), "-", as.Date(max(backtest_workflow_common$dates_covered)), "\n"))
+  cat("  Backtested Dates: ", paste0(as.Date(min(backtest_workflow_common$dates_backtest)), "-", as.Date(max(backtest_workflow_common$dates_backtest)), "\n"))
+  cat("  Initial Buffer Period: ", backtest_workflow_common$initial_buffer_period, "\n\n")
+
+  # Display Objects
+  cat("Objects Names:\n")
+  cat("  Signals Object Name: ", backtest_workflow_common$signals_object_name, "\n")
+  cat("  Fwd Returns Object Name: ", backtest_workflow_common$fwd_returns_object_name, "\n")
+  cat("  Stock Groups Object Name: ", backtest_workflow_common$stock_groups_object_name, "\n")
+  cat("  Benchmark Returns Object Name: ", backtest_workflow_common$benchmark_returns_object_name, "\n")
+  cat("  Daily Assets Returns Object Name: ", backtest_workflow_common$daily_assets_returns_object_name, "\n")
+  cat("  Daily Bench Returns Object Name: ", backtest_workflow_common$daily_bench_returns_object_name, "\n")
+  cat("  Liquidity Object Name: ", backtest_workflow_common$liquidity_object_name, "\n")
+  cat("  Volatility Object Name: ", backtest_workflow_common$volatility_object_name, "\n")
+  cat("  Benchmark Weights Object Name: ", backtest_workflow_common$volatility_object_name, "\n")
+
+  ## Portfolios Details
+  cat(crayon::yellow("\nPortfolio Backtest Results details:\n"))
+  cat("Number of Backtests: ", length(object@port_backtest_results_list ), "\n")
+
+  # Define a color palette using crayon
+  colors <- list(
+    neon_cyan = crayon::cyan,
+    neon_pink = crayon::magenta,
+    neon_blue = crayon::blue,
+    neon_purple = crayon::make_style("#8A2BE2"),
+    neon_orange = crayon::red,
+    neon_green = crayon::green,
+    neon_yellow = crayon::yellow,
+    neon_red = crayon::make_style("#FF4500"),
+    neon_silver = crayon::make_style("#C0C0C0"),
+    neon_gold = crayon::make_style("#FFD700"),
+    neon_teal = crayon::make_style("#008080")
+  )
+
+  # Loop through Backtests
+  for (i in seq_along(object@port_backtest_results_list)) {
+    port_backtest <- object@port_backtest_results_list[[i]]
+    port_backtest_workflow <- port_backtest@port_backtest_workflow
+    port_backtest_config <- port_backtest@port_backtest_config
+
+    # Use a color from the palette
+    color_func <- colors[[ (i - 1) %% length(colors) + 1 ]]
+
+    # Color the backtest configuration header
+    cat("------------------------------\n")
+    cat(color_func(sprintf("Port Backtest Results %d:\n", i)))
+    cat(paste("Backtest Identifier:", port_backtest@backtest_identifier), "\n")
+    cat(sprintf("  port_construction_method: %s\n", port_backtest_workflow$port_construction_method))
+    if (!is.null(port_backtest_workflow$chosen_score_metric_and_position)){
+      cat(sprintf("  chosen_score_metric_and_position: %s\n",
+                  paste0(names(port_backtest_workflow$chosen_score_metric_and_position)," - ",port_backtest_workflow$chosen_score_metric_and_position))
+          )
+    } else {
+      cat(sprintf("  oos_predictions_object_name: %s\n", port_backtest_workflow$oos_predictions_object_name))
+      cat("  SB Backtest Results:\n")
+      cat(sprintf("    sb_backtest_identifier: %s\n", port_backtest@sb_backtest_results@backtest_identifier))
+      cat(sprintf("    sb_algorithm: %s\n", config@sb_backtest_results@sb_backtest_workflow$sb_algorithm))
+      cat(sprintf("    custom_objective: %s\n", config@sb_backtest_results@sb_backtest_workflow$custom_objective))
+        if (!is.null(port_backtest@sb_backtest_results@ss_backtest_results)){
+          cat("     SS Backtest Results:\n")
+          cat(sprintf("      ss_backtest_identifier: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@backtest_identifier))
+          cat(sprintf("      model_structure: %s\n", config@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$model_structure))
+          cat(sprintf("      p_correction_method: %s\n", config@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$p_correction_method))
+        } else {
+          cat("     No SS Backtest Results Available\n")
+        }
+    }
+    cat(sprintf("  eligibility_quantile_range: %s\n", paste0(min(port_backtest_workflow$eligibility_quantile_range),"-",max(port_backtest_workflow$eligibility_quantile_range))))
+    cat(sprintf("  min_eligible_assets_fallback: %s\n", port_backtest_workflow$min_eligible_assets_fallback))
+
+    # Covariance Estimation
+
+    show(port_backtest_config@cov_est_method)
+    cat("\n")
+
+    # Portfolio-specific parameters
+    if(port_backtest_config@port_construction_method == "mvo"){
+      show(port_backtest_config@mvo_parameters)
+      cat("\n")
+    }
+    if(port_backtest_config@port_construction_method == "rp"){
+      show(port_backtest_config@rp_parameters)
+      cat("\n")
+    }
+
+    # Constraint Policies
+    if(!is.null(port_backtest_config@liquidity_constraint_policy)){
+      show(port_backtest_config@liquidity_constraint_policy)
+      cat("\n")
+    }
+    if(!is.null(port_backtest_config@turnover_constraint_policy)){
+      show(port_backtest_config@turnover_constraint_policy)
+      cat("\n")
+    }
+    if(!is.null(port_backtest_config@concentration_constraint_policy)){
+      show(port_backtest_config@concentration_constraint_policy)
+      cat("\n")
+    }
+
+    cat("\n")
+
+
   }
-
-  ## General Configuration
-  cat("  Config Name:", object@backtest_workflow_common$config_name, "\n")
-  cat("  Backtest Identifier:", object@backtest_workflow_common$backtest_identifier, "\n")
-  cat("  OOS SB Outputs Object Name:", object@backtest_workflow_common$oos_sb_outputs_object_name, "\n")
-
-  # Date Information
-  cat("\nDate Information:\n")
-  cat("  Dates Covered:", paste(range(object@backtest_workflow_common$dates_covered), collapse = " - "), "\n")
-  cat("  Number of Dates:", object@backtest_workflow_common$n_dates, "\n")
-  cat("  Backtest Date Range:", paste(range(object@backtest_workflow_common$dates_backtest), collapse = " - "), "\n")
-  cat("  Initial Buffer Period:", object@backtest_workflow_common$initial_buffer_period, "\n")
-  cat("  First Rebalance Date:", object@backtest_workflow_common$first_rebalance_date, "\n")
-  cat("  Rebalance Dates:", paste(object@backtest_workflow_common$rebalance_dates, collapse = ", "), "\n")
-  cat("  Last Rebalance Date:", object@backtest_workflow_common$last_rebalance_date, "\n")
-
-  # Stocks & Signals
-  cat("\nStocks and Signals:\n")
-  cat("  Number of Stocks:", object@backtest_workflow_common$n_stocks, "\n")
-  cat("  Tickers:", paste(object@backtest_workflow_common$tickers, collapse = ", "), "\n")
-  cat("  Number of Observations:", object@backtest_workflow_common$nobs, "\n")
-  cat("  Signals Object Name:", object@backtest_workflow_common$signals_object_name, "\n")
-  cat("  Signals:", paste(object@backtest_workflow_common$signals, collapse = ", "), "\n")
-
-  # Forward Returns & Stock Groups
-  cat("\nForward Returns and Stock Groups:\n")
-  cat("  Fwd Returns Object Name:", object@backtest_workflow_common$fwd_returns_object_name, "\n")
-  cat("  Stock Groups Object Name:", object@backtest_workflow_common$stock_groups_object_name, "\n")
-
-  # RP/MVO Parameters
-  cat("\nRP/MVO Parameters:\n")
-  cat("  RP Method:", object@backtest_workflow_common$rp_method, "\n")
-  cat("  Number of Random Portfolios:", object@backtest_workflow_common$n_random_ports, "\n")
-  cat("  Random Ports Method:", object@backtest_workflow_common$random_ports_method, "\n")
-  cat("  Optimization Objective:", object@backtest_workflow_common$opt_objective, "\n")
-  cat("  Optimization Method:", object@backtest_workflow_common$opt_method, "\n")
-
-  # Covariance Estimation
-  cat("\nCovariance Estimation:\n")
-  cat("  Covariance Estimation Method:", object@backtest_workflow_common$cov_estimation_method, "\n")
-  cat("  Covariance Matrix Sample Size:", object@backtest_workflow_common$cov_matrix_sample_size, "\n")
-  cat("  Active Returns:", object@backtest_workflow_common$active_returns, "\n")
-  cat("  Covariance Matrix Benchmark:", object@backtest_workflow_common$cov_matrix_benchmark, "\n")
-
-  # Liquidity & Transaction Costs
-  cat("\nLiquidity and Transaction Costs:\n")
-  cat("  Liquidity Constraint Policy:", object@backtest_workflow_common$liquidity_constraint_policy, "\n")
-  cat("  Turnover Constraint Policy:", object@backtest_workflow_common$turnover_constraint_policy, "\n")
-  cat("  Concentration Constraint Policy:", object@backtest_workflow_common$concentration_constraint_policy, "\n")
-  cat("  Transaction Costs Parameters:", paste(object@backtest_workflow_common$transaction_costs_parameters, collapse = ", "), "\n")
-
-  # Call Information
-  cat("\nCall Information:\n")
-  cat("  Function Call:\n")
-  print(object@backtest_workflow_common$call)
-  cat("========================================\n")
-
-  # Summary of Merged Data Structures
-  cat("\nMerged Data Structures:\n")
-  ## Weights (meta_dataframe)
-  cat("Weights (meta_dataframe):\n")
-  print(utils::head(object@port_weights_m_df@data, 5))
-  cat("  [Rows:", nrow(object@port_weights_m_df@data), "Columns:", ncol(object@port_weights_m_df@data), "]\n")
-
-  ## Costs (meta_xts)
-  cat("\nCosts (meta_xts objects):\n")
-  for (name in names(object@port_costs_m_xts_list)) {
-    cat("  ", name, ": ", nrow(object@port_costs_m_xts_list[[name]]@data), "dates, Columns: ",
-        paste(colnames(object@port_costs_m_xts_list[[name]]@data), collapse = ", "), "\n")
-  }
-
-  ## Returns (meta_xts)
-  cat("\nReturns (meta_xts objects):\n")
-  for (name in names(object@port_returns_m_xts_list)) {
-    cat("  ", name, ": ", nrow(object@port_returns_m_xts_list[[name]]@data), "dates, Columns: ",
-        paste(colnames(object@port_returns_m_xts_list[[name]]@data), collapse = ", "), "\n")
-  }
-
-  ## Metrics (meta_xts)
-  cat("\nMetrics (meta_xts objects):\n")
-  for (name in names(object@port_metrics_m_xts_list)) {
-    cat("  ", name, ": ", nrow(object@port_metrics_m_xts_list[[name]]@data), "dates, Columns: ",
-        paste(colnames(object@port_metrics_m_xts_list[[name]]@data), collapse = ", "), "\n")
-  }
-
-  cat("========================================\n")
-
 })
+
+
+

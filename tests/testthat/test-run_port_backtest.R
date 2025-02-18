@@ -2673,7 +2673,6 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
                                  config = sw_config,
                                  benchmark_weights_m_df = benchmark_weights_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
-                                 custom_stock_metrics_m_df = port_metrics_m_df,
                                  verbose = TRUE)
   )
 
@@ -2702,6 +2701,9 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
 
 
   #Run port_backtest
+  skimmed_port_metrics_m_df <- port_metrics_m_df
+  skimmed_port_metrics_m_df@data <- port_metrics_m_df@data %>% dplyr::select(-vol_36m)
+
   suppressWarnings(
     cs_results <- run_port_backtest(signals_m_df = signals_m_df,
                                     fwd_return_m_df = fwd_return_m_df,
@@ -2710,12 +2712,12 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
                                     config = cs_config,
                                     benchmark_weights_m_df = benchmark_weights_m_df,
                                     benchmark_returns_m_xts = benchmark_returns_m_xts,
-                                    custom_stock_metrics_m_df = port_metrics_m_df,
+                                    custom_stock_metrics_m_df = skimmed_port_metrics_m_df,
                                     verbose = TRUE)
   )
 
   #Create port_backtest_config 3
-  chosen_score_metric_and_position <- c(book_yield = "long")
+  chosen_score_metric_and_position <- c(vol_36m = "short")
   cw_config <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
                                            eligibility_quantile_range = c(0.67, 1.0),
                                            selected_benchmark = "ibov",
@@ -2751,9 +2753,257 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
 
   #Create cohort
   port_cohort <- create_port_backtest_cohort(list(sw_results, cs_results, cw_results),
-                                             cohort_name = "book_yield_cohort")
+                                             cohort_name = "generic_cohort")
 
+  #Check that there are 3 backtest results
+  expect_equal(length(port_cohort@port_backtest_results_list), 3)
+
+  #Check that port_weights are according to expectation
+  expect_equal(port_cohort@port_weights_m_df@data$`c:sw_book_yield_s:not_identified_f:not_identified`, sw_results@port_weights_m_df@data$eop_port_weights)
+  expect_equal(port_cohort@port_weights_m_df@data$`c:cs_book_yield_s:not_identified_f:not_identified`, cs_results@port_weights_m_df@data$eop_port_weights)
+  expect_equal(port_cohort@port_weights_m_df@data$`c:cw_book_yield_s:not_identified_f:not_identified`, cw_results@port_weights_m_df@data$eop_port_weights)
+  expect_equal(port_cohort@port_weights_m_df@data$bench_weights, cw_results@port_weights_m_df@data$bench_weights)
+  expect_equal(port_cohort@port_weights_m_df@data$bench_weights, sw_results@port_weights_m_df@data$bench_weights)
+  expect_equal(port_cohort@port_weights_m_df@data$bench_weights, cs_results@port_weights_m_df@data$bench_weights)
+
+  expect_true(all(cs_results@port_weights_m_df@data$id %in% port_cohort@port_weights_m_df@data$id))
+
+  #Check that port returns are according to expectation
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               sw_results@port_returns_m_xts@data$raw_return %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_returns_m_xts@data$raw_return %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_returns_m_xts@data$raw_return %>% as.data.frame() %>% unname())
+
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$selected_bench_return, sw_results@port_returns_m_xts@data$selected_bench_return)
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$selected_bench_return, cs_results@port_returns_m_xts@data$selected_bench_return)
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$selected_bench_return, cw_results@port_returns_m_xts@data$selected_bench_return)
+
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               sw_results@port_returns_m_xts@data$net_return %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_returns_m_xts@data$net_return %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_returns_m_xts@data$net_return %>% as.data.frame() %>% unname())
+
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$selected_bench_return, sw_results@port_returns_m_xts@data$selected_bench_return)
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$selected_bench_return, cs_results@port_returns_m_xts@data$selected_bench_return)
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$selected_bench_return, cw_results@port_returns_m_xts@data$selected_bench_return)
+
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               sw_results@port_returns_m_xts@data$raw_active_return %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_returns_m_xts@data$raw_active_return %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_returns_m_xts@data$raw_active_return %>% as.data.frame() %>% unname())
+
+  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               sw_results@port_returns_m_xts@data$net_active_return %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_returns_m_xts@data$net_active_return %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_returns_m_xts@data$net_active_return %>% as.data.frame() %>% unname())
+
+
+  #Check that port costs are accordng to expectation
+  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               sw_results@port_costs_m_xts@data$direct_cost %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_costs_m_xts@data$direct_cost %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_costs_m_xts@data$direct_cost %>% as.data.frame() %>% unname())
+
+  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               sw_results@port_costs_m_xts@data$market_impact_cost %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_costs_m_xts@data$market_impact_cost %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_costs_m_xts@data$market_impact_cost %>% as.data.frame() %>% unname())
+
+  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               sw_results@port_costs_m_xts@data$total_cost %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_costs_m_xts@data$total_cost %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_costs_m_xts@data$total_cost %>% as.data.frame() %>% unname())
+
+  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               sw_results@port_costs_m_xts@data$turnover %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_costs_m_xts@data$turnover %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_costs_m_xts@data$turnover %>% as.data.frame() %>% unname())
+
+  #Port Metrics
+  #Check that length is 3 (no sw)
+  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data %>% ncol(), 3)
+  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_metrics_m_xts@data$book_yield %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_metrics_m_xts@data$book_yield %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$bench_book_yield %>% as.data.frame() %>% unname(),
+               cs_results@port_metrics_m_xts@data$bench_book_yield %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$bench_book_yield %>% as.data.frame() %>% unname(),
+               cw_results@port_metrics_m_xts@data$bench_book_yield %>% as.data.frame() %>% unname())
+
+
+  expect_equal(port_cohort@port_metrics_m_xts_list$dy_med_36m_m_xts@data %>% ncol(), 3)
+  expect_equal(port_cohort@port_metrics_m_xts_list$dy_med_36m_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_metrics_m_xts@data$dy_med_36m %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_metrics_m_xts_list$dy_med_36m_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_metrics_m_xts@data$dy_med_36m %>% as.data.frame() %>% unname())
+
+  #For vol_36m, there is data only for cs
+  expect_equal(port_cohort@port_metrics_m_xts_list$vol_36m_m_xts@data %>% ncol(), 2)
+  expect_equal(port_cohort@port_metrics_m_xts_list$vol_36m_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               cs_results@port_metrics_m_xts@data$vol_36m %>% as.data.frame() %>% unname())
+
+  #Check that all metrics are present
+  expect_equal(stringr::str_remove(names(port_cohort@port_metrics_m_xts_list), "_m_xts"), colnames(port_metrics_m_df@data)[-c(1:3)])
 
 
 })
 
+test_that("run_port_backtest work for a benchmark-agnostic long-short cohort", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #meta_dataframes
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id,tickers,dates,vol_36m))
+
+  #Create port_backtest_config 1
+  chosen_score_metric_and_position <- c(vol_36m = "long")
+  long_config <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                           eligibility_quantile_range = c(0.67, 1.0),
+                                           initial_buffer_period = 2,
+                                           rebalancing_months = 4,
+                                           port_construction_method = "sw",
+                                           main_liquidity_metric = "mean_volfin_3m",
+                                           config_name = "long_vol_36m"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+
+  #Run port_backtest
+  suppressWarnings(
+    long_results <- run_port_backtest(signals_m_df = signals_m_df,
+                                      fwd_return_m_df = fwd_return_m_df,
+                                      liquidity_m_df = liquidity_m_df,
+                                      volatility_m_df = volatility_m_df,
+                                      config = long_config,
+                                      custom_stock_metrics_m_df = port_metrics_m_df,
+                                      verbose = TRUE)
+  )
+
+
+
+  #Create port_backtest_config 2
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+  short_config <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                             eligibility_quantile_range = c(0.67, 1.0),
+                                             initial_buffer_period = 2,
+                                             rebalancing_months = 4,
+                                             port_construction_method = "sw",
+                                             main_liquidity_metric = "mean_volfin_3m",
+                                             config_name = "short_vol_36m"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+
+  #Run port_backtest
+  suppressWarnings(
+    short_results <- run_port_backtest(signals_m_df = signals_m_df,
+                                      fwd_return_m_df = fwd_return_m_df,
+                                      liquidity_m_df = liquidity_m_df,
+                                      volatility_m_df = volatility_m_df,
+                                      config = short_config,
+                                      custom_stock_metrics_m_df = port_metrics_m_df,
+                                      verbose = TRUE)
+  )
+
+  #Create cohort
+  ls_cohort <- create_port_backtest_cohort(list(long_results, short_results), cohort_name = "vol_ls_cohort")
+
+  #Check that there are 2 backtest results
+  expect_equal(length(ls_cohort@port_backtest_results_list), 2)
+
+  #Check that port_weights are according to expectation
+  expect_equal(ls_cohort@port_weights_m_df@data$`c:long_vol_36m_s:not_identified_f:not_identified`, long_results@port_weights_m_df@data$eop_port_weights)
+  expect_equal(ls_cohort@port_weights_m_df@data$`c:short_vol_36m_s:not_identified_f:not_identified`, short_results@port_weights_m_df@data$eop_port_weights)
+  expect_null(ls_cohort@port_weights_m_df@data$bench_weights)
+
+  expect_true(all(long_results@port_weights_m_df@data$id %in% ls_cohort@port_weights_m_df@data$id))
+
+  #Check that port returns are according to expectation
+  expect_equal(ls_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c.long_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               long_results@port_returns_m_xts@data$raw_return %>% as.data.frame() %>% unname())
+  expect_equal(ls_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c.short_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               short_results@port_returns_m_xts@data$raw_return %>% as.data.frame() %>% unname())
+  expect_null(ls_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$selected_bench_return)
+
+  expect_equal(ls_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c.long_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               long_results@port_returns_m_xts@data$net_return %>% as.data.frame() %>% unname())
+  expect_equal(ls_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c.short_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               short_results@port_returns_m_xts@data$net_return %>% as.data.frame() %>% unname())
+  expect_null(ls_cohort@port_returns_m_xts_list$net_returns_m_xts@data$selected_bench_return)
+
+  #Only raw and net returns xts
+  expect_equal(names(ls_cohort@port_returns_m_xts_list), c("raw_returns_m_xts", "net_returns_m_xts"))
+
+
+  #Check that port costs are accordng to expectation
+  expect_equal(ls_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c.long_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               long_results@port_costs_m_xts@data$direct_cost %>% as.data.frame() %>% unname())
+  expect_equal(ls_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c.short_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               short_results@port_costs_m_xts@data$direct_cost %>% as.data.frame() %>% unname())
+
+  expect_equal(ls_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c.long_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               long_results@port_costs_m_xts@data$market_impact_cost %>% as.data.frame() %>% unname())
+  expect_equal(ls_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c.short_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               short_results@port_costs_m_xts@data$market_impact_cost %>% as.data.frame() %>% unname())
+
+  expect_equal(ls_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c.long_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               long_results@port_costs_m_xts@data$total_cost %>% as.data.frame() %>% unname())
+  expect_equal(ls_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c.short_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               short_results@port_costs_m_xts@data$total_cost %>% as.data.frame() %>% unname())
+
+  expect_equal(ls_cohort@port_costs_m_xts_list$turnover_m_xts@data$c.long_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               long_results@port_costs_m_xts@data$turnover %>% as.data.frame() %>% unname())
+  expect_equal(ls_cohort@port_costs_m_xts_list$turnover_m_xts@data$c.short_vol_36m_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+               short_results@port_costs_m_xts@data$turnover %>% as.data.frame() %>% unname())
+
+
+  #Port Metrics
+  #Check that length is 2 (no sw)
+  expect_equal(ls_cohort@port_metrics_m_xts_list$vol_36m_m_xts@data %>% ncol(), 2)
+  expect_gt(ls_cohort@port_metrics_m_xts_list$vol_36m_m_xts@data$c.long_vol_36m_s.not_identified_f.not_identified %>% mean(),
+            ls_cohort@port_metrics_m_xts_list$vol_36m_m_xts@data$c.short_vol_36m_s.not_identified_f.not_identified %>% mean())
+
+  #Check that all metrics are present
+  expect_equal(stringr::str_remove(names(ls_cohort@port_metrics_m_xts_list), "_m_xts"), colnames(port_metrics_m_df@data)[-c(1:3)])
+
+})

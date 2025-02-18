@@ -612,10 +612,13 @@ setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_r
 
   # Series Frequency Table
   display_series_frequency_table <- function() {
+
     # Summarize the number of non-NA obs per date
     freq_table <- df_data %>%
-      dplyr::group_by(dates) %>%
-      dplyr::summarize(Non_NA_Count = sum(!is.na(.)), .groups = "drop")
+      dplyr::rowwise() %>%
+      dplyr::mutate(Non_NA_Count = sum(!is.na(dplyr::c_across(-c(dates, year))))) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(dates, Non_NA_Count)
 
     freq_table_formatted <- DT::datatable(
       freq_table,
@@ -1555,9 +1558,6 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   invisible(object)  # Return the object invisibly
 })
 
-
-
-
 #' @title Summary Method for sb_metabacktest_results Class
 #' @description Provides a detailed summary of an `sb_metabacktest_results` object.
 #' Users can select which summary table to display by specifying the `summary_id` parameter,
@@ -1875,7 +1875,6 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 
   invisible(object)  # Return the object invisibly
 })
-
 
 
 #' @title Summary Method for ss_backtest_results Class
@@ -2522,6 +2521,191 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
     print(dt_obj)
     invisible(dt_obj)
 
+
+  }
+
+})
+
+#' @title Summary Method for port_backtest_cohort Class
+#' @description Provides a detailed summary of `port_backtest_cohort` object.
+#' Users can select which summary table to display by specifying the `summary_id` parameter.
+#' The summary includes interactive tables styled using the `DT` package.
+#'
+#' @param object An object of class `port_backtest_cohort`.
+#' @param summary_id A character string or numeric value specifying which table to display.
+#' @return Invisibly returns the input `object`.
+#' @export
+setMethod("summary", "port_backtest_cohort", function(object, summary_id = NULL) {
+  # Define colors
+  deep_navy <- "#000033"
+  black <- "#000000"
+  white <- "#FFFFFF"
+
+  # Available tables
+  available_tables <- c(
+    "Raw Returns Summary",
+    "Net Returns Summary",
+    "Raw Active Returns Summary",
+    "Net Active Returns Summary",
+    "Direct Cost Summary",
+    "Market Impact Cost Summary",
+    "Total Cost Summary",
+    "Turnover Summary",
+    "Weights Summary",
+    "Metrics Summary"
+  )
+
+  # Print summary header
+  cat("==============================\n")
+  cat("Port Backtest Cohort Summary\n")
+  cat("==============================\n\n")
+  cat("Cohort Name:", object@cohort_name, "\n")
+
+  # If no summary_id provided, prompt the user to select
+  if (is.null(summary_id)) {
+    cat("\nPlease choose a table to display:\n")
+    for (i in seq_along(available_tables)) {
+      cat(paste0(i, ": ", available_tables[i], "\n"))
+    }
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    summary_id <- as.numeric(selection)
+    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_tables)) {
+      stop("Invalid selection.")
+    }
+  }
+
+  # Resolve summary_id to table name
+  if (is.numeric(summary_id)) {
+    if (summary_id >= 1 && summary_id <= length(available_tables)) {
+      table_name <- available_tables[summary_id]
+    } else {
+      stop("Invalid table number. Please select a number between 1 and ", length(available_tables), ".")
+    }
+  } else if (is.character(summary_id)) {
+    if (summary_id %in% available_tables) {
+      table_name <- summary_id
+    } else {
+      stop("Invalid 'summary_id' specified. Available options are:\n",
+           paste(available_tables, collapse = ", "))
+    }
+  } else {
+    stop("'summary_id' must be either a string or a number corresponding to the table.")
+  }
+
+  # Get objects
+  port_weights_m_df <- object@port_weights_m_df
+  port_costs_m_xts_list <- object@port_costs_m_xts_list
+  port_returns_m_xts_list <- object@port_returns_m_xts_list
+  port_metrics_m_xts_list <- object@port_metrics_m_xts_list
+  port_backtest_results_list <- object@port_backtest_results_list
+
+  # Print selected table
+  if (table_name == "Raw Returns Summary"){
+
+    raw_returns_m_xts <- port_returns_m_xts_list$raw_returns_m_xts
+
+    if (!is.null(object@backtest_workflow_common$selected_benchmark)){
+      bench_returns_m_xts <- raw_returns_m_xts
+      bench_returns_m_xts@data <- bench_returns_m_xts@data[, "selected_bench_return"]
+      raw_returns_m_xts@data <- raw_returns_m_xts@data[, -which(colnames(raw_returns_m_xts@data) == "selected_bench_return")]
+    } else {
+      bench_returns_m_xts <- NULL
+    }
+
+    summary(raw_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts)
+
+
+  }
+
+  if (table_name == "Net Returns Summary"){
+
+    net_returns_m_xts <- port_returns_m_xts_list$net_returns_m_xts
+
+    if (!is.null(object@backtest_workflow_common$selected_benchmark)){
+      bench_returns_m_xts <- net_returns_m_xts
+      bench_returns_m_xts@data <- bench_returns_m_xts@data[, "selected_bench_return"]
+      net_returns_m_xts@data <- net_returns_m_xts@data[, -which(colnames(net_returns_m_xts@data) == "selected_bench_return")]
+    } else {
+      bench_returns_m_xts <- NULL
+    }
+
+    summary(net_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts)
+
+  }
+
+  if (table_name == "Raw Active Returns Summary"){
+
+    if (is.null(object@backtest_workflow_common$selected_benchmark)){
+      stop("There is no benchmark available for selected plot.")
+    }
+
+    raw_active_returns_m_xts <- port_returns_m_xts_list$raw_active_returns_m_xts
+
+    summary(raw_active_returns_m_xts)
+
+  }
+
+  if (table_name == "Net Active Returns Summary"){
+
+    if (is.null(object@backtest_workflow_common$selected_benchmark)){
+      stop("There is no benchmark available for selected plot.")
+    }
+
+    net_active_returns_m_xts <- port_returns_m_xts_list$net_active_returns_m_xts
+
+    summary(net_active_returns_m_xts)
+
+  }
+
+  if (table_name == "Direct Cost Summary"){
+
+    direct_cost_m_xts <- port_costs_m_xts_list$direct_cost_m_xts
+    summary(direct_cost_m_xts)
+
+  }
+
+  if (table_name == "Market Impact Cost Summary"){
+
+    market_impact_cost_m_xts <- port_costs_m_xts_list$market_impact_cost_m_xts
+    summary(market_impact_cost_m_xts)
+
+  }
+
+  if (table_name == "Total Cost Summary"){
+
+    total_cost_m_xts <- port_costs_m_xts_list$total_cost_m_xts
+    summary(total_cost_m_xts)
+
+  }
+
+  if (table_name == "Turnover Summary"){
+
+    turnover_m_xts <- port_costs_m_xts_list$turnover_m_xts
+    summary(turnover_m_xts)
+
+  }
+
+  if (table_name == "Weights Summary"){
+
+    summary(port_weights_m_df)
+
+  }
+
+  if (table_name == "Metrics Summary"){
+
+    #Promp the user regarding the metrics to plot
+    available_metrics <- names(port_metrics_m_xts_list) %>% stringr::str_remove("_m_xts")
+
+    selected_metric <- readline(prompt = paste("Please select the metric to plot from the following list: ",
+                                               paste(available_metrics, collapse = ", "), ": "))
+
+    if (!selected_metric %in% available_metrics){
+      stop("Invalid metric selected")
+    }
+
+    metric_m_xts <- port_metrics_m_xts_list[[paste0(selected_metric, "_m_xts")]]
+
+    summary(metric_m_xts)
 
   }
 
