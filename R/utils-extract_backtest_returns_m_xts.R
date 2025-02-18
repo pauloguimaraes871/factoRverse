@@ -49,7 +49,7 @@ extract_backtest_returns_m_xts <- function(port_backtest_cohort, signals_m_df, b
         return(x@port_backtest_config@config_name)
       } else {
         ###For signal blend, use backtest id
-        return(x@backtest_identifier)
+        return(x@sb_backtest_results@backtest_identifier)
       }
 
     })
