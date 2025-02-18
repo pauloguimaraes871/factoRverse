@@ -61,7 +61,7 @@ setMethod("run_sb_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "sb_backtest_config"),
 
           function(features_m_df, target_m_df, config, #SB Backtest
-                   backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, priors_m_df = NULL, #SS Backtest
+                   port_backtest_cohort = NULL, backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, priors_m_df = NULL, #SS Backtest
                    custom_signal_weights_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, #Custom objects
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
@@ -117,6 +117,22 @@ setMethod("run_sb_backtest",
 
             #Get or Fabricate Signal Universe and market_factor_proxy
             ###########################
+              ##Extract backtest_returns_m_xts from cohort
+                ###Check if both backtest_returns_m_xts and port_backtest_cohort are provided
+                if (!is.null(backtest_returns_m_xts) && !is.null(port_backtest_cohort)) {
+                  stop("Only one of backtest_returns_m_xts or port_backtest_cohort should be provided.")
+                }
+
+                ###If backtest_returns_m_xts is not provided, extract it from port_backtest_cohort
+                if (is.null(backtest_returns_m_xts)) {
+                  backtest_returns_m_xts <- extract_backtest_returns_m_xts(
+                    port_backtest_cohort = port_backtest_cohort, #Port Backtest Cohort
+                    signals_m_df = features_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts, #Objects to check consistency
+                    verbose = verbose
+                  )
+                }
+
+              ##Derive signal_universe_m_df
               derive_signal_universe_m_df_results_list <- derive_signal_universe_m_df(
                 config = config,
                 features_m_df = features_m_df,
@@ -415,25 +431,56 @@ setMethod("run_sb_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "sb_metabacktest_config"),
 
           function(features_m_df, target_m_df, config,
-                   base_backtest_returns_m_xts = NULL, base_benchmark_returns_m_xts = NULL, base_signal_themes_m_df = NULL, base_priors_m_df = NULL, #For Base SS Backtest Results
+                   base_port_backtest_cohort = NULL, base_backtest_returns_m_xts = NULL, base_benchmark_returns_m_xts = NULL, base_signal_themes_m_df = NULL, base_priors_m_df = NULL, #For Base SS Backtest Results
                    base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL, #Custom weights and signal universe metrics for base learners
-                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL, meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, #For Meta SS Backtest Results
+                   meta_port_backtest_cohort = NULL, meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL, meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, #For Meta SS Backtest Results
                    meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL, #Custom weights for meta learner
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
 
-            ## Initial checks
+            ## Initial preparation
             #######################
-            check_inputs_meta_sb_backtest(
-              config = config, features_m_df = features_m_df, target_m_df = target_m_df,
-              #Base Objects
-              base_backtest_returns_m_xts = base_backtest_returns_m_xts, base_benchmark_returns_m_xts = base_benchmark_returns_m_xts, base_signal_themes_m_df = base_signal_themes_m_df,
-              base_priors_m_df = base_priors_m_df, base_custom_signal_weights_m_df = base_custom_signal_weights_m_df, base_custom_signal_universe_metrics_m_df = base_custom_signal_universe_metrics_m_df,
-              #Meta Objects
-              meta_backtest_returns_m_xts = meta_backtest_returns_m_xts, meta_benchmark_returns_m_xts = meta_benchmark_returns_m_xts, meta_signal_themes_m_df = meta_signal_themes_m_df,
-              meta_priors_m_df = meta_priors_m_df, meta_custom_signal_weights_m_df = meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df = meta_custom_signal_universe_metrics_m_df,
-              verbose
-            )
+              ###Extract base backtest_returns_m_xts
+                ####Check if both backtest_returns_m_xts and port_backtest_cohort are provided
+                if (!is.null(base_backtest_returns_m_xts) && !is.null(base_port_backtest_cohort)) {
+                  stop("Only one of base_backtest_returns_m_xts or base_port_backtest_cohort should be provided.")
+                }
+
+                ####If backtest_returns_m_xts is not provided, extract it from port_backtest_cohort
+                if (is.null(base_backtest_returns_m_xts)) {
+                  base_backtest_returns_m_xts <- extract_backtest_returns_m_xts(
+                    port_backtest_cohort = base_port_backtest_cohort, #Port Backtest Cohort
+                    signals_m_df = features_m_df, benchmark_returns_m_xts = base_benchmark_returns_m_xts, #Objects to check consistency
+                    verbose = verbose
+                  )
+                }
+
+              ###Extract meta backtest_returns_m_xts
+                ####Check if both backtest_returns_m_xts and port_backtest_cohort are provided
+                if (!is.null(meta_backtest_returns_m_xts) && !is.null(meta_port_backtest_cohort)) {
+                  stop("Only one of meta_backtest_returns_m_xts or meta_port_backtest_cohort should be provided.")
+                }
+
+                ####If backtest_returns_m_xts is not provided, extract it from port_backtest_cohort
+                if (is.null(meta_backtest_returns_m_xts)) {
+                  meta_backtest_returns_m_xts <- extract_backtest_returns_m_xts(
+                    port_backtest_cohort = meta_port_backtest_cohort, #Port Backtest Cohort
+                    signals_m_df = features_m_df, benchmark_returns_m_xts = meta_benchmark_returns_m_xts, #Objects to check consistency
+                    verbose = verbose
+                  )
+                }
+
+              ###Initial checks
+              check_inputs_meta_sb_backtest(
+                config = config, features_m_df = features_m_df, target_m_df = target_m_df,
+                #Base Objects
+                base_backtest_returns_m_xts = base_backtest_returns_m_xts, base_benchmark_returns_m_xts = base_benchmark_returns_m_xts, base_signal_themes_m_df = base_signal_themes_m_df,
+                base_priors_m_df = base_priors_m_df, base_custom_signal_weights_m_df = base_custom_signal_weights_m_df, base_custom_signal_universe_metrics_m_df = base_custom_signal_universe_metrics_m_df,
+                #Meta Objects
+                meta_backtest_returns_m_xts = meta_backtest_returns_m_xts, meta_benchmark_returns_m_xts = meta_benchmark_returns_m_xts, meta_signal_themes_m_df = meta_signal_themes_m_df,
+                meta_priors_m_df = meta_priors_m_df, meta_custom_signal_weights_m_df = meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df = meta_custom_signal_universe_metrics_m_df,
+                verbose
+              )
 
             #######################
 

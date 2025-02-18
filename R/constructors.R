@@ -3119,8 +3119,8 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
   }
 
   # Ensure that at least one of sb_backtest_results or chosen_score_metric_and_position is provided
-  if (is.null(sb_backtest_results) && is.null(chosen_score_metric_and_position)) {
-    stop("chosen_score_metric_and_position must be provided if sb_backtest_results is NULL.")
+  if (is.null(sb_backtest_results) && is.null(chosen_score_metric_and_position) && port_construction_method != "custom_weights") {
+    stop("chosen_score_metric_and_position must be provided if sb_backtest_results is NULL and port_construction_method is not 'custom_weights'.")
   }
 
   # Create and return the new port_backtest_config object
@@ -3793,6 +3793,11 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
 create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name) {
 
   # Input Validation
+  ##Check that backtest identifiers are unique
+  if (length(unique(sapply(port_backtest_results_list, function(x) x@backtest_identifier))) != length(port_backtest_results_list)) {
+    stop("Backtest identifiers must be unique.")
+  }
+
   ## Check that port_backtest_results_list is a non-empty list
   if (!is.list(port_backtest_results_list) || length(port_backtest_results_list) == 0) {
     stop("port_backtest_results_list must be a non-empty list of port_backtest_results objects.")

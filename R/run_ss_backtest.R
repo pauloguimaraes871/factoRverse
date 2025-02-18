@@ -19,17 +19,56 @@
 #' @param parallel A boolean indicating whether to run the backtest in parallel.
 #' @param ... Additional arguments (not used in this method).
 #' @export
-setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_m_xts, benchmark_returns_m_xts, signal_themes_m_df,
-                                       ...) {
+setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_m_xts, port_backtest_cohort, benchmark_returns_m_xts, signal_themes_m_df, ...) {
   standardGeneric("run_ss_backtest")
 })
 
 #' @describeIn run_ss_backtest Run Signal Selection Backtest
-#' @description Runs signal selection backtest given bayesian or frequentist approaches for p-value correction.
+#' @description Runs signal selection backtest given bayesian or frequentist approaches for p-value correction. This acts as a wrapper for backtest_returns_m_xts
 #' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
 #' @export
 setMethod("run_ss_backtest",
-          signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_m_xts = "meta_xts", benchmark_returns_m_xts = "meta_xts",
+          signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_m_xts = "missing", port_backtest_cohort = "port_backtest_cohort", benchmark_returns_m_xts = "meta_xts",
+                    signal_themes_m_df = "meta_dataframe"),
+
+          function(config, signals_m_df, port_backtest_cohort, benchmark_returns_m_xts, signal_themes_m_df,
+                   priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                   verbose = TRUE, parallel = TRUE, winsorization_probs = c(0.025, 0.975)){
+
+
+            ## Extract backtest_returns_m_xts from port_backtest_cohort
+            #######################
+            backtest_returns_m_xts <- extract_backtest_returns_m_xts(
+              port_backtest_cohort = port_backtest_cohort,
+              signals_m_df = signals_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts,
+              verbose = verbose
+              )
+
+            #######################
+
+            ##Run SS Backtest
+            #######################
+            ss_backtest_results <- run_ss_backtest(
+              config = config, signals_m_df = signals_m_df,
+              backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, signal_themes_m_df = signal_themes_m_df,
+              priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
+              verbose = verbose, parallel = parallel, winsorization_probs = winsorization_probs
+              )
+
+            return(ss_backtest_results)
+            #######################
+
+
+          })
+
+
+
+#' @describeIn run_ss_backtest Run Signal Selection Backtest
+#' @description Runs signal selection backtest given bayesian or frequentist approaches for p-value correction. This acts as a wrapper for run_ss_backtest_internal
+#' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
+#' @export
+setMethod("run_ss_backtest",
+          signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_m_xts = "meta_xts", port_backtest_cohort = "missing", benchmark_returns_m_xts = "meta_xts",
                     signal_themes_m_df = "meta_dataframe"),
 
           function(config, signals_m_df, backtest_returns_m_xts, benchmark_returns_m_xts, signal_themes_m_df,
