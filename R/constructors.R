@@ -2961,21 +2961,6 @@ setMethod("remove_sb_backtest_config", "sb_metabacktest_config", function(object
 })
 
 
-#' @title Create an sb_metabacktest_results Object
-#' @description Constructs an `sb_metabacktest_results` object from a list of `sb_backtest_results` objects for base learners a single
-#' `sb_backtest_results` object for the meta learner.
-#' It computes consolidated and time series evaluation metrics for machine learning backtests.
-#'
-#' @param meta_sb_backtest_results A `sb_backtest_results` object for the meta learner
-#' @param base_sb_backtest_results_list A named list of `sb_backtest_results` objects for the base learners.
-#' @return An object of class `sb_metabacktest_results`.
-#'
-setGeneric(
-  name = "create_sb_metabacktest_results",
-  def = function(meta_sb_backtest_results, base_sb_backtest_results) {
-    standardGeneric("create_sb_metabacktest_results")
-  }
-)
 
 #' @title Create an sb_metabacktest_results Object
 #' @description Constructs an `sb_metabacktest_results` object from a list of `sb_backtest_results` objects for base learners a single
@@ -2988,7 +2973,8 @@ setGeneric(
 #'
 setGeneric(
   name = "create_sb_metabacktest_results",
-  def = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df, ...) {
+  def = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df,
+                 sb_metabacktest_config, ...) {
     standardGeneric("create_sb_metabacktest_results")
   }
 )
@@ -3000,9 +2986,10 @@ setMethod(
   signature = signature(
     meta_sb_backtest_results = "sb_backtest_results",
     base_sb_backtest_results_list = "list",
-    oos_predictions_m_df = "meta_dataframe"
+    oos_predictions_m_df = "meta_dataframe",
+    sb_metabacktest_config = "sb_metabacktest_config"
   ),
-  definition = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df) {
+  definition = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df, sb_metabacktest_config) {
 
     #Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
     if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
@@ -3026,6 +3013,7 @@ setMethod(
     # Create the sb_metabacktest_results object
     new_object <- new(
       "sb_metabacktest_results",
+      sb_metabacktest_config = sb_metabacktest_config,
       meta_sb_backtest_results = meta_sb_backtest_results,
       base_sb_backtest_results_list = base_sb_backtest_results_list,
       base_learners_oos_predictions_m_df = oos_predictions_m_df,
@@ -3797,32 +3785,32 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
 #' to reconstruct the meta objects. The resulting `port_backtest_cohort` object contains the merged data
 #' and the common backtest workflow parameters.
 #'
-#' @param backtest_results_list A list of `port_backtest_results` objects.
+#' @param port_backtest_results_list A list of `port_backtest_results` objects.
 #' @param cohort_name A character string representing the name for the merged cohort.
 #'
 #' @return An object of class `port_backtest_cohort`.
 #' @export
-create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
+create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name) {
 
   # Input Validation
-  ## Check that backtest_results_list is a non-empty list
-  if (!is.list(backtest_results_list) || length(backtest_results_list) == 0) {
-    stop("backtest_results_list must be a non-empty list of port_backtest_results objects.")
+  ## Check that port_backtest_results_list is a non-empty list
+  if (!is.list(port_backtest_results_list) || length(port_backtest_results_list) == 0) {
+    stop("port_backtest_results_list must be a non-empty list of port_backtest_results objects.")
   }
   ## Check that cohort_name is a single character string
   if (!is.character(cohort_name) || length(cohort_name) != 1) {
     stop("cohort_name must be a single character string.")
   }
   ## Check that all elements are of class 'port_backtest_results'
-  if (!all(sapply(backtest_results_list, function(x) methods::is(x, "port_backtest_results")))) {
-    stop("All elements of backtest_results_list must be of class 'port_backtest_results'.")
+  if (!all(sapply(port_backtest_results_list, function(x) methods::is(x, "port_backtest_results")))) {
+    stop("All elements of port_backtest_results_list must be of class 'port_backtest_results'.")
   }
   ## Ensure that all backtests use the same benchmark
-  if (length(unique(sapply(backtest_results_list, function(x) x@port_backtest_workflow$selected_benchmark))) > 1) {
+  if (length(unique(sapply(port_backtest_results_list, function(x) x@port_backtest_workflow$selected_benchmark))) > 1) {
     stop("All backtests must use the same benchmark.")
   }
   ## Ensure all backtest identifiers are unique
-  if (length(unique(sapply(backtest_results_list, function(x) x@backtest_identifier))) != length(backtest_results_list)) {
+  if (length(unique(sapply(port_backtest_results_list, function(x) x@backtest_identifier))) != length(port_backtest_results_list)) {
     stop("All backtests must have unique backtest identifiers.")
   }
 
@@ -3833,7 +3821,7 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
                        "benchmark_returns_object_name", "daily_assets_returns_object_name", "daily_bench_returns_object_name",
                        "liquidity_object_name", "volatility_object_name", "benchmark_weights_object_name")
   ## Extract the workflow list from each backtest object
-  workflow_list <- lapply(backtest_results_list, function(x) x@port_backtest_workflow)
+  workflow_list <- lapply(port_backtest_results_list, function(x) x@port_backtest_workflow)
   ## Store the common values from the first backtest for comparison
   common_values <- workflow_list[[1]][required_params]
   ## Loop over each backtest and verify required parameters match
@@ -3850,7 +3838,7 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
 
   # Step 2: Merge port_weights_m_df
   ## Extract and process the meta data.frames from each backtest
-  weights_m_dfs <- lapply(backtest_results_list, function(x) {
+  weights_m_dfs <- lapply(port_backtest_results_list, function(x) {
     m_df <- x@port_weights_m_df@data
     ### Set required columns based on whether benchmark is used
     if (benchmark_used) {
@@ -3907,7 +3895,7 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
   port_costs_m_xts_list <- list()
   ## Loop over each cost type and merge across backtests
   for (cost in cost_types) {
-    cost_m_xts_list <- lapply(backtest_results_list, function(x) {
+    cost_m_xts_list <- lapply(port_backtest_results_list, function(x) {
       m_xts <- x@port_costs_m_xts@data[, cost, drop = FALSE]
       colnames(m_xts) <- x@backtest_identifier
       m_xts
@@ -3924,13 +3912,13 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
                                                                        type = "metrics",
                                                                        meta_xts_name = cohort_name,
                                                                        metric_name = cost,
-                                                                       source = sapply(backtest_results_list, function(x) x@backtest_identifier))
+                                                                       source = sapply(port_backtest_results_list, function(x) x@backtest_identifier))
   }
 
   # Step 4: Merge port_returns_m_xts
   ## If a benchmark is used, extract and verify the "selected_bench_return" column
   if (benchmark_used) {
-    bench_returns_list <- lapply(backtest_results_list, function(x) {
+    bench_returns_list <- lapply(port_backtest_results_list, function(x) {
       m_xts <- x@port_returns_m_xts@data[, "selected_bench_return", drop = FALSE]
       m_xts
     })
@@ -3946,7 +3934,7 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
 
   ## Define a helper function to merge a specified return column across backtests
   merge_return_column <- function(colname, include_bench = FALSE) {
-    ret_m_xts_list <- lapply(backtest_results_list, function(x) {
+    ret_m_xts_list <- lapply(port_backtest_results_list, function(x) {
       m_xts <- x@port_returns_m_xts@data[, colname, drop = FALSE]
       colnames(m_xts) <- x@backtest_identifier
       m_xts
@@ -3975,9 +3963,9 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
   net_active_return_m_xts <- merge_return_column("net_active_return", include_bench = FALSE)
   ## Define the benchmark source (if applicable) and backtest sources
   if (include_bench) {
-    bench_source <- backtest_results_list[[1]]@port_backtest_workflow$benchmark_returns_object_name
+    bench_source <- port_backtest_results_list[[1]]@port_backtest_workflow$benchmark_returns_object_name
   }
-  backtest_sources <- sapply(backtest_results_list, function(x) x@backtest_identifier)
+  backtest_sources <- sapply(port_backtest_results_list, function(x) x@backtest_identifier)
 
   ## Create the merged port_returns meta_xts objects using create_meta_xts
   port_returns_m_xts_list <- list(
@@ -4009,7 +3997,7 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
 
   # Step 5: Merge port_metrics_m_xts
   ## Consolidate all primary metric names across all backtests (excluding bench_* columns)
-  all_primary_metrics_list <- lapply(backtest_results_list, function(x) {
+  all_primary_metrics_list <- lapply(port_backtest_results_list, function(x) {
     cols <- colnames(x@port_metrics_m_xts@data)
     primary <- cols[!grepl("^bench_", cols)]
     return(primary)
@@ -4022,7 +4010,7 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
   ## Loop over each metric in the consolidated union of primary metrics
   for (metric in union_primary_metrics) {
     ### Create a list to hold the metric data from each backtest (if available)
-    metric_m_xts_list <- lapply(backtest_results_list, function(x) {
+    metric_m_xts_list <- lapply(port_backtest_results_list, function(x) {
       if (metric %in% colnames(x@port_metrics_m_xts@data)) {
         m_xts <- x@port_metrics_m_xts@data[, metric, drop = FALSE]
         colnames(m_xts) <- x@backtest_identifier
@@ -4048,7 +4036,7 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
 
     ### Handle the corresponding bench metric column (if benchmark is used)
     bench_col <- paste0("bench_", metric)
-    bench_m_xts_list <- lapply(backtest_results_list, function(x) {
+    bench_m_xts_list <- lapply(port_backtest_results_list, function(x) {
       if (benchmark_used && bench_col %in% colnames(x@port_metrics_m_xts@data)) {
         return(x@port_metrics_m_xts@data[, bench_col, drop = FALSE])
       } else {
@@ -4079,10 +4067,10 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
     }
 
     ### Define backtest sources for this metric
-    backtest_sources <- sapply(backtest_results_list, function(x) x@backtest_identifier)
+    backtest_sources <- sapply(port_backtest_results_list, function(x) x@backtest_identifier)
     ### If bench metric was added, include the bench source as well
     if (bench_consistent) {
-      bench_source <- backtest_results_list[[1]]@port_backtest_workflow$benchmark_returns_object_name
+      bench_source <- port_backtest_results_list[[1]]@port_backtest_workflow$benchmark_returns_object_name
       source_vector <- c(backtest_sources, bench_source)
     } else {
       source_vector <- backtest_sources
@@ -4101,6 +4089,7 @@ create_port_backtest_cohort <- function(backtest_results_list, cohort_name) {
   # Step 6: Create and Return the port_backtest_cohort Object
   cohort_obj <- new("port_backtest_cohort",
                     cohort_name = cohort_name,
+                    port_backtest_results_list = port_backtest_results_list,
                     port_weights_m_df = merged_port_weights_m_df,
                     port_costs_m_xts_list = port_costs_m_xts_list,
                     port_returns_m_xts_list = port_returns_m_xts_list,

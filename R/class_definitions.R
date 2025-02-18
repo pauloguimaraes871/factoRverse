@@ -1450,6 +1450,7 @@ setClass("ss_backtest_config",
 setClass(
   "ss_backtest_results",
   slots = list(
+    ss_backtest_config = "ANY",
     signal_universe_m_df = "meta_dataframe",
     final_signal_universe_m_d_ref = "meta_dataframe",
     selected_market_factor_proxy_m_xts = "meta_xts",
@@ -2207,6 +2208,7 @@ setClass(
   "sb_backtest_results",
   slots = list(
     oos_sb_outputs_m_df = "meta_dataframe",
+    sb_backtest_config = "ANY",
     oos_testing_eval_metrics_m_xts = "meta_xts",
     consolidated_eval_metrics = "data.frame",
     final_sb_model = "sb_model",
@@ -2220,6 +2222,14 @@ setClass(
     sb_backtest_workflow = "list",
     backtest_identifier = "character"
   ), validity = function(object){
+
+    #Sb backtest config
+    if (!is.null(object@sb_backtest_config)) {
+      if (!inherits(object@sb_backtest_config, "sb_backtest_config")) {
+        return("sb_backtest_config must be a 'sb_backtest_config' object")
+      }
+    }
+
 
     if(!class(object@final_gsm) %in% c("lm", "rpart")){
       stop("final_gsm must be a 'lm' or 'rpart' object")
@@ -2254,6 +2264,7 @@ setClass(
 setClass(
   "sb_metabacktest_results",
   slots = list(
+    sb_metabacktest_config = "ANY",
     meta_sb_backtest_results = "sb_backtest_results",
     base_sb_backtest_results_list = "list",
     base_learners_oos_predictions_m_df = "meta_dataframe",
@@ -2264,6 +2275,12 @@ setClass(
     backtest_identifier = "character"
   ),
   validity = function(object) {
+
+    if (!is.null(object@sb_metabacktest_config)){
+      if (!inherits(object@sb_metabacktest_config, "sb_metabacktest_config")) {
+        return("sb_metabacktest_config must be a 'sb_metabacktest_config' object")
+      }
+    }
 
     if (!all(sapply(object@base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
       return("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'.")
@@ -2724,6 +2741,7 @@ setClass(
 setClass(
   "port_backtest_results",
   slots = list(
+    port_backtest_config = "ANY",
     port_weights_m_df = "meta_dataframe",
     transactions_log = "transactions_log",
     port_costs_m_xts = "meta_xts",
@@ -2738,6 +2756,12 @@ setClass(
     backtest_identifier = "character"
   ),
   validity = function(object) {
+
+    if (!is.null(object@port_backtest_config)) {
+      if (!inherits(object@port_backtest_config, "port_backtest_config")) {
+        return("port_backtest_config must be a 'port_backtest_config' object")
+      }
+    }
 
     if (!is.null(object@port_metrics_m_xts) && !inherits(object@port_metrics_m_xts, "meta_xts")) {
       return("port_metrics_m_xts must be a 'meta_xts' object or NULL")
@@ -2776,6 +2800,7 @@ setClass(
 setClass("port_backtest_cohort",
          slots = list(
            cohort_name = "character",
+           port_backtest_results_list = "list",
            port_weights_m_df = "meta_dataframe",
            port_costs_m_xts_list = "list",
            port_returns_m_xts_list = "list",

@@ -304,6 +304,8 @@ setMethod("run_port_backtest",
 
            #Adjust Port Backtest Results
            ###########################
+             ##Add config
+             port_backtest_results@port_backtest_config <- config
              ##Add signal_blending_results
              port_backtest_results@sb_backtest_results <- sb_backtest_results
 
@@ -1008,8 +1010,8 @@ run_port_backtest_internal <- function(
     selected_benchmark = selected_benchmark,
     config_name = "not_identified",
     backtest_identifier = "not_identified",
-    oos_sb_outputs_object_name = "not_identified",
-    oos_sb_outputs_workflow = "not_identified",
+    oos_predictions_object_name = "not_identified",
+    oos_predictions_workflow = "not_identified",
     #Dates
     dates_covered = dates_m_vector,
     n_dates = length(dates_m_vector),
@@ -1121,6 +1123,7 @@ run_port_backtest_internal <- function(
   ###Get final object
     port_backtest_results <- new(
       "port_backtest_results",
+      port_backtest_config = NULL,
       port_weights_m_df = port_weights_m_df,
       transactions_log = transactions_log,
       port_costs_m_xts = port_costs_m_xts,

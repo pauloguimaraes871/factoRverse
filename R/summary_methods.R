@@ -779,15 +779,6 @@ setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_r
 })
 
 
-
-
-
-
-
-
-
-
-
 #' Summary Method for sb_metabacktest_config Class
 #'
 #' Produces an interactive table summarizing the counts of configurations by `sb_algorithm` and other parameters using the `DT` package.
@@ -1896,7 +1887,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 #' @param summary_id A character string or numeric value specifying which table to display.
 #' @return Invisibly returns the input `object`.
 #' @export
-methods::setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) {
+setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) {
   # Define colors
   deep_navy <- "#000033"
   black <- "#000000"
@@ -2340,7 +2331,7 @@ methods::setMethod("summary", "ss_backtest_results", function(object, summary_id
 #' @param summary_id A character string or numeric value specifying which table to display.
 #' @return Invisibly returns the input `object`.
 #' @export
-methods::setMethod("summary", "port_backtest_results", function(object, summary_id = NULL) {
+setMethod("summary", "port_backtest_results", function(object, summary_id = NULL) {
   # Define colors
   deep_navy <- "#000033"
   black <- "#000000"

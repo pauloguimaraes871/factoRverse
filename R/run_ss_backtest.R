@@ -175,6 +175,9 @@ setMethod("run_ss_backtest",
             #Adjust SS Backtest WF
             ###########################
 
+            ##Add config
+            ss_backtest_results@ss_backtest_config <- config
+
             #Add workflows, config_name and objects for target and features
             ###Signals
             ss_backtest_results@ss_backtest_workflow$signals_object_name <- signals_object_name
@@ -768,6 +771,7 @@ run_ss_backtest_internal <- function(
 
   #Get final object
   ss_backtest_results <- new("ss_backtest_results",
+                             ss_backtest_config = NULL,
                              signal_universe_m_df = signal_universe_m_df,
                              final_signal_universe_m_d_ref = final_signal_universe_m_d_ref,
                              selected_market_factor_proxy_m_xts = selected_market_factor_proxy_m_xts,
