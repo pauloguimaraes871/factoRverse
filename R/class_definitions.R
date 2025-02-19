@@ -1986,6 +1986,11 @@ setClass(
       stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for ols and heuristic sb algorithms).")
     }
 
+    #Check for rp or mvo at meta-level
+    if (object@meta_sb_backtest_config@sb_algorithm %in% c("rp", "mvo")){
+      stop("rp and mvo are not supported at meta-level at this time.")
+    }
+
     #Check for ss_backtest_config/results at meta-level
     if (all(length(object@meta_sb_backtest_config@ss_backtest_config) == 0, length(object@meta_sb_backtest_config@ss_backtest_results) == 0)){
       if (object@meta_sb_backtest_config@chosen_signals_and_positions != "all"){
@@ -2269,7 +2274,7 @@ setClass(
     base_sb_backtest_results_list = "list",
     base_learners_oos_predictions_m_df = "meta_dataframe",
     combined_oos_testing_metrics = "list",
-    mean_validation_metrics = "data.frame",
+    mean_validation_metrics = "ANY",
     time_series_oos_testing_metrics = "list",
     time_series_validation_metrics = "list",
     backtest_identifier = "character"
@@ -2288,6 +2293,12 @@ setClass(
 
     if (!all(sapply(object@combined_oos_testing_metrics, function(x) is(x, "data.frame")))){
       return("All elements in 'combined_oos_testing_metrics' must be of class 'data.frame'.")
+    }
+
+    if (!is.null(object@mean_validation_metrics)){
+      if (!is(object@mean_validation_metrics, "data.frame")){
+        return("mean_validation_metrics must be a 'data.frame' object")
+      }
     }
 
     TRUE
