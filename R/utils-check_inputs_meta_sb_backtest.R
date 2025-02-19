@@ -27,6 +27,17 @@ check_inputs_meta_sb_backtest <- function(
     verbose
 ) {
 
+  #Meta-level signal selection not available at this time
+  if (length(config@meta_sb_backtest_config@ss_backtest_config) > 0 || length(config@meta_sb_backtest_config@ss_backtest_results) > 0) {
+    stop("meta-level signal selection is not supported at this time.")
+  }
+
+  #Meta-level objects not available at this time
+  if (any(!is.null(meta_signal_themes_m_df), !is.null(meta_priors_m_df),
+          !is.null(meta_custom_signal_universe_metrics_m_df), !is.null(meta_custom_signal_weights_m_df))){
+    stop("meta-level objects are not supported at this time.")
+  }
+
   #Objects Structure
   ##########################
     ##Amount of base configs
