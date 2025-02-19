@@ -38,11 +38,15 @@ setMethod("run_ss_backtest",
 
             ## Extract backtest_returns_m_xts from port_backtest_cohort
             #######################
-            backtest_returns_m_xts <- extract_backtest_returns_m_xts(
-              port_backtest_cohort = port_backtest_cohort,
-              signals_m_df = signals_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts,
-              verbose = verbose
+              ###Run extraction
+              extracted_returns_m_xts <- extract_returns_m_xts(
+                port_backtest_cohort = port_backtest_cohort,
+                signals_m_df = signals_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                verbose = verbose
               )
+              ###Assign extracted values
+              backtest_returns_m_xts <- extracted_returns_m_xts$backtest_returns_m_xts
+              benchmark_returns_m_xts <- extracted_returns_m_xts$benchmark_returns_m_xts
 
             #######################
 
@@ -117,7 +121,7 @@ setMethod("run_ss_backtest",
                 chosen_signals_and_positions <- rep("long", length(chosen_signals)) #Set all positions as 'long'
                 names(chosen_signals_and_positions) <- chosen_signals
               } else {
-                if (verbose) cat("According to user choice, SS backtest will contemplate the following signals in signals_m_df:")
+                if (verbose) cat("According to user choice, SS backtest will contemplate the following signals in signals_m_df:\n")
                 if (verbose) print(chosen_signals_and_positions)
               }
 

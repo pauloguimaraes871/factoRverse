@@ -124,7 +124,7 @@ setMethod("run_sb_backtest",
                 }
 
                 ###If backtest_returns_m_xts is not provided, extract it from port_backtest_cohort
-                if (is.null(backtest_returns_m_xts)) {
+                if (is.null(backtest_returns_m_xts) && !is.null(port_backtest_cohort)) {
                   backtest_returns_m_xts <- extract_backtest_returns_m_xts(
                     port_backtest_cohort = port_backtest_cohort, #Port Backtest Cohort
                     signals_m_df = features_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts, #Objects to check consistency
@@ -441,13 +441,13 @@ setMethod("run_sb_backtest",
             ## Initial preparation
             #######################
               ###Extract base backtest_returns_m_xts
-                ####Check if both backtest_returns_m_xts and port_backtest_cohort are provided
+                ####Check if both backtest_returns_m_xts and base_port_backtest_cohort are provided
                 if (!is.null(base_backtest_returns_m_xts) && !is.null(base_port_backtest_cohort)) {
                   stop("Only one of base_backtest_returns_m_xts or base_port_backtest_cohort should be provided.")
                 }
 
-                ####If backtest_returns_m_xts is not provided, extract it from port_backtest_cohort
-                if (is.null(base_backtest_returns_m_xts)) {
+                ####If backtest_returns_m_xts is not provided, extract it from base_port_backtest_cohort
+                if (is.null(base_backtest_returns_m_xts) && !is.null(base_port_backtest_cohort)) {
                   base_backtest_returns_m_xts <- extract_backtest_returns_m_xts(
                     port_backtest_cohort = base_port_backtest_cohort, #Port Backtest Cohort
                     signals_m_df = features_m_df, benchmark_returns_m_xts = base_benchmark_returns_m_xts, #Objects to check consistency
@@ -456,16 +456,16 @@ setMethod("run_sb_backtest",
                 }
 
               ###Extract meta backtest_returns_m_xts
-                ####Check if both backtest_returns_m_xts and port_backtest_cohort are provided
+                ####Check if both backtest_returns_m_xts and meta_port_backtest_cohort are provided
                 if (!is.null(meta_backtest_returns_m_xts) && !is.null(meta_port_backtest_cohort)) {
                   stop("Only one of meta_backtest_returns_m_xts or meta_port_backtest_cohort should be provided.")
                 }
 
-                ####If backtest_returns_m_xts is not provided, extract it from port_backtest_cohort
-                if (is.null(meta_backtest_returns_m_xts)) {
+                ####If backtest_returns_m_xts is not provided, extract it from meta_port_backtest_cohort
+                if (is.null(meta_backtest_returns_m_xts) && !is.null(meta_port_backtest_cohort)) {
                   meta_backtest_returns_m_xts <- extract_backtest_returns_m_xts(
                     port_backtest_cohort = meta_port_backtest_cohort, #Port Backtest Cohort
-                    signals_m_df = features_m_df, benchmark_returns_m_xts = meta_benchmark_returns_m_xts, #Objects to check consistency
+                    signals_m_df = features_m_df, benchmark_returns_m_xts = NULL, #Objects to check consistency (meta_benchmark_returns is typically different)
                     verbose = verbose
                   )
                 }
@@ -855,6 +855,7 @@ run_sb_backtest_internal <- function(
     if(verbose){
       cat("=============================\n")
       cat(crayon::cyan(paste("Signal-Blending Algo:", sb_algorithm)))
+      cat("\n")
     }
     adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
     #No tuning algos

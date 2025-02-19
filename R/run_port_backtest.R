@@ -29,7 +29,7 @@ setMethod("run_port_backtest",
           signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe", liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe",
                     config = "port_backtest_config"),
           function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, config,  #Base Port Backtest Objs
-                   target_m_df = NULL, backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, priors_m_df = NULL, ##SB Backtest Objs
+                   target_m_df = NULL, port_backtest_cohort = NULL, backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, priors_m_df = NULL, ##SB Backtest Objs
                    custom_signal_weights_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, gsm_algorithm = "ols", .test_seed = NULL, ##SB Backtest Objs
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, #Covariance Estimation
@@ -88,12 +88,19 @@ setMethod("run_port_backtest",
                 if(verbose){
                   cat(crayon::cyan("Running Signal Blending Backtest based on sb_backtest_config \n"))
                 }
+                ###Check is sb_backtest_config 'class' is 'sb_backtest_config' and not 'sb_metabacktest_config'
+                if(class(sb_backtest_config) == "sb_metabacktest_config"){
+                  stop("run_port_backtest currently does not support running sb_metabacktests inside it. Please provide a",
+                       "'sb_metabacktest_results' instead")
+                }
+
                 ##Run!
                 sb_backtest_results <- run_sb_backtest(
                   #Base SB Objs
                   features_m_df = signals_m_df, target_m_df = target_m_df, config = sb_backtest_config,
                   #SS Objs
-                  backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, ##Benchmark is the same object
+                  port_backtest_cohort = port_backtest_cohort, backtest_returns_m_xts = backtest_returns_m_xts, ##Derive backtest returns from either
+                  benchmark_returns_m_xts = benchmark_returns_m_xts, ##Benchmark is the same object
                   signal_themes_m_df = signal_themes_m_df, priors_m_df = priors_m_df,
                   #Custom objs
                   custom_signal_weights_m_df = custom_signal_weights_m_df, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
@@ -104,6 +111,19 @@ setMethod("run_port_backtest",
 
               ###Extract oos_predictions_m_df
               if (!is.null(sb_backtest_results)){
+
+                ####Check for object conformity
+                  #####signals_m_df
+                  if (sb_backtest_results@sb_backtest_workflow$features_object_name != signals_m_df@meta_dataframe_name){
+                    stop("Signals object name does not match the one used in the SB Backtest")
+                  }
+                  #####benchmark_returns_m_xts
+                  if (sb_backtest_results@sb_backtest_workflow$backtest_type != "base_learner" && #Test is only applicable for base-learners
+                      sb_backtest_results@sb_backtest_workflow$benchmark_returns_object_name != benchmark_returns_m_xts@meta_xts_name){
+                    stop("Benchmark Returns object name does not match the one used in the SB Backtest")
+                  }
+
+                ####Get results
                 oos_predictions_m_df <- sb_backtest_results@oos_sb_outputs_m_df@data %>%
                   dplyr::select(id, tickers, dates, pred) #Get OOS Predictions and exclude target to be more confident of no data leakage
                 oos_predictions_workflow <- sb_backtest_results@oos_sb_outputs_m_df@workflow
@@ -298,7 +318,7 @@ setMethod("run_port_backtest",
              user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
              #Misc
              lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
-             verbose = verbose, parallel = parallel
+             verbose = verbose, parallel = parallel, .test_seed = .test_seed
            )
            ###########################
 
@@ -495,7 +515,7 @@ run_port_backtest_internal <- function(
   user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
   #Misc
   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
-  verbose = TRUE, parallel = TRUE){
+  verbose = TRUE, parallel = TRUE, .test_seed = NULL){
 
   #Measure time to run and run gc
   elapsed_time <- system.time({
@@ -829,33 +849,39 @@ run_port_backtest_internal <- function(
 
         ####Set Portfolio Weights
         ##############################
-        stock_port <- set_portfolio_weights(
-          #Stock universe object
-          universe_m_d_ref = stock_universe_m_d_ref,
-          #Stock Portfolio Construction method
-          port_construction_method = port_construction_method,
-          #Set liquidity constraint policy for stocks
-          liquidity_constraint_policy = liquidity_constraint_policy, liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = main_liquidity_metric,
-          #Set concentration constraint policy for stocks
-          concentration_constraint_policy = concentration_constraint_policy,
-          #Set turnover constraint policy for stocks
-          turnover_constraint_policy = turnover_constraint_policy,
-          #Groups
-          groups_m_d_ref = stock_groups_m_d_ref,
-          #Covariance Estimation Method
-          cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
-          active_returns = active_returns,
-          #Returns sample for covariance estimation
-          returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
-          #Risk-Parity method
-          rp_method = rp_method,
-          #MVO Optimization
-          n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
-          #Custom Weights
-          custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
-          #Winsorization
-          lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
-        )
+          ###Place a .test_seed if needed
+          if (!is.null(.test_seed)){
+            set.seed(.test_seed)
+          }
+
+          ###Run Portfolio Construction
+          stock_port <- set_portfolio_weights(
+            #Stock universe object
+            universe_m_d_ref = stock_universe_m_d_ref,
+            #Stock Portfolio Construction method
+            port_construction_method = port_construction_method,
+            #Set liquidity constraint policy for stocks
+            liquidity_constraint_policy = liquidity_constraint_policy, liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = main_liquidity_metric,
+            #Set concentration constraint policy for stocks
+            concentration_constraint_policy = concentration_constraint_policy,
+            #Set turnover constraint policy for stocks
+            turnover_constraint_policy = turnover_constraint_policy,
+            #Groups
+            groups_m_d_ref = stock_groups_m_d_ref,
+            #Covariance Estimation Method
+            cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
+            active_returns = active_returns,
+            #Returns sample for covariance estimation
+            returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
+            #Risk-Parity method
+            rp_method = rp_method,
+            #MVO Optimization
+            n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+            #Custom Weights
+            custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
+            #Winsorization
+            lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
+          )
 
 
           #####Transform port_obj into stock_port obj

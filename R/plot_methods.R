@@ -1514,7 +1514,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
               performance_df <- create_performance_m_df(
                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = x@data,
                 selected_market_factor_proxy_m_xts_upd_ref = if (is.null(benchmark_returns_m_xts)) NULL else benchmark_returns_m_xts@data,
-                active_returns = FALSE,
+                active_returns = active_returns,
                 verbose = TRUE
               )
 
@@ -6992,7 +6992,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
 
     plot_perf_metric <- TRUE
     if (!is.null(x@backtest_workflow_common$selected_benchmark)){
-      bench_returns_m_xts <- raw_returns_m_xts
+      bench_returns_m_xts <- net_returns_m_xts
       bench_returns_m_xts@data <- bench_returns_m_xts@data[, "selected_bench_return"]
       net_returns_m_xts@data <- net_returns_m_xts@data[, -which(colnames(net_returns_m_xts@data) == "selected_bench_return")]
     } else {
@@ -7091,7 +7091,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
   #Plot 15
   if (plot_name == "Weights Radar"){
 
-    port_weights_m_df@data <- port_weights_m_df@data %>% dplyr::select(-dplyr::any_of(bench_weights))
+    port_weights_m_df@data <- port_weights_m_df@data %>% dplyr::select(-dplyr::any_of(c("bench_weights")))
     plot(port_weights_m_df, type = "radar")
 
   }

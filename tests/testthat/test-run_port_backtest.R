@@ -2201,7 +2201,7 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
 
 })
 
-test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blended strategy and 'mvo' with liquidity, turnover and user_rules, but no selected benchmark", {
+test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (trained inside run_port) blended strategy and 'mvo' with liquidity, turnover and user_rules, but no selected benchmark", {
 
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
@@ -2247,19 +2247,20 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
 
-  #run_sb_backtest
-  suppressWarnings(
-    sb_results <- run_sb_backtest(
-      features_m_df = signals_m_df,
-      target_m_df = target_m_df,
-      config = glmnet_config,
-      parallel = TRUE
-    )
-  )
+
+  #suppressWarnings(
+  #  sb_results <- run_sb_backtest(
+  #    features_m_df = signals_m_df,
+  #    target_m_df = target_m_df,
+  #    config = glmnet_config,
+  #    parallel = TRUE
+  #  )
+  #)
 
   #Create port_backtest_config
   port_config <- create_port_backtest_config(eligibility_quantile_range = c(0.67, 1.0),
-                                             sb_backtest_results = sb_results,
+                                             #sb_backtest_results = sb_results,
+                                             sb_backtest_config = glmnet_config,
                                              initial_buffer_period = 5,
                                              rebalancing_months = 4,
                                              port_construction_method = "mvo",
@@ -2281,12 +2282,12 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
 
 
   #Run port_backtest
-  set.seed(123)
   suppressWarnings(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  config = port_config,
                                  liquidity_m_df = liquidity_m_df,
+                                 target_m_df = target_m_df,
                                  volatility_m_df = volatility_m_df,
                                  stock_groups_m_df = stock_groups_m_df,
                                  benchmark_weights_m_df = NULL,
@@ -2295,11 +2296,11 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
                                  daily_bench_returns_m_xts = NULL,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
                                  user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
-                                 verbose = TRUE)
+                                 verbose = TRUE,
+                                 .test_seed = 123)
   )
 
   #Expected results
-  set.seed(123)
   current_date <- "2023-02-15"
   signals_m_d_ref <- signals_m_df@data %>% dplyr::filter(dates == current_date)
   liquidity_m_d_ref <- liquidity_m_df@data %>% dplyr::filter(dates == current_date)
@@ -2307,7 +2308,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
   fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
   port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
-  oos_predictions_m_d_ref <- sb_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- results@sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
   daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
@@ -2342,6 +2343,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
   )
 
   #Set Port Weights
+  set.seed(123)
   mvo_port_1 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "mvo",
@@ -2393,7 +2395,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
   fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
   port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
-  oos_predictions_m_d_ref <- sb_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- results@sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
   daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
@@ -2435,7 +2437,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
   fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
   port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
-  oos_predictions_m_d_ref <- sb_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- results@sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
   daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
@@ -2468,6 +2470,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
   )
 
   #Set Port Weights
+  set.seed(123)
   mvo_port_2 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "mvo",
@@ -3007,3 +3010,140 @@ test_that("run_port_backtest work for a benchmark-agnostic long-short cohort", {
   expect_equal(stringr::str_remove(names(ls_cohort@port_metrics_m_xts_list), "_m_xts"), colnames(port_metrics_m_df@data)[-c(1:3)])
 
 })
+
+
+#ERRORS
+test_that("run_port_backtest throws error for incompatible port_backtests", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #meta_dataframes
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id,tickers,dates,vol_36m))
+
+  #Create port_backtest_config 1
+  chosen_score_metric_and_position <- c(vol_36m = "long")
+  config1 <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                             eligibility_quantile_range = c(0.67, 1.0),
+                                             initial_buffer_period = 2,
+                                             rebalancing_months = 4,
+                                             port_construction_method = "sw",
+                                             main_liquidity_metric = "mean_volfin_3m",
+                                             config_name = "long_vol_36m"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+
+  #Run port_backtest
+  suppressWarnings(
+    config1_results <- run_port_backtest(signals_m_df = signals_m_df,
+                                      fwd_return_m_df = fwd_return_m_df,
+                                      liquidity_m_df = liquidity_m_df,
+                                      volatility_m_df = volatility_m_df,
+                                      config = config1,
+                                      custom_stock_metrics_m_df = port_metrics_m_df,
+                                      verbose = TRUE)
+  )
+
+
+
+  #Create port_backtest_config 2
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+  config2 <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                              eligibility_quantile_range = c(0.67, 1.0),
+                                              initial_buffer_period = 2,
+                                              rebalancing_months = 4,
+                                              port_construction_method = "sw",
+                                              main_liquidity_metric = "mean_volfin_3m",
+                                              config_name = "short_vol_36m"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+
+  #Run port_backtest
+  suppressWarnings(
+    config2_results <- run_port_backtest(signals_m_df = signals_m_df,
+                                       fwd_return_m_df = fwd_return_m_df,
+                                       liquidity_m_df = liquidity_m_df,
+                                       volatility_m_df = volatility_m_df,
+                                       config = config2,
+                                       custom_stock_metrics_m_df = port_metrics_m_df,
+                                       verbose = TRUE)
+  )
+
+
+  #Create cohort
+  #Different selected_benchmark
+  wrong_config1_results <- config1_results
+  wrong_config1_results@port_backtest_workflow$selected_benchmark <- "ibov"
+
+  expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
+               "All backtests must use the same benchmark.")
+
+  #Different initial buffer period
+  wrong_config1_results <- config1_results
+  wrong_config1_results@port_backtest_workflow$initial_buffer_period <- 3
+
+  expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
+               "Incompatibility found in parameter: initial_buffer_period for backtest result at index 2")
+
+  #Different signals_obj name
+  wrong_config1_results <- config1_results
+  wrong_config1_results@port_backtest_workflow$signals_object_name <- "signals123"
+
+  expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
+               "Incompatibility found in parameter: signals_object_name for backtest result at index 2")
+
+  #Repeated backtests
+  expect_error(create_port_backtest_cohort(list(config1_results, config1_results), cohort_name = "wrong_cohort"),
+               "Backtest identifiers must be unique.")
+
+  #Wrong ids in port weights
+  wrong_config1_results <- config1_results
+  wrong_config1_results@port_weights_m_df@data$id[4] <- "AALR4-2023-02-15"
+
+  expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
+               "Mismatch in id, tickers, or dates in port_weights_m_df of backtest result at index 2")
+
+  #Wrong date in port_returns
+  wrong_config1_results <- config1_results
+  wrong_config1_results@port_returns_m_xts@data <- xts::xts(as.data.frame(wrong_config1_results@port_returns_m_xts@data),
+                                                            order.by = as.Date(c("2022-11-15", "2023-01-15", "2023-02-15", "2023-03-15", "2023-04-15")))
+
+  expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
+               "Dates do not match across port_returns_m_xts for column: raw_return")
+
+  #Wrong date in port_metrics
+  wrong_config1_results <- config1_results
+  wrong_config1_results@port_metrics_m_xts@data <- xts::xts(as.data.frame(wrong_config1_results@port_metrics_m_xts@data),
+                                                            order.by = as.Date(c("2022-11-15", "2022-12-16", "2023-01-15", "2023-02-15", "2023-03-15", "2023-04-15")))
+
+  expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
+               "Dates do not match across port_metrics_m_xts for metric: vol_36m")
+
+})
+
+
+

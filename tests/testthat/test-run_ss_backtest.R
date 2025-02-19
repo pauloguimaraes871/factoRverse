@@ -32,10 +32,12 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
 
   results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
-                             signal_themes_m_df = signal_themes_m_df,
-                             verbose = TRUE
-                             )
+                    signals_m_df = signals_m_df,
+                    backtest_returns_m_xts = create_meta_xts(mocked_backtest_returns_m_xts),
+                    benchmark_returns_m_xts = create_meta_xts(benchmark_returns_m_xts),
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = TRUE
+                    )
   )
 
   ####Expected Results
@@ -131,7 +133,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   signal_universe_m_d_ref_1$is_eligible <- c(1,0,1,1,1)
 
   expect_equal(signal_universe_m_d_ref_1,
-               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_1[,c(1:48)],
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_1[,c(1:48)],
                                             signal_significance_threshold = frequentist_ss_config@alpha_test_strategy@signal_significance_threshold,
                                             groups_m_d_ref = selected_signal_themes_m_d_ref,
                                             concentration_constraint_policy = list(
@@ -195,7 +197,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
   signal_universe_m_d_ref_2$is_eligible <- c(1,1,1,1,1)
 
   expect_equal(signal_universe_m_d_ref_2,
-               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_2[,c(1:48)],
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_2[,c(1:48)],
                                             signal_significance_threshold = frequentist_ss_config@alpha_test_strategy@signal_significance_threshold,
                                             groups_m_d_ref = selected_signal_themes_m_d_ref,
                                             concentration_constraint_policy = list(
@@ -265,7 +267,9 @@ test_that("run_ss_backtest works for inclusion of forced variables", {
 
   results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                    signals_m_df = signals_m_df,
+                    backtest_returns_m_xts = create_meta_xts(mocked_backtest_returns_m_xts),
+                    benchmark_returns_m_xts = create_meta_xts(benchmark_returns_m_xts),
                     signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
@@ -310,10 +314,14 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11")
 
 
-
+  suppressWarnings(
   results <- run_ss_backtest(frequentist_ss_config,
-                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,signal_themes_m_df = signal_themes_m_df,
+                             signals_m_df = signals_m_df,
+                             backtest_returns_m_xts = create_meta_xts(mocked_backtest_returns_m_xts),
+                             benchmark_returns_m_xts = create_meta_xts(benchmark_returns_m_xts),
+                             signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
+  )
   )
 
 
@@ -416,7 +424,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
 
 
   expect_equal(signal_universe_m_d_ref_1,
-               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_1[,c(1:48)],
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_1[,c(1:48)],
                                             signal_significance_threshold = frequentist_ss_config@alpha_test_strategy@signal_significance_threshold,
                                             groups_m_d_ref = selected_signal_themes_m_d_ref,
                                             concentration_constraint_policy = list(
@@ -484,7 +492,7 @@ test_that("run_ss_backtest works for vanilla no-pooled frequentist setting when 
   signal_universe_m_d_ref_2$is_eligible <- c(1,0,1,1,1)
 
   expect_equal(signal_universe_m_d_ref_2,
-               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_2[,c(1:48)],
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_2[,c(1:48)],
                                             signal_significance_threshold = frequentist_ss_config@alpha_test_strategy@signal_significance_threshold,
                                             groups_m_d_ref = selected_signal_themes_m_d_ref,
                                             concentration_constraint_policy = list(
@@ -552,10 +560,14 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   signals_m_df <- create_meta_dataframe(signals_m_df, "signals_123")
   signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11")
 
-
+  suppressWarnings(
   results <- run_ss_backtest(frequentist_ss_config,
-                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,signal_themes_m_df = signal_themes_m_df,
+                             signals_m_df = signals_m_df,
+                             backtest_returns_m_xts = create_meta_xts(mocked_backtest_returns_m_xts),
+                             benchmark_returns_m_xts = create_meta_xts(benchmark_returns_m_xts),
+                             signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
+  )
   )
 
 
@@ -660,7 +672,7 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
 
 
   expect_equal(signal_universe_m_d_ref_1,
-               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_1[,c(1:50)],
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_1[,c(1:50)],
                                             signal_significance_threshold = frequentist_ss_config@alpha_test_strategy@signal_significance_threshold,
                                             groups_m_d_ref = selected_signal_themes_m_d_ref,
                                             concentration_constraint_policy = list(
@@ -730,7 +742,7 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
   signal_universe_m_d_ref_2$is_eligible <- c(1,1,1,1,1)
 
   expect_equal(signal_universe_m_d_ref_2,
-               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_2[,c(1:50)],
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_2[,c(1:50)],
                                             signal_significance_threshold = frequentist_ss_config@alpha_test_strategy@signal_significance_threshold,
                                             groups_m_d_ref = selected_signal_themes_m_d_ref,
                                             concentration_constraint_policy = list(
@@ -910,10 +922,14 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
 
 
   future::plan("multisession")
+  suppressWarnings(
   results <- run_ss_backtest(bayesian_ss_config, priors_m_df = priors_m_df,
-                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             signals_m_df = signals_m_df,
+                             backtest_returns_m_xts = create_meta_xts(mocked_backtest_returns_m_xts),
+                             benchmark_returns_m_xts = create_meta_xts(benchmark_returns_m_xts),
                              signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
+  )
   )
 
 
@@ -1062,7 +1078,7 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
 
 
   expect_equal(signal_universe_m_d_ref_2,
-               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_2[,c(1:60)],
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_2[,c(1:60)],
                                             signal_significance_threshold = bayesian_ss_config@alpha_test_strategy@signal_significance_threshold,
                                             groups_m_d_ref = selected_signal_themes_m_d_ref,
                                             concentration_constraint_policy = list(
@@ -1144,7 +1160,9 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
   future::plan("multisession")
   suppressWarnings(
   results <- run_ss_backtest(bayesian_ss_config, priors_m_df = NULL,
-                             signals_m_df = signals_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = expanded_benchmark_returns_m_xts,
+                             signals_m_df = signals_m_df,
+                             backtest_returns_m_xts = create_meta_xts(mocked_backtest_returns_m_xts),
+                             benchmark_returns_m_xts = create_meta_xts(expanded_benchmark_returns_m_xts),
                              signal_themes_m_df = signal_themes_m_df,
                              verbose = TRUE
   )
@@ -1312,7 +1330,7 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
 
 
   expect_equal(signal_universe_m_d_ref_2,
-               classify_investment_universe(signals_m_d_ref = signal_universe_m_d_ref_2[,c(1:60)],
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_2[,c(1:60)],
                                             signal_significance_threshold = bayesian_ss_config@alpha_test_strategy@signal_significance_threshold,
                                             groups_m_d_ref = selected_signal_themes_m_d_ref,
                                             concentration_constraint_policy = list(
@@ -1410,7 +1428,9 @@ test_that("run_ss_backtest_works for inclusion of custom_signal_universe_metric"
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signals_m_df = features_m_df,
+                    backtest_returns_m_xts = mocked_backtest_returns_m_xts,
+                    benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                     signal_themes_m_df = signal_themes_m_df,
                     custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
                     verbose = TRUE
@@ -1423,6 +1443,300 @@ test_that("run_ss_backtest_works for inclusion of custom_signal_universe_metric"
   attr(expected_results, "out.attrs") <- NULL
 
   expect_equal(results, expected_results)
+
+
+})
+
+test_that("run_ss_backtest works in integration with run_port_backtest cohort - vanilla no-pooled frequentist setting", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep ="")) #Overwrite all but signal_themes
+
+  #meta_dataframes
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  signals_m_df@workflow <- list("normalization")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, roe_3m))
+
+  #Characteristics portfolio
+  characteristics_ports <- c(
+    book_yield = "long",
+    dy_med_36m = "long",
+    eps_yield = "long",
+    mom_res_12m = "long",
+    roe_3m = "long",
+    sharpe_6m = "long",
+    vol_36m = "short"
+  )
+
+  #Create config list
+  port_backtest_config_list <- purrr::imap(characteristics_ports, function(pos, metric_name) {
+    create_port_backtest_config(
+      eligibility_quantile_range = c(0.67, 1),
+      selected_benchmark = "ibov",
+      initial_buffer_period = 2,
+      chosen_score_metric_and_position = stats::setNames(pos, metric_name),
+      rebalancing_months = 4,
+      port_construction_method = "sw",
+      main_liquidity_metric = "mean_volfin_3m",
+      config_name = metric_name
+    ) %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = c("mean_volfin_3m", "presence"),
+        metric_cutoffs = list(
+          c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+          c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+        )) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+  })
+
+  #Run!
+  future::plan("sequential")
+  port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+    run_port_backtest(
+      signals_m_df = signals_m_df,
+      fwd_return_m_df = fwd_return_m_df,
+      liquidity_m_df = liquidity_m_df,
+      volatility_m_df = volatility_m_df,
+      config = port_config,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      custom_stock_metrics_m_df = port_metrics_m_df,
+      verbose = TRUE
+    )
+  }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+
+
+  #SS Configuration
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", dy_med_36m = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 5, rebalancing_months = 4,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.50, p_correction_method = "none",
+                            market_factor_proxy = "ibov", enable_theme_representativeness = TRUE)
+
+  signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11", type =  "groups")
+
+
+
+  results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = signals_m_df, port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = TRUE
+    )
+  )
+
+  #Expected results
+  mean_act_ret_backtests <- port_backtest_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data %>% colMeans()
+  names(mean_act_ret_backtests) <- c("book_yield", "dy_med_36m", "eps_yield", "mom_res_12m", "roe_3m", "sharpe_6m", "low_vol_36m")
+
+  #Check that neg active returns do not make it as pre-eligibles
+  neg_active_ret_tickers <- names(mean_act_ret_backtests[which(mean_act_ret_backtests < 0)])
+  expect_equal(results@final_signal_universe_m_d_ref@data %>% dplyr::filter(tickers %in% neg_active_ret_tickers) %>%
+                 dplyr::pull(pre_eligible_assets) %>% unique(),
+               0)
+
+  ####################
+  signals_m_df <- signals_m_df@data
+  signal_themes_m_df <- signal_themes_m_df@data
+  initial_sample_size <- frequentist_ss_config@initial_sample_size
+  rebalancing_months <- frequentist_ss_config@rebalancing_months
+  initial_sample_size <- frequentist_ss_config@initial_sample_size
+  market_factor_proxy <- frequentist_ss_config@alpha_test_strategy@market_factor_proxy
+  model_structure <- frequentist_ss_config@alpha_test_strategy@model_structure
+  active_returns <- frequentist_ss_config@active_returns
+  backtest_returns_m_xts <- port_backtest_cohort@port_returns_m_xts_list$net_returns_m_xts@data[,-8]
+  colnames(backtest_returns_m_xts) <- c("book_yield", "dy_med_36m", "eps_yield", "mom_res_12m", "roe_3m", "sharpe_6m", "low_vol_36m")
+  benchmark_returns_m_xts <- benchmark_returns_m_xts@data["2022-12-15/2023-04-15"]
+
+  signal_universe_m_d_ref_list <- list()
+  bayesian_fit_nested_list <- list()
+  dates_m_vector <- unique(signals_m_df$dates)
+
+  check_inputs_ss_backtest(rebalancing_months = rebalancing_months,
+                           signals_m_df = signals_m_df, initial_sample_size = initial_sample_size, active_returns = active_returns,
+                           custom_signal_universe_metrics_m_df = NULL,
+                           chosen_signals_and_positions = chosen_signals_and_positions,  model_structure = model_structure,
+                           backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                           p_correction_method = signal_selection_policy$p_correction_method, forced_signals = NULL,
+                           enable_theme_representativeness = TRUE, market_factor_proxy = market_factor_proxy,
+                           signal_significance_threshold = signal_selection_policy$signal_significance_threshold,
+                           priors_m_df = NULL, signal_themes_m_df = signal_themes_m_df
+  )
+
+  selected_signals_and_backtest_list <- select_and_correct_signals(
+    signals_m_df = signals_m_df,
+    signal_themes_m_df = signal_themes_m_df,
+    chosen_signals_and_positions = chosen_signals_and_positions,
+    backtest_returns_m_xts = backtest_returns_m_xts
+  )
+
+  expect_equal(selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts,
+               backtest_returns_m_xts[, c("book_yield", "eps_yield", "dy_med_36m", "roe_3m", "sharpe_6m", "low_vol_36m")])
+
+  expect_equal(
+    selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "dy_med_36m", "roe_3m", "sharpe_6m")],
+    signals_m_df[,c("id", "tickers", "dates", "book_yield", "eps_yield", "dy_med_36m", "roe_3m", "sharpe_6m")])
+
+  expect_equal(selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df$low_vol_36m,
+               signals_m_df$vol_36m * -1)
+
+  selected_signals_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+  selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, c(market_factor_proxy)]
+  selected_signal_themes_m_df <- selected_signals_and_backtest_list$selected_signal_themes_m_df
+
+  #First Rebalancing Month
+  ##########################
+  current_date <- dates_m_vector[initial_sample_size]
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:3),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:3), market_factor_proxy]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
+
+
+  summarize_performance_results <- suppressWarnings(summarize_performance(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    model_structure = model_structure,
+    active_returns = active_returns
+  ))
+
+  signal_universe_m_d_ref_1 <- summarize_performance_results$signal_universe_m_d_ref
+
+  signal_universe_m_d_ref_1$adjusted_p_value <- p.adjust(signal_universe_m_d_ref_1$p_value,
+                                                         method = frequentist_ss_config@alpha_test_strategy@p_correction_method)
+
+  signal_universe_m_d_ref_1[, "exp_ret_score"] <- signal_transform(
+    signal_universe_m_d_ref_1$alpha_t_stat,
+    upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization
+  )
+
+  #Create benchmarks
+  pre_eligible_assets <- c(0, 0, 1, 1, 0, 1)
+  signal_universe_m_d_ref_1$pre_eligible_assets <- pre_eligible_assets
+  se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_1, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
+
+
+  benchmark_weights_m_d_ref <- create_se_benchmarks(
+    signal_universe_m_d_ref_1, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref
+  )
+
+  expect_equal(benchmark_weights_m_d_ref$theme_ss, c(1/3/3, 1/3/3, 1/3/3, 1/3/2, 1/3, 1/3/2))
+  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(0, 0, 1/2, 1/2/2, 0, 1/2/2))
+  signal_universe_m_d_ref_1$theme_ss_bench_weights <- benchmark_weights_m_d_ref$theme_ss
+  signal_universe_m_d_ref_1$theme_sb_bench_weights <- benchmark_weights_m_d_ref$theme_sb
+  signal_universe_m_d_ref_1$theme <- c("value", "value", "value", "defensive", "momentum", "defensive")
+  signal_universe_m_d_ref_1$is_eligible <- c(0,0,1,1,1,1)
+
+  expect_equal(signal_universe_m_d_ref_1,
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_1[,c(1:48)],
+                                            signal_significance_threshold = frequentist_ss_config@alpha_test_strategy@signal_significance_threshold,
+                                            groups_m_d_ref = selected_signal_themes_m_d_ref,
+                                            concentration_constraint_policy = list(
+                                              benchmark = c("theme_ss", "theme_sb"),
+                                              max_abs_active_group_weight = 0.1
+                                            ),
+                                            asset_object = "signals"
+               )
+  )
+
+  signal_universe_m_d_ref_1$exp_ret_score <- NULL
+  signal_eligibility_results_list <- list()
+  signal_eligibility_results_list[[1]] <- signal_universe_m_d_ref_1
+
+  eligible_signals_1 <- signal_eligibility_results_list[[1]]$tickers[
+    which(signal_eligibility_results_list[[1]]$is_eligible == 1)
+  ]
+
+
+  #Second Rebalancing Month
+  ##########################
+  current_date <- dates_m_vector[7]
+
+  selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:5),]
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:5), market_factor_proxy]
+  selected_signal_themes_m_d_ref <- selected_signal_themes_m_df[which(selected_signal_themes_m_df$dates == current_date),]
+
+  suppressWarnings(
+  summarize_performance_results <- summarize_performance(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+    selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+    model_structure = model_structure,
+    active_returns = active_returns
+  )
+  )
+
+  signal_universe_m_d_ref_2 <- summarize_performance_results$signal_universe_m_d_ref
+
+  signal_universe_m_d_ref_2$adjusted_p_value <- p.adjust(signal_universe_m_d_ref_2$p_value,
+                                                         method = frequentist_ss_config@alpha_test_strategy@p_correction_method)
+
+  signal_universe_m_d_ref_2[, "exp_ret_score"] <- signal_transform(
+    signal_universe_m_d_ref_2$alpha_t_stat,
+    upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization
+  )
+
+  #Create benchmarks
+  pre_eligible_assets <- c(0, 0, 1, 1, 0, 1)
+  signal_universe_m_d_ref_2$pre_eligible_assets <- pre_eligible_assets
+  se_benchmarks <- create_se_benchmarks(signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref)
+
+
+  benchmark_weights_m_d_ref <- create_se_benchmarks(
+    signal_universe_m_d_ref_2, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref
+  )
+
+  expect_equal(benchmark_weights_m_d_ref$theme_ss,  c(1/3/3, 1/3/3, 1/3/3, 1/3/2, 1/3, 1/3/2))
+  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(0, 0, 1/2, 1/2/2, 0, 1/2/2))
+  signal_universe_m_d_ref_2$theme_ss_bench_weights <- benchmark_weights_m_d_ref$theme_ss
+  signal_universe_m_d_ref_2$theme_sb_bench_weights <- benchmark_weights_m_d_ref$theme_sb
+  signal_universe_m_d_ref_2$theme <- c("value", "value", "value", "defensive", "momentum", "defensive")
+  signal_universe_m_d_ref_2$is_eligible <- c(0,0,1,1,1,1)
+
+  expect_equal(signal_universe_m_d_ref_2,
+               classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref_2[,c(1:48)],
+                                            signal_significance_threshold = frequentist_ss_config@alpha_test_strategy@signal_significance_threshold,
+                                            groups_m_d_ref = selected_signal_themes_m_d_ref,
+                                            concentration_constraint_policy = list(
+                                              benchmark = c("theme_ss", "theme_sb"),
+                                              max_abs_active_group_weight = 0.1
+                                            ),
+                                            asset_object = "signals"
+               )
+  )
+
+  signal_universe_m_d_ref_2$exp_ret_score <- NULL
+  signal_eligibility_results_list[[2]] <- signal_universe_m_d_ref_2
+
+  eligible_signals_2 <- signal_eligibility_results_list[[2]]$tickers[
+    which(signal_eligibility_results_list[[2]]$is_eligible == 1)
+  ]
+
+
+  expected_signal_universe <- rbind(signal_eligibility_results_list[[1]], signal_eligibility_results_list[[2]])
+  expected_signal_universe <- expected_signal_universe[order(expected_signal_universe$id),]
+  rownames(expected_signal_universe) <- NULL
+  rownames(results@signal_universe_m_df@data) <- NULL
+  expect_equal(results@signal_universe_m_df@data,expected_signal_universe)
+
+  expect_equal(results@signal_universe_m_df@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers),
+               c(eligible_signals_1, eligible_signals_2)[order(c(eligible_signals_1, eligible_signals_2))])
+
+  expected_signal_universe_m_d_ref <- results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-04-15")
+  rownames(expected_signal_universe_m_d_ref) <- NULL
+  rownames(results@final_signal_universe_m_d_ref@data) <- NULL
+  expect_equal(results@final_signal_universe_m_d_ref@data, expected_signal_universe_m_d_ref)
 
 
 })
