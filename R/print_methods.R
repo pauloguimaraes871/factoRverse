@@ -2198,13 +2198,13 @@ setMethod("show", "port_backtest_cohort", function(object) {
       cat(sprintf("  oos_predictions_object_name: %s\n", port_backtest_workflow$oos_predictions_object_name))
       cat("  SB Backtest Results:\n")
       cat(sprintf("    sb_backtest_identifier: %s\n", port_backtest@sb_backtest_results@backtest_identifier))
-      cat(sprintf("    sb_algorithm: %s\n", config@sb_backtest_results@sb_backtest_workflow$sb_algorithm))
-      cat(sprintf("    custom_objective: %s\n", config@sb_backtest_results@sb_backtest_workflow$custom_objective))
+      cat(sprintf("    sb_algorithm: %s\n", port_backtest@sb_backtest_results@sb_backtest_workflow$sb_algorithm))
+      cat(sprintf("    custom_objective: %s\n", port_backtest@sb_backtest_results@sb_backtest_workflow$custom_objective))
         if (!is.null(port_backtest@sb_backtest_results@ss_backtest_results)){
           cat("     SS Backtest Results:\n")
           cat(sprintf("      ss_backtest_identifier: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@backtest_identifier))
-          cat(sprintf("      model_structure: %s\n", config@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$model_structure))
-          cat(sprintf("      p_correction_method: %s\n", config@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$p_correction_method))
+          cat(sprintf("      model_structure: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$model_structure))
+          cat(sprintf("      p_correction_method: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$p_correction_method))
         } else {
           cat("     No SS Backtest Results Available\n")
         }
