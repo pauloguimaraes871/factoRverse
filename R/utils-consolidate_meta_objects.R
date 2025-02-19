@@ -510,7 +510,6 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
 
   all_dates_oos_testing_metrics[is.nan(as.matrix(all_dates_oos_testing_metrics))] <- NA
   common_dates_oos_testing_metrics[is.nan(as.matrix(common_dates_oos_testing_metrics))] <- NA
-  mean_validation_metrics[is.nan(as.matrix(mean_validation_metrics))] <- NA
 
   ##Convert numeric columns
   num_cols_oos <- sapply(all_dates_oos_testing_metrics, is.numeric)
@@ -519,8 +518,13 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
   num_cols_common <- sapply(common_dates_oos_testing_metrics, is.numeric)
   common_dates_oos_testing_metrics[, num_cols_common] <- sapply(common_dates_oos_testing_metrics[, num_cols_common], as.numeric)
 
-  num_cols_val <- sapply(mean_validation_metrics, is.numeric)
-  mean_validation_metrics[, num_cols_val] <- sapply(mean_validation_metrics[, num_cols_val], as.numeric)
+  #Do the same for validation metrics
+  if (!is.null(mean_validation_metrics)){
+  mean_validation_metrics[is.nan(as.matrix(mean_validation_metrics))] <- NA
+    ##Convert numeric cols
+    num_cols_val <- sapply(mean_validation_metrics, is.numeric)
+    mean_validation_metrics[, num_cols_val] <- sapply(mean_validation_metrics[, num_cols_val], as.numeric)
+  }
 
   ##Create time series objects for OOS
   time_series_oos_testing_metrics <- list()
@@ -900,6 +904,13 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
     return(invisible(p))
 
   } else if (plot_name == "Mean Validation Metrics Comparison") {
+
+    # Check if there are any mean validation metrics to plot
+    if (length(mean_validation_metrics) == 0) {
+      cat("No mean validation metrics to plot.\n")
+      return(invisible(NULL))
+    }
+
     # Plot mean validation metrics for each model
 
     # Prepare data
@@ -970,6 +981,13 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
     return(invisible(p))
 
   } else if (plot_name == "Time Series Validation Metrics") {
+
+    # Check if there are any mean validation metrics to plot
+    if (length(mean_validation_metrics) == 0) {
+      cat("No mean validation metrics to plot.\n")
+      return(invisible(NULL))
+    }
+
     # Plot time series validation metrics for each model
 
     # Prepare data
