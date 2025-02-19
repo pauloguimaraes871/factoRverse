@@ -856,7 +856,8 @@ test_that("derive_signal_universe_m_df error checking works regarding custom_sig
 
   #At least one date before first training date
   wrong_custom_signal_universe_metrics_m_df <- short_custom_signal_universe_metrics_m_df
-  wrong_custom_signal_universe_metrics_m_df@data <- wrong_custom_signal_universe_metrics_m_df@data %>% dplyr::filter(!dates == "2022-07-15")
+  wrong_custom_signal_universe_metrics_m_df@data <- wrong_custom_signal_universe_metrics_m_df@data %>%
+    dplyr::filter(!dates %in% c("2022-07-15", "2022-08-15", "2022-09-15", "2022-10-15", "2022-11-15"))
 
   expect_error(
     derive_signal_universe_m_df(config = sw_config, features_m_df = features_m_df,

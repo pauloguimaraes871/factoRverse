@@ -168,9 +168,7 @@ derive_signal_universe_m_df <- function(config,
             stop("custom_signal_universe_metrics_m_df should have nrows equal to tickers * dates")
           }
           ####Check if first training data is contemplated by custom_signal_universe
-          training_and_validation_first_date <- unique(dplyr::pull(features_m_df@data, dates))[config@training_sample_size + if (!config@sb_algorithm %in% c("ols", "ew", "sw", "mvo", "rp")) config@tuning_strategy@validation_sample_size else 0]
-          rebalancing_first_date <- unique(dplyr::pull(features_m_df@data, dates))[as.numeric(format(unique(dplyr::pull(features_m_df@data, dates)), "%m")) == config@rebalancing_months][1]
-          first_training_date <- min(training_and_validation_first_date, rebalancing_first_date)
+          first_training_date <- unique(dplyr::pull(features_m_df@data, dates))[config@training_sample_size + if (!config@sb_algorithm %in% c("ols", "ew", "sw", "mvo", "rp")) config@tuning_strategy@validation_sample_size else 0]
           if (all(first_training_date < unique(dplyr::pull(custom_signal_universe_metrics_m_df, dates)))){
             stop("custom_signal_universe_metrics_m_df should have at least one date before first_training_date")
           }
