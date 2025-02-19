@@ -66,6 +66,7 @@ setMethod("run_sb_backtest",
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
 
             #Assign default values for internal function
+
             ###########################
               ##Training and splits
               split_method <- "expanding"
@@ -125,11 +126,16 @@ setMethod("run_sb_backtest",
 
                 ###If backtest_returns_m_xts is not provided, extract it from port_backtest_cohort
                 if (is.null(backtest_returns_m_xts) && !is.null(port_backtest_cohort)) {
-                  backtest_returns_m_xts <- extract_backtest_returns_m_xts(
+                  ###Run extraction
+                  extracted_returns_m_xts <- extract_returns_m_xts(
                     port_backtest_cohort = port_backtest_cohort, #Port Backtest Cohort
                     signals_m_df = features_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts, #Objects to check consistency
                     verbose = verbose
                   )
+                  ###Assign extracted values
+                  backtest_returns_m_xts <- extracted_returns_m_xts$backtest_returns_m_xts
+                  benchmark_returns_m_xts <- extracted_returns_m_xts$benchmark_returns_m_xts
+
                 }
 
               ##Derive signal_universe_m_df
@@ -448,11 +454,17 @@ setMethod("run_sb_backtest",
 
                 ####If backtest_returns_m_xts is not provided, extract it from base_port_backtest_cohort
                 if (is.null(base_backtest_returns_m_xts) && !is.null(base_port_backtest_cohort)) {
-                  base_backtest_returns_m_xts <- extract_backtest_returns_m_xts(
+                  ###Run extraction
+                  extracted_returns_m_xts <- extract_returns_m_xts(
                     port_backtest_cohort = base_port_backtest_cohort, #Port Backtest Cohort
                     signals_m_df = features_m_df, benchmark_returns_m_xts = base_benchmark_returns_m_xts, #Objects to check consistency
                     verbose = verbose
                   )
+
+                  ###Assign extracted returns
+                  base_backtest_returns_m_xts <- extracted_returns_m_xts$backtest_returns_m_xts
+                  base_benchmark_returns_m_xts <- extracted_returns_m_xts$benchmark_returns_m_xts
+
                 }
 
               ###Extract meta backtest_returns_m_xts
@@ -463,11 +475,17 @@ setMethod("run_sb_backtest",
 
                 ####If backtest_returns_m_xts is not provided, extract it from meta_port_backtest_cohort
                 if (is.null(meta_backtest_returns_m_xts) && !is.null(meta_port_backtest_cohort)) {
-                  meta_backtest_returns_m_xts <- extract_backtest_returns_m_xts(
+                  ###Run extraction
+                  extracted_returns_m_xts <- extract_returns_m_xts(
                     port_backtest_cohort = meta_port_backtest_cohort, #Port Backtest Cohort
-                    signals_m_df = features_m_df, benchmark_returns_m_xts = NULL, #Objects to check consistency (meta_benchmark_returns is typically different)
+                    signals_m_df = features_m_df, benchmark_returns_m_xts = meta_benchmark_returns_m_xts, #Objects to check consistency
                     verbose = verbose
                   )
+
+                  ###Assign extracted returns
+                  meta_backtest_returns_m_xts <- extracted_returns_m_xts$backtest_returns_m_xts
+                  meta_benchmark_returns_m_xts <- extracted_returns_m_xts$benchmark_returns_m_xts
+
                 }
 
               ###Initial checks
