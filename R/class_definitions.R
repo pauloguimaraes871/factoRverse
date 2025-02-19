@@ -2389,6 +2389,10 @@ setClass(
     }
 
     #Port method
+    if (object@port_construction_method == "custom_weights"){
+      stop("custom_weights port_construction_method is not supported at this time.")
+    }
+
     if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo")){
       stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'")
     }
