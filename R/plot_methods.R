@@ -3332,7 +3332,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     resp_scat <- readline(prompt = "Do you want to plot a regression scatterplot? (yes/no): ")
 
     if (resp_scat %in% c("yes", "y")){
-      dep_y <- readline(prompt = "Which variable do you want to be the dependent one? Choose between error, target and pred.")
+      dep_y <- readline(prompt = "Which variable do you want to be the dependent one? Choose between error, target and pred:")
 
       ##Check
       if (!dep_y %in% c("error", "target", "pred")){
@@ -3455,7 +3455,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   } else if (plot_name == "Average Time-Series Feature Importance by Theme"){
 
-    if(!"theme" %in% colnames(x@feature_importance_m_df)){
+    if(!"theme" %in% colnames(x@feature_importance_m_df@data)){
       stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
     }
 
@@ -3477,7 +3477,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   } else if (plot_name == "Compare Feature Importance Side-by-Side by Theme"){
 
-    if(!"theme" %in% colnames(x@feature_importance_m_df)){
+    if(!"theme" %in% colnames(x@feature_importance_m_df@data)){
       stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
     }
 
@@ -3498,7 +3498,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   } else if (plot_name == "Feature Importance Box-Plot by Theme"){
 
-    if(!"theme" %in% colnames(x@feature_importance_m_df)){
+    if(!"theme" %in% colnames(x@feature_importance_m_df@data)){
       stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
     }
 
@@ -3519,7 +3519,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   } else if (plot_name == "Feature Importance Heatmap by Theme"){
 
-    if(!"theme" %in% colnames(x@feature_importance_m_df)){
+    if(!"theme" %in% colnames(x@feature_importance_m_df@data)){
       stop("The feature importance data does not contain a 'theme' column. Please review the signal selection process to ensure a 'theme' classification is provided. \n")
     }
 
