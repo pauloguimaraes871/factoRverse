@@ -569,6 +569,14 @@ check_inputs_port_backtest <- function(
     stop("fwd_return_m_df and signals_m_df should have more than one date")
   }
 
+  #Check if last date (without NAs) of fwd_return_m_df is covered by benchmark_returns_m_xts
+  if (!is.null(benchmark_returns_m_xts) && !is.null(selected_benchmark)){
+    last_fwd_date_non_NA <- fwd_return_m_df %>% dplyr::select(dates, fwd_return_1m) %>% tidyr::drop_na() %>% dplyr::pull(dates) %>% unique() %>% dplyr::last()
+    if (!lubridate::add_with_rollback(last_fwd_date_non_NA, months(1)) %in% zoo::index(benchmark_returns_m_xts)){
+      stop("last date of fwd_return_m_df should be covered by benchmark_returns_m_xts")
+    }
+  }
+
   #Normalization
   if (all(fwd_return_m_df %>% dplyr::pull(fwd_return_1m) >= -1 & fwd_return_m_df %>% dplyr::pull(fwd_return_1m) <= 1)){
     stop("values in fwd_return_m_df should not be normalized")

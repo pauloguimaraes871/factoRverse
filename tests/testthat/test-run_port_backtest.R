@@ -30,7 +30,7 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
   liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
   volatility_m_df <- create_meta_dataframe(volatility_m_df)
   benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
-  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts["2022-10-15/2023-04-15"])
   port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, roe_3m))
 
 

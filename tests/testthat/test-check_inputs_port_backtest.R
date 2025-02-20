@@ -503,6 +503,42 @@ test_that("check_inputs_port_backtest throws an error when benchmark_returns_m_x
     ), "benchmark_returns_m_xts must have sequential unique monthly dates"
   )
 
+  #Does not contemplate last month of fwd_return_m_df
+  wrong_benchmark_returns_m_xts <- benchmark_returns_m_xts["2001-03-15/2001-07-15"]
+  wrong_signals_m_df <- signals_m_df %>% dplyr::filter(!dates == "2001-08-15")
+  wrong_liquidity_m_df <- liquidity_m_df %>% dplyr::filter(!dates == "2001-08-15")
+  wrong_volatility_m_df <- volatility_m_df %>% dplyr::filter(!dates == "2001-08-15")
+  wrong_target_m_df <- target_m_df %>% dplyr::filter(!dates == "2001-08-15")
+
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = wrong_signals_m_df,
+      stock_groups = NULL,
+      oos_predictions_m_df = NULL,
+      fwd_return_m_df = wrong_target_m_df,
+      liquidity_m_df = wrong_liquidity_m_df,
+      volatility_m_df = wrong_volatility_m_df,
+      benchmark_weights_m_df = NULL,
+      custom_stock_weights = NULL,
+      verbose = TRUE,
+      main_liquidity_metric = "mean_volfin_3m",
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = wrong_benchmark_returns_m_xts
+    ), "last date of fwd_return_m_df should be covered by benchmark_returns_m_xts"
+  )
+
+
+
 })
 
 test_that("check_inputs_port_backtest throws an error when stock_groups_m_df is not right", {
