@@ -345,8 +345,6 @@ setMethod("run_sb_backtest",
 
             #Adjust SB Backtest Results
             ###########################
-            #Add config
-            sb_backtest_results@sb_backtest_config <- config
             #Add signal_selection_results
             sb_backtest_results@ss_backtest_results <- ss_backtest_results
             #Add chosen_signals_and_positions
@@ -611,30 +609,47 @@ setMethod("run_sb_backtest",
             adapted_target_m_df@meta_dataframe_name <- paste0(adapted_target_m_df@meta_dataframe_name, "_adj")
 
             ##Join backtest_returns_m_xts
-            ###This will bring NULL if meta_backtest_returns_m_xts is NULL or combine the two, returning meta_backtest_returns_m_xts if base_backtest_returns_m_xts is NULL
-            adapted_backtest_returns_m_xts <- consolidate_backtest_returns_m_xts(meta_backtest_returns_m_xts = meta_backtest_returns_m_xts,
-                                                                                 base_backtest_returns_m_xts = base_backtest_returns_m_xts)
+              ###This will bring NULL if meta_backtest_returns_m_xts is NULL or combine the two, returning meta_backtest_returns_m_xts if base_backtest_returns_m_xts is NULL
+              consolidated_backtest_returns_m_xts <- consolidate_generic_meta_xts(main_generic_m_xts = meta_backtest_returns_m_xts,
+                                                                                  supplemental_generic_m_xts = base_backtest_returns_m_xts,
+                                                                                  type = "returns", consolidate_name = TRUE, require_main = TRUE,
+                                                                                  operation = "merge"
+                                                                                  )
 
             ##Join benchmark_returns_m_xts
-            ###This will bring the not-NULL object or the merged object if both are not NULL. The idea is to serve the inner function with selected_market_factor_proxy or benchmark
-            adapted_benchmark_returns_m_xts <- consolidate_benchmark_returns_m_xts(meta_benchmark_returns_m_xts = meta_benchmark_returns_m_xts,
-                                                                                   base_benchmark_returns_m_xts = base_benchmark_returns_m_xts)
+              ###This will bring the not-NULL object or the merged object if both are not NULL. The idea is to serve the inner function with selected_market_factor_proxy or benchmark
+              consolidated_benchmark_returns_m_xts <- consolidate_generic_meta_xts(main_generic_m_xts = meta_benchmark_returns_m_xts,
+                                                                                  supplemental_generic_m_xts = base_benchmark_returns_m_xts,
+                                                                                  type = "returns", consolidate_name = TRUE, require_main = FALSE,
+                                                                                  operation = "merge"
+                                                                                  )
+              ###Ensure conformity with adapted_backtest_returns_m_xts
+              if (!is.null(consolidated_backtest_returns_m_xts) && !is.null(consolidated_benchmark_returns_m_xts)){
+                ####Get consolidated_backtest_returns_m_xts_dates
+                consolidated_backtest_returns_m_xts_dates <- zoo::index(consolidated_backtest_returns_m_xts@data)
+                ####Subset to same dates
+                consolidated_benchmark_returns_m_xts@data <- consolidated_benchmark_returns_m_xts@data[consolidated_backtest_returns_m_xts_dates,]
+              }
+
             ##Join signal_themes_m_df
-            adapted_signal_themes_m_df <- consolidate_generic_meta_dataframes(meta_generic_m_df = meta_signal_themes_m_df,
-                                                                              base_generic_m_df = base_signal_themes_m_df,
-                                                                              type = "groups")
+            consolidated_signal_themes_m_df <- consolidate_generic_meta_dataframes(main_generic_m_df = meta_signal_themes_m_df,
+                                                                                   supplemental_generic_m_df = base_signal_themes_m_df,
+                                                                                   type = "groups", consolidate_name = TRUE, require_main = TRUE
+                                                                                   )
             ##Join meta_priors_m_df
-            adapted_priors_m_df <- consolidate_generic_meta_dataframes(meta_generic_m_df = meta_priors_m_df,
-                                                                       base_generic_m_df = base_priors_m_df,
-                                                                       type = "groups")
+            consolidated_priors_m_df <- consolidate_generic_meta_dataframes(main_generic_m_df = meta_priors_m_df,
+                                                                            supplemental_generic_m_df = base_priors_m_df,
+                                                                            type = "priors", consolidate_name = TRUE, require_main = TRUE
+                                                                            )
 
             ##Join meta_custom_signal_universe_metrics_m_df
-            adapted_custom_signal_weights_m_df <- consolidate_generic_meta_dataframes(meta_generic_m_df = meta_custom_signal_weights_m_df,
-                                                                                      base_generic_m_df = base_custom_signal_weights_m_df,
-                                                                                      type = "weights")
+            consolidated_custom_signal_weights_m_df <- consolidate_generic_meta_dataframes(main_generic_m_df = meta_custom_signal_weights_m_df,
+                                                                                           supplemental_generic_m_df = base_custom_signal_weights_m_df,
+                                                                                           type = "weights", consolidate_name = TRUE, require_main = TRUE
+                                                                                           )
 
             ##Derive meta_custom_signal_universe_metrics_m_df as consolidated eval metrics or join
-            adapted_custom_signal_universe_metrics_m_df <- derive_adapted_custom_signal_universe_m_df(
+            consolidated_custom_signal_universe_metrics_m_df <- derive_adapted_custom_signal_universe_m_df(
               meta_custom_objective = config@meta_sb_backtest_config@custom_objective,
               base_sb_backtest_results_list = base_sb_backtest_results_list, #Base SB Backtest Results List
               meta_custom_signal_universe_metrics_m_df = meta_custom_signal_universe_metrics_m_df, base_custom_signal_universe_metrics_m_df = base_custom_signal_universe_metrics_m_df
@@ -658,9 +673,9 @@ setMethod("run_sb_backtest",
                 config = config@meta_sb_backtest_config, # Meta SB Configuration
                 features_m_df = oos_predictions_m_df, # Features are oos predictions for base models
                 target_m_df = adapted_target_m_df, # Target is the original target
-                backtest_returns_m_xts = adapted_backtest_returns_m_xts, benchmark_returns_m_xts = adapted_benchmark_returns_m_xts, signal_themes_m_df = adapted_signal_themes_m_df, #SS Backtest
-                priors_m_df = adapted_priors_m_df, #Priors
-                custom_signal_weights_m_df = adapted_custom_signal_weights_m_df, custom_signal_universe_metrics_m_df = adapted_custom_signal_universe_metrics_m_df, #Custom Weights and Signal Universe Metrics
+                backtest_returns_m_xts = consolidated_backtest_returns_m_xts, benchmark_returns_m_xts = consolidated_benchmark_returns_m_xts, signal_themes_m_df = consolidated_signal_themes_m_df, #SS Backtest
+                priors_m_df = consolidated_priors_m_df, #Priors
+                custom_signal_weights_m_df = consolidated_custom_signal_weights_m_df, custom_signal_universe_metrics_m_df = consolidated_custom_signal_universe_metrics_m_df, #Custom Weights and Signal Universe Metrics
                 winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel, .test_seed = .test_seed
               )
             }, error = function(e) {

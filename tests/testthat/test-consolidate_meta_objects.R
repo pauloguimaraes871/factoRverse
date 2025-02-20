@@ -355,93 +355,213 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
 })
 
-test_that("consolidate_backtest_returns_m_xts adequately combines base and meta backtests", {
-
+test_that("consolidate_generic_meta_xts adequately combines base and meta backtests for merge operation and require_main = TRUE", {
 
   #Create objects
   set.seed(123)
   #Backtest Returns
   meta_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
-    rf_results = rnorm(10, mean = 5, sd = 3.5),
-    ols_results = rnorm(10, mean = 1, sd = 5),
-    ew_results = rnorm(10, mean = 15, sd = 0.4),
-   order.by = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10))),
-  type = "returns", meta_xts_name = "meta_xts")
+    rf_results = rnorm(5, mean = 5, sd = 3.5),
+    ols_results = rnorm(5, mean = 1, sd = 5),
+    ew_results = rnorm(5, mean = 15, sd = 0.4),
+   order.by = seq.Date(from = as.Date("2001-07-01"), by = "month", length.out = 5))),
+  type = "returns", meta_xts_name = "meta_xts", asset_type = "ports")
 
   base_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
-    asset_turnover_12m = rnorm(5, mean = 5, sd = 3.5),
-    book_yield = rnorm(5, mean = 1, sd = 5),
-    dps_yield = rnorm(5, mean = 15, sd = 0.4),
-    eps_yield = rnorm(5, mean = 0.5, sd = 1.3),
-    mom_res_12m = rnorm(5, mean = 3.15, sd = 3.5),
-    roe_3m = rnorm(5, mean = 1.1, sd = 2),
-    sharpe_6m = rnorm(5, mean = 2.5, sd = 5),
-    low_idio_vol_mrkt_ewma = rnorm(5, mean = 1.05, sd = 7.5)
-  ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
-  type = "returns", meta_xts_name = "base_xts")
+    asset_turnover_12m = rnorm(25, mean = 5, sd = 3.5),
+    book_yield = rnorm(25, mean = 1, sd = 5),
+    dps_yield = rnorm(25, mean = 15, sd = 0.4),
+    eps_yield = rnorm(25, mean = 0.5, sd = 1.3),
+    mom_res_12m = rnorm(25, mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(25, mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(25, mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(25, mean = 1.05, sd = 7.5)
+  ), order.by = seq.Date(from = as.Date("1999-11-01"), by = "month", length.out = 25)),
+  type = "returns", meta_xts_name = "base_xts", asset_type = "ports")
 
 
   #Merge them according to meta_backtest_returns_xts
   expected_results <- merge(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data, join = "left") %>% na.omit() %>% create_meta_xts(
-    meta_xts_name = "meta_xts_base_xts", type = "returns"
-  )
+    meta_xts_name = "meta_xts_base_xts", type = "returns", asset_type = "ports")
 
-  expect_equal(consolidate_backtest_returns_m_xts(meta_backtest_returns_m_xts, base_backtest_returns_m_xts),
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = meta_backtest_returns_m_xts, supplemental_generic_m_xts = base_backtest_returns_m_xts),
                expected_results)
 
   #Only meta_backtest_returns_xts
-  expect_equal(consolidate_backtest_returns_m_xts(meta_backtest_returns_m_xts, base_backtest_returns_m_xts = NULL),
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = meta_backtest_returns_m_xts, supplemental_generic_m_xts = NULL),
                meta_backtest_returns_m_xts)
 
 
   #Only base_backtest_returns_xts
-  expect_equal(consolidate_backtest_returns_m_xts(meta_backtest_returns_m_xts = NULL, base_backtest_returns_m_xts = base_backtest_returns_m_xts),
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = NULL, supplemental_generic_m_xts = base_backtest_returns_m_xts),
                NULL)
 
 
 })
 
-test_that("consolidate_benchmark_returns_m_xts adequately combines base and meta benchmarks", {
-
+test_that("consolidate_generic_meta_xts adequately combines base and meta benchmarks for merge operation and require_main = FALSE", {
 
   #Create objects
   set.seed(123)
   #Backtest Returns
   meta_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
-    theme_ss = rnorm(10, mean = 5, sd = 3.5),
-    theme_sb = rnorm(10, mean = 1, sd = 5)
-  ), order.by = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10)),
-    type = "returns", meta_xts_name = "meta_xts")
+    theme_ss = rnorm(5, mean = 5, sd = 3.5),
+    theme_sb = rnorm(5, mean = 1, sd = 5)
+  ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
+    type = "returns", meta_xts_name = "meta_xts", asset_type = "benchmarks")
 
   base_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
-    IBOV = rnorm(5, mean = 5, sd = 3.5),
-    IDIV = rnorm(5, mean = 1, sd = 5),
-    SMLL = rnorm(5, mean = 15, sd = 0.4)
-  ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
-  type = "returns", meta_xts_name = "base_xts")
+    IBOV = rnorm(10, mean = 5, sd = 3.5),
+    IDIV = rnorm(10, mean = 1, sd = 5),
+    SMLL = rnorm(10, mean = 15, sd = 0.4)
+  ), order.by = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10)),
+  type = "returns", meta_xts_name = "base_xts", asset_type = "benchmarks")
 
 
   #Merge them according to meta_backtest_returns_xts
   expected_results <- merge(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data, join = "left") %>% na.omit() %>% create_meta_xts(
-    type = "returns", meta_xts_name = "meta_xts_base_xts"
+    type = "returns", meta_xts_name = "meta_xts_base_xts", asset_type = "benchmarks"
   )
 
-  expect_equal(consolidate_benchmark_returns_m_xts(meta_benchmark_returns_m_xts, base_benchmark_returns_m_xts),
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = meta_benchmark_returns_m_xts, supplemental_generic_m_xts = base_benchmark_returns_m_xts,
+                                            require_main = FALSE),
                expected_results)
 
   #Only meta_benchmark_returns_xts
-  expect_equal(consolidate_benchmark_returns_m_xts(meta_benchmark_returns_m_xts, base_benchmark_returns_m_xts = NULL),
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = meta_benchmark_returns_m_xts, supplemental_generic_m_xts = NULL, require_main = FALSE),
                meta_benchmark_returns_m_xts)
 
 
   #Only base_benchmark_returns_xts
-  expect_equal(consolidate_benchmark_returns_m_xts(meta_benchmark_returns_m_xts = NULL, base_benchmark_returns_m_xts = base_benchmark_returns_m_xts),
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = NULL, supplemental_generic_m_xts = base_benchmark_returns_m_xts, require_main = FALSE),
                base_benchmark_returns_m_xts)
 
 
 })
 
-test_that("consolidate_generic_meta_dataframes adequately combines base and meta mdfs", {
+test_that("consolidate_generic_meta_xts throws an error when dates have not intersection", {
+
+  #Create objects
+  set.seed(123)
+  #Backtest Returns
+  main_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    theme_ss = rnorm(5, mean = 5, sd = 3.5),
+    theme_sb = rnorm(5, mean = 1, sd = 5)
+  ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
+  type = "returns", meta_xts_name = "meta_xts", asset_type = "benchmarks")
+
+  supp_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    IBOV = rnorm(10, mean = 5, sd = 3.5),
+    IDIV = rnorm(10, mean = 1, sd = 5),
+    SMLL = rnorm(10, mean = 15, sd = 0.4)
+  ), order.by = seq.Date(from = as.Date("2020-01-01"), by = "month", length.out = 10)),
+  type = "returns", meta_xts_name = "base_xts", asset_type = "benchmarks")
+
+
+  expect_error(consolidate_generic_meta_xts(main_generic_m_xts = main_m_xts, supplemental_generic_m_xts = supp_m_xts,
+                                            require_main = FALSE),
+               "There is no intersection between the dates of the two objects. Please check and try again.")
+
+})
+
+test_that("consolidate_generic_meta_xts adequately combines base and meta backtests outputs for bind_rows operation, require_main = TRUE and consolidate_name = FALSE", {
+
+  #Create objects
+  set.seed(123)
+  #Backtest Returns
+  old_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    raw_returns = rnorm(10, mean = 5, sd = 3.5),
+    net_returns = rnorm(10, mean = 1, sd = 5)
+  ), order.by = seq.Date(from = as.Date("2000-01-15"), by = "month", length.out = 10)),
+  type = "returns", meta_xts_name = "old_xts", asset_type = "benchmarks")
+
+  suppressWarnings(
+  new_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    raw_returns = rnorm(1, mean = 5, sd = 3.5),
+    net_returns = rnorm(1, mean = 1, sd = 5)
+  ), order.by = seq.Date(from = as.Date("2000-11-15"), by = "month", length.out = 1)),
+  type = "returns", meta_xts_name = "new_xts", asset_type = "benchmarks")
+  )
+
+  #Merge them according to meta_backtest_returns_xts
+  expected_results <- rbind(old_returns_m_xts@data, new_returns_m_xts@data) %>% create_meta_xts(
+    type = "returns", meta_xts_name = "old_xts", asset_type = "benchmarks"
+  )
+
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = old_returns_m_xts, supplemental_generic_m_xts = new_returns_m_xts,
+                                            require_main = TRUE, consolidate_name = FALSE, operation = "bind_rows"),
+               expected_results)
+
+  #Only old_returns_m_xts
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = old_returns_m_xts, supplemental_generic_m_xts = NULL,
+                                            require_main = TRUE, consolidate_name = FALSE, operation = "bind_rows"),
+               old_returns_m_xts)
+
+
+  #Only new_returns_m_xts
+  expect_equal(consolidate_generic_meta_xts(main_generic_m_xts = NULL, supplemental_generic_m_xts = new_returns_m_xts,
+                                            require_main = TRUE, consolidate_name = FALSE, operation = "bind_rows"),
+               NULL)
+
+
+})
+
+test_that("consolidate_generic_meta_xts error checking", {
+
+  #Create objects
+  set.seed(123)
+  #Backtest Returns
+  old_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    raw_returns = rnorm(10, mean = 5, sd = 3.5),
+    net_returns = rnorm(10, mean = 1, sd = 5)
+  ), order.by = seq.Date(from = as.Date("2000-01-15"), by = "month", length.out = 10)),
+  type = "returns", meta_xts_name = "old_xts", asset_type = "benchmarks")
+
+  suppressWarnings(
+    new_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+      raw_returns = rnorm(1, mean = 5, sd = 3.5),
+      net_returns = rnorm(1, mean = 1, sd = 5)
+    ), order.by = seq.Date(from = as.Date("2000-11-15"), by = "month", length.out = 1)),
+    type = "returns", meta_xts_name = "new_xts", asset_type = "benchmarks")
+  )
+
+  #Wrong colnames
+  wrong_old_returns_m_xts <- old_returns_m_xts
+  colnames(wrong_old_returns_m_xts@data) <- c("net_returns", "raw_returns")
+
+  expect_error(consolidate_generic_meta_xts(main_generic_m_xts = wrong_old_returns_m_xts, supplemental_generic_m_xts = new_returns_m_xts,
+                                            require_main = TRUE, consolidate_name = FALSE, operation = "bind_rows"),
+               "Column names do not match exactly. Please check and try again.")
+
+  #Date intersection
+  wrong_old_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    raw_returns = rnorm(10, mean = 5, sd = 3.5),
+    net_returns = rnorm(10, mean = 1, sd = 5)
+  ), order.by = seq.Date(from = as.Date("2000-02-15"), by = "month", length.out = 10)),
+  type = "returns", meta_xts_name = "old_xts", asset_type = "benchmarks")
+
+  expect_error(consolidate_generic_meta_xts(main_generic_m_xts = wrong_old_returns_m_xts, supplemental_generic_m_xts = new_returns_m_xts,
+                                            require_main = TRUE, consolidate_name = FALSE, operation = "bind_rows"),
+               "There is an intersection between the dates of the two objects. Please check and try again.")
+
+  #No full sequence
+  suppressWarnings(
+    wrong_new_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+      raw_returns = rnorm(1, mean = 5, sd = 3.5),
+      net_returns = rnorm(1, mean = 1, sd = 5)
+    ), order.by = seq.Date(from = as.Date("2000-12-15"), by = "month", length.out = 1)),
+    type = "returns", meta_xts_name = "new_xts", asset_type = "benchmarks")
+  )
+
+  expect_error(consolidate_generic_meta_xts(main_generic_m_xts = old_returns_m_xts, supplemental_generic_m_xts = wrong_new_returns_m_xts,
+                                            require_main = TRUE, consolidate_name = FALSE, operation = "bind_rows"),
+               "The two objects do not have a fully filled date sequence. Please check and try again.")
+
+
+
+})
+
+test_that("consolidate_generic_meta_dataframes adequately combines base and meta mdfs (require_main TRUE and FALSE)", {
 
   #Base Signal Themes
   base_signal_themes_m_df <- expand.grid(
@@ -479,16 +599,63 @@ test_that("consolidate_generic_meta_dataframes adequately combines base and meta
     type = "groups", meta_dataframe_name = "meta_st_st_11"
   )
 
-  expect_equal(consolidate_generic_meta_dataframes(meta_signal_themes_m_df, base_signal_themes_m_df),
+  expect_equal(consolidate_generic_meta_dataframes(main_generic_m_df = meta_signal_themes_m_df, supplemental_generic_m_df = base_signal_themes_m_df,
+                                                   type = "groups"),
                expected_results)
 
   expect_equal(consolidate_generic_meta_dataframes(NULL, base_signal_themes_m_df),
                NULL)
 
+  expect_equal(consolidate_generic_meta_dataframes(NULL, base_signal_themes_m_df, require_main = FALSE),
+               base_signal_themes_m_df)
+
   expect_equal(consolidate_generic_meta_dataframes(meta_signal_themes_m_df, NULL),
                meta_signal_themes_m_df)
 
 
+
+})
+
+test_that("consolidate_generic_meta_dataframes error checking", {
+
+  #Base Signal Themes
+  base_signal_themes_m_df <- expand.grid(
+    tickers = c("mom_res_12m", "sharpe_6m", "dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield", "roe_3m", "low_idio_vol_mrkt_ewma"),
+    dates = seq.Date(from = as.Date("2000-01-01"), by = "month", length.out = 10),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  base_signal_themes_m_df <- create_meta_dataframe(base_signal_themes_m_df, "st_11", type = "groups")
+
+  #Meta Signal Themes
+  meta_signal_themes_m_df <- expand.grid(
+    tickers = c("rf_results", "ols_results", "xgb_results", "glmnet_results", "nn1_results", "nn2_results", "nn3_results", "rp_results", "mvo_results"),
+    dates = seq.Date(from = as.Date("2000-05-01"), by = "month", length.out = 5),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("rf_results", "xgb_results") ~ "tree",
+                        tickers %in% c("ols_results", "glmnet_results") ~ "linear",
+                        tickers %in% c("nn1_results", "nn2_results", "nn3_results") ~ "neural",
+                        tickers %in% c("rp_results", "mvo_results") ~ "heuristic"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  meta_signal_themes_m_df <- create_meta_dataframe(meta_signal_themes_m_df, "meta_st", type = "groups")
+
+  #Column names do not match
+  wrong_meta_signal_themes_m_df <- meta_signal_themes_m_df
+  colnames(wrong_meta_signal_themes_m_df@data) <- c("id", "ticker", "dates", "teme")
+
+  expect_error(consolidate_generic_meta_dataframes(main_generic_m_df = wrong_meta_signal_themes_m_df, supplemental_generic_m_df = base_signal_themes_m_df,
+                                                   type = "groups"),
+               "Column names do not match exactly. Please check and try again.")
 
 })
 

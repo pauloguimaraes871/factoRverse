@@ -218,9 +218,6 @@ setMethod("run_ss_backtest",
             #Adjust SS Backtest WF
             ###########################
 
-            ##Add config
-            ss_backtest_results@ss_backtest_config <- config
-
             #Add workflows, config_name and objects for target and features
             ###Signals
             ss_backtest_results@ss_backtest_workflow$signals_object_name <- signals_object_name

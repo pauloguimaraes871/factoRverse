@@ -4,7 +4,7 @@
 #' This function consolidates out-of-sample (OOS) predictions from a list of `sb_backtest_results` objects into a single meta dataframe.
 #' It supports optional winsorization and normalization of predictions, as well as passthrough of specific features to the output dataframe.
 #'
-#' @param base_sb_backtest_results_list A list of `sb_backtest_results` objects, each containing OOS predictions and associated metadata.
+#' @param base_sb_backtest_outputs_list A list of `sb_backtest_results` objects, each containing OOS predictions and associated metadata.
 #' @param winsorize_predictions Logical; if `TRUE`, performs winsorization on predictions to mitigate the effect of outliers. Default is `TRUE`.
 #' @param normalize_predictions Logical; if `TRUE`, normalizes predictions to ensure comparability across models. Default is `TRUE`.
 #' @param winsorization_probs A numeric vector of length 2 specifying the lower and upper quantile probabilities for winsorization. Default is `c(0.025, 0.975)`.
@@ -13,7 +13,7 @@
 #'
 #' @details
 #' The function performs a series of validation checks to ensure the consistency of input data:
-#' - All elements in `base_sb_backtest_results_list` must have the same `oos_predictions_m_df` structure, with matching `id` values across all elements.
+#' - All elements in `base_sb_backtest_outputs_list` must have the same `oos_predictions_m_df` structure, with matching `id` values across all elements.
 #' - The list must have unique, non-empty names to be used as column identifiers in the consolidated dataframe.
 #' - If `features_passthrough` is not `"none"`, a `features_m_df` must be provided.
 #'
@@ -27,7 +27,7 @@
 #' \dontrun{
 #' # Example with default options
 #' consolidated_df <- consolidate_oos_sb_outputs_m_df(
-#'   base_sb_backtest_results_list = list_of_sb_results,
+#'   base_sb_backtest_outputs_list = list_of_sb_results,
 #'   features_passthrough = "all",
 #'   features_m_df = features_df
 #' )
@@ -37,41 +37,41 @@
 #' [sb_backtest_results-class] for the definition of `sb_backtest_results` objects.
 #' [create_meta_dataframe()] for constructing a meta dataframe.
 #'
-consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
+consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_outputs_list,
                                             winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
                                             features_passthrough_and_positions = "none", features_m_df = NULL) {
 
   #Initial checks
   #########################
     ##Check if input is a list
-    if (!is.list(base_sb_backtest_results_list)) {
+    if (!is.list(base_sb_backtest_outputs_list)) {
       stop("Input must be a list of S4 objects.")
     }
 
     ##Check if elements of lists in oos_predictions_list match
-    elements <- lapply(base_sb_backtest_results_list, function(x) x@oos_sb_outputs_m_df@data %>% dplyr::select(id))
+    elements <- lapply(base_sb_backtest_outputs_list, function(x) x@oos_sb_outputs_m_df@data %>% dplyr::select(id))
     if (!all(purrr::map_lgl(elements, ~ identical(.x, elements[[1]])))){
       stop("Elements of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
     }
 
     ##Check if there are avaialable features_m_df ids
     if (!is.null(features_m_df)) {
-      if (any(!base_sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data$id %in% features_m_df@data$id))
+      if (any(!base_sb_backtest_outputs_list[[1]]@oos_sb_outputs_m_df@data$id %in% features_m_df@data$id))
         stop("Not all ids in base_sb_backtest_results are available in features_m_df")
     }
 
     ##Check if backtest_ids are in fact unique
-    if (length(sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)) !=
-        length(unique(sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)))) {
+    if (length(sapply(base_sb_backtest_outputs_list, function(x) x@backtest_identifier)) !=
+        length(unique(sapply(base_sb_backtest_outputs_list, function(x) x@backtest_identifier)))) {
       stop("Backtest identifiers must be unique.")
     }
 
-    if (length(unique(names(base_sb_backtest_results_list))) != length(base_sb_backtest_results_list)){
+    if (length(unique(names(base_sb_backtest_outputs_list))) != length(base_sb_backtest_outputs_list)){
       stop("Names of sb_backtest_results objects must be unique.")
     }
 
     ##Check if length of oos_predictions_list match
-    if (!all(sapply(base_sb_backtest_results_list, function(x) nrow(x@oos_sb_outputs_m_df@data)) == nrow(base_sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data))){
+    if (!all(sapply(base_sb_backtest_outputs_list, function(x) nrow(x@oos_sb_outputs_m_df@data)) == nrow(base_sb_backtest_outputs_list[[1]]@oos_sb_outputs_m_df@data))){
       stop("Number of rows of oos_sb_outputs_m_df in each sb_backtest_results object must be the same.")
     }
 
@@ -88,12 +88,12 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
     ##Create base obj
     oos_predictions_m_df <- purrr::reduce(
       # Use all but the first S4 object in the iteration
-      .x = base_sb_backtest_results_list[-1],
+      .x = base_sb_backtest_outputs_list[-1],
 
       # Start with the data frame from the first object
-      .init = base_sb_backtest_results_list[[1]]@oos_sb_outputs_m_df@data %>%
+      .init = base_sb_backtest_outputs_list[[1]]@oos_sb_outputs_m_df@data %>%
         dplyr::select(id, tickers, dates, pred) %>%
-        dplyr::rename_with(~ paste0(base_sb_backtest_results_list[[1]]@backtest_identifier), .cols = "pred"),
+        dplyr::rename_with(~ paste0(base_sb_backtest_outputs_list[[1]]@backtest_identifier), .cols = "pred"),
 
       # For each iteration, 'df_acc' is a data.frame, 'sb_obj' is the next S4 object
       .f = function(df_acc, sb_obj) {
@@ -114,7 +114,7 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
       }
 
       ###Check for backtest_identifier columns
-      if (any(!names(base_sb_backtest_results_list) %in% colnames(oos_predictions_m_df))){
+      if (any(!names(base_sb_backtest_outputs_list) %in% colnames(oos_predictions_m_df))){
         stop("All backtests should be in oos_predictions_m_df.")
       }
 
@@ -150,92 +150,272 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_results_list,
   return(oos_predictions_and_features_m_df)
 }
 
-
-#' @title Consolidate Backtest Returns (XTS)
+#' @title Consolidate Generic Meta XTS
 #'
 #' @description
-#' This function consolidates two XTS objects containing backtest returns by merging them.
-#' If one of the inputs is NULL, the function returns the other non-NULL object.
-#' If both are non-NULL, it merges them using a left join and removes any missing values.
+#' Merges meta and base XTS objects, handling cases where either object is NULL.
+#' If both are present, they are combined using bind_rows.
 #'
-#' @param meta_backtest_returns_m_xts An XTS object representing meta backtest returns.
-#' @param base_backtest_returns_m_xts An XTS object representing base backtest returns.
+#' @param main_generic_m_xts An XTS object representing the most important object.
+#' @param supplemental_generic_m_xts An XTS object representing supplementary.
+#' @param type A character string indicating the type of data (e.g., "groups").
+#' @param consolidate_name A logical indicating whether to consolidate the name of the meta dataframe.
+#' @param require_main A logical indicating whether to return NULL if main_generic_m_df is NULL.
+#' @param operation A character indicating whether to 'merge' or 'bind_rows' the data.
 #'
-#' @return A consolidated XTS object containing the merged data with updated metadata.
-#' If `meta_backtest_returns_m_xts` is NULL, NULL is returned.
+#' @return A consolidated xts combining main and new data or the appropriate object depending on require_main
 #'
-#' @examples
-#' consolidated <- consolidate_backtest_returns_xts(meta_xts, base_xts)
-#'
-consolidate_backtest_returns_m_xts <- function(meta_backtest_returns_m_xts, base_backtest_returns_m_xts) {
-  # Return NULL if meta_backtest_returns_m_xts is NULL
-  if (is.null(meta_backtest_returns_m_xts)) return(NULL)
+consolidate_generic_meta_xts <- function(main_generic_m_xts, supplemental_generic_m_xts, type = "returns", consolidate_name = TRUE, require_main = TRUE,
+                                         operation = "merge"){
 
-  # Return meta_backtest_returns_m_xts if base_backtest_returns_m_xts is NULL
-  if (is.null(base_backtest_returns_m_xts)) return(meta_backtest_returns_m_xts)
+  #Checks if main and new are being provided and return according to require_main
+  #############
+    ##main_generic_m_xts
+    if (is.null(main_generic_m_xts)){
+      ###If main_generic_m_xts is NULL, just pass NULL or supplemental_generic_m_xts depending on require_main
+      if (require_main) return(NULL) else return(supplemental_generic_m_xts)
+    }
+    ##supplemental_generic_m_xts
+      ###If supplemental_generic_m_xts is NULL, just pass main_generic_m_xts
+      if (is.null(supplemental_generic_m_xts)) return(main_generic_m_xts)
 
-  # Merge meta and base backtest returns using a left join
-  return(create_meta_xts(merge(meta_backtest_returns_m_xts@data, base_backtest_returns_m_xts@data, join = "left") %>% na.omit(), #Join
-                               meta_xts_name = paste0(meta_backtest_returns_m_xts@meta_xts_name, "_", base_backtest_returns_m_xts@meta_xts_name), #Rename
-                               type = "returns")
-        )
+  #############
+  #Merge
+  if (operation == "merge"){
+    ###Check that there is an intersection in dates
+    if (!any(zoo::index(main_generic_m_xts@data) %in% zoo::index(supplemental_generic_m_xts@data))){
+      stop("There is no intersection between the dates of the two objects. Please check and try again.")
+    }
+
+    ###Merge main and new generic meta XTS objects using a left join
+    consolidate_meta_xts <- create_meta_xts(merge(main_generic_m_xts@data, supplemental_generic_m_xts@data, join = "left") %>% na.omit(), #Join
+                                            meta_xts_name =
+                                              #Dynamically build the object name
+                                              if (consolidate_name){
+                                                paste0(main_generic_m_xts@meta_xts_name, "_", supplemental_generic_m_xts@meta_xts_name)
+                                              } else {
+                                                main_generic_m_xts@meta_xts_name
+                                              }, type = type, asset_type = if (type == "returns") main_generic_m_xts@asset_type else NULL
+                                            )
+
+    return(consolidate_meta_xts)
+
+  }
+  #Bind
+  if (operation == "bind_rows"){
+    ##Bind main and new generic meta XTS objects
+      ###Check that there is no intersection between dates of each object
+      if (any(zoo::index(main_generic_m_xts@data) %in% zoo::index(supplemental_generic_m_xts@data))){
+        stop("There is an intersection between the dates of the two objects. Please check and try again.")
+      }
+
+      ###Check that binding the two dates sequence will generate a fully filled sequence
+      beggining_date <- min(min(zoo::index(main_generic_m_xts@data)), min(zoo::index(supplemental_generic_m_xts@data)))
+      end_date <- max(max(zoo::index(main_generic_m_xts@data)), max(zoo::index(supplemental_generic_m_xts@data)))
+      expected_date_sequence <- seq.Date(from = beggining_date, to = end_date, by = "month")
+      actual_date_sequence <- zoo::index(rbind(main_generic_m_xts@data, supplemental_generic_m_xts@data))
+      if (length(expected_date_sequence) != length(actual_date_sequence) || !all(expected_date_sequence == actual_date_sequence)){
+        stop("The two objects do not have a fully filled date sequence. Please check and try again.")
+      }
+
+      ###Check if colnames match exactly
+      if (!identical(colnames(main_generic_m_xts@data), colnames(supplemental_generic_m_xts@data))){
+        stop("Column names do not match exactly. Please check and try again.")
+      }
+
+      ###Ensure that rbind is time ordered just to be sure
+      tmp_xts <- rbind(main_generic_m_xts@data, supplemental_generic_m_xts@data)
+      tmp_xts <- tmp_xts[order(zoo::index(tmp_xts)), ] #Sort by index in ascending order
+
+    ##Create the consolidated meta xts
+    consolidate_meta_xts <- create_meta_xts(tmp_xts, #Row-Binded
+                                            meta_xts_name =
+                                              #Dynamically build the object name
+                                              if (consolidate_name){
+                                                paste0(main_generic_m_xts@meta_xts_name, "_", supplemental_generic_m_xts@meta_xts_name)
+                                              } else {
+                                                main_generic_m_xts@meta_xts_name
+                                              }, type = type, asset_type = if (type == "returns") main_generic_m_xts@asset_type else NULL
+    )
+
+    return(consolidate_meta_xts)
+
+  }
+
 }
 
-
-#' @title Consolidate Benchmark Returns (XTS)
-#'
-#' @description
-#' This function consolidates two benchmark return XTS objects.
-#' If one is NULL, it returns the other. If both are present, they are merged.
-#'
-#' @param meta_benchmark_returns_m_xts An XTS object containing meta benchmark returns.
-#' @param base_benchmark_returns_m_xts An XTS object containing base benchmark returns.
-#'
-#' @return A combined XTS object with updated metadata or NULL.
-#'
-#' @examples
-#' result <- consolidate_benchmark_returns_xts(meta_xts, base_xts)
-consolidate_benchmark_returns_m_xts <- function(meta_benchmark_returns_m_xts, base_benchmark_returns_m_xts) {
-  # Case 1 & 2: Return the non-NULL object if either is NULL, or NULL if both are NULL
-  if (is.null(meta_benchmark_returns_m_xts)) return(base_benchmark_returns_m_xts)
-  if (is.null(base_benchmark_returns_m_xts)) return(meta_benchmark_returns_m_xts)
-
-  # Case 3: Merge both if neither is NULL
-  return(create_meta_xts(merge(meta_benchmark_returns_m_xts@data, base_benchmark_returns_m_xts@data, join = "left") %>% na.omit(), #Join
-                         meta_xts_name = paste0(meta_benchmark_returns_m_xts@meta_xts_name, "_", base_benchmark_returns_m_xts@meta_xts_name), #Rename
-                         type = "returns")
-         )
-
-}
-
-#' @title Consolidate Meta and Base Dataframes
+#' @title Consolidate Generic Meta Dataframes
 #'
 #' @description
 #' Merges meta and base dataframes, handling cases where either dataframe is NULL.
 #' If both are present, they are combined using a full join and sorted by ID.
 #'
-#' @param meta_generic_m_df A meta dataframe object.
-#' @param base_generic_m_df A base dataframe object.
+#' @param main_generic_m_df A meta dataframe object.
+#' @param supplemental_generic_m_df A base dataframe object.
 #' @param type A character string indicating the type of data (e.g., "groups").
+#' @param consolidate_name A logical indicating whether to consolidate the name of the meta dataframe.
+#' @param require_main A logical indicating whether to return NULL if main_generic_m_df is NULL.
 #'
-#' @return A consolidated dataframe combining meta and base data, or NULL if meta is NULL.
+#' @return A consolidated dataframe combining main and new data or the appropriate object depending on require_main
 #'
 #' @examples
 #' consolidated_df <- consolidate_generic_meta_dataframes(meta_df, base_df, "groups")
 #'
-consolidate_generic_meta_dataframes <- function(meta_generic_m_df, base_generic_m_df, type) {
-  if (is.null(meta_generic_m_df)){
-    ##If meta_generic_m_df is NULL, just pass NULL
-    adapted_generic_m_df <- NULL
-  } else if (is.null(base_generic_m_df))  {
-    adapted_generic_m_df <- meta_generic_m_df
-  } else {
-    ##Else Full Join them. If base is NULL, it will return only meta_generic_m_df
-    adapted_generic_m_df <- dplyr::bind_rows(meta_generic_m_df@data, base_generic_m_df@data) %>% dplyr::arrange(id) %>%
-      create_meta_dataframe(meta_dataframe_name = paste0(meta_generic_m_df@meta_dataframe_name, "_", base_generic_m_df@meta_dataframe_name), type = "groups")
-  }
-  return(adapted_generic_m_df)
+consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_generic_m_df, type, consolidate_name = TRUE, require_main = TRUE) {
+
+  #Checks if main and new are being provided and return according to require_main
+  #############
+    ##main_generic_m_df
+    if (is.null(main_generic_m_df)){
+      ###If main_generic_m_df is NULL, just pass NULL or supplemental_generic_m_df
+      if (require_main) return(NULL) else return(supplemental_generic_m_df)
+    }
+    ##supplemental_generic_m_df
+    if (is.null(supplemental_generic_m_df)) return(main_generic_m_df)
+      ###If supplemental_generic_m_df is NULL, just pass main_generic_m_df
+
+  #############
+
+  #Consolidate if both exist
+  #############
+    ###Check if colnames match exactly
+    if (!identical(colnames(main_generic_m_df@data), colnames(supplemental_generic_m_df@data))){
+      stop("Column names do not match exactly. Please check and try again.")
+    }
+
+
+    ##Full Join them. If base is NULL, it will return only main_generic_m_df
+    consolidated_generic_m_df <- dplyr::bind_rows(main_generic_m_df@data, supplemental_generic_m_df@data) %>% dplyr::arrange(id) %>%
+      create_meta_dataframe(meta_dataframe_name =
+                            #Dynamically build the object name
+                            if (consolidate_name){
+                              paste0(main_generic_m_df@meta_dataframe_name, "_", supplemental_generic_m_df@meta_dataframe_name)
+                            } else {
+                              main_generic_m_df@meta_dataframe_name
+                            }, type = type)
+
+  return(consolidated_generic_m_df)
 }
+
+#' @title Consolidate Newly Produced Backtest Results
+#'
+#' @description
+#' This function takes a named list of newly produced backtest results, each either
+#' an \code{_m_df} or an \code{_m_xts} object, and merges each with the corresponding
+#' old object retrieved from the global \code{results} object. The old object is
+#' treated as the "main" data source, and the new object as the "additional" data.
+#'
+#' Specifically:
+#' \itemize{
+#'   \item For objects whose name ends with \code{"_m_df"}, the function uses
+#'         \code{\link{consolidate_generic_meta_dataframes}}.
+#'   \item For objects whose name ends with \code{"_m_xts"}, it uses
+#'         \code{\link{consolidate_generic_meta_xts}}, with an operation of
+#'         \code{"bind_rows"}.
+#' }
+#'
+#' @param backtest_outputs_list A named list of new backtest results. Each element's
+#'   name (like \code{"port_weights_m_df"}) must match the corresponding slot name in
+#'   the global \code{results} object. Values should be S4 objects that have a
+#'   \code{data} slot (accessible via \code{new_obj@data}).
+#'
+#' @return A named list of consolidated objects, each updated to include both the
+#' old and new data. The order of returned elements matches the order in
+#' \code{backtest_outputs_list}.
+#'
+#' @details
+#' The function will:
+#' \enumerate{
+#'   \item Look up an old object in the global \code{results} by the same name.
+#'   \item If the name ends with \code{"_m_df"}, call
+#'         \code{consolidate_generic_meta_dataframes(main_generic_m_df = old_obj,
+#'         additional_generic_m_df = new_obj, ...)}.
+#'   \item If the name ends with \code{"_m_xts"}, call
+#'         \code{consolidate_generic_meta_xts(main_generic_m_xts = old_obj,
+#'         additional_generic_m_xts = new_obj, ...)}.
+#'   \item Update the \code{@data} slot of the new object with the consolidated result.
+#'   \item Return the updated new object in the output list.
+#' }
+#'
+#' An error will be thrown if \code{results[[slot_name]]} does not exist or if the
+#' slot name does not match the expected \code{"_m_df"} or \code{"_m_xts"} pattern.
+#'
+#' @seealso
+#' \code{\link{consolidate_generic_meta_dataframes}},
+#' \code{\link{consolidate_generic_meta_xts}}
+#'
+#' @examples
+#' \dontrun{
+#'   # Suppose you have a global 'results' object with old backtest results,
+#'   # and you produce a new list of updated objects:
+#'   new_list <- list(
+#'     port_weights_m_df = new_port_weights_m_df,
+#'     stock_universe_m_df = new_stock_universe_m_df,
+#'     port_returns_m_xts = new_port_returns_m_xts
+#'   )
+#'
+#'   # Consolidate
+#'   updated_list <- consolidate_backtest_results(new_list)
+#'
+#'   # 'updated_list' now holds consolidated versions of the new objects,
+#'   # each combined with the old data in 'results'.
+#' }
+#'
+consolidate_backtest_results <- function(backtest_outputs_list){
+
+  ### Consolidate using purrr
+  updated_results_list <- purrr::imap(
+    .x = backtest_outputs_list,
+    .f = function(new_obj, slot_name){
+
+      #### Retrieve the old object by the same slot name from 'results'
+      old_obj <- results[[slot_name]]
+      ##### Check if it exists
+      if (is.null(old_obj)) {
+        stop(sprintf("No old object named '%s' in 'results'.", slot_name))
+      }
+
+      #### Consolidate data
+      if (grepl("_m_df$", slot_name)) {
+
+        # Use the "dataframes" consolidation
+        consolidated_m_df <- consolidate_generic_meta_dataframes(
+          main_generic_m_df = old_obj,  # the 'main' object
+          supplemental_generic_m_df  = new_obj,  # the 'additional' object
+          type = stringr::str_remove(class(new_obj), "_m_df"),
+          consolidate_name = FALSE
+        )
+        # Update the new object's data slot
+        new_obj@data <- consolidated_m_df
+
+      } else if (grepl("_m_xts$", slot_name)) {
+
+        # Use the "xts" consolidation
+        consolidated_m_xts <- consolidate_generic_meta_xts(
+          main_generic_m_xts       = old_obj,
+          supplemental_generic_m_xts = new_obj,
+          type = stringr::str_remove(class(new_obj), "_m_xts"),
+          consolidate_name = FALSE,
+          operation = "bind_rows"
+        )
+        # Update the new object's data slot
+        new_obj@data <- consolidated_m_xts
+
+      } else {
+        # If neither, we warn and return the new object unchanged
+        warning(sprintf("Slot '%s' doesn't match _m_df nor _m_xts suffix; skipping.", slot_name))
+        return(new_obj)
+      }
+
+      #### Return the updated object
+      new_obj
+    }
+  )
+  return(updated_results_list)
+}
+
+
+
 
 #' @title Derive Adapted Custom Signal Universe Metrics
 #'
@@ -244,13 +424,13 @@ consolidate_generic_meta_dataframes <- function(meta_generic_m_df, base_generic_
 #' It processes evaluation metrics across multiple backtest results and integrates them with meta-level data.
 #'
 #' @param meta_custom_objective A character string representing the custom objective (e.g., 'min_rss').
-#' @param base_sb_backtest_results_list A list of backtest results for processing.
+#' @param base_sb_backtest_outputs_list A list of backtest results for processing.
 #' @param meta_custom_signal_universe_metrics_m_df Meta-level metrics dataframe.
 #' @param base_custom_signal_universe_metrics_m_df Base-level metrics dataframe.
 #'
 #' @return A combined and processed dataframe of signal universe metrics.
 #'
-derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, base_sb_backtest_results_list,
+derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, base_sb_backtest_outputs_list,
                                                        meta_custom_signal_universe_metrics_m_df, base_custom_signal_universe_metrics_m_df
                                                         ) {
 
@@ -259,7 +439,7 @@ derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, ba
     ###Use reduce to join all oos_testing_eval_metrics_m_df into a consolidate object
     purrr::map(
       ####Apply a map function to transform each oos_testing_eval_metrics_m_xts into a meta_dataframe-like object
-      base_sb_backtest_results_list,
+      base_sb_backtest_outputs_list,
       function(x){
         x@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% #First extract all oos_testing eval metrics xts
           tibble::rownames_to_column(var = "dates") %>% #Rename to dates column

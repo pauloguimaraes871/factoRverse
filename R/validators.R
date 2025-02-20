@@ -659,4 +659,139 @@ validate_liquidity_floor_cutoffs <- function(liquidity_floor_cutoffs, main_liqui
   invisible(TRUE)
 }
 
+#' Validate update_backtest_inputs
+#'
+#' @description
+#' Checks that each object in a named list of `_m_df` or `_m_xts` objects:
+#' \itemize{
+#'   \item Matches the expected name in the \code{results@port_backtest_workflow}.
+#'   \item Has new dates beyond those in \code{dates_covered}.
+#'   \item Starts exactly one month after the last date in \code{dates_covered}.
+#'   \item Contains exactly \code{n_update} new dates, as specified in
+#'         \code{results@port_backtest_config@n_update}.
+#' }
+#'
+#' @param new_objects_list A named list of `_m_df` or `_m_xts` objects, each object having
+#'                         a \code{meta_dataframe_name} or \code{meta_xts_name} slot,
+#'                         plus a \code{@data} slot with actual data.
+#' @param results          A backtest results object that must contain:
+#'   \itemize{
+#'     \item \code{@port_backtest_workflow}, where each object name is stored in a field
+#'           named \code{<prefix>_obj_name}.
+#'     \item \code{@port_backtest_config}, which must have \code{n_update}.
+#'   }
+#' @param dates_covered    A vector of dates that have already been covered by the backtest.
+#'
+#' @return
+#' \code{TRUE} (invisibly) if all checks pass, otherwise raises an error via \code{stop()}.
+#'
+#' @examples
+#' \dontrun{
+#'   # Example usage (pseudo-code):
+#'   new_list <- list(
+#'     signals_m_df = my_signals_m_df,
+#'     daily_stock_returns_m_xts = my_daily_stock_returns_m_xts
+#'   )
+#'   check_backtest_objects(
+#'     new_objects_list = new_list,
+#'     results = my_results,
+#'     dates_covered = my_dates_covered
+#'   )
+#' }
+check_update_backtest_objects <- function(new_objects_list, old_objects_names, dates_covered) {
+
+  ##Initial Prep
+  ###############
+    ###Get last_dates_covered
+    last_date_covered <- dates_covered[length(dates_covered)]
+
+    ###Helper function: remove "_m_df" or "_m_xts" from the name
+    remove_suffix <- function(x) {
+      sub("(_m_df|_m_xts)$", "", x)
+    }
+
+  ###############
+
+  ##Loop through each object, detect suffix, check object name and dates
+  ###############
+  for (arg_name in names(new_objects_list)) {
+    obj <- new_objects_list[[arg_name]]
+    old_obj <- old_results[[arg_name]]
+
+    ###If NULL, skip
+    if (is.null(obj)) next
+
+    ###Identify whether argument ends in _m_df or _m_xts
+    if (grepl("_m_df$", arg_name)) {
+      ####Extract meta name
+      meta_name <- obj@meta_dataframe_name #Suffix is _m_df => check meta_dataframe_name
+      expected_name <- old_obj@meta_dataframe_name
+      ####Extract dates for m_df
+      new_obj_dates <- obj@data %>% dplyr::pull(dates) %>% unique() %>% sort() #Suffix is _m_df => acess underlying data.frame
+    } else if (grepl("_m_xts$", arg_name)) {
+      ####Extract meta name
+      meta_name <- obj@meta_xts_name #Suffix is _m_xts => check meta_xts_name
+      ####Extract dates for m_xts
+      new_obj_dates <- zoo::index(obj@data)
+    } else {
+      # If object name doesn't end in _m_df or _m_xts, skip
+      next
+    }
+
+    ###Check meta_name vs workflow
+    ####Derive the prefix by removing the suffix
+    prefix <- remove_suffix(arg_name)  # e.g. "signals_m_df" => "signals"
+    workflow_field <- paste0(prefix, "_obj_name") #The workflow field is "<prefix>_obj_name". E.g. "signals_obj_name"
+
+    ####Compare
+    if (meta_name != expected_name) {
+      stop(sprintf(
+        "Updated %s does not match object name in port_backtest_workflow.\nExpected: %s, got: %s",
+        arg_name, expected_name, meta_name
+      ))
+    }
+
+    ###Check dates
+    ####Check if new object is somehow shorter than the last date covered
+    if (length(new_obj_dates) <= length(dates_covered)) {
+      stop(sprintf("No new dates to cover for %s!", arg_name))
+    }
+
+    ####Check if new date is within dates covered
+    first_new_date <- new_obj_dates[length(dates_covered) + 1]
+    if (first_new_date %in% dates_covered) {
+      stop(sprintf(
+        "The first new date of %s is already covered by the existing backtest results.",
+        arg_name
+      ))
+    }
+
+    ####Check if new date is within expected range
+    expected_next_date <- lubridate::add_with_rollback(last_date_covered, months(1))
+    if (first_new_date != expected_next_date) {
+      stop(sprintf(
+        paste0("The first new date of %s does not match the expected date.\n",
+               "Expected: %s\nGot: %s"),
+        arg_name, expected_next_date, first_new_date
+      ))
+    }
+
+    ####Check if total new # of dates is consistent with n_update
+    if ((length(new_obj_dates) - length(dates_covered)) != config@n_update) {
+      stop(sprintf(
+        paste0("The new dates in %s do not conform to the expected n_update.\n",
+               "Expected total length: %s\nGot total length: %s"),
+        arg_name,
+        length(dates_covered) + config@n_update,
+        length(new_obj_dates)
+      ))
+    }
+  }
+  ###############
+
+  return(invisible(TRUE))
+
+}
+
+
 
