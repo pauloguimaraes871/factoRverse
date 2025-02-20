@@ -1370,14 +1370,14 @@ test_that("OLS - run_sb_backtest works with toy_preprocessed_features_and_target
     roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
     sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
     low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates)), type = "assets")
+  ), order.by = unique(toy_preprocessed_features$dates)), type = "returns")
 
   #Benchmark Returns xts
   suppressWarnings( #supress warning
   mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
     SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
-  ),  order.by = unique(toy_preprocessed_features$dates)), type = "assets")
+  ),  order.by = unique(toy_preprocessed_features$dates)), type = "returns")
 )
 
   #Chosen Signals and Positions
@@ -2727,120 +2727,146 @@ test_that("EW - run_sb_backtest works with toy_preprocessed_features_and_targets
 
 })
 #Define your test
-test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets + signal_selection", {
+test_that("RP - run_sb_backtest works in full integration with run_port_backtest + run_ss_backtest with toy_preprocessed_features_and_targets + signal_selection", {
 
-  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep ="")) #Overwrite all but signal_themes
 
-  set.seed(123)
-  #Backtest Returns
-  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
-    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
-    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
-    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
-    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
-    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
-    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
-    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
-    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
-  ), order.by = unique(toy_preprocessed_features$dates)), meta_xts_name = "mocked")
+  signals_m_df <- create_meta_dataframe(signals_m_df, "signals_123")
+  signals_m_df@workflow <- list("normalization")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, roe_3m))
 
-  #Benchmark Returns xts
-  suppressWarnings(
-  mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
-    IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
-    SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
-  ),  order.by = unique(toy_preprocessed_features$dates))
-  ))
+  #Characteristics portfolio
+  characteristics_ports <- c(
+    book_yield = "long",
+    dy_med_36m = "long",
+    eps_yield = "long",
+    mom_res_12m = "long",
+    roe_3m = "long",
+    sharpe_6m = "long",
+    vol_36m = "short"
+  )
 
-  #Chosen Signals and Positions
-  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long", dps_yield = "long", eps_yield = "long",
-                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+  #Create config list
+  port_backtest_config_list <- purrr::imap(characteristics_ports, function(pos, metric_name) {
+    create_port_backtest_config(
+      eligibility_quantile_range = c(0.67, 1),
+      selected_benchmark = "ibov",
+      initial_buffer_period = 2,
+      chosen_score_metric_and_position = stats::setNames(pos, metric_name),
+      rebalancing_months = 4,
+      port_construction_method = "sw",
+      main_liquidity_metric = "mean_volfin_3m",
+      config_name = metric_name
+    ) %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = c("mean_volfin_3m", "presence"),
+        metric_cutoffs = list(
+          c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+          c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+        )) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+  })
 
-  #Mocked Signal Themes
-  mocked_signal_themes_m_df <- expand.grid(
-    tickers = names(mocked_backtest_returns_m_xts@data),
-    dates = unique(toy_preprocessed_features$dates),
-    stringsAsFactors = FALSE
-  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
-                      theme = dplyr::case_when(
-                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
-                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
-                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
-                      )
-  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+  #Run!
+  future::plan("sequential")
+  port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+    run_port_backtest(
+      signals_m_df = signals_m_df,
+      fwd_return_m_df = fwd_return_m_df,
+      liquidity_m_df = liquidity_m_df,
+      volatility_m_df = volatility_m_df,
+      config = port_config,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      custom_stock_metrics_m_df = port_metrics_m_df,
+      verbose = TRUE
+    )
+  }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
 
-  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
 
-  ##SS Config
-  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
+
+  #SS Configuration and results
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", dy_med_36m = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 5, rebalancing_months = 4,
                                                      split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
                                                      chosen_signals_and_positions = chosen_signals_and_positions
   ) %>%
     add_alpha_test_strategy(model_structure = "no_pooled",
-                            signal_significance_threshold = 0.15, p_correction_method = "none",
-                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+                            signal_significance_threshold = 0.50, p_correction_method = "none",
+                            market_factor_proxy = "ibov", enable_theme_representativeness = TRUE)
 
-  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+  signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11", type =  "groups")
+
+
 
   ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
     run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = features_m_df, backtest_returns_m_xts = mocked_backtest_returns_m_xts, benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signals_m_df = signals_m_df, port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
                     signal_themes_m_df = signal_themes_m_df,
                     verbose = TRUE
     )
   )
 
   ##RP Config
-  rp_config <- create_sb_backtest_config(sb_algorithm = "rp", rebalancing_months = 7, training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
-    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 4, active_returns = TRUE, cov_matrix_benchmark = "IBOV") %>%
+  rp_config <- create_sb_backtest_config(sb_algorithm = "rp", rebalancing_months = 4, training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
+    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 2, active_returns = TRUE, cov_matrix_benchmark = "ibov") %>%
     add_rp_parameters(rp_method = "cyclical-spinu") %>%
     add_ss_backtest_obj(ss_results)
 
-  target_m_df <- create_meta_dataframe(toy_preprocessed_targets, type = "target")
 
   #Apply FUN
   suppressMessages(suppressWarnings({
     sb_backtest_results <- run_sb_backtest(
-      features_m_df = features_m_df,
-      target_m_df = target_m_df,
+      features_m_df = signals_m_df,
+      target_m_df = create_meta_dataframe(target_m_df),
       gsm_algorithm = "tree",
-      backtest_returns_m_xts = mocked_backtest_returns_m_xts,
-      benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+      port_backtest_cohort = port_backtest_cohort,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
       config = rp_config)
   }))
 
 
+  backtest_returns_m_xts <- port_backtest_cohort@port_returns_m_xts_list$net_returns_m_xts
+  backtest_returns_m_xts@data <- backtest_returns_m_xts@data[,-8]
+  colnames(backtest_returns_m_xts@data) <- c("book_yield","dy_med_36m", "eps_yield", "mom_res_12m", "roe_3m", "sharpe_6m", "low_vol_36m")
+
   #1st rebalancing
   #Most recent xts
-  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15")
-  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts@data["2022-07-15/2022-11-15",
-                                                                              most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts@data["2022-07-15/2022-11-15", "IBOV"]
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-02-15")
+  selected_backtest_returns_m_xts_upd_ref <- backtest_returns_m_xts@data["2022-12-15/2023-02-15",
+                                                                        most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- benchmark_returns_m_xts@data["2022-12-15/2023-02-15", "ibov"]
 
   #Features Objects
-  selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
+  selected_signals_m_df <- signals_m_df@data %>% dplyr::mutate(low_vol_36m = vol_36m*-1) %>% dplyr::select(-vol_36m) %>%
     dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
 
-  selected_features_first_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+  selected_features_first_rebal <- selected_signals_m_df[which(selected_signals_m_df$dates %in% c("2022-10-15", "2022-11-15")),]
 
   #Targets
-  targets_first_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15")),]
+  targets_first_rebal_m_df <- target_m_df[which(target_m_df$dates %in% c("2022-10-15", "2022-11-15")),]
 
   #Fitting
   first_sb_port <- fit_sb_model(sb_algorithm = "rp", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
-                                cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
+                                cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
                                 selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                 rp_method = "cyclical-spinu"
                                 )
   #Predict
-  dates_first_prediction <- c("2022-11-15", "2022-12-15", "2023-01-15",
-                              "2023-02-15", "2023-03-15", "2023-04-15",
-                              "2023-05-15", "2023-06-15")
+  dates_first_prediction <- c("2023-02-15", "2023-03-15")
   #Resulting vectors
   prediction_list_first_prediction <- list()
   y_list_first_prediction <- list()
@@ -2861,8 +2887,8 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   for(i in 1:length(dates_first_prediction)){
 
     #Subset for each date
-    features_first_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_first_prediction[i]),]
-    target_first_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_first_prediction[i])]
+    features_first_prediction <-  selected_signals_m_df[which(selected_signals_m_df$dates %in% dates_first_prediction[i]),]
+    target_first_prediction <-  target_m_df$fwd_premium_3m[which(target_m_df$dates %in% dates_first_prediction[i])]
 
     #Fill obj
     prediction_list_first_prediction[[i]] <- predict(first_sb_port, features_first_prediction)
@@ -2901,33 +2927,30 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
 
   #2nd rebalancing
-  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15")
-  selected_mocked_backtest_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts@data["2022-07-15/2023-07-15",
-                                                                              most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
-  selected_cov_matrix_benchmark_m_xts_upd_ref <- mocked_benchmark_returns_m_xts@data["2022-07-15/2023-07-15", "IBOV"]
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-04-15")
+  selected_backtest_returns_m_xts_upd_ref <- backtest_returns_m_xts@data["2022-12-15/2023-04-15",
+                                                                        most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- benchmark_returns_m_xts@data["2022-12-15/2023-04-15", "ibov"]
 
   #Features Objects
-  selected_toy_preprocessed_features <- toy_preprocessed_features %>% dplyr::mutate(low_idio_vol_mrkt_ewma = idio_vol_mrkt_ewma*-1) %>% dplyr::select(-idio_vol_mrkt_ewma) %>%
+  selected_signals_m_df <- signals_m_df@data %>% dplyr::mutate(low_vol_36m = vol_36m*-1) %>% dplyr::select(-vol_36m) %>%
     dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
 
-  selected_features_second_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                                             "2022-10-15",
-                                                                                                                             "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                             "2023-02-15", "2023-03-15", "2023-04-15")),]
+  selected_features_second_rebal <- selected_signals_m_df[which(selected_signals_m_df$dates %in% c("2022-10-15", "2022-11-15", "2022-12-15",
+                                                                                                   "2023-01-15", "2023-01-15")),]
 
   #Targets
-  targets_second_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
-                                                                                                     "2022-10-15",
-                                                                                                     "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                     "2023-02-15", "2023-03-15", "2023-04-15")),]
+  targets_second_rebal_m_df <- target_m_df[which(target_m_df$dates %in% c("2022-10-15", "2022-11-15", "2022-12-15",
+                                                                          "2023-01-15", "2023-01-15")),]
+
 
 
   #Fitting
   second_sb_port <- fit_sb_model(sb_algorithm = "rp", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_second_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
-                                cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
+                                cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
                                 selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
@@ -2937,7 +2960,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
 
   #Predict
-  dates_second_prediction <- c("2023-07-15")
+  dates_second_prediction <- c("2023-04-15")
   #Resulting obj
   prediction_list_second_prediction <- list()
   y_list_second_prediction <- list()
@@ -2952,14 +2975,11 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   hr_oos_second_prediction <- vector(length = length(dates_second_prediction))
   mb_oos_second_prediction <- vector(length = length(dates_second_prediction))
 
-
-
-
   for(i in 1:length(dates_second_prediction)){
 
     #Subset for each date
-    features_second_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_second_prediction[i]),]
-    target_second_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_second_prediction[i])]
+    features_second_prediction <-  selected_signals_m_df[which(selected_signals_m_df$dates %in% dates_second_prediction[i]),]
+    target_second_prediction <-  target_m_df$fwd_premium_3m[which(target_m_df$dates %in% dates_second_prediction[i])]
 
     #Fill obj
     prediction_list_second_prediction[[i]] <- predict(second_sb_port, features_second_prediction)
@@ -3070,7 +3090,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   gsm <- rpart::rpart(preds ~ ., data = selected_features_first_rebal[,-c(1:3)]) #Date used to fit lm model
 
   #Start object
-  feature_importance_m_df1 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2022-09-15") %>%
+  feature_importance_m_df1 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-02-15") %>%
     dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
   #Get coefs
   tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
@@ -3078,7 +3098,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
   #Join and adjust
   feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::full_join(tree_coefs, by = "tickers")
-  feature_importance_m_df1$dates <- as.Date("2022-11-15") #Rebalance date
+  feature_importance_m_df1$dates <- as.Date("2023-02-15") #Rebalance date
   feature_importance_m_df1$id <- paste0(feature_importance_m_df1$tickers, "-", feature_importance_m_df1$dates)
   #Reorder
   feature_importance_m_df1 <- feature_importance_m_df1 %>% dplyr::select(id, tickers, dates,
@@ -3099,7 +3119,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
 
 
   #Start object
-  feature_importance_m_df2 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-06-15") %>%
+  feature_importance_m_df2 <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-04-15") %>%
     dplyr::select(tickers, theme_ss_bench_weights, theme_sb_bench_weights, theme, is_eligible)
   #Get coefs
   tree_coefs <- data.frame(tickers = names(gsm$variable.importance), importance = gsm$variable.importance, row.names = NULL)
@@ -3107,7 +3127,7 @@ test_that("RP - run_sb_backtest works with toy_preprocessed_features_and_targets
   tree_coefs$normalized_importance <- (tree_coefs$importance - mean(tree_coefs$importance))/sd(tree_coefs$importance)
   #Join and adjust
   feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::full_join(tree_coefs, by = "tickers")
-  feature_importance_m_df2$dates <- as.Date("2023-07-15") #Rebalance date
+  feature_importance_m_df2$dates <- as.Date("2023-04-15") #Rebalance date
   feature_importance_m_df2$id <- paste0(feature_importance_m_df2$tickers, "-", feature_importance_m_df2$dates)
   #Reorder
   feature_importance_m_df2 <- feature_importance_m_df2 %>% dplyr::select(id, tickers, dates,
@@ -8598,6 +8618,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   set.seed(100)
   tensorflow::set_random_seed(100)
   #Use foreach to simulate result of parallelized hyper tuning
+  suppressWarnings(
   first_rebal <-
     foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
 
@@ -8654,7 +8675,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                   best_epoch = which.min(fit_nn_1$metrics$val_mean_squared_error)))
 
     }
-
+  )
 
   #Pass objects
   #Features val
@@ -12992,7 +13013,7 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
 #Define your test
 test_that("Skipped: NN (Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
-skip()
+  skip()
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   doFuture::registerDoFuture()
@@ -13576,7 +13597,7 @@ skip()
 
 
 ###Metabacktesting
-test_that("Metabacktesting works for base_sb_configs + base_ss_results and glmnet meta_ss_config without ss_object ", {
+test_that("GLMNET - Metabacktesting works for base_sb_configs + base_ss_results and glmnet meta_ss_config without ss_object ", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -13807,7 +13828,7 @@ test_that("Metabacktesting works for base_sb_configs + base_ss_results and glmne
 
 })
 
-test_that("Metabacktesting works for base_sb_configs + base_ss_configs and ew meta_ss_config without ss_object ", {
+test_that("EW - Metabacktesting works for base_sb_configs + base_ss_configs and ew meta_ss_config without ss_object ", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -14041,7 +14062,7 @@ test_that("Metabacktesting works for base_sb_configs + base_ss_configs and ew me
 
 })
 
-test_that("Metabacktesting works for base_sb_results + base_ss_results and sw (min_rmse) meta_ss_config without ss_object ", {
+test_that("SW - Metabacktesting works for base_sb_results + base_ss_results and sw (min_rmse) meta_ss_config without ss_object ", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -14286,7 +14307,7 @@ test_that("Metabacktesting works for base_sb_results + base_ss_results and sw (m
 
 })
 
-test_that("Metabacktesting works for other base_sb_results + base_ss_results and sw (max_hr) meta_ss_config without ss_object ", {
+test_that("SW - Metabacktesting works for other base_sb_results + base_ss_results and sw (max_hr) meta_ss_config without ss_object ", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -14398,9 +14419,9 @@ test_that("Metabacktesting works for other base_sb_results + base_ss_results and
                                                    custom_objective = "max_hr", rebalancing_months = 6, config_name = "meta")
 
   meta_config <-create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, glmnet_results),
-                                  features_passthrough = c("none"),
-                                  config_name = "meta_rf_glmnet")
+                                              base_sb_backtest_results = list(rp_results, glmnet_results),
+                                              features_passthrough = c("none"),
+                                              config_name = "meta_rf_glmnet")
 
   set.seed(123)
   suppressWarnings(
@@ -14532,6 +14553,481 @@ test_that("Metabacktesting works for other base_sb_results + base_ss_results and
     expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data[,1] %>% na.omit() %>% as.numeric(),
                  glmnet_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
   }
+
+})
+
+test_that("OLS - Metabacktesting works in integration with run_port_backtest and run_ss_backtest (other base_sb_results (non-validation) + base_ss_results) and sw (max_hr) meta_ss_config without ss_object ", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep ="")) #Overwrite all but signal_themes
+
+  signals_m_df <- create_meta_dataframe(signals_m_df, "signals_123")
+  signals_m_df@workflow <- list("normalization")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, roe_3m))
+
+  #Characteristics portfolio
+  characteristics_ports <- c(
+    book_yield = "long",
+    dy_med_36m = "long",
+    eps_yield = "long",
+    mom_res_12m = "long",
+    roe_3m = "long",
+    sharpe_6m = "long",
+    vol_36m = "short"
+  )
+
+  #Create config list
+  port_backtest_config_list <- purrr::imap(characteristics_ports, function(pos, metric_name) {
+    create_port_backtest_config(
+      eligibility_quantile_range = c(0.67, 1),
+      selected_benchmark = "ibov",
+      initial_buffer_period = 2,
+      chosen_score_metric_and_position = stats::setNames(pos, metric_name),
+      rebalancing_months = 4,
+      port_construction_method = "sw",
+      main_liquidity_metric = "mean_volfin_3m",
+      config_name = metric_name
+    ) %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = c("mean_volfin_3m", "presence"),
+        metric_cutoffs = list(
+          c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+          c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+        )) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+  })
+
+  #Run!
+  future::plan("sequential")
+  port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+    run_port_backtest(
+      signals_m_df = signals_m_df,
+      fwd_return_m_df = fwd_return_m_df,
+      liquidity_m_df = liquidity_m_df,
+      volatility_m_df = volatility_m_df,
+      config = port_config,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      custom_stock_metrics_m_df = port_metrics_m_df,
+      verbose = TRUE
+    )
+  }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+
+
+
+  #SS Configuration and results
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", dy_med_36m = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 5, rebalancing_months = 4,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.50, p_correction_method = "none",
+                            market_factor_proxy = "ibov", enable_theme_representativeness = TRUE)
+
+  signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11", type =  "groups")
+
+
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = signals_m_df, port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = TRUE
+    )
+  )
+
+  #SB Configuration and results
+  rp_config <- create_sb_backtest_config(sb_algorithm = "rp", training_sample_size = 5, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m",
+                                         config_name = "rp_101") %>%
+    add_cov_est_method(cov_matrix_sample_size = 2, cov_matrix_benchmark = "ibov")
+
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", training_sample_size = 5, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m",
+                                          config_name = "glmnet_123")
+
+  set.seed(123)
+  suppressWarnings(
+    rp_results <- run_sb_backtest(
+      target_m_df = target_m_df %>% create_meta_dataframe(),
+      features_m_df = signals_m_df,
+      config = rp_config %>% add_ss_backtest_obj(ss_results),
+      port_backtest_cohort = port_backtest_cohort,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      signal_themes_m_df = signal_themes_m_df,
+      parallel = FALSE,
+      verbose = TRUE
+    )
+  )
+
+  suppressWarnings(
+    ols_results <- run_sb_backtest(
+      target_m_df = target_m_df %>% create_meta_dataframe(),
+      features_m_df = signals_m_df,
+      config = ols_config %>% add_ss_backtest_obj(ss_results),
+      parallel = FALSE,
+      verbose = TRUE
+    )
+  )
+
+  #Meta-Learner
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "sw", training_sample_size = 2, target_fwd_name = "fwd_premium_1m",
+                                                   custom_objective = "max_hr", rebalancing_months = 6, config_name = "meta")
+
+  meta_config <- create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
+                                  base_sb_backtest_results = list(rp_results, ols_results),
+                                  features_passthrough = c("none"),
+                                  config_name = "meta_rf_ols")
+
+  set.seed(123)
+  suppressWarnings(
+    sb_metabacktest_results <- run_sb_backtest(
+      target_m_df = target_m_df %>% create_meta_dataframe(),
+      features_m_df = signals_m_df,
+      config = meta_config,
+      parallel = FALSE,
+      verbose = TRUE
+    )
+  )
+
+
+  #Base SB Results
+  base_sb_backtest_results_list = list(rp_results, ols_results)
+  names(base_sb_backtest_results_list) <- c(rp_results@backtest_identifier, ols_results@backtest_identifier)
+
+  #Features passthrough and positions
+  features_passthrough_and_positions <- get_features_positions(
+    base_sb_backtest_results_list = base_sb_backtest_results_list,
+    features_passthrough = "none",
+    features_m_df = signals_m_df
+  )
+
+  #Consolidate results
+  oos_predictions_m_df <- consolidate_oos_sb_outputs_m_df(
+    base_sb_backtest_results_list = base_sb_backtest_results_list,
+    winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025, 0.975),
+    features_passthrough_and_positions = features_passthrough_and_positions,
+    features_m_df = signals_m_df
+  )
+  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", meta_config@config_name, "_", "f_mdf:", signals_m_df@meta_dataframe_name)
+  #Check if both objects are equal
+  expect_equal(sb_metabacktest_results@base_learners_oos_predictions_m_df@data, oos_predictions_m_df@data)
+  #Check that rows with NAs in target are present
+  expect_true(all(dplyr::pull(rp_results@oos_sb_outputs_m_df@data %>% dplyr::filter(is.na(target)), id) %in%
+                    oos_predictions_m_df@data$id))
+  #Check if chosen_signals_and_positions flow is correct
+  adapted_chosen_signals_and_positions <- c("long", "long")
+  names(adapted_chosen_signals_and_positions) <-  c(rp_results@backtest_identifier, ols_results@backtest_identifier)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@sb_backtest_workflow$chosen_signals_and_positions,adapted_chosen_signals_and_positions)
+
+
+  #Adapted target
+  adapted_target_m_df <- create_meta_dataframe(target_m_df)
+  adapted_target_m_df@data <- adapted_target_m_df@data %>% dplyr::filter(id %in% oos_predictions_m_df@data$id)
+  adapted_target_m_df@meta_dataframe_name <- paste0(adapted_target_m_df@meta_dataframe_name, "_adj")
+
+  #Meta-level backtest
+  meta_learner_config@chosen_signals_and_positions <- adapted_chosen_signals_and_positions
+
+  #Create custom_signal_universe_m_df
+  adapted_custom_signal_universe_metrics_m_df <- derive_adapted_custom_signal_universe_m_df(
+    meta_custom_objective = meta_learner_config@custom_objective,
+    base_sb_backtest_results_list = base_sb_backtest_results_list,
+    meta_custom_signal_universe_metrics_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL
+  )
+
+  suppressWarnings(
+    meta_results <- run_sb_backtest(
+      target_m_df = adapted_target_m_df,
+      features_m_df = oos_predictions_m_df,
+      config = meta_learner_config,
+      custom_signal_universe_metrics_m_df = adapted_custom_signal_universe_metrics_m_df,
+      parallel = FALSE,
+      verbose = TRUE
+    )
+  )
+
+  #Check if weights and feat imp matches max of hr
+  expected_weights <- (adapted_custom_signal_universe_metrics_m_df@data %>% dplyr::filter(dates == "2023-03-15") %>% dplyr::pull(hr) %>% signal_transform())/
+    sum((adapted_custom_signal_universe_metrics_m_df@data %>% dplyr::filter(dates == "2023-03-15") %>% dplyr::pull(hr) %>% signal_transform()))
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@final_sb_model@model@weights, expected_weights)
+
+  ##Feat imp at first rebal
+  expected_higher_weight <- adapted_custom_signal_universe_metrics_m_df@data %>% dplyr::filter(dates == "2023-03-15") %>% dplyr::slice_max(hr) %>% dplyr::pull(tickers)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@feature_importance_m_df@data %>% dplyr::filter(dates == "2023-03-15", !tickers == "(Intercept)") %>% dplyr::slice_max(importance) %>% dplyr::pull(tickers),
+               expected_higher_weight)
+
+
+  #Check outputs of meta-learner sb_results
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@consolidated_eval_metrics, meta_results@consolidated_eval_metrics)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data, meta_results@oos_sb_outputs_m_df@data)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name, meta_results@oos_sb_outputs_m_df@meta_dataframe_name)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@oos_testing_eval_metrics_m_xts@data, meta_results@oos_testing_eval_metrics_m_xts@data)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@feature_importance_m_df@data, meta_results@feature_importance_m_df@data)
+  expect_equal(sb_metabacktest_results@meta_sb_backtest_results@final_feature_importance_m_d_ref@data, meta_results@final_feature_importance_m_d_ref@data)
+
+
+  #Check other outputs (this is a also a test for crete_sb_metabacktest_results)
+  #Mean val metrics
+  expect_null(nrow(sb_metabacktest_results@mean_validation_metrics))
+
+  #Consolidate oos testing metrics
+  expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(1:9)], rp_results@consolidated_eval_metrics$cons_oos)
+  expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(10:18)], ols_results@consolidated_eval_metrics$cons_oos)
+  expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(19:27)], meta_results@consolidated_eval_metrics$cons_oos)
+
+  expect_equal(unique(sb_metabacktest_results@combined_oos_testing_metrics$all_dates_oos_testing_metrics$testing_dates_range),
+               c(paste0(min(rp_results@sb_backtest_workflow$dates_testing_sample),"-",max(rp_results@sb_backtest_workflow$dates_testing_sample)),
+                 paste0(min(meta_results@sb_backtest_workflow$dates_testing_sample),"-",max(meta_results@sb_backtest_workflow$dates_testing_sample))
+               ))
+
+  expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$common_dates_oos_testing_metrics[1, -c(1:2)] %>% tibble::remove_rownames(),
+               rp_results@oos_testing_eval_metrics_m_xts@data["2023-03-15/2023-04-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
+  )
+  expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$common_dates_oos_testing_metrics[2, -c(1:2)] %>% tibble::remove_rownames(),
+               ols_results@oos_testing_eval_metrics_m_xts@data["2023-03-15/2023-04-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
+  )
+  expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$common_dates_oos_testing_metrics[3, -c(1:2)] %>% tibble::remove_rownames(),
+               meta_results@oos_testing_eval_metrics_m_xts@data["2023-03-15/2023-04-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
+  )
+  #OOS Eval Metrics
+  for (j in 1:length(sb_metabacktest_results@time_series_oos_testing_metrics)){
+    expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,1] %>% as.numeric(),rp_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
+
+    expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,2] %>% as.numeric(),ols_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
+
+    expect_equal(na.omit(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,3]) %>% as.numeric(), meta_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
+  }
+
+  #Val Metrics
+  expect_equal(length(sb_metabacktest_results@time_series_validation_metrics), 0)
+
+
+})
+
+test_that("Skipped: RP - Metabacktesting works in integration with run_port_backtest and run_ss_backtest (other base_sb_results (non-validation) + base_ss_results) and sw (max_hr) meta_ss_config without ", {
+
+  skip()
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep ="")) #Overwrite all but signal_themes
+
+  signals_m_df <- create_meta_dataframe(signals_m_df, "signals_123")
+  signals_m_df@workflow <- list("normalization")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, roe_3m))
+
+  #Characteristics portfolio
+  characteristics_ports <- c(
+    book_yield = "long",
+    dy_med_36m = "long",
+    eps_yield = "long",
+    mom_res_12m = "long",
+    roe_3m = "long",
+    sharpe_6m = "long",
+    vol_36m = "short"
+  )
+
+  #Create config list
+  port_backtest_config_list <- purrr::imap(characteristics_ports, function(pos, metric_name) {
+    create_port_backtest_config(
+      eligibility_quantile_range = c(0.67, 1),
+      selected_benchmark = "ibov",
+      initial_buffer_period = 2,
+      chosen_score_metric_and_position = stats::setNames(pos, metric_name),
+      rebalancing_months = 4,
+      port_construction_method = "sw",
+      main_liquidity_metric = "mean_volfin_3m",
+      config_name = metric_name
+    ) %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = c("mean_volfin_3m", "presence"),
+        metric_cutoffs = list(
+          c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+          c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+        )) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+  })
+
+  #Run!
+  future::plan("sequential")
+  port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+    run_port_backtest(
+      signals_m_df = signals_m_df,
+      fwd_return_m_df = fwd_return_m_df,
+      liquidity_m_df = liquidity_m_df,
+      volatility_m_df = volatility_m_df,
+      config = port_config,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      custom_stock_metrics_m_df = port_metrics_m_df,
+      verbose = TRUE
+    )
+  }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+
+
+
+  #SS Configuration and results
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", dy_med_36m = "long", roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 5, rebalancing_months = 4,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.50, p_correction_method = "none",
+                            market_factor_proxy = "ibov", enable_theme_representativeness = TRUE)
+
+  signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df, "st_11", type =  "groups")
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = signals_m_df, port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = TRUE
+    )
+  )
+
+  #SB Configuration and results
+  rp_config <- create_sb_backtest_config(sb_algorithm = "rp", training_sample_size = 5, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m",
+                                         config_name = "rp_101") %>%
+    add_cov_est_method(cov_matrix_sample_size = 2, cov_matrix_benchmark = "ibov")
+
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", training_sample_size = 5, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m",
+                                          config_name = "glmnet_123")
+
+  set.seed(123)
+  suppressWarnings(
+    rp_results <- run_sb_backtest(
+      target_m_df = target_m_df %>% create_meta_dataframe(),
+      features_m_df = signals_m_df,
+      config = rp_config %>% add_ss_backtest_obj(ss_results),
+      port_backtest_cohort = port_backtest_cohort,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      signal_themes_m_df = signal_themes_m_df,
+      parallel = FALSE,
+      verbose = TRUE
+    )
+  )
+
+  suppressWarnings(
+    ols_results <- run_sb_backtest(
+      target_m_df = target_m_df %>% create_meta_dataframe(),
+      features_m_df = signals_m_df,
+      config = ols_config %>% add_ss_backtest_obj(ss_results),
+      parallel = FALSE,
+      verbose = TRUE
+    )
+  )
+
+  #Run Port backtests for sb models
+  ols_port_config <- create_port_backtest_config(
+    eligibility_quantile_range = c(0.67, 1),
+    selected_benchmark = "ibov",
+    initial_buffer_period = 5,
+    sb_backtest_results = ols_results,
+    rebalancing_months = 4,
+    port_construction_method = "sw",
+    main_liquidity_metric = "mean_volfin_3m",
+    config_name = "ols_port"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+  rp_port_config <- create_port_backtest_config(
+    eligibility_quantile_range = c(0.67, 1),
+    selected_benchmark = "ibov",
+    initial_buffer_period = 5,
+    sb_backtest_results = rp_results,
+    rebalancing_months = 4,
+    port_construction_method = "sw",
+    main_liquidity_metric = "mean_volfin_3m",
+    config_name = "rp_port"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+
+  #Run!
+  sb_backtest_config_list <- list(ols_port_config, rp_port_config)
+  future::plan("sequential")
+  sb_port_backtest_cohort <- purrr::map(sb_backtest_config_list, function(port_config) {
+    run_port_backtest(
+      signals_m_df = signals_m_df,
+      fwd_return_m_df = fwd_return_m_df,
+      liquidity_m_df = liquidity_m_df,
+      volatility_m_df = volatility_m_df,
+      config = port_config,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      custom_stock_metrics_m_df = port_metrics_m_df,
+      verbose = TRUE
+    )
+  }) %>% create_port_backtest_cohort(cohort_name = "sb_ports")
+
+
+  #Mocked Signal Themes
+  meta_mocked_signal_themes_m_df <- expand.grid(
+    tickers = c("c:ols_port_s:signals_123_f:not_identified", "c:rp_port_s:signals_123_f:not_identified"),
+    dates = as.Date(c("2023-03-15", "2023-04-15")),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("c:ols_port_s:signals_123_f:not_identified") ~ "ml",
+                        tickers %in% c("c:rp_port_s:signals_123_f:not_identified") ~ "heuristic"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  meta_signal_themes_m_df <- create_meta_dataframe(meta_mocked_signal_themes_m_df, "meta_st11", type = "groups")
+
+
+  #Meta-Learner
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "rp", training_sample_size = 2, target_fwd_name = "fwd_premium_1m",
+                                                   rebalancing_months = 6, config_name = "meta")
+
+
+  meta_config <- create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
+                                               base_sb_backtest_results = list(rp_results, ols_results),
+                                               features_passthrough = c("none"),
+                                               config_name = "meta_rf_ols")
+
+  set.seed(123)
+  suppressWarnings(
+    sb_metabacktest_results <- run_sb_backtest(
+      target_m_df = target_m_df %>% create_meta_dataframe(),
+      features_m_df = signals_m_df,
+      config = meta_config,
+      base_benchmark_returns_m_xts = benchmark_returns_m_xts,
+      base_port_backtest_cohort = port_backtest_cohort,
+      meta_port_backtest_cohort = sb_port_backtest_cohort,
+      parallel = FALSE,
+      verbose = TRUE
+    )
+  )
+
+
 
 })
 

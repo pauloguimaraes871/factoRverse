@@ -465,8 +465,8 @@ setClass(
     }
 
 
-    freq_info <- xts::periodicity(main_xts)
-    message("Detected frequency is: ", freq_info$scale)
+    freq_info <- object@frequency
+    message("Detected frequency is: ", freq_info)
 
     return(TRUE)
   }
