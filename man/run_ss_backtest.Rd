@@ -2,7 +2,8 @@
 % Please edit documentation in R/run_ss_backtest.R
 \name{run_ss_backtest}
 \alias{run_ss_backtest}
-\alias{run_ss_backtest,ss_backtest_config,meta_dataframe,meta_xts,meta_xts,meta_dataframe-method}
+\alias{run_ss_backtest,ss_backtest_config,meta_dataframe,missing,port_backtest_cohort,meta_xts,meta_dataframe-method}
+\alias{run_ss_backtest,ss_backtest_config,meta_dataframe,meta_xts,missing,meta_xts,meta_dataframe-method}
 \alias{run_ss_backtest_internal}
 \title{Run a Signal Selection Backtest}
 \usage{
@@ -10,12 +11,26 @@ run_ss_backtest(
   config,
   signals_m_df,
   backtest_returns_m_xts,
+  port_backtest_cohort,
   benchmark_returns_m_xts,
   signal_themes_m_df,
   ...
 )
 
-\S4method{run_ss_backtest}{ss_backtest_config,meta_dataframe,meta_xts,meta_xts,meta_dataframe}(
+\S4method{run_ss_backtest}{ss_backtest_config,meta_dataframe,missing,port_backtest_cohort,meta_xts,meta_dataframe}(
+  config,
+  signals_m_df,
+  port_backtest_cohort,
+  benchmark_returns_m_xts,
+  signal_themes_m_df,
+  priors_m_df = NULL,
+  custom_signal_universe_metrics_m_df = NULL,
+  verbose = TRUE,
+  parallel = TRUE,
+  winsorization_probs = c(0.025, 0.975)
+)
+
+\S4method{run_ss_backtest}{ss_backtest_config,meta_dataframe,meta_xts,missing,meta_xts,meta_dataframe}(
   config,
   signals_m_df,
   backtest_returns_m_xts,
@@ -157,7 +172,9 @@ A list containing eligible signals and signal universes throughout time.
 \description{
 This function performs iterative signal selection based on frequentist or Bayesian methods, which are applied to portfolio returns backtests to identify which signals can be considered significant in stock-level return prediction.
 
-Runs signal selection backtest given bayesian or frequentist approaches for p-value correction.
+Runs signal selection backtest given bayesian or frequentist approaches for p-value correction. This acts as a wrapper for backtest_returns_m_xts
+
+Runs signal selection backtest given bayesian or frequentist approaches for p-value correction. This acts as a wrapper for run_ss_backtest_internal
 }
 \details{
 To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM),
@@ -180,7 +197,17 @@ The function performs the following operations:
 \item \code{run_ss_backtest(
   config = ss_backtest_config,
   signals_m_df = meta_dataframe,
+  backtest_returns_m_xts = missing,
+  port_backtest_cohort = port_backtest_cohort,
+  benchmark_returns_m_xts = meta_xts,
+  signal_themes_m_df = meta_dataframe
+)}: Run Signal Selection Backtest
+
+\item \code{run_ss_backtest(
+  config = ss_backtest_config,
+  signals_m_df = meta_dataframe,
   backtest_returns_m_xts = meta_xts,
+  port_backtest_cohort = missing,
   benchmark_returns_m_xts = meta_xts,
   signal_themes_m_df = meta_dataframe
 )}: Run Signal Selection Backtest

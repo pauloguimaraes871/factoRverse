@@ -25,9 +25,7 @@ setGeneric("update_port_backtest", function(signals_m_df, fwd_return_m_df, liqui
 setMethod("update_port_backtest",
           signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe", liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe", n_update = "numeric",
                     old_results = "port_backtest_results", new_config = "port_backtest_config"),
-          function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, n_update, results, #Base Port Backtest Objs
-
-
+          function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, n_update, old_results, new_config, #Base Port Backtest Objs
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, #Covariance Estimation
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs

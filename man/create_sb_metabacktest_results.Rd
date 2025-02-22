@@ -2,7 +2,7 @@
 % Please edit documentation in R/constructors.R
 \name{create_sb_metabacktest_results}
 \alias{create_sb_metabacktest_results}
-\alias{create_sb_metabacktest_results,sb_backtest_results,list,meta_dataframe-method}
+\alias{create_sb_metabacktest_results,sb_backtest_results,list,meta_dataframe,sb_metabacktest_config-method}
 \alias{create_sb_metabacktest_results,list-method}
 \title{Create an sb_metabacktest_results Object}
 \usage{
@@ -10,20 +10,15 @@ create_sb_metabacktest_results(
   meta_sb_backtest_results,
   base_sb_backtest_results_list,
   oos_predictions_m_df,
+  sb_metabacktest_config,
   ...
 )
 
-create_sb_metabacktest_results(
+\S4method{create_sb_metabacktest_results}{sb_backtest_results,list,meta_dataframe,sb_metabacktest_config}(
   meta_sb_backtest_results,
   base_sb_backtest_results_list,
   oos_predictions_m_df,
-  ...
-)
-
-\S4method{create_sb_metabacktest_results}{sb_backtest_results,list,meta_dataframe}(
-  meta_sb_backtest_results,
-  base_sb_backtest_results_list,
-  oos_predictions_m_df
+  sb_metabacktest_config
 )
 }
 \arguments{
@@ -33,14 +28,8 @@ create_sb_metabacktest_results(
 }
 \value{
 An object of class \code{sb_metabacktest_results}.
-
-An object of class \code{sb_metabacktest_results}.
 }
 \description{
-Constructs an \code{sb_metabacktest_results} object from a list of \code{sb_backtest_results} objects for base learners a single
-\code{sb_backtest_results} object for the meta learner.
-It computes consolidated and time series evaluation metrics for machine learning backtests.
-
 Constructs an \code{sb_metabacktest_results} object from a list of \code{sb_backtest_results} objects for base learners a single
 \code{sb_backtest_results} object for the meta learner.
 It computes consolidated and time series evaluation metrics for machine learning backtests.

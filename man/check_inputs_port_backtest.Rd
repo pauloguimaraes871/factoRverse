@@ -12,6 +12,7 @@ check_inputs_port_backtest(
   initial_buffer_period,
   port_construction_method,
   eligibility_quantile_range,
+  min_eligible_assets_fallback,
   selected_benchmark,
   rp_method,
   n_random_ports,

@@ -1,10 +1,10 @@
 # Define your test
-test_that("Panelize Data is running correctly.", {
+test_that("create_meta_dataframe is running correctly.", {
   expect_equal(
     create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
-                  c("Stock A", "Stock B"),
-                  as.Date(c("2001-03-15", "2001-04-15")),
-                  c("Alpha", "Beta", "Gamma"))@data,
+                  tickers = c("Stock A", "Stock B"),
+                  dates = as.Date(c("2001-03-15", "2001-04-15")),
+                  features_names = c("Alpha", "Beta", "Gamma"))@data,
     data.frame(
       id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock B-2001-03-15", "Stock B-2001-04-15")),
       tickers = (c("Stock A", "Stock A", "Stock B", "Stock B")),
@@ -16,7 +16,7 @@ test_that("Panelize Data is running correctly.", {
 }
 )
 
-test_that("Panelize Data is running correctly with character data.frame.", {
+test_that("create_meta_dataframe is running correctly with character data.frame.", {
   expect_equal(
     create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), data.frame(c("e","c"),c("d","a")), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
@@ -34,7 +34,7 @@ test_that("Panelize Data is running correctly with character data.frame.", {
 )
 
 # Define your test
-test_that("Panelize Data is running correctly with data frames and tibbles.", {
+test_that("create_meta_dataframe is running correctly with data frames and tibbles.", {
   expect_equal(
     create_meta_dataframe(list(as.data.frame(matrix(c(0,1,2,3), nrow=2, ncol=2)), tibble::as_tibble(matrix(c(4,5,6,7), nrow=2, ncol=2), .name_repair = "unique"),
                        as.data.frame(matrix(c(8,9,10,11), nrow=2, ncol=2))),
@@ -70,7 +70,7 @@ test_that("Panelize Data is running correctly with data frames and tibbles.", {
 
 
 # Define your test
-test_that("Panelize Data is running correctly - Some NAs.", {
+test_that("create_meta_dataframe is running correctly - Some NAs.", {
   expect_equal(
     create_meta_dataframe(list(matrix(c(0,NA,2,3), nrow=2, ncol=2), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
@@ -88,7 +88,7 @@ test_that("Panelize Data is running correctly - Some NAs.", {
 )
 
 # Define your test
-test_that("Panelize Data is running correctly - Many Characteristics and Stocks", {
+test_that("create_meta_dataframe is running correctly - Many Characteristics and Stocks", {
   expect_equal(
     create_meta_dataframe(list(matrix(c(0,1,2,3,7,9,10,4,9), nrow=3, ncol=3),
                        matrix(c(4,5,6,7,2,-3,5,4,-2), nrow=3, ncol=3),
@@ -117,7 +117,7 @@ test_that("Panelize Data is running correctly - Many Characteristics and Stocks"
 
 
 # Define your test
-test_that("Panelize Data throws an error when dimensions differ", {
+test_that("create_meta_dataframe throws an error when dimensions differ", {
   expect_error(
     create_meta_dataframe(list(matrix(c(0,NA,2,3,4,5), nrow=2, ncol=3), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
@@ -130,7 +130,7 @@ test_that("Panelize Data throws an error when dimensions differ", {
 
 
 # Define your test
-test_that("Panelize Data throws an error when features_list is not a list", {
+test_that("create_meta_dataframe throws an error when features_list is not a list", {
   expect_error(
     create_meta_dataframe(matrix(c(4,5,NA,7), nrow=2, ncol=2),
                   c("Stock A", "Stock B"),
@@ -141,7 +141,7 @@ test_that("Panelize Data throws an error when features_list is not a list", {
 )
 
 # Define your test
-test_that("Panelize Data throws an error when one of list objects is not DF or Matrix", {
+test_that("create_meta_dataframe throws an error when one of list objects is not DF or Matrix", {
   expect_error(
     create_meta_dataframe(list(c(0,NA,2,3,4,5), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
@@ -153,7 +153,7 @@ test_that("Panelize Data throws an error when one of list objects is not DF or M
 )
 
 # Define your test
-test_that("Panelize Data throws an error when rownames length does not match number of rows in each matrix of list", {
+test_that("create_meta_dataframe throws an error when rownames length does not match number of rows in each matrix of list", {
 expect_error(
   create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                 c("Stock A", "Stock B", "Ronaldo"),
@@ -164,7 +164,7 @@ expect_error(
 })
 
 # Define your test
-test_that("Panelize Data throws an error when colnames length does not match number of columns in each matrix of list", {
+test_that("create_meta_dataframe throws an error when colnames length does not match number of columns in each matrix of list", {
   expect_error(
     create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
@@ -175,7 +175,7 @@ test_that("Panelize Data throws an error when colnames length does not match num
 })
 
 # Define your test
-test_that("Panelize Data throws an error when length of features_names does not match number of elements in features_list", {
+test_that("create_meta_dataframe throws an error when length of features_names does not match number of elements in features_list", {
   expect_error(
     create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
@@ -209,8 +209,8 @@ test_that("create_meta_dataframe works with external toy data - Excel Files", {
                       industry_classification_column_name = c("sector_c1"))
   #Apply function
   panel <- create_meta_dataframe(data = results$inputs$feature_list,
-                         row_names = results$inputs$tickers$...1,
-                         column_names  = results$inputs$dates,
+                         tickers = results$inputs$tickers$...1,
+                         dates  = results$inputs$dates,
                          features_names = results$inputs$features_names)@data
 
 

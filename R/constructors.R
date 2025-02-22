@@ -1,6 +1,4 @@
-#-----------------------------------------------------------------------
-# meta_dataframe
-#-----------------------------------------------------------------------
+# meta_dataframe--------------------------------------------------------
 
 #' Create a meta_dataframe Object
 #'
@@ -19,34 +17,6 @@
 #'   \item \code{data.frame}: Converts a single \code{data.frame} into a \code{meta_dataframe} object after validation.
 #'   \item \code{list}: Converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
 #' }
-#'
-#' @examples
-#' # Example using a data.frame
-#' df <- data.frame(
-#'   id = c("A-2024-01-01", "B-2024-02-01"),
-#'   tickers = c("A", "B"),
-#'   dates = as.Date(c("2024-01-01", "2024-02-01")),
-#'   value = c(10, 20),
-#'   stringsAsFactors = FALSE
-#' )
-#' meta_df1 <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
-#'
-#' # Example using a list of features
-#' features_list <- list(
-#'   matrix(1:9, nrow = 3, ncol = 3),
-#'   matrix(11:19, nrow = 3, ncol = 3)
-#' )
-#' row_names <- c("A", "B", "C")
-#' column_names <- c("2024-01-01", "2024-02-01", "2024-03-01")
-#' features_names <- c("Feature1", "Feature2")
-#'
-#' data_input <- list(
-#'   features_list = features_list,
-#'   row_names = row_names,
-#'   column_names = column_names,
-#'   features_names = features_names
-#' )
-#' meta_df2 <- create_meta_dataframe(data = data_input, meta_dataframe_name = "PanelData")
 #'
 #' @export
 setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_identified", ...) {
@@ -90,186 +60,184 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 #' # Create a meta_dataframe object
 #' meta_df <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
 #'
+#'
 #' @exportMethod create_meta_dataframe
-setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
-
-          function(data, meta_dataframe_name = "not_identified",
-                   workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL, type = "generic", ...) {
-
-            #Check for type argument
-              if(!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features")){
-                stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
-                     'weights', 'priors'.")
-              }
-
-
-            #Is it coercible
-            if(!is_coercible_to_meta_dataframe(data)){
-              stop("The data frame is not coercible to a meta_dataframe object")
-            }
-
-            # Ensure no gaps in the dates sequence FOR GENERIC
-            unique_dates <- unique(data$dates)
-            full_dates <- seq(min(unique_dates), max(unique_dates), by = "month")
-            missing_dates <- setdiff(full_dates, unique_dates)
-
-            if (length(missing_dates) > 0 && type == "generic") {
-              warning("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
-            }
+setMethod(
+  "create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
+  function(data, meta_dataframe_name = "not_identified",
+           workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL, type = "generic", ...) {
+    # Check for type argument
+    if (!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features")) {
+      stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
+                     'weights', 'priors', 'signals' or 'features'.")
+    }
 
 
-            # Calculate metadata
-            unique_dates_count <- length(unique(data$dates))
-            unique_tickers_count <- length(unique(data$tickers))
-            total_observations_count <- nrow(data)
+    # Is it coercible
+    if (!is_coercible_to_meta_dataframe(data)) {
+      stop("The data frame is not coercible to a meta_dataframe object")
+    }
 
-            # Initialize workflow slot as an empty list
-            if(type == "generic"){
-              # Store metadata and column names
-              return(
-                new("meta_dataframe",
-                    data = data,
-                    workflow = workflow,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name)
-              )
-            }
+    # Ensure no gaps in the dates sequence FOR GENERIC
+    unique_dates <- unique(data$dates)
+    full_dates <- seq(min(unique_dates), max(unique_dates), by = "month")
+    missing_dates <- setdiff(full_dates, unique_dates)
 
-            if (type %in% c("signals", "features")){
-
-              return(
-                new("signals_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name)
-              )
-            }
-            if (type == "signal_universe"){
-
-              #Check for workflow
-              if(is.null(ss_backtest_workflow)){
-                stop("ss_backtest_workflow argument must be provided for signal_universe type")
-              }
-
-              # Store metadata and column names
-              return(
-                new("signal_universe_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name,
-                    ss_backtest_workflow = ss_backtest_workflow)
-              )
-            }
-            if(type == "oos_sb_outputs"){
-
-              #Check for workflow
-              if(is.null(sb_backtest_workflow)){
-                stop("sb_backtest_workflow argument must be provided for signal_universe type")
-              }
-
-              return(
-                new("oos_sb_outputs_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name,
-                    sb_backtest_workflow = sb_backtest_workflow)
-              )
-            }
-
-            if (type == "stock_universe"){
-
-              #Check for workflow
-              if(is.null(port_backtest_workflow)){
-                stop("port_backtest_workflow argument must be provided for stock_universe type")
-              }
-
-              # Store metadata and column names
-              return(
-                new("stock_universe_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name,
-                    port_backtest_workflow = port_backtest_workflow)
-              )
-            }
-            if(type == "groups"){
-
-              return(
-                new("groups_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name)
-              )
-            }
-
-            if (type == "priors"){
-
-              return(
-                new("priors_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name)
-              )
-            }
-
-            if(type == "target"){
-
-              return(
-                new("target_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name)
-              )
-            }
-
-            if(type == "weights"){
-
-              return(
-                new("weights_m_df",
-                    data = data,
-                    workflow = NULL,
-                    signals = names(data)[-c(1:3)],
-                    unique_dates = unique_dates_count,
-                    unique_tickers = unique_tickers_count,
-                    n_obs = total_observations_count,
-                    meta_dataframe_name = meta_dataframe_name)
-              )
-            }
+    if (length(missing_dates) > 0 && type == "generic") {
+      warning("There are gaps in the dates sequence. Missing dates: ", paste(as.Date(missing_dates), collapse = ", "))
+    }
 
 
+    # Calculate metadata
+    unique_dates_count <- length(unique(data$dates))
+    unique_tickers_count <- length(unique(data$tickers))
+    total_observations_count <- nrow(data)
 
-          }
+    # Initialize workflow slot as an empty list
+    if (type == "generic") {
+      # Store metadata and column names
+      return(
+        new("meta_dataframe",
+            data = data,
+            workflow = workflow,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name
+        )
+      )
+    }
+
+    if (type %in% c("signals", "features")) {
+      return(
+        new("signals_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name
+        )
+      )
+    }
+    if (type == "signal_universe") {
+      # Check for workflow
+      if (is.null(ss_backtest_workflow)) {
+        stop("ss_backtest_workflow argument must be provided for signal_universe type")
+      }
+
+      # Store metadata and column names
+      return(
+        new("signal_universe_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name,
+            ss_backtest_workflow = ss_backtest_workflow
+        )
+      )
+    }
+    if (type == "oos_sb_outputs") {
+      # Check for workflow
+      if (is.null(sb_backtest_workflow)) {
+        stop("sb_backtest_workflow argument must be provided for signal_universe type")
+      }
+
+      return(
+        new("oos_sb_outputs_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name,
+            sb_backtest_workflow = sb_backtest_workflow
+        )
+      )
+    }
+
+    if (type == "stock_universe") {
+      # Check for workflow
+      if (is.null(port_backtest_workflow)) {
+        stop("port_backtest_workflow argument must be provided for stock_universe type")
+      }
+
+      # Store metadata and column names
+      return(
+        new("stock_universe_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name,
+            port_backtest_workflow = port_backtest_workflow
+        )
+      )
+    }
+    if (type == "groups") {
+      return(
+        new("groups_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name
+        )
+      )
+    }
+
+    if (type == "priors") {
+      return(
+        new("priors_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name
+        )
+      )
+    }
+
+    if (type == "target") {
+      return(
+        new("target_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name
+        )
+      )
+    }
+
+    if (type == "weights") {
+      return(
+        new("weights_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name
+        )
+      )
+    }
+  }
 )
 
 
@@ -299,105 +267,79 @@ setMethod("create_meta_dataframe", signature(data = "data.frame", meta_dataframe
 #'   \item Constructs a \code{meta_dataframe} S4 object encapsulating the transformed data and metadata.
 #' }
 #'
-#' @examples
-#' # Example input data
-#' features_list <- list(
-#'   matrix(1:9, nrow = 3, ncol = 3),
-#'   matrix(11:19, nrow = 3, ncol = 3)
-#' )
-#' row_names <- c("A", "B", "C")
-#' column_names <- c("2024-01-01", "2024-02-01", "2024-03-01")
-#' features_names <- c("Feature1", "Feature2")
+#' @importFrom rlang .data
 #'
-#' # Structured input list
-#' data_input <- list(
-#'   features_list = features_list,
-#'   row_names = row_names,
-#'   column_names = column_names,
-#'   features_names = features_names
-#' )
-#'
-#' # Create the meta_dataframe object
-#' meta_df <- create_meta_dataframe(data = data_input, meta_dataframe_name = "PanelData")
-#'
-#' # Inspect the meta_dataframe object
-#' print(meta_df)
 #'
 #' @exportMethod create_meta_dataframe
-setMethod("create_meta_dataframe", signature(data = "list", meta_dataframe_name = "ANY"),
+setMethod(
+  "create_meta_dataframe", signature(data = "list", meta_dataframe_name = "ANY"),
+  function(data, tickers, dates, features_names, meta_dataframe_name = "not_identified",
+           data_format = "wide", tickers_on = "rows") {
 
-          function(data, row_names, column_names, features_names, meta_dataframe_name = "not_identified"){
+    # Check if data is a list of matrices, data frames, or tibbles
+    if (!is.list(data) ||
+        !all(sapply(data, function(x) is.data.frame(x) || is.matrix(x) || tibble::is_tibble(x))) ||
+        length(unique(sapply(data, nrow))) != 1 ||
+        length(unique(sapply(data, ncol))) != 1 ||
+        length(tickers) != unique(sapply(data, nrow)) ||
+        length(dates) != unique(sapply(data, ncol)) ||
+        length(features_names) != length(data)) {
+      stop("Input must be a list of matrices, data frames or tibbles with the same dimensions.")
+    }
 
-            features_list <- data
+    # Check if arguments are valid
+    if (data_format != "wide") stop("Only wide format is currently supported.")
+    if (tickers_on != "rows") stop("Only tickers on rows is currently supported.")
 
-            # Check if features_list is a list of matrices, data frames, or tibbles
-            if (!is.list(features_list) ||
-                !all(sapply(features_list, function(x) is.data.frame(x) || is.matrix(x) || tibble::is_tibble(x))) ||
-                length(unique(sapply(features_list, nrow))) != 1 ||
-                length(unique(sapply(features_list, ncol))) != 1 ||
-                length(row_names) != unique(sapply(features_list, nrow)) ||
-                length(column_names) != unique(sapply(features_list, ncol)) ||
-                length(features_names) != length(features_list)) {
-              stop("Input must be a list of matrices, data frames or tibbles with the same dimensions.")
-            }
+    # Convert each feature in features_list to data frame and rename with dates
+    features_list <- purrr::map(data, function(x) { colnames(x) <- as.character(dates); as.data.frame(x) })
 
-            # Convert each feature in features_list to data frame
-            features_list <- lapply(features_list, as.data.frame)
+    # For each feature, pivot to long format with a column named after the feature
+    feature_dfs_list <- purrr::map2(features_list, features_names, function(feature_df, feat_name) {
+      feature_df %>%
+        # Add the tickers column
+        dplyr::mutate(tickers = tickers) %>%
+        # Pivot longer: one column for dates and one column for the feature values
+        tidyr::pivot_longer(
+          cols = -tickers,
+          names_to = "dates",
+          values_to = feat_name
+        ) %>%
+        # Convert dates column to Date type
+        dplyr::mutate(dates = as.Date(dates, format = "%Y-%m-%d"))
+    })
 
-            #Initialize list
-            panel_features <- list()
+    # Join all feature data frames by tickers and dates
+    # This ensures each feature column is preserved with its own type.
+    panel_features_df <- purrr::reduce(feature_dfs_list, dplyr::full_join, by = c("tickers", "dates"))
 
-            #for every element in list
-            for(l in 1:length(features_list)){
-              #Tickers + Features
-              features_df <- data.frame(row_names, features_list[[l]])
-              colnames(features_df)[1] <- "tickers" #change col name
-              colnames(features_df)[2:length(colnames(features_df))] <- as.character(column_names)
+    # Add unique ID
+    features_m_df <- panel_features_df %>%
+      dplyr::mutate(id = stringr::str_c(tickers, dates, sep = "-"), .before = tickers) %>%
+      dplyr::arrange(id) %>%
+      as.data.frame()
 
-              #melt to panel format
-              panel_matrix <- reshape2::melt(features_df, id.vars="tickers")
-              colnames(panel_matrix)[2] <- "dates" #change name
-              id <- paste(panel_matrix$tickers, panel_matrix$dates, sep = "-") #create new id
-              panel_matrix <- cbind(id, panel_matrix) #append id
+    # Calculate metadata
+    unique_dates_count <- length(unique(features_m_df$dates))
+    unique_tickers_count <- length(unique(features_m_df$tickers))
+    total_observations_count <- nrow(features_m_df)
 
-              #change col name to characteristic name
-              colnames(panel_matrix)[4] <- features_names[l]
-              panel_matrix <- panel_matrix[order(panel_matrix$id), ] #order alphabetically by id
-              panel_features[[l]] <- panel_matrix #save in list
-            }
+    # Create meta_dataframe object
+    features_m_df <- new("meta_dataframe",
+                         data = features_m_df,
+                         workflow = list(),
+                         signals = features_names,
+                         unique_dates = unique_dates_count,
+                         unique_tickers = unique_tickers_count,
+                         n_obs = total_observations_count,
+                         meta_dataframe_name = meta_dataframe_name
+    )
 
-            # Create new data frame to store panel data
-            final_panel <- data.frame(id = panel_features[[1]]$id,
-                                      tickers = panel_features[[1]]$tickers,
-                                      dates = as.Date(panel_features[[1]]$dates),
-                                      stringsAsFactors = FALSE)
-
-            #Fill columns with characteristics
-            for(l in 1:length(features_list)){
-              final_panel[[features_names[l]]] <- panel_features[[l]][, 4] #append last column, which is the characteristic
-            }
-
-            # Calculate metadata
-            unique_dates_count <- length(unique(final_panel$dates))
-            unique_tickers_count <- length(unique(final_panel$tickers))
-            total_observations_count <- nrow(final_panel)
-
-            # Create meta_dataframe object
-            final_panel <- new("meta_dataframe",
-                               data = final_panel,
-                               workflow = list(),
-                               signals = features_names,
-                               unique_dates = unique_dates_count,
-                               unique_tickers = unique_tickers_count,
-                               n_obs = total_observations_count,
-                               meta_dataframe_name = meta_dataframe_name
-            )
-
-            return(final_panel)
-
-          }
-
+    return(features_m_df)
+  }
 )
+
+
 
 #-----------------------------------------------------------------------
 # meta_xts

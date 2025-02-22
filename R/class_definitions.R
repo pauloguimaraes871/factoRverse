@@ -22,6 +22,7 @@ setOldClass("xts")
 #' @slot unique_dates A \code{numeric} value representing the count of unique dates in the data.
 #' @slot unique_tickers A \code{numeric} value representing the count of unique tickers in the data.
 #' @slot n_obs A \code{numeric} value representing the total number of observations in the data.
+#' @slot meta_dataframe_name A \code{character} value representing the name of the meta_dataframe.
 #'
 #' @details
 #' The \code{meta_dataframe} class ensures that the data frame is structured correctly with the required columns,
@@ -64,11 +65,6 @@ setClass("meta_dataframe",
              stop("Column names should not contain 'low_', as it will bring problems when running backtesting functions")
            }
 
-           #Check for spaces in tickers
-           #if(any(grepl(" ", object@data[["tickers"]]))){
-           #  stop("Tickers should not contain spaces")
-           #}
-
          })
 
 #' Define the signals_m_df S4 Class
@@ -80,8 +76,8 @@ setClass(
   "signals_m_df",
   contains = "meta_dataframe",
   validity = function(object) {
-  if (any(object@data %>% apply(2, function(x) any(is.na(x))))){
-    stop("Data contains missing values")
+    if (any(object@data %>% apply(2, function(x) any(is.na(x))))){
+      stop("Data contains missing values")
     }
   }
 )
@@ -124,9 +120,9 @@ setClass(
 )
 
 
-#' Define the tickers S4 Class
+#' Define the target S4 Class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a tickers meta_dataframe.
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a target meta_dataframe.
 #'
 #' @export
 setClass(
@@ -134,22 +130,22 @@ setClass(
   contains = "meta_dataframe",
   validity = function(object) {
 
-  target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
+    target_fwd_name_right_pattern <- "^[A-Za-z_]+_[0-9]{1,2}m$"
 
-  for(target in object@signals){
+    for(target in object@signals){
 
-    if(!grepl(target_fwd_name_right_pattern, target)){
-      stop(cat(paste(target, " is not a valid target variable name. The
+      if(!grepl(target_fwd_name_right_pattern, target)){
+        stop(cat(paste(target, " is not a valid target variable name. The
             target_m_df colnames should follow the format XXXX_number_m, where ' XXXX is the name of the target variable,
             number is the amount of forward periods and m indicates periods are measured in months.")))
+      }
     }
-  }
   }
 )
 
 #' Define the priors_m_df S4 Class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a priros meta_dataframe.
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a priors meta_dataframe.
 #'
 #' @export
 setClass(
@@ -331,6 +327,9 @@ setClass(
   }
 )
 
+#-----------------------------------------------------------------------
+# meta_xts
+#-----------------------------------------------------------------------
 
 #' An S4 class that stores a main xts object plus metadata about backtested returns.
 #'

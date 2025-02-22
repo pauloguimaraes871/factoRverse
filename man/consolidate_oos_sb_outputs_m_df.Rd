@@ -5,7 +5,7 @@
 \title{Consolidate Out-of-Sample Signal-Blending Outputs into a Meta Dataframe}
 \usage{
 consolidate_oos_sb_outputs_m_df(
-  base_sb_backtest_results_list,
+  base_sb_backtest_outputs_list,
   winsorize_predictions = TRUE,
   normalize_predictions = TRUE,
   winsorization_probs = c(0.025, 0.975),
@@ -14,7 +14,7 @@ consolidate_oos_sb_outputs_m_df(
 )
 }
 \arguments{
-\item{base_sb_backtest_results_list}{A list of \code{sb_backtest_results} objects, each containing OOS predictions and associated metadata.}
+\item{base_sb_backtest_outputs_list}{A list of \code{sb_backtest_results} objects, each containing OOS predictions and associated metadata.}
 
 \item{winsorize_predictions}{Logical; if \code{TRUE}, performs winsorization on predictions to mitigate the effect of outliers. Default is \code{TRUE}.}
 
@@ -36,7 +36,7 @@ It supports optional winsorization and normalization of predictions, as well as 
 \details{
 The function performs a series of validation checks to ensure the consistency of input data:
 \itemize{
-\item All elements in \code{base_sb_backtest_results_list} must have the same \code{oos_predictions_m_df} structure, with matching \code{id} values across all elements.
+\item All elements in \code{base_sb_backtest_outputs_list} must have the same \code{oos_predictions_m_df} structure, with matching \code{id} values across all elements.
 \item The list must have unique, non-empty names to be used as column identifiers in the consolidated dataframe.
 \item If \code{features_passthrough} is not \code{"none"}, a \code{features_m_df} must be provided.
 }
@@ -49,7 +49,7 @@ Additionally, the specified features can be passed through to the output datafra
 \dontrun{
 # Example with default options
 consolidated_df <- consolidate_oos_sb_outputs_m_df(
-  base_sb_backtest_results_list = list_of_sb_results,
+  base_sb_backtest_outputs_list = list_of_sb_results,
   features_passthrough = "all",
   features_m_df = features_df
 )

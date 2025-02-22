@@ -13,6 +13,7 @@ run_port_backtest_internal(
   port_construction_method = "ew",
   eligibility_quantile_range = c(0.9, 1),
   selected_benchmark = NULL,
+  min_eligible_assets_fallback = NULL,
   rp_method = "cyclical-spinu",
   n_random_ports = 2000,
   random_ports_method = "sample",
@@ -43,7 +44,8 @@ run_port_backtest_internal(
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
   verbose = TRUE,
-  parallel = TRUE
+  parallel = TRUE,
+  .test_seed = NULL
 )
 }
 \arguments{

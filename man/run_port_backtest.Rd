@@ -21,6 +21,7 @@ run_port_backtest(
   volatility_m_df,
   config,
   target_m_df = NULL,
+  port_backtest_cohort = NULL,
   backtest_returns_m_xts = NULL,
   benchmark_returns_m_xts = NULL,
   signal_themes_m_df = NULL,
@@ -39,8 +40,7 @@ run_port_backtest(
   user_defined_AND_rules_m_df = NULL,
   winsorization_probs = c(0.025, 0.975),
   verbose = TRUE,
-  parallel = TRUE,
-  ...
+  parallel = TRUE
 )
 }
 \arguments{

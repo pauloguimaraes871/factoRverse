@@ -7,7 +7,8 @@
 create_port_backtest_config(
   chosen_score_metric_and_position = NULL,
   eligibility_quantile_range = c(0.9, 1),
-  selected_benchmark = "",
+  min_eligible_assets_fallback = NULL,
+  selected_benchmark = NULL,
   initial_buffer_period,
   rebalancing_months,
   cov_est_method = NULL,

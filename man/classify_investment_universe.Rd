@@ -17,8 +17,8 @@ classify_investment_universe(
   benchmark_weights_m_d_ref = NULL,
   groups_m_d_ref = NULL,
   concentration_constraint_policy = NULL,
-  user_defined_AND_rules_m_df = NULL,
-  user_defined_OR_rules_m_df = NULL,
+  user_defined_AND_rules_m_d_ref = NULL,
+  user_defined_OR_rules_m_d_ref = NULL,
   asset_object = "stocks",
   verbose = TRUE
 )
@@ -67,12 +67,12 @@ All tickers in the current universe must have a unique correspondence in this da
 \item{groups_m_d_ref}{A data frame containing columns for id, tickers, dates, and group classification columns following a given classification method.
 All tickers in the current universe must have a unique correspondence in the data frame.}
 
-\item{user_defined_AND_rules_m_df}{Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
-For example, to apply a filter with stocks that begin with A, \code{user_defined_AND_rules_m_df} can contain a data frame element named "starts_with_A_rule".
+\item{user_defined_AND_rules_m_d_ref}{Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
+For example, to apply a filter with stocks that begin with A, \code{user_defined_AND_rules_m_d_ref} can contain a data frame element named "starts_with_A_rule".
 This data frame can contain a metric column (e.g., the name of the stock), and the descriptive filter column must be named "starts_with_A_rule". In this case, the "starts_with_A_rule" column should be an integer, and its values must be either 1L (stock passes rule) or 0L (stock fails to pass rule).
 The rule will be appended to the filter as a regular promotion rule, accumulating with other rules.}
 
-\item{user_defined_OR_rules_m_df}{Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
+\item{user_defined_OR_rules_m_d_ref}{Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 All tickers in the current stock universe must have a unique correspondence in this data frame.}
 
 \item{asset_object}{A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"}
