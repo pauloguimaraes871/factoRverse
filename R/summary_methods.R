@@ -335,6 +335,187 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 })
 
 
+#' Summary Method for tickers_catalog Class
+#'
+#' Provides a detailed summary of a `tickers_catalog` object, allowing users to view
+#' key statistics and filter the catalog slot interactively.
+#'
+#' @param object An instance of the `tickers_catalog` class.
+#' @param summary_id A character string or numeric value specifying which summary to display.
+#'   - By name: Options are:
+#'     - "Catalog Overview"
+#'   - By number: Provide a number corresponding to the summary.
+#'   If `NULL` (default), the method lists available summaries.
+#'
+#' @return Invisibly returns the input `object`.
+#' @export
+setMethod("summary", "tickers_catalog", function(object, summary_id = NULL) {
+
+  # Define colors
+  deep_navy <- "#000033"
+  black <- "#000000"
+  white <- "#FFFFFF"
+
+  # List of available summaries
+  available_summaries <- c("Catalog Overview", "Yearly Summary")
+
+  if (is.null(summary_id)) {
+    cat("\nPlease choose a summary to display:\n")
+    for (i in seq_along(available_summaries)) {
+      cat(paste0(i, ": ", available_summaries[i], "\n"))
+    }
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    summary_id <- as.numeric(selection)
+    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_summaries)) {
+      stop("Invalid selection.")
+    }
+  }
+
+  if (is.numeric(summary_id)) {
+    if (summary_id == 1) {
+      summary_name <- "Catalog Overview"
+    } else if (summary_id == 2) {
+      summary_name <- "Yearly Summary"
+    } else {
+      stop("Invalid summary number.")
+    }
+  } else if (is.character(summary_id)) {
+    if (summary_id %in% available_summaries) {
+      summary_name <- summary_id
+    } else {
+      stop("Invalid 'summary_id' specified. Available options are: ", paste(available_summaries, collapse = ", "))
+    }
+  } else {
+    stop("'summary_id' must be either a string or a number corresponding to the summary.")
+  }
+
+  # Display catalog slot using DT with black column headers and search bar
+  if (summary_name == "Catalog Overview") {
+    catalog_table <- DT::datatable(
+      object@catalog,
+      rownames = FALSE,
+      extensions = c('FixedColumns', 'Scroller'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't<"top"f>',  # Adds a search bar
+        ordering = FALSE,
+        headerCallback = DT::JS("function(thead, data, start, end, display) {",
+                                "  $(thead).find('th').css({'background-color': '#000000', 'color': 'white', 'font-weight': 'bold'});",
+                                "}")
+      ),
+      class = 'cell-border stripe',
+      caption = htmltools::tags$caption(
+        style = paste0('caption-side: top; text-align: center; color: ', white,
+                       '; background-color: ', black,
+                       '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'),
+        paste0(object@meta_dataframe_name, ': Catalog Overview')
+      )
+    ) %>%
+      DT::formatStyle(
+        columns = names(object@catalog),
+        backgroundColor = deep_navy,
+        color = white
+      ) %>%
+      DT::formatStyle(
+        columns = names(object@catalog),
+        target = "cell",
+        backgroundColor = deep_navy,
+        color = white,
+        fontWeight = "bold"
+      )
+
+    print(catalog_table)
+  }
+
+  # Display summary of first & last quotes by year
+  if (summary_name == "Yearly Summary") {
+
+    # Extract year from date columns
+    object@catalog <- dplyr::mutate(object@catalog,
+                                    year_first = lubridate::year(object@catalog$date_first_quote),
+                                    year_last = lubridate::year(object@catalog$date_last_quote))
+
+    # Count occurrences of first quotes by year
+    first_quotes_summary <- object@catalog %>%
+      dplyr::filter(!is.na(year_first)) %>%
+      dplyr::count(year_first, name = "first_quote_count")
+
+    # Count occurrences of last quotes by year
+    last_quotes_summary <- object@catalog %>%
+      dplyr::filter(!is.na(year_last)) %>%
+      dplyr::count(year_last, name = "last_quote_count")
+
+    # Full join to ensure all years are present
+    summary_table <- dplyr::full_join(first_quotes_summary, last_quotes_summary,
+                                      by = c("year_first" = "year_last")) %>%
+      dplyr::rename(year = year_first) %>%
+      dplyr::mutate(across(everything(), ~ tidyr::replace_na(.x, 0))) %>%
+      dplyr::arrange(year)
+
+    # Convert 'year' to character before adding total row
+    summary_table <- summary_table %>%
+      dplyr::mutate(year = as.character(year))  # Convert year to character
+
+    # Add a total row
+    total_row <- data.frame(
+      year = "Total",  # Now matches character type
+      first_quote_count = sum(summary_table$first_quote_count),
+      last_quote_count = sum(summary_table$last_quote_count)
+    )
+
+    # Combine with summary table
+    summary_table <- dplyr::bind_rows(summary_table, total_row)
+
+
+    summary_dt <- DT::datatable(
+      summary_table,
+      rownames = FALSE,
+      extensions = c('FixedColumns', 'Scroller'),
+      options = list(
+        scrollX = TRUE,
+        scrollY = 400,
+        scroller = TRUE,
+        fixedColumns = list(leftColumns = 1),
+        dom = 't<"top"f>',  # Adds a search bar
+        ordering = FALSE,
+        headerCallback = DT::JS("function(thead, data, start, end, display) {",
+                                "  $(thead).find('th').css({'background-color': '#000000', 'color': 'white', 'font-weight': 'bold'});",
+                                "}")
+      ),
+      class = 'cell-border stripe',
+      caption = htmltools::tags$caption(
+        style = paste0('caption-side: top; text-align: center; color: ', white,
+                       '; background-color: ', black,
+                       '; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;'),
+        "Summary of First & Last Quotes by Year"
+      )
+    ) %>%
+      DT::formatStyle(
+        columns = names(summary_table),
+        backgroundColor = deep_navy,
+        color = white
+      ) %>%
+      DT::formatStyle(
+        columns = names(summary_table),
+        target = "cell",
+        backgroundColor = deep_navy,
+        color = white,
+        fontWeight = "bold"
+      )
+
+    print(summary_dt)
+  }
+
+  invisible(object)
+})
+
+
+
+
+
 
 #' @title Summary Method for meta_xts Class
 #' @description Provides summary statistics for meta_xts objects, including numeric summaries,

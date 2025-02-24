@@ -1,13 +1,9 @@
-#-----------------------------------------------------------------------
-# External Objects
-#-----------------------------------------------------------------------
+#External Objects-------------------------------------------------------
 
 # Register 'xts' as an S4 class
 setOldClass("xts")
 
-#-----------------------------------------------------------------------
-# meta_dataframe
-#-----------------------------------------------------------------------
+#meta_dataframe------------------------------------------------------
 
 #' Define the `meta_dataframe` S4 Class
 #'
@@ -49,11 +45,12 @@ setOldClass("xts")
 setClass("meta_dataframe",
          slots = c(
            data = "data.frame",        # Slot for the data frame
-           workflow = "ANY",          # Slot for storing sb_backtest_workflow about the data manipulation workflow
+           workflow = "ANY",           # Slot for storing sb_backtest_workflow about the data manipulation workflow
            signals = "character",      # Slot for storing column names
            unique_dates = "numeric",   # Slot for storing count of unique dates
            unique_tickers = "numeric", # Slot for storing count of unique tickers
-           n_obs = "numeric",          #  Slot for storing total number of observations
+           n_obs = "numeric",          # Slot for storing total number of observations
+           current_date = "Date",      # Slot for storing the current date
            meta_dataframe_name = "character"
          ), validity = function(object){
 
@@ -338,9 +335,8 @@ setClass(
   }
 )
 
-#-----------------------------------------------------------------------
-# tickers_catalog
-#-----------------------------------------------------------------------
+
+#tickers_catalog------------------------------------------------------
 
 #' tickers_catalog Class
 #'
@@ -2990,27 +2986,45 @@ setMethod(
     as.data.frame(x@data)
   }
 )
-###############################################
 
 ## tickers_catalog accessors -------------------------------------------------
 #' Lookup method for tickers_catalog
 #'
 #' Filters the catalog by provided tickers.
 #' @param tickers_catalog A tickers_catalog object.
-#' @param tickers A character vector of tickers to filter.
+#' @param tickers_to_lookup A character vector of tickers to filter.
 #' @return A filtered data.frame.
 #' @export
-setGeneric("lookup_catalog", function(tickers_catalog, tickers) standardGeneric("lookup_catalog"))
+setGeneric("lookup_catalog", function(tickers_catalog, ...) standardGeneric("lookup_catalog"))
 
-setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog", tickers = "character"),
-          function(tickers_catalog, tickers) {
+setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog"),
+          function(tickers_catalog, tickers_to_lookup = NULL, perm_id_to_lookup = NULL) {
 
             if(!"tickers" %in% colnames(tickers_catalog@catalog)){
               stop("The catalog slot must contain a 'tickers' column.")
             }
+            if(!"perm_id" %in% colnames(tickers_catalog@catalog)){
+              stop("The catalog slot must contain a 'perm_id' column.")
+            }
+            #Check that tickers_to_lookup or perm_id_to_lookup is not NULL
+            if(is.null(tickers_to_lookup) && is.null(perm_id_to_lookup)){
+              stop("Either tickers_to_lookup or perm_id_to_lookup must be provided.")
+            }
+            #Check that both are not provided simultaneously
+            if(!is.null(tickers_to_lookup) && !is.null(perm_id_to_lookup)){
+              stop("Only one of tickers_to_lookup or perm_id_to_lookup can be provided.")
+            }
+
+            #Check tickers_to_lookup
+            if(!is.null(tickers_to_lookup)){
+              tickers_catalog@catalog %>% dplyr::filter(tickers %in% tickers_to_lookup) %>% dplyr::pull(perm_id)
+            }
+            #Check perm_id_to_lookup
+            if(!is.null(perm_id_to_lookup)){
+              tickers_catalog@catalog %>% dplyr::filter(perm_id %in% perm_id_to_lookup) %>% dplyr::pull(tickers)
+            }
 
 
-            tickers_catalog@catalog %>% dplyr::filter(tickers %in% tickers_catalog@catalog$tickers)
           })
 
 

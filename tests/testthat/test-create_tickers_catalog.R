@@ -201,7 +201,7 @@ test_that("create_tickers_log gives same perm id for a ticker-initial_date combi
   )
 
   raw_features_m_df_scrambled <- raw_features_m_df
-  raw_features_m_df_scrambled@data <- raw_features_m_df_scrambled@data[sample(1:nrow(raw_features_m_df_scrambled@data)), ]
+  raw_features_m_df_scrambled@data <- raw_features_m_df_scrambled@data[sample(seq_len(nrow(raw_features_m_df_scrambled@data))), ]
 
 
   date_first_quote <- data.frame(
@@ -507,6 +507,45 @@ test_that("create_tickers_log throws an error when most common date is not the l
   )
 })
 
+test_that("create_tickers_log throws an error when only untradables are found",{
+  #Load excel and set inputs and outputs
+  raw_features_input <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
+                                                         features_sheet_names = c("ebit_12m", "ir_3m", "sharpe", "mkt_cap", "sector_c1"),
+                                                         features_sheet_range = c("D4:F22"),
+                                                         tickers_sheet_range = c("C4:C22"),
+                                                         dates_sheet_range = c("D1:F1"),
+                                                         output_sheet_name = c("panel"),
+                                                         output_sheet_range = c("B1:I58"),
+                                                         industry_classification_column_name = c("sector_c1"))
+  #Apply function
+  raw_features_m_df <- create_meta_dataframe(data = raw_features_input$inputs$feature_list,
+                                             tickers = raw_features_input$inputs$tickers$...1,
+                                             dates  = raw_features_input$inputs$dates,
+                                             features_names = raw_features_input$inputs$features_names)
+
+  #Get real date_first_quote and date_last_quote
+  date_first_quote <- readxl::read_excel(test_path("testdata", "toy_features.xlsx"),
+                                         sheet = "date_first_quote",
+                                         range = "A1:B20",
+                                         col_names = TRUE
+  ) %>% as.data.frame()
+  date_first_quote$date_first_quote <- NA
+
+  date_last_quote <- readxl::read_excel(test_path("testdata", "toy_features.xlsx"),
+                                        sheet = "date_last_quote",
+                                        range = "A1:B20",
+                                        col_names = TRUE
+  ) %>% as.data.frame()
+  date_last_quote$date_last_quote <- NA
+
+  #Get tickers catalog
+  expect_error(
+    create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote),
+    "No tradable stocks identified"
+  )
+
+  })
+
 test_that("create_tickers log integrates with create_meta_dataframe - Excel Files", {
 
   #Load excel and set inputs and outputs
@@ -549,5 +588,13 @@ test_that("create_tickers log integrates with create_meta_dataframe - Excel File
   expect_equal(results@delisted, sort(c("ABCB3", "ABCB11", "ABYA3", "AVIL3", "AVIL4", "ADHM3", "TIET3", "TIET4")))
   expect_equal(results@listed, results@catalog %>% dplyr::filter(listed) %>% dplyr::pull(tickers))
   expect_equal(results@listed, sort(c("RRRP3", "TTEN3", "ABCB4", "EALT3", "EALT4", "AERI3", "AESB3")))
+
+  #Check that reducing n_days_tolerance will remove EALT3 from the listed stocks
+  results2 <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote,
+                                     n_days_tolerance = 1)
+
+  expect_false("EALT3" %in% results2@listed)
+
+
 
 })

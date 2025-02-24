@@ -15,7 +15,8 @@ setMethod("show", "meta_dataframe", function(object) {
   # Print a summary of the sb_backtest_workflow
   cat("Meta Dataframe Show Method:\n")
   cat("=================================\n")
-  cat("Meta Dataframe name: ", object@meta_dataframe_name, " \n\n")
+  cat("Meta Dataframe name: ", object@meta_dataframe_name, " \n")
+  cat("Current date :", paste(as.Date(object@current_date)), " \n\n")
   if(object@class == "target_m_df"){
     cat(" Targets:\n")
   } else {
@@ -204,11 +205,12 @@ setMethod("show", "tickers_catalog", function(object) {
   cat("\nTickers Catalog Object\n")
   cat("----------------------\n")
   cat(" Metadataframe Obj:", object@meta_dataframe_name, "\n")
+  cat(" Current date reference:", paste(as.Date(object@current_date)), "\n\n")
   cat(" Total tickers:", nrow(object@catalog), "\n")
   cat(" Untraded tickers:", object@untraded, "\n")
   cat(" Delisted tickers:", object@delisted, "\n")
   cat(" Listed tickers:", object@listed, "\n")
-  cat(" Current date reference:", paste(as.Date(object@current_date)), "\n")
+
   cat(" Number of days of tolerance:", object@n_days_tolerance, "\n")
 
   #Short first few rows of the catalog

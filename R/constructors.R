@@ -71,7 +71,6 @@ setMethod(
                      'weights', 'priors', 'signals' or 'features'.")
     }
 
-
     # Is it coercible
     if (!is_coercible_to_meta_dataframe(data)) {
       stop("The data frame is not coercible to a meta_dataframe object")
@@ -91,6 +90,7 @@ setMethod(
     unique_dates_count <- length(unique(data$dates))
     unique_tickers_count <- length(unique(data$tickers))
     total_observations_count <- nrow(data)
+    current_date <- unique_dates[which.max(unique_dates)]
 
     # Initialize workflow slot as an empty list
     if (type == "generic") {
@@ -103,7 +103,8 @@ setMethod(
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name
+          meta_dataframe_name = meta_dataframe_name,
+          current_date = current_date
         )
       )
     }
@@ -117,7 +118,8 @@ setMethod(
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name
+          meta_dataframe_name = meta_dataframe_name,
+          current_date = current_date
         )
       )
     }
@@ -137,7 +139,8 @@ setMethod(
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
           meta_dataframe_name = meta_dataframe_name,
-          ss_backtest_workflow = ss_backtest_workflow
+          ss_backtest_workflow = ss_backtest_workflow,
+          current_date = current_date
         )
       )
     }
@@ -156,7 +159,8 @@ setMethod(
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
           meta_dataframe_name = meta_dataframe_name,
-          sb_backtest_workflow = sb_backtest_workflow
+          sb_backtest_workflow = sb_backtest_workflow,
+          current_date = current_date
         )
       )
     }
@@ -177,7 +181,8 @@ setMethod(
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
           meta_dataframe_name = meta_dataframe_name,
-          port_backtest_workflow = port_backtest_workflow
+          port_backtest_workflow = port_backtest_workflow,
+          current_date = current_date
         )
       )
     }
@@ -190,7 +195,8 @@ setMethod(
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name
+          meta_dataframe_name = meta_dataframe_name,
+          current_date = current_date
         )
       )
     }
@@ -204,7 +210,8 @@ setMethod(
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name
+          meta_dataframe_name = meta_dataframe_name,
+          current_date = current_date
         )
       )
     }
@@ -218,7 +225,8 @@ setMethod(
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name
+          meta_dataframe_name = meta_dataframe_name,
+          current_date = current_date
         )
       )
     }
@@ -232,7 +240,8 @@ setMethod(
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
           n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name
+          meta_dataframe_name = meta_dataframe_name,
+          current_date = current_date
         )
       )
     }
@@ -388,7 +397,7 @@ setMethod(
       panel_features_df <- purrr::reduce(feature_dfs_list, dplyr::full_join, by = c("tickers", "dates"))
 
       ##Add unique ID
-      features_m_df <- panel_features_df %>%
+      raw_features_m_df <- panel_features_df %>%
         dplyr::mutate(id = stringr::str_c(tickers, dates, sep = "-"), .before = tickers) %>%
         dplyr::arrange(.data$id) %>%
         as.data.frame()
@@ -396,23 +405,25 @@ setMethod(
 
     ##Calculate metadata
     #################
-    unique_dates_count <- length(unique(features_m_df$dates))
-    unique_tickers_count <- length(unique(features_m_df$tickers))
-    total_observations_count <- nrow(features_m_df)
+    unique_dates_count <- length(unique(raw_features_m_df$dates))
+    unique_tickers_count <- length(unique(raw_features_m_df$tickers))
+    total_observations_count <- nrow(raw_features_m_df)
+    current_date <- unique(raw_features_m_df$dates)[which.max(unique(raw_features_m_df$dates))]
 
     # Create meta_dataframe object
-    features_m_df <- new("raw_features_m_df",
-      data = features_m_df,
+    raw_features_m_df <- new("raw_features_m_df",
+      data = raw_features_m_df,
       workflow = list(),
       signals = features_names,
       unique_dates = unique_dates_count,
       unique_tickers = unique_tickers_count,
       n_obs = total_observations_count,
-      meta_dataframe_name = meta_dataframe_name
+      meta_dataframe_name = meta_dataframe_name,
+      current_date = current_date
     )
     #################
 
-    return(features_m_df)
+    return(raw_features_m_df)
   }
 )
 
@@ -426,6 +437,7 @@ setMethod(
 #' @param n_update expected number of new dates (months) to update
 #'
 #' @return Updated meta_dataframe object
+
 
 
 
@@ -497,6 +509,12 @@ setMethod("create_tickers_catalog",
               if (nrow(date_first_quote) != nrow(unique(date_first_quote)) || nrow(date_last_quote) != nrow(unique(date_last_quote))) {
                 stop("Duplicate tickers found in date_first_quote or date_last_quote.")
               }
+
+              ###Check if all are untraded (date_first_quote and date_last_quote are all NAs)
+              if (all(is.na(date_first_quote$date_first_quote)) || all(is.na(date_last_quote$date_last_quote))) {
+                stop("No tradable stocks identified")
+              }
+
 
               ###Ensure tickers match exactly across all data sources
               common_tickers <- intersect(intersect(raw_features_m_df@data$tickers %>% unique(), date_first_quote$tickers), date_last_quote$tickers)
@@ -572,7 +590,7 @@ setMethod("create_tickers_catalog",
             ## Create tickers_catalog object
             tickers_catalog_obj <- new(
               "tickers_catalog",
-              catalog = tickers_catalog,
+              catalog = tickers_catalog %>% dplyr::mutate(perm_id = unname(perm_id)),
               tickers = tickers_catalog$tickers,
               perm_id = tickers_catalog$perm_id,
               date_first_quote = tickers_catalog$date_first_quote,
