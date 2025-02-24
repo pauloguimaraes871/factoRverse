@@ -92,7 +92,7 @@ random_search_obj <- add_hyperparameter(
   random_search_obj,
   hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
   distribution_choice = c("constant", "uniform", "uniform", "uniform", "uniform", "uniform", "constant", "uniform"),
-  pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),  c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
+  pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2), c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
 )
 
 # Create an initial tuning_strategy object for bayesian_opt
@@ -111,23 +111,29 @@ bayesian_opt_obj <- create_tuning_strategy(
 bayesian_opt_obj <- add_hyperparameter(
   bayesian_opt_obj,
   hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
-  bounds = list(c(0,1), c(100L, 1000L), c(2L, 8L), c(1, 5))
+  bounds = list(c(0, 1), c(100L, 1000L), c(2L, 8L), c(1, 5))
 )
 
 # Creating a hyper_grid_domain object for a xgb model
 hyper_grid_xgb_random <- create_hyper_grid_domain(
- tuning_method = "random_search",
- sb_algorithm = "xgb"
- )
+  tuning_method = "random_search",
+  sb_algorithm = "xgb"
+)
 
- hyper_grid_xgb_random <- add_hyperparameter(
- hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
-                    "eta", "alpha", "gamma", "nrounds"),
- distribution_choice = c("constant", "uniform", "uniform", "uniform",
-                         "uniform", "uniform", "constant", "uniform"),
- pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
-           c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
-           c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
- )
+hyper_grid_xgb_random <- add_hyperparameter(
+  hyperparameter = c(
+    "min_child_weight", "max_depth", "subsample", "colsample_bytree",
+    "eta", "alpha", "gamma", "nrounds"
+  ),
+  distribution_choice = c(
+    "constant", "uniform", "uniform", "uniform",
+    "uniform", "uniform", "constant", "uniform"
+  ),
+  pars = list(
+    3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
+    c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
+    c(min = 2, max = 5), 0, c(min = 200L, max = 500L)
+  )
+)
 
 }

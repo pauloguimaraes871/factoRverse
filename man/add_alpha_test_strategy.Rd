@@ -37,9 +37,10 @@ This method allows you to add an \code{alpha_test_strategy} object to an \code{s
 \examples{
 # Example usage
 alpha_strategy <- new("frequentist_alpha_test_strategy",
-                       signal_significance_threshold = 0.05,
-                       p_correction_method = "holm",
-                       market_factor_proxy = "S&P500")
+  signal_significance_threshold = 0.05,
+  p_correction_method = "holm",
+  market_factor_proxy = "S&P500"
+)
 config <- create_ss_backtest_config(
   initial_sample_size = 200,
   rebalancing_months = 6,

@@ -38,22 +38,26 @@ input xts object and the desired type: "assets" or "metrics".
 }
 \examples{
 \dontrun{
-  library(xts)
-  # Simple example data
-  dates <- seq(as.Date("2020-01-01"), as.Date("2020-01-05"), by = "day")
-  x <- matrix(rnorm(5 * 2), ncol = 2)
-  colnames(x) <- c("AssetA", "AssetB")
-  my_xts <- xts::xts(x, order.by = dates)
+library(xts)
+# Simple example data
+dates <- seq(as.Date("2020-01-01"), as.Date("2020-01-05"), by = "day")
+x <- matrix(rnorm(5 * 2), ncol = 2)
+colnames(x) <- c("AssetA", "AssetB")
+my_xts <- xts::xts(x, order.by = dates)
 
-  # Create an assets_meta_xts
-  obj_assets <- create_meta_xts(data = my_xts, type = "port",
-                               meta_xts_name = "My Assets Data")
-  validObject(obj_assets)
+# Create an assets_meta_xts
+obj_assets <- create_meta_xts(
+  data = my_xts, type = "port",
+  meta_xts_name = "My Assets Data"
+)
+validObject(obj_assets)
 
-  # Create a metrics_meta_xts
-  obj_metrics <- create_meta_xts(data = my_xts, type = "metrics",
-                                meta_xts_name = "My Metrics Data")
-  validObject(obj_metrics)
+# Create a metrics_meta_xts
+obj_metrics <- create_meta_xts(
+  data = my_xts, type = "metrics",
+  meta_xts_name = "My Metrics Data"
+)
+validObject(obj_metrics)
 }
 
 }

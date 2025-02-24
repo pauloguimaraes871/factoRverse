@@ -97,7 +97,7 @@ a list of \code{ss_backtest_config} objects, the function will generate all poss
 possibly in parallel.
 Alternatively, the user can provide a list of \code{sb_backtest_results} directly to be used by the function.
 }
-\section{Methods (by class)}{
+\section{Functions}{
 \itemize{
 \item \code{create_sb_metabacktest_config(
   meta_sb_backtest_config = sb_backtest_config,
@@ -145,29 +145,29 @@ It combines all possible configurations between the configs and strategies by us
 
 # First method: Combine sb_configs and ss_configs
 meta_config <- create_sb_metabacktest_config(
-    meta_sb_backtest_config = sb_backtest_config,
-    base_sb_backtest_configs = list(sb_config1, sb_config2),
-    ss_backtest_configs = list(ss_config1, ss_config2)
+  meta_sb_backtest_config = sb_backtest_config,
+  base_sb_backtest_configs = list(sb_config1, sb_config2),
+  ss_backtest_configs = list(ss_config1, ss_config2)
 )
 
 # Second method: Configs already have ss_backtest_config set
 meta_config <- create_sb_metabacktest_config(
-    meta_sb_backtest_config = sb_backtest_config,
-    base_sb_backtest_configs = list(config1, config2)
+  meta_sb_backtest_config = sb_backtest_config,
+  base_sb_backtest_configs = list(config1, config2)
 )
 
 # Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
 # and tuning_strategy objects strategy1, strategy2
 meta_config <- create_sb_metabacktest_config(
-    sb_configs = list(sb_config1, sb_config2),
-    ss_configs = list(ss_config1, ss_config2)
+  sb_configs = list(sb_config1, sb_config2),
+  ss_configs = list(ss_config1, ss_config2)
 )
 
 # Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
 # and tuning_strategy objects strategy1, strategy2
 meta_config <- create_sb_metabacktest_config(
-    sb_configs = list(sb_config1, sb_config2),
-    ss_configs = list(ss_config1, ss_config2)
+  sb_configs = list(sb_config1, sb_config2),
+  ss_configs = list(ss_config1, ss_config2)
 )
 
 }
