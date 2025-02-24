@@ -60,7 +60,6 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 #' # Create a meta_dataframe object
 #' meta_df <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
 #'
-#'
 #' @exportMethod create_meta_dataframe
 setMethod(
   "create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
@@ -98,13 +97,13 @@ setMethod(
       # Store metadata and column names
       return(
         new("meta_dataframe",
-            data = data,
-            workflow = workflow,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name
+          data = data,
+          workflow = workflow,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name
         )
       )
     }
@@ -112,13 +111,13 @@ setMethod(
     if (type %in% c("signals", "features")) {
       return(
         new("signals_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name
+          data = data,
+          workflow = NULL,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name
         )
       )
     }
@@ -131,14 +130,14 @@ setMethod(
       # Store metadata and column names
       return(
         new("signal_universe_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name,
-            ss_backtest_workflow = ss_backtest_workflow
+          data = data,
+          workflow = NULL,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name,
+          ss_backtest_workflow = ss_backtest_workflow
         )
       )
     }
@@ -150,14 +149,14 @@ setMethod(
 
       return(
         new("oos_sb_outputs_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name,
-            sb_backtest_workflow = sb_backtest_workflow
+          data = data,
+          workflow = NULL,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name,
+          sb_backtest_workflow = sb_backtest_workflow
         )
       )
     }
@@ -171,27 +170,27 @@ setMethod(
       # Store metadata and column names
       return(
         new("stock_universe_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name,
-            port_backtest_workflow = port_backtest_workflow
+          data = data,
+          workflow = NULL,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name,
+          port_backtest_workflow = port_backtest_workflow
         )
       )
     }
     if (type == "groups") {
       return(
         new("groups_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name
+          data = data,
+          workflow = NULL,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name
         )
       )
     }
@@ -199,13 +198,13 @@ setMethod(
     if (type == "priors") {
       return(
         new("priors_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name
+          data = data,
+          workflow = NULL,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name
         )
       )
     }
@@ -213,13 +212,13 @@ setMethod(
     if (type == "target") {
       return(
         new("target_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name
+          data = data,
+          workflow = NULL,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name
         )
       )
     }
@@ -227,13 +226,13 @@ setMethod(
     if (type == "weights") {
       return(
         new("weights_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name
+          data = data,
+          workflow = NULL,
+          signals = names(data)[-c(1:3)],
+          unique_dates = unique_dates_count,
+          unique_tickers = unique_tickers_count,
+          n_obs = total_observations_count,
+          meta_dataframe_name = meta_dataframe_name
         )
       )
     }
@@ -276,70 +275,316 @@ setMethod(
   function(data, tickers, dates, features_names, meta_dataframe_name = "not_identified",
            data_format = "wide", tickers_on = "rows") {
 
-    # Check if data is a list of matrices, data frames, or tibbles
-    if (!is.list(data) ||
-        !all(sapply(data, function(x) is.data.frame(x) || is.matrix(x) || tibble::is_tibble(x))) ||
-        length(unique(sapply(data, nrow))) != 1 ||
-        length(unique(sapply(data, ncol))) != 1 ||
-        length(tickers) != unique(sapply(data, nrow)) ||
-        length(dates) != unique(sapply(data, ncol)) ||
-        length(features_names) != length(data)) {
-      stop("Input must be a list of matrices, data frames or tibbles with the same dimensions.")
-    }
+    #Initial checks
+    #################
+      ##Check that data is a list
+      if (!is.list(data)) {
+        stop("Input must be a list.")
+      }
+      ##Check that all elements in the list are matrices, data frames, or tibbles
+      if (!all(sapply(data, function(x) is.data.frame(x) || is.matrix(x) || tibble::is_tibble(x)))) {
+        stop("All elements of the list must be matrices, data frames, or tibbles.")
+      }
+      ##Check that all elements have the same number of rows
+      if (length(unique(sapply(data, nrow))) != 1) {
+        stop("All elements in the list must have the same number of rows.")
+      }
+      ##Check that all elements have the same number of columns
+      if (length(unique(sapply(data, ncol))) != 1) {
+        stop("All elements in the list must have the same number of columns.")
+      }
+      ##Check that the length of tickers equals the number of rows in each element
+      if (length(tickers) != unique(sapply(data, nrow))) {
+        stop("The length of tickers must equal the number of rows in each element of the list.")
+      }
+      ##Check that the length of dates equals the number of columns in each element
+      if (length(dates) != unique(sapply(data, ncol))) {
+        stop("The length of dates must equal the number of columns in each element of the list.")
+      }
+      ##Check that the length of features_names equals the number of list elements
+      if (length(features_names) != length(data)) {
+        stop("The length of features_names must equal the number of elements in the list.")
+      }
+      ##Check that there are no NA values in the data
+      if (any(sapply(data, function(x) all(is.na(x))))) {
+        stop("One or more datasets contain only NA values.")
+      }
+      ##Verify that tickers is a unique character vector
+        if (!is.character(tickers)) {
+          stop("tickers must be a character vector.")
+        }
+      if (any(duplicated(tickers))) {
+        stop("tickers must be unique.")
+      }
+      ##Verify that dates is 'Date', unique, consecutive, and follows a monthly pattern
+      if (!inherits(dates, "Date")) {
+        stop("dates must be in Date format.")
+      }
+      if (any(duplicated(dates))) {
+        stop("dates must be unique.")
+      }
+        ###Extract months and days as numeric values
+        months <- as.numeric(format(sort(dates), "%m"))
+        days <- as.numeric(format(sort(dates), "%d"))
+        ###Check that all dates have the same day
+        if (length(unique(days)) != 1) {
+          stop("All dates must have the same day.")
+        }
+        ###Check that months follow consecutive order: each month should be exactly one more than the previous,
+        ###with December (12) wrapping around to January (1)
+        for (i in seq_along(months)[-length(months)]) {
+          expected_next <- if (months[i] == 12) 1 else months[i] + 1
+          if (months[i + 1] != expected_next) {
+            stop("Dates must be consecutive by month.")
+          }
+        }
+      ##Verify that none of the datasets contain columns named 'tickers' or 'dates'
+        if (any(sapply(data, function(x) {
+          cols <- colnames(x)
+          !is.null(cols) && any(c("tickers", "dates") %in% cols)
+        }))) {
+          stop("One or more datasets already contain a column named 'tickers' or 'dates'.")
+        }
+      ##Verify that none of the datasets contain columns that exactly match any of the tickers or dates
+        if (any(purrr::map_lgl(data, function(x) {
+          # Check if any value in any column is in tickers or as.character(dates)
+          any(apply(as.data.frame(x), 2, function(col) any(col %in% c(tickers, as.character(dates)))))
+        }))) {
+          stop("One or more datasets contain values in their columns that match provided tickers or dates.")
+        }
 
-    # Check if arguments are valid
-    if (data_format != "wide") stop("Only wide format is currently supported.")
-    if (tickers_on != "rows") stop("Only tickers on rows is currently supported.")
+      ##Check if arguments are valid
+      if (data_format != "wide") stop("Only wide format is currently supported.")
+      if (tickers_on != "rows") stop("Only tickers on rows is currently supported.")
 
-    # Convert each feature in features_list to data frame and rename with dates
-    features_list <- purrr::map(data, function(x) { colnames(x) <- as.character(dates); as.data.frame(x) })
+    #################
 
-    # For each feature, pivot to long format with a column named after the feature
-    feature_dfs_list <- purrr::map2(features_list, features_names, function(feature_df, feat_name) {
-      feature_df %>%
-        # Add the tickers column
-        dplyr::mutate(tickers = tickers) %>%
-        # Pivot longer: one column for dates and one column for the feature values
-        tidyr::pivot_longer(
-          cols = -tickers,
-          names_to = "dates",
-          values_to = feat_name
-        ) %>%
-        # Convert dates column to Date type
-        dplyr::mutate(dates = as.Date(dates, format = "%Y-%m-%d"))
-    })
+    #Process data
+    #################
+      ##Convert each feature in features_list to data frame and rename with dates
+      features_list <- purrr::map(data, function(x) {
+        colnames(x) <- as.character(dates)
+        as.data.frame(x)
+      })
+      ##Sort dates to be sure
+      dates <- sort(dates)
 
-    # Join all feature data frames by tickers and dates
-    # This ensures each feature column is preserved with its own type.
-    panel_features_df <- purrr::reduce(feature_dfs_list, dplyr::full_join, by = c("tickers", "dates"))
+      ##For each feature, pivot to long format with a column named after the feature
+      feature_dfs_list <- purrr::map2(features_list, features_names, function(feature_df, feat_name) {
+        feature_df %>%
+          # Add the tickers column
+          dplyr::mutate(tickers = tickers) %>%
+          # Pivot longer: one column for dates and one column for the feature values
+          tidyr::pivot_longer(
+            cols = -tickers,
+            names_to = "dates",
+            values_to = feat_name
+          ) %>%
+          # Convert dates column to Date type
+          dplyr::mutate(dates = as.Date(dates, format = "%Y-%m-%d"))
+      })
 
-    # Add unique ID
-    features_m_df <- panel_features_df %>%
-      dplyr::mutate(id = stringr::str_c(tickers, dates, sep = "-"), .before = tickers) %>%
-      dplyr::arrange(id) %>%
-      as.data.frame()
+      ##Join all feature data frames by tickers and dates
+      panel_features_df <- purrr::reduce(feature_dfs_list, dplyr::full_join, by = c("tickers", "dates"))
 
-    # Calculate metadata
+      ##Add unique ID
+      features_m_df <- panel_features_df %>%
+        dplyr::mutate(id = stringr::str_c(tickers, dates, sep = "-"), .before = tickers) %>%
+        dplyr::arrange(.data$id) %>%
+        as.data.frame()
+    #################
+
+    ##Calculate metadata
+    #################
     unique_dates_count <- length(unique(features_m_df$dates))
     unique_tickers_count <- length(unique(features_m_df$tickers))
     total_observations_count <- nrow(features_m_df)
 
     # Create meta_dataframe object
-    features_m_df <- new("meta_dataframe",
-                         data = features_m_df,
-                         workflow = list(),
-                         signals = features_names,
-                         unique_dates = unique_dates_count,
-                         unique_tickers = unique_tickers_count,
-                         n_obs = total_observations_count,
-                         meta_dataframe_name = meta_dataframe_name
+    features_m_df <- new("raw_features_m_df",
+      data = features_m_df,
+      workflow = list(),
+      signals = features_names,
+      unique_dates = unique_dates_count,
+      unique_tickers = unique_tickers_count,
+      n_obs = total_observations_count,
+      meta_dataframe_name = meta_dataframe_name
     )
+    #################
 
     return(features_m_df)
   }
 )
 
+#' Update Meta Dataframe
+#'
+#' @param old_data meta_dataframe object with previous data
+#' @param new_data list of new CSV data (wide format)
+#' @param tickers vector of tickers
+#' @param dates vector of dates for new data
+#' @param features_names names of the new features
+#' @param n_update expected number of new dates (months) to update
+#'
+#' @return Updated meta_dataframe object
 
+
+
+#-----------------------------------------------------------------------
+# tickers_catalog
+#-----------------------------------------------------------------------
+#' Create a tickers_catalog Object
+#'
+#' Constructs a `tickers_catalog` object by integrating stock metadata from multiple data sources.
+#' Ensures data consistency, generates unique identifiers, and classifies stocks based on listing status.
+#'
+#' @param raw_features_m_df A `meta_dataframe` object with `type == "generic"`, containing stock tickers and dates.
+#' @param date_first_quote A `data.frame` with columns `tickers` (character) and `date_first_quote` (Date).
+#' @param date_last_quote A `data.frame` with columns `tickers` (character) and `date_last_quote` (Date).
+#'
+#' @return An object of class `tickers_catalog`.
+#'
+#' @details
+#' This function performs the following steps:
+#' 1. Validates input types and ensures column consistency.
+#' 2. Verifies that `tickers` are identical across all input data.
+#' 3. Ensures `date_last_quote` is always greater than `date_first_quote`, allowing NAs.
+#' 4. Generates a unique `perm_id` for each stock, based on `tickers` and `date_first_quote`.
+#' 5. Extracts the most recent date (`current_date`) from `raw_features_m_df$dates`.
+#' 6. Classifies stocks as `private` (both date_first_quote and date_last_quote are NA).
+#' 7. Flags stocks as `delisted` if `date_last_quote` is before `current_date`.
+#'
+#'
+#' @export
+#'
+setGeneric("create_tickers_catalog", function(raw_features_m_df, date_first_quote, date_last_quote) {
+  standardGeneric("create_tickers_catalog")
+})
+
+#' Create a tickers_catalog Object
+#'
+#' Constructs a `tickers_catalog` object by integrating stock metadata from multiple data sources.
+#' Ensures data consistency, generates unique identifiers, and classifies stocks based on listing status.
+#'
+#' @inheritParams create_tickers_catalog
+#' @export
+setMethod("create_tickers_catalog",
+          signature(
+            raw_features_m_df = "raw_features_m_df",
+            date_first_quote = "data.frame",
+            date_last_quote = "data.frame"
+          ),
+          function(raw_features_m_df, date_first_quote, date_last_quote) {
+
+          #global binding
+          tickers <- untraded <- delisted <- listed <- NULL
+
+          #Initial checks
+          #############
+
+            ##Check dfs constraints
+            if (!all(c("tickers", "date_first_quote") %in% colnames(date_first_quote)) ||
+                !all(c("tickers", "date_last_quote") %in% colnames(date_last_quote))) {
+              stop("date_first_quote must have columns 'tickers' and 'date_first_quote', and date_last_quote must have 'tickers' and 'date_last_quote'.")
+            }
+
+            ##Check tickers
+              ###Convert date columns to Date type
+              date_first_quote$date_first_quote <- as.Date(date_first_quote$date_first_quote)
+              date_last_quote$date_last_quote <- as.Date(date_last_quote$date_last_quote)
+
+              ###Check that there are no duplicate tickers in date_first_quote or date_last_quote
+              if (nrow(date_first_quote) != nrow(unique(date_first_quote)) || nrow(date_last_quote) != nrow(unique(date_last_quote))) {
+                stop("Duplicate tickers found in date_first_quote or date_last_quote.")
+              }
+
+              ###Ensure tickers match exactly across all data sources
+              common_tickers <- intersect(intersect(raw_features_m_df@data$tickers %>% unique(), date_first_quote$tickers), date_last_quote$tickers)
+              if (length(common_tickers) != length(raw_features_m_df@data$tickers %>% unique())) {
+                stop("Mismatch in tickers between raw_features_m_df, date_first_quote, and date_last_quote.")
+              }
+
+            ##Check that either both dates are NA or neither is
+            if (any(is.na(date_first_quote$date_first_quote) != is.na(date_last_quote$date_last_quote))) {
+              stop("date_first_quote and date_last_quote must both be NA or neither.")
+            }
+
+            ##Check that a warning is thrown when last_date most common date is not the last date
+              if (names(table(date_last_quote$date_last_quote) %>% which.max()) != #Most common date (mode)
+                  max(unique(raw_features_m_df@data$dates), na.rm = TRUE)) { #Current date
+                warning("Most common date in date_last_quote is not the last date in raw_features_m_df.")
+              }
+
+            ##Check that date_last_quote > date_first_quote (allowing NAs)
+            invalid_dates <- date_first_quote %>%
+              dplyr::inner_join(date_last_quote, by = "tickers") %>% #Get common tickers between both data_frames
+              dplyr::filter(!is.na(date_first_quote) & !is.na(date_last_quote) & date_last_quote < date_first_quote) #Filter invalid dates
+
+            if (nrow(invalid_dates) > 0) {
+              stop("date_last_quote must be greater than or equal to date_first_quote for all tickers.")
+            }
+
+            #############
+
+          #Create object
+          ###############
+            ## Extract tickers and initialize object
+            tickers_catalog <- raw_features_m_df@data %>%
+              dplyr::select(tickers) %>% #Select only tickers
+              dplyr::distinct() %>%  #Remove duplicates
+              dplyr::left_join(date_first_quote, by = "tickers") %>% #Join date_first_quote
+              dplyr::left_join(date_last_quote, by = "tickers") #Join date_last_quote
+
+            ##Generate perm_id
+              ###Define function to generate perm_id
+              generate_perm_id <- function(ticker, date_first_quote) {
+                date_str <- ifelse(is.na(date_first_quote), "NA", format(date_first_quote, "%Y%m%d"))
+                short_hash <- substr(digest::digest(paste0(ticker, "_", date_str), algo = "md5"), 1, 10)
+                return(short_hash)
+              }
+
+              ###Generate perm_id
+              tickers_catalog <- tickers_catalog %>%
+                dplyr::mutate(perm_id = mapply(generate_perm_id, tickers, date_first_quote))
+
+          ###############
+
+          #Classify stocks
+          ################
+            ##Get current_date (max of unique dates in raw_features_m_df)
+            current_date <- max(unique(raw_features_m_df@data$dates), na.rm = TRUE)
+
+            ##Classify private and delisted stocks
+            tickers_catalog <- tickers_catalog %>%
+              dplyr::mutate(
+                untraded = is.na(date_first_quote) & is.na(date_last_quote),
+                delisted = !is.na(date_last_quote) & date_last_quote < current_date,
+                listed = !is.na(date_last_quote) & date_last_quote >= current_date,
+              )
+
+            ## Create subsets for slots
+            untraded_df <- tickers_catalog %>% dplyr::filter(untraded == TRUE)
+            delisted_df <- tickers_catalog %>% dplyr::filter(delisted == TRUE)
+            listed_df <- tickers_catalog %>% dplyr::filter(listed == TRUE)
+
+            ################
+
+            ## Create tickers_catalog object
+            tickers_catalog_obj <- new(
+              "tickers_catalog",
+              catalog = tickers_catalog,
+              tickers = tickers_catalog$tickers,
+              perm_id = tickers_catalog$perm_id,
+              date_first_quote = tickers_catalog$date_first_quote,
+              date_last_quote = tickers_catalog$date_last_quote,
+              untraded = untraded_df$tickers,
+              delisted = delisted_df$tickers,
+              listed = listed_df$tickers,
+              current_date = current_date,
+              meta_dataframe_name = raw_features_m_df@meta_dataframe_name
+            )
+
+            return(tickers_catalog_obj)
+          })
 
 #-----------------------------------------------------------------------
 # meta_xts
@@ -363,22 +608,26 @@ setMethod(
 #'
 #' @examples
 #' \dontrun{
-#'   library(xts)
-#'   # Simple example data
-#'   dates <- seq(as.Date("2020-01-01"), as.Date("2020-01-05"), by = "day")
-#'   x <- matrix(rnorm(5 * 2), ncol = 2)
-#'   colnames(x) <- c("AssetA", "AssetB")
-#'   my_xts <- xts::xts(x, order.by = dates)
+#' library(xts)
+#' # Simple example data
+#' dates <- seq(as.Date("2020-01-01"), as.Date("2020-01-05"), by = "day")
+#' x <- matrix(rnorm(5 * 2), ncol = 2)
+#' colnames(x) <- c("AssetA", "AssetB")
+#' my_xts <- xts::xts(x, order.by = dates)
 #'
-#'   # Create an assets_meta_xts
-#'   obj_assets <- create_meta_xts(data = my_xts, type = "port",
-#'                                meta_xts_name = "My Assets Data")
-#'   validObject(obj_assets)
+#' # Create an assets_meta_xts
+#' obj_assets <- create_meta_xts(
+#'   data = my_xts, type = "port",
+#'   meta_xts_name = "My Assets Data"
+#' )
+#' validObject(obj_assets)
 #'
-#'   # Create a metrics_meta_xts
-#'   obj_metrics <- create_meta_xts(data = my_xts, type = "metrics",
-#'                                 meta_xts_name = "My Metrics Data")
-#'   validObject(obj_metrics)
+#' # Create a metrics_meta_xts
+#' obj_metrics <- create_meta_xts(
+#'   data = my_xts, type = "metrics",
+#'   meta_xts_name = "My Metrics Data"
+#' )
+#' validObject(obj_metrics)
 #' }
 #'
 #' @importFrom xts periodicity
@@ -391,7 +640,6 @@ create_meta_xts <- function(data,
                             metric_name = NULL,
                             workflow = NULL,
                             source = NULL) {
-
   # Match 'type' argument
   type <- match.arg(type)
 
@@ -402,7 +650,7 @@ create_meta_xts <- function(data,
   }
 
   # Detect frequency automatically
-  freq_info <-  suppressWarnings(xts::periodicity(data))
+  freq_info <- suppressWarnings(xts::periodicity(data))
   discovered_scale <- if (nrow(data) == 1) "not_available" else freq_info$scale
 
   # Common slots for the parent class
@@ -418,7 +666,7 @@ create_meta_xts <- function(data,
   # 5) Depending on 'type', build the appropriate subclass
   if (type == "returns") {
     # For assets_meta_xts, we fill the specialized slots:
-    if(asset_type == "not_identified") message("Asset_type not identified for 'returns_meta_xts' subclass")
+    if (asset_type == "not_identified") message("Asset_type not identified for 'returns_meta_xts' subclass")
 
     obj <- methods::new(
       "returns_meta_xts",
@@ -430,7 +678,7 @@ create_meta_xts <- function(data,
       n_dates = common_slots$n_dates,
       source = common_slots$source,
       frequency = common_slots$frequency,
-      assets   = colnames(data),
+      assets = colnames(data),
       n_assets = ncol(data)
     )
   } else { # type == "metrics"
@@ -444,7 +692,7 @@ create_meta_xts <- function(data,
       n_dates = common_slots$n_dates,
       source = common_slots$source,
       frequency = common_slots$frequency,
-      series   = colnames(data),
+      series = colnames(data),
       n_series = ncol(data)
     )
   }
@@ -485,10 +733,9 @@ create_ss_backtest_config <- function(
     split_method = "expanding",
     alpha_test_strategy = NULL,
     config_name = "not_identified",
-    chosen_signals_and_positions = "all"
-) {
-  #Message
-  if (length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions == "all"){
+    chosen_signals_and_positions = "all") {
+  # Message
+  if (length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions == "all") {
     message("chosen_signals_and_positions set as 'all'. All signals in signals_m_df will be used and a long position will be assumed to all.")
   }
   # Input validation
@@ -502,13 +749,14 @@ create_ss_backtest_config <- function(
 
   # Create and return the object
   new("ss_backtest_config",
-      chosen_signals_and_positions = chosen_signals_and_positions,
-      initial_sample_size = initial_sample_size,
-      rebalancing_months = rebalancing_months,
-      active_returns = active_returns,
-      split_method = split_method,
-      alpha_test_strategy = alpha_test_strategy,
-      config_name = config_name)
+    chosen_signals_and_positions = chosen_signals_and_positions,
+    initial_sample_size = initial_sample_size,
+    rebalancing_months = rebalancing_months,
+    active_returns = active_returns,
+    split_method = split_method,
+    alpha_test_strategy = alpha_test_strategy,
+    config_name = config_name
+  )
 }
 
 #' Add a `ss_backtest_config` or a `ss_backtest_results` to an existing `sb_backtest_config`.
@@ -535,21 +783,22 @@ setGeneric("add_ss_backtest_obj", function(object, ss_backtest_obj, ...) {
 #' @param ss_backtest_obj  An object of class `ss_backtest_config`.
 #' @return The updated `sb_backtest_config` object with the provided `ss_backtest_obj`.
 #' @export
-setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "ss_backtest_config"),
-          function(object, ss_backtest_obj) {
+setMethod(
+  "add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "ss_backtest_config"),
+  function(object, ss_backtest_obj) {
+    # Place ss_backtest_object
+    object@ss_backtest_config <- ss_backtest_obj
 
-            #Place ss_backtest_object
-            object@ss_backtest_config <- ss_backtest_obj
+    ## Chosen_signals_and_positions
+    object@chosen_signals_and_positions <- ss_backtest_obj@chosen_signals_and_positions
+    message("chosen_signals_and_positions will follow underlying ss_backtest_config")
 
-            ##Chosen_signals_and_positions
-            object@chosen_signals_and_positions <- ss_backtest_obj@chosen_signals_and_positions
-            message("chosen_signals_and_positions will follow underlying ss_backtest_config")
+    # Validate the object explicitly
+    validObject(object)
 
-            # Validate the object explicitly
-            validObject(object)
-
-            return(object)
-          })
+    return(object)
+  }
+)
 
 #' @describeIn add_ss_backtest_obj Add an existing ss_backtest_obj to the `sb_backtest_config`.
 #'
@@ -560,22 +809,23 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
 #' @param ss_backtest_obj  An object of class `sb_backtest_config`.
 #' @return The updated `sb_backtest_config` object with the provided `ss_backtest_obj`.
 #' @export
-setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "ss_backtest_results"),
-          function(object, ss_backtest_obj) {
+setMethod(
+  "add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "ss_backtest_results"),
+  function(object, ss_backtest_obj) {
+    # Place ss_backtest_results
+    object@ss_backtest_results <- ss_backtest_obj
 
-            #Place ss_backtest_results
-            object@ss_backtest_results <- ss_backtest_obj
-
-            ##Chosen_signals_and_positions
-            object@chosen_signals_and_positions <- ss_backtest_obj@ss_backtest_workflow$chosen_signals_and_positions
-            message("chosen_signals_and_positions will follow underlying ss_backtest_results")
+    ## Chosen_signals_and_positions
+    object@chosen_signals_and_positions <- ss_backtest_obj@ss_backtest_workflow$chosen_signals_and_positions
+    message("chosen_signals_and_positions will follow underlying ss_backtest_results")
 
 
-            # Validate the object explicitly
-            validObject(object)
+    # Validate the object explicitly
+    validObject(object)
 
-            return(object)
-          })
+    return(object)
+  }
+)
 
 #' @describeIn add_ss_backtest_obj Add an existing ss_backtest_obj to the `sb_backtest_config`.
 #'
@@ -585,39 +835,42 @@ setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_bac
 #' @param
 #' @return The updated `sb_backtest_config` object with the created `ss_backtest_config`.
 #' @export
-setMethod("add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "missing"),
-          function(object, initial_sample_size, rebalancing_months, active_returns = TRUE, split_method = "expanding",
-                   chosen_signals_and_positions = "all",
-                   alpha_test_strategy = NULL, config_name = "not_identified") {
+setMethod(
+  "add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "missing"),
+  function(object, initial_sample_size, rebalancing_months, active_returns = TRUE, split_method = "expanding",
+           chosen_signals_and_positions = "all",
+           alpha_test_strategy = NULL, config_name = "not_identified") {
+    # Create an empty alpha_test_strategy
+    if (is.null(alpha_test_strategy)) {
+      alpha_test_strategy <- create_alpha_test_strategy()
+    }
 
-            #Create an empty alpha_test_strategy
-            if(is.null(alpha_test_strategy)){
-              alpha_test_strategy <- create_alpha_test_strategy()
-            }
+    # create ss_backtest_config
+    ss_backtest_config <- create_ss_backtest_config(
+      chosen_signals_and_positions = chosen_signals_and_positions,
+      initial_sample_size = initial_sample_size,
+      rebalancing_months = rebalancing_months,
+      active_returns = active_returns,
+      split_method = split_method,
+      alpha_test_strategy = alpha_test_strategy,
+      config_name = config_name
+    )
 
-            #create ss_backtest_config
-            ss_backtest_config <- create_ss_backtest_config(chosen_signals_and_positions = chosen_signals_and_positions,
-                                                            initial_sample_size = initial_sample_size,
-                                                            rebalancing_months = rebalancing_months,
-                                                            active_returns = active_returns,
-                                                            split_method = split_method,
-                                                            alpha_test_strategy = alpha_test_strategy,
-                                                            config_name = config_name)
+    # Include
+    object@ss_backtest_config <- ss_backtest_config
 
-            #Include
-            object@ss_backtest_config <- ss_backtest_config
-
-            ##Chosen_signals_and_positions
-            object@chosen_signals_and_positions <- chosen_signals_and_positions
-            message("chosen_signals_and_positions will follow underlying ss_backtest_config")
+    ## Chosen_signals_and_positions
+    object@chosen_signals_and_positions <- chosen_signals_and_positions
+    message("chosen_signals_and_positions will follow underlying ss_backtest_config")
 
 
 
-            # Validate the object explicitly
-            validObject(object)
+    # Validate the object explicitly
+    validObject(object)
 
-            return(object)
-          })
+    return(object)
+  }
+)
 
 
 #-----------------------------------------------------------------------
@@ -645,9 +898,7 @@ create_alpha_test_strategy <- function(
     market_factor_proxy,
     bayesian_model_parameters = NULL,
     enable_theme_representativeness = TRUE,
-    lmer_control = NULL
-) {
-
+    lmer_control = NULL) {
   # Validate input arguments
   if (!p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY", "bayesian")) {
     stop("Invalid p_correction_method. Must be one of: 'none', 'bonferroni', 'holm', 'hochberg', 'hommel', 'BH', 'fdr', 'BY', 'bayesian'.")
@@ -658,75 +909,77 @@ create_alpha_test_strategy <- function(
   if (missing(market_factor_proxy) || !is.character(market_factor_proxy) || length(market_factor_proxy) != 1) {
     stop("market_factor_proxy must be a single character string.")
   }
-  if(!model_structure %in% c("partial_pooled", "no_pooled")){
+  if (!model_structure %in% c("partial_pooled", "no_pooled")) {
     stop("Currently, model_structure must be one of partial_pooled or no_pooled")
   }
-  if(model_structure == "partial_pooled"){
-    if (is.null(theme_level_intercept) || !theme_level_intercept %in% c("fixed", "random", "theme_specific")){
+  if (model_structure == "partial_pooled") {
+    if (is.null(theme_level_intercept) || !theme_level_intercept %in% c("fixed", "random", "theme_specific")) {
       stop("theme_level_intercept must be 'fixed', 'random' or 'theme_specific'")
     }
-    if (is.null(theme_level_slope) || !theme_level_slope %in% c("fixed", "theme_specific")){
+    if (is.null(theme_level_slope) || !theme_level_slope %in% c("fixed", "theme_specific")) {
       stop("Currently, theme_level_slope can only be 'fixed' or 'theme_specific'")
     }
-    avaiable_combinations <- c(c("random_intercept_fixed_slope"), #old random_intercept
-                               c("theme_specific_intercept_fixed_slope"), #old fixed_intercepts
-                               c("theme_specific_intercept_theme_specific_slope"), #old fixed_intercepts_fixed_slopes
-                               c("fixed_intercept_fixed_slope")) #one none
+    avaiable_combinations <- c(
+      c("random_intercept_fixed_slope"), # old random_intercept
+      c("theme_specific_intercept_fixed_slope"), # old fixed_intercepts
+      c("theme_specific_intercept_theme_specific_slope"), # old fixed_intercepts_fixed_slopes
+      c("fixed_intercept_fixed_slope")
+    ) # one none
     chosen_combination <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
 
-    if(!chosen_combination %in% avaiable_combinations){
+    if (!chosen_combination %in% avaiable_combinations) {
       stop("Chosen combination of theme_level_intercept and theme_level_slope is currently not supported.")
     }
   } else {
-    if(any(!is.null(theme_level_intercept), !is.null(theme_level_slope))){
+    if (any(!is.null(theme_level_intercept), !is.null(theme_level_slope))) {
       stop("Theme-level parameters are only avaiable for partial pooled models.")
     }
   }
 
   # Handle Bayesian subclass creation
   if (p_correction_method == "bayesian") {
-    if(model_structure != "partial_pooled"){
+    if (model_structure != "partial_pooled") {
       stop("Currently, only the 'partial_pooled' model structure is supported for Bayesian alpha testing.")
     }
     if (!is.null(bayesian_model_parameters) && !inherits(bayesian_model_parameters, "bayesian_model_parameters")) {
       stop("When p_correction_method is 'bayesian', bayesian_model_parameters must be a bayesian_model_parameters object.")
     }
 
-    #Check if a bayesian_model_parametesr is being provided
-    if(is.null(bayesian_model_parameters)){
-      #If not create a generic one
-      bayesian_model_parameters = new("bayesian_model_parameters",
-                                      user_priors = NULL,
-                                      prior_derivation_control = NULL,
-                                      brms_control = NULL
+    # Check if a bayesian_model_parametesr is being provided
+    if (is.null(bayesian_model_parameters)) {
+      # If not create a generic one
+      bayesian_model_parameters <- new("bayesian_model_parameters",
+        user_priors = NULL,
+        prior_derivation_control = NULL,
+        brms_control = NULL
       )
     }
 
     return(new("bayesian_alpha_test_strategy",
-               signal_significance_threshold = signal_significance_threshold,
-               p_correction_method = p_correction_method,
-               model_structure = model_structure,
-               theme_level_intercept = theme_level_intercept,
-               theme_level_slope = theme_level_slope,
-               market_factor_proxy = market_factor_proxy, #For a new bayesian class, create an uniformative bayesian_model_parameters
-               enable_theme_representativeness = enable_theme_representativeness,
-               bayesian_model_parameters = bayesian_model_parameters,
-               lmer_control = lmer_control
-    )
-    )
+      signal_significance_threshold = signal_significance_threshold,
+      p_correction_method = p_correction_method,
+      model_structure = model_structure,
+      theme_level_intercept = theme_level_intercept,
+      theme_level_slope = theme_level_slope,
+      market_factor_proxy = market_factor_proxy, # For a new bayesian class, create an uniformative bayesian_model_parameters
+      enable_theme_representativeness = enable_theme_representativeness,
+      bayesian_model_parameters = bayesian_model_parameters,
+      lmer_control = lmer_control
+    ))
   }
 
   # Handle Frequentist subclass creation
   if (p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY")) {
     return(new("frequentist_alpha_test_strategy",
-               signal_significance_threshold = signal_significance_threshold,
-               model_structure = model_structure,
-               theme_level_intercept = theme_level_intercept,
-               theme_level_slope = theme_level_slope,
-               p_correction_method = p_correction_method,
-               enable_theme_representativeness = enable_theme_representativeness,
-               market_factor_proxy = market_factor_proxy,
-               lmer_control = lmer_control))
+      signal_significance_threshold = signal_significance_threshold,
+      model_structure = model_structure,
+      theme_level_intercept = theme_level_intercept,
+      theme_level_slope = theme_level_slope,
+      p_correction_method = p_correction_method,
+      enable_theme_representativeness = enable_theme_representativeness,
+      market_factor_proxy = market_factor_proxy,
+      lmer_control = lmer_control
+    ))
   }
 
   # Default fallback (should not reach here due to prior validation)
@@ -742,9 +995,10 @@ create_alpha_test_strategy <- function(
 #' @examples
 #' # Example usage
 #' alpha_strategy <- new("frequentist_alpha_test_strategy",
-#'                        signal_significance_threshold = 0.05,
-#'                        p_correction_method = "holm",
-#'                        market_factor_proxy = "S&P500")
+#'   signal_significance_threshold = 0.05,
+#'   p_correction_method = "holm",
+#'   market_factor_proxy = "S&P500"
+#' )
 #' config <- create_ss_backtest_config(
 #'   initial_sample_size = 200,
 #'   rebalancing_months = 6,
@@ -763,7 +1017,6 @@ setMethod(
   "add_alpha_test_strategy",
   signature(object = "ss_backtest_config", alpha_test_strategy = "alpha_test_strategy"),
   function(object, alpha_test_strategy) {
-
     # Set the alpha_test_strategy slot
     object@alpha_test_strategy <- alpha_test_strategy
 
@@ -780,16 +1033,16 @@ setMethod(
   function(object, signal_significance_threshold = 0.05, p_correction_method = "none", market_factor_proxy,
            model_structure = "partial_pooled", theme_level_intercept = NULL, theme_level_slope = NULL,
            enable_theme_representativeness = TRUE, bayesian_model_parameters = NULL, lmer_control = NULL) {
-
-    alpha_test_strategy <- create_alpha_test_strategy(signal_significance_threshold = signal_significance_threshold,
-                                                      p_correction_method = p_correction_method,
-                                                      market_factor_proxy = market_factor_proxy,
-                                                      model_structure = model_structure,
-                                                      theme_level_intercept = theme_level_intercept,
-                                                      theme_level_slope = theme_level_slope,
-                                                      enable_theme_representativeness = enable_theme_representativeness,
-                                                      bayesian_model_parameters = bayesian_model_parameters,
-                                                      lmer_control = lmer_control
+    alpha_test_strategy <- create_alpha_test_strategy(
+      signal_significance_threshold = signal_significance_threshold,
+      p_correction_method = p_correction_method,
+      market_factor_proxy = market_factor_proxy,
+      model_structure = model_structure,
+      theme_level_intercept = theme_level_intercept,
+      theme_level_slope = theme_level_slope,
+      enable_theme_representativeness = enable_theme_representativeness,
+      bayesian_model_parameters = bayesian_model_parameters,
+      lmer_control = lmer_control
     )
 
     # Set the alpha_test_strategy slot
@@ -848,9 +1101,7 @@ create_bayesian_model_parameters <- function(
       thin = 1,
       seed = NA,
       adapt_delta = 0.80
-    )
-) {
-
+    )) {
   # Build an S4 object with the supplied arguments.
   bayes_obj <- methods::new(
     "bayesian_model_parameters",
@@ -884,7 +1135,6 @@ setMethod(
   "add_bayesian_model_parameters",
   signature(object = "bayesian_alpha_test_strategy"),
   function(object, user_priors = NULL, prior_derivation_control = NULL, brms_control = NULL) {
-
     # Ensure only one of `user_priors` or `prior_derivation_control` is provided
     if (!is.null(user_priors) && !is.null(prior_derivation_control)) {
       stop("Only one of 'user_priors' or 'prior_derivation_control' can be provided, not both.")
@@ -897,9 +1147,10 @@ setMethod(
 
     # Create `bayesian_model_parameters` object
     bayesian_params <- new("bayesian_model_parameters",
-                           user_priors = user_priors,
-                           prior_derivation_control = prior_derivation_control,
-                           brms_control = brms_control)
+      user_priors = user_priors,
+      prior_derivation_control = prior_derivation_control,
+      brms_control = brms_control
+    )
 
     # Add `bayesian_model_parameters` to `bayesian_alpha_test_strategy`
     object@bayesian_model_parameters <- bayesian_params
@@ -1001,72 +1252,74 @@ setGeneric("add_brms_prior", function(object, ...) standardGeneric("add_brms_pri
 
 #' @rdname add_brms_prior
 #' @export
-setMethod("add_brms_prior",
-          signature(object = "bayesian_alpha_test_strategy"),
-          function(object, effect, type, theme = NULL, distribution_choice, pars, level = "signals") {
-            # Input validation
-            effect <- match.arg(effect, choices = c("fixed", "random"))
-            type <- match.arg(type, choices = c("intercept", "slope", "sigma", "cor"))
-            level <- match.arg(level, choices = c("signals", "tickers", "theme"))
+setMethod(
+  "add_brms_prior",
+  signature(object = "bayesian_alpha_test_strategy"),
+  function(object, effect, type, theme = NULL, distribution_choice, pars, level = "signals") {
+    # Input validation
+    effect <- match.arg(effect, choices = c("fixed", "random"))
+    type <- match.arg(type, choices = c("intercept", "slope", "sigma", "cor"))
+    level <- match.arg(level, choices = c("signals", "tickers", "theme"))
 
-            # Ensure pars and distribution_choice have consistent lengths
-            n <- length(distribution_choice)
-            if (length(pars) != n) {
-              stop("The lengths of `pars` and `distribution_choice` must match.")
-            }
+    # Ensure pars and distribution_choice have consistent lengths
+    n <- length(distribution_choice)
+    if (length(pars) != n) {
+      stop("The lengths of `pars` and `distribution_choice` must match.")
+    }
 
-            # Handle fixed effects
-            if (effect == "fixed") {
-              priors <- lapply(seq_along(distribution_choice), function(i) {
-                coef_name <- if (!is.null(theme)){
-                  paste0("theme", theme[i], if (type == "slope") ":market_factor_proxy" else "")
-                } else if (type == "slope") "market_factor_proxy" else "Intercept"
-                brms::set_prior(
-                  paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
-                  class = "b", # Correctly setting class to 'b'
-                  coef = coef_name
-                )
-              })
-            }
+    # Handle fixed effects
+    if (effect == "fixed") {
+      priors <- lapply(seq_along(distribution_choice), function(i) {
+        coef_name <- if (!is.null(theme)) {
+          paste0("theme", theme[i], if (type == "slope") ":market_factor_proxy" else "")
+        } else if (type == "slope") "market_factor_proxy" else "Intercept"
+        brms::set_prior(
+          paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
+          class = "b", # Correctly setting class to 'b'
+          coef = coef_name
+        )
+      })
+    }
 
-            # Handle random effects
-            if (effect == "random") {
-              if (type %in% c("intercept", "slope")) {
-                coef_name <- if (type == "intercept") "Intercept" else "market_factor_proxy"
-                group_name <- if (level == "signals") "theme:tickers" else level
-                priors <- list(brms::set_prior(
-                  paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
-                  class = "sd",
-                  group = group_name,
-                  coef = coef_name
-                ))
-              } else if (type == "sigma") {
-                priors <- list(brms::set_prior(
-                  paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
-                  class = "sigma"
-                ))
-              } else if (type == "cor") {
-                priors <- list(brms::set_prior(
-                  paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
-                  class = "cor"
-                ))
-              }
-            }
+    # Handle random effects
+    if (effect == "random") {
+      if (type %in% c("intercept", "slope")) {
+        coef_name <- if (type == "intercept") "Intercept" else "market_factor_proxy"
+        group_name <- if (level == "signals") "theme:tickers" else level
+        priors <- list(brms::set_prior(
+          paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
+          class = "sd",
+          group = group_name,
+          coef = coef_name
+        ))
+      } else if (type == "sigma") {
+        priors <- list(brms::set_prior(
+          paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
+          class = "sigma"
+        ))
+      } else if (type == "cor") {
+        priors <- list(brms::set_prior(
+          paste0(distribution_choice[1], "(", paste(pars[[1]], collapse = ", "), ")"),
+          class = "cor"
+        ))
+      }
+    }
 
-            # Add priors to the object
-            if (is.null(object@bayesian_model_parameters@user_priors)) {
-              object@bayesian_model_parameters@user_priors <- do.call(rbind, priors)
-            } else {
-              object@bayesian_model_parameters@user_priors <- rbind(
-                object@bayesian_model_parameters@user_priors,
-                do.call(rbind, priors)
-              )
-            }
+    # Add priors to the object
+    if (is.null(object@bayesian_model_parameters@user_priors)) {
+      object@bayesian_model_parameters@user_priors <- do.call(rbind, priors)
+    } else {
+      object@bayesian_model_parameters@user_priors <- rbind(
+        object@bayesian_model_parameters@user_priors,
+        do.call(rbind, priors)
+      )
+    }
 
-            # Validate the object and return it
-            validObject(object)
-            return(object)
-          })
+    # Validate the object and return it
+    validObject(object)
+    return(object)
+  }
+)
 
 
 #' @rdname add_brms_prior
@@ -1122,53 +1375,53 @@ setMethod(
 #' @export
 create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
                                    n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
-
   # Check if hyper_grid_domain is provided; if not, create an empty one
-  if(!tuning_method %in% c("grid_search", "random_search", "bayesian_opt")){
+  if (!tuning_method %in% c("grid_search", "random_search", "bayesian_opt")) {
     stop("tuning_method must be one of grid_search, random_search or bayesian_opt")
   }
   if (is.null(hyper_grid_domain)) {
-    hyper_grid_domain <-  new("hyper_grid_domain", hyperparameter_list = list())
+    hyper_grid_domain <- new("hyper_grid_domain", hyperparameter_list = list())
   }
 
   # Check the value of tuning_method and create the appropriate subclass
   if (tuning_method == "grid_search") {
     # Create a grid_search_strategy object
     return(new("grid_search_strategy",
-               tuning_method = "grid_search",
-               validation_sample_size = validation_sample_size,
-               chosen_eval_metric = chosen_eval_metric,
-               hyper_grid_domain = hyper_grid_domain,
-               early_stop = early_stop))
-
+      tuning_method = "grid_search",
+      validation_sample_size = validation_sample_size,
+      chosen_eval_metric = chosen_eval_metric,
+      hyper_grid_domain = hyper_grid_domain,
+      early_stop = early_stop
+    ))
   } else if (tuning_method == "random_search") {
     # Create a random_search_strategy object
     if (is.null(n_iter)) {
       stop("n_iter must be provided for random_search.")
     }
     return(new("random_search_strategy",
-               tuning_method = "random_search",
-               validation_sample_size = validation_sample_size,
-               chosen_eval_metric = chosen_eval_metric,
-               hyper_grid_domain = hyper_grid_domain,
-               early_stop = early_stop,
-               n_iter = n_iter))
-
+      tuning_method = "random_search",
+      validation_sample_size = validation_sample_size,
+      chosen_eval_metric = chosen_eval_metric,
+      hyper_grid_domain = hyper_grid_domain,
+      early_stop = early_stop,
+      n_iter = n_iter
+    ))
   } else if (tuning_method == "bayesian_opt") {
     # Create a bayesian_opt_strategy object
     if (is.null(n_iter) || is.null(acq) || is.null(init_points) || is.null(k_iter)) {
       stop("n_iter, acq, init_points, and k_iter must be provided for bayesian_opt.")
     }
     return(new("bayesian_opt_strategy",
-               tuning_method = "bayesian_opt",
-               validation_sample_size = validation_sample_size,
-               chosen_eval_metric = chosen_eval_metric,
-               hyper_grid_domain = hyper_grid_domain,
-               early_stop = early_stop,
-               n_iter = n_iter,
-               acq = acq,
-               init_points = init_points,
-               k_iter = k_iter))
+      tuning_method = "bayesian_opt",
+      validation_sample_size = validation_sample_size,
+      chosen_eval_metric = chosen_eval_metric,
+      hyper_grid_domain = hyper_grid_domain,
+      early_stop = early_stop,
+      n_iter = n_iter,
+      acq = acq,
+      init_points = init_points,
+      k_iter = k_iter
+    ))
   } else {
     stop("Invalid tuning_method. Choose from 'grid_search', 'random_search', or 'bayesian_opt'.")
   }
@@ -1197,30 +1450,31 @@ setGeneric("add_tuning_strategy", function(object, tuning_strategy, ...) {
 #' @param tuning_strategy An object of class `tuning_strategy` to be added to the `sb_backtest_config`.
 #' @return The updated `sb_backtest_config` object with the provided `tuning_strategy`.
 #' @export
-setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning_strategy = "tuning_strategy"),
-          function(object, tuning_strategy) {
+setMethod(
+  "add_tuning_strategy", signature(object = "sb_backtest_config", tuning_strategy = "tuning_strategy"),
+  function(object, tuning_strategy) {
+    # Adjust validation sample size
+    if (tuning_strategy@validation_sample_size < 1) {
+      tuning_strategy@validation_sample_size <- round(tuning_strategy@validation_sample_size * object@training_sample_size)
+    }
 
-            #Adjust validation sample size
-            if(tuning_strategy@validation_sample_size < 1){
-              tuning_strategy@validation_sample_size <- round(tuning_strategy@validation_sample_size * object@training_sample_size)
-            }
+    if (object@sb_algorithm != "ols") {
+      object@tuning_strategy <- tuning_strategy
+    } else {
+      stop("OLS does not require tuning.")
+    }
 
-            if(object@sb_algorithm != "ols"){
-              object@tuning_strategy <- tuning_strategy
-            } else {
-              stop("OLS does not require tuning.")
-            }
+    # Give warning if validation_sample size is bigger than training sample size
+    if (tuning_strategy@validation_sample_size > object@training_sample_size) {
+      message("Validation sample size is bigger than training sample size.")
+    }
 
-            #Give warning if validation_sample size is bigger than training sample size
-            if(tuning_strategy@validation_sample_size > object@training_sample_size){
-              message("Validation sample size is bigger than training sample size.")
-            }
+    # Validate the object explicitly
+    validObject(object)
 
-            # Validate the object explicitly
-            validObject(object)
-
-            return(object)
-          })
+    return(object)
+  }
+)
 
 
 
@@ -1240,48 +1494,48 @@ setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning
 #' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
 #' @return An updated `sb_backtest_config` object with a newly created `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
 #' @export
-setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning_strategy = "missing"),
-          function(object, tuning_strategy = NULL, tuning_method, validation_sample_size, chosen_eval_metric = NULL, hyper_grid_domain = NULL, early_stop = NULL,
-                   n_iter = NULL, acq = "ucb", init_points = NULL, k_iter = NULL) {
+setMethod(
+  "add_tuning_strategy", signature(object = "sb_backtest_config", tuning_strategy = "missing"),
+  function(object, tuning_strategy = NULL, tuning_method, validation_sample_size, chosen_eval_metric = NULL, hyper_grid_domain = NULL, early_stop = NULL,
+           n_iter = NULL, acq = "ucb", init_points = NULL, k_iter = NULL) {
+    # Custom fill of chosen eval metric in case of null
+    if (is.null(chosen_eval_metric)) {
+      chosen_eval_metric <- switch(object@custom_objective,
+        "pseudo_huber_error" = "mphe",
+        "quantile_error" = "quantile_loss",
+        "absolute_error" = "mae",
+        "rmse"
+      )
+      message(paste("chosen_eval_metric set to", chosen_eval_metric, "according to custom_objective.\n"))
+    }
 
-            #Custom fill of chosen eval metric in case of null
-            if(is.null(chosen_eval_metric)){
-              chosen_eval_metric <- switch(object@custom_objective,
-                                           "pseudo_huber_error" = "mphe",
-                                           "quantile_error" = "quantile_loss",
-                                           "absolute_error" = "mae",
-                                           "rmse"
-              )
-              message(paste("chosen_eval_metric set to", chosen_eval_metric, "according to custom_objective.\n"))
+    # Adjust validation sample size if decimal
+    if (validation_sample_size < 1) {
+      validation_sample_size <- round(validation_sample_size * object@training_sample_size)
+    }
 
-            }
+    # Give warning if validation_sample size is bigger than training sample size
+    if (validation_sample_size > object@training_sample_size) {
+      message("Validation sample size is bigger than training sample size.")
+    }
 
-            #Adjust validation sample size if decimal
-            if(validation_sample_size < 1){
-              validation_sample_size <- round(validation_sample_size * object@training_sample_size)
-            }
-
-            #Give warning if validation_sample size is bigger than training sample size
-            if(validation_sample_size > object@training_sample_size){
-              message("Validation sample size is bigger than training sample size.")
-            }
-
-            if(!object@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")){
-
-              # Create a new tuning_strategy object
-              object@tuning_strategy <- create_tuning_strategy(tuning_method = tuning_method, validation_sample_size = validation_sample_size,
-                                                               chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
-                                                               init_points = init_points, k_iter = k_iter)
-            } else {
-              stop("ols, sw, ew, rp and mvo do not require tuning.")
-            }
+    if (!object@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")) {
+      # Create a new tuning_strategy object
+      object@tuning_strategy <- create_tuning_strategy(
+        tuning_method = tuning_method, validation_sample_size = validation_sample_size,
+        chosen_eval_metric = chosen_eval_metric, early_stop = early_stop, n_iter = n_iter, acq = acq,
+        init_points = init_points, k_iter = k_iter
+      )
+    } else {
+      stop("ols, sw, ew, rp and mvo do not require tuning.")
+    }
 
 
-            # Validate the object explicitly
-            validObject(object)
+    # Validate the object explicitly
+    validObject(object)
 
-            return(object)
-          }
+    return(object)
+  }
 )
 
 #-----------------------------------------------------------------------
@@ -1334,7 +1588,7 @@ setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning
 #'   random_search_obj,
 #'   hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
 #'   distribution_choice = c("constant", "uniform", "uniform", "uniform", "uniform", "uniform", "constant", "uniform"),
-#'   pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),  c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
+#'   pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2), c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
 #' )
 #'
 #' # Create an initial tuning_strategy object for bayesian_opt
@@ -1353,24 +1607,30 @@ setMethod("add_tuning_strategy", signature(object = "sb_backtest_config", tuning
 #' bayesian_opt_obj <- add_hyperparameter(
 #'   bayesian_opt_obj,
 #'   hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
-#'   bounds = list(c(0,1), c(100L, 1000L), c(2L, 8L), c(1, 5))
+#'   bounds = list(c(0, 1), c(100L, 1000L), c(2L, 8L), c(1, 5))
 #' )
 #'
 #' # Creating a hyper_grid_domain object for a xgb model
 #' hyper_grid_xgb_random <- create_hyper_grid_domain(
-#'  tuning_method = "random_search",
-#'  sb_algorithm = "xgb"
-#'  )
+#'   tuning_method = "random_search",
+#'   sb_algorithm = "xgb"
+#' )
 #'
-#'  hyper_grid_xgb_random <- add_hyperparameter(
-#'  hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
-#'                     "eta", "alpha", "gamma", "nrounds"),
-#'  distribution_choice = c("constant", "uniform", "uniform", "uniform",
-#'                          "uniform", "uniform", "constant", "uniform"),
-#'  pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
-#'            c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
-#'            c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
-#'  )
+#' hyper_grid_xgb_random <- add_hyperparameter(
+#'   hyperparameter = c(
+#'     "min_child_weight", "max_depth", "subsample", "colsample_bytree",
+#'     "eta", "alpha", "gamma", "nrounds"
+#'   ),
+#'   distribution_choice = c(
+#'     "constant", "uniform", "uniform", "uniform",
+#'     "uniform", "uniform", "constant", "uniform"
+#'   ),
+#'   pars = list(
+#'     3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
+#'     c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
+#'     c(min = 2, max = 5), 0, c(min = 200L, max = 500L)
+#'   )
+#' )
 #'
 #' @export
 setGeneric("add_hyperparameter", function(object, hyperparameter, ...) {
@@ -1391,40 +1651,41 @@ setGeneric("add_hyperparameter", function(object, hyperparameter, ...) {
 #' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
 #' @param new_hyperparameter_list Used to pass new_hyperparameters_list after specific method at tuning_strategy level.
 #'
-setMethod("add_hyperparameter",
-          signature(object = "hyper_grid_domain"),
-          function(object, new_hyperparameter_list) {
+setMethod(
+  "add_hyperparameter",
+  signature(object = "hyper_grid_domain"),
+  function(object, new_hyperparameter_list) {
+    # Get names stored in new_hyperparameter_list
+    hyperparameter <- names(new_hyperparameter_list)
 
-            #Get names stored in new_hyperparameter_list
-            hyperparameter <- names(new_hyperparameter_list)
+    # Merge with existing hyperparameters in object
+    if (length(object@hyperparameter_list) != 0) {
+      old_hyperparameter_list <- object@hyperparameter_list
 
-            # Merge with existing hyperparameters in object
-            if (length(object@hyperparameter_list) != 0) {
-              old_hyperparameter_list <- object@hyperparameter_list
+      # Take only those that have no substitute in new hyperparameters
+      if (any(!names(old_hyperparameter_list) %in% hyperparameter)) {
+        old_hyperparameter_list_disjoint <- old_hyperparameter_list[which(!names(old_hyperparameter_list) %in% hyperparameter)] # Info
+        old_hyperparameter_list_disjoint_names <- names(old_hyperparameter_list)[which(!names(old_hyperparameter_list) %in% hyperparameter)] # Names
 
-              #Take only those that have no substitute in new hyperparameters
-              if(any(!names(old_hyperparameter_list) %in% hyperparameter)){
-                old_hyperparameter_list_disjoint <- old_hyperparameter_list[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Info
-                old_hyperparameter_list_disjoint_names <- names(old_hyperparameter_list)[which(!names(old_hyperparameter_list) %in% hyperparameter)] #Names
+        # Re-combine
+        for (hyper in old_hyperparameter_list_disjoint_names) {
+          new_hyperparameter_list[hyper] <- old_hyperparameter_list[hyper]
+        }
 
-                #Re-combine
-                for(hyper in old_hyperparameter_list_disjoint_names){
-                  new_hyperparameter_list[hyper] <- old_hyperparameter_list[hyper]
-                }
+        # Re-order
+        new_hyperparameter_list <- new_hyperparameter_list[c(old_hyperparameter_list_disjoint_names, hyperparameter)]
+      }
+    }
 
-                #Re-order
-                new_hyperparameter_list <- new_hyperparameter_list[c(old_hyperparameter_list_disjoint_names, hyperparameter)]
-              }
-            }
+    # Update the object
+    object@hyperparameter_list <- new_hyperparameter_list
 
-            # Update the object
-            object@hyperparameter_list <- new_hyperparameter_list
+    # Validate the object explicitly
+    validObject(object)
 
-            # Validate the object explicitly
-            validObject(object)
-
-            return(object)
-          })
+    return(object)
+  }
+)
 
 
 #' @describeIn add_hyperparameter Add hyperparameter to `grid_search_strategy` object
@@ -1437,38 +1698,39 @@ setMethod("add_hyperparameter",
 #' }
 #' @param grid A numeric vector or list of numeric vectors for grid search values.
 #' @export
-setMethod("add_hyperparameter",
-          signature(object = "grid_search_strategy"),
-          function(object, hyperparameter, grid, ...) {
+setMethod(
+  "add_hyperparameter",
+  signature(object = "grid_search_strategy"),
+  function(object, hyperparameter, grid, ...) {
+    if (!is.list(grid)) {
+      grid <- list(grid)
+    }
 
-            if (!is.list(grid)) {
-              grid <- list(grid)
-            }
+    if (!all(sapply(grid, function(x) is.numeric(x) && is.vector(x)))) {
+      stop("Grid should contain only numeric data.")
+    }
 
-            if (!all(sapply(grid, function(x) is.numeric(x) && is.vector(x)))) {
-              stop("Grid should contain only numeric data.")
-            }
+    if (length(hyperparameter) != length(grid)) {
+      stop("All hyperparameters should have a grid.")
+    }
 
-            if (length(hyperparameter) != length(grid)) {
-              stop("All hyperparameters should have a grid.")
-            }
-
-            new_hyperparameter_list <- grid
-            names(new_hyperparameter_list) <- hyperparameter
+    new_hyperparameter_list <- grid
+    names(new_hyperparameter_list) <- hyperparameter
 
 
-            #Extract the current object
-            current_hyper_grid_domain <- object@hyper_grid_domain
-            updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain, new_hyperparameter_list = new_hyperparameter_list)
+    # Extract the current object
+    current_hyper_grid_domain <- object@hyper_grid_domain
+    updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain, new_hyperparameter_list = new_hyperparameter_list)
 
-            # Update the object
-            object@hyper_grid_domain <- updated_hyper_grid_domain
+    # Update the object
+    object@hyper_grid_domain <- updated_hyper_grid_domain
 
-            # Validate the object explicitly
-            validObject(object)
+    # Validate the object explicitly
+    validObject(object)
 
-            return(object)
-          })
+    return(object)
+  }
+)
 
 
 
@@ -1483,66 +1745,68 @@ setMethod("add_hyperparameter",
 #' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
 #' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
 #' @export
-setMethod("add_hyperparameter",
-          signature(object = "random_search_strategy"),
-          function(object, hyperparameter, distribution_choice, pars, ...) {
+setMethod(
+  "add_hyperparameter",
+  signature(object = "random_search_strategy"),
+  function(object, hyperparameter, distribution_choice, pars, ...) {
+    # Logic for random_search
+    if (!is.list(distribution_choice)) {
+      distribution_choice <- as.list(distribution_choice) # As list
+    }
+    if (!is.list(pars)) {
+      pars <- list(pars) # list
+    }
 
-            # Logic for random_search
-            if (!is.list(distribution_choice)) {
-              distribution_choice <- as.list(distribution_choice) #As list
-            }
-            if (!is.list(pars)) {
-              pars <- list(pars) #list
-            }
+    if (length(hyperparameter) != length(distribution_choice) || length(hyperparameter) != length(pars)) {
+      stop("All hyperparameters should have matching distribution_choice and pars.")
+    }
 
-            if (length(hyperparameter) != length(distribution_choice) || length(hyperparameter) != length(pars)) {
-              stop("All hyperparameters should have matching distribution_choice and pars.")
-            }
+    valid_distributions <- c("uniform", "normal", "lognormal", "constant")
+    if (!all(distribution_choice %in% valid_distributions)) {
+      stop("Invalid distribution_choice. Choose from 'uniform', 'normal', 'lognormal', or 'constant'.")
+    }
 
-            valid_distributions <- c("uniform", "normal", "lognormal", "constant")
-            if (!all(distribution_choice %in% valid_distributions)) {
-              stop("Invalid distribution_choice. Choose from 'uniform', 'normal', 'lognormal', or 'constant'.")
-            }
+    for (i in seq_along(distribution_choice)) {
+      dist <- distribution_choice[[i]]
+      param <- pars[[i]]
 
-            for (i in seq_along(distribution_choice)) {
-              dist <- distribution_choice[[i]]
-              param <- pars[[i]]
+      if (dist == "uniform" && (!all(c("min", "max") %in% names(param)))) {
+        stop("For 'uniform', pars must contain 'min' and 'max'.")
+      }
+      if (dist == "normal" && (!all(c("mean", "sd") %in% names(param)))) {
+        stop("For 'normal', pars must contain 'mean' and 'sd'.")
+      }
+      if (dist == "lognormal" && (!all(c("meanlog", "sdlog") %in% names(param)))) {
+        stop("For 'lognormal', pars must contain 'meanlog' and 'sdlog'.")
+      }
+    }
 
-              if (dist == "uniform" && (!all(c("min", "max") %in% names(param)))) {
-                stop("For 'uniform', pars must contain 'min' and 'max'.")
-              }
-              if (dist == "normal" && (!all(c("mean", "sd") %in% names(param)))) {
-                stop("For 'normal', pars must contain 'mean' and 'sd'.")
-              }
-              if (dist == "lognormal" && (!all(c("meanlog", "sdlog") %in% names(param)))) {
-                stop("For 'lognormal', pars must contain 'meanlog' and 'sdlog'.")
-              }
-            }
+    new_hyperparameter_list <- mapply(function(hp, dist, param) {
+      if (dist == "constant") {
+        list(distribution_choice = dist, value = unname(param))
+      } else {
+        list(distribution_choice = dist, pars = param)
+      }
+    }, hyperparameter, distribution_choice, pars, SIMPLIFY = FALSE)
 
-            new_hyperparameter_list <- mapply(function(hp, dist, param) {
-              if (dist == "constant") {
-                list(distribution_choice = dist, value = unname(param))
-              } else {
-                list(distribution_choice = dist, pars = param)
-              }
-            }, hyperparameter, distribution_choice, pars, SIMPLIFY = FALSE)
-
-            names(new_hyperparameter_list) <- hyperparameter
+    names(new_hyperparameter_list) <- hyperparameter
 
 
-            #Extract the current object
-            current_hyper_grid_domain <- object@hyper_grid_domain
-            updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain,
-                                                            new_hyperparameter_list = new_hyperparameter_list)
+    # Extract the current object
+    current_hyper_grid_domain <- object@hyper_grid_domain
+    updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain,
+      new_hyperparameter_list = new_hyperparameter_list
+    )
 
-            # Update the object
-            object@hyper_grid_domain <- updated_hyper_grid_domain
+    # Update the object
+    object@hyper_grid_domain <- updated_hyper_grid_domain
 
-            # Validate the object explicitly
-            validObject(object)
+    # Validate the object explicitly
+    validObject(object)
 
-            return(object)
-          })
+    return(object)
+  }
+)
 
 
 #' @describeIn add_hyperparameter Add hyperparameter to `bayesian_opt_strategy` object
@@ -1556,41 +1820,41 @@ setMethod("add_hyperparameter",
 #' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
 #' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
 #' @export
-setMethod("add_hyperparameter",
-          signature(object = "bayesian_opt_strategy"),
-          function(object, hyperparameter, bounds, ...) {
+setMethod(
+  "add_hyperparameter",
+  signature(object = "bayesian_opt_strategy"),
+  function(object, hyperparameter, bounds, ...) {
+    # Logic for bayesian_opt
+    if (!is.list(bounds)) {
+      bounds <- list(bounds)
+    }
+
+    if (!all(sapply(bounds, function(x) is.numeric(x) && length(x) == 2))) {
+      stop("Each hyperparameter must have a bounds vector of length 2 (min and max).")
+    }
+
+    if (length(hyperparameter) != length(bounds)) {
+      stop("All hyperparameters should have corresponding bounds.")
+    }
+
+    new_hyperparameter_list <- bounds
+    names(new_hyperparameter_list) <- hyperparameter
 
 
-            # Logic for bayesian_opt
-            if (!is.list(bounds)) {
-              bounds <- list(bounds)
-            }
 
-            if (!all(sapply(bounds, function(x) is.numeric(x) && length(x) == 2))) {
-              stop("Each hyperparameter must have a bounds vector of length 2 (min and max).")
-            }
+    # Extract the current object
+    current_hyper_grid_domain <- object@hyper_grid_domain
+    updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain, new_hyperparameter_list = new_hyperparameter_list)
 
-            if (length(hyperparameter) != length(bounds)) {
-              stop("All hyperparameters should have corresponding bounds.")
-            }
+    # Update the object
+    object@hyper_grid_domain <- updated_hyper_grid_domain
 
-            new_hyperparameter_list <- bounds
-            names(new_hyperparameter_list) <- hyperparameter
+    # Validate the object explicitly
+    validObject(object)
 
-
-
-            #Extract the current object
-            current_hyper_grid_domain <- object@hyper_grid_domain
-            updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain, new_hyperparameter_list = new_hyperparameter_list)
-
-            # Update the object
-            object@hyper_grid_domain <- updated_hyper_grid_domain
-
-            # Validate the object explicitly
-            validObject(object)
-
-            return(object)
-          })
+    return(object)
+  }
+)
 
 #' @describeIn add_hyperparameter Add Hyperparameter to `sb_backtest_config` object
 #' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added.
@@ -1599,27 +1863,30 @@ setMethod("add_hyperparameter",
 #' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
 #' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
 #' @export
-setMethod("add_hyperparameter",
-          signature(object = "sb_backtest_config"),
-          function(object, hyperparameter, grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
-
-            #Extract object
-            tuning_strategy <- object@tuning_strategy
-
-
-            #Add hyperparamete
-            updated_tuning_strategy <- add_hyperparameter(tuning_strategy, hyperparameter = hyperparameter,
-                                                          grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds)
-
-            # Update the object
-            object@tuning_strategy <- updated_tuning_strategy
-
-            # Validate the object explicitly
-            validObject(object)
+setMethod(
+  "add_hyperparameter",
+  signature(object = "sb_backtest_config"),
+  function(object, hyperparameter, grid = NULL, distribution_choice = NULL, pars = NULL, bounds = NULL) {
+    # Extract object
+    tuning_strategy <- object@tuning_strategy
 
 
-            return(object)
-          })
+    # Add hyperparamete
+    updated_tuning_strategy <- add_hyperparameter(tuning_strategy,
+      hyperparameter = hyperparameter,
+      grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds
+    )
+
+    # Update the object
+    object@tuning_strategy <- updated_tuning_strategy
+
+    # Validate the object explicitly
+    validObject(object)
+
+
+    return(object)
+  }
+)
 
 
 #' Add a `hyper_grid_domain` Object
@@ -1642,36 +1909,38 @@ setGeneric("add_hyper_grid_domain", function(object, hyper_grid_domain) {
 #' @param object An object of class `tuning_strategy`.
 #' @param hyper_grid_domain An object of class `hyper_grid_domain`.
 #' @export
-setMethod("add_hyper_grid_domain",
-          signature(object = "tuning_strategy", hyper_grid_domain = "hyper_grid_domain"),
-          function(object, hyper_grid_domain) {
+setMethod(
+  "add_hyper_grid_domain",
+  signature(object = "tuning_strategy", hyper_grid_domain = "hyper_grid_domain"),
+  function(object, hyper_grid_domain) {
+    # Add hyper_grid_domain
+    object@hyper_grid_domain <- hyper_grid_domain
 
-            #Add hyper_grid_domain
-            object@hyper_grid_domain <- hyper_grid_domain
+    # Validate the object explicitly
+    validObject(object)
 
-            # Validate the object explicitly
-            validObject(object)
-
-            return(object)
-          })
+    return(object)
+  }
+)
 
 
 #' @describeIn add_hyper_grid_domain Add `hyper_grid_domain` to `sb_backtest_config` object
 #' @param object An object of class `sb_backtest_config`.
 #' @param hyper_grid_domain An object of class `hyper_grid_domain`.
 #' @export
-setMethod("add_hyper_grid_domain",
-          signature(object = "sb_backtest_config", hyper_grid_domain = "hyper_grid_domain"),
-          function(object, hyper_grid_domain) {
+setMethod(
+  "add_hyper_grid_domain",
+  signature(object = "sb_backtest_config", hyper_grid_domain = "hyper_grid_domain"),
+  function(object, hyper_grid_domain) {
+    # Add hyper_grid_domain
+    object@tuning_strategy@hyper_grid_domain <- hyper_grid_domain
 
-            #Add hyper_grid_domain
-            object@tuning_strategy@hyper_grid_domain <- hyper_grid_domain
+    # Validate the object explicitly
+    validObject(object)
 
-            # Validate the object explicitly
-            validObject(object)
-
-            return(object)
-          })
+    return(object)
+  }
+)
 
 
 #-----------------------------------------------------------------------
@@ -1690,37 +1959,35 @@ setMethod("add_hyper_grid_domain",
 #'
 #' @export
 create_keras_architecture <- function(nn_optimizer, units = NULL, activation = NULL, batch_norm_option = NULL) {
-
   # Check nn_optimizer is valid
   valid_optimizers <- c("Adam", "RMSProp")
   if (!nn_optimizer %in% valid_optimizers) {
     stop("nn_optimizer should be Adam or RMSProp.")
   }
 
-  #Check format
-  if(!is.numeric(units)){
+  # Check format
+  if (!is.numeric(units)) {
     stop("units should be a numeric value.")
   }
-  if(!all(activation %in% c("relu", "sigmoid", "tanh", "softmax"))){
+  if (!all(activation %in% c("relu", "sigmoid", "tanh", "softmax"))) {
     stop("activation should be relu, sigmoid, tanh, or softmax.")
   }
-  if(!all(is.logical(batch_norm_option))){
+  if (!all(is.logical(batch_norm_option))) {
     stop("batch_norm_option should be a logical value.")
   }
 
-  #Create new_keras_architecture
+  # Create new_keras_architecture
   new_keras_architecture_parameters <-
     new("keras_architecture_parameters",
-        units = units,
-        n_layers = length(units),
-        activation = activation,
-        nn_optimizer = nn_optimizer,
-        batch_norm_option = batch_norm_option
+      units = units,
+      n_layers = length(units),
+      activation = activation,
+      nn_optimizer = nn_optimizer,
+      batch_norm_option = batch_norm_option
     )
 
 
   return(new_keras_architecture_parameters)
-
 }
 
 
@@ -1744,7 +2011,6 @@ setGeneric("add_keras_layer", function(object, units, activation, batch_norm_opt
 #' @export
 setMethod(
   "add_keras_layer", "keras_architecture_parameters", function(object, units, activation, batch_norm_option) {
-
     # Check that units are numeric
     if (!all(is.numeric(units))) {
       stop("units should be numeric")
@@ -1761,22 +2027,22 @@ setMethod(
       stop("batch_norm_option should be logical (TRUE or FALSE)")
     }
 
-    #Check length
-    if(length(units) != length(activation) || length(units) != length(batch_norm_option)){
+    # Check length
+    if (length(units) != length(activation) || length(units) != length(batch_norm_option)) {
       stop("units, activation and batch_norm_option should have matching length.")
     }
 
     # Update the layers
     object@units <- c(object@units, units)
-    object@n_layers <- length(object@units)  # Update the number of layers
+    object@n_layers <- length(object@units) # Update the number of layers
     object@activation <- c(object@activation, activation)
     object@batch_norm_option <- c(object@batch_norm_option, batch_norm_option)
 
-    if(length(object@units) > 5){
+    if (length(object@units) > 5) {
       warning("factoRverse only supports up to 5 layers currently")
     }
 
-    return(object)  # Return the updated object
+    return(object) # Return the updated object
   }
 )
 
@@ -1786,10 +2052,9 @@ setMethod(
 #' @export
 setMethod(
   "add_keras_layer", "sb_backtest_config", function(object, units, activation, batch_norm_option) {
-
     object <- add_keras_layer(object@keras_architecture_parameters, units = units, activation = activation, batch_norm_option)
 
-    return(object)  # Return the updated object
+    return(object) # Return the updated object
   }
 )
 
@@ -1828,10 +2093,9 @@ setMethod(
   "add_keras_architecture",
   signature(object = "sb_backtest_config", keras_architecture_parameters = "keras_architecture_parameters"),
   function(object, keras_architecture_parameters) {
-
     object@keras_architecture_parameters <- keras_architecture_parameters
 
-    return(object)  # Return the updated object
+    return(object) # Return the updated object
   }
 )
 
@@ -1861,8 +2125,7 @@ setMethod(
   "add_keras_architecture",
   signature(object = "sb_backtest_config", keras_architecture_parameters = "missing"),
   function(object, keras_architecture_parameters = NULL, ...) {
-
-    #Extract args to build keras
+    # Extract args to build keras
     args <- list(...)
 
     # Ensure all required parameters are present
@@ -1871,13 +2134,15 @@ setMethod(
     }
 
     # Create the keras architecture parameters using the additional arguments
-    keras_architecture_parameters <- create_keras_architecture(nn_optimizer = args$nn_optimizer,
-                                                               units = args$units, activation = args$activation, batch_norm_option = args$batch_norm_option)
+    keras_architecture_parameters <- create_keras_architecture(
+      nn_optimizer = args$nn_optimizer,
+      units = args$units, activation = args$activation, batch_norm_option = args$batch_norm_option
+    )
 
     # Assign the created keras architecture to the object
     object@keras_architecture_parameters <- keras_architecture_parameters
 
-    return(object)  # Return the updated object
+    return(object) # Return the updated object
   }
 )
 
@@ -1894,14 +2159,14 @@ setMethod(
 #' to dimensionality curse.
 #' @param active_returns logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
 create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE, cov_matrix_benchmark = NULL) {
-
   cov_est_method <- new("cov_est_method",
-                        cov_estimation_method = cov_estimation_method,
-                        cov_matrix_sample_size = cov_matrix_sample_size,
-                        active_returns = active_returns,
-                        cov_matrix_benchmark = cov_matrix_benchmark
+    cov_estimation_method = cov_estimation_method,
+    cov_matrix_sample_size = cov_matrix_sample_size,
+    active_returns = active_returns,
+    cov_matrix_benchmark = cov_matrix_benchmark
   )
 
+  return(cov_est_method)
 }
 
 #' @title Add a cov_est_method to a `sb_backtest_config` or `port_backtest_config` object.
@@ -1933,18 +2198,18 @@ setGeneric("add_cov_est_method", function(object, cov_est_method, ...) {
 #' @param object An object of class `sb_backtest_config`.
 #' @param cov_est_method An existing object of class `cov_est_method`.
 #' @export
-setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "cov_est_method"),
-          function(object, cov_est_method, ...) {
+setMethod(
+  "add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "cov_est_method"),
+  function(object, cov_est_method, ...) {
+    # Check for sb algo
+    if (!object@sb_algorithm %in% c("rp", "mvo")) {
+      stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+    }
 
-            #Check for sb algo
-            if(!object@sb_algorithm %in% c("rp", "mvo")){
-              stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
-            }
+    object@signal_port_parameters@cov_est_method <- cov_est_method
 
-            object@signal_port_parameters@cov_est_method <- cov_est_method
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 #' @describeIn add_cov_est_method Create a `cov_est_method` object to a `sb_backtest_config` object.
@@ -1954,22 +2219,23 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
 #' @param object An object of class `sb_backtest_config`.
 #' @param cov_est_method An existing object of class `cov_est_method`.
 #' @export
-setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "missing"),
-          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
+setMethod(
+  "add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "missing"),
+  function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
+    # Check for sb algo
+    if (!object@sb_algorithm %in% c("rp", "mvo")) {
+      stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+    }
 
-            #Check for sb algo
-            if(!object@sb_algorithm %in% c("rp", "mvo")){
-              stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
-            }
+    object@signal_port_parameters@cov_est_method <- create_cov_est_method(
+      cov_estimation_method = cov_estimation_method,
+      cov_matrix_sample_size = cov_matrix_sample_size,
+      active_returns = active_returns,
+      cov_matrix_benchmark = cov_matrix_benchmark
+    )
 
-            object@signal_port_parameters@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
-                                                                                  cov_matrix_sample_size = cov_matrix_sample_size,
-                                                                                  active_returns = active_returns,
-                                                                                  cov_matrix_benchmark = cov_matrix_benchmark
-            )
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 
@@ -1981,24 +2247,24 @@ setMethod("add_cov_est_method", signature(object = "sb_backtest_config", cov_est
 #' @param object An object of class `port_backtest_config`.
 #' @param cov_est_method An existing object of class `cov_est_method`.
 #' @export
-setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "cov_est_method"),
-          function(object, cov_est_method, ...) {
+setMethod(
+  "add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "cov_est_method"),
+  function(object, cov_est_method, ...) {
+    # Check for port construction method
+    if (!object@port_construction_method %in% c("rp", "mvo")) {
+      stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+    }
 
-            #Check for port construction method
-            if(!object@port_construction_method %in% c("rp", "mvo")){
-              stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
-            }
+    # Check for existence of selected_benchmark
+    if (!is.null(object@selected_benchmark) && object@active_returns) {
+      message("Using port_backtest_config selected benchmark as active covariance matrix benchmark.")
+      cov_est_method@cov_matrix_benchmark <- object@selected_benchmark
+    }
 
-            #Check for existence of selected_benchmark
-            if(!is.null(object@selected_benchmark) && object@active_returns){
-              message("Using port_backtest_config selected benchmark as active covariance matrix benchmark.")
-              cov_est_method@cov_matrix_benchmark <- object@selected_benchmark
-            }
+    object@cov_est_method <- cov_est_method
 
-            object@cov_est_method <- cov_est_method
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 #' @describeIn add_cov_est_method Create a `cov_est_method` object to a `port_backtest_config` object.
@@ -2008,28 +2274,29 @@ setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_e
 #' @param object An object of class `port_backtest_config`.
 #' @param cov_est_method An existing object of class `cov_est_method`.
 #' @export
-setMethod("add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
-          function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
+setMethod(
+  "add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
+  function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
+    # Check for sb algo
+    if (!object@port_construction_method %in% c("rp", "mvo")) {
+      stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+    }
 
-            #Check for sb algo
-            if(!object@port_construction_method %in% c("rp", "mvo")){
-              stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
-            }
+    # Check for existence of selected_benchmark
+    if (!is.null(object@selected_benchmark) && active_returns) {
+      message("Using port_backtest_config selected benchmark as active covariance matrix benchmark.")
+      cov_matrix_benchmark <- object@selected_benchmark
+    }
 
-            #Check for existence of selected_benchmark
-            if(!is.null(object@selected_benchmark) && active_returns){
-              message("Using port_backtest_config selected benchmark as active covariance matrix benchmark.")
-              cov_matrix_benchmark <- object@selected_benchmark
-            }
+    object@cov_est_method <- create_cov_est_method(
+      cov_estimation_method = cov_estimation_method,
+      cov_matrix_sample_size = cov_matrix_sample_size,
+      active_returns = active_returns,
+      cov_matrix_benchmark = cov_matrix_benchmark
+    )
 
-            object@cov_est_method <- create_cov_est_method(cov_estimation_method = cov_estimation_method,
-                                                           cov_matrix_sample_size = cov_matrix_sample_size,
-                                                           active_returns = active_returns,
-                                                           cov_matrix_benchmark = cov_matrix_benchmark
-            )
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 
@@ -2070,12 +2337,12 @@ create_mvo_parameters <- function(opt_method = "random",
                                   random_ports_method = "sample",
                                   n_random_ports = 1000,
                                   opt_objective = "sharpe") {
-
   mvo_params <- methods::new("mvo_parameters",
-                             opt_method = opt_method,
-                             random_ports_method = random_ports_method,
-                             n_random_ports = n_random_ports,
-                             opt_objective = opt_objective)
+    opt_method = opt_method,
+    random_ports_method = random_ports_method,
+    n_random_ports = n_random_ports,
+    opt_objective = opt_objective
+  )
   return(mvo_params)
 }
 
@@ -2111,93 +2378,92 @@ setGeneric("add_mvo_parameters", function(object, mvo_params, ...) {
 
 #' @describeIn add_mvo_parameters Add existing `mvo_parameters` object to a `sb_backtest_config` object.
 #' @export
-setMethod("add_mvo_parameters",
-          signature(object = "sb_backtest_config", mvo_params = "mvo_parameters"),
-          function(object, mvo_params, ...) {
+setMethod(
+  "add_mvo_parameters",
+  signature(object = "sb_backtest_config", mvo_params = "mvo_parameters"),
+  function(object, mvo_params, ...) {
+    # Suppose you store mvo_parameters within signal_port_parameters:
+    object@signal_port_parameters@mvo_parameters <- mvo_params
 
-            # Suppose you store mvo_parameters within signal_port_parameters:
-            object@signal_port_parameters@mvo_parameters <- mvo_params
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 #' @describeIn add_mvo_parameters Dynamically create a `mvo_parameters` object and add it to a `sb_backtest_config` object.
 #' @export
-setMethod("add_mvo_parameters",
-          signature(object = "sb_backtest_config", mvo_params = "missing"),
-          function(object,
-                   mvo_params,
-                   opt_method = "random",
-                   random_ports_method = "sample",
-                   n_random_ports = 1000,
-                   opt_objective = "sharpe",
-                   ...) {
+setMethod(
+  "add_mvo_parameters",
+  signature(object = "sb_backtest_config", mvo_params = "missing"),
+  function(object,
+           mvo_params,
+           opt_method = "random",
+           random_ports_method = "sample",
+           n_random_ports = 1000,
+           opt_objective = "sharpe",
+           ...) {
+    # Check for sb
+    if (!object@sb_algorithm == c("mvo")) {
+      stop("MVO parameters is only available for 'mvo' strategies.")
+    }
 
 
-            #Check for sb
-            if(!object@sb_algorithm == c("mvo")){
-              stop("MVO parameters is only available for 'mvo' strategies.")
-            }
+    object@signal_port_parameters@mvo_parameters <- create_mvo_parameters(
+      opt_method = opt_method,
+      random_ports_method = random_ports_method,
+      n_random_ports = n_random_ports,
+      opt_objective = opt_objective
+    )
 
-
-            object@signal_port_parameters@mvo_parameters <- create_mvo_parameters(
-              opt_method = opt_method,
-              random_ports_method = random_ports_method,
-              n_random_ports = n_random_ports,
-              opt_objective = opt_objective
-            )
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 
 
 #' @describeIn add_mvo_parameters Add existing `mvo_parameters` object to a `port_backtest_config` object.
 #' @export
-setMethod("add_mvo_parameters",
-          signature(object = "port_backtest_config", mvo_params = "mvo_parameters"),
-          function(object, mvo_params, ...) {
+setMethod(
+  "add_mvo_parameters",
+  signature(object = "port_backtest_config", mvo_params = "mvo_parameters"),
+  function(object, mvo_params, ...) {
+    # Check for port construction method
+    if (!object@port_construction_method == c("mvo")) {
+      stop("MVO parameters is only available for 'mvo' strategies.")
+    }
 
-            #Check for port construction method
-            if(!object@port_construction_method == c("mvo")){
-              stop("MVO parameters is only available for 'mvo' strategies.")
-            }
+    object@mvo_parameters <- mvo_params
 
-            object@mvo_parameters <- mvo_params
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 #' @describeIn add_mvo_parameters Dynamically create a `mvo_parameters` object and add it to a `port_backtest_config` object.
 #' @export
-setMethod("add_mvo_parameters",
-          signature(object = "port_backtest_config", mvo_params = "missing"),
-          function(object,
-                   mvo_params,
-                   opt_method = "random",
-                   random_ports_method = "sample",
-                   n_random_ports = 1000,
-                   opt_objective = "sharpe",
-                   ...) {
+setMethod(
+  "add_mvo_parameters",
+  signature(object = "port_backtest_config", mvo_params = "missing"),
+  function(object,
+           mvo_params,
+           opt_method = "random",
+           random_ports_method = "sample",
+           n_random_ports = 1000,
+           opt_objective = "sharpe",
+           ...) {
+    # Check for port construction method
+    if (!object@port_construction_method == c("mvo")) {
+      stop("MVO parameters is only available for 'mvo' strategies.")
+    }
 
-            #Check for port construction method
-            if(!object@port_construction_method == c("mvo")){
-              stop("MVO parameters is only available for 'mvo' strategies.")
-            }
 
+    object@mvo_parameters <- create_mvo_parameters(
+      opt_method = opt_method,
+      random_ports_method = random_ports_method,
+      n_random_ports = n_random_ports,
+      opt_objective = opt_objective
+    )
 
-            object@mvo_parameters <- create_mvo_parameters(
-              opt_method = opt_method,
-              random_ports_method = random_ports_method,
-              n_random_ports = n_random_ports,
-              opt_objective = opt_objective
-            )
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 
@@ -2226,7 +2492,8 @@ setMethod("add_mvo_parameters",
 #' rp_params_custom <- create_rp_parameters(rp_method = "gauss-seidel")
 create_rp_parameters <- function(rp_method = "cyclical-spinu") {
   rp_params <- methods::new("rp_parameters",
-                            rp_method = rp_method)
+    rp_method = rp_method
+  )
   return(rp_params)
 }
 
@@ -2254,83 +2521,83 @@ setGeneric("add_rp_parameters", function(object, rp_params, ...) {
 
 #' @describeIn add_rp_parameters Add an existing `rp_parameters` object to a `sb_backtest_config` object.
 #' @export
-setMethod("add_rp_parameters",
-          signature(object = "sb_backtest_config", rp_params = "rp_parameters"),
-          function(object, rp_params, ...) {
+setMethod(
+  "add_rp_parameters",
+  signature(object = "sb_backtest_config", rp_params = "rp_parameters"),
+  function(object, rp_params, ...) {
+    # Check for sb
+    if (!object@sb_algorithm == c("rp")) {
+      stop("RP parameters is only available for 'rp' strategies.")
+    }
 
-            #Check for sb
-            if(!object@sb_algorithm == c("rp")){
-              stop("RP parameters is only available for 'rp' strategies.")
-            }
+    # Suppose you store rp_parameters within signal_port_parameters:
+    object@signal_port_parameters@rp_parameters <- rp_params
 
-            # Suppose you store rp_parameters within signal_port_parameters:
-            object@signal_port_parameters@rp_parameters <- rp_params
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 #' @describeIn add_rp_parameters Dynamically create a `rp_parameters` object and add it to a `sb_backtest_config` object.
 #' @export
-setMethod("add_rp_parameters",
-          signature(object = "sb_backtest_config", rp_params = "missing"),
-          function(object,
-                   rp_params,
-                   rp_method = "cyclical-spinu",
-                   ...) {
+setMethod(
+  "add_rp_parameters",
+  signature(object = "sb_backtest_config", rp_params = "missing"),
+  function(object,
+           rp_params,
+           rp_method = "cyclical-spinu",
+           ...) {
+    # Check for sb
+    if (!object@sb_algorithm == c("rp")) {
+      stop("RP parameters is only available for 'rp' strategies.")
+    }
 
-            #Check for sb
-            if(!object@sb_algorithm == c("rp")){
-              stop("RP parameters is only available for 'rp' strategies.")
-            }
 
+    object@signal_port_parameters@rp_parameters <- create_rp_parameters(
+      rp_method = rp_method
+    )
 
-            object@signal_port_parameters@rp_parameters <- create_rp_parameters(
-              rp_method = rp_method
-            )
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 #' @describeIn add_rp_parameters Add an existing `rp_parameters` object to a `port_backtest_config` object.
 #' @export
-setMethod("add_rp_parameters",
-          signature(object = "port_backtest_config", rp_params = "rp_parameters"),
-          function(object, rp_params, ...) {
+setMethod(
+  "add_rp_parameters",
+  signature(object = "port_backtest_config", rp_params = "rp_parameters"),
+  function(object, rp_params, ...) {
+    # Check for pcm
+    if (!object@port_construction_method == c("rp")) {
+      stop("RP parameters is only available for 'rp' strategies.")
+    }
 
-            #Check for pcm
-            if(!object@port_construction_method == c("rp")){
-              stop("RP parameters is only available for 'rp' strategies.")
-            }
 
+    object@rp_parameters <- rp_params
 
-            object@rp_parameters <- rp_params
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 #' @describeIn add_rp_parameters Dynamically create a `rp_parameters` object and add it to a `port_backtest_config` object.
 #' @export
-setMethod("add_rp_parameters",
-          signature(object = "port_backtest_config", rp_params = "missing"),
-          function(object,
-                   rp_params,
-                   rp_method = "cyclical-spinu",
-                   ...) {
+setMethod(
+  "add_rp_parameters",
+  signature(object = "port_backtest_config", rp_params = "missing"),
+  function(object,
+           rp_params,
+           rp_method = "cyclical-spinu",
+           ...) {
+    # Check for pcm
+    if (!object@port_construction_method == c("rp")) {
+      stop("RP parameters is only available for 'rp' strategies.")
+    }
 
-            #Check for pcm
-            if(!object@port_construction_method == c("rp")){
-              stop("RP parameters is only available for 'rp' strategies.")
-            }
+    object@rp_parameters <- create_rp_parameters(
+      rp_method = rp_method
+    )
 
-            object@rp_parameters <- create_rp_parameters(
-              rp_method = rp_method
-            )
-
-            return(object)
-          }
+    return(object)
+  }
 )
 
 
@@ -2367,8 +2634,7 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
                                       chosen_signals_and_positions = NULL,
                                       custom_objective = "squared_error", keras_architecture_parameters = NULL, signal_port_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
                                       config_name = "not_identified") {
-
-  ##Give custom warning related to quantile tau and huber delta
+  ## Give custom warning related to quantile tau and huber delta
   if (!is.null(quantile_tau) && quantile_tau != 0.5) {
     message("changing quantile_tau impacts both chosen_eval_metric and custom_objective.")
   }
@@ -2376,77 +2642,80 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
     message("changing huber_delta impacts both chosen_eval_metric and custom_objective.")
   }
 
-  ##Chosen_signals_and_positions
-  ###Presence of other objects
-  if (any(!is.null(ss_backtest_config),!is.null(ss_backtest_results))){
-    if (!is.null(chosen_signals_and_positions)){
+  ## Chosen_signals_and_positions
+  ### Presence of other objects
+  if (any(!is.null(ss_backtest_config), !is.null(ss_backtest_results))) {
+    if (!is.null(chosen_signals_and_positions)) {
       stop("chosen_signals_and_positions should only be provided when 'ss_backtest_config' or 'ss_backtest_results' are missing.")
     }
-    if (!is.null(ss_backtest_config)){
+    if (!is.null(ss_backtest_config)) {
       chosen_signals_and_positions <- ss_backtest_config@chosen_signals_and_positions
       message("chosen_signals_and_positions will follow underlying ss_backtest_config")
     } else {
       chosen_signals_and_positions <- ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions
       message("chosen_signals_and_positions will follow underlying ss_backtest_results")
     }
-    if (sb_algorithm == "custom_weights"){
+    if (sb_algorithm == "custom_weights") {
       message("only positions in chosen_signals_and_positions are applied when sb_algorithm is custom_weights.")
     }
   }
-  ###Custom weights warning
-  if (sb_algorithm == "custom_weights" && is.null(chosen_signals_and_positions)){
-    message("Only positions of chosen_signals_and_positions are used when sb_algorithm is custom_weights, as every non-zero weight",
-            "in custom_signal_weights_m_df will be eligible.")
+  ### Custom weights warning
+  if (sb_algorithm == "custom_weights" && is.null(chosen_signals_and_positions)) {
+    message(
+      "Only positions of chosen_signals_and_positions are used when sb_algorithm is custom_weights, as every non-zero weight",
+      "in custom_signal_weights_m_df will be eligible."
+    )
   }
 
-  if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)){
+  if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)) {
     chosen_signals_and_positions <- "all"
   }
 
-  ###Check if chosen_signals_and_positions length > 1
-  if(length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions != "all"){
+  ### Check if chosen_signals_and_positions length > 1
+  if (length(chosen_signals_and_positions) == 1 && chosen_signals_and_positions != "all") {
     stop("More than one signal must be provided in order to run a sb_backtest")
   }
-  ###Check if there are repeated signals in chosen_signals
-  if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
+  ### Check if there are repeated signals in chosen_signals
+  if (!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))) {
     stop("each signal must be chosen only once")
   }
-  ###Check for presence of low_
-  if(any(grepl("low_", names(chosen_signals_and_positions)))){
+  ### Check for presence of low_
+  if (any(grepl("low_", names(chosen_signals_and_positions)))) {
     stop("chosen_signals_and_positions should not contain 'low_'.")
   }
 
-  #Create default parameters for signal_port_parameters depending on sb_algo
-  if(sb_algorithm %in% c("mvo", "rp") && is.null(signal_port_parameters)){
+  # Create default parameters for signal_port_parameters depending on sb_algo
+  if (sb_algorithm %in% c("mvo", "rp") && is.null(signal_port_parameters)) {
     cov_est_method <- create_cov_est_method(cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = "IBOV")
-    mvo_parameters <- if(sb_algorithm == "mvo") create_mvo_parameters(opt_method = "random", random_ports_method = "sample", n_random_ports = 1000, opt_objective = "sharpe") else NULL
-    rp_parameters <- if(sb_algorithm == "rp") create_rp_parameters(rp_method = "cyclical-spinu") else NULL
+    mvo_parameters <- if (sb_algorithm == "mvo") create_mvo_parameters(opt_method = "random", random_ports_method = "sample", n_random_ports = 1000, opt_objective = "sharpe") else NULL
+    rp_parameters <- if (sb_algorithm == "rp") create_rp_parameters(rp_method = "cyclical-spinu") else NULL
 
 
     signal_port_parameters <- new("signal_port_parameters",
-                                  cov_est_method = cov_est_method,
-                                  mvo_parameters = mvo_parameters,
-                                  rp_parameters = rp_parameters,
-                                  concentration_constraint_policy = NULL)
+      cov_est_method = cov_est_method,
+      mvo_parameters = mvo_parameters,
+      rp_parameters = rp_parameters,
+      concentration_constraint_policy = NULL
+    )
   }
 
   # Create the sb_backtest_config object
   new("sb_backtest_config",
-      sb_algorithm = sb_algorithm,
-      target_fwd_name = target_fwd_name,
-      training_sample_size = training_sample_size,
-      chosen_signals_and_positions = chosen_signals_and_positions,
-      rebalancing_months = rebalancing_months,
-      split_method = split_method,
-      ss_backtest_config = ss_backtest_config,
-      ss_backtest_results = ss_backtest_results,
-      tuning_strategy = tuning_strategy,
-      custom_objective = custom_objective,
-      keras_architecture_parameters = keras_architecture_parameters,
-      signal_port_parameters = signal_port_parameters,
-      quantile_tau = quantile_tau,
-      huber_delta = huber_delta,
-      config_name = config_name
+    sb_algorithm = sb_algorithm,
+    target_fwd_name = target_fwd_name,
+    training_sample_size = training_sample_size,
+    chosen_signals_and_positions = chosen_signals_and_positions,
+    rebalancing_months = rebalancing_months,
+    split_method = split_method,
+    ss_backtest_config = ss_backtest_config,
+    ss_backtest_results = ss_backtest_results,
+    tuning_strategy = tuning_strategy,
+    custom_objective = custom_objective,
+    keras_architecture_parameters = keras_architecture_parameters,
+    signal_port_parameters = signal_port_parameters,
+    quantile_tau = quantile_tau,
+    huber_delta = huber_delta,
+    config_name = config_name
   )
 }
 
@@ -2477,15 +2746,15 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #'
 #' # First method: Combine sb_configs and ss_configs
 #' meta_config <- create_sb_metabacktest_config(
-#'     meta_sb_backtest_config = sb_backtest_config,
-#'     base_sb_backtest_configs = list(sb_config1, sb_config2),
-#'     ss_backtest_configs = list(ss_config1, ss_config2)
+#'   meta_sb_backtest_config = sb_backtest_config,
+#'   base_sb_backtest_configs = list(sb_config1, sb_config2),
+#'   ss_backtest_configs = list(ss_config1, ss_config2)
 #' )
 #'
 #' # Second method: Configs already have ss_backtest_config set
 #' meta_config <- create_sb_metabacktest_config(
-#'     meta_sb_backtest_config = sb_backtest_config,
-#'     base_sb_backtest_configs = list(config1, config2)
+#'   meta_sb_backtest_config = sb_backtest_config,
+#'   base_sb_backtest_configs = list(config1, config2)
 #' )
 #'
 #' @seealso \code{\link{sb_backtest_config}}, \code{\link{ss_backtest_config}}, \code{\link{sb_metabacktest_config}}
@@ -2493,7 +2762,9 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #' @export
 setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config,
                                                      base_sb_backtest_configs, base_sb_backtest_results,
-                                                     base_ss_backtest_configs, base_ss_backtest_results, ...) standardGeneric("create_sb_metabacktest_config"))
+                                                     base_ss_backtest_configs, base_ss_backtest_results, ...) {
+  standardGeneric("create_sb_metabacktest_config")
+})
 
 
 #' @describeIn create_sb_metabacktest_config Combine ss_backtest_configs and ss_backtest_configs
@@ -2513,88 +2784,94 @@ setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config,
 #' # Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
 #' # and tuning_strategy objects strategy1, strategy2
 #' meta_config <- create_sb_metabacktest_config(
-#'     sb_configs = list(sb_config1, sb_config2),
-#'     ss_configs = list(ss_config1, ss_config2)
+#'   sb_configs = list(sb_config1, sb_config2),
+#'   ss_configs = list(ss_config1, ss_config2)
 #' )
 #'
 #' @export
-setMethod("create_sb_metabacktest_config",
-          signature(meta_sb_backtest_config = "sb_backtest_config",
-                    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-                    base_ss_backtest_configs = "list", base_ss_backtest_results = "missing"),
+setMethod(
+  "create_sb_metabacktest_config",
+  signature(
+    meta_sb_backtest_config = "sb_backtest_config",
+    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+    base_ss_backtest_configs = "list", base_ss_backtest_results = "missing"
+  ),
+  function(meta_sb_backtest_config, base_sb_backtest_configs, base_ss_backtest_configs,
+           features_passthrough = "none", normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+           config_name = "not_identified", ...) {
+    # Check that all base_sb_backtest_configs are sb_backtest_config objects
+    if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+      stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
+    }
 
-          function(meta_sb_backtest_config, base_sb_backtest_configs, base_ss_backtest_configs,
-                   features_passthrough = "none", normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
-                   config_name = "not_identified", ...) {
+    # Check that all ss_backtest_config are ss_backtest_config objects
+    if (!all(sapply(base_ss_backtest_configs, function(x) is(x, "ss_backtest_config")))) {
+      stop("All elements in 'base_ss_backtest_configs' must be 'ss_backtest_config' objects.")
+    }
 
-            # Check that all base_sb_backtest_configs are sb_backtest_config objects
-            if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-              stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
-            }
+    # Get config names
+    sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
+    ss_config_names <- as.character(sapply(base_ss_backtest_configs, function(x) x@config_name))
 
-            # Check that all ss_backtest_config are ss_backtest_config objects
-            if (!all(sapply(base_ss_backtest_configs, function(x) is(x, "ss_backtest_config")))) {
-              stop("All elements in 'base_ss_backtest_configs' must be 'ss_backtest_config' objects.")
-            }
-
-            # Get config names
-            sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
-            ss_config_names <- as.character(sapply(base_ss_backtest_configs, function(x) x@config_name))
-
-            combined_configs <- list()
-
-
-            # Iterate through each sb and ss configurations:
-            for (i in seq_along(base_sb_backtest_configs)) {
-              sb_config <- base_sb_backtest_configs[[i]]
-
-              if (!is.null(sb_config@ss_backtest_config) || !is.null(sb_config@ss_backtest_results)) {
-                stop("All elements in 'base_sb_backtest_configs' must have 'ss_backtest_config' and 'ss_backtest_results' set to NULL.")
-              }
-
-              for (j in seq_along(base_ss_backtest_configs)) {
-                ss_config <- base_ss_backtest_configs[[j]]
-
-                # Add the ss_backtest_config
-                new_config <- add_ss_backtest_obj(sb_config, ss_config)
-
-                # Add it to combined_configs
-                combined_name <- paste0(sb_config_names[i], "_", ss_config_names[j])
-                combined_configs[[combined_name]] <- new_config
-
-              }
-            }
-
-            # Warn about not considering chosen_signals_and_positions at meta-level
-            if (length(meta_sb_backtest_config@ss_backtest_config) > 0){
-              message("The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
-                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
-              meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
-            }
-            if (length(meta_sb_backtest_config@ss_backtest_results) > 0){
-              message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
-            }
-            if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj"){
-              message("The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
-                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
-              meta_sb_backtest_config@chosen_signals_and_positions <- "all"
-            }
+    combined_configs <- list()
 
 
-            # Create the sb_metabacktest_config object
-            meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config,
-                               base_sb_backtest_configs = combined_configs,
-                               base_sb_backtest_results = NULL,
-                               features_passthrough = features_passthrough,
-                               normalize_base_predictions = normalize_base_predictions,
-                               winsorize_base_predictions = winsorize_base_predictions,
-                               config_name = config_name)
+    # Iterate through each sb and ss configurations:
+    for (i in seq_along(base_sb_backtest_configs)) {
+      sb_config <- base_sb_backtest_configs[[i]]
 
-            # State the number of valid configurations produced
-            cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
+      if (!is.null(sb_config@ss_backtest_config) || !is.null(sb_config@ss_backtest_results)) {
+        stop("All elements in 'base_sb_backtest_configs' must have 'ss_backtest_config' and 'ss_backtest_results' set to NULL.")
+      }
 
-            return(meta_config)
-          }
+      for (j in seq_along(base_ss_backtest_configs)) {
+        ss_config <- base_ss_backtest_configs[[j]]
+
+        # Add the ss_backtest_config
+        new_config <- add_ss_backtest_obj(sb_config, ss_config)
+
+        # Add it to combined_configs
+        combined_name <- paste0(sb_config_names[i], "_", ss_config_names[j])
+        combined_configs[[combined_name]] <- new_config
+      }
+    }
+
+    # Warn about not considering chosen_signals_and_positions at meta-level
+    if (length(meta_sb_backtest_config@ss_backtest_config) > 0) {
+      message(
+        "The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
+        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+      )
+      meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
+    }
+    if (length(meta_sb_backtest_config@ss_backtest_results) > 0) {
+      message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
+    }
+    if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj") {
+      message(
+        "The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+      )
+      meta_sb_backtest_config@chosen_signals_and_positions <- "all"
+    }
+
+
+    # Create the sb_metabacktest_config object
+    meta_config <- new("sb_metabacktest_config",
+      meta_sb_backtest_config = meta_sb_backtest_config,
+      base_sb_backtest_configs = combined_configs,
+      base_sb_backtest_results = NULL,
+      features_passthrough = features_passthrough,
+      normalize_base_predictions = normalize_base_predictions,
+      winsorize_base_predictions = winsorize_base_predictions,
+      config_name = config_name
+    )
+
+    # State the number of valid configurations produced
+    cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
+
+    return(meta_config)
+  }
 )
 
 #' @describeIn create_sb_metabacktest_config Combine ss_backtest_configs and ss_backtest_results
@@ -2614,87 +2891,93 @@ setMethod("create_sb_metabacktest_config",
 #' # Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
 #' # and tuning_strategy objects strategy1, strategy2
 #' meta_config <- create_sb_metabacktest_config(
-#'     sb_configs = list(sb_config1, sb_config2),
-#'     ss_configs = list(ss_config1, ss_config2)
+#'   sb_configs = list(sb_config1, sb_config2),
+#'   ss_configs = list(ss_config1, ss_config2)
 #' )
 #'
 #' @export
-setMethod("create_sb_metabacktest_config",
-          signature(meta_sb_backtest_config = "sb_backtest_config",
-                    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-                    base_ss_backtest_configs = "missing", base_ss_backtest_results = "list"),
+setMethod(
+  "create_sb_metabacktest_config",
+  signature(
+    meta_sb_backtest_config = "sb_backtest_config",
+    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+    base_ss_backtest_configs = "missing", base_ss_backtest_results = "list"
+  ),
+  function(meta_sb_backtest_config, base_sb_backtest_configs, base_ss_backtest_results,
+           features_passthrough = "none", normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+           config_name = "not_identified", ...) {
+    # Check that all base_sb_backtest_configs are sb_backtest_config objects
+    if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+      stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
+    }
 
-          function(meta_sb_backtest_config, base_sb_backtest_configs, base_ss_backtest_results,
-                   features_passthrough = "none", normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
-                   config_name = "not_identified", ...) {
+    # Check that all ss_backtest_config are ss_backtest_results objects
+    if (!all(sapply(base_ss_backtest_results, function(x) is(x, "ss_backtest_results")))) {
+      stop("All elements in 'base_ss_backtest_results' must be 'ss_backtest_results' objects.")
+    }
 
-            # Check that all base_sb_backtest_configs are sb_backtest_config objects
-            if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-              stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
-            }
+    # Get config names
+    sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
+    ss_results_names <- as.character(sapply(base_ss_backtest_results, function(x) x@backtest_identifier))
 
-            # Check that all ss_backtest_config are ss_backtest_results objects
-            if (!all(sapply(base_ss_backtest_results, function(x) is(x, "ss_backtest_results")))) {
-              stop("All elements in 'base_ss_backtest_results' must be 'ss_backtest_results' objects.")
-            }
-
-            # Get config names
-            sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
-            ss_results_names <- as.character(sapply(base_ss_backtest_results, function(x) x@backtest_identifier))
-
-            combined_configs <- list()
+    combined_configs <- list()
 
 
-            # Iterate through each sb and ss configurations:
-            for (i in seq_along(base_sb_backtest_configs)) {
-              sb_config <- base_sb_backtest_configs[[i]]
+    # Iterate through each sb and ss configurations:
+    for (i in seq_along(base_sb_backtest_configs)) {
+      sb_config <- base_sb_backtest_configs[[i]]
 
-              if (!is.null(sb_config@ss_backtest_config) || !is.null(sb_config@ss_backtest_results)) {
-                stop("All elements in 'base_sb_backtest_configs' must have 'ss_backtest_config' and 'ss_backtest_results' set to NULL.")
-              }
+      if (!is.null(sb_config@ss_backtest_config) || !is.null(sb_config@ss_backtest_results)) {
+        stop("All elements in 'base_sb_backtest_configs' must have 'ss_backtest_config' and 'ss_backtest_results' set to NULL.")
+      }
 
-              for (j in seq_along(base_ss_backtest_results)) {
-                ss_results <- base_ss_backtest_results[[j]]
+      for (j in seq_along(base_ss_backtest_results)) {
+        ss_results <- base_ss_backtest_results[[j]]
 
-                # Add the ss_backtest_results
-                new_config <- add_ss_backtest_obj(sb_config, ss_results)
+        # Add the ss_backtest_results
+        new_config <- add_ss_backtest_obj(sb_config, ss_results)
 
-                # Add it to combined_configs
-                combined_name <- paste0(sb_config_names[i], "_", ss_results_names[j])
-                combined_configs[[combined_name]] <- new_config
+        # Add it to combined_configs
+        combined_name <- paste0(sb_config_names[i], "_", ss_results_names[j])
+        combined_configs[[combined_name]] <- new_config
+      }
+    }
 
-              }
-            }
+    # Warn about not considering chosen_signals_and_positions at meta-level
+    if (length(meta_sb_backtest_config@ss_backtest_config) > 0) {
+      message(
+        "The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
+        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+      )
+      meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
+    }
+    if (length(meta_sb_backtest_config@ss_backtest_results) > 0) {
+      message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
+    }
+    if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj") {
+      message(
+        "The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+      )
+      meta_sb_backtest_config@chosen_signals_and_positions <- "all"
+    }
 
-            # Warn about not considering chosen_signals_and_positions at meta-level
-            if (length(meta_sb_backtest_config@ss_backtest_config) > 0){
-              message("The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
-                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
-              meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
-            }
-            if (length(meta_sb_backtest_config@ss_backtest_results) > 0){
-              message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
-            }
-            if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj"){
-              message("The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
-                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
-              meta_sb_backtest_config@chosen_signals_and_positions <- "all"
-            }
+    # Create the sb_metabacktest_config object
+    meta_config <- new("sb_metabacktest_config",
+      meta_sb_backtest_config = meta_sb_backtest_config,
+      base_sb_backtest_configs = combined_configs,
+      base_sb_backtest_results = NULL,
+      features_passthrough = features_passthrough,
+      normalize_base_predictions = normalize_base_predictions,
+      winsorize_base_predictions = winsorize_base_predictions,
+      config_name = config_name
+    )
 
-            # Create the sb_metabacktest_config object
-            meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config,
-                               base_sb_backtest_configs = combined_configs,
-                               base_sb_backtest_results = NULL,
-                               features_passthrough = features_passthrough,
-                               normalize_base_predictions = normalize_base_predictions,
-                               winsorize_base_predictions = winsorize_base_predictions,
-                               config_name = config_name)
+    # State the number of valid configurations produced
+    cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
 
-            # State the number of valid configurations produced
-            cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
-
-            return(meta_config)
-          }
+    return(meta_config)
+  }
 )
 
 
@@ -2706,45 +2989,52 @@ setMethod("create_sb_metabacktest_config",
 #'
 #' @return A `sb_metabacktest_config` object containing the provided `sb_backtest_config` objects.
 #' @export
-setMethod("create_sb_metabacktest_config",
-          signature(meta_sb_backtest_config = 'sb_backtest_config',
-                    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-                    base_ss_backtest_configs = "missing", base_ss_backtest_results = "missing"),
+setMethod(
+  "create_sb_metabacktest_config",
+  signature(
+    meta_sb_backtest_config = "sb_backtest_config",
+    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
+    base_ss_backtest_configs = "missing", base_ss_backtest_results = "missing"
+  ),
+  function(meta_sb_backtest_config, base_sb_backtest_configs, config_name = "not_identified",
+           features_passthrough = "none",
+           normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+           ...) {
+    # Check that all configs are sb_backtest_config objects
+    if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
+      stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
+    }
 
-          function(meta_sb_backtest_config, base_sb_backtest_configs, config_name = "not_identified",
-                   features_passthrough = "none",
-                   normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
-                   ...) {
+    # Warn about not considering chosen_signals_and_positions at meta-level
+    if (length(meta_sb_backtest_config@ss_backtest_config) > 0) {
+      message(
+        "The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
+        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+      )
+      meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
+    }
+    if (length(meta_sb_backtest_config@ss_backtest_results) > 0) {
+      message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
+    }
+    if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj") {
+      message(
+        "The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+      )
+      meta_sb_backtest_config@chosen_signals_and_positions <- "all"
+    }
 
-            # Check that all configs are sb_backtest_config objects
-            if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-              stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
-            }
-
-            # Warn about not considering chosen_signals_and_positions at meta-level
-            if (length(meta_sb_backtest_config@ss_backtest_config) > 0){
-              message("The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
-                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
-              meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
-            }
-            if (length(meta_sb_backtest_config@ss_backtest_results) > 0){
-              message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
-            }
-            if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj"){
-              message("The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
-                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
-              meta_sb_backtest_config@chosen_signals_and_positions <- "all"
-            }
-
-            # Create the sb_metabacktest_config object
-            meta_config <- new("sb_metabacktest_config", meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = base_sb_backtest_configs,
-                               base_sb_backtest_results = NULL,
-                               features_passthrough = features_passthrough,
-                               normalize_base_predictions = normalize_base_predictions,
-                               winsorize_base_predictions = winsorize_base_predictions,
-                               config_name = config_name)
-            return(meta_config)
-          }
+    # Create the sb_metabacktest_config object
+    meta_config <- new("sb_metabacktest_config",
+      meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = base_sb_backtest_configs,
+      base_sb_backtest_results = NULL,
+      features_passthrough = features_passthrough,
+      normalize_base_predictions = normalize_base_predictions,
+      winsorize_base_predictions = winsorize_base_predictions,
+      config_name = config_name
+    )
+    return(meta_config)
+  }
 )
 
 #' @describeIn create_sb_metabacktest_config Create meta config from ss_backtest_results
@@ -2755,47 +3045,53 @@ setMethod("create_sb_metabacktest_config",
 #'
 #' @return An `sb_metabacktest_config` object containing the provided `sb_backtest_config` objects.
 #' @export
-setMethod("create_sb_metabacktest_config",
-          signature(meta_sb_backtest_config = 'sb_backtest_config',
-                    base_sb_backtest_configs = "missing", base_sb_backtest_results = "list",
-                    base_ss_backtest_configs = "missing", base_ss_backtest_results = "missing"),
+setMethod(
+  "create_sb_metabacktest_config",
+  signature(
+    meta_sb_backtest_config = "sb_backtest_config",
+    base_sb_backtest_configs = "missing", base_sb_backtest_results = "list",
+    base_ss_backtest_configs = "missing", base_ss_backtest_results = "missing"
+  ),
+  function(meta_sb_backtest_config, base_sb_backtest_results, config_name = "not_identified",
+           features_passthrough = "none",
+           normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+           ...) {
+    # Check that all configs are sb_backtest_config objects
+    if (!all(sapply(base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
+      stop("All elements in 'base_sb_backtest_results' must be 'sb_backtest_results' objects.")
+    }
 
-          function(meta_sb_backtest_config, base_sb_backtest_results, config_name = "not_identified",
-                   features_passthrough = "none",
-                   normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
-                   ...) {
-
-            # Check that all configs are sb_backtest_config objects
-            if (!all(sapply(base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
-              stop("All elements in 'base_sb_backtest_results' must be 'sb_backtest_results' objects.")
-            }
-
-            # Warn about not considering chosen_signals_and_positions at meta-level
-            if (length(meta_sb_backtest_config@ss_backtest_config) > 0){
-              message("The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
-                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
-              meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
-            }
-            if (length(meta_sb_backtest_config@ss_backtest_results) > 0){
-              message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
-            }
-            if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj"){
-              message("The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
-                      "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency.")
-              meta_sb_backtest_config@chosen_signals_and_positions <- "all"
-            }
+    # Warn about not considering chosen_signals_and_positions at meta-level
+    if (length(meta_sb_backtest_config@ss_backtest_config) > 0) {
+      message(
+        "The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
+        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+      )
+      meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
+    }
+    if (length(meta_sb_backtest_config@ss_backtest_results) > 0) {
+      message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
+    }
+    if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj") {
+      message(
+        "The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+      )
+      meta_sb_backtest_config@chosen_signals_and_positions <- "all"
+    }
 
 
-            # Create the sb_metabacktest_config object
-            meta_config <- new("sb_metabacktest_config",
-                               meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = NULL,
-                               base_sb_backtest_results = base_sb_backtest_results,
-                               features_passthrough = features_passthrough,
-                               normalize_base_predictions = normalize_base_predictions,
-                               winsorize_base_predictions = winsorize_base_predictions,
-                               config_name = config_name)
-            return(meta_config)
-          }
+    # Create the sb_metabacktest_config object
+    meta_config <- new("sb_metabacktest_config",
+      meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = NULL,
+      base_sb_backtest_results = base_sb_backtest_results,
+      features_passthrough = features_passthrough,
+      normalize_base_predictions = normalize_base_predictions,
+      winsorize_base_predictions = winsorize_base_predictions,
+      config_name = config_name
+    )
+    return(meta_config)
+  }
 )
 
 #' Add one or more sb_backtest_config objects to a sb_metabacktest_config or port_backtest_config
@@ -2809,12 +3105,11 @@ setGeneric("add_sb_backtest_config", function(object, ...) standardGeneric("add_
 
 #' @describeIn add_sb_backtest_config Add one or more sb_backtest_config objects to a sb_metabacktest_config
 setMethod("add_sb_backtest_config", "sb_metabacktest_config", function(object, new_configs, ...) {
-
   # Check that new_configs is a list os base_sb_backtest_configs
   # Check that all new_configs are complete sb_backtest_config objects
-  if(!all(sapply(new_configs, function(x){
+  if (!all(sapply(new_configs, function(x) {
     (!x@sb_algorithm %in% c("ols", "rp", "mvo", "ew", "sw", "custom") && !is.null(x@tuning_strategy))
-  }))){
+  }))) {
     stop("All elements in 'new_configs' must be complete (with tuning_strategy) 'sb_backtest_config' objects.")
   }
 
@@ -2829,15 +3124,14 @@ setMethod("add_sb_backtest_config", "sb_metabacktest_config", function(object, n
 })
 
 #' @describeIn add_sb_backtest_config Add one or more sb_backtest_config objects to a port_backtest_config
-setMethod("add_sb_backtest_config", "port_backtest_config", function(object, new_config, ...){
-
+setMethod("add_sb_backtest_config", "port_backtest_config", function(object, new_config, ...) {
   # Check that new_config is a complete sb_backtest_config object
-  if(!new_config@sb_algorithm %in% c("ols", "rp", "mvo", "ew", "sw", "custom") &&
-     !is.null(new_config@tuning_strategy)){
+  if (!new_config@sb_algorithm %in% c("ols", "rp", "mvo", "ew", "sw", "custom") &&
+    !is.null(new_config@tuning_strategy)) {
     stop("'new_config' must be complete (with tuning_strategy) 'sb_backtest_config' object.")
   }
 
-  #Add obj
+  # Add obj
   object@sb_backtest_config <- new_config
 
   # Validate the object explicitly
@@ -2845,7 +3139,6 @@ setMethod("add_sb_backtest_config", "port_backtest_config", function(object, new
 
   # Return the updated object
   return(object)
-
 })
 
 #' Add one sb_backtest_results object to a port_backtest_config
@@ -2857,9 +3150,8 @@ setMethod("add_sb_backtest_config", "port_backtest_config", function(object, new
 #' @export
 setGeneric("add_sb_backtest_results", function(object, ...) standardGeneric("add_sb_backtest_results"))
 
-setMethod("add_sb_backtest_results", "port_backtest_config", function(object, sb_backtest_results, ...){
-
-  #Add obj
+setMethod("add_sb_backtest_results", "port_backtest_config", function(object, sb_backtest_results, ...) {
+  # Add obj
   object@sb_backtest_results <- sb_backtest_results
 
   # Validate the object explicitly
@@ -2867,7 +3159,6 @@ setMethod("add_sb_backtest_results", "port_backtest_config", function(object, sb
 
   # Return the updated object
   return(object)
-
 })
 
 
@@ -2932,20 +3223,19 @@ setMethod(
     sb_metabacktest_config = "sb_metabacktest_config"
   ),
   definition = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df, sb_metabacktest_config) {
-
-    #Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
+    # Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
     if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
       stop("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'")
     }
 
-    #Get all objects
+    # Get all objects
     all_sb_backtest_results <- c(base_sb_backtest_results_list, meta_sb_backtest_results)
-    #Get names
+    # Get names
     base_sb_names <- names(base_sb_backtest_results_list)
     meta_sb_name <- meta_sb_backtest_results@backtest_identifier
 
 
-    #Call the helper consolidate function
+    # Call the helper consolidate function
     results <- consolidate_sb_metabacktest_results(
       all_sb_backtest_results = all_sb_backtest_results,
       meta_sb_name = meta_sb_name,
@@ -3023,10 +3313,9 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         concentration_constraint_policy = NULL,
                                         transaction_costs_parameters = NULL,
                                         config_name = "not_identified") {
-
   # Create a default covariance estimation method if none is provided
   if (is.null(cov_est_method)) {
-    if (!is.null(selected_benchmark)){
+    if (!is.null(selected_benchmark)) {
       cov_est_method <- create_cov_est_method(
         cov_estimation_method = "sample",
         cov_matrix_sample_size = 252,
@@ -3067,25 +3356,25 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
 
   # Create and return the new port_backtest_config object
   new("port_backtest_config",
-      chosen_score_metric_and_position = chosen_score_metric_and_position,
-      min_eligible_assets_fallback = min_eligible_assets_fallback,
-      eligibility_quantile_range = eligibility_quantile_range,
-      selected_benchmark = selected_benchmark,
-      initial_buffer_period = initial_buffer_period,
-      rebalancing_months = rebalancing_months,
-      cov_est_method = cov_est_method,
-      port_construction_method = port_construction_method,
-      mvo_parameters = mvo_parameters,
-      rp_parameters = rp_parameters,
-      sb_backtest_config = sb_backtest_config,
-      sb_backtest_results = sb_backtest_results,
-      main_liquidity_metric = main_liquidity_metric,
-      liquidity_floor_cutoffs = liquidity_floor_cutoffs,
-      liquidity_constraint_policy = liquidity_constraint_policy,
-      turnover_constraint_policy = turnover_constraint_policy,
-      concentration_constraint_policy = concentration_constraint_policy,
-      transaction_costs_parameters = transaction_costs_parameters,
-      config_name = config_name
+    chosen_score_metric_and_position = chosen_score_metric_and_position,
+    min_eligible_assets_fallback = min_eligible_assets_fallback,
+    eligibility_quantile_range = eligibility_quantile_range,
+    selected_benchmark = selected_benchmark,
+    initial_buffer_period = initial_buffer_period,
+    rebalancing_months = rebalancing_months,
+    cov_est_method = cov_est_method,
+    port_construction_method = port_construction_method,
+    mvo_parameters = mvo_parameters,
+    rp_parameters = rp_parameters,
+    sb_backtest_config = sb_backtest_config,
+    sb_backtest_results = sb_backtest_results,
+    main_liquidity_metric = main_liquidity_metric,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    turnover_constraint_policy = turnover_constraint_policy,
+    concentration_constraint_policy = concentration_constraint_policy,
+    transaction_costs_parameters = transaction_costs_parameters,
+    config_name = config_name
   )
 }
 
@@ -3107,8 +3396,7 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
 create_concentration_constraint_policy <- function(
     benchmark = character(0),
     max_abs_active_individual_weight = NA_real_,
-    max_abs_active_group_weight = numeric(0)
-) {
+    max_abs_active_group_weight = numeric(0)) {
   obj <- new(
     "concentration_constraint_policy",
     benchmark = benchmark,
@@ -3144,60 +3432,60 @@ setGeneric("add_concentration_constraint_policy", function(object, policy, ...) 
 #' @describeIn add_concentration_constraint_policy
 #'   Add an existing \code{concentration_constraint_policy} to a \code{port_backtest_config}.
 #' @export
-setMethod("add_concentration_constraint_policy",
-          signature(object = "port_backtest_config", policy = "concentration_constraint_policy"),
-          function(object, policy, ...) {
+setMethod(
+  "add_concentration_constraint_policy",
+  signature(object = "port_backtest_config", policy = "concentration_constraint_policy"),
+  function(object, policy, ...) {
+    # Check for a selected_benchmark
+    if (length(object@selected_benchmark) == 0) {
+      stop("A selected_benchmark must be provided to add a concentration constraint policy.")
+    }
 
-            #Check for a selected_benchmark
-            if (length(object@selected_benchmark) == 0) {
-              stop("A selected_benchmark must be provided to add a concentration constraint policy.")
-            }
+    # Check if port_construction_method is 'mvo'
+    if (object@port_construction_method != "mvo") {
+      stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+    }
 
-            #Check if port_construction_method is 'mvo'
-            if (object@port_construction_method != 'mvo') {
-              stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
-            }
-
-            object@concentration_constraint_policy <- policy
-            methods::validObject(object)  # optional validity check
-            return(object)
-          }
+    object@concentration_constraint_policy <- policy
+    methods::validObject(object) # optional validity check
+    return(object)
+  }
 )
 #' @describeIn add_concentration_constraint_policy
 #'   Dynamically create a \code{concentration_constraint_policy} and add it to a \code{port_backtest_config}.
 #' @export
-setMethod("add_concentration_constraint_policy",
-          signature(object = "port_backtest_config", policy = "missing"),
-          function(object,
-                   policy,
-                   max_abs_active_individual_weight = NULL,
-                   max_abs_active_group_weight = NULL,
-                   ...) {
+setMethod(
+  "add_concentration_constraint_policy",
+  signature(object = "port_backtest_config", policy = "missing"),
+  function(object,
+           policy,
+           max_abs_active_individual_weight = NULL,
+           max_abs_active_group_weight = NULL,
+           ...) {
+    # Check for a selected_benchmark
+    if (length(object@selected_benchmark) == 0) {
+      stop("A selected_benchmark must be provided to add a concentration constraint policy.")
+    }
 
-            #Check for a selected_benchmark
-            if (length(object@selected_benchmark) == 0) {
-              stop("A selected_benchmark must be provided to add a concentration constraint policy.")
-            }
+    # Get benchmark from object
+    selected_benchmark <- object@selected_benchmark
 
-            # Get benchmark from object
-            selected_benchmark <- object@selected_benchmark
+    # Check if port_construction_method is 'mvo'
+    if (object@port_construction_method != "mvo") {
+      stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+    }
 
-            #Check if port_construction_method is 'mvo'
-            if (object@port_construction_method != 'mvo') {
-              stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
-            }
+    # Build a new policy on the fly
+    new_policy <- create_concentration_constraint_policy(
+      benchmark = selected_benchmark,
+      max_abs_active_individual_weight = max_abs_active_individual_weight,
+      max_abs_active_group_weight = max_abs_active_group_weight
+    )
 
-            # Build a new policy on the fly
-            new_policy <- create_concentration_constraint_policy(
-              benchmark = selected_benchmark,
-              max_abs_active_individual_weight = max_abs_active_individual_weight,
-              max_abs_active_group_weight = max_abs_active_group_weight
-            )
-
-            object@concentration_constraint_policy <- new_policy
-            methods::validObject(object)
-            return(object)
-          }
+    object@concentration_constraint_policy <- new_policy
+    methods::validObject(object)
+    return(object)
+  }
 )
 
 
@@ -3206,50 +3494,50 @@ setMethod("add_concentration_constraint_policy",
 #'   Add an existing \code{concentration_constraint_policy} to a \code{sb_backtest_config}.
 #'   This method will store it inside \code{object@signal_port_parameters}.
 #' @export
-setMethod("add_concentration_constraint_policy",
-          signature(object = "sb_backtest_config", policy = "concentration_constraint_policy"),
-          function(object, policy, ...) {
+setMethod(
+  "add_concentration_constraint_policy",
+  signature(object = "sb_backtest_config", policy = "concentration_constraint_policy"),
+  function(object, policy, ...) {
+    # Ensure signal_port_parameters is defined
+    if (!methods::is(object@signal_port_parameters, "signal_port_parameters")) {
+      object@signal_port_parameters <- methods::new("signal_port_parameters")
+    }
 
-            # Ensure signal_port_parameters is defined
-            if (!methods::is(object@signal_port_parameters, "signal_port_parameters")) {
-              object@signal_port_parameters <- methods::new("signal_port_parameters")
-            }
-
-            object@signal_port_parameters@concentration_constraint_policy <- policy
-            methods::validObject(object)
-            return(object)
-          }
+    object@signal_port_parameters@concentration_constraint_policy <- policy
+    methods::validObject(object)
+    return(object)
+  }
 )
 
 #' @describeIn add_concentration_constraint_policy
 #'   Dynamically create a \code{concentration_constraint_policy} for \code{sb_backtest_config}.
 #' @export
-setMethod("add_concentration_constraint_policy",
-          signature(object = "sb_backtest_config", policy = "missing"),
-          function(object,
-                   policy,
-                   benchmark,
-                   max_abs_active_individual_weight = NULL,
-                   max_abs_active_group_weight = NULL,
-                   ...) {
+setMethod(
+  "add_concentration_constraint_policy",
+  signature(object = "sb_backtest_config", policy = "missing"),
+  function(object,
+           policy,
+           benchmark,
+           max_abs_active_individual_weight = NULL,
+           max_abs_active_group_weight = NULL,
+           ...) {
+    # Build a new policy
+    new_policy <- create_concentration_constraint_policy(
+      benchmark = benchmark,
+      max_abs_active_individual_weight = max_abs_active_individual_weight,
+      max_abs_active_group_weight = max_abs_active_group_weight
+    )
 
-            # Build a new policy
-            new_policy <- create_concentration_constraint_policy(
-              benchmark = benchmark,
-              max_abs_active_individual_weight = max_abs_active_individual_weight,
-              max_abs_active_group_weight = max_abs_active_group_weight
-            )
+    # Ensure signal_port_parameters is defined
+    if (!methods::is(object@signal_port_parameters, "signal_port_parameters")) {
+      object@signal_port_parameters <- methods::new("signal_port_parameters")
+    }
 
-            # Ensure signal_port_parameters is defined
-            if (!methods::is(object@signal_port_parameters, "signal_port_parameters")) {
-              object@signal_port_parameters <- methods::new("signal_port_parameters")
-            }
-
-            # Assign
-            object@signal_port_parameters@concentration_constraint_policy <- new_policy
-            methods::validObject(object)
-            return(object)
-          }
+    # Assign
+    object@signal_port_parameters@concentration_constraint_policy <- new_policy
+    methods::validObject(object)
+    return(object)
+  }
 )
 
 
@@ -3267,8 +3555,9 @@ setMethod("add_concentration_constraint_policy",
 create_liquidity_constraint_policy <- function(liquidity_floor_rule = NULL,
                                                liquidity_cap_rules = NULL) {
   obj <- new("liquidity_constraint_policy",
-             liquidity_floor_rule = liquidity_floor_rule,
-             liquidity_cap_rules = liquidity_cap_rules)
+    liquidity_floor_rule = liquidity_floor_rule,
+    liquidity_cap_rules = liquidity_cap_rules
+  )
   validObject(obj)
   obj
 }
@@ -3292,32 +3581,33 @@ setGeneric("add_liquidity_constraint_policy", function(object, policy, ...) {
 #' @describeIn add_liquidity_constraint_policy
 #'   Add an existing `liquidity_constraint_policy` to a `port_backtest_config`.
 #' @export
-setMethod("add_liquidity_constraint_policy",
-          signature(object = "port_backtest_config", policy = "liquidity_constraint_policy"),
-          function(object, policy, ...) {
-            object@liquidity_constraint_policy <- policy
+setMethod(
+  "add_liquidity_constraint_policy",
+  signature(object = "port_backtest_config", policy = "liquidity_constraint_policy"),
+  function(object, policy, ...) {
+    object@liquidity_constraint_policy <- policy
 
-            validObject(object)
-            return(object)
-          }
+    validObject(object)
+    return(object)
+  }
 )
 
 #' @describeIn add_liquidity_constraint_policy
 #'   Dynamically create a `liquidity_constraint_policy` and add it to a `port_backtest_config`.
 #' @export
-setMethod("add_liquidity_constraint_policy",
-          signature(object = "port_backtest_config", policy = "missing"),
-          function(object, policy, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL, ...) {
+setMethod(
+  "add_liquidity_constraint_policy",
+  signature(object = "port_backtest_config", policy = "missing"),
+  function(object, policy, liquidity_floor_rule = NULL, liquidity_cap_rules = NULL, ...) {
+    new_policy <- create_liquidity_constraint_policy(
+      liquidity_floor_rule = liquidity_floor_rule,
+      liquidity_cap_rules = liquidity_cap_rules
+    )
+    object@liquidity_constraint_policy <- new_policy
 
-            new_policy <- create_liquidity_constraint_policy(
-              liquidity_floor_rule = liquidity_floor_rule,
-              liquidity_cap_rules = liquidity_cap_rules
-            )
-            object@liquidity_constraint_policy <- new_policy
-
-            validObject(object)
-            return(object)
-          }
+    validObject(object)
+    return(object)
+  }
 )
 
 
@@ -3337,8 +3627,9 @@ setMethod("add_liquidity_constraint_policy",
 create_turnover_constraint_policy <- function(quantile_range_buffer,
                                               turnover_cap_rules = NULL) {
   obj <- methods::new("turnover_constraint_policy",
-                      quantile_range_buffer = quantile_range_buffer,
-                      turnover_cap_rules = turnover_cap_rules)
+    quantile_range_buffer = quantile_range_buffer,
+    turnover_cap_rules = turnover_cap_rules
+  )
   methods::validObject(obj)
   obj
 }
@@ -3362,40 +3653,41 @@ setGeneric("add_turnover_constraint_policy", function(object, policy, ...) {
 #' @describeIn add_turnover_constraint_policy
 #'   Add an existing `turnover_constraint_policy` to a `port_backtest_config`.
 #' @export
-setMethod("add_turnover_constraint_policy",
-          signature(object = "port_backtest_config", policy = "turnover_constraint_policy"),
-          function(object, policy, ...) {
-            #Check if port_construction_method is 'mvo'
-            if (object@port_construction_method != 'mvo') {
-              stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
-            }
+setMethod(
+  "add_turnover_constraint_policy",
+  signature(object = "port_backtest_config", policy = "turnover_constraint_policy"),
+  function(object, policy, ...) {
+    # Check if port_construction_method is 'mvo'
+    if (object@port_construction_method != "mvo") {
+      stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+    }
 
-            object@turnover_constraint_policy <- policy
-            methods::validObject(object)
-            return(object)
-          }
+    object@turnover_constraint_policy <- policy
+    methods::validObject(object)
+    return(object)
+  }
 )
 
 #' @describeIn add_turnover_constraint_policy
 #'   Dynamically create a `turnover_constraint_policy` and add it to a `port_backtest_config`.
 #' @export
-setMethod("add_turnover_constraint_policy",
-          signature(object = "port_backtest_config", policy = "missing"),
-          function(object, policy, quantile_range_buffer, turnover_cap_rules, ...) {
+setMethod(
+  "add_turnover_constraint_policy",
+  signature(object = "port_backtest_config", policy = "missing"),
+  function(object, policy, quantile_range_buffer, turnover_cap_rules, ...) {
+    # Check if port_construction_method is 'mvo'
+    if (object@port_construction_method != "mvo") {
+      stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+    }
 
-            #Check if port_construction_method is 'mvo'
-            if (object@port_construction_method != 'mvo') {
-              stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
-            }
-
-            new_policy <- create_turnover_constraint_policy(
-              quantile_range_buffer = quantile_range_buffer,
-              turnover_cap_rules = turnover_cap_rules
-            )
-            object@turnover_constraint_policy <- new_policy
-            methods::validObject(object)
-            return(object)
-          }
+    new_policy <- create_turnover_constraint_policy(
+      quantile_range_buffer = quantile_range_buffer,
+      turnover_cap_rules = turnover_cap_rules
+    )
+    object@turnover_constraint_policy <- new_policy
+    methods::validObject(object)
+    return(object)
+  }
 )
 
 #-----------------------------------------------------------------------
@@ -3414,7 +3706,6 @@ setMethod("add_turnover_constraint_policy",
 #'
 #' @export
 create_transaction_costs_parameters <- function(direct_transaction_cost, strategy_aum, alpha, lambda) {
-
   transaction_costs_parameters <- list(
     direct_transaction_cost = direct_transaction_cost,
     strategy_aum = strategy_aum,
@@ -3426,10 +3717,11 @@ create_transaction_costs_parameters <- function(direct_transaction_cost, strateg
   validate_transaction_costs_parameters(transaction_costs_parameters)
 
   methods::new("transaction_costs_parameters",
-               direct_transaction_cost = direct_transaction_cost,
-               strategy_aum = strategy_aum,
-               alpha = alpha,
-               lambda = lambda)
+    direct_transaction_cost = direct_transaction_cost,
+    strategy_aum = strategy_aum,
+    alpha = alpha,
+    lambda = lambda
+  )
 }
 
 #' Add Transaction Cost Parameters to a Portfolio Backtest Configuration
@@ -3451,13 +3743,14 @@ setGeneric("add_transaction_costs_parameters", function(object, transaction_cost
 #' @describeIn add_transaction_costs_parameters
 #'   Add an existing \code{transaction_cost_parameters} to a \code{port_backtest_config}.
 #' @export
-setMethod("add_transaction_costs_parameters",
-          signature(object = "port_backtest_config", transaction_costs_parameters = "transaction_costs_parameters"),
-          function(object, transaction_costs_parameters, ...) {
-            object@transaction_costs_parameters <- transaction_costs_parameters
-            methods::validObject(object)
-            return(object)
-          }
+setMethod(
+  "add_transaction_costs_parameters",
+  signature(object = "port_backtest_config", transaction_costs_parameters = "transaction_costs_parameters"),
+  function(object, transaction_costs_parameters, ...) {
+    object@transaction_costs_parameters <- transaction_costs_parameters
+    methods::validObject(object)
+    return(object)
+  }
 )
 
 #' @describeIn add_transaction_costs_parameters
@@ -3466,14 +3759,15 @@ setMethod("add_transaction_costs_parameters",
 #'   Additional arguments (such as \code{direct_transaction_cost}, \code{strategy_aum}, \code{alpha}, and \code{lambda})
 #'   are passed to \code{new_transaction_cost_parameters}.
 #' @export
-setMethod("add_transaction_costs_parameters",
-          signature(object = "port_backtest_config", transaction_costs_parameters = "missing"),
-          function(object, transaction_costs_parameters, ...) {
-            new_tc_params <- create_transaction_costs_parameters(...)
-            object@transaction_costs_parameters <- new_tc_params
-            methods::validObject(object)
-            return(object)
-          }
+setMethod(
+  "add_transaction_costs_parameters",
+  signature(object = "port_backtest_config", transaction_costs_parameters = "missing"),
+  function(object, transaction_costs_parameters, ...) {
+    new_tc_params <- create_transaction_costs_parameters(...)
+    object@transaction_costs_parameters <- new_tc_params
+    methods::validObject(object)
+    return(object)
+  }
 )
 
 
@@ -3525,12 +3819,14 @@ create_liquidity_floor_cutoffs <- function(metric_name, metric_cutoffs) {
       stop(paste0("Metric '", metric_name[i], "' must be a named vector"))
     }
     if (!setequal(names(vec), allowed_levels)) {
-      stop(paste0("Metric '", metric_name[i], "' must have names exactly: ",
-                  paste(allowed_levels, collapse = ", ")))
+      stop(paste0(
+        "Metric '", metric_name[i], "' must have names exactly: ",
+        paste(allowed_levels, collapse = ", ")
+      ))
     }
     # Reorder the vector so that its values are arranged by the allowed levels.
     vec <- vec[allowed_levels]
-    metrics_list[[ metric_name[i] ]] <- vec
+    metrics_list[[metric_name[i]]] <- vec
   }
 
   # Build the data.frame: first column is liquidity_classification.
@@ -3609,9 +3905,11 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
     for (i in seq_along(metric_name)) {
       vec <- metric_cutoffs[[i]]
       if (!setequal(names(vec), allowed_levels)) {
-        stop(paste0("For new liquidity_floor_cutoffs, metric '", metric_name[i],
-                    "' must have values for all liquidity classifications: ",
-                    paste(allowed_levels, collapse = ", ")))
+        stop(paste0(
+          "For new liquidity_floor_cutoffs, metric '", metric_name[i],
+          "' must have values for all liquidity classifications: ",
+          paste(allowed_levels, collapse = ", ")
+        ))
       }
     }
     new_df <- create_liquidity_floor_cutoffs(metric_name, metric_cutoffs)
@@ -3733,9 +4031,8 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
 #' @return An object of class `port_backtest_cohort`.
 #' @export
 create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name) {
-
   # Input Validation
-  ##Check that backtest identifiers are unique
+  ## Check that backtest identifiers are unique
   if (length(unique(sapply(port_backtest_results_list, function(x) x@backtest_identifier))) != length(port_backtest_results_list)) {
     stop("Backtest identifiers must be unique.")
   }
@@ -3762,10 +4059,12 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
 
   # Step 1: Check Compatibility Across port_backtest_workflow Slots
   ## Define required parameters that must match across all backtests
-  required_params <- c("selected_benchmark", "dates_covered", "initial_buffer_period", "dates_backtest",
-                       "signals_object_name", "fwd_returns_object_name", "stock_groups_object_name",
-                       "benchmark_returns_object_name", "daily_assets_returns_object_name", "daily_bench_returns_object_name",
-                       "liquidity_object_name", "volatility_object_name", "benchmark_weights_object_name")
+  required_params <- c(
+    "selected_benchmark", "dates_covered", "initial_buffer_period", "dates_backtest",
+    "signals_object_name", "fwd_returns_object_name", "stock_groups_object_name",
+    "benchmark_returns_object_name", "daily_assets_returns_object_name", "daily_bench_returns_object_name",
+    "liquidity_object_name", "volatility_object_name", "benchmark_weights_object_name"
+  )
   ## Extract the workflow list from each backtest object
   workflow_list <- lapply(port_backtest_results_list, function(x) x@port_backtest_workflow)
   ## Store the common values from the first backtest for comparison
@@ -3806,8 +4105,8 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
   for (i in seq_along(weights_m_dfs)) {
     current_m_df <- weights_m_dfs[[i]][, c("id", "tickers", "dates", if (benchmark_used) "bench_weights" else NULL)]
     if (!all(base_m_df$id == current_m_df$id &
-             base_m_df$tickers == current_m_df$tickers &
-             base_m_df$dates == current_m_df$dates)) {
+      base_m_df$tickers == current_m_df$tickers &
+      base_m_df$dates == current_m_df$dates)) {
       stop("Mismatch in id, tickers, or dates in port_weights_m_df of backtest result at index ", i)
     }
     if (benchmark_used) {
@@ -3826,13 +4125,17 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
   ## If benchmark is used, ensure bench_weights is the last column in the merged data.frame
   if (benchmark_used) {
     bench_weights <- merged_weights_m_df$bench_weights
-    merged_weights_m_df <- merged_weights_m_df %>% dplyr::select(-bench_weights) %>% dplyr::mutate(bench_weights = bench_weights)
+    merged_weights_m_df <- merged_weights_m_df %>%
+      dplyr::select(-bench_weights) %>%
+      dplyr::mutate(bench_weights = bench_weights)
   }
 
   ## Create the merged meta data.frame using create_meta_dataframe (type = "weights")
-  merged_port_weights_m_df <- create_meta_dataframe(data = merged_weights_m_df,
-                                                    meta_dataframe_name = cohort_name,
-                                                    type = "weights")
+  merged_port_weights_m_df <- create_meta_dataframe(
+    data = merged_weights_m_df,
+    meta_dataframe_name = cohort_name,
+    type = "weights"
+  )
 
   # Step 3: Merge port_costs_m_xts
   ## Define the cost types to merge
@@ -3854,11 +4157,13 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
     ### Merge the cost meta_xts objects
     merged_cost_m_xts <- do.call(xts::merge.xts, cost_m_xts_list)
     ### Create a meta_xts object for the cost type using create_meta_xts
-    port_costs_m_xts_list[[paste0(cost, "_m_xts")]] <- create_meta_xts(data = merged_cost_m_xts,
-                                                                       type = "metrics",
-                                                                       meta_xts_name = cohort_name,
-                                                                       metric_name = cost,
-                                                                       source = sapply(port_backtest_results_list, function(x) x@backtest_identifier))
+    port_costs_m_xts_list[[paste0(cost, "_m_xts")]] <- create_meta_xts(
+      data = merged_cost_m_xts,
+      type = "metrics",
+      meta_xts_name = cohort_name,
+      metric_name = cost,
+      source = sapply(port_backtest_results_list, function(x) x@backtest_identifier)
+    )
   }
 
   # Step 4: Merge port_returns_m_xts
@@ -3895,17 +4200,19 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
     ### If including benchmark data, append the benchmark return column
     if (include_bench && !is.null(bench_ref)) {
       merged_ret_m_xts <- cbind(merged_ret_m_xts, bench_ref)
-      merged_ret_m_xts <- merged_ret_m_xts[, c(colnames(merged_ret_m_xts)[-ncol(merged_ret_m_xts)],
-                                               colnames(merged_ret_m_xts)[ncol(merged_ret_m_xts)])]
+      merged_ret_m_xts <- merged_ret_m_xts[, c(
+        colnames(merged_ret_m_xts)[-ncol(merged_ret_m_xts)],
+        colnames(merged_ret_m_xts)[ncol(merged_ret_m_xts)]
+      )]
     }
     merged_ret_m_xts
   }
 
   ## Set include_bench flag based on benchmark_used and merge individual return columns using the helper function
-  include_bench <- benchmark_used  # Only include benchmark returns if benchmark is used
+  include_bench <- benchmark_used # Only include benchmark returns if benchmark is used
   raw_returns_m_xts <- merge_return_column("raw_return", include_bench = include_bench)
-  net_returns_m_xts  <- merge_return_column("net_return", include_bench = include_bench)
-  raw_active_returns_m_xts <-  if(benchmark_used) merge_return_column("raw_active_return", include_bench = FALSE) else NULL
+  net_returns_m_xts <- merge_return_column("net_return", include_bench = include_bench)
+  raw_active_returns_m_xts <- if (benchmark_used) merge_return_column("raw_active_return", include_bench = FALSE) else NULL
   net_active_returns_m_xts <- if (benchmark_used) merge_return_column("net_active_return", include_bench = FALSE) else NULL
   ## Define the benchmark source (if applicable) and backtest sources
   if (include_bench) {
@@ -3915,35 +4222,43 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
 
   ## Create the merged port_returns meta_xts objects using create_meta_xts
   port_returns_m_xts_list <- list(
-    raw_returns_m_xts = create_meta_xts(data = raw_returns_m_xts,
-                                        type = "returns",
-                                        asset_type = "ports",
-                                        meta_xts_name = cohort_name,
-                                        metric_name = "raw_return",
-                                        source = if (include_bench) c(backtest_sources, bench_source) else backtest_sources),
-    net_returns_m_xts = create_meta_xts(data = net_returns_m_xts,
-                                       type = "returns",
-                                       asset_type = "ports",
-                                       meta_xts_name = cohort_name,
-                                       metric_name = "net_return",
-                                       source = if (include_bench) c(backtest_sources, bench_source) else backtest_sources)
+    raw_returns_m_xts = create_meta_xts(
+      data = raw_returns_m_xts,
+      type = "returns",
+      asset_type = "ports",
+      meta_xts_name = cohort_name,
+      metric_name = "raw_return",
+      source = if (include_bench) c(backtest_sources, bench_source) else backtest_sources
+    ),
+    net_returns_m_xts = create_meta_xts(
+      data = net_returns_m_xts,
+      type = "returns",
+      asset_type = "ports",
+      meta_xts_name = cohort_name,
+      metric_name = "net_return",
+      source = if (include_bench) c(backtest_sources, bench_source) else backtest_sources
+    )
   )
 
   if (benchmark_used) {
     port_returns_m_xts_list <- c(port_returns_m_xts_list,
-                                 raw_active_returns_m_xts = create_meta_xts(data = raw_active_returns_m_xts,
-                                                                           type = "returns",
-                                                                           asset_type = "ports",
-                                                                           meta_xts_name = cohort_name,
-                                                                           metric_name = "raw_active_return",
-                                                                           source = backtest_sources),
-                                 net_active_returns_m_xts = create_meta_xts(data = net_active_returns_m_xts,
-                                                                           type = "returns",
-                                                                           asset_type = "ports",
-                                                                           meta_xts_name = cohort_name,
-                                                                           metric_name = "net_active_return",
-                                                                           source = backtest_sources)
-                                 )
+      raw_active_returns_m_xts = create_meta_xts(
+        data = raw_active_returns_m_xts,
+        type = "returns",
+        asset_type = "ports",
+        meta_xts_name = cohort_name,
+        metric_name = "raw_active_return",
+        source = backtest_sources
+      ),
+      net_active_returns_m_xts = create_meta_xts(
+        data = net_active_returns_m_xts,
+        type = "returns",
+        asset_type = "ports",
+        meta_xts_name = cohort_name,
+        metric_name = "net_active_return",
+        source = backtest_sources
+      )
+    )
   }
 
   # Step 5: Merge port_metrics_m_xts
@@ -4016,14 +4331,16 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
       #### If bench metric data is consistent, combine it with the merged metric data
       if (bench_consistent) {
         merged_metric_m_xts <- cbind(merged_metric_m_xts, bench_ref_metric)
-        merged_metric_m_xts <- merged_metric_m_xts[, c(colnames(merged_metric_m_xts)[!grepl("^bench_", colnames(merged_metric_m_xts))],
-                                                       bench_col)]
+        merged_metric_m_xts <- merged_metric_m_xts[, c(
+          colnames(merged_metric_m_xts)[!grepl("^bench_", colnames(merged_metric_m_xts))],
+          bench_col
+        )]
       }
     }
 
     ### Define backtest sources for this metric
-    backtest_sources <- sapply(port_backtest_results_list, function(x){
-      if(!is.null(x@port_metrics_m_xts) && metric %in% colnames(x@port_metrics_m_xts@data)) x@backtest_identifier
+    backtest_sources <- sapply(port_backtest_results_list, function(x) {
+      if (!is.null(x@port_metrics_m_xts) && metric %in% colnames(x@port_metrics_m_xts@data)) x@backtest_identifier
     }) %>% unlist()
 
     ### If bench metric was added, include the bench source as well
@@ -4046,13 +4363,14 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
 
   # Step 6: Create and Return the port_backtest_cohort Object
   cohort_obj <- new("port_backtest_cohort",
-                    cohort_name = cohort_name,
-                    port_backtest_results_list = port_backtest_results_list,
-                    port_weights_m_df = merged_port_weights_m_df,
-                    port_costs_m_xts_list = port_costs_m_xts_list,
-                    port_returns_m_xts_list = port_returns_m_xts_list,
-                    port_metrics_m_xts_list = port_metrics_m_xts_list,
-                    backtest_workflow_common = common_values)
+    cohort_name = cohort_name,
+    port_backtest_results_list = port_backtest_results_list,
+    port_weights_m_df = merged_port_weights_m_df,
+    port_costs_m_xts_list = port_costs_m_xts_list,
+    port_returns_m_xts_list = port_returns_m_xts_list,
+    port_metrics_m_xts_list = port_metrics_m_xts_list,
+    backtest_workflow_common = common_values
+  )
 
   return(cohort_obj)
 }

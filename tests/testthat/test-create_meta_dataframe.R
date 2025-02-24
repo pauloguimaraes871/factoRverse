@@ -16,12 +16,32 @@ test_that("create_meta_dataframe is running correctly.", {
 }
 )
 
-test_that("create_meta_dataframe is running correctly with character data.frame.", {
+# Define your test
+test_that("create_meta_dataframe is running correctly for a single date.", {
   expect_equal(
-    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), data.frame(c("e","c"),c("d","a")), matrix(c(8,9,10,11), nrow=2, ncol=2)),
-                  c("Stock A", "Stock B"),
-                  as.Date(c("2001-03-15", "2001-04-15")),
-                  c("Alpha", "Beta", "Gamma"))@data,
+    create_meta_dataframe(list(matrix(c(0,1), nrow=2, ncol=1), matrix(c(NA,7), nrow=2, ncol=1), matrix(c(10,11), nrow=2, ncol=1)),
+                          tickers = c("Stock A", "Stock B"),
+                          dates = as.Date(c("2001-03-15")),
+                          features_names = c("Alpha", "Beta", "Gamma"))@data,
+    data.frame(
+      id = (c("Stock A-2001-03-15", "Stock B-2001-03-15")),
+      tickers = (c("Stock A", "Stock B")),
+      dates = as.Date(c("2001-03-15")),
+      Alpha = (c(0, 1)),
+      Beta = (c(NA, 7)),
+      Gamma = (c( 10, 11)))
+  )
+}
+)
+
+test_that("create_meta_dataframe is running correctly with character data.frame.", {
+
+  features_m_df <- create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), data.frame(c("e","c"),c("d","a")), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+                                             c("Stock A", "Stock B"),
+                                             as.Date(c("2001-03-15", "2001-04-15")),
+                                             c("Alpha", "Beta", "Gamma"))@data
+
+  expect_equal(features_m_df,
     data.frame(
       id = (c("Stock A-2001-03-15", "Stock A-2001-04-15", "Stock B-2001-03-15", "Stock B-2001-04-15")),
       tickers = (c("Stock A", "Stock A", "Stock B", "Stock B")),
@@ -30,6 +50,12 @@ test_that("create_meta_dataframe is running correctly with character data.frame.
       Beta = (c("e", "d" , "c", "a")),
       Gamma = (c(8, 10, 9, 11)))
   )
+
+  #Check for classes
+  expect_equal(class(features_m_df$Alpha), "numeric")
+  expect_equal(class(features_m_df$Beta), "character")
+  expect_equal(class(features_m_df$Gamma), "numeric")
+
 }
 )
 
@@ -123,7 +149,7 @@ test_that("create_meta_dataframe throws an error when dimensions differ", {
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
+    "All elements in the list must have the same number of columns."
   )
 }
 )
@@ -147,19 +173,19 @@ test_that("create_meta_dataframe throws an error when one of list objects is not
                   c("Stock A", "Stock B"),
                   as.Date(c("2001-03-15", "2001-04-15")),
                   c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
+    "All elements of the list must be matrices, data frames, or tibbles."
   )
 }
 )
 
 # Define your test
-test_that("create_meta_dataframe throws an error when rownames length does not match number of rows in each matrix of list", {
+test_that("create_meta_dataframe throws an error when tickers length does not match number of rows in each matrix of list", {
 expect_error(
   create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                 c("Stock A", "Stock B", "Ronaldo"),
                 as.Date(c("2001-03-15", "2001-04-15")),
                 c("Alpha", "Beta", "Gamma")),
-  "Input must be a list of matrices, data frames or tibbles with the same dimensions."
+  "The length of tickers must equal the number of rows in each element of the list."
 )
 })
 
@@ -168,9 +194,9 @@ test_that("create_meta_dataframe throws an error when colnames length does not m
   expect_error(
     create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
-                  as.Date(c("2001-03-15", "2001-04-15", "Ronaldo")),
+                  as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
                   c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
+    "The length of dates must equal the number of columns in each element of the list."
   )
 })
 
@@ -179,9 +205,9 @@ test_that("create_meta_dataframe throws an error when length of features_names d
   expect_error(
     create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
                   c("Stock A", "Stock B"),
-                  as.Date(c("2001-03-15", "2001-04-15", "Ronaldo")),
-                  c("Alpha", "Beta", "Gamma")),
-    "Input must be a list of matrices, data frames or tibbles with the same dimensions."
+                  as.Date(c("2001-03-15", "2001-04-15")),
+                  c("Alpha", "Beta")),
+    "The length of features_names must equal the number of elements in the list."
   )
 })
 
@@ -191,8 +217,91 @@ test_that("create_meta_dataframe throws an error when there are different number
 expect_error(
   create_meta_dataframe(list(matrix(1:4, nrow = 2), matrix(5:7, nrow = 3)),
                 c("Stock A", "Stock B"), as.Date(c("2001-03-15", "2001-04-15")), c("Alpha", "Beta")),
-  "Input must be a list of matrices, data frames or tibbles with the same dimensions."
+  "All elements in the list must have the same number of rows."
 )
+})
+
+# Define your test
+test_that("create_meta_dataframe throws an error when there is a problem with tickers column",{
+  expect_error(
+    create_meta_dataframe(list(matrix(1:6, nrow = 3), data.frame(tickers = c("Stock A", "Stock B", "Stock C"), Alpha = c(1,2,3))),
+                          c("Stock A", "Stock B", "Stock C"), as.Date(c("2001-03-15", "2001-04-15")), c("Alpha", "Beta")),
+    "One or more datasets already contain a column named 'tickers' or 'dates'."
+  )
+
+  expect_error(
+    create_meta_dataframe(list(matrix(1:6, nrow = 3), data.frame(random_col = c("Stock A", "Stock B", "Stock C"), Alpha = c(1,2,3))),
+                          c("Stock A", "Stock B", "Stock C"), as.Date(c("2001-03-15", "2001-04-15")), c("Alpha", "Beta")),
+    "One or more datasets contain values in their columns that match provided tickers or dates."
+  )
+
+  expect_error(
+    create_meta_dataframe(list(matrix(1:6, nrow = 3), data.frame(Zeta = c(1,2,3), Alpha = c(1,2,3))),
+                          c(1, 2, 3), as.Date(c("2001-03-15", "2001-04-15")), c("Alpha", "Beta")),
+    "tickers must be a character vector."
+  )
+
+  expect_error(
+    create_meta_dataframe(list(matrix(1:6, nrow = 3), data.frame(Zeta = c(1,2,3), Alpha = c(1,2,3))),
+                          c("Stock A", "Stock A", "Stock B"), as.Date(c("2001-03-15", "2001-04-15")), c("Alpha", "Beta")),
+    "tickers must be unique."
+  )
+
+})
+
+
+test_that("create_meta_dataframe throws an error when dates are wrong", {
+  expect_error(
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+                          tickers = c("Stock A", "Stock B"),
+                          dates = as.Date(c("2001-03-15", "2001-06-15")),
+                          features_names = c("Alpha", "Beta", "Gamma")),
+    "Dates must be consecutive by month."
+  )
+
+  expect_error(
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+                          tickers = c("Stock A", "Stock B"),
+                          dates = as.Date(c("2001-03-15", "2001-04-16")),
+                          features_names = c("Alpha", "Beta", "Gamma")),
+    "All dates must have the same day."
+  )
+
+  expect_error(
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+                          tickers = c("Stock A", "Stock B"),
+                          dates = as.Date(c("2001-03-15", "2001-03-15")),
+                          features_names = c("Alpha", "Beta", "Gamma")),
+    "dates must be unique."
+  )
+
+  expect_error(
+    create_meta_dataframe(list(matrix(c(0,1,2,3), nrow=2, ncol=2), matrix(c(4,5,6,7), nrow=2, ncol=2), matrix(c(8,9,10,11), nrow=2, ncol=2)),
+                          tickers = c("Stock A", "Stock B"),
+                          dates = c("2001-03-15", "2001-03-15"),
+                          features_names = c("Alpha", "Beta", "Gamma")),
+    "dates must be in Date format."
+  )
+
+})
+
+test_that("create_meta_dataframe throws an error when df contains only NA", {
+  expect_error(
+    create_meta_dataframe(list(matrix(c(NA,NA,NA,NA), nrow=2, ncol=2), matrix(c(4,5,NA,7), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
+                          c("Stock A", "Stock B"),
+                          as.Date(c("2001-03-15", "2001-04-15")),
+                          c("Alpha", "Beta", "Gamma")),
+    "One or more datasets contain only NA values."
+    )
+
+  expect_error(
+    create_meta_dataframe(list(matrix(c(NA,NA,NA,NA), nrow=2, ncol=2), matrix(c(NA,NA,NA,NA), nrow=2, ncol=2), matrix(c(8,9,10,NA), nrow=2, ncol=2)),
+                          c("Stock A", "Stock B"),
+                          as.Date(c("2001-03-15", "2001-04-15")),
+                          c("Alpha", "Beta", "Gamma")),
+    "One or more datasets contain only NA values."
+  )
+
 })
 
 # Define your test

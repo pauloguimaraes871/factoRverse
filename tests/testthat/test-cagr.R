@@ -51,7 +51,7 @@ test_that(
 test_that(
   "CAGR is running correctly when first element is negative input",
   {
-    expect_equal(cagr(-1,2,1), 3) 
+    expect_equal(cagr(-1,2,1), 3)
   }
 )
 
@@ -59,7 +59,7 @@ test_that(
 test_that(
   "CAGR is running correctly when first element is negative input and we have even periods",
   {
-    expect_equal(cagr(-1,2,3), (3+1)^(1/3)-1) 
+    expect_equal(cagr(-1,2,3), (3+1)^(1/3)-1)
   }
 )
 
@@ -67,7 +67,7 @@ test_that(
 test_that(
   "CAGR returns NA when first element is NA.",
   {
-    expect_equal(cagr(NA,2,1), NA)
+    expect_equal(cagr(NA,2,1), NA_real_)
   }
 )
 
@@ -75,7 +75,7 @@ test_that(
 test_that(
   "CAGR returns NA when second element is NA.",
   {
-    expect_equal(cagr(-1,NA,1), NA)
+    expect_equal(cagr(-1,NA,1), NA_real_)
   }
 )
 
@@ -83,7 +83,7 @@ test_that(
 test_that(
   "CAGR returns NA both elements are NA.",
   {
-    expect_equal(cagr(NA,NA,1), NA)
+    expect_equal(cagr(NA,NA,1), NA_real_)
   }
 )
 

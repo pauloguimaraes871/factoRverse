@@ -1,3 +1,4 @@
+#meta_dataframe-----------------------------
 #' Show Method for meta_dataframe Class
 #'
 #' This method displays a summary of the `meta_dataframe` object, including
@@ -193,6 +194,33 @@ setMethod("show", "signal_universe_m_df", function(object) {
   if (!is.null(x)) x else default
 }
 
+
+#tickers_catalog-----------------------------
+#' Print method for tickers_catalog
+#'
+#' Displays key information about a tickers_catalog object.
+#' @export
+setMethod("show", "tickers_catalog", function(object) {
+  cat("\nTickers Catalog Object\n")
+  cat("----------------------\n")
+  cat(" Metadataframe Obj:", object@meta_dataframe_name, "\n")
+  cat(" Total tickers:", nrow(object@catalog), "\n")
+  cat(" Untraded tickers:", object@untraded, "\n")
+  cat(" Delisted tickers:", object@delisted, "\n")
+  cat(" Listed tickers:", object@listed, "\n")
+  cat(" Current date reference:", paste(as.Date(object@current_date)), "\n")
+
+  #Short first few rows of the catalog
+  cat("\nFirst few rows of the catalog:\n")
+  print(head(object@catalog))
+})
+
+
+
+
+
+
+#meta_xts------------------------------------------
 #' @title Show method for meta_xts
 #' @description
 #' Shows a summary of the \code{meta_xts} object, including metadata and

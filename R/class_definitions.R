@@ -67,6 +67,17 @@ setClass("meta_dataframe",
 
          })
 
+
+#' Define the raw_features_m_df S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is a product of using create_meta_dataframe to list.
+#'
+#' @export
+setClass(
+  "raw_features_m_df",
+  contains = "meta_dataframe"
+)
+
 #' Define the signals_m_df S4 Class
 #'
 #' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a signals meta_dataframe.
@@ -326,6 +337,86 @@ setClass(
 
   }
 )
+
+#-----------------------------------------------------------------------
+# tickers_catalog
+#-----------------------------------------------------------------------
+
+#' tickers_catalog Class
+#'
+#' An S4 class to store stock metadata, including listing and delisting dates,
+#' a unique identifier (`perm_id`), and classification flags for private and delisted stocks.
+#'
+#' @slot tickers A character vector of stock tickers.
+#' @slot perm_id A character vector of unique stock identifiers, combining tickers and inception date.
+#' @slot date_first_quote A Date vector representing the first trading date for each stock.
+#' @slot date_last_quote A Date vector representing the last trading date for each stock.
+#' @slot untraded A character vector of untraded stocks (both dates are NA).
+#' @slot delisted A character vector of delisted stocks (date_last_quote < current_date and public).
+#' @slot listed A character vector of listed stocks (date_last_quote >= current_date).
+#' @slot current_date A Date object representing the most recent available date in the dataset.
+#'
+#' @examples
+#' showClass("tickers_catalog")
+#'
+#' @export
+setClass(
+  "tickers_catalog",
+  slots = list(
+    catalog = "data.frame",
+    tickers = "character",
+    perm_id = "character",
+    date_first_quote = "Date",
+    date_last_quote = "Date",
+    untraded = "character",
+    delisted = "character",
+    listed = "character",
+    current_date = "Date",
+    meta_dataframe_name = "character"
+  ),
+  validity = function(object){
+
+    #Check that a stock can't be always untraded and delisted
+    if(length(intersect(object@untraded, object@delisted)) > 0){
+      stop("A stock can't be untraded and delisted.")
+    }
+
+    #Check that a stock can't be always untraded and listed
+    if(length(intersect(object@untraded, object@listed)) > 0){
+      stop("A stock can't be untraded and listed.")
+    }
+
+    #Check that a stock can't be delisted and listed
+    if(length(intersect(object@delisted, object@listed)) > 0){
+      stop("A stock can't be delisted and listed.")
+    }
+
+    #Check that length of tickers equals perm_id
+    if(length(object@tickers) != length(object@perm_id)){
+      stop("Length of tickers does not equal length of perm_id.")
+    }
+
+    #Check that length of listed + delisted + untraded equals tickers
+    if(length(object@listed) + length(object@delisted) + length(object@untraded) != length(object@tickers)){
+      stop("Length of listed + delisted + untraded does not equal length of tickers.")
+    }
+
+    #Check current date length
+    if(length(object@current_date) != 1){
+      stop("current_date must be a single Date value.")
+    }
+
+  }
+
+
+
+
+)
+
+
+
+
+
 
 #-----------------------------------------------------------------------
 # meta_xts
@@ -2898,6 +2989,28 @@ setMethod(
   }
 )
 ###############################################
+
+## tickers_catalog accessors -------------------------------------------------
+#' Lookup method for tickers_catalog
+#'
+#' Filters the catalog by provided tickers.
+#' @param tickers_catalog A tickers_catalog object.
+#' @param tickers A character vector of tickers to filter.
+#' @return A filtered data.frame.
+#' @export
+setGeneric("lookup_catalog", function(tickers_catalog, tickers) standardGeneric("lookup_catalog"))
+
+setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog", tickers = "character"),
+          function(tickers_catalog, tickers) {
+
+            if(!"tickers" %in% colnames(tickers_catalog@catalog)){
+              stop("The catalog slot must contain a 'tickers' column.")
+            }
+
+
+            tickers_catalog@catalog %>% dplyr::filter(tickers %in% tickers_catalog@catalog$tickers)
+          })
+
 
 # sb_model acessors -------------------------------------------------
 
