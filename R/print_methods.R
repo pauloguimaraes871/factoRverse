@@ -209,6 +209,7 @@ setMethod("show", "tickers_catalog", function(object) {
   cat(" Delisted tickers:", object@delisted, "\n")
   cat(" Listed tickers:", object@listed, "\n")
   cat(" Current date reference:", paste(as.Date(object@current_date)), "\n")
+  cat(" Number of days of tolerance:", object@n_days_tolerance, "\n")
 
   #Short first few rows of the catalog
   cat("\nFirst few rows of the catalog:\n")

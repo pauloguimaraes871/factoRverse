@@ -355,6 +355,7 @@ setClass(
 #' @slot delisted A character vector of delisted stocks (date_last_quote < current_date and public).
 #' @slot listed A character vector of listed stocks (date_last_quote >= current_date).
 #' @slot current_date A Date object representing the most recent available date in the dataset.
+#' @slot n_days_tolerance A numeric value representing the number of days to consider a stock as delisted.
 #'
 #' @examples
 #' showClass("tickers_catalog")
@@ -372,7 +373,8 @@ setClass(
     delisted = "character",
     listed = "character",
     current_date = "Date",
-    meta_dataframe_name = "character"
+    meta_dataframe_name = "character",
+    n_days_tolerance = "numeric"
   ),
   validity = function(object){
 

@@ -122,6 +122,45 @@ test_that("create_tickers_log works for delisted and untraded cias", {
   )
 })
 
+test_that("create_tickers_log works according to n_days_tolerance", {
+  raw_features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 1, 2, NA, 3, 9, 10, 4, NA, 0, 3, 9, 1, NA, NA), nrow = 5, ncol = 3),
+      matrix(c(4, 5, 6, NA, 2, -3, 5, NA, NA, NA, NA, 6, NA, NA, NA), nrow = 5, ncol = 3),
+      matrix(c(8, 9, 10, 11, -2, -3, 4, 4, 2, 3, 4, NA, 9, NA, 4), nrow = 5, ncol = 3),
+      matrix(c(3, 7, 9, 8, -1, 0, 5, -2, 0, 5, 6, 7, 2, NA, 4), nrow = 5, ncol = 3)
+    ),
+    c("PETR4", "VALE3", "ABEV3", "CAFE3", "ENAT3"),
+    as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
+    c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  date_first_quote <- data.frame(
+    tickers = c("PETR4", "VALE3", "ABEV3", "CAFE3", "ENAT3"),
+    date_first_quote = as.Date(c("1995-03-15", "1995-04-15", "1995-05-15", NA, "1999-05-15"))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("PETR4", "VALE3", "ABEV3", "CAFE3", "ENAT3"),
+    date_last_quote = as.Date(c("2001-05-15", "2001-05-15", "2001-05-15", NA, "2001-04-15"))
+  )
+
+  ## ENAT3 is considered delisted for a tolerance = 10 days (default)
+  results <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote,
+                                    n_days_tolerance = 10)
+
+  ##But not for a tolerance = 40 days
+  results2 <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote,
+                                    n_days_tolerance = 40)
+
+  #Check that delisted tickers are different
+  expect_false(length(results@delisted) == length(results2@delisted))
+
+  #Check that listed tickers are different
+  expect_false(length(results@listed) == length(results2@listed))
+
+})
+
 test_that("create_tickers_log gives same perm id for a ticker-initial_date combination", {
   raw_features_m_df <- create_meta_dataframe(
     list(
@@ -454,16 +493,61 @@ test_that("create_tickers_log throws an error when most common date is not the l
 
   date_first_quote <- data.frame(
     tickers = c("PETR4", "VALE3", "ABEV3", "CAFE3", "ENAT3"),
-    date_first_quote = as.Date(c("1995-03-15", "1995-03-15", "2001-06-15", NA, "1999-05-15"))
+    date_first_quote = as.Date(c("1995-03-15", "1995-03-15", "2001-04-15", NA, "1999-05-15"))
   )
 
   date_last_quote <- data.frame(
     tickers = c("PETR4", "VALE3", "ABEV3", "CAFE3", "ENAT3"),
-    date_last_quote = as.Date(c("2001-06-15", "2001-06-15", "2001-06-15", NA, "2001-06-15"))
+    date_last_quote = as.Date(c("2001-04-15", "2001-04-15", "2001-04-15", NA, "2001-04-15"))
   )
 
   expect_warning(
-    create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote),
-    "Most common date in date_last_quote is not the last date in raw_features_m_df."
+    create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote, n_days_tolerance = 0),
+    "Most common date in date_last_quote is not the last date in raw_features_m_df - n_days_tolerance. Consider increasing n_days_tolerance"
   )
+})
+
+test_that("create_tickers log integrates with create_meta_dataframe - Excel Files", {
+
+  #Load excel and set inputs and outputs
+  raw_features_input <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
+                                              features_sheet_names = c("ebit_12m", "ir_3m", "sharpe", "mkt_cap", "sector_c1"),
+                                              features_sheet_range = c("D4:F22"),
+                                              tickers_sheet_range = c("C4:C22"),
+                                              dates_sheet_range = c("D1:F1"),
+                                              output_sheet_name = c("panel"),
+                                              output_sheet_range = c("B1:I58"),
+                                              industry_classification_column_name = c("sector_c1"))
+  #Apply function
+  raw_features_m_df <- create_meta_dataframe(data = raw_features_input$inputs$feature_list,
+                                             tickers = raw_features_input$inputs$tickers$...1,
+                                             dates  = raw_features_input$inputs$dates,
+                                             features_names = raw_features_input$inputs$features_names)
+
+  #Get real date_first_quote and date_last_quote
+  date_first_quote <- readxl::read_excel(test_path("testdata", "toy_features.xlsx"),
+                                         sheet = "date_first_quote",
+                                         range = "A1:B20",
+                                         col_names = TRUE
+                                         ) %>% as.data.frame()
+
+  date_last_quote <- readxl::read_excel(test_path("testdata", "toy_features.xlsx"),
+                                         sheet = "date_last_quote",
+                                         range = "A1:B20",
+                                         col_names = TRUE
+  ) %>% as.data.frame()
+
+  #Get results
+  expect_no_warning(
+  results <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote)
+  )
+
+  #Check results
+  expect_equal(results@untraded, results@catalog %>% dplyr::filter(untraded) %>% dplyr::pull(tickers))
+  expect_equal(results@untraded, sort(c("QVUM3B", "QVQP3B", "APPA3", "APPA4")))
+  expect_equal(results@delisted, results@catalog %>% dplyr::filter(delisted) %>% dplyr::pull(tickers))
+  expect_equal(results@delisted, sort(c("ABCB3", "ABCB11", "ABYA3", "AVIL3", "AVIL4", "ADHM3", "TIET3", "TIET4")))
+  expect_equal(results@listed, results@catalog %>% dplyr::filter(listed) %>% dplyr::pull(tickers))
+  expect_equal(results@listed, sort(c("RRRP3", "TTEN3", "ABCB4", "EALT3", "EALT4", "AERI3", "AESB3")))
+
 })

@@ -429,9 +429,8 @@ setMethod(
 
 
 
-#-----------------------------------------------------------------------
-# tickers_catalog
-#-----------------------------------------------------------------------
+
+# tickers_catalog------------------------------------------------------
 #' Create a tickers_catalog Object
 #'
 #' Constructs a `tickers_catalog` object by integrating stock metadata from multiple data sources.
@@ -440,6 +439,8 @@ setMethod(
 #' @param raw_features_m_df A `meta_dataframe` object with `type == "generic"`, containing stock tickers and dates.
 #' @param date_first_quote A `data.frame` with columns `tickers` (character) and `date_first_quote` (Date).
 #' @param date_last_quote A `data.frame` with columns `tickers` (character) and `date_last_quote` (Date).
+#' @param n_days_tolerance A `numeric` indicating the maximum tolerance for which `date_last_quote` can be smaller than
+#' current_date without it making it a delisted stock.
 #'
 #' @return An object of class `tickers_catalog`.
 #'
@@ -456,7 +457,7 @@ setMethod(
 #'
 #' @export
 #'
-setGeneric("create_tickers_catalog", function(raw_features_m_df, date_first_quote, date_last_quote) {
+setGeneric("create_tickers_catalog", function(raw_features_m_df, date_first_quote, date_last_quote, ...) {
   standardGeneric("create_tickers_catalog")
 })
 
@@ -473,7 +474,7 @@ setMethod("create_tickers_catalog",
             date_first_quote = "data.frame",
             date_last_quote = "data.frame"
           ),
-          function(raw_features_m_df, date_first_quote, date_last_quote) {
+          function(raw_features_m_df, date_first_quote, date_last_quote, n_days_tolerance = 10) {
 
           #global binding
           tickers <- untraded <- delisted <- listed <- NULL
@@ -509,9 +510,9 @@ setMethod("create_tickers_catalog",
             }
 
             ##Check that a warning is thrown when last_date most common date is not the last date
-              if (names(table(date_last_quote$date_last_quote) %>% which.max()) != #Most common date (mode)
-                  max(unique(raw_features_m_df@data$dates), na.rm = TRUE)) { #Current date
-                warning("Most common date in date_last_quote is not the last date in raw_features_m_df.")
+              if (names(table(date_last_quote$date_last_quote) %>% which.max()) <= #Most common date (mode)
+                  max(unique(raw_features_m_df@data$dates), na.rm = TRUE) - lubridate::days(n_days_tolerance)) { #Current date
+                warning("Most common date in date_last_quote is not the last date in raw_features_m_df - n_days_tolerance. Consider increasing n_days_tolerance")
               }
 
             ##Check that date_last_quote > date_first_quote (allowing NAs)
@@ -557,8 +558,8 @@ setMethod("create_tickers_catalog",
             tickers_catalog <- tickers_catalog %>%
               dplyr::mutate(
                 untraded = is.na(date_first_quote) & is.na(date_last_quote),
-                delisted = !is.na(date_last_quote) & date_last_quote < current_date,
-                listed = !is.na(date_last_quote) & date_last_quote >= current_date,
+                delisted = !is.na(date_last_quote) & date_last_quote < (current_date - lubridate::days(n_days_tolerance)),
+                listed = !is.na(date_last_quote) & date_last_quote >= (current_date - lubridate::days(n_days_tolerance)),
               )
 
             ## Create subsets for slots
@@ -580,7 +581,8 @@ setMethod("create_tickers_catalog",
               delisted = delisted_df$tickers,
               listed = listed_df$tickers,
               current_date = current_date,
-              meta_dataframe_name = raw_features_m_df@meta_dataframe_name
+              meta_dataframe_name = raw_features_m_df@meta_dataframe_name,
+              n_days_tolerance = n_days_tolerance
             )
 
             return(tickers_catalog_obj)
