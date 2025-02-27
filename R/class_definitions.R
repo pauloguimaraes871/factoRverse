@@ -370,7 +370,8 @@ setClass(
     listed = "character",
     current_date = "Date",
     meta_dataframe_name = "character",
-    n_days_tolerance = "numeric"
+    n_days_tolerance = "numeric",
+    ticker_change_history = "ANY"
   ),
   validity = function(object){
 
@@ -405,10 +406,6 @@ setClass(
     }
 
   }
-
-
-
-
 )
 
 
@@ -2993,6 +2990,7 @@ setMethod(
 #' Filters the catalog by provided tickers.
 #' @param tickers_catalog A tickers_catalog object.
 #' @param tickers_to_lookup A character vector of tickers to filter.
+#' @param perm_id_to_lookup A character vector of perm_ids to filter.
 #' @return A filtered data.frame.
 #' @export
 setGeneric("lookup_catalog", function(tickers_catalog, ...) standardGeneric("lookup_catalog"))
