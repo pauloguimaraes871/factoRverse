@@ -399,7 +399,7 @@ setMethod(
       ##Add unique ID
       raw_features_m_df <- panel_features_df %>%
         dplyr::mutate(id = stringr::str_c(tickers, dates, sep = "-"), .before = tickers) %>%
-        dplyr::arrange(.data$id) %>%
+        dplyr::arrange(id) %>%
         as.data.frame()
     #################
 
@@ -434,18 +434,21 @@ setMethod(
 #' @param tickers vector of tickers
 #' @param dates vector of dates for new data
 #' @param features_names names of the new features
-#' @param n_update expected number of new dates (months) to update
 #'
 #' @return Updated meta_dataframe object
+setGeneric("update_meta_dataframe", function(old_raw_features_m_df, new_raw_features_m_df) {
+  standardGeneric("update_meta_dataframe")
+})
+
 #' @exportMethod update_meta_dataframe
 setMethod(
-  "update_meta_dataframe", signature(old_raw_features_m_df = "raw_features_m_df", new_raw_features_m_df = "raw_features_m_df", n_update = "numeric"),
-  function(old_raw_features_m_df, new_raw_features_m_df, n_update){
+  "update_meta_dataframe", signature(old_raw_features_m_df = "raw_features_m_df", new_raw_features_m_df = "raw_features_m_df"),
+  function(old_raw_features_m_df, new_raw_features_m_df){
 
     #Initial prep
     ###############
       ##meta_dataframe_name
-      old_meta_dataframe_name <- old_raw_features_m_df@meta_dataframe_name
+      old_raw_features_m_df_name <- old_raw_features_m_df@meta_dataframe_name
       new_raw_features_m_df_name <- new_raw_features_m_df@meta_dataframe_name
 
       ##workflow
@@ -457,14 +460,7 @@ setMethod(
 
       ##data.frame
       old_raw_features_m_df <- old_raw_features_m_df@data
-      new_raw_features_m_df_name <- new_raw_features_m_df@data
-
-      #Get new tickers
-      new_tickers <- setdiff(unique(new_raw_features_m_df$tickers), unique(old_raw_features_m_df$tickers))
-
-      #Get old tickers
-      old_tickers <- setdiff(unique(old_raw_features_m_df$tickers), unique(new_raw_features_m_df$tickers))
-
+      new_raw_features_m_df <- new_raw_features_m_df@data
 
     ###############
 
@@ -482,18 +478,22 @@ setMethod(
       if (length(dplyr::intersect(old_raw_features_m_df$dates, new_raw_features_m_df$dates)) > 0){
         stop("There are common dates between old_raw_features_m_df and new_raw_features_m_df.")
       }
-      ##Check that number of unique dates in new_raw_features_m_df is equal to n_update
-      if (length(unique(new_raw_features_m_df$dates)) != n_update){
-        stop("Number of unique dates in new_raw_features_m_df is not equal to n_update.")
+      ##Check that number of unique dates in new_raw_features_m_df is equal to 1
+      if (length(unique(new_raw_features_m_df$dates)) != 1){
+        stop("Number of unique dates in new_raw_features_m_df is not equal to 1.")
       }
-      ##Check that current_date in new_raw_features_m_df is n_update months ahead of current_date in old_raw_features_m_df
-      if (new_current_date != old_current_date + lubridate::month(n_update)){
-        stop("Current date in new_raw_features_m_df should be n_update months ahead of current_date in old_raw_features_m_df.")
+      ##Check that current_date in new_raw_features_m_df is 1 months ahead of current_date in old_raw_features_m_df
+      if (new_current_date != old_current_date + lubridate::month(1)){
+        stop("Current date in new_raw_features_m_df should be 1 months ahead of current_date in old_raw_features_m_df.")
       }
       ##Check that each column class match between old_raw_features_m_df and new_raw_features_m_df
-      if (!all(sapply(seq_len(ncol(old_raw_features_m_df)), function(i) class(old_raw_features_m_df[,i]) == class(new_raw_features_m_df[,i])))){
+      if (!all(sapply(
+        colnames(old_raw_features_m_df),
+        function(col) identical(class(old_raw_features_m_df[[col]]), class(new_raw_features_m_df[[col]]))
+      ))) {
         stop("Column classes between old_raw_features_m_df and new_raw_features_m_df do not match.")
-      })
+      }
+
       ##Check that old_raw_features_m_df name is contained in new_raw_features_m_df name
       if (!grepl(old_raw_features_m_df_name, new_raw_features_m_df_name)){
         stop("old_raw_features_m_df name is not contained in new_raw_features_m_df name.")
@@ -511,7 +511,6 @@ setMethod(
     update_workflow <- c(old_workflow, #Add to the old workflow
                          c(update = c(
                            new_date = new_current_date, #Add new date
-                           n_update = n_update, #Add n_update
                            new_raw_features_m_df_name = new_raw_features_m_df_name, #Add new_raw_features_m_df_name
                            timestamp = Sys.time()
                          )))
@@ -581,9 +580,6 @@ setMethod("create_tickers_catalog",
           ),
           function(raw_features_m_df, date_first_quote, date_last_quote, n_days_tolerance = 10) {
 
-          #global binding
-          tickers <- untraded <- delisted <- listed <- NULL
-
           #Initial checks
           #############
 
@@ -608,7 +604,6 @@ setMethod("create_tickers_catalog",
                 stop("No tradable stocks identified")
               }
 
-
               ###Ensure tickers match exactly across all data sources
               common_tickers <- intersect(intersect(raw_features_m_df@data$tickers %>% unique(), date_first_quote$tickers), date_last_quote$tickers)
               if (length(common_tickers) != length(raw_features_m_df@data$tickers %>% unique())) {
@@ -616,7 +611,8 @@ setMethod("create_tickers_catalog",
               }
 
             ##Check that either both dates are NA or neither is
-            if (any(is.na(date_first_quote$date_first_quote) != is.na(date_last_quote$date_last_quote))) {
+            if (any(is.na(date_first_quote[order(date_first_quote$tickers), "date_first_quote"]) !=
+                    is.na(date_last_quote[order(date_last_quote$tickers), "date_last_quote"]))) {
               stop("date_first_quote and date_last_quote must both be NA or neither.")
             }
 
@@ -707,6 +703,7 @@ setMethod("create_tickers_catalog",
 #' Inner helper to construct slots based on tickers_catalog. This allows for reusability between
 #' create_tickers_catalog and update_tickers_catalog
 prepare_tickers_catalog_slots <- function(tickers_catalog){
+
   ##Create subsets for slots
   untraded_df <- tickers_catalog %>% dplyr::filter(untraded == TRUE)
   delisted_df <- tickers_catalog %>% dplyr::filter(delisted == TRUE)
@@ -748,7 +745,6 @@ prepare_tickers_catalog_slots <- function(tickers_catalog){
 #'   \strong{Rules:}
 #'   - If `new_ticker`, `old_ticker`, and `change_date` are all non-NA, the new ticker is mapped to the `perm_id` of the old ticker.
 #'   - If only `new_ticker` is non-NA (but `old_ticker` and `change_date` are NA), the new ticker is treated as an IPO and assigned a new `perm_id`.
-#' @param n_update A `numeric` value indicating the expected number of days between the old and new catalog versions.
 #'
 #' @return A new `tickers_catalog` object incorporating the updated tickers and metadata.
 #'
@@ -765,7 +761,6 @@ prepare_tickers_catalog_slots <- function(tickers_catalog){
 #'
 #' 3. **Check Date Consistency**:
 #'    - Ensures `date_first_quote` matches for common tickers.
-#'    - Validates `date_last_quote` trends against `n_update`.
 #'    - Ensures `current_date` is correctly updated.
 #'
 #' 4. **Assign `perm_id`s**:
@@ -777,7 +772,7 @@ prepare_tickers_catalog_slots <- function(tickers_catalog){
 #'    - Maintains consistency in classification (`listed`, `delisted`, `untraded`).
 #'
 #' @export
-setGeneric("update_tickers_catalog", function(old_tickers_catalog, new_tickers_catalog, ticker_changes, n_update) {
+setGeneric("update_tickers_catalog", function(old_tickers_catalog, new_tickers_catalog, ticker_changes) {
   standardGeneric("update_tickers_catalog")
 })
 
@@ -786,10 +781,9 @@ setMethod(
   signature(
     old_tickers_catalog = "tickers_catalog",
     new_tickers_catalog = "tickers_catalog",
-    ticker_changes = "data.frame",
-    n_update = "numeric"
+    ticker_changes = "data.frame"
   ),
-  function(old_tickers_catalog, new_tickers_catalog, ticker_changes, n_update = 1) {
+  function(old_tickers_catalog, new_tickers_catalog, ticker_changes) {
 
     #Extract relevant slots
     ####################
@@ -797,7 +791,7 @@ setMethod(
       old_ticker_change_history <- old_tickers_catalog@ticker_change_history
 
       ##metadata
-        ###Get new and old listed
+        ###Get new listed
         new_listed <- new_tickers_catalog@listed
         old_listed <- old_tickers_catalog@listed
         ###Get new and old delisted
@@ -824,10 +818,10 @@ setMethod(
         new_tickers <- new_tickers_catalog$tickers
         old_tickers <- old_tickers_catalog$tickers
 
-        ###Identify common, new and missing tickers
-        common_tickers <- intersect(new_tickers, old_tickers) #Common tickers
-        new_only <- setdiff(new_tickers, old_tickers) #New tickers (whether IPOs or ticker change)
-        missing_old <- setdiff(old_tickers, new_tickers) #Tickers that changed names (old_tickers_catalog that are missing)
+        ###Identify new and missing tickers
+        newly_added_tickers <- setdiff(new_tickers, old_tickers) #New tickers (whether IPOs or ticker change)
+        missing_old_tickers <- setdiff(old_tickers, c(new_tickers, #Tickers that changed names from last period to current (old_tickers_catalog that are missing)
+                                                      old_ticker_change_history$old_tickers)) #This allow one to not consider older ticker changes
 
     ####################
 
@@ -843,7 +837,7 @@ setMethod(
           stop("Columns 'new_tickers' and 'old_tickers' in ticker_changes must be character type.")
         }
         ###change_date column is Date type
-        if (!is.Date(ticker_changes$change_date)) {
+        if (!lubridate::is.Date(ticker_changes$change_date)) {
           stop("Column 'change_date' in ticker_changes must be of Date type.")
         }
         ###Check that either change_date and old_date are NA or both are non-NA
@@ -852,28 +846,32 @@ setMethod(
         }
       ##tickers intersection
         ###Validate that all `new_tickers` tickers are accounted for in `ticker_changes`
-        if (!all(new_only %in% ticker_changes$new_tickers) || !all(ticker_changes$new_tickers %in% new_only)) {
-          stop("Mismatch between new tickers in ticker_changes and new tickers present in raw_features_m_df")
+        if (!all(ticker_changes$new_tickers %in% newly_added_tickers)) {
+          stop("All new_tickers in ticker_changes must be present in raw_features_m_df")
         }
-        ###Validate that all `missing_old` tickers are accounted for in `ticker_changes`
-        if (!all(missing_old %in% ticker_changes$old_tickers) || !all(ticker_changes$old_tickers %in% missing_old)) {
+        ###Check that the number of rows of ticker_changes is equal to missing_old_tickers length
+        if (length(ticker_changes$old_tickers) != length(missing_old_tickers)) {
+          stop("Mismatch between new_tickers and missing old tickers in ticker_changes")
+        }
+        ###Validate that all `missing_old_tickers` tickers are accounted for in `ticker_changes`
+        if (!all(missing_old_tickers %in% ticker_changes$old_tickers) || !all(ticker_changes$old_tickers %in% missing_old_tickers)) {
           stop("Mismatch between missing old tickers in ticker_changes and old tickers present in old_tickers_catalog")
         }
-        ###Check that the number of NA in old_ticker column is equal to the difference in length between new_only and missing_old
-        if (sum(is.na(ticker_changes$old_tickers)) != length(new_only) - length(missing_old)) {
-          stop("Mismatch between new tickers and missing old tickers in ticker_changes")
-        }
         ###Check that all new tickers are classified as listed
-        if (!all(new_only %in% new_listed)) {
+        if (!all(newly_added_tickers %in% new_listed)) {
           warning("New tickers are not classified as 'listed' in new_tickers_catalog. Please check if this is the case")
         }
-        ###Check that delisted tickers keep delisted
-        if (!all(old_delisted %in% new_delisted)){
-          stop("Delisted tickers in old_tickers_catalog are not delisted in new_tickers_catalog.")
+        ###Check that delisted tickers from history are not listed
+        if (any(old_delisted %in% new_listed)) {
+          warning("Delisted tickers from old_tickers_catalog are now listed in new_tickers_catalog.")
         }
-        ###Check that untraded tickers keep untraded
-        if (!all(old_untraded %in% new_untraded)){
-          stop("Untraded tickers in old_tickers_catalog are not untraded in new_tickers_catalog.")
+        ###Check that untraded tickers from history are not listed
+        if (any(old_untraded %in% new_listed)) {
+          warning("Untraded tickers from old_tickers_catalog are now listed in new_tickers_catalog.")
+        }
+        ###Check that old_listed tickers from history are now untraded
+        if (any(old_listed %in% new_untraded)) {
+          stop("Listed tickers from old_tickers_catalog are now untraded in new_tickers_catalog.")
         }
       ##dates
         ###date_first_quote (it should not change, as each date_first_quote will keep delisted tickers)
@@ -882,16 +880,22 @@ setMethod(
           new_tickers_catalog %>% dplyr::select(tickers, date_first_quote),
           by = "tickers"
         )
-        if (!all(common_tickers_first_quote$date_first_quote.x == common_tickers_first_quote$date_first_quote.y)) {
-          stop("Mismatch in date_first_quote between common tickers in old and new catalogs.")
-        }
+          ####Check equality considering NAs
+          date_mismatch <- !(
+            (is.na(common_tickers_first_quote$date_first_quote.x) & is.na(common_tickers_first_quote$date_first_quote.y)) |
+              (common_tickers_first_quote$date_first_quote.x == common_tickers_first_quote$date_first_quote.y)
+          )
+          if (any(date_mismatch, na.rm = TRUE)) {
+            stop("Mismatch in date_first_quote between common tickers in old and new catalogs.")
+          }
+
         ###average date_last_quote in new_tickers_catalog should be higher than in old_catalog
         if (mean(new_tickers_catalog$date_last_quote, na.rm = TRUE) <= mean(old_tickers_catalog$date_last_quote, na.rm = TRUE)) {
           stop("date_last_quote in new_tickers_catalog should be higher than in old_tickers_catalog.")
         }
-        ###current_date in new_tickers_catalog = current_date in old_tickers_catalog + n_update
-        if (new_current_date != old_current_date + lubridate::month(n_update)) {
-          stop("current_date in new_tickers_catalog should be equal to current_date in old_tickers_catalog + n_update.")
+        ###current_date in new_tickers_catalog = current_date in old_tickers_catalog + 1
+          if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))) {
+          stop("current_date in new_tickers_catalog should be equal to current_date in old_tickers_catalog + 1")
         }
       ##object name
         ###check that meta_dataframe_name in new_tickers_catalog is contained in meta_dataframe_name of oold_tickers_catalog
@@ -903,23 +907,28 @@ setMethod(
         if (old_n_days_tolerance != new_n_days_tolerance) {
           stop("n_days_tolerance has changed from old_tickers_catalog and new_tickers_catalog.")
         }
+      ##Check that date_first_quote in new_tickers_catalog is > change_date in ticker_changes for new tickers
+        if (!all(new_tickers_catalog$date_first_quote[match(ticker_changes$new_tickers, new_tickers_catalog$tickers)] == ticker_changes$change_date)) {
+          stop("date_first_quote in new_tickers_catalog should be equal to change_date in ticker_changes for new tickers.")
+        }
     ####################
 
     #Assign the same perm_id for ticker changes
+
     ####################
-      ##Get only those that have been renamed
-      renamed_tickers <- ticker_changes %>% dplyr::filter(!is.na(old_tickers)) #Those that don't have NA for old_ticker have been renamed
+      ##Bing tickers_changes to history, so as to keep perm_id for tickers that once changed
+      ticker_changes_full_history <- dplyr::bind_rows(old_ticker_change_history, ticker_changes)
 
       ##Map old tickers to perm_id
       perm_id_map <- old_tickers_catalog %>%
         dplyr::select(tickers, perm_id) %>%
-        dplyr::right_join(renamed_tickers, by = c("tickers" = "old_tickers"))
+        dplyr::right_join(ticker_changes_full_history, by = c("tickers" = "old_tickers"))
 
       ##Change perm_id for renamed tickers
       new_tickers_catalog <- new_tickers_catalog %>%
         dplyr::left_join( #Join with perm_id_map
           perm_id_map %>%
-            dplyr::select(new_ticker, perm_id) %>% #Select only new_ticker and perm_id
+            dplyr::select(new_tickers, perm_id) %>% #Select only new_ticker and perm_id
             dplyr::rename(old_perm_id = perm_id), #Rename old_perm_id to perm_id
           by = c("tickers" = "new_tickers")) %>%
         dplyr::mutate(perm_id = dplyr::coalesce(old_perm_id, perm_id)) %>% #Get perm_id from perm_id.y if it exists, otherwise, get perm_id from perm_id.x
@@ -931,14 +940,14 @@ setMethod(
     ####################
       ##Change date_last_quote with date_change for renamed tickers
       old_tickers_entries <- old_tickers_catalog %>%
-        dplyr::filter(tickers %in% renamed_tickers$old_tickers) %>% #Get only those that have been renamed
+        dplyr::left_join(ticker_changes_full_history, by = c("tickers" = "old_tickers")) %>% #Join with ticker_changes
+        dplyr::filter(!is.na(new_tickers)) %>% #Filter renamed tickers
+        dplyr::mutate(date_last_quote = change_date) %>% #Get change_date if it exists (renamed_ticker), otherwise, get date_last_quote
         dplyr::mutate(
-          date_last_quote = dplyr::if_else(
-            tickers %in% renamed_tickers$old_tickers,
-            renamed_tickers %>% dplyr::filter(old_tickers == tickers) %>% dplyr::pull(change_date), #Change date_last_quote with date_change for renamed tickers
-            date_last_quote #Keep date_last_quote for the rest
-          )
-        )
+          listed = FALSE, #Set listed to FALSE
+          delisted = dplyr::if_else(untraded, FALSE, TRUE) #Set delisted to TRUE if not untraded, otherwise, set to FALSE
+        ) %>%
+        dplyr::select(-new_tickers, -change_date)
       ##Bind
       new_tickers_catalog <- dplyr::bind_rows(new_tickers_catalog, old_tickers_entries) %>% dplyr::arrange(perm_id)
     ####################
@@ -946,10 +955,10 @@ setMethod(
 
     #Merge ticker change history
     #####################
-    if (!is.null(old_ticker_changes) && nrow(old_ticker_changes) > 0) {
-      updated_ticker_changes <- dplyr::bind_rows(old_ticker_changes, ticker_changes) %>%
+    if (!is.null(old_ticker_change_history) && nrow(old_ticker_change_history) > 0) {
+      updated_ticker_changes <- dplyr::bind_rows(old_ticker_change_history, ticker_changes) %>%
         dplyr::arrange(change_date) %>% # Keep chronological order
-        dplyr::distinct(new_ticker, old_ticker, change_date, .keep_all = TRUE) # Ensure unique entries
+        dplyr::distinct(new_tickers, old_tickers, change_date, .keep_all = TRUE) # Ensure unique entries
     } else {
       updated_ticker_changes <- ticker_changes
     }
@@ -970,7 +979,7 @@ setMethod(
                            current_date = new_current_date,
                            meta_dataframe_name = old_meta_dataframe_name,
                            n_days_tolerance = old_n_days_tolerance,
-                           ticker_changes = updated_ticker_changes)
+                           ticker_change_history = updated_ticker_changes)
 
     return(updated_catalog)
   }

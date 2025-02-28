@@ -59,7 +59,7 @@ test_that("create_tickers_log works for a clean example dataset (no delisted, no
   )
 })
 
-test_that("create_tickers_log works for delisted and untraded cias", {
+test_that("create_tickers_log works for delisted and untraded cias (and different order)", {
   raw_features_m_df <- create_meta_dataframe(
     list(
       matrix(c(0, 1, 2, NA, 3, 9, 10, 4, NA, 0, 3, 9, 1, NA, NA), nrow = 5, ncol = 3),
@@ -73,8 +73,8 @@ test_that("create_tickers_log works for delisted and untraded cias", {
   )
 
   date_first_quote <- data.frame(
-    tickers = c("PETR4", "VALE3", "ABEV3", "CAFE3", "ENAT3"),
-    date_first_quote = as.Date(c("1995-03-15", "1995-04-15", "1995-05-15", NA, "1999-05-15"))
+    tickers = c("VALE3", "PETR4", "ABEV3", "CAFE3", "ENAT3"),
+    date_first_quote = as.Date(c("1995-04-15", "1995-03-15", "1995-05-15", NA, "1999-05-15"))
   )
 
   date_last_quote <- data.frame(
@@ -86,15 +86,17 @@ test_that("create_tickers_log works for delisted and untraded cias", {
   results <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote)
 
   ## expected results
+  expected <- c(
+    ABEV3 = substr(digest::digest(paste0(date_first_quote$tickers[3], "_", format(date_first_quote$date_first_quote[3], "%Y%m%d")), algo = "md5"), 1, 10),
+    CAFE3 = substr(digest::digest(paste0(date_first_quote$tickers[4], "_", NA), algo = "md5"), 1, 10),
+    ENAT3 = substr(digest::digest(paste0(date_first_quote$tickers[5], "_", format(date_first_quote$date_first_quote[5], "%Y%m%d")), algo = "md5"), 1, 10),
+    PETR4 = substr(digest::digest(paste0(date_first_quote$tickers[2], "_", format(date_first_quote$date_first_quote[2], "%Y%m%d")), algo = "md5"), 1, 10),
+    VALE3 = substr(digest::digest(paste0(date_first_quote$tickers[1], "_", format(date_first_quote$date_first_quote[1], "%Y%m%d")), algo = "md5"), 1, 10)
+  )
+  expected <- expected[order(expected)]
+
   expect_equal(
-    c(
-      ABEV3 = substr(digest::digest(paste0(date_first_quote$tickers[3], "_", format(date_first_quote$date_first_quote[3], "%Y%m%d")), algo = "md5"), 1, 10),
-      CAFE3 = substr(digest::digest(paste0(date_first_quote$tickers[4], "_", NA), algo = "md5"), 1, 10),
-      ENAT3 = substr(digest::digest(paste0(date_first_quote$tickers[5], "_", format(date_first_quote$date_first_quote[5], "%Y%m%d")), algo = "md5"), 1, 10),
-      PETR4 = substr(digest::digest(paste0(date_first_quote$tickers[1], "_", format(date_first_quote$date_first_quote[1], "%Y%m%d")), algo = "md5"), 1, 10),
-      VALE3 = substr(digest::digest(paste0(date_first_quote$tickers[2], "_", format(date_first_quote$date_first_quote[2], "%Y%m%d")), algo = "md5"), 1, 10)
-    ),
-    results@perm_id
+    results@perm_id, expected
   )
 
   ## Check that the function is returning the correct number of tickers
@@ -217,10 +219,9 @@ test_that("create_tickers_log gives same perm id for a ticker-initial_date combi
 
   results2 <- create_tickers_catalog(raw_features_m_df = raw_features_m_df_scrambled, date_first_quote = date_first_quote, date_last_quote = date_last_quote)
 
-
-
   ## check that perm ids are the same
-  expect_equal(results@perm_id, results2@perm_id[order(names(results2@perm_id))])
+  expect_equal(results@perm_id, results2@perm_id[order(results2@perm_id)])
+
 })
 
 test_that("create_tickers_log throws an error for incorrect data type", {
@@ -583,18 +584,20 @@ test_that("create_tickers log integrates with create_meta_dataframe - Excel File
 
   #Check results
   expect_equal(results@untraded, results@catalog %>% dplyr::filter(untraded) %>% dplyr::pull(tickers))
-  expect_equal(results@untraded, sort(c("QVUM3B", "QVQP3B", "APPA3", "APPA4")))
+  expect_equal(results@untraded,
+               c("QVUM3B", "QVQP3B", "APPA3", "APPA4")[order(lookup_catalog(results, c("QVUM3B", "QVQP3B", "APPA3", "APPA4")))])
   expect_equal(results@delisted, results@catalog %>% dplyr::filter(delisted) %>% dplyr::pull(tickers))
-  expect_equal(results@delisted, sort(c("ABCB3", "ABCB11", "ABYA3", "AVIL3", "AVIL4", "ADHM3", "TIET3", "TIET4")))
+  expect_equal(results@delisted,
+               c("ABCB3", "ABCB11", "ABYA3", "AVIL3", "AVIL4", "ADHM3", "TIET3", "TIET4")[
+                 order(lookup_catalog(results, c("ABCB3", "ABCB11", "ABYA3", "AVIL3", "AVIL4", "ADHM3", "TIET3", "TIET4")))])
   expect_equal(results@listed, results@catalog %>% dplyr::filter(listed) %>% dplyr::pull(tickers))
-  expect_equal(results@listed, sort(c("RRRP3", "TTEN3", "ABCB4", "EALT3", "EALT4", "AERI3", "AESB3")))
+  expect_equal(results@listed, c("RRRP3", "TTEN3", "ABCB4", "EALT3", "EALT4", "AERI3", "AESB3")[order(
+    lookup_catalog(results, c("RRRP3", "TTEN3", "ABCB4", "EALT3", "EALT4", "AERI3", "AESB3")))])
 
   #Check that reducing n_days_tolerance will remove EALT3 from the listed stocks
   results2 <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote,
                                      n_days_tolerance = 1)
 
   expect_false("EALT3" %in% results2@listed)
-
-
 
 })
