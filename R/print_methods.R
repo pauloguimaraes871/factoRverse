@@ -20,7 +20,7 @@ setMethod("show", "meta_dataframe", function(object) {
   if(object@class == "target_m_df"){
     cat(" Targets:\n")
   } else {
-    cat(" Signals:\n")
+    cat("Signals:\n")
   }
   cat(paste(object@signals, collapse = ", "))
   if(object@class == "target_m_df"){
@@ -38,7 +38,7 @@ setMethod("show", "meta_dataframe", function(object) {
   if(length(object@workflow) == 0){
     cat("  No workflow set.\n")
   } else {
-    print(object@workflow)
+    print(names(object@workflow))
   }
 
   cat("=================================\n")

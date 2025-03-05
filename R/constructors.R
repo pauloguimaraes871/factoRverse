@@ -429,91 +429,113 @@ setMethod(
 
 #' Update Meta Dataframe
 #'
-#' @param old_raw_features_m_df A raw features meta_dataframe object with previous data
-#' @param new_raw_features_m_df A raw features meta dataframe object with new data
-#' @param tickers vector of tickers
-#' @param dates vector of dates for new data
-#' @param features_names names of the new features
+#' @param old_features_m_df A features meta_dataframe object with previous data
+#' @param new_features_m_df A features meta dataframe object with new data
 #'
 #' @return Updated meta_dataframe object
-setGeneric("update_meta_dataframe", function(old_raw_features_m_df, new_raw_features_m_df) {
+setGeneric("update_meta_dataframe", function(old_features_m_df, new_features_m_df) {
   standardGeneric("update_meta_dataframe")
 })
 
 #' @exportMethod update_meta_dataframe
 setMethod(
-  "update_meta_dataframe", signature(old_raw_features_m_df = "raw_features_m_df", new_raw_features_m_df = "raw_features_m_df"),
-  function(old_raw_features_m_df, new_raw_features_m_df){
+  "update_meta_dataframe", signature(old_features_m_df = "meta_dataframe", new_features_m_df = "meta_dataframe"),
+  function(old_features_m_df, new_features_m_df){
 
     #Initial prep
     ###############
       ##meta_dataframe_name
-      old_raw_features_m_df_name <- old_raw_features_m_df@meta_dataframe_name
-      new_raw_features_m_df_name <- new_raw_features_m_df@meta_dataframe_name
+      old_features_m_df_name <- old_features_m_df@meta_dataframe_name
+      new_features_m_df_name <- new_features_m_df@meta_dataframe_name
 
       ##workflow
-      old_workflow <- old_raw_features_m_df@workflow
+      old_workflow <- old_features_m_df@workflow
+      new_workflow <- new_features_m_df@workflow
 
       ##current dates
-      old_current_date <- old_raw_features_m_df@current_date
-      new_current_date <- new_raw_features_m_df@current_date
+      old_current_date <- old_features_m_df@current_date
+      new_current_date <- new_features_m_df@current_date
+
+      ##object class
+      old_class <- class(old_features_m_df)
+      new_class <- class(new_features_m_df)
 
       ##data.frame
-      old_raw_features_m_df <- old_raw_features_m_df@data
-      new_raw_features_m_df <- new_raw_features_m_df@data
+      old_features_m_df <- old_features_m_df@data
+      new_features_m_df <- new_features_m_df@data
 
     ###############
 
     #Check if both meta_dataframes are compatible
     ###############
       ##Check colnames match
-      if (any(colnames(old_raw_features_m_df) != colnames(new_raw_features_m_df))){
-        stop("Column names between old_raw_features_m_df and new_raw_features_m_df do not match.")
+      if (ncol(old_features_m_df) != ncol(new_features_m_df) ||
+          any(colnames(old_features_m_df) != colnames(new_features_m_df))){
+        stop("Column names between old_features_m_df and new_features_m_df do not match.")
       }
-      ##Check that there is NO id intersection between old_raw_features_m_df and new_raw_features_m_df
-      if (length(dplyr::intersect(old_raw_features_m_df$id, new_raw_features_m_df$id)) > 0){
-        stop("There are common ids between old_raw_features_m_df and new_raw_features_m_df.")
+      ##Check that there is NO id intersection between old_features_m_df and new_features_m_df
+      if (length(dplyr::intersect(old_features_m_df$id, new_features_m_df$id)) > 0){
+        stop("There are common ids between old_features_m_df and new_features_m_df.")
       }
-      ##Check that there is NO date intersection between old_raw_features_m_df and new_raw_features_m_df
-      if (length(dplyr::intersect(old_raw_features_m_df$dates, new_raw_features_m_df$dates)) > 0){
-        stop("There are common dates between old_raw_features_m_df and new_raw_features_m_df.")
+      ##Check that there is NO date intersection between old_features_m_df and new_features_m_df
+      if (length(dplyr::intersect(old_features_m_df$dates, new_features_m_df$dates)) > 0){
+        stop("There are common dates between old_features_m_df and new_features_m_df.")
       }
-      ##Check that number of unique dates in new_raw_features_m_df is equal to 1
-      if (length(unique(new_raw_features_m_df$dates)) != 1){
-        stop("Number of unique dates in new_raw_features_m_df is not equal to 1.")
+      ##Check that number of unique dates in new_features_m_df is equal to 1
+      if (length(unique(new_features_m_df$dates)) != 1){
+        stop("Number of unique dates in new_features_m_df is not equal to 1.")
       }
-      ##Check that current_date in new_raw_features_m_df is 1 months ahead of current_date in old_raw_features_m_df
-      if (new_current_date != old_current_date + lubridate::month(1)){
-        stop("Current date in new_raw_features_m_df should be 1 months ahead of current_date in old_raw_features_m_df.")
+      ##Check that current_date in new_features_m_df is 1 months ahead of current_date in old_features_m_df
+      if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))){
+        stop("Current date in new_features_m_df should be 1 months ahead of current_date in old_features_m_df.")
       }
-      ##Check that each column class match between old_raw_features_m_df and new_raw_features_m_df
+      ##Check that each column class match between old_features_m_df and new_features_m_df
       if (!all(sapply(
-        colnames(old_raw_features_m_df),
-        function(col) identical(class(old_raw_features_m_df[[col]]), class(new_raw_features_m_df[[col]]))
+        colnames(old_features_m_df),
+        function(col) identical(class(old_features_m_df[[col]]), class(new_features_m_df[[col]]))
       ))) {
-        stop("Column classes between old_raw_features_m_df and new_raw_features_m_df do not match.")
+        stop("Column classes between old_features_m_df and new_features_m_df do not match.")
       }
 
-      ##Check that old_raw_features_m_df name is contained in new_raw_features_m_df name
-      if (!grepl(old_raw_features_m_df_name, new_raw_features_m_df_name)){
-        stop("old_raw_features_m_df name is not contained in new_raw_features_m_df name.")
+      ##Check that old_features_m_df name is contained in new_features_m_df name
+      if (!grepl(old_features_m_df_name, new_features_m_df_name)){
+        stop("old_features_m_df name is not contained in new_features_m_df name.")
+      }
+
+      ##Check if any object is of class raw_features_m_df
+      if (old_class == "raw_features_m_df" || new_class == "raw_features_m_df"){
+        stop("old_features_m_df and new_features_m_df should not be of class raw_features_m_df.")
+      }
+
+      ##Check if they contain a read_tickers_catalog workflow
+      if (!any(stringr::str_detect(names(old_workflow), "read_tickers_catalog"))){
+        stop("old_features_m_df should contain a read_tickers_catalog workflow.")
+      }
+      if (!any(stringr::str_detect(names(new_workflow), "read_tickers_catalog"))){
+        stop("new_features_m_df should contain a read_tickers_catalog workflow.")
       }
 
     ###############
 
     #Bind rows
     ###############
-    updated_meta_dataframe <- dplyr::bind_rows(old_raw_features_m_df, new_raw_features_m_df)
+    updated_meta_dataframe <- dplyr::bind_rows(old_features_m_df, new_features_m_df) %>% dplyr::arrange(id)
     ###############
 
     #Update Workflow
     ###############
-    update_workflow <- c(old_workflow, #Add to the old workflow
-                         c(update = c(
-                           new_date = new_current_date, #Add new date
-                           new_raw_features_m_df_name = new_raw_features_m_df_name, #Add new_raw_features_m_df_name
-                           timestamp = Sys.time()
-                         )))
+    batch_workflow <-
+        list(
+          list(
+            new_date = new_current_date, #Add new date
+            batch_features_m_df_name = new_features_m_df_name, #Name of batch
+            timestamp = Sys.time(),
+            batch_workflow = new_workflow #Specific workflow
+           )
+          )
+
+    update_workflow <- c(old_workflow, batch_workflow) #Add to the old workflow
+    names(update_workflow)[length(update_workflow)] <- paste0("update_", new_current_date)
 
     ###############
 
@@ -522,7 +544,7 @@ setMethod(
     updated_meta_dataframe <- create_meta_dataframe(
       data = updated_meta_dataframe,
       workflow = update_workflow,
-      meta_dataframe_name = old_raw_features_m_df_name
+      meta_dataframe_name = old_features_m_df_name
     )
 
     return(updated_meta_dataframe)

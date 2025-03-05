@@ -843,7 +843,7 @@ test_that("read_tickers_catalog works for a ticker changing ticker and being sim
 
 })
 
-test_that("read_tickers_catalog works for an untraded changing ticker (no new perm_id assigned)", {
+test_that("read_tickers_catalog works for an untraded changing ticker (no new perm_id assigned) in a long workflow", {
 
   # Create a catalog
   old_raw_features_m_df <- create_meta_dataframe(
