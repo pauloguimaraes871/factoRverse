@@ -749,9 +749,8 @@ prepare_tickers_catalog_slots <- function(tickers_catalog){
 #'     \item{\code{old_ticker}}{The corresponding previous ticker symbol (if applicable).}
 #'     \item{\code{change_date}}{The date on which the ticker change occurred.}
 #'   }
-#'   \strong{Rules:}
-#'   - If `new_ticker`, `old_ticker`, and `change_date` are all non-NA, the new ticker is mapped to the `perm_id` of the old ticker.
-#'   - If only `new_ticker` is non-NA (but `old_ticker` and `change_date` are NA), the new ticker is treated as an IPO and assigned a new `perm_id`.
+#'
+#'
 #'
 #' @return A new `tickers_catalog` object incorporating the updated tickers and metadata.
 #'
@@ -767,16 +766,16 @@ prepare_tickers_catalog_slots <- function(tickers_catalog){
 #'    - Ensures `old_ticker` values exist in `old_tickers_catalog`.
 #'
 #' 3. **Check Date Consistency**:
-#'    - Ensures `tickers_first_quote` matches for common tickers.
-#'    - Ensures `current_date` is correctly updated.
 #'
-#' 4. **Assign `perm_id`s**:
+#' 4. **Assign `perm_id`s and change_date**:
 #'    - Old tickers retain their `perm_id` for renamed tickers.
 #'    - New tickers receive a new `perm_id` using a hash-based approach.
+#'    - date_first_quote and date_last_quote are renamed as tickers_first_quote and tickers_last_quote,
+#'      being assigned `change_date` when ticker change.
 #'
 #' 5. **Return Updated `tickers_catalog`**:
 #'    - Combines old and new ticker information.
-#'    - Maintains consistency in classification (`listed`, `delisted`, `untraded`).
+#'    - Maintains consistency in classification (`listed`, `delisted`, `untraded`, `old`).
 #'
 #' @export
 setGeneric("update_tickers_catalog", function(old_tickers_catalog, new_tickers_catalog, ...) {
@@ -838,6 +837,8 @@ setMethod(
           ####Old tickers that are not in new tickers and are not old ticker changes
           missing_old_tickers <- setdiff(old_tickers, c(new_tickers, #Tickers that changed names from last period to current (old_tickers_catalog that are missing)
                                                         old_ticker_change_history$old_tickers)) #This allow one to not consider older ticker changes
+          ####newly_delisted_tickers
+          newly_delisted_tickers <- setdiff(new_delisted, old_delisted) #Delisted tickers
 
 
          ####Message
@@ -847,9 +848,13 @@ setMethod(
          if (length(ipos_tickers) > 0){
            crayon::green(message(paste0("Newly added IPOs: ", paste(ipos_tickers, collapse = ", "))))
          }
+          if (length(newly_delisted_tickers) > 0){
+            crayon::red(message(paste0("Newly delisted tickers: ", paste(newly_delisted_tickers, collapse = ", "))))
+          }
          if (length(missing_old_tickers) > 0){
            crayon::yellow(message(paste0("Missing old tickers: ", paste(missing_old_tickers, collapse = ", "))))
          }
+
 
     ####################
 
