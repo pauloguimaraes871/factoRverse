@@ -209,6 +209,7 @@ setMethod("show", "tickers_catalog", function(object) {
   cat(" Total tickers:", nrow(object@catalog), "\n")
   cat(" Untraded tickers:", object@untraded, "\n")
   cat(" Delisted tickers:", object@delisted, "\n")
+  cat(" Old tickers:", object@old, "\n")
   cat(" Listed tickers:", object@listed, "\n")
 
   cat(" Number of days of tolerance:", object@n_days_tolerance, "\n")

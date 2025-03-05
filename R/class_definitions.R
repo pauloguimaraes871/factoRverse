@@ -363,11 +363,12 @@ setClass(
     catalog = "data.frame",
     tickers = "character",
     perm_id = "character",
-    date_first_quote = "Date",
-    date_last_quote = "Date",
+    tickers_first_quote = "Date",
+    tickers_last_quote = "Date",
     untraded = "character",
     delisted = "character",
     listed = "character",
+    old = "character",
     current_date = "Date",
     meta_dataframe_name = "character",
     n_days_tolerance = "numeric",
@@ -375,12 +376,12 @@ setClass(
   ),
   validity = function(object){
 
-    #Check that a stock can't be always untraded and delisted
+    #Check that a stock can't be untraded and delisted
     if(length(intersect(object@untraded, object@delisted)) > 0){
       stop("A stock can't be untraded and delisted.")
     }
 
-    #Check that a stock can't be always untraded and listed
+    #Check that a stock can't be untraded and listed
     if(length(intersect(object@untraded, object@listed)) > 0){
       stop("A stock can't be untraded and listed.")
     }
@@ -390,14 +391,29 @@ setClass(
       stop("A stock can't be delisted and listed.")
     }
 
+    #Check that a stock can't be delisted and old
+    if(length(intersect(object@delisted, object@old)) > 0){
+      stop("A stock can't be delisted and old.")
+    }
+
+    #Check that a stock can't be listed and old
+    if(length(intersect(object@listed, object@old)) > 0){
+      stop("A stock can't be listed and old.")
+    }
+
+    #Check that a stock can't be untraded and old
+    if(length(intersect(object@untraded, object@old)) > 0){
+      stop("A stock can't be untraded and old.")
+    }
+
     #Check that length of tickers equals perm_id
     if(length(object@tickers) != length(object@perm_id)){
       stop("Length of tickers does not equal length of perm_id.")
     }
 
-    #Check that length of listed + delisted + untraded equals tickers
-    if(length(object@listed) + length(object@delisted) + length(object@untraded) != length(object@tickers)){
-      stop("Length of listed + delisted + untraded does not equal length of tickers.")
+    #Check that length of listed + delisted + untraded + old equals tickers
+    if(length(object@listed) + length(object@delisted) + length(object@untraded) + length(object@old) != length(object@tickers)){
+      stop("Length of listed + delisted + untraded + old does not equal length of tickers.")
     }
 
     #Check current date length

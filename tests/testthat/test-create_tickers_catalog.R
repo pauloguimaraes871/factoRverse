@@ -34,6 +34,15 @@ test_that("create_tickers_log works for a clean example dataset (no delisted, no
     results@perm_id
   )
 
+  ##Tickers first and last quote match date first and last
+  expect_equal(
+    results@tickers_first_quote, date_first_quote$date_first_quote[c(3,1,2)]
+  )
+  expect_equal(
+    results@tickers_last_quote, date_last_quote$date_last_quote[c(3,1,2)]
+  )
+
+
   ## Check that the function is returning the correct number of tickers
   expect_equal(
     3,
