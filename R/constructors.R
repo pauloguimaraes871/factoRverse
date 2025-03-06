@@ -1250,6 +1250,9 @@ setMethod(
   freq_info <- suppressWarnings(xts::periodicity(data))
   discovered_scale <- if (nrow(data) == 1) "not_available" else freq_info$scale
 
+  #Current date
+  current_date <- zoo::index(data)[length(zoo::index(data))]
+
   # Common slots for the parent class
   common_slots <- list(
     data          = data,
@@ -1257,7 +1260,8 @@ setMethod(
     workflow      = workflow,
     n_dates       = nrow(data),
     source        = source,
-    frequency     = discovered_scale
+    frequency     = discovered_scale,
+    current_date  = current_date
   )
 
   # 5) Depending on 'type', build the appropriate subclass
@@ -1276,7 +1280,8 @@ setMethod(
       source = common_slots$source,
       frequency = common_slots$frequency,
       assets = colnames(data),
-      n_assets = ncol(data)
+      n_assets = ncol(data),
+      current_date = current_date
     )
   } else { # type == "metrics"
     # For metrics_meta_xts, we fill the specialized slots:
@@ -1290,7 +1295,8 @@ setMethod(
       source = common_slots$source,
       frequency = common_slots$frequency,
       series = colnames(data),
-      n_series = ncol(data)
+      n_series = ncol(data),
+      current_date = current_date
     )
   }
 
@@ -1299,7 +1305,7 @@ setMethod(
 })
 
 # Define the method for when 'data' is a data.frame
-setMethod(
+methods::setMethod(
   "create_meta_xts",
   signature(data = "data.frame"),
   function(data,
@@ -1324,11 +1330,12 @@ setMethod(
         # Remove the dates column from data before conversion
         data <- data[, setdiff(colnames(data), "dates"), drop = FALSE]
       } else {
-        date_vec <- NULL
+        # Attempt to use rownames as dates
+        date_vec <- as.Date(rownames(data))
       }
       # Error check: ensure we have valid dates
       if (length(date_vec) == 0 || all(is.na(date_vec))) {
-        stop("Error: No valid dates found. Please provide a 'dates' column or pass a 'dates' argument.")
+        stop("Error: No valid dates found. Please provide a 'dates' column, valid rownames, or pass a 'dates' argument.")
       }
 
       data_xts <- xts::as.xts(data, order.by = date_vec)
@@ -1345,25 +1352,16 @@ setMethod(
       if (!all(c("tickers", "dates") %in% colnames(data))) {
         stop("Error: For long format, the data.frame must contain 'tickers' and 'dates' columns.")
       }
-
-      # Eliminate 'id' column if it exists
-      data <- data %>% dplyr::select(-dplyr::any_of("id"))
-
       # Identify feature columns (excluding 'tickers' and 'dates')
       feature_cols <- setdiff(colnames(data), c("tickers", "dates"))
-      n_features <- length(feature_cols)
-      # If metric_name is provided as a vector, check that its length matches the number of feature columns.
-      if (!is.null(metric_name) && length(metric_name) > 1 && length(metric_name) != n_features) {
-        stop("Error: When data_format is 'long' and metric_name is provided as a vector, its length must equal the number of feature columns.")
-      }
-
       result_list <- list()
+
       for (feat in feature_cols) {
         # Pivot the data: tickers become columns and dates are the id column
         wide_df <- tidyr::pivot_wider(data,
                                       id_cols = dates,
                                       names_from = tickers,
-                                      values_from = dplyr::all_of(feat))
+                                      values_from = feat)
         # Use provided dates if available; otherwise use the pivoted 'dates' column.
         if (!is.null(dates)) {
           date_vec <- as.Date(dates)
