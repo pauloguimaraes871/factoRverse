@@ -58,11 +58,11 @@ test_that("create_meta_xts works for a xts object with more specification and no
 
   expect_message(
     #Message for detected frequency
-      expect_no_warning(
-        #Warning for decimal form
-        results <- create_meta_xts(mocked_backtest_returns_m_xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
-                                   metric_name = "monthly_raw_returns")
-      ), "Detected frequency is: monthly"
+    expect_no_warning(
+      #Warning for decimal form
+      results <- create_meta_xts(mocked_backtest_returns_m_xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
+                                 metric_name = "monthly_raw_returns")
+    ), "Detected frequency is: monthly"
   )
 
   #Expect results
@@ -114,13 +114,16 @@ test_that("create_meta_xts works for a data.frame object wide format", {
 
 })
 
-test_that("create_meta_xts works for a data.frame object with long format", {
+test_that("create_meta_xts works for a data.frame object with long format (including presence of NAs)", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 
+  signals_m_df[1, "book_yield"] <- NA #Create a NA to mimick an IPO
+  signals_m_df[c(107, 108), "dy_med_36m"] <- NA #Create a NA to mimick a delisting
+
   results <- create_meta_xts(data = signals_m_df %>% dplyr::select(id, tickers, dates, book_yield, dy_med_36m),
                              type = "metrics", data_format = "long", meta_xts_name = "signals_m_df"
-                             )
+  )
 
   #Check names match columns
   expect_equal(names(results), c("book_yield", "dy_med_36m"))
@@ -136,23 +139,36 @@ test_that("create_meta_xts works for a data.frame object with long format", {
   #Check for random inputs
   expect_equal(signals_m_df %>% dplyr::filter(tickers == "AMBP3") %>% dplyr::pull(book_yield),
                results$book_yield@data$AMBP3 %>% as.vector()
-               )
+  )
   expect_equal(signals_m_df %>% dplyr::filter(tickers == "ZAMP3") %>% dplyr::pull(dy_med_36m),
                results$dy_med_36m@data$ZAMP3 %>% as.vector()
   )
+  #This one is originally delisted
+  expect_equal(c(signals_m_df %>% dplyr::filter(tickers == "MERC3") %>% dplyr::pull(dy_med_36m), NA, NA, NA),
+               results$dy_med_36m@data$MERC3 %>% as.vector()
+  )
+  #This one is faked IPO
+  expect_equal(signals_m_df %>% dplyr::filter(tickers == "AALR3") %>% dplyr::pull(book_yield),
+               results$book_yield@data$AALR3 %>% as.vector()
+  )
+  #This one is faked delisting
+  expect_equal(signals_m_df %>% dplyr::filter(tickers == "AHEB3") %>% dplyr::pull(dy_med_36m),
+               results$dy_med_36m@data$AHEB3 %>% as.vector()
+  )
+
+
 
 
 })
-
 
 test_that("create_meta_xts fails for not providing dates, tickers or metric_name correctly", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 
   expect_error(
-  create_meta_xts(data = signals_m_df %>% dplyr::select(id, tickers, -dates, book_yield, dy_med_36m),
-                             type = "metrics", data_format = "long", meta_xts_name = "signals_m_df"
-  ), "Error: For long format, the data.frame must contain 'tickers' and 'dates' columns.")
+    create_meta_xts(data = signals_m_df %>% dplyr::select(id, tickers, -dates, book_yield, dy_med_36m),
+                    type = "metrics", data_format = "long", meta_xts_name = "signals_m_df"
+    ), "Error: For long format, the data.frame must contain 'tickers' and 'dates' columns.")
 
   expect_error(
     create_meta_xts(data = signals_m_df %>% dplyr::select(id, -tickers, dates, book_yield, dy_med_36m),
