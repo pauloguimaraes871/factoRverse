@@ -1610,7 +1610,6 @@ test_that("read_tickers_catalog works for meta_xts with untraded but no wrong da
 
 })
 
-
 test_that("read_tickers_catalog works for meta_xts with untraded AND wrong data", {
 
   #xts
@@ -1721,6 +1720,269 @@ test_that("read_tickers_catalog works for meta_xts with untraded AND wrong data"
     results@workflow$`read_tickers_catalog_2001-05-15`$na_imputation_summary["ENAT3"],
     c(ENAT3 = length(c(1:4)))
   )
+
+
+})
+
+test_that("read_tickers_catalog fails when dates (versions) do not match", {
+
+  #xts
+  set.seed(123)
+  xts <- xts::as.xts(
+    data.frame(
+      RRRP3 = rnorm(30, 1.5, 2),
+      PETR4 = rnorm(30, 1, 1),
+      VALE3 = rnorm(30, 2, 1),
+      ENAT3 = rnorm(30, 1, 1),
+      CAFE3 = rep(NA, 30),
+      ABEV3 = rnorm(30, 1, 1)
+    ),
+    order.by = seq.Date(from = as.Date("2001-03-16"), by = "days", length.out = 30)
+  )
+
+  #Create a meta_xts
+  expect_message(
+    expect_warning(
+      meta_xts <- create_meta_xts(xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
+                                  metric_name = "monthly_raw_returns", source = c("R", "P", "V", "E", "C", "A")),
+      "There are NA values in the time series."
+    ),
+    "Detected frequency is: daily"
+  )
+
+  #meta_dataframe
+  raw_features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 1, 2, NA, 3, NA, 9, 4, -1, 0, 3, NA, 1, NA, -4, 3, NA, NA), nrow = 6, ncol = 3),
+      matrix(c(0, -1, 2, NA, 4, NA, 19, 5, 1, 0, 30, NA, 1, -1, NA, NA, NA, NA), nrow = 6, ncol = 3)
+    ),
+    c("PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3", "CAFE3"),
+    as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
+    c("Alpha", "Beta")
+  )
+
+  date_first_quote <- data.frame(
+    tickers = c("ABEV3", "VALE3", "PETR4", "RRRP3", "ENAT3", "CAFE3"),
+    date_first_quote = as.Date(c("1995-03-15", "1995-04-15", "1995-05-15", "1999-03-15", "1999-05-15", NA))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("CAFE3", "PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3"),
+    date_last_quote = as.Date(c(NA, "2001-05-15", "2001-05-15", "2001-05-15", "2001-05-15", "2001-05-15"))
+  )
+
+  tickers_catalog <- create_tickers_catalog(
+    raw_features_m_df = raw_features_m_df,
+    date_first_quote = date_first_quote,
+    date_last_quote = date_last_quote
+  )
+
+  #Results
+  expect_error(
+  read_tickers_catalog(data = meta_xts, tickers_catalog = tickers_catalog),
+  "The year and month of returns_meta_xts do not match the ones in tickers_catalog"
+  )
+
+  #Redefine
+  #xts
+  set.seed(123)
+  xts <- xts::as.xts(
+    data.frame(
+      RRRP3 = rnorm(30, 1.5, 2),
+      PETR4 = rnorm(30, 1, 1),
+      VALE3 = rnorm(30, 2, 1),
+      ENAT3 = rnorm(30, 1, 1),
+      CAFE3 = rep(NA, 30),
+      ABEV3 = rnorm(30, 1, 1)
+    ),
+    order.by = seq.Date(from = as.Date("2001-04-25"), by = "days", length.out = 30)
+  )
+
+  #Create a meta_xts
+  expect_message(
+    expect_warning(
+      meta_xts <- create_meta_xts(xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
+                                  metric_name = "monthly_raw_returns", source = c("R", "P", "V", "E", "C", "A")),
+      "There are NA values in the time series."
+    ),
+    "Detected frequency is: daily"
+  )
+
+  #Results
+  expect_warning(
+  expect_error(
+    read_tickers_catalog(data = meta_xts, tickers_catalog = tickers_catalog),
+    "The day of returns_meta_xts is higher than the one in tickers_catalog"
+  ),
+  "The day of returns_meta_xts does not match the one in tickers_catalog"
+  )
+
+})
+
+test_that("read_tickers_catalog fails when tickers do not match requirements", {
+
+  #xts
+  set.seed(123)
+  xts <- xts::as.xts(
+    data.frame(
+      RRRP3 = rnorm(30, 1.5, 2),
+      PETR4 = rnorm(30, 1, 1),
+      VALE3 = rnorm(30, 2, 1),
+      ENAT3 = rnorm(30, 1, 1),
+      CAFE3 = rep(NA, 30),
+      ABEV4 = rnorm(30, 1, 1)
+    ),
+    order.by = seq.Date(from = as.Date("2001-04-16"), by = "days", length.out = 30)
+  )
+
+  #Create a meta_xts
+  expect_message(
+    expect_warning(
+      meta_xts <- create_meta_xts(xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
+                                  metric_name = "monthly_raw_returns", source = c("R", "P", "V", "E", "C", "A")),
+      "There are NA values in the time series."
+    ),
+    "Detected frequency is: daily"
+  )
+
+  #meta_dataframe
+  raw_features_m_df <- create_meta_dataframe(
+    data =
+    list(
+      matrix(c(0, 1, 2, NA, 3, NA, 9, 4, -1, 0, 3, NA, 1, NA, -4, 3, NA, NA), nrow = 6, ncol = 3),
+      matrix(c(0, -1, 2, NA, 4, NA, 19, 5, 1, 0, 30, NA, 1, -1, NA, NA, NA, NA), nrow = 6, ncol = 3)
+    ),
+    tickers = c("PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3", "CAFE3"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
+    features_names = c("Alpha", "Beta"),
+    meta_dataframe_name = "bronze"
+  )
+
+  date_first_quote <- data.frame(
+    tickers = c("ABEV3", "VALE3", "PETR4", "RRRP3", "ENAT3", "CAFE3"),
+    date_first_quote = as.Date(c("1995-03-15", "1995-04-15", "1995-05-15", "1999-03-15", "1999-05-15", NA))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("CAFE3", "PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3"),
+    date_last_quote = as.Date(c(NA, "2001-05-15", "2001-05-15", "2001-05-15", "2001-05-15", "2001-05-15"))
+  )
+
+  first_tickers_catalog <- create_tickers_catalog(
+    raw_features_m_df = raw_features_m_df,
+    date_first_quote = date_first_quote,
+    date_last_quote = date_last_quote
+  )
+
+  #Results
+  expect_error(
+    read_tickers_catalog(data = meta_xts, tickers_catalog = first_tickers_catalog),
+    "Some tickers in returns_meta_xts are not present in tickers_catalog"
+  )
+
+  ###presence of olds
+  # A new batch of data arrives
+  new_raw_features_m_df <- create_meta_dataframe(
+    data = list(
+      matrix(c(1, 2, 3, 4, NA, NA, 1), nrow = 7, ncol = 1),
+      matrix(c(4, NA, 6, 7, NA, NA, 5), nrow = 7, ncol = 1)
+    ),
+    tickers = c("PETR4", "VALE3", "ABEV3", "BRAV3", "ENAT3", "CAFE3", "CMED3"),
+    dates = as.Date(c("2001-06-15")),
+    features_names = c("Alpha", "Beta"),
+    meta_dataframe_name = "bronze_20010615"
+  )
+
+  date_first_quote <- data.frame(
+    tickers = c("PETR4", "ABEV3", "BRAV3", "ENAT3", "CAFE3", "VALE3", "CMED3"),
+    date_first_quote = as.Date(c("1995-05-15", "1995-03-15", "1999-03-15", "1999-05-15", NA, "1995-04-15", "2001-05-18"))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("PETR4", "VALE3", "ABEV3", "BRAV3", "ENAT3", "CAFE3", "CMED3"),
+    date_last_quote = as.Date(c("2001-06-15", "2001-06-15", "2001-06-15", "2001-06-15", "2001-05-15", NA, "2001-06-15"))
+  )
+
+  new_tickers_catalog <- create_tickers_catalog(
+    raw_features_m_df = new_raw_features_m_df,
+    date_first_quote = date_first_quote,
+    date_last_quote = date_last_quote
+  )
+
+  # Create ticker_change
+  ticker_changes <- data.frame(
+    new_tickers = c("BRAV3"),
+    old_tickers = c("RRRP3"),
+    change_date = as.Date(c("2001-06-02"))
+  )
+
+  # Update catalog
+  new_catalog <- update_tickers_catalog(
+    old_tickers_catalog = first_tickers_catalog,
+    new_tickers_catalog = new_tickers_catalog,
+    ticker_changes = ticker_changes
+  )
+
+  #Recreate xts
+  set.seed(123)
+  new_xts <- xts::as.xts(
+    data.frame(
+      RRRP3 = rnorm(60, 1.5, 2),
+      PETR4 = rnorm(60, 1, 1),
+      VALE3 = rnorm(60, 2, 1),
+      ENAT3 = rnorm(60, 1, 1),
+      CAFE3 = rep(NA, 60),
+      ABEV3 = rnorm(60, 1, 1)
+    ),
+    order.by = seq.Date(from = as.Date("2001-04-17"), by = "days", length.out = 60)
+  )
+
+  #Create a meta_xts
+  expect_message(
+    expect_warning(
+      meta_xts <- create_meta_xts(new_xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
+                                  metric_name = "monthly_raw_returns", source = c("R", "P", "V", "E", "C", "A")),
+      "There are NA values in the time series."
+    ),
+    "Detected frequency is: daily"
+  )
+
+
+  ##Results
+  expect_error(
+    read_tickers_catalog(data = meta_xts, tickers_catalog = new_catalog),
+    "returns_meta_xts should not have 'old' tickers."
+  )
+
+  ###all tickers with last_quote > min date
+  #Recreate xts
+  set.seed(123)
+  new_xts <- xts::as.xts(
+    data.frame(
+      VALE3 = rnorm(60, 2, 1),
+      ENAT3 = rnorm(60, 1, 1),
+      CAFE3 = rep(NA, 60),
+      ABEV3 = rnorm(60, 1, 1)
+    ),
+    order.by = seq.Date(from = as.Date("2001-04-17"), by = "days", length.out = 60)
+  )
+
+  #Create a meta_xts
+  expect_message(
+    expect_warning(
+      meta_xts <- create_meta_xts(new_xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
+                                  metric_name = "monthly_raw_returns", source = c("V", "E", "C", "A")),
+      "There are NA values in the time series."
+    ),
+    "Detected frequency is: daily"
+  )
+
+
+  expect_error(
+    read_tickers_catalog(data = meta_xts, tickers_catalog = new_catalog),
+    "returns_meta_xts must contain all tickers with last_quote > minimum date of the time series."
+  )
+
 
 
 })

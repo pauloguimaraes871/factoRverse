@@ -226,8 +226,17 @@ setMethod(
         stop("Some tickers in returns_meta_xts are not present in tickers_catalog")
       }
       ##Check that no 'old' tickers are present
-      if (ncol(returns_meta_xts@data[, tickers_catalog@old, drop = FALSE]) > 0) {
+      if (any(tickers_catalog@old %in% colnames(returns_meta_xts@data))) {
         stop("returns_meta_xts should not have 'old' tickers.")
+      }
+      ##Check that all listed + delisted (with last_quote > first date in meta_xts) tickers are present
+      required_tickers <- tickers_catalog@catalog %>%
+        dplyr::filter(!untraded & !old) %>% #First remove untraded and old
+        dplyr::filter(tickers_last_quote > zoo::index(returns_meta_xts@data)[1]) %>% #Then filter by last_quote > first date in meta_xts
+        dplyr::pull(tickers)
+
+      if (any(!required_tickers %in% colnames(returns_meta_xts@data))) {
+        stop("returns_meta_xts must contain all tickers with last_quote > minimum date of the time series.")
       }
 
     ##############
