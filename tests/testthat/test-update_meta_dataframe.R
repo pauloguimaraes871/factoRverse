@@ -30,7 +30,7 @@ test_that("update_meta_dataframe works for a typical workflow (4 batches)", {
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -78,7 +78,7 @@ test_that("update_meta_dataframe works for a typical workflow (4 batches)", {
 
   #Second pre silver
   second_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = first_updated_catalog
   )
 
@@ -114,8 +114,8 @@ test_that("update_meta_dataframe works for a typical workflow (4 batches)", {
 
   #Check that workflows are as expected
   expect_equal(
-  first_update_presilver_features_m_df@workflow$`read_tickers_catalog_2001-05-15`,
-  first_pre_silver_features_m_df@workflow$`read_tickers_catalog_2001-05-15`
+    first_update_presilver_features_m_df@workflow$`read_tickers_catalog_2001-05-15`,
+    first_pre_silver_features_m_df@workflow$`read_tickers_catalog_2001-05-15`
   )
 
   expect_equal(
@@ -173,7 +173,7 @@ test_that("update_meta_dataframe works for a typical workflow (4 batches)", {
 
   # Third pre silver
   third_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = another_new_raw_features_m_df,
+    data = another_new_raw_features_m_df,
     tickers_catalog = second_updated_catalog
   )
 
@@ -274,7 +274,7 @@ test_that("update_meta_dataframe works for a typical workflow (4 batches)", {
 
   # Fourth pre silver
   fourth_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = once_again_new_features_m_df,
+    data = once_again_new_features_m_df,
     tickers_catalog = third_updated_catalog
   )
 
@@ -392,16 +392,16 @@ test_that("update_meta_dataframe works for a typical workflow (4 batches)", {
 
   # Update catalog
   suppressWarnings(
-  last_updated_catalog <- update_tickers_catalog(
-    old_tickers_catalog = third_updated_catalog,
-    new_tickers_catalog = once_again_new_tickers_catalog,
-    ticker_changes = ticker_changes
-  )
+    last_updated_catalog <- update_tickers_catalog(
+      old_tickers_catalog = third_updated_catalog,
+      new_tickers_catalog = once_again_new_tickers_catalog,
+      ticker_changes = ticker_changes
+    )
   )
 
   # Fifth pre silver
   fifth_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = last_new_features_m_df,
+    data = last_new_features_m_df,
     tickers_catalog = last_updated_catalog
   )
 
@@ -536,7 +536,7 @@ test_that("update_meta_dataframe throws an error when columns do not match", {
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -585,16 +585,16 @@ test_that("update_meta_dataframe throws an error when columns do not match", {
 
   #Second pre silver
   second_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = first_updated_catalog
   )
 
   #Update pre-silver
   expect_error(
     update_meta_dataframe(
-    old_features_m_df = first_pre_silver_features_m_df,
-    new_features_m_df = second_pre_silver_features_m_df
-  ), "Column names between old_features_m_df and new_features_m_df do not match."
+      old_features_m_df = first_pre_silver_features_m_df,
+      new_features_m_df = second_pre_silver_features_m_df
+    ), "Column names between old_features_m_df and new_features_m_df do not match."
   )
 
 
@@ -632,7 +632,7 @@ test_that("update_meta_dataframe throws an error when there are common ids or ti
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -680,7 +680,7 @@ test_that("update_meta_dataframe throws an error when there are common ids or ti
 
   #Second pre silver
   second_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = first_updated_catalog
   )
 
@@ -742,7 +742,7 @@ test_that("update_meta_dataframe throws an error when there are two dates in new
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -816,7 +816,7 @@ test_that("update_meta_dataframe throws an error when new current_date is > 1", 
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -864,7 +864,7 @@ test_that("update_meta_dataframe throws an error when new current_date is > 1", 
 
   #Second pre silver
   second_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = first_updated_catalog
   )
 
@@ -913,7 +913,7 @@ test_that("update_meta_dataframe throws an error when new name is not right", {
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -961,7 +961,7 @@ test_that("update_meta_dataframe throws an error when new name is not right", {
 
   #Second pre silver
   second_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = first_updated_catalog
   )
 
@@ -1010,7 +1010,7 @@ test_that("update_meta_dataframe throws an error when col classes are not right"
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -1058,7 +1058,7 @@ test_that("update_meta_dataframe throws an error when col classes are not right"
 
   #Second pre silver
   second_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = first_updated_catalog
   )
 
@@ -1142,7 +1142,7 @@ test_that("update_meta_dataframe throws an error when columns do not match", {
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -1190,7 +1190,7 @@ test_that("update_meta_dataframe throws an error when columns do not match", {
 
   #Second pre silver
   second_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = first_updated_catalog
   )
 
