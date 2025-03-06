@@ -477,7 +477,8 @@ setClass(
     workflow      = "ANY",
     n_dates       = "numeric",
     source        = "character",
-    frequency     = "character"
+    frequency     = "character",
+    current_date  = "Date"
   ),
   validity = function(object) {
     # The underlying data is in object@data
