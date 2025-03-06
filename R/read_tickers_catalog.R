@@ -1,24 +1,38 @@
-#' Apply tickers_catalog transformations to raw_features_m_df
+#' Apply tickers_catalog Transformations
 #'
-#' This function takes a `raw_features_m_df` object and a `tickers_catalog` object,
-#' applies transformations by mapping tickers in the `tickers` column of `raw_features_m_df`
-#' to their corresponding `perm_id` from `tickers_catalog`, and removes rows where the date
-#' is outside the valid trading range or the stock is classified as "untraded".
+#' This function takes a data object (either a \code{raw_features_m_df} or a \code{returns_meta_xts} object)
+#' along with a \code{tickers_catalog} object, and applies transformations that include:
+#' \itemize{
+#'   \item Mapping tickers (found in the \code{tickers} column or as xts column names) to their corresponding
+#'         \code{perm_id} from the \code{tickers_catalog}.
+#'   \item Removing rows (or columns, in the case of a \code{returns_meta_xts} object) with dates outside the valid
+#'         trading range, based on \code{tickers_first_quote} and \code{tickers_last_quote}.
+#'   \item Excluding tickers flagged as \code{untraded} (and, if applicable, \code{old}).
+#' }
 #'
-#' @param raw_features_m_df A `raw_features_m_df` object.
-#' @param tickers_catalog A `tickers_catalog` object.
-#' @param verbose A logical value indicating whether to print a summary of the removed rows.
+#' @param object A data object of class \code{raw_features_m_df} or \code{returns_meta_xts}.
+#' @param tickers_catalog A \code{tickers_catalog} object containing the catalog information, including
+#'   \code{perm_id}, \code{tickers_first_quote}, \code{tickers_last_quote}, and flags for \code{untraded}
+#'   (and \code{old}).
+#' @param verbose Logical; if \code{TRUE}, prints a summary of the tickers or rows that were removed.
 #'
-#' @return A modified `raw_features_m_df` object with tickers mapped to `perm_id` and invalid rows removed.
+#' @return A modified data object (of the same class as \code{object}) with tickers transformed to
+#'   \code{perm_id} and with invalid or unwanted data removed or set to \code{NA} according to the rules
+#'   defined in \code{tickers_catalog}.
 #'
 #' @export
-setGeneric("read_tickers_catalog", function(raw_features_m_df, tickers_catalog, ...) {
+setGeneric("read_tickers_catalog", function(data, tickers_catalog, ...) {
   standardGeneric("read_tickers_catalog")
 })
 
+#' @include read_tickers_catalog.R
+#' Method for raw_features_m_df signature
 setMethod("read_tickers_catalog",
-          signature(raw_features_m_df = "raw_features_m_df", tickers_catalog = "tickers_catalog"),
-          function(raw_features_m_df, tickers_catalog, verbose = TRUE) {
+          signature(data = "raw_features_m_df", tickers_catalog = "tickers_catalog"),
+          function(data, tickers_catalog, verbose = TRUE) {
+
+            #Pass data as raw_features_m_df
+            raw_features_m_df <- data
 
             #Initial checks
             #################
@@ -181,3 +195,140 @@ setMethod("read_tickers_catalog",
 
             return(pre_silver_features_m_df)
           })
+
+#' @include read_tickers_catalog.R
+#' Method for returns_meta_xts signature
+setMethod(
+  "read_tickers_catalog",
+  signature(data = "returns_meta_xts", tickers_catalog = "tickers_catalog"),
+  function(data, tickers_catalog, verbose = TRUE) {
+
+    #Pass data as returns_meta_xts
+    returns_meta_xts <- data
+
+    #Initial checks
+    ################
+      ##Check that year and month of versions match
+      if (lubridate::year(returns_meta_xts@current_date) != lubridate::year(tickers_catalog@current_date) ||
+          lubridate::month(returns_meta_xts@current_date) != lubridate::month(tickers_catalog@current_date)) {
+        stop("The year and month of returns_meta_xts do not match the ones in tickers_catalog")
+      }
+      ##Check that day match and just warn if it does not
+      if (lubridate::day(returns_meta_xts@current_date) != lubridate::day(tickers_catalog@current_date)) {
+        warning("The day of returns_meta_xts does not match the one in tickers_catalog")
+      }
+      ##Check that day of returns_meta_xts is not higher than the one in tickers_catalog
+      if (lubridate::day(returns_meta_xts@current_date) > lubridate::day(tickers_catalog@current_date)) {
+        stop("The day of returns_meta_xts is higher than the one in tickers_catalog")
+      }
+      ##Check if returns_meta_xts contains tickers not present in tickers_catalog
+      if (any(!colnames(returns_meta_xts@data) %in% tickers_catalog@catalog$tickers)) {
+        stop("Some tickers in returns_meta_xts are not present in tickers_catalog")
+      }
+      ##Check that no 'old' tickers are present
+      if (ncol(returns_meta_xts@data[, tickers_catalog@old, drop = FALSE]) > 0) {
+        stop("returns_meta_xts should not have 'old' tickers.")
+      }
+
+    ##############
+
+    #Extract and adjust relevant data
+    ###############
+      ##Meta xts
+      meta_xts_name <- returns_meta_xts@meta_xts_name
+      current_date <- returns_meta_xts@current_date
+      asset_type <- returns_meta_xts@asset_type
+      metric_name <- returns_meta_xts@metric_name
+      meta_xts_workflow <- returns_meta_xts@workflow
+      source <- returns_meta_xts@source
+
+      returns_meta_xts <- returns_meta_xts@data
+
+      ##Tickers and dates
+      current_tickers <- colnames(returns_meta_xts)
+      names(source) <- current_tickers
+      dates_xts <- zoo::index(returns_meta_xts)
+
+      ##Catalog
+      catalog <- tickers_catalog@catalog
+
+    ###############
+
+    #Map current tickers to catalog rows using match
+    ###############
+      ##Get mapping
+      mapping <- match(current_tickers, catalog$tickers)
+
+      ##Identify tickers to keep: those not marked as untraded
+      valid <- !catalog$untraded[mapping]
+      if (any(!valid)) {
+        ###Get removed tickers
+        removed_untraded_tickers <- current_tickers[!valid]
+
+        ###Print
+        if (verbose) message("Removed tickers classified as untraded: ", paste(removed_untraded_tickers, collapse = ", "))
+
+        ###Subset the xts data to keep only valid tickers
+        returns_meta_xts <- returns_meta_xts[, valid, drop = FALSE]
+
+        ###Update current_tickers, source and mapping accordingly
+        current_tickers <- current_tickers[valid]
+        source <- source[current_tickers]
+        mapping <- mapping[valid]
+     }
+
+      ##Rename columns using the perm_id from the catalog
+      new_names <- catalog$perm_id[mapping]
+      colnames(returns_meta_xts) <- new_names
+    ###############
+
+    #For each remaining ticker column, set observations to NA when outside the valid trading range.
+    ###############
+      ##Initialize a summary vector for NA transformations per ticker
+      na_imputation_summary <- setNames(integer(length(new_names)), new_names)
+
+      ##Loop through cols
+      for (i in seq_along(new_names)) {
+        ###Get valid trading dates from the catalog for the current ticker
+        first_quote <- as.Date(catalog$tickers_first_quote[mapping[i]])
+        last_quote  <- as.Date(catalog$tickers_last_quote[mapping[i]])
+
+        ###Identify rows where the observation date is before first_quote or after last_quote.
+        ###If first_quote or last_quote are NA, the corresponding condition is not applied.
+        out_before <- if (!is.na(first_quote)) which(dates_xts < first_quote) else integer(0)
+        out_after  <- if (!is.na(last_quote))  which(dates_xts > last_quote)  else integer(0)
+        out_idx <- union(out_before, out_after)
+
+        ###Update the summary with the number of rows transformed to NA
+        na_imputation_summary[new_names[i]] <- length(out_idx)
+
+        ###Set the observations to NA
+        if (length(out_idx) > 0) {
+          returns_meta_xts[out_idx, i] <- NA
+        }
+      }
+   ###############
+
+  #Update the meta_xts object's data slot and return the modified object
+  ###############
+  names(na_imputation_summary) <- lookup_catalog(tickers_catalog, perm_id_to_lookup = names(na_imputation_summary)) %>% unname()
+  new_workflow <-
+        list(
+          list(current_date = current_date, #Current date
+               timestamp = Sys.time(), #Timestamp
+               removed_untraded_tickers = removed_untraded_tickers, #Tickers removed
+               na_imputation_summary = na_imputation_summary
+               )
+        )
+
+  pre_silver_returns_meta_xts <- create_meta_xts(data = returns_meta_xts, type = "returns", asset_type = asset_type,
+                                                 metric_name = metric_name, meta_xts_name = meta_xts_name,
+                                                 workflow = c(meta_xts_workflow, new_workflow), source = source
+  )
+
+  names(pre_silver_returns_meta_xts@workflow)[length(pre_silver_returns_meta_xts@workflow)] <- paste0("read_tickers_catalog_", current_date)
+
+  return(pre_silver_returns_meta_xts)
+
+  }
+)

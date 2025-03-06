@@ -1,3 +1,4 @@
+#meta_dataframe signature
 test_that("read_tickers_catalog works for a first meta_dataframe with only untraded", {
 
   # Initial raw_features_m_df
@@ -28,7 +29,7 @@ test_that("read_tickers_catalog works for a first meta_dataframe with only untra
   )
 
   results <- read_tickers_catalog(
-    raw_features_m_df = raw_features_m_df,
+    data = raw_features_m_df,
     tickers_catalog = tickers_catalog
   )
 
@@ -115,7 +116,7 @@ test_that("read_tickers_catalog works for a first meta_dataframe with only delis
   )
 
   results <- read_tickers_catalog(
-    raw_features_m_df = raw_features_m_df,
+    data = raw_features_m_df,
     tickers_catalog = tickers_catalog
   )
 
@@ -165,7 +166,7 @@ test_that("read_tickers_catalog works for a first meta_dataframe with only delis
   expect_equal(
     results@data %>% dplyr::filter(tickers %in% tickers_catalog@perm_id[c("CAFE3")]) %>%
       dplyr::group_by(tickers) %>% dplyr::summarise(n = dplyr::n()) %>% dplyr::pull(n),
-   3
+    3
   )
 
 
@@ -202,7 +203,7 @@ test_that("read_tickers_catalog works for a first meta_dataframe with no deliste
   )
 
   results <- read_tickers_catalog(
-    raw_features_m_df = raw_features_m_df,
+    data = raw_features_m_df,
     tickers_catalog = tickers_catalog
   )
 
@@ -275,7 +276,7 @@ test_that("read_tickers_catalog works for a first meta_datafame with untraded an
   )
 
   results <- read_tickers_catalog(
-    raw_features_m_df = raw_features_m_df,
+    data = raw_features_m_df,
     tickers_catalog = tickers_catalog
   )
 
@@ -359,7 +360,7 @@ test_that("read_tickers_catalog works for a first meta_datafame with untraded an
   )
 
   results <- read_tickers_catalog(
-    raw_features_m_df = raw_features_m_df,
+    data = raw_features_m_df,
     tickers_catalog = tickers_catalog
   )
 
@@ -445,7 +446,7 @@ test_that("read_tickers_catalog works for a batch meta_dataframe with two ticker
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = first_raw_features_m_df,
+    data = first_raw_features_m_df,
     tickers_catalog = first_tickers_catalog
   )
 
@@ -501,7 +502,7 @@ test_that("read_tickers_catalog works for a batch meta_dataframe with two ticker
 
   # Get pre silver for new batch
   new_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = new_catalog
   )
 
@@ -556,7 +557,7 @@ test_that("read_tickers_catalog works for a ticker changing ticker and being sim
 
   #First pre silver
   first_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = old_raw_features_m_df,
+    data = old_raw_features_m_df,
     tickers_catalog = old_tickers_catalog
   )
 
@@ -612,7 +613,7 @@ test_that("read_tickers_catalog works for a ticker changing ticker and being sim
 
   #Second pre silver
   second_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = first_updated_catalog
   )
 
@@ -678,7 +679,7 @@ test_that("read_tickers_catalog works for a ticker changing ticker and being sim
 
   #Third pre silver
   third_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = another_new_raw_features_m_df,
+    data = another_new_raw_features_m_df,
     tickers_catalog = second_updated_catalog
   )
 
@@ -738,7 +739,7 @@ test_that("read_tickers_catalog works for a ticker changing ticker and being sim
 
   #Fourth pre silver
   fourth_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = once_again_new_features_m_df,
+    data = once_again_new_features_m_df,
     tickers_catalog = third_updated_catalog
   )
 
@@ -810,7 +811,7 @@ test_that("read_tickers_catalog works for a ticker changing ticker and being sim
 
   #Last pre silver
   last_pre_silver_features_m_df <- read_tickers_catalog(
-    raw_features_m_df = the_last_new_features_m_df,
+    data = the_last_new_features_m_df,
     tickers_catalog = fourth_updated_catalog
   )
 
@@ -1044,7 +1045,7 @@ test_that("read_tickers_catalog works for an untraded changing ticker (no new pe
 
   #RESULTS
   results <- read_tickers_catalog(
-    raw_features_m_df = once_again_new_features_m_df,
+    data = once_again_new_features_m_df,
     tickers_catalog = last_update
   )
 
@@ -1126,7 +1127,7 @@ test_that("read_tickers_catalog works for an untraded IPO ticker", {
 
   #@RESULTS
   results <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = updated_catalog
   )
 
@@ -1208,7 +1209,7 @@ test_that("read_tickers_catalog works for an delisted IPO ticker", {
 
   #results
   results <- read_tickers_catalog(
-    raw_features_m_df = new_raw_features_m_df,
+    data = new_raw_features_m_df,
     tickers_catalog = updated
   )
 
@@ -1253,7 +1254,7 @@ test_that("read_tickers_catalog works real data", {
   tickers_catalog <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote)
 
   #Apply function
-  results <- read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog)
+  results <- read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog)
 
   #Check that untraded are NOT present
   expect_true(all(!tickers_catalog@untraded %in% lookup_catalog(tickers_catalog, perm_id_to_lookup = results@data$ticker)))
@@ -1311,7 +1312,7 @@ test_that("read_tickers_catalog works real data", {
   #Change catalog
   tickers_catalog@catalog$tickers_first_quote[3] <- "2023-08-15" %>% as.Date()
 
-  results2 <- read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog)
+  results2 <- read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog)
   abcb4_madeup <- results2@data %>% dplyr::filter(tickers == "0855dfb2d5", dates == "2023-07-15")
 
   expect_equal(nrow(abcb4_madeup), 0)
@@ -1322,7 +1323,7 @@ test_that("read_tickers_catalog works real data", {
 
   #Change catalog
   tickers_catalog@catalog$tickers_last_quote[3] <- "2023-08-15" %>% as.Date()
-  results2 <- read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog)
+  results2 <- read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog)
   abcb4_madeup <- results2@data %>% dplyr::filter(tickers == "0855dfb2d5", dates == "2023-09-15")
 
   expect_equal(nrow(abcb4_madeup), 0)
@@ -1367,12 +1368,12 @@ test_that("read_tickers_catalog correctly responds to n_days_tolerance", {
                                             n_days_tolerance = 10)
 
   #Apply function
-  results <- read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog)
+  results <- read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog)
 
   #Change tickers catalog
   tickers_catalog2 <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote,
                                             n_days_tolerance = 1)
-  results2 <- read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog2)
+  results2 <- read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog2)
 
   #Check that EALT3 is now out
   expect_equal(nrow(results@data %>% dplyr::filter(tickers == "9ac40e33b6", dates == "2023-09-15")), 1)
@@ -1430,7 +1431,7 @@ test_that("read_tickers_catalog throws an error when versions do not match", {
 
   #But uses an outdated catalog
   expect_error(
-    read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog),
+    read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog),
     "The current_date of raw_features_m_df does not match the one in tickers_catalog"
   )
 
@@ -1451,7 +1452,7 @@ test_that("read_tickers_catalog throws an error when versions do not match", {
                                              meta_dataframe_name = "other_name")
 
   expect_error(
-    read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog),
+    read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog),
     "The meta_dataframe_name of raw_features_m_df does not match the one in tickers_catalog"
   )
 
@@ -1496,7 +1497,7 @@ test_that("read_tickers_catalog throws an error when there are tickers not in ca
   raw_features_m_df@data$tickers[1] <- "TIMS3"
   #Apply function
   expect_error(
-  read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog),
+  read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog),
   "Some tickers in raw_features_m_df are not present in tickers_catalog"
   )
 
@@ -1511,7 +1512,7 @@ test_that("read_tickers_catalog throws an error when there are tickers not in ca
   tickers_catalog@old <- "ABCB4"
 
   expect_error(
-  read_tickers_catalog(raw_features_m_df = raw_features_m_df, tickers_catalog = tickers_catalog),
+  read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog),
   "raw_features_m_df should not have 'old' tickers."
   )
 
@@ -1519,4 +1520,208 @@ test_that("read_tickers_catalog throws an error when there are tickers not in ca
 
 })
 
+#meta_xts signature
+test_that("read_tickers_catalog works for meta_xts with untraded but no wrong data", {
+
+  #xts
+  set.seed(123)
+  xts <- xts::as.xts(
+    data.frame(
+      RRRP3 = rnorm(30, 1.5, 2),
+      PETR4 = rnorm(30, 1, 1),
+      VALE3 = rnorm(30, 2, 1),
+      ENAT3 = rnorm(30, 1, 1),
+      CAFE3 = rep(NA, 30),
+      ABEV3 = rnorm(30, 1, 1)
+    ),
+    order.by = seq.Date(from = as.Date("2001-04-16"), by = "days", length.out = 30)
+  )
+
+  #Create a meta_xts
+  expect_message(
+  expect_warning(
+  meta_xts <- create_meta_xts(xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
+                              metric_name = "monthly_raw_returns", source = c("R", "P", "V", "E", "C", "A")),
+  "There are NA values in the time series."
+  ),
+  "Detected frequency is: daily"
+  )
+
+  #meta_dataframe
+  raw_features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 1, 2, NA, 3, NA, 9, 4, -1, 0, 3, NA, 1, NA, -4, 3, NA, NA), nrow = 6, ncol = 3),
+      matrix(c(0, -1, 2, NA, 4, NA, 19, 5, 1, 0, 30, NA, 1, -1, NA, NA, NA, NA), nrow = 6, ncol = 3)
+    ),
+    c("PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3", "CAFE3"),
+    as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
+    c("Alpha", "Beta")
+  )
+
+  date_first_quote <- data.frame(
+    tickers = c("ABEV3", "VALE3", "PETR4", "RRRP3", "ENAT3", "CAFE3"),
+    date_first_quote = as.Date(c("1995-03-15", "1995-04-15", "1995-05-15", "1999-03-15", "1999-05-15", NA))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("CAFE3", "PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3"),
+    date_last_quote = as.Date(c(NA, "2001-05-15", "2001-05-15", "2001-05-15", "2001-05-15", "2001-05-15"))
+  )
+
+  tickers_catalog <- create_tickers_catalog(
+    raw_features_m_df = raw_features_m_df,
+    date_first_quote = date_first_quote,
+    date_last_quote = date_last_quote
+  )
+
+  #Results
+  results <- read_tickers_catalog(data = meta_xts, tickers_catalog = tickers_catalog)
+
+  #Check that perm id has been correctly assigned
+  expect_equal(
+    lookup_catalog(tickers_catalog = tickers_catalog, tickers_to_lookup = colnames(xts)[-5]) %>% unname(),
+    colnames(results@data)
+  )
+  expect_equal(
+    results@data$`969418e9ac` %>% as.vector(),
+    xts$RRRP3 %>% as.vector()
+  )
+  expect_equal(
+    results@data$`8b262b3a61` %>% as.vector(),
+    xts$PETR4 %>% as.vector()
+  )
+  expect_equal(
+    results@data$`7ec9e2499b` %>% as.vector(),
+    xts$VALE3 %>% as.vector()
+  )
+  expect_equal(
+    results@data$`b0db03a7f1` %>% as.vector(),
+    xts$ABEV3 %>% as.vector()
+  )
+  expect_equal(
+    results@data$`a8c3dfecae` %>% as.vector(),
+    xts$ENAT3 %>% as.vector()
+  )
+
+  #Check that CAFE3 was eliminated
+  expect_false(
+    lookup_catalog(tickers_catalog, "CAFE3") %>% unname() %in% colnames(results@data)
+  )
+
+})
+
+
+test_that("read_tickers_catalog works for meta_xts with untraded AND wrong data", {
+
+  #xts
+  set.seed(123)
+  xts <- xts::as.xts(
+    data.frame(
+      RRRP3 = rnorm(30, 1.5, 2),
+      PETR4 = rnorm(30, 1, 1),
+      VALE3 = rnorm(30, 2, 1),
+      ENAT3 = rnorm(30, 1, 1),
+      CAFE3 = rep(NA, 30),
+      ABEV3 = rnorm(30, 1, 1)
+    ),
+    order.by = seq.Date(from = as.Date("2001-04-16"), by = "days", length.out = 30)
+  )
+
+  #Create a meta_xts
+  expect_message(
+    expect_warning(
+      meta_xts <- create_meta_xts(xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
+                                  metric_name = "monthly_raw_returns", source = c("R", "P", "V", "E", "C", "A")),
+      "There are NA values in the time series."
+    ),
+    "Detected frequency is: daily"
+  )
+
+  #meta_dataframe
+  raw_features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 1, 2, NA, 3, NA, 9, 4, -1, 0, 3, NA, 1, NA, -4, 3, NA, NA), nrow = 6, ncol = 3),
+      matrix(c(0, -1, 2, NA, 4, NA, 19, 5, 1, 0, 30, NA, 1, -1, NA, NA, NA, NA), nrow = 6, ncol = 3)
+    ),
+    c("PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3", "CAFE3"),
+    as.Date(c("2001-03-15", "2001-04-15", "2001-05-15")),
+    c("Alpha", "Beta")
+  )
+
+  date_first_quote <- data.frame(
+    tickers = c("ABEV3", "VALE3", "PETR4", "RRRP3", "ENAT3", "CAFE3"),
+    date_first_quote = as.Date(c("1995-03-15", "1995-04-15", "1995-05-15", "1999-03-15", "2001-04-20", NA))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("CAFE3", "PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3"),
+    date_last_quote = as.Date(c(NA, "2001-05-15", "2001-05-15", "2001-05-15", "2001-05-05", "2001-05-15"))
+  )
+
+  tickers_catalog <- create_tickers_catalog(
+    raw_features_m_df = raw_features_m_df,
+    date_first_quote = date_first_quote,
+    date_last_quote = date_last_quote
+  )
+
+  #Results
+  expect_warning(
+  results <- read_tickers_catalog(data = meta_xts, tickers_catalog = tickers_catalog),
+  "There are NA values in the time series."
+  )
+
+  #Check that perm id has been correctly assigned
+  expect_equal(
+    lookup_catalog(tickers_catalog = tickers_catalog, tickers_to_lookup = colnames(xts)[-5]) %>% unname(),
+    colnames(results@data)
+  )
+  #RRRP3 should be corrected
+  RRRP3corrected <- xts$RRRP3
+  RRRP3corrected[c(21:30)] <- NA
+  expect_equal(
+    results@data$`969418e9ac` %>% as.vector(),
+    RRRP3corrected %>% as.vector()
+  )
+  expect_equal(
+    results@data$`8b262b3a61` %>% as.vector(),
+    xts$PETR4 %>% as.vector()
+  )
+  expect_equal(
+    results@data$`7ec9e2499b` %>% as.vector(),
+    xts$VALE3 %>% as.vector()
+  )
+  expect_equal(
+    results@data$`b0db03a7f1` %>% as.vector(),
+    xts$ABEV3 %>% as.vector()
+  )
+  #ENAT3 should be corrected
+  ENAT3corrected <- xts$ENAT3
+  ENAT3corrected[c(1:4)] <- NA
+
+  expect_equal(
+    results@data$b9f91b24e4 %>% as.vector(),
+    ENAT3corrected %>% as.vector()
+  )
+
+  #Check that CAFE3 was eliminated
+  expect_false(
+    lookup_catalog(tickers_catalog, "CAFE3") %>% unname() %in% colnames(results@data)
+  )
+
+  #Check for removal
+  expect_equal(
+    results@workflow$`read_tickers_catalog_2001-05-15`$removed_untraded_tickers,
+    "CAFE3"
+  )
+  expect_equal(
+    results@workflow$`read_tickers_catalog_2001-05-15`$na_imputation_summary["RRRP3"],
+    c(RRRP3 = length(c(21:30)))
+  )
+  expect_equal(
+    results@workflow$`read_tickers_catalog_2001-05-15`$na_imputation_summary["ENAT3"],
+    c(ENAT3 = length(c(1:4)))
+  )
+
+
+})
 
