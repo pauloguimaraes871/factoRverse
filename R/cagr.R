@@ -18,7 +18,7 @@ cagr <- function(begin, final, period){
     stop("Period must be greater than zero.")
   }
 
-    if(is.na(begin) == TRUE | is.na(final) == TRUE){ #Checks for NAs
+  if(is.na(begin) == TRUE | is.na(final) == TRUE){ #Checks for NAs
     calculated_cagr <- NA_real_
 
   } else {
@@ -40,6 +40,6 @@ cagr <- function(begin, final, period){
     if(final <= 0 & begin >= 0){
       calculated_cagr <- (-1) * (((abs(final) + 2 * begin)/begin)^(1/period) - 1)
     }
-    return(calculated_cagr)
   }
+  return(calculated_cagr)
 }

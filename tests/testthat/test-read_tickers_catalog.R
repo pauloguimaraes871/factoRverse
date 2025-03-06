@@ -802,7 +802,7 @@ test_that("read_tickers_catalog works for a ticker changing ticker and being sim
 
   # Update catalog
   expect_warning(
-     fourth_updated_catalog <- update_tickers_catalog(
+    fourth_updated_catalog <- update_tickers_catalog(
       old_tickers_catalog = third_updated_catalog,
       new_tickers_catalog = the_last_tickers_catalog,
       ticker_changes = ticker_changes
@@ -1118,11 +1118,11 @@ test_that("read_tickers_catalog works for an untraded IPO ticker", {
 
   # Update catalog
   suppressWarnings(
-      updated_catalog <- update_tickers_catalog(
-        old_tickers_catalog = old_tickers_catalog,
-        new_tickers_catalog = new_tickers_catalog,
-        ticker_changes = ticker_changes
-      )
+    updated_catalog <- update_tickers_catalog(
+      old_tickers_catalog = old_tickers_catalog,
+      new_tickers_catalog = new_tickers_catalog,
+      ticker_changes = ticker_changes
+    )
   )
 
   #@RESULTS
@@ -1288,8 +1288,8 @@ test_that("read_tickers_catalog works real data", {
 
   #Check that the number of columns with more than 0 is always 1
   expect_equal(
-  results@workflow$`read_tickers_catalog_2023-09-15`$row_removal_summary[,-1] %>% apply(1, function(x) length(which(x != 0))) %>% unique(),
-  1)
+    results@workflow$`read_tickers_catalog_2023-09-15`$row_removal_summary[,-1] %>% apply(1, function(x) length(which(x != 0))) %>% unique(),
+    1)
 
   #Check that stocks with last_quote is before current_date are not present
   expect_equal(nrow(

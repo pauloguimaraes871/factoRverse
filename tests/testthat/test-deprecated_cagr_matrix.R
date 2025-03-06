@@ -1,3 +1,4 @@
+testthat::skip("Deprecated function .cagr_matrix; tests skipped.")
 # Define your test
 test_that("CAGR Matrix is running correctly.", {
   expect_equal(

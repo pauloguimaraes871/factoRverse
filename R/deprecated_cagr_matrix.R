@@ -20,14 +20,17 @@
 #'
 #' If the initial value is zero, the CAGR is set to `NA` to avoid division by zero errors.
 #'
-#' @export
 #'
 #' @examples
 #' matrix_begin <- matrix(c(100, 200, 300, 400), nrow = 2)
 #' matrix_final <- matrix(c(150, 250, 350, 450), nrow = 2)
 #' period <- 1
 #' cagr_matrix(matrix_begin, matrix_final, period)
-cagr_matrix <- function(matrix_begin, matrix_final, period) {
+#' ' **Deprecated:** This function is no longer available to users. Use [compute_cagr()] for computing CAGR on a meta_dataframe.
+#'
+#' @keywords internal
+#' @noRd
+.cagr_matrix <- function(matrix_begin, matrix_final, period) {
 
   # Check that all inputs are either matrices, data frames, or tibbles
   if (!all(sapply(list(matrix_begin, matrix_final), function(mat) {
@@ -59,8 +62,8 @@ cagr_matrix <- function(matrix_begin, matrix_final, period) {
   # Calculate CAGR for each element
   for (i in 1:nrow(matrix_begin)) {
     for (j in 1:ncol(matrix_begin)) {
-        cagr_matrix[i, j] <- (matrix_final[i, j] / matrix_begin[i, j])^(1 / period) - 1
-      }
+      cagr_matrix[i, j] <- (matrix_final[i, j] / matrix_begin[i, j])^(1 / period) - 1
+    }
   }
 
   return(cagr_matrix)
