@@ -1171,7 +1171,7 @@ setMethod(
 
 
 
-#meta_xts----------------------------------------------------------------
+# meta_xts----------------------------------------------------------------
 
 #' Create a meta_xts, assets_meta_xts or metrics_meta_xts object.
 #'
@@ -1214,16 +1214,29 @@ setMethod(
 #' validObject(obj_metrics)
 #' }
 #'
-#' @importFrom xts periodicity
-#' @importFrom methods new
 #' @export
-create_meta_xts <- function(data,
-                            type = c("returns", "metrics"),
-                            asset_type = "not_identified",
-                            meta_xts_name = "not_identified",
-                            metric_name = NULL,
-                            workflow = NULL,
-                            source = NULL) {
+setGeneric(
+  "create_meta_xts",
+  function(data, type = c("returns", "metrics"), asset_type = "not_identified", meta_xts_name = "not_identified",
+           metric_name = NULL, workflow = NULL, source = NULL, ...) {
+    standardGeneric("create_meta_xts")
+  }
+)
+
+
+
+# Define the method for when 'data' is an 'xts' object
+setMethod(
+  "create_meta_xts",
+  signature(data = "xts"),
+  function(data,
+           type = c("returns", "metrics"),
+           asset_type = "not_identified",
+           meta_xts_name = "not_identified",
+           metric_name = NULL,
+           workflow = NULL,
+           source = NULL) {
+
   # Match 'type' argument
   type <- match.arg(type)
 
@@ -1283,7 +1296,113 @@ create_meta_xts <- function(data,
 
   # Return the newly created object
   return(obj)
-}
+})
+
+# Define the method for when 'data' is a data.frame
+setMethod(
+  "create_meta_xts",
+  signature(data = "data.frame"),
+  function(data,
+           type = c("returns", "metrics"),
+           asset_type = "not_identified",
+           meta_xts_name = "not_identified",
+           metric_name = NULL,
+           workflow = NULL,
+           source = NULL,
+           data_format = c("wide", "long"),
+           dates = NULL) {
+
+    data_format <- match.arg(data_format)
+    type <- match.arg(type)
+
+    if (data_format == "wide") {
+      # For wide format, first check if 'dates' argument is provided.
+      if (!is.null(dates)) {
+        date_vec <- as.Date(dates)
+      } else if ("dates" %in% colnames(data)) {
+        date_vec <- as.Date(data[["dates"]])
+        # Remove the dates column from data before conversion
+        data <- data[, setdiff(colnames(data), "dates"), drop = FALSE]
+      } else {
+        date_vec <- NULL
+      }
+      # Error check: ensure we have valid dates
+      if (length(date_vec) == 0 || all(is.na(date_vec))) {
+        stop("Error: No valid dates found. Please provide a 'dates' column or pass a 'dates' argument.")
+      }
+
+      data_xts <- xts::as.xts(data, order.by = date_vec)
+      # Delegate to the xts method
+      return(create_meta_xts(data = data_xts,
+                             type = type,
+                             asset_type = asset_type,
+                             meta_xts_name = meta_xts_name,
+                             metric_name = metric_name,
+                             workflow = workflow,
+                             source = source))
+    } else { # data_format == "long"
+      # For long format, verify required columns exist.
+      if (!all(c("tickers", "dates") %in% colnames(data))) {
+        stop("Error: For long format, the data.frame must contain 'tickers' and 'dates' columns.")
+      }
+
+      # Eliminate 'id' column if it exists
+      data <- data %>% dplyr::select(-dplyr::any_of("id"))
+
+      # Identify feature columns (excluding 'tickers' and 'dates')
+      feature_cols <- setdiff(colnames(data), c("tickers", "dates"))
+      n_features <- length(feature_cols)
+      # If metric_name is provided as a vector, check that its length matches the number of feature columns.
+      if (!is.null(metric_name) && length(metric_name) > 1 && length(metric_name) != n_features) {
+        stop("Error: When data_format is 'long' and metric_name is provided as a vector, its length must equal the number of feature columns.")
+      }
+
+      result_list <- list()
+      for (feat in feature_cols) {
+        # Pivot the data: tickers become columns and dates are the id column
+        wide_df <- tidyr::pivot_wider(data,
+                                      id_cols = dates,
+                                      names_from = tickers,
+                                      values_from = dplyr::all_of(feat))
+        # Use provided dates if available; otherwise use the pivoted 'dates' column.
+        if (!is.null(dates)) {
+          date_vec <- as.Date(dates)
+        } else {
+          date_vec <- as.Date(wide_df[["dates"]])
+        }
+        # Error check for valid dates in the long branch
+        if (length(date_vec) == 0 || all(is.na(date_vec))) {
+          stop("Error: No valid dates found in pivoted data. Please check your 'dates' column or provide a 'dates' argument.")
+        }
+        wide_data <- wide_df[, setdiff(colnames(wide_df), "dates"), drop = FALSE]
+        data_xts <- xts::as.xts(wide_data, order.by = date_vec)
+
+        # Set the metric name: use the feature name if metric_name is NULL,
+        # or append the feature name to the provided metric_name.
+        current_metric_name <- if (is.null(metric_name)) feat else paste(metric_name, feat, sep = "_")
+
+        # Create the meta_xts object using the xts method.
+        obj <- create_meta_xts(data = data_xts,
+                               type = type,
+                               asset_type = asset_type,
+                               meta_xts_name = meta_xts_name,
+                               metric_name = current_metric_name,
+                               workflow = workflow,
+                               source = source)
+        result_list[[feat]] <- obj
+      }
+
+      # Return a single object if only one feature is present; otherwise, return the list.
+      if (length(result_list) == 1) {
+        return(result_list[[1]])
+      } else {
+        return(result_list)
+      }
+    }
+  }
+)
+
+
 
 
 #-----------------------------------------------------------------------
