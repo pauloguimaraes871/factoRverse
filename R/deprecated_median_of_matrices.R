@@ -17,7 +17,6 @@
 #' of input matrices. It is designed to work seamlessly with data frames and tibbles
 #' by converting them to matrices before processing.
 #'
-#' @export
 #'
 #' @examples
 #' median_of_matrices(
@@ -30,8 +29,12 @@
 #'   tibble::as_tibble(matrix(c(1, 2, 3, 4), nrow = 2, ncol = 2)),
 #'   tibble::as_tibble(matrix(c(5, 6, 7, 8), nrow = 2, ncol = 2)),
 #'   tibble::as_tibble(matrix(c(1, 1, 1, 1), nrow = 2, ncol = 2))
-#' )
-median_of_matrices <- function(...) {
+#' ' **Deprecated:** This function is no longer available to users. Use [compute_cagr()] for computing CAGR on a meta_dataframe.
+#'
+#' @keywords internal
+#' @noRd
+
+.median_of_matrices <- function(...) {
 
   matrices <- list(...)  # Capture all input matrices, data frames, and tibbles
 

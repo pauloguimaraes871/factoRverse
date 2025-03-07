@@ -1,3 +1,4 @@
+testthat::skip("Deprecated function .median_of_matrices; tests skipped.")
 # Define your test
 test_that("median_of_matrices is running correctly.", {
   expect_equal(

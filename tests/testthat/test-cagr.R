@@ -130,4 +130,22 @@ test_that("CAGR is running correctly with extremely small values.", {
   expect_equal(cagr(1e-20, 2e-20, 1), 1)
 })
 
+# Define your test
+test_that("CAGR is running correctly with Infs", {
+  expect_equal(cagr(Inf, 2, 1), -1)
+  expect_equal(cagr(2, Inf, 1), Inf)
+  expect_equal(cagr(Inf, Inf, 1), NA_real_)
+  expect_equal(cagr(-Inf, -2, 1), 1)
+  expect_equal(cagr(-2, -Inf, 1), -Inf)
+  expect_equal(cagr(-Inf, -Inf, 1), NA_real_)
+  expect_equal(cagr(-Inf, 2, 1), NA_real_)
+  expect_equal(cagr(-2, Inf, 1), Inf)
+  expect_equal(cagr(-Inf, Inf, 1), NA_real_)
+  expect_equal(cagr(Inf, -2, 1), NA_real_)
+  expect_equal(cagr(2, -Inf, 1), -Inf)
+  expect_equal(cagr(Inf, -Inf, 1), NA_real_)
+
+
+})
+
 

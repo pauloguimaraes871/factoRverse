@@ -25,7 +25,7 @@
 #' # Calculate idiosyncratic volatility
 #' idio_volatility <- idio_vol(vol_assets, vol_bench, beta_bench)
 #' idio_volatility
-idio_vol <- function(vol_assets, vol_bench, beta_bench){
+.idio_vol <- function(vol_assets, vol_bench, beta_bench){
 
   # Check that all inputs are either matrices, data frames, or tibbles
   if (!all(sapply(list(vol_assets, vol_bench, beta_bench), function(mat) {
