@@ -393,7 +393,7 @@ res_mom <- function(ret_values, bench_ret_values, na.rm = TRUE) {
 
   # Fit a linear model: returns ~ benchmark returns
   ###########
-  reg <- stats::lm(ret_values ~ bench_ret_values) # Fit linear regression
+  reg <- stats::lm(ret_values ~ bench_ret_values - 1) # Fit linear regression without intercept
   residuals <- stats::residuals(reg) # Get residuals
   residuals_sum <- sum(residuals, na.rm = na.rm) # Sum of residuals
   residuals_sd  <- stats::sd(residuals, na.rm = na.rm) # Standard deviation of residuals
