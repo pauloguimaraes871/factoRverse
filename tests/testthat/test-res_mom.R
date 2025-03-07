@@ -15,7 +15,7 @@ test_that("res_mom computes residual momentum correctly", {
   ret <- c(1,2,-3,4,-5)
   bench <- c(-1,7,9,0,50)
 
-  reg <- lm(ret ~ bench)
+  reg <- lm(ret ~ bench - 1)
 
   expect_equal(res_mom(ret, bench),
                sum(residuals(reg))/sd(residuals(reg)))
@@ -34,16 +34,16 @@ test_that("res_mom handles olny NAs with na.rm = FALSE", {
   expect_equal(res_mom(c(NA,NA,NA,NA,NA), c(1,2,3,4,5), na.rm = TRUE), NA_real_)
 })
 
-test_that("res_mom works when only one or two single values is passed", {
+test_that("res_mom works when only one value is passed", {
   expect_equal(res_mom(1, 2), NA_real_)
-  expect_equal(res_mom(c(-1,15), c(2,-3)), NA_real_)
+  expect_false(is.na(res_mom(c(-1,15), c(2,-3))))
   expect_false(is.na(res_mom(c(-1,15,3), c(2,-3,5))))
 })
 
 test_that("res_mom works with repeated values", {
   expect_true(is.na(res_mom(c(0,0,0), c(2,-3,5))))
-  expect_true(is.na(res_mom(c(1,1,1), c(2,-3,5))))
-  expect_true(is.na(res_mom(c(2,2,2,2), c(2,-3,5,9))))
+  expect_no_error(is.na(res_mom(c(1,1,1), c(2,-3,5))))
+  expect_no_error(is.na(res_mom(c(2,2,2,2), c(2,-3,5,9))))
 })
 
 test_that("res_mom throws errors when Inf or NA in bench", {

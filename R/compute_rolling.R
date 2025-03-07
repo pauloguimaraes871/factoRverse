@@ -18,8 +18,8 @@
 #' @param only_unique A \code{logical} indicating whether to compute the metric on unique values only (default FALSE).
 #' @param feature_name A \code{character} specifying the name of the feature to be added to the meta_dataframe. If NULL,
 #' the feature name will be set to "<signal>_roll_<period>_<FUN>". Default is NULL.
-#' @param min_non_na A \code{numeric} value specifying the minimum number of non-NA values required to compute the rolling stat. Default is 3.
-#' The only exception is for FUN "cagr" where the minimum number of non-NA values required is 2 (begin and final).
+#' @param min_non_na A \code{numeric} value specifying the minimum number of non-NA values required to compute the rolling stat. Default is 0.
+#' The only exception is for FUN "cagr" where the default minimum number of non-NA values required is period + 1 (to ensure correct number of periods).
 #'
 #' @return A \code{meta_dataframe} object with an added column named \code{<signal>_rolling_<period>_<FUN>} in its
 #' \code{data} slot containing the computed rolling values.
@@ -51,14 +51,15 @@
 #' }
 #'
 #' @export
-setGeneric("compute_rolling", function(features_m_df, period, signal, FUN, benchmark_returns_m_xts = NULL, bench = NULL, na.rm = TRUE, only_unique = FALSE,
-                                       feature_name = NULL, min_non_na = 3)
-  standardGeneric("compute_rolling"))
+setGeneric("compute_rolling", function(features_m_df, period, signal, FUN, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE, only_unique = FALSE,
+                                       feature_name = NULL, min_non_na = ifelse(FUN == "cagr", (period + 1), 0)){
+  standardGeneric("compute_rolling")
+})
 
 setMethod("compute_rolling",
           signature(features_m_df = "meta_dataframe", period = "numeric", signal = "character", FUN = "character"),
-          function(features_m_df, period, signal, FUN, benchmark_returns_m_xts = NULL, bench = NULL, na.rm = TRUE, only_unique = FALSE,
-                   feature_name = NULL, min_non_na = 3) {
+          function(features_m_df, period, signal, FUN, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE, only_unique = FALSE,
+                   feature_name = NULL, min_non_na = ifelse(FUN == "cagr", (period + 1), 0)) {
 
             #Pass features_m_df as pre_silver_features_m_df
             ############
@@ -78,16 +79,19 @@ setMethod("compute_rolling",
             if (!is.numeric(pre_silver_features_m_df[[signal]])) {
               stop("The signal column must be numeric.")
             }
-            ##Additional Checks for new FUN types
+            ##Additional Checks for FUN types
             if (FUN %in% c("res_mom", "idio_vol")) {
               if (is.null(benchmark_returns_m_xts)) {
                 stop("benchmark_returns_m_xts must be provided for FUN ", FUN)
               }
-              if (is.null(bench)) {
-                stop("The 'bench' argument must be provided for FUN ", FUN)
+              if (is.null(selected_bench)) {
+                stop("The 'selected_bench' argument must be provided for FUN ", FUN)
               }
               if (!class(benchmark_returns_m_xts) == "returns_meta_xts") {
                 stop("benchmark_returns_m_xts must be an returns_meta_xts object")
+              }
+              if (only_unique){
+                warning("The 'only_unique' argument makes sense only for accounting variables")
               }
             }
 
@@ -97,37 +101,47 @@ setMethod("compute_rolling",
             ############
             rolling_values <- purrr::map_dbl(seq_len(nrow(pre_silver_features_m_df)), function(i) {
 
-              ##Get current row
-              current_row <- pre_silver_features_m_df[i, ]
-              ticker_i <- current_row$tickers
-              current_row_date <- current_row$dates
+              ##Get current row values
+                ###Extract from mdf
+                current_row <- pre_silver_features_m_df[i, ]
+                ticker_i <- current_row$tickers
+                current_row_date <- current_row$dates
 
-              ##Compute the lower bound date by subtracting 'period' months
-              lower_date <- lubridate::add_with_rollback(current_row_date, -lubridate::months(period))
+                ###Compute the lower bound date by subtracting 'period' months
+                lower_date <- lubridate::add_with_rollback(current_row_date, -months(period))
 
-              ##Find rows with the same ticker and with dates in the range [lower_date, current_row_date]
-              selected_pre_silver_features_m_df <- pre_silver_features_m_df %>%
-                dplyr::filter(tickers == ticker_i) %>%
-                dplyr::filter(dates >= lower_date & dates <= current_row_date)
+                ###Find rows with the same ticker and with dates in the range [lower_date, current_row_date]
+                selected_pre_silver_features_m_df <- pre_silver_features_m_df %>%
+                  dplyr::filter(tickers == ticker_i) %>%
+                  dplyr::filter(dates >= lower_date & dates <= current_row_date)
 
-              ##If no matching observation is found, return NA
-              if (nrow(selected_pre_silver_features_m_df) == 0) return(NA_real_)
+                ###If no matching observation is found, return NA
+                if (nrow(selected_pre_silver_features_m_df) == 0) return(NA_real_)
 
               ##Get the filtered values for the signal
-              values <- pre_silver_features_m_df %>% dplyr::pull(!!rlang::sym(signal))
+              values <- selected_pre_silver_features_m_df %>% dplyr::pull(!!rlang::sym(signal))
               if (only_unique) {
-                values <- unique(values)
+                values <- rev(unique(rev(values))) #Reverse to guarantee that the last will be kept at final even if repeated
+              }
+              ##Do the same for benchmark if it is not NULL
+              if (!is.null(benchmark_returns_m_xts)){
+                ####Extract rolling window for benchmark from benchmark_returns_m_xts@data
+                bench_xts <- benchmark_returns_m_xts@data
+                bench_ret_values <- as.numeric(bench_xts[zoo::index(bench_xts) >= lower_date & zoo::index(bench_xts) <= current_row_date, selected_bench])
               }
 
               ##Returns NA in case of certain conditions
-
-                ###Return NA in case min_non_na is not filled, except for CAGR
-                if (FUN != "cagr" && length(values) < min_non_na) {
+                ###Return NA in case min_non_na is not filled
+                if (length(values) < min_non_na) {
                   return(NA_real_)
                 }
                 ###Return NA in case values is not of class numeric
                 if (!is.numeric(values)) {
                   return(NA_real_)
+                }
+                ###Return NA in case bench_ret_values length is 0
+                if (!is.null(benchmark_returns_m_xts) && length(bench_ret_values) == 0) {
+                  NA_real_
                 }
 
               ##Depending on FUN, compute the rolling metric
@@ -137,51 +151,22 @@ setMethod("compute_rolling",
                      "skew" = skew(values),
                      "sur" = sur(values),
                      "cagr" = {
-                       if (length(values) < 2) {
-                         NA_real_
-                       } else {
-                         begin_value <- head(values, 1)
-                         final_value <- tail(values, 1)
-                         cagr(begin = begin_value, final = final_value, period)
-                       }
-                     },
+                       if (length(values) < 2) return(NA_real_) ##Guarantes NA for less than 2 inputs even if min_non_na is 1
+                       #Dynamically adjust period for values length
+                       cagr(begin = head(values, 1), final = tail(values, 1), period = max(c(length(values) - 1, 1)))
+                       },
                      "mean_std" = mean_std(values, na.rm = na.rm),
-                     "res_mom" =  {
-                       ###Extract rolling window for signal
-                       ret_values <- values
-                       ###Extract rolling window for benchmark from benchmark_returns_m_xts@data
-                       bench_xts <- benchmark_returns_m_xts@data
-                       bench_ret_values <- as.numeric(bench_xts[zoo::index(bench_xts) >= lower_date & zoo::index(bench_xts) <= current_row_date, bench])
-                       if (length(bench_ret_values) == 0 || length(ret_values) < 2) {
-                         NA_real_
-                       } else {
-                         res_mom(ret_values = ret_values, bench_ret_values = bench_ret_values, na.rm = na.rm)
-                       }
-                     },
-                     "idio_vol" = {
-                       ###Extract rolling window for signal
-                       ret_values <- values
-                       ###Extract rolling window for benchmark from benchmark_returns_m_xts@data
-                       bench_xts <- benchmark_returns_m_xts@data
-                       bench_ret_values <- as.numeric(bench_xts[zoo::index(bench_xts) >= lower_date & zoo::index(bench_xts) <= current_row_date, bench])
-                       bench_ret_values <- as.numeric(bench_xts[zoo::index(bench_xts) >= lower_date & zoo::index(bench_xts) <= current_row_date, bench])
-                       if (length(bench_ret_values) == 0 || length(ret_values) < 2) {
-                         NA_real_
-                       } else {
-                         idio_vol(ret_values = ret_values, bench_ret_values = bench_ret_values, na.rm = na.rm)
-                       }
-
-                     },
+                     "res_mom" = res_mom(ret_values = values, bench_ret_values = bench_ret_values, na.rm = na.rm),
+                     "idio_vol" = idio_vol(ret_values = values, bench_ret_values = bench_ret_values, na.rm = na.rm),
                      stop("Unsupported function type")
               )
-
 
             })
 
             ############
             # Create a new column name dynamically if feature_name is NULL
             if (is.null(feature_name)){
-              new_col_name <- paste0(signal, "_roll_", period, "_", FUN)
+              new_col_name <- paste0(signal, "_", FUN, "_roll_", period, "m")
             } else {
               new_col_name <- feature_name
             }
@@ -203,7 +188,8 @@ setMethod("compute_rolling",
                    call = match.call(),
                    na.rm = na.rm,
                    only_unique = only_unique,
-                   bench = if(!is.null(bench)) bench else NA_character_
+                   min_non_na = min_non_na,
+                   selected_bench = if(!is.null(selected_bench)) selected_bench else NA_character_
               )
             )
 
@@ -214,7 +200,7 @@ setMethod("compute_rolling",
                                                               type = "generic")
             ##Rename
             names(pre_silver_features_m_df@workflow)[length(pre_silver_features_m_df@workflow)] <-
-              paste0("compute_rolling_", period, "_", signal, "_", FUN, "_", current_date)
+              paste0("compute_", signal, "_", FUN, "_roll_", period, "m", "_", current_date)
             ############
 
             return(pre_silver_features_m_df)
