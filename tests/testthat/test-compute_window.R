@@ -1,4 +1,4 @@
-test_that("compute_meta_dataframe computes correct median values for period = 1 (Alpha)", {
+test_that("compute_window computes correct median values for period = 1 (Alpha)", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -29,7 +29,7 @@ test_that("compute_meta_dataframe computes correct median values for period = 1 
   )
 
   # Compute median for "Alpha" with period = 1; new column name will be "Alpha_median_roll_1_m"
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "median")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "median")
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -65,7 +65,7 @@ test_that("compute_meta_dataframe computes correct median values for period = 1 
   expect_equal(alpha_C[4], median(c(5,2)))
 })
 
-test_that("compute_meta_dataframe computes correct CAGR values for period = 1 (Alpha)", {
+test_that("compute_window computes correct CAGR values for period = 1 (Alpha)", {
   # Create meta_dataframe
   meta_df <- create_meta_dataframe(
     list(
@@ -94,7 +94,7 @@ test_that("compute_meta_dataframe computes correct CAGR values for period = 1 (A
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  meta_df <- compute_meta_dataframe(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
+  meta_df <- compute_window(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
 
   alpha_A <- meta_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
@@ -129,7 +129,7 @@ test_that("compute_meta_dataframe computes correct CAGR values for period = 1 (A
   expect_equal(gamma_C[4], cagr(2, 5, 1))
 })
 
-test_that("compute_meta_dataframe computes correct sd for period = 3 (Alpha)", {
+test_that("compute_window computes correct sd for period = 3 (Alpha)", {
   # Create meta_dataframe with the same structure as Test 1
   features_m_df <- create_meta_dataframe(
     list(
@@ -156,7 +156,7 @@ test_that("compute_meta_dataframe computes correct sd for period = 3 (Alpha)", {
   )
 
   # Compute sd for "Alpha" with period = 3;
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "sd")
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "sd")
 
   # For Stock A: Values: 0, 3, 10, 3.
   alpha_A <- features_m_df@data %>%
@@ -192,7 +192,7 @@ test_that("compute_meta_dataframe computes correct sd for period = 3 (Alpha)", {
   expect_equal(alpha_C[4], sd(c(2, 7, 10, 5), na.rm = TRUE))
 })
 
-test_that("compute_meta_dataframe computes correct CAGR for period = 3 (Alpha)", {
+test_that("compute_window computes correct CAGR for period = 3 (Alpha)", {
   # Create meta_dataframe with the same structure as Test 1
   meta_df <- create_meta_dataframe(
     list(
@@ -219,7 +219,7 @@ test_that("compute_meta_dataframe computes correct CAGR for period = 3 (Alpha)",
   )
 
   # Compute CAGR for "Alpha" with period = 3; new column should be "Alpha_cagr_3"
-  meta_df <- compute_meta_dataframe(meta_df, period = 3, signal = "Alpha", FUN = "cagr")
+  meta_df <- compute_window(meta_df, period = 3, signal = "Alpha", FUN = "cagr")
 
   # For period = 3, only the last date (2001-06-15) should have a valid CAGR value
   # For Stock A.
@@ -252,7 +252,7 @@ test_that("compute_meta_dataframe computes correct CAGR for period = 3 (Alpha)",
   expect_equal(Alpha_C[4], cagr(10, 9, 3))
 })
 
-test_that("compute_meta_dataframe computes correct skew values for random NAs and min_non_na > 2", {
+test_that("compute_window computes correct skew values for random NAs and min_non_na > 2", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -278,7 +278,7 @@ test_that("compute_meta_dataframe computes correct skew values for random NAs an
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", min_non_na = 2, FUN = "skew")
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", min_non_na = 2, FUN = "skew")
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -316,7 +316,7 @@ test_that("compute_meta_dataframe computes correct skew values for random NAs an
 
 })
 
-test_that("compute_meta_dataframe computes correct sd values for random NAs, only unique and min_non_na > 2", {
+test_that("compute_window computes correct sd values for random NAs, only unique and min_non_na > 2", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -342,7 +342,7 @@ test_that("compute_meta_dataframe computes correct sd values for random NAs, onl
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", min_non_na = 2, FUN = "sd", only_unique = TRUE)
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", min_non_na = 2, FUN = "sd", only_unique = TRUE)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -380,7 +380,7 @@ test_that("compute_meta_dataframe computes correct sd values for random NAs, onl
 
 })
 
-test_that("compute_meta_dataframe computes correct mean_std values for Infs", {
+test_that("compute_window computes correct mean_std values for Infs", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -406,7 +406,7 @@ test_that("compute_meta_dataframe computes correct mean_std values for Infs", {
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std")
 
   # For Stock A: Values: 0, 3, Inf, 3.
   alpha_A <- features_m_df@data %>%
@@ -443,7 +443,7 @@ test_that("compute_meta_dataframe computes correct mean_std values for Infs", {
 
 })
 
-test_that("compute_meta_dataframe works correctly window = SEASONAL", {
+test_that("compute_window works correctly window = SEASONAL", {
 
   num_tickers <- 3
   num_dates <- 35
@@ -464,7 +464,7 @@ test_that("compute_meta_dataframe works correctly window = SEASONAL", {
   )
 
   #Period = 1
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
 
   # For Stock A
   alpha_A <- features_m_df@data %>%
@@ -480,7 +480,7 @@ test_that("compute_meta_dataframe works correctly window = SEASONAL", {
   expect_equal(alpha_A[35], mean_std(c(15,6)))
 
   #Period = 3
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Beta", FUN = "sd", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Beta", FUN = "sd", window = "seasonal")
 
   # For Stock A
   Beta_A <- features_m_df@data %>%
@@ -495,7 +495,7 @@ test_that("compute_meta_dataframe works correctly window = SEASONAL", {
   expect_equal(Beta_A[35], sd(c(0,5,14,8,-4,5,14,-1)))
 
   #Period = 0
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 0, signal = "Gamma", FUN = "median", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 0, signal = "Gamma", FUN = "median", window = "seasonal")
 
   # For Stock A
   Gamma_A <- features_m_df@data %>%
@@ -512,7 +512,7 @@ test_that("compute_meta_dataframe works correctly window = SEASONAL", {
 
 })
 
-test_that("compute_meta_dataframe works when small meta_dataframe is being used", {
+test_that("compute_window works when small meta_dataframe is being used", {
 
   num_tickers <- 3
   num_dates <- 10
@@ -533,7 +533,7 @@ test_that("compute_meta_dataframe works when small meta_dataframe is being used"
   )
 
   #Period = 1
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
 
   # For Stock A
   alpha_A <- features_m_df@data %>%
@@ -546,7 +546,7 @@ test_that("compute_meta_dataframe works when small meta_dataframe is being used"
 
 })
 
-test_that("compute_meta_dataframe correctly computes CAGR for different periods and signals", {
+test_that("compute_window correctly computes CAGR for different periods and signals", {
 
   meta_df <- create_meta_dataframe(
     list(
@@ -573,9 +573,9 @@ test_that("compute_meta_dataframe correctly computes CAGR for different periods 
   )
 
   # Compute CAGR for "Alpha" with period = 1 to 3; new column should be "Alpha_cagr_3"
-  meta_df <- compute_meta_dataframe(meta_df, period = 1, signal = "Alpha", FUN = "cagr") %>%
-    compute_meta_dataframe(period = 2, signal = "Alpha", FUN = "cagr") %>%
-    compute_meta_dataframe(period = 3, signal = "Alpha", FUN = "cagr")
+  meta_df <- compute_window(meta_df, period = 1, signal = "Alpha", FUN = "cagr") %>%
+    compute_window(period = 2, signal = "Alpha", FUN = "cagr") %>%
+    compute_window(period = 3, signal = "Alpha", FUN = "cagr")
 
   # Cagr 1 contains non NA values
   expect_gt(
@@ -594,8 +594,8 @@ test_that("compute_meta_dataframe correctly computes CAGR for different periods 
   )
 
   #Compute CAGR for Alpha and Beta
-  meta_df <- compute_meta_dataframe(meta_df, period = 1, signal = c("Beta"), FUN = "cagr") %>%
-    compute_meta_dataframe(period = 2, signal = "Beta", FUN = "cagr")
+  meta_df <- compute_window(meta_df, period = 1, signal = c("Beta"), FUN = "cagr") %>%
+    compute_window(period = 2, signal = "Beta", FUN = "cagr")
 
 
   #Workflow
@@ -608,7 +608,7 @@ test_that("compute_meta_dataframe correctly computes CAGR for different periods 
 
 })
 
-test_that("compute_meta_dataframe correctly sensibilizes periods for CAGR, assigning NA when length < period + 1", {
+test_that("compute_window correctly sensibilizes periods for CAGR, assigning NA when length < period + 1", {
 
     # Create meta_dataframe
     meta_df <- create_meta_dataframe(
@@ -638,7 +638,7 @@ test_that("compute_meta_dataframe correctly sensibilizes periods for CAGR, assig
       features_names = c("Alpha", "Beta", "Gamma", "Delta")
     )
 
-    meta_df <- compute_meta_dataframe(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 1)
+    meta_df <- compute_window(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 1)
 
     alpha_A <- meta_df@data %>%
       dplyr::filter(tickers == "Stock A") %>%
@@ -650,7 +650,7 @@ test_that("compute_meta_dataframe correctly sensibilizes periods for CAGR, assig
     expect_equal(alpha_A[3], cagr(3, 4, 2))
     expect_equal(alpha_A[4], cagr(3, 5, 2))
 
-    meta_df <- compute_meta_dataframe(meta_df, period = 3, signal = "Alpha", FUN = "cagr", min_non_na = 10)
+    meta_df <- compute_window(meta_df, period = 3, signal = "Alpha", FUN = "cagr", min_non_na = 10)
 
     alpha_A <- meta_df@data %>%
       dplyr::filter(tickers == "Stock A") %>%
@@ -662,7 +662,7 @@ test_that("compute_meta_dataframe correctly sensibilizes periods for CAGR, assig
     expect_true(is.na(alpha_A[3]))
     expect_equal(alpha_A[4], cagr(3, 5, 3))
 
-    meta_df <- compute_meta_dataframe(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
+    meta_df <- compute_window(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
 
     alpha_A <- meta_df@data %>%
       dplyr::filter(tickers == "Stock A") %>%
@@ -676,7 +676,7 @@ test_that("compute_meta_dataframe correctly sensibilizes periods for CAGR, assig
 
 })
 
-test_that("compute_meta_dataframe throws error when all NA values", {
+test_that("compute_window throws error when all NA values", {
   expect_error(
     # Create meta_dataframe with all NAs for "Alpha"
     create_meta_dataframe(
@@ -706,7 +706,7 @@ test_that("compute_meta_dataframe throws error when all NA values", {
   )
 })
 
-test_that("compute_meta_dataframe correctly computes sur using unique_values = TRUE and repeated value is at final", {
+test_that("compute_window correctly computes sur using unique_values = TRUE and repeated value is at final", {
   features_m_df <- create_meta_dataframe(
     list(
       matrix(c(10, 3, 10, 3,
@@ -732,7 +732,7 @@ test_that("compute_meta_dataframe correctly computes sur using unique_values = T
   )
 
   #Compute sur
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 2, signal = "Alpha", FUN = "sur", only_unique = TRUE)
+  features_m_df <- compute_window(features_m_df, period = 2, signal = "Alpha", FUN = "sur", only_unique = TRUE)
 
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
@@ -765,7 +765,7 @@ test_that("compute_meta_dataframe correctly computes sur using unique_values = T
   expect_equal(alpha_C[4], sur(5, c(2,5))) #Makes sure it takes 5 as most recent
 
   #Compute sur
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Gamma", FUN = "sur", only_unique = TRUE)
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Gamma", FUN = "sur", only_unique = TRUE)
 
   Gamma_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
@@ -801,7 +801,7 @@ test_that("compute_meta_dataframe correctly computes sur using unique_values = T
 
 })
 
-test_that("compute_meta_dataframe correctly computes cagr - real data", {
+test_that("compute_window correctly computes cagr - real data", {
 
   #Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -820,7 +820,7 @@ test_that("compute_meta_dataframe correctly computes cagr - real data", {
 
 
   #Compute sur
-  features_m_df <- compute_meta_dataframe(panel, period = 2, signal = "ebit_12m", FUN = "cagr", only_unique = FALSE, feature_name = "ebit_12m_cagr_2m", min_non_na = 1)
+  features_m_df <- compute_window(panel, period = 2, signal = "ebit_12m", FUN = "cagr", only_unique = FALSE, feature_name = "ebit_12m_cagr_2m", min_non_na = 1)
 
   RRRP3 <- features_m_df@data %>%
     dplyr::filter(tickers == "RRRP3") %>%
@@ -844,7 +844,7 @@ test_that("compute_meta_dataframe correctly computes cagr - real data", {
 
 })
 
-test_that("compute_meta_dataframe errors if the signal column is absent", {
+test_that("compute_window errors if the signal column is absent", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -872,12 +872,12 @@ test_that("compute_meta_dataframe errors if the signal column is absent", {
 
 
   expect_error(
-    compute_meta_dataframe(features_m_df, period = 1, signal = "NonExistingSignal", FUN = "cagr"),
+    compute_window(features_m_df, period = 1, signal = "NonExistingSignal", FUN = "cagr"),
     "The signal column does not exist in the data frame."
   )
 })
 
-test_that("compute_meta_dataframe errors if the window is wrong", {
+test_that("compute_window errors if the window is wrong", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -905,12 +905,12 @@ test_that("compute_meta_dataframe errors if the window is wrong", {
 
 
   expect_error(
-    compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", window = "organized", FUN = "cagr"),
+    compute_window(features_m_df, period = 1, signal = "Alpha", window = "organized", FUN = "cagr"),
     "Invalid window type. Must be either 'rolling' or 'seasonal'."
   )
 })
 
-test_that("compute_meta_dataframe errors if the period is neg", {
+test_that("compute_window errors if the period is neg", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -938,12 +938,12 @@ test_that("compute_meta_dataframe errors if the period is neg", {
 
 
   expect_error(
-    compute_meta_dataframe(features_m_df, period = -1, signal = "Alpha", FUN = "cagr"),
+    compute_window(features_m_df, period = -1, signal = "Alpha", FUN = "cagr"),
     "The period must be greater or equal to 0."
   )
 })
 
-test_that("compute_meta_dataframe throws an error when input is not numeric", {
+test_that("compute_window throws an error when input is not numeric", {
   features_m_df <- create_meta_dataframe(
     list(
       matrix(c(0, "A", 10, 3,    # "Alpha" matrix with non-numeric input for Stock A
@@ -969,12 +969,12 @@ test_that("compute_meta_dataframe throws an error when input is not numeric", {
   )
 
   expect_error(
-    compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "median"),
+    compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "median"),
     "The signal column must be numeric."
   )
 })
 
-test_that("compute_meta_dataframe computes correct res_mom for period = 3 (Alpha)", {
+test_that("compute_window computes correct res_mom for period = 3 (Alpha)", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -1007,7 +1007,7 @@ test_that("compute_meta_dataframe computes correct res_mom for period = 3 (Alpha
              ))
 
   # Compute sd for "Alpha" with period = 3;
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "res_mom",
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "res_mom",
                                    benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
 
   # For Stock A:
@@ -1045,7 +1045,7 @@ test_that("compute_meta_dataframe computes correct res_mom for period = 3 (Alpha
 
 })
 
-test_that("compute_meta_dataframe computes correct idio_vol for period = 3 (Alpha)", {
+test_that("compute_window computes correct idio_vol for period = 3 (Alpha)", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -1078,7 +1078,7 @@ test_that("compute_meta_dataframe computes correct idio_vol for period = 3 (Alph
     ))
 
   # Compute sd for "Alpha" with period = 3;
-  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                                    benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
 
   # For Stock A:
@@ -1116,7 +1116,7 @@ test_that("compute_meta_dataframe computes correct idio_vol for period = 3 (Alph
 
 })
 
-test_that("compute_meta_dataframe throws an error when bench is wrong is different from features_m_df", {
+test_that("compute_window throws an error when bench is wrong is different from features_m_df", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -1150,28 +1150,28 @@ test_that("compute_meta_dataframe throws an error when bench is wrong is differe
     ))
 
   # Bench length
-  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                                benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV"),
                "Lengths of returns and benchmark returns differ")
 
 
-  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                                benchmark_returns_m_xts = bench_returns_m_xts),
                "The 'selected_bench' argument must be provided for FUN idio_vol")
 
 
-  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                                benchmark_returns_m_xts = NULL, selected_bench = "IBOV"),
                "benchmark_returns_m_xts must be provided for FUN idio_vol")
 
-  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                                benchmark_returns_m_xts = bench_returns_m_xts@data, selected_bench = "IBOV"),
                "benchmark_returns_m_xts must be an returns_meta_xts object")
 
 
 })
 
-test_that("compute_meta_dataframe throws an error when only unique is used for wrong FUN", {
+test_that("compute_window throws an error when only unique is used for wrong FUN", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -1198,12 +1198,12 @@ test_that("compute_meta_dataframe throws an error when only unique is used for w
   )
 
   # Compute
-  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "cagr", only_unique = TRUE),
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "cagr", only_unique = TRUE),
                "The 'only_unique' is not supported for FUN cagr")
 
 })
 
-test_that("compute_meta_dataframe throws an error when window seasonal is used for wrong FUN", {
+test_that("compute_window throws an error when window seasonal is used for wrong FUN", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -1230,12 +1230,12 @@ test_that("compute_meta_dataframe throws an error when window seasonal is used f
   )
 
   # Compute
-  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol", window = "seasonal", only_unique = FALSE),
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol", window = "seasonal", only_unique = FALSE),
                "The 'window' argument must be 'rolling' for FUN idio_vol")
 
 })
 
-test_that("compute_meta_dataframe throws an error for wrong FUN", {
+test_that("compute_window throws an error for wrong FUN", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -1262,12 +1262,12 @@ test_that("compute_meta_dataframe throws an error for wrong FUN", {
   )
 
   # Compute
-  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "CAGR"),
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "CAGR"),
                "Unsupported function type")
 
 })
 
-test_that("compute_meta_dataframe throws an error for wrong data type", {
+test_that("compute_window throws an error for wrong data type", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -1294,7 +1294,7 @@ test_that("compute_meta_dataframe throws an error for wrong data type", {
   )
 
   # Compute
-  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "cagr"),
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "cagr"),
                "The signal column must be numeric.")
 
 })

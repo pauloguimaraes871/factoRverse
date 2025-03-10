@@ -10,7 +10,7 @@ test_that("Commodity Factor is running correctly.", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -25,8 +25,8 @@ test_that("Commodity Factor is running correctly.", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
-  
+
+
   expect_equal(
     commodity_factor_surprise(
       segment_classification = data.frame(matrix(c(
@@ -45,7 +45,8 @@ test_that("Commodity Factor is running correctly.", {
         Madeira = c(-21,1,15),
         Fertilizantes = c(-1,0,9))
         , nrow = 8, ncol = 3, dimnames = list(c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos",
-                                                "Madeira", "Fertilizantes")))),
+                                                "Madeira", "Fertilizantes")))
+      ),
     matrix(c(1,-20,0,5,10,0,3,5,0), nrow = 3, ncol = 3)
   )
 })
@@ -62,7 +63,7 @@ test_that("Commodity Factor is running correctly.", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -77,7 +78,7 @@ test_that("Commodity Factor is running correctly.", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   expect_equal(
     commodity_factor_surprise(data.frame(matrix(c(
       "Açúcar e álcool", "Agricultura", "Siderurgia",
@@ -98,7 +99,7 @@ test_that("Commodity Factor is running correctly.", {
                                                 "Madeira", "Fertilizantes")))),
     matrix(c(-2,0,0,0,0,-3,55,1,1), nrow = 3, ncol = 3)
   )
-  
+
 })
 
 # Define your test
@@ -113,7 +114,7 @@ test_that("Commodity Factor is running correctly.", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -128,9 +129,9 @@ test_that("Commodity Factor is running correctly.", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
-  
-  
+
+
+
   expect_equal(
     commodity_factor_surprise(data.frame(matrix(c(
       "Bancos", "Alimentos", "Material rodoviário",
@@ -166,7 +167,7 @@ test_that("Commodity Factor is running correctly.", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -181,7 +182,7 @@ test_that("Commodity Factor is running correctly.", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   expect_equal(
     commodity_factor_surprise(data.frame(matrix(c(
       "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
@@ -217,7 +218,7 @@ test_that("Commodity Factor is running correctly - Matrix.", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -232,7 +233,7 @@ test_that("Commodity Factor is running correctly - Matrix.", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   expect_equal(
     commodity_factor_surprise(matrix(c(
       "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
@@ -268,7 +269,7 @@ test_that("Commodity Factor is running correctly - Matrix.", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -283,7 +284,7 @@ test_that("Commodity Factor is running correctly - Matrix.", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   expect_equal(
     commodity_factor_surprise(matrix(c(
       "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
@@ -319,7 +320,7 @@ test_that("Commodity Factor is running correctly with NAs.", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -334,7 +335,7 @@ test_that("Commodity Factor is running correctly with NAs.", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   expect_equal(
     commodity_factor_surprise(matrix(c(
       "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
@@ -370,7 +371,7 @@ test_that("Commodity Factor throws an error when dimensions differ", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -385,17 +386,17 @@ test_that("Commodity Factor throws an error when dimensions differ", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   expect_error(
     commodity_factor_surprise(
       matrix(c(
         "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
         "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
-        "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos"), 
+        "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos"),
         nrow = 4, ncol = 3),
       segments_with_positive_sensibility_to_surprise,
       segments_with_negative_sensibility_to_surprise,
-      
+
       matrix(rbind(
         Petróleo = c(1,5,3,4),
         Grãos = c(0,0,1,-1),
@@ -407,11 +408,11 @@ test_that("Commodity Factor throws an error when dimensions differ", {
         Fertilizantes = c(-1,0,9,15))
         , nrow = 8, ncol = 4, dimnames = list(c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos",
                                                 "Madeira", "Fertilizantes")))
-      
+
     ),
     "Number of columns between segment_classification and surprise_matrix should match."
   )
-  
+
 })
 
 # Define your test
@@ -426,7 +427,7 @@ test_that("Commodity Factor throws an error when dimensions of lists differ", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -440,17 +441,17 @@ test_that("Commodity Factor throws an error when dimensions of lists differ", {
   segments_with_negative_sensibility_to_surprise[[6]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira")
-  
+
   expect_error(
     commodity_factor_surprise(
       matrix(c(
         "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
         "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
-        "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos"), 
+        "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos"),
         nrow = 4, ncol = 3),
       segments_with_positive_sensibility_to_surprise,
       segments_with_negative_sensibility_to_surprise,
-      
+
       matrix(rbind(
         Petróleo = c(1,5,3),
         Grãos = c(0,0,1),
@@ -462,12 +463,12 @@ test_that("Commodity Factor throws an error when dimensions of lists differ", {
         Fertilizantes = c(-1,0,9))
         , nrow = 8, ncol = 3, dimnames = list(c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos",
                                                 "Madeira", "Fertilizantes")))
-      
+
     ),
-    "There should be matching number of elements between segments_with_positive_sensibility_to_surprise, 
+    "There should be matching number of elements between segments_with_positive_sensibility_to_surprise,
          segments_with_negative_sensibility_to_surprise and surprise_matrix"
   )
-  
+
 })
 
 # Define your test
@@ -482,7 +483,7 @@ test_that("Commodity Factor throws an error when classes are not lists", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -497,18 +498,18 @@ test_that("Commodity Factor throws an error when classes are not lists", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   segments_with_negative_sensibility_to_surprise <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
-  
+
+
   expect_error(
     commodity_factor_surprise(
       matrix(c(
         "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
         "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
-        "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos"), 
+        "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos"),
         nrow = 4, ncol = 3),
       segments_with_positive_sensibility_to_surprise,
       segments_with_negative_sensibility_to_surprise,
-      
+
       matrix(rbind(
         Petróleo = c(1,5,3),
         Grãos = c(0,0,1),
@@ -520,11 +521,11 @@ test_that("Commodity Factor throws an error when classes are not lists", {
         Fertilizantes = c(-1,0,9))
         , nrow = 8, ncol = 3, dimnames = list(c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos",
                                                 "Madeira", "Fertilizantes")))
-      
+
     ),
     "segments_with_positive_sensibility_to_surprise and segments_with_negative_sensibility_to_surprise should be lists."
   )
-  
+
 })
 
 
@@ -540,7 +541,7 @@ test_that("Commodity Factor throws an error when rownames do not match", {
   segments_with_positive_sensibility_to_surprise[[7]] <- c("Papel e celulose", "Madeira")
   segments_with_positive_sensibility_to_surprise[[8]] <- c("Fertilizantes e defensivos")
   names(segments_with_positive_sensibility_to_surprise) <- c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
+
   segments_with_negative_sensibility_to_surprise <- list()
   segments_with_negative_sensibility_to_surprise[[1]] <- c("Transporte aéreo", "Transporte ferroviário", "Transporte hidroviário",
                                                            "Aluguel de carros", "Exploração de rodovias")
@@ -555,18 +556,18 @@ test_that("Commodity Factor throws an error when rownames do not match", {
   segments_with_negative_sensibility_to_surprise[[7]] <- c("None")
   segments_with_negative_sensibility_to_surprise[[8]] <- c("None")
   names(segments_with_negative_sensibility_to_surprise) <- c("Ronaldo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos", "Madeira", "Fertilizantes")
-  
-  
+
+
   expect_error(
     commodity_factor_surprise(
       matrix(c(
         "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
         "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos",
-        "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos"), 
+        "Fertilizantes e defensivos", "Químicos diversos", "Papel e celulose", "Minerais metálicos"),
         nrow = 4, ncol = 3),
       segments_with_positive_sensibility_to_surprise,
       segments_with_negative_sensibility_to_surprise,
-      
+
       matrix(rbind(
         Petróleo = c(1,5,3),
         Grãos = c(0,0,1),
@@ -578,11 +579,11 @@ test_that("Commodity Factor throws an error when rownames do not match", {
         Fertilizantes = c(-1,0,9))
         , nrow = 8, ncol = 3, dimnames = list(c("Petróleo", "Grãos", "Metais", "Carne", "Açúcar", "Químicos",
                                                 "Madeira", "Fertilizantes")))
-      
+
     ),
     "surprise_matrix rownames should match names of segments lists"
   )
-  
+
 })
 
 
