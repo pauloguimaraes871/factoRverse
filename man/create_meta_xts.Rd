@@ -11,7 +11,8 @@ create_meta_xts(
   meta_xts_name = "not_identified",
   metric_name = NULL,
   workflow = NULL,
-  source = NULL
+  source = NULL,
+  ...
 )
 }
 \arguments{

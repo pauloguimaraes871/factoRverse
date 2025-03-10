@@ -4,12 +4,14 @@
 \alias{lookup_catalog}
 \title{Lookup method for tickers_catalog}
 \usage{
-lookup_catalog(tickers_catalog, tickers)
+lookup_catalog(tickers_catalog, ...)
 }
 \arguments{
 \item{tickers_catalog}{A tickers_catalog object.}
 
-\item{tickers}{A character vector of tickers to filter.}
+\item{tickers_to_lookup}{A character vector of tickers to filter.}
+
+\item{perm_id_to_lookup}{A character vector of perm_ids to filter.}
 }
 \value{
 A filtered data.frame.

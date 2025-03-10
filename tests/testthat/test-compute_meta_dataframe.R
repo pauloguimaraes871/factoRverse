@@ -1,4 +1,4 @@
-test_that("compute_rolling computes correct median values for period = 1 (Alpha)", {
+test_that("compute_meta_dataframe computes correct median values for period = 1 (Alpha)", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -29,7 +29,7 @@ test_that("compute_rolling computes correct median values for period = 1 (Alpha)
   )
 
   # Compute median for "Alpha" with period = 1; new column name will be "Alpha_median_roll_1_m"
-  features_m_df <- compute_rolling(features_m_df, period = 1, signal = "Alpha", FUN = "median")
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "median")
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -65,7 +65,7 @@ test_that("compute_rolling computes correct median values for period = 1 (Alpha)
   expect_equal(alpha_C[4], median(c(5,2)))
 })
 
-test_that("compute_rolling computes correct CAGR values for period = 1 (Alpha)", {
+test_that("compute_meta_dataframe computes correct CAGR values for period = 1 (Alpha)", {
   # Create meta_dataframe
   meta_df <- create_meta_dataframe(
     list(
@@ -94,7 +94,7 @@ test_that("compute_rolling computes correct CAGR values for period = 1 (Alpha)",
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  meta_df <- compute_rolling(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
+  meta_df <- compute_meta_dataframe(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
 
   alpha_A <- meta_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
@@ -129,7 +129,7 @@ test_that("compute_rolling computes correct CAGR values for period = 1 (Alpha)",
   expect_equal(gamma_C[4], cagr(2, 5, 1))
 })
 
-test_that("compute_rolling computes correct sd for period = 3 (Alpha)", {
+test_that("compute_meta_dataframe computes correct sd for period = 3 (Alpha)", {
   # Create meta_dataframe with the same structure as Test 1
   features_m_df <- create_meta_dataframe(
     list(
@@ -156,7 +156,7 @@ test_that("compute_rolling computes correct sd for period = 3 (Alpha)", {
   )
 
   # Compute sd for "Alpha" with period = 3;
-  features_m_df <- compute_rolling(features_m_df, period = 3, signal = "Alpha", FUN = "sd")
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "sd")
 
   # For Stock A: Values: 0, 3, 10, 3.
   alpha_A <- features_m_df@data %>%
@@ -192,7 +192,7 @@ test_that("compute_rolling computes correct sd for period = 3 (Alpha)", {
   expect_equal(alpha_C[4], sd(c(2, 7, 10, 5), na.rm = TRUE))
 })
 
-test_that("compute_rolling computes correct CAGR for period = 3 (Alpha) and min_non_na Default", {
+test_that("compute_meta_dataframe computes correct CAGR for period = 3 (Alpha)", {
   # Create meta_dataframe with the same structure as Test 1
   meta_df <- create_meta_dataframe(
     list(
@@ -219,7 +219,7 @@ test_that("compute_rolling computes correct CAGR for period = 3 (Alpha) and min_
   )
 
   # Compute CAGR for "Alpha" with period = 3; new column should be "Alpha_cagr_3"
-  meta_df <- compute_rolling(meta_df, period = 3, signal = "Alpha", FUN = "cagr")
+  meta_df <- compute_meta_dataframe(meta_df, period = 3, signal = "Alpha", FUN = "cagr")
 
   # For period = 3, only the last date (2001-06-15) should have a valid CAGR value
   # For Stock A.
@@ -252,7 +252,7 @@ test_that("compute_rolling computes correct CAGR for period = 3 (Alpha) and min_
   expect_equal(Alpha_C[4], cagr(10, 9, 3))
 })
 
-test_that("compute_rolling computes correct skew values for random NAs and min_non_na > 2", {
+test_that("compute_meta_dataframe computes correct skew values for random NAs and min_non_na > 2", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -278,7 +278,7 @@ test_that("compute_rolling computes correct skew values for random NAs and min_n
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  features_m_df <- compute_rolling(features_m_df, period = 3, signal = "Alpha", min_non_na = 2, FUN = "skew")
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", min_non_na = 2, FUN = "skew")
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -316,25 +316,22 @@ test_that("compute_rolling computes correct skew values for random NAs and min_n
 
 })
 
-test_that("compute_rolling computes correct CAGR values for random NAs and min_non_na != period (permits non NAs at beggining)", {
+test_that("compute_meta_dataframe computes correct sd values for random NAs, only unique and min_non_na > 2", {
   # Create meta_dataframe
-  meta_df <- create_meta_dataframe(
+  features_m_df <- create_meta_dataframe(
     list(
-      matrix(c(0, 3, NA, 3,    # Column 1: Stock A (dates in order: 2001-03-15, 2001-04-15, 2001-05-15, 2001-06-15)
-               1, NA, 4, 4,     # Column 2: Stock B
-               2, NA, NA, 5),    # Column 3: Stock C
+      matrix(c(0, 3, NA, 3,    # "Alpha" matrix with random NAs for Stock A
+               1, 2, 4, 4,     # Stock B
+               2, NA, NA, 5),    # Stock C
              nrow = 3, ncol = 4),
-      # "Beta" matrix
       matrix(c(4, 7, 5, 6,
                5, 2, 4, 7,
                6, -3, -2, 8),
              nrow = 3, ncol = 4),
-      # "Gamma" matrix:
       matrix(c(8, 11, 4, 11,
                9, -2, 4, 12,
                10, -3, 2, 13),
              nrow = 3, ncol = 4),
-      # "Delta" matrix:
       matrix(c(3, 8, 5, 9,
                7, -1, -2, 8,
                9, 0, 0, 7),
@@ -345,42 +342,45 @@ test_that("compute_rolling computes correct CAGR values for random NAs and min_n
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  meta_df <- compute_rolling(meta_df, period = 2, signal = "Alpha", min_non_na = 1, FUN = "cagr")
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", min_non_na = 2, FUN = "sd", only_unique = TRUE)
 
-  alpha_A <- meta_df@data %>%
+  # For Stock A:
+  alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_cagr_roll_2m)
+    dplyr::pull(Alpha_sd_roll_3m)
 
-  expect_true(is.na(alpha_A[1]))  # No previous record for first date
-  expect_equal(alpha_A[2], cagr(0, 3, 1))
-  expect_equal(alpha_A[3], cagr(0, 4, 2))
-  expect_equal(alpha_A[4], cagr(0, NA, 2))
+  expect_equal(alpha_A[1], NA_real_)
+  expect_equal(alpha_A[2], sd(c(0,3)))
+  expect_equal(alpha_A[3], sd(c(3,4,0)))
+  expect_equal(alpha_A[4], sd(c(4,3,NA,0), na.rm = TRUE))
+
 
   # For Stock B:
-  alpha_B <- meta_df@data %>%
+  alpha_B <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock B") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_cagr_roll_2m)  # Using signal "Alpha", so values come from the "Alpha" matrix.
+    dplyr::pull(Alpha_sd_roll_3m)
 
-  expect_true(is.na(alpha_B[1]))
-  expect_equal(alpha_B[2], cagr(3, 1, 1))
-  expect_equal(alpha_B[3], cagr(3, 4, 2))
-  expect_equal(alpha_B[4], cagr(1, NA, 2))
+  expect_equal(alpha_B[1], NA_real_)
+  expect_equal(alpha_B[2], sd(c(1,3)))
+  expect_equal(alpha_B[3], sd(c(4,1,3)))
+  expect_equal(alpha_B[4], sd(c(NA,4,1,3), na.rm = TRUE))
 
   # For Stock C:
-  Alpha_C <- meta_df@data %>%
+  alpha_C <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock C") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_cagr_roll_2m)
+    dplyr::pull(Alpha_sd_roll_3m)
 
-  expect_true(is.na(Alpha_C[1]))
-  expect_equal(Alpha_C[2], cagr(NA, NA, 1))
-  expect_equal(Alpha_C[3], cagr(NA, 2, 2))
-  expect_equal(Alpha_C[4], cagr(NA, 5, 2))
+  expect_equal(alpha_C[1], NA_real_)
+  expect_equal(alpha_C[2], NA_real_)
+  expect_equal(alpha_C[3], NA_real_) #Repeated
+  expect_equal(alpha_C[4], sd(c(5,2)))
+
 })
 
-test_that("compute_rolling computes correct mean_std values for Infs", {
+test_that("compute_meta_dataframe computes correct mean_std values for Infs", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -406,7 +406,7 @@ test_that("compute_rolling computes correct mean_std values for Infs", {
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  features_m_df <- compute_rolling(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std")
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std")
 
   # For Stock A: Values: 0, 3, Inf, 3.
   alpha_A <- features_m_df@data %>%
@@ -443,7 +443,110 @@ test_that("compute_rolling computes correct mean_std values for Infs", {
 
 })
 
-test_that("compute_rolling correctly computes CAGR for different periods and signals", {
+test_that("compute_meta_dataframe works correctly window = SEASONAL", {
+
+  num_tickers <- 3
+  num_dates <- 35
+  dates <- seq(as.Date("2001-03-15"), by = "month", length.out = 35)
+
+  set.seed(123) # Ensure reproducibility
+  feature_matrices <- lapply(1:4, function(i) {
+    matrix(sample(-5:15, num_tickers * num_dates, replace = TRUE),
+           nrow = num_tickers, ncol = num_dates)
+  })
+
+  # Create meta_dataframe
+  features_m_df <- create_meta_dataframe(
+    feature_matrices,
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = dates,
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  #Period = 1
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
+
+  # For Stock A
+  alpha_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_mean_std_seas_1m)
+
+  #Expect all NAs until there are at least two past obs
+  expect_true(all(is.na(alpha_A[1:23])))
+  expect_equal(alpha_A[24], mean_std(c(9,0)))
+  expect_equal(alpha_A[25], mean_std(c(-3,2)))
+  expect_equal(alpha_A[26], mean_std(c(5,12)))
+  expect_equal(alpha_A[35], mean_std(c(15,6)))
+
+  #Period = 3
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Beta", FUN = "sd", window = "seasonal")
+
+  # For Stock A
+  Beta_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Beta_sd_seas_3m)
+
+  #Expect all NAs until there are at least two past obs
+  expect_true(all(is.na(Beta_A[1:10])))
+  expect_equal(Beta_A[11], sd(c(0,5)))
+  expect_equal(Beta_A[20], sd(c(10,-3,6)))
+  expect_equal(Beta_A[35], sd(c(0,5,14,8,-4,5,14,-1)))
+
+  #Period = 0
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 0, signal = "Gamma", FUN = "median", window = "seasonal")
+
+  # For Stock A
+  Gamma_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Gamma_median_seas_0m)
+
+  #For median, no NAs
+  expect_equal(Gamma_A[1], 12)
+  expect_equal(Gamma_A[20], median(c(6,11)))
+  expect_equal(Gamma_A[35], median(c(4,13,10)))
+
+
+
+})
+
+test_that("compute_meta_dataframe works when small meta_dataframe is being used", {
+
+  num_tickers <- 3
+  num_dates <- 10
+  dates <- seq(as.Date("2001-03-15"), by = "month", length.out = 10)
+
+  set.seed(123) # Ensure reproducibility
+  feature_matrices <- lapply(1:4, function(i) {
+    matrix(sample(-5:15, num_tickers * num_dates, replace = TRUE),
+           nrow = num_tickers, ncol = num_dates)
+  })
+
+  # Create meta_dataframe
+  features_m_df <- create_meta_dataframe(
+    feature_matrices,
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = dates,
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  #Period = 1
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
+
+  # For Stock A
+  alpha_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_mean_std_seas_1m)
+
+  #Expect all NAs until there are at least two past obs
+  expect_true(all(is.na(alpha_A)))
+
+})
+
+test_that("compute_meta_dataframe correctly computes CAGR for different periods and signals", {
 
   meta_df <- create_meta_dataframe(
     list(
@@ -470,9 +573,9 @@ test_that("compute_rolling correctly computes CAGR for different periods and sig
   )
 
   # Compute CAGR for "Alpha" with period = 1 to 3; new column should be "Alpha_cagr_3"
-  meta_df <- compute_rolling(meta_df, period = 1, signal = "Alpha", FUN = "cagr") %>%
-    compute_rolling(period = 2, signal = "Alpha", FUN = "cagr") %>%
-    compute_rolling(period = 3, signal = "Alpha", FUN = "cagr")
+  meta_df <- compute_meta_dataframe(meta_df, period = 1, signal = "Alpha", FUN = "cagr") %>%
+    compute_meta_dataframe(period = 2, signal = "Alpha", FUN = "cagr") %>%
+    compute_meta_dataframe(period = 3, signal = "Alpha", FUN = "cagr")
 
   # Cagr 1 contains non NA values
   expect_gt(
@@ -491,8 +594,8 @@ test_that("compute_rolling correctly computes CAGR for different periods and sig
   )
 
   #Compute CAGR for Alpha and Beta
-  meta_df <- compute_rolling(meta_df, period = 1, signal = c("Beta"), FUN = "cagr") %>%
-    compute_rolling(period = 2, signal = "Beta", FUN = "cagr")
+  meta_df <- compute_meta_dataframe(meta_df, period = 1, signal = c("Beta"), FUN = "cagr") %>%
+    compute_meta_dataframe(period = 2, signal = "Beta", FUN = "cagr")
 
 
   #Workflow
@@ -505,7 +608,7 @@ test_that("compute_rolling correctly computes CAGR for different periods and sig
 
 })
 
-test_that("compute_rolling correctly sensibilizes period when min_non_na is not period + 1", {
+test_that("compute_meta_dataframe correctly sensibilizes periods for CAGR, assigning NA when length < period + 1", {
 
     # Create meta_dataframe
     meta_df <- create_meta_dataframe(
@@ -535,7 +638,7 @@ test_that("compute_rolling correctly sensibilizes period when min_non_na is not 
       features_names = c("Alpha", "Beta", "Gamma", "Delta")
     )
 
-    meta_df <- compute_rolling(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 1)
+    meta_df <- compute_meta_dataframe(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 1)
 
     alpha_A <- meta_df@data %>%
       dplyr::filter(tickers == "Stock A") %>%
@@ -543,11 +646,11 @@ test_that("compute_rolling correctly sensibilizes period when min_non_na is not 
       dplyr::pull(Alpha_cagr_roll_2m)
 
     expect_true(is.na(alpha_A[1]))  # No previous record for first date
-    expect_equal(alpha_A[2], cagr(3, 3, 1))
+    expect_true(is.na(alpha_A[2]))
     expect_equal(alpha_A[3], cagr(3, 4, 2))
     expect_equal(alpha_A[4], cagr(3, 5, 2))
 
-    meta_df <- compute_rolling(meta_df, period = 3, signal = "Alpha", FUN = "cagr", min_non_na = 1)
+    meta_df <- compute_meta_dataframe(meta_df, period = 3, signal = "Alpha", FUN = "cagr", min_non_na = 10)
 
     alpha_A <- meta_df@data %>%
       dplyr::filter(tickers == "Stock A") %>%
@@ -555,11 +658,11 @@ test_that("compute_rolling correctly sensibilizes period when min_non_na is not 
       dplyr::pull(Alpha_cagr_roll_3m)
 
     expect_true(is.na(alpha_A[1]))  # No previous record for first date
-    expect_equal(alpha_A[2], cagr(3, 3, 1))
-    expect_equal(alpha_A[3], cagr(3, 4, 2))
+    expect_true(is.na(alpha_A[2]))
+    expect_true(is.na(alpha_A[3]))
     expect_equal(alpha_A[4], cagr(3, 5, 3))
 
-    meta_df <- compute_rolling(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
+    meta_df <- compute_meta_dataframe(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
 
     alpha_A <- meta_df@data %>%
       dplyr::filter(tickers == "Stock A") %>%
@@ -573,7 +676,7 @@ test_that("compute_rolling correctly sensibilizes period when min_non_na is not 
 
 })
 
-test_that("compute_rolling throws error when all NA values", {
+test_that("compute_meta_dataframe throws error when all NA values", {
   expect_error(
     # Create meta_dataframe with all NAs for "Alpha"
     create_meta_dataframe(
@@ -603,7 +706,7 @@ test_that("compute_rolling throws error when all NA values", {
   )
 })
 
-test_that("compute_rolling correctly computes sur using unique_values = TRUE and repeated value is at final", {
+test_that("compute_meta_dataframe correctly computes sur using unique_values = TRUE and repeated value is at final", {
   features_m_df <- create_meta_dataframe(
     list(
       matrix(c(10, 3, 10, 3,
@@ -629,7 +732,7 @@ test_that("compute_rolling correctly computes sur using unique_values = TRUE and
   )
 
   #Compute sur
-  features_m_df <- compute_rolling(features_m_df, period = 2, signal = "Alpha", FUN = "sur", only_unique = TRUE)
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 2, signal = "Alpha", FUN = "sur", only_unique = TRUE)
 
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
@@ -637,9 +740,9 @@ test_that("compute_rolling correctly computes sur using unique_values = TRUE and
     dplyr::pull(Alpha_sur_roll_2m)
 
   expect_true(is.na(alpha_A[1]))  # No previous record for first date
-  expect_equal(alpha_A[2], sur(c(10, 3)))
-  expect_equal(alpha_A[3], sur(c(10, 3)))
-  expect_equal(alpha_A[4], (9 - mean(c(9,3)))/sd(c(9,3))) #Makes sure it takes 9 as most recent
+  expect_equal(alpha_A[2], sur(3, c(10)))
+  expect_equal(alpha_A[3], sur(3, c(10, 3)))
+  expect_equal(alpha_A[4], (9 - mean(c(3)))/sd(c(3))) #Makes sure it takes 9 as most recent
 
   alpha_B <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock B") %>%
@@ -647,9 +750,9 @@ test_that("compute_rolling correctly computes sur using unique_values = TRUE and
     dplyr::pull(Alpha_sur_roll_2m)
 
   expect_true(is.na(alpha_B[1]))  # No previous record for first date
-  expect_equal(alpha_B[2], sur(c(3, 1)))
-  expect_equal(alpha_B[3], sur(c(3,1,4)))
-  expect_equal(alpha_B[4], (9 - mean(c(9,4,1)))/sd(c(9,4,1))) #Makes sure it takes 9 as most recent
+  expect_equal(alpha_B[2], sur(1, c(3)))
+  expect_equal(alpha_B[3], sur(4, c(1,3)))
+  expect_equal(alpha_B[4], (9 - mean(c(4,1)))/sd(c(4,1))) #Makes sure it takes 9 as most recent
 
   alpha_C <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock C") %>%
@@ -657,12 +760,12 @@ test_that("compute_rolling correctly computes sur using unique_values = TRUE and
     dplyr::pull(Alpha_sur_roll_2m)
 
   expect_true(is.na(alpha_C[1]))  # No previous record for first date
-  expect_equal(alpha_C[2], sur(c(10, 5)))
-  expect_equal(alpha_C[3], sur(c(10,5,2)))
-  expect_equal(alpha_C[4], sur(c(2,5))) #Makes sure it takes 5 as most recent
+  expect_equal(alpha_C[2], sur(5, c(10)))
+  expect_equal(alpha_C[3], sur(2, c(10,5)))
+  expect_equal(alpha_C[4], sur(5, c(2,5))) #Makes sure it takes 5 as most recent
 
   #Compute sur
-  features_m_df <- compute_rolling(features_m_df, period = 3, signal = "Gamma", FUN = "sur", only_unique = TRUE)
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Gamma", FUN = "sur", only_unique = TRUE)
 
   Gamma_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
@@ -670,9 +773,9 @@ test_that("compute_rolling correctly computes sur using unique_values = TRUE and
     dplyr::pull(Gamma_sur_roll_3m)
 
   expect_true(is.na(Gamma_A[1]))  # No previous record for first date
-  expect_equal(Gamma_A[2], (11 - mean(c(11,8)))/sd(c(11,8)))
-  expect_equal(Gamma_A[3], (13 - mean(c(11,8,13)))/sd(c(11,8,13)))
-  expect_equal(Gamma_A[4], (-3 - mean(c(-3,13,11,8)))/sd(c(-3,11,13,8))) #Makes sure it takes 9 as most recent
+  expect_equal(Gamma_A[2], (11 - mean(c(8)))/sd(c(8)))
+  expect_equal(Gamma_A[3], (13 - mean(c(11,8)))/sd(c(11,8)))
+  expect_equal(Gamma_A[4], (-3 - mean(c(13,11,8)))/sd(c(11,13,8))) #Makes sure it takes -3 as most recent
 
   Gamma_B <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock B") %>%
@@ -682,7 +785,7 @@ test_that("compute_rolling correctly computes sur using unique_values = TRUE and
   expect_true(is.na(Gamma_B[1]))  # No previous record for first date
   expect_true(is.na(Gamma_B[2]))
   expect_true(is.na(Gamma_B[3]))
-  expect_equal(Gamma_B[4], (2 - mean(c(11,2)))/sd(c(11,2))) #Makes sure it takes 9 as most recent
+  expect_equal(Gamma_B[4], (2 - mean(c(2)))/sd(c(2))) #Makes sure it takes 2 as most recent
 
 
   Gamma_C <- features_m_df@data %>%
@@ -691,14 +794,14 @@ test_that("compute_rolling correctly computes sur using unique_values = TRUE and
     dplyr::pull(Gamma_sur_roll_3m)
 
   expect_true(is.na(Gamma_C[1]))  # No previous record for first date
-  expect_equal(Gamma_C[2], (13 - mean(c(13,4)))/sd(c(13,4)))
-  expect_equal(Gamma_C[3], (10 - mean(c(10,13,4)))/sd(c(10,13,4)))
-  expect_equal(Gamma_C[4], (13 - mean(c(13,10,4)))/sd(c(13,10,4))) #Makes sure it takes 9 as most recent
+  expect_equal(Gamma_C[2], (13 - mean(c(4)))/sd(c(4)))
+  expect_equal(Gamma_C[3], (10 - mean(c(13,4)))/sd(c(13,4)))
+  expect_equal(Gamma_C[4], (13 - mean(c(10,13,4)))/sd(c(10,13,4))) #Makes sure it takes 9 as most recent
 
 
 })
 
-test_that("compute_rolling correctly computes cagr using unique_values = TRUE - real data", {
+test_that("compute_meta_dataframe correctly computes cagr - real data", {
 
   #Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -717,7 +820,7 @@ test_that("compute_rolling correctly computes cagr using unique_values = TRUE - 
 
 
   #Compute sur
-  features_m_df <- compute_rolling(panel, period = 2, signal = "ebit_12m", FUN = "cagr", only_unique = TRUE, feature_name = "ebit_12m_cagr_2m", min_non_na = 1)
+  features_m_df <- compute_meta_dataframe(panel, period = 2, signal = "ebit_12m", FUN = "cagr", only_unique = FALSE, feature_name = "ebit_12m_cagr_2m", min_non_na = 1)
 
   RRRP3 <- features_m_df@data %>%
     dplyr::filter(tickers == "RRRP3") %>%
@@ -725,8 +828,8 @@ test_that("compute_rolling correctly computes cagr using unique_values = TRUE - 
     dplyr::pull(ebit_12m_cagr_2m)
 
   expect_true(is.na(RRRP3[1]))  # No previous record for first date
-  expect_equal(RRRP3[2], cagr(205648000, 113912000, 1))
-  expect_equal(RRRP3[3], cagr(205648000, 113912000, 1))
+  expect_equal(RRRP3[2], NA_real_)
+  expect_equal(RRRP3[3], cagr(205648000, 113912000, 2))
 
   AERI3 <- features_m_df@data %>%
     dplyr::filter(tickers == "AERI3") %>%
@@ -734,21 +837,113 @@ test_that("compute_rolling correctly computes cagr using unique_values = TRUE - 
     dplyr::pull(ebit_12m_cagr_2m)
 
   expect_true(is.na(AERI3[1]))  # No previous record for first date
-  expect_equal(AERI3[2], cagr(254680000, 277859000, 1))
-  expect_equal(AERI3[3], cagr(254680000, 277859000, 1))
+  expect_true(is.na(AERI3[2]))
+  expect_equal(AERI3[3], cagr(254680000, 277859000, 2))
 
 
 
 })
 
-test_that("compute_rolling errors if the signal column is absent", {
+test_that("compute_meta_dataframe errors if the signal column is absent", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(10, 3, 10, 3,
+               1, 5, 3, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               11, 13, 13, 11,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+
   expect_error(
-    compute_rolling(features_m_df, period = 1, signal = "NonExistingSignal", FUN = "cagr"),
+    compute_meta_dataframe(features_m_df, period = 1, signal = "NonExistingSignal", FUN = "cagr"),
     "The signal column does not exist in the data frame."
   )
 })
 
-test_that("compute_rolling throws an error when input is not numeric", {
+test_that("compute_meta_dataframe errors if the window is wrong", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(10, 3, 10, 3,
+               1, 5, 3, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               11, 13, 13, 11,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+
+  expect_error(
+    compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", window = "organized", FUN = "cagr"),
+    "Invalid window type. Must be either 'rolling' or 'seasonal'."
+  )
+})
+
+test_that("compute_meta_dataframe errors if the period is neg", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(10, 3, 10, 3,
+               1, 5, 3, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               11, 13, 13, 11,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+
+  expect_error(
+    compute_meta_dataframe(features_m_df, period = -1, signal = "Alpha", FUN = "cagr"),
+    "The period must be greater or equal to 0."
+  )
+})
+
+test_that("compute_meta_dataframe throws an error when input is not numeric", {
   features_m_df <- create_meta_dataframe(
     list(
       matrix(c(0, "A", 10, 3,    # "Alpha" matrix with non-numeric input for Stock A
@@ -774,12 +969,12 @@ test_that("compute_rolling throws an error when input is not numeric", {
   )
 
   expect_error(
-    compute_rolling(features_m_df, period = 1, signal = "Alpha", FUN = "median"),
+    compute_meta_dataframe(features_m_df, period = 1, signal = "Alpha", FUN = "median"),
     "The signal column must be numeric."
   )
 })
 
-test_that("compute_rolling computes correct res_mom for period = 3 (Alpha)", {
+test_that("compute_meta_dataframe computes correct res_mom for period = 3 (Alpha)", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -812,7 +1007,7 @@ test_that("compute_rolling computes correct res_mom for period = 3 (Alpha)", {
              ))
 
   # Compute sd for "Alpha" with period = 3;
-  features_m_df <- compute_rolling(features_m_df, period = 3, signal = "Alpha", FUN = "res_mom",
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "res_mom",
                                    benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
 
   # For Stock A:
@@ -850,8 +1045,7 @@ test_that("compute_rolling computes correct res_mom for period = 3 (Alpha)", {
 
 })
 
-
-test_that("compute_rolling computes correct idio_vol for period = 3 (Alpha)", {
+test_that("compute_meta_dataframe computes correct idio_vol for period = 3 (Alpha)", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -884,7 +1078,7 @@ test_that("compute_rolling computes correct idio_vol for period = 3 (Alpha)", {
     ))
 
   # Compute sd for "Alpha" with period = 3;
-  features_m_df <- compute_rolling(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+  features_m_df <- compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                                    benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
 
   # For Stock A:
@@ -922,8 +1116,7 @@ test_that("compute_rolling computes correct idio_vol for period = 3 (Alpha)", {
 
 })
 
-
-test_that("compute_rolling throws an error when bench length is different from features_m_df", {
+test_that("compute_meta_dataframe throws an error when bench is wrong is different from features_m_df", {
 
   features_m_df <- create_meta_dataframe(
     list(
@@ -949,16 +1142,159 @@ test_that("compute_rolling throws an error when bench length is different from f
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
+
   bench_returns_m_xts <- create_meta_xts(
     xts::xts(data.frame(IBOV = c(-2,4,5),
                         SMLL = c(5,10,5)),
              order.by = as.Date(c("2001-04-15", "2001-05-15", "2001-06-15"))
     ))
 
-  # Compute
-  expect_error(compute_rolling(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+  # Bench length
+  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                                benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV"),
                "Lengths of returns and benchmark returns differ")
 
+
+  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+                               benchmark_returns_m_xts = bench_returns_m_xts),
+               "The 'selected_bench' argument must be provided for FUN idio_vol")
+
+
+  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+                               benchmark_returns_m_xts = NULL, selected_bench = "IBOV"),
+               "benchmark_returns_m_xts must be provided for FUN idio_vol")
+
+  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+                               benchmark_returns_m_xts = bench_returns_m_xts@data, selected_bench = "IBOV"),
+               "benchmark_returns_m_xts must be an returns_meta_xts object")
+
+
 })
 
+test_that("compute_meta_dataframe throws an error when only unique is used for wrong FUN", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  # Compute
+  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "cagr", only_unique = TRUE),
+               "The 'only_unique' is not supported for FUN cagr")
+
+})
+
+test_that("compute_meta_dataframe throws an error when window seasonal is used for wrong FUN", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  # Compute
+  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol", window = "seasonal", only_unique = FALSE),
+               "The 'window' argument must be 'rolling' for FUN idio_vol")
+
+})
+
+test_that("compute_meta_dataframe throws an error for wrong FUN", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  # Compute
+  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "CAGR"),
+               "Unsupported function type")
+
+})
+
+test_that("compute_meta_dataframe throws an error for wrong data type", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 3, 10, 3,
+               1, "7", 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  # Compute
+  expect_error(compute_meta_dataframe(features_m_df, period = 3, signal = "Alpha", FUN = "cagr"),
+               "The signal column must be numeric.")
+
+})

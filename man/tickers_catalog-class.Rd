@@ -19,15 +19,15 @@ a unique identifier (\code{perm_id}), and classification flags for private and d
 
 \item{\code{date_last_quote}}{A Date vector representing the last trading date for each stock.}
 
-\item{\code{private}}{A character vector of private stocks (both dates are NA).}
+\item{\code{untraded}}{A character vector of untraded stocks (both dates are NA).}
 
-\item{\code{public}}{A character vector of public stocks (both dates are not NA).}
-
-\item{\code{delisted}}{A character vector of delisted stocks (date_last_quote < current_date).}
+\item{\code{delisted}}{A character vector of delisted stocks (date_last_quote < current_date and public).}
 
 \item{\code{listed}}{A character vector of listed stocks (date_last_quote >= current_date).}
 
 \item{\code{current_date}}{A Date object representing the most recent available date in the dataset.}
+
+\item{\code{n_days_tolerance}}{A numeric value representing the number of days to consider a stock as delisted.}
 }}
 
 \examples{

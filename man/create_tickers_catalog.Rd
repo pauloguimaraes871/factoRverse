@@ -2,9 +2,14 @@
 % Please edit documentation in R/constructors.R
 \name{create_tickers_catalog}
 \alias{create_tickers_catalog}
-\title{Update Meta Dataframe}
+\title{Create a tickers_catalog Object}
 \usage{
-create_tickers_catalog(raw_features_m_df, date_first_quote, date_last_quote)
+create_tickers_catalog(
+  raw_features_m_df,
+  date_first_quote,
+  date_last_quote,
+  ...
+)
 }
 \arguments{
 \item{raw_features_m_df}{A \code{meta_dataframe} object with \code{type == "generic"}, containing stock tickers and dates.}
@@ -13,29 +18,15 @@ create_tickers_catalog(raw_features_m_df, date_first_quote, date_last_quote)
 
 \item{date_last_quote}{A \code{data.frame} with columns \code{tickers} (character) and \code{date_last_quote} (Date).}
 
-\item{old_data}{meta_dataframe object with previous data}
-
-\item{new_data}{list of new CSV data (wide format)}
-
-\item{tickers}{vector of tickers}
-
-\item{dates}{vector of dates for new data}
-
-\item{features_names}{names of the new features}
-
-\item{n_update}{expected number of new dates (months) to update}
+\item{n_days_tolerance}{A \code{numeric} indicating the maximum tolerance for which \code{date_last_quote} can be smaller than
+current_date without it making it a delisted stock.}
 }
 \value{
-Updated meta_dataframe object
-Create a tickers_catalog Object
-
-Constructs a \code{tickers_catalog} object by integrating stock metadata from multiple data sources.
-Ensures data consistency, generates unique identifiers, and classifies stocks based on listing status.
-
 An object of class \code{tickers_catalog}.
 }
 \description{
-Update Meta Dataframe
+Constructs a \code{tickers_catalog} object by integrating stock metadata from multiple data sources.
+Ensures data consistency, generates unique identifiers, and classifies stocks based on listing status.
 }
 \details{
 This function performs the following steps:
