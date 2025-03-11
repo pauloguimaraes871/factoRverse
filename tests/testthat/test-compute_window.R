@@ -1328,7 +1328,7 @@ test_that("compute_window computes correct median values for period = 1 (Alpha) 
 
 })
 
-test_that("compute_window computes correct sd values for period = 1 (A) in meta_xts", {
+test_that("compute_window computes correct sd values for period = 1 (A) in meta_xts and min_non_na = 2", {
   metrics_xts <- create_meta_xts(
     xts::xts(
       matrix(c(0, 3, 10, 3,
@@ -1341,7 +1341,7 @@ test_that("compute_window computes correct sd values for period = 1 (A) in meta_
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 1, metric = "A", FUN = "sd")
+  metrics_xts <- compute_window(metrics_xts, period = 1, metric = "A", FUN = "sd", min_non_na = 2)
 
   metric_values <- metrics_xts@data[, "A_sd_roll_1m"] %>% as.numeric()
 

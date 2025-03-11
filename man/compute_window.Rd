@@ -4,7 +4,7 @@
 \alias{compute_window}
 \title{Compute Rolling or Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts}
 \usage{
-compute_window(data, period, FUN, window = "rolling", ...)
+compute_window(data, period, FUN, ...)
 }
 \arguments{
 \item{data}{A \code{meta_dataframe} or \code{meta_xts} object.}

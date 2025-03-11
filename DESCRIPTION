@@ -48,6 +48,7 @@ Collate:
     'class_definitions.R'
     'classify_stock_liquidity.R'
     'commodity_factor_surprise.R'
+    'compute_across.R'
     'compute_formula.R'
     'compute_sector_wise.R'
     'compute_window.R'

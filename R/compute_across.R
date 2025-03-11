@@ -1,0 +1,133 @@
+#' Compute Across: Apply a Calculation Between meta_dataframe and meta_xts
+#'
+#' This function applies a predefined mathematical operation between a signal column
+#' in a \code{meta_dataframe} and a metric column in a \code{meta_xts}. The operation is
+#' performed for each row in the \code{meta_dataframe} that matches the same date in the
+#' \code{meta_xts}.
+#'
+#' @param meta_dataframe A \code{meta_dataframe} object containing financial or factor data.
+#' @param meta_xts A \code{meta_xts} object containing time series data (e.g., market metrics).
+#' @param signal A \code{character} specifying the column name in \code{meta_dataframe} to be used in the calculation.
+#' @param metric A \code{character} specifying the column name in \code{meta_xts} to be used in the calculation.
+#' @param FUN A \code{character} specifying the operation to perform. Must be one of:
+#'   \itemize{
+#'     \item \strong{"product"}: multiplies the \code{signal} values by the corresponding \code{metric} value.
+#'     \item \strong{"ratio"}: divides the \code{signal} values by the corresponding \code{metric} value.
+#'     \item \strong{"subtract"}: subtracts the \code{metric} value from the \code{signal} value.
+#'     \item \strong{"sum"}: adds the \code{metric} value to the \code{signal} value.
+#'   }
+#' @param feature_name (Optional) A \code{character} specifying the name of the new feature to be added to \code{meta_dataframe}.
+#' If \code{NULL}, the feature name will be generated as "<signal>_<metric>_<FUN>_across".
+#' @param ... Additional arguments (currently not used).
+#'
+#' @return A modified \code{meta_dataframe} object with a new column containing the computed values.
+#'
+#' @details
+#' This function first ensures that the \code{signal} column exists in \code{meta_dataframe}
+#' and that the \code{metric} column exists in \code{meta_xts}. It then finds common dates
+#' between the two objects and applies the selected function to all matching rows.
+#' If no common dates exist, the function returns an error.
+#' @export
+setGeneric("compute_across", function(meta_dataframe, meta_xts, signal, metric, FUN, feature_name = NULL, ...) {
+  standardGeneric("compute_across")
+})
+
+# Method for meta_dataframe and meta_xts
+setMethod("compute_across",
+          signature(meta_dataframe = "meta_dataframe", meta_xts = "meta_xts", signal = "character", metric = "character", FUN = "character"),
+          function(meta_dataframe, meta_xts, signal, metric, FUN, feature_name = NULL, ...) {
+
+            #Extract objs
+            ###############
+              ##Name
+              meta_dataframe_name <- meta_dataframe@meta_dataframe_name
+              meta_xts_name <- meta_xts@meta_xts_name
+
+              ##Current date
+              meta_dataframe_current_date <- meta_dataframe@current_date
+              meta_xts_current_date <- meta_xts@current_date
+
+              ##Workflow
+              meta_dataframe_workflow <- meta_dataframe@workflow
+
+              ##data
+              pre_silver_features_m_df <- meta_dataframe@data
+              pre_silver_meta_xts <- meta_xts@data
+
+            ###############
+
+            #Initial checks
+            ###############
+              ##Check that current_date match
+              if (meta_dataframe_current_date != meta_xts_current_date) {
+                stop("Current dates do not match between meta_dataframe and meta_xts.")
+              }
+              ##Ensure signal exists in pre_silver_features_m_df
+              if (!(signal %in% colnames(pre_silver_features_m_df))) {
+                stop("The specified signal does not exist in the meta_dataframe.")
+              }
+              ##Ensure metric exists in meta_xts
+              if (!(metric %in% colnames(pre_silver_meta_xts))) {
+                stop("The specified metric does not exist in the meta_xts.")
+              }
+              ##Ensure both objects share same dates
+              if (!setequal(unique(pre_silver_features_m_df$dates), as.Date(zoo::index(pre_silver_meta_xts)))){
+                stop("Dates in meta_dataframe and meta_xts do not match.")
+              }
+              ##Ensure FUN is one of the predefined functions
+              valid_FUNs <- c("product", "ratio", "subtract", "sum")
+              if (!(FUN %in% valid_FUNs)) {
+                stop("Invalid FUN specified. Must be one of: 'product', 'ratio', 'subtract', 'sum'.")
+              }
+            ###############
+
+            #Apply FUN
+            ###############
+
+              ##Generate feature name if needed
+              if (is.null(feature_name)) {
+                new_col_name <- paste0(signal, "_across_", metric, "_", FUN)
+              } else {
+                new_col_name <- feature_name
+              }
+
+              ##Apply function row-wise
+              pre_silver_features_m_df <- pre_silver_features_m_df %>%
+                dplyr::mutate(!!new_col_name := switch(
+                  FUN,
+                  "product" = .data[[signal]] * purrr::map_dbl(.data$dates, ~ as.numeric(pre_silver_meta_xts[as.character(.x), metric])),
+                  "ratio" = .data[[signal]] / purrr::map_dbl(.data$dates, ~ as.numeric(pre_silver_meta_xts[as.character(.x), metric])),
+                  "subtract" = .data[[signal]] - purrr::map_dbl(.data$dates, ~ as.numeric(pre_silver_meta_xts[as.character(.x), metric])),
+                  "sum" = .data[[signal]] + purrr::map_dbl(.data$dates, ~ as.numeric(pre_silver_meta_xts[as.character(.x), metric])),
+                  stop("Invalid FUN. Must be one of 'product', 'ratio', 'subtract', or 'sum'.")
+                ))
+
+
+              ############
+              ##Finalize with the workflow
+              new_workflow <- list(
+                list(current_date = meta_dataframe_current_date,  # Current date
+                     timestamp = Sys.time(),        # Timestamp
+                     signal = signal,
+                     metric = metric,
+                     feature_name = new_col_name,
+                     meta_xts_name = meta_xts_name,
+                     FUN = FUN,
+                     call = match.call()
+                )
+              )
+
+              ##Recreate
+              pre_silver_features_m_df <- create_meta_dataframe(pre_silver_features_m_df,
+                                                                meta_dataframe_name = meta_dataframe_name,
+                                                                workflow = c(meta_dataframe_workflow, new_workflow),
+                                                                type = "generic")
+              ##Rename
+              names(pre_silver_features_m_df@workflow)[length(pre_silver_features_m_df@workflow)] <-
+                paste0("compute_", signal, "_across_", metric, "_", FUN, "_", meta_dataframe_current_date)
+              ############
+
+              return(pre_silver_features_m_df)
+
+
+          })
