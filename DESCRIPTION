@@ -57,7 +57,6 @@ Collate:
     'financial_fill_panel.R'
     'get_best_lambda.R'
     'industry_unavaiable_feature_fill.R'
-    'industry_weighted_mean.R'
     'instructions.R'
     'normalize_panel_data.R'
     'plot_methods.R'

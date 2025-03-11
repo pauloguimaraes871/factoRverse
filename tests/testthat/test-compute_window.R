@@ -1,3 +1,4 @@
+#meta_dataframe
 test_that("compute_window computes correct median values for period = 1 (Alpha)", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -29,7 +30,7 @@ test_that("compute_window computes correct median values for period = 1 (Alpha)"
   )
 
   # Compute median for "Alpha" with period = 1; new column name will be "Alpha_median_roll_1_m"
-  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "median")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "median", window = "rolling")
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -1166,7 +1167,7 @@ test_that("compute_window throws an error when bench is wrong is different from 
 
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                                benchmark_returns_m_xts = bench_returns_m_xts@data, selected_bench = "IBOV"),
-               "benchmark_returns_m_xts must be an returns_meta_xts object")
+               "benchmark_returns_m_xts must be provided for FUN idio_vol")
 
 
 })
@@ -1298,3 +1299,267 @@ test_that("compute_window throws an error for wrong data type", {
                "The signal column must be numeric.")
 
 })
+
+#meta_xts
+test_that("compute_window computes correct median values for period = 1 (Alpha) in meta_xts", {
+
+  # Create meta_xts
+  metrics_m_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(0, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4, byrow = TRUE,
+             dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  # Compute median for "Alpha" with period = 1; new column name will be "Alpha_median_roll_1_m"
+  metrics_m_xts <- compute_window(metrics_m_xts, period = 1, metric = "A", FUN = "median", window = "rolling")
+
+  # Extract computed values
+  metric_values <- metrics_m_xts@data[, "A_median_roll_1m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], 0)  # No previous record for first date
+  expect_equal(metric_values[2], median(c(1,0)))
+  expect_equal(metric_values[3], median(c(2,1)))
+
+})
+
+test_that("compute_window computes correct sd values for period = 1 (A) in meta_xts", {
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(0, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4, byrow = TRUE,
+             dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 1, metric = "A", FUN = "sd")
+
+  metric_values <- metrics_xts@data[, "A_sd_roll_1m"] %>% as.numeric()
+
+  expect_true(is.na(metric_values[1]))  # No previous record for first date
+  expect_equal(metric_values[2], sd(c(0, 1)))
+  expect_equal(metric_values[3], sd(c(1, 2)))
+})
+
+test_that("compute_window computes correct CAGR values for period = 3 (A) in meta_xts", {
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               1, 6, 4, -2
+               ),
+             nrow = 4, ncol = 4, byrow = TRUE,
+             dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 3, metric = "A", FUN = "cagr")
+
+  metric_values <- metrics_xts@data[, "A_cagr_roll_3m"] %>% as.numeric()
+
+  expect_true(is.na(metric_values[1]))  # No previous record for first date
+  expect_true(is.na(metric_values[2]))
+  expect_true(is.na(metric_values[3]))
+
+  expect_equal(metric_values[4], cagr(2, 1, 3))
+})
+
+test_that("compute_window computes correct sur values for period = 3 (A) in meta_xts and NAs", {
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, NA, 4,
+               NA, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 3, metric = "A", FUN = "sur")
+
+  metric_values <- metrics_xts@data[, "A_sur_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], sur(2, numeric(0)))
+  expect_equal(metric_values[2], sur(2, c(1)))
+  expect_equal(metric_values[3], sur(NA, c(1,2)))
+  expect_equal(metric_values[4], sur(1, c(NA, 1, 2)))
+  expect_equal(metric_values[5], sur(9, c(1, NA, 1)))
+  expect_equal(metric_values[6], sur(2, c(9, 1, NA)))
+
+  expect_equal(zoo::index(metrics_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct mean_std values for period = 2 (A) in meta_xts and seasonal", {
+
+  dates <- seq.Date(as.Date("2001-03-15"), as.Date("2003-08-15"), by = "month")
+  #Generate matrix
+  set.seed(123)
+  metrics_matrix <- matrix(rnorm(30), nrow = length(dates), ncol = 4, dimnames = list(NULL, c("A", "B", "C", "D")))
+
+  metrics_xts <- create_meta_xts(
+    xts::xts(metrics_matrix,
+      order.by = dates),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 2, metric = "A", FUN = "mean_std", window = "seasonal")
+
+  metric_values <- metrics_xts@data[, "A_mean_std_seas_2m"] %>% as.numeric()
+
+  expect_true(all(is.na(metric_values[1:11])))
+
+  expect_equal(metric_values[12], mean_std(metrics_xts@data[c(1,2), "A"]))
+  expect_equal(metric_values[15], mean_std(metrics_xts@data[c(4,5), "A"]))
+  expect_equal(metric_values[20], mean_std(metrics_xts@data[c(9,10), "A"]))
+  expect_equal(metric_values[30], mean_std(metrics_xts@data[c(7,8, 19,20), "A"]))
+
+
+})
+
+test_that("compute_window computes correct skew values for period = 3 (A) in meta_xts and unique_values = TRUE", {
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               6, 6, 4, -2,
+               6, 2, 1, 4,
+               2, 3, 4, -3
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 3, metric = "A", FUN = "skew", only_unique = TRUE)
+
+  metric_values <- metrics_xts@data[, "A_skew_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], skew(c(2)))
+  expect_equal(metric_values[2], skew(c(2, 1)))
+  expect_equal(metric_values[3], skew(c(2, 1)))
+  expect_equal(metric_values[4], skew(c(6, 2, 1)))
+  expect_equal(metric_values[5], skew(c(6, 2, 1)))
+  expect_equal(metric_values[6], skew(c(6, 2)))
+
+
+})
+
+test_that("compute_window throws errors when metric col is wrong ", {
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               6, 6, 4, -2,
+               6, 2, 1, 4,
+               2, 3, 4, -3
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  expect_error(
+    compute_window(metrics_xts, period = 3, metric = "A2", FUN = "skew", only_unique = TRUE),
+    "The metric column does not exist in the xts object."
+  )
+
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, "3", 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               6, 6, 4, -2,
+               6, 2, 1, 4,
+               2, 3, 4, -3
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  expect_error(
+    compute_window(metrics_xts, period = 3, metric = "A", FUN = "skew", only_unique = TRUE),
+    "The metric column must be numeric."
+  )
+
+
+})
+
+test_that("compute_window throws errors when FUN or period is wrong ", {
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               6, 6, 4, -2,
+               6, 2, 1, 4,
+               2, 3, 4, -3
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  expect_error(
+    compute_window(metrics_xts, period = 3, metric = "A", FUN = "cagr", only_unique = TRUE),
+    "The 'only_unique' is not supported for FUN cagr"
+  )
+
+  expect_error(
+    compute_window(metrics_xts, period = 3, metric = "A", FUN = "emb", only_unique = TRUE),
+    "Unsupported function type"
+  )
+
+  expect_error(
+    compute_window(metrics_xts, period = 3, metric = "A", FUN = "idio_vol", only_unique = FALSE),
+    "The FUN idio_vol is not supported for metrics_meta_xts"
+  )
+
+  expect_error(
+    compute_window(metrics_xts, period = -3, metric = "A", FUN = "cagr", only_unique = FALSE)
+  )
+
+  expect_error(
+    compute_window(metrics_xts, period = 3, metric = "A", FUN = "cagr", window = "exp"),
+    "Invalid window type. Must be either 'rolling' or 'seasonal'."
+  )
+
+
+})
+
+
+
+
+
+
+

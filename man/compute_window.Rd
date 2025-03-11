@@ -2,84 +2,71 @@
 % Please edit documentation in R/compute_window.R
 \name{compute_window}
 \alias{compute_window}
-\title{Compute Rolling or Seasonal Calculation for a given signal in a meta_dataframe}
+\title{Compute Rolling or Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts}
 \usage{
-compute_window(
-  features_m_df,
-  period,
-  signal,
-  FUN,
-  window = "rolling",
-  benchmark_returns_m_xts = NULL,
-  selected_bench = NULL,
-  na.rm = TRUE,
-  only_unique = FALSE,
-  feature_name = NULL,
-  min_non_na = 0
-)
+compute_window(data, period, FUN, window = "rolling", ...)
 }
 \arguments{
-\item{features_m_df}{A \code{meta_dataframe} object.}
+\item{data}{A \code{meta_dataframe} or \code{meta_xts} object.}
 
-\item{period}{A \code{numeric} value representing the number of months to look back in case of 'rolling' and the number of months to look ahead in case of 'seasonal'.}
+\item{period}{A \code{numeric} value indicating the time window:
+\itemize{
+\item For \code{rolling}, the number of months to look back.
+\item For \code{seasonal}, the number of months to look ahead.
+}}
 
-\item{signal}{A \code{character} specifying the column name on which the rolling function is computed.}
+\item{FUN}{A \code{character} specifying the function to apply. Supported options:
+\itemize{
+\item "median", "sd", "cagr", "skew", "sur", "mean_std", "res_mom", "idio_vol".
+}}
 
-\item{FUN}{A \code{character} specifying the function to apply. Options are "median", "sd", "cagr", "skew", "sur", "mean_std",
-"res_mom", "idio_vol".}
+\item{window}{A \code{character} specifying the window type: either "rolling" (default) or "seasonal".}
 
-\item{window}{A \code{character} specifying the window type. Can be either "rolling" or "seasonal". Default is "rolling".}
+\item{signal}{(For \code{meta_dataframe}) A \code{character} specifying the column name on which the rolling function is computed.}
 
-\item{benchmark_returns_m_xts}{A meta_xts object. Required for FUN "res_mom" and "idio_vol".}
+\item{metric}{(For \code{meta_xts}) A \code{character} specifying the metric column name.}
 
-\item{selected_bench}{A \code{character} specifying the column name in benchmark_returns_m_xts@data to use. Required for FUN "res_mom" and "idio_vol".}
+\item{benchmark_returns_m_xts}{A \code{meta_xts} object. Required for \code{FUN} "res_mom" and "idio_vol".}
 
-\item{na.rm}{A \code{logical} indicating whether to remove NA values (default TRUE).}
+\item{selected_bench}{A \code{character} specifying the column name in \code{benchmark_returns_m_xts@data} to use. Required for \code{FUN} "res_mom" and "idio_vol".}
 
-\item{only_unique}{A \code{logical} indicating whether to compute the metric on unique values only (default FALSE).}
+\item{na.rm}{A \code{logical} indicating whether to remove \code{NA} values (default: TRUE).}
 
-\item{feature_name}{A \code{character} specifying the name of the feature to be added to the meta_dataframe. If NULL,
-the feature name will be set to "\if{html}{\out{<signal>}}\emph{roll}\if{html}{\out{<period>}}_\if{html}{\out{<FUN>}}". Default is NULL.}
+\item{only_unique}{A \code{logical} indicating whether to compute the metric using only unique values (default: FALSE).}
 
-\item{min_non_na}{A \code{numeric} value specifying the minimum number of non-NA values required to compute the rolling stat. Default is 0.
-The only exception is for FUN "cagr" where the default minimum number of non-NA values required is period + 1 (to ensure correct number of periods).}
+\item{feature_name}{A \code{character} specifying the name of the computed feature. If NULL (default), the feature name is set to \code{"<metric>_<window>_<period>_<FUN>"}.}
+
+\item{min_non_na}{A \code{numeric} value specifying the minimum number of non-NA values required to compute the rolling statistic. Default is 0.
+\itemize{
+\item Exception: For \code{FUN = "cagr"}, the default is \code{period + 1} to ensure sufficient periods.
+}}
 }
 \value{
-A \code{meta_dataframe} object with an added column named \code{<signal>_<window>_<period>_<FUN>} in its
-\code{data} slot containing the computed values.
+A modified \code{meta_dataframe} or \code{meta_xts} object with an additional column named \code{"<metric>_<window>_<period>_<FUN>"},
+storing the computed values.
 }
 \description{
-This method computes a calculation for each observation in a \code{meta_dataframe} object by applying a
-predefined function (specified by a character) on the filtered values (for the same ticker) that fall within a period
-preceding the current observation's date. The filtering can be done either using a full rolling window (all dates between
-\code{current_date - period months} and \code{current_date}) or a seasonal window. In the seasonal mode, only observations
-whose months belong to the consecutive months immediately following the current observation's month are selected.
+This method computes rolling or seasonal statistics for a specified metric in a \code{meta_dataframe} or \code{meta_xts} object.
+The function applies a predefined calculation (\code{FUN}) to values within a specified time window.
 }
 \details{
-For each row (current observation), the method identifies all previous observations (for the same ticker) whose dates fall
-between \code{current_date - period months} (inclusive) and \code{current_date} (inclusive) for 'rolling' and
-all past months that are 'period' ahead of current month, then applies a function, determined by \code{FUN},
-on the corresponding values in the specified signal column.
-If no matching observation is found, the resulting value is \code{NA}. The available functions are:
+The window can be either:
+\itemize{
+\item \strong{Rolling:} Includes all dates within the range \verb{[current_date - period months, current_date]}.
+\item \strong{Seasonal:} Includes only observations from the same ticker whose months match the consecutive months immediately following the current observation's month.
+}
+
+The function filters observations within the specified time window and applies the selected \code{FUN}. If no matching observations are found, the result is \code{NA}.
+
+Available functions:
 \itemize{
 \item \strong{median}: \code{stats::median(x, na.rm = na.rm)}
 \item \strong{sd}: \code{stats::sd(x, na.rm = na.rm)}
-\item \strong{skew}: computed as \code{mean((x - mean(x))^3, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)^3}
-\item \strong{sur}: \code{(final_value - mean(x, na.rm = na.rm)) / stats::sd(x, na.rm = na.rm)}, where final_value is the current signal value.
+\item \strong{skew}: \code{mean((x - mean(x))^3, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)^3}
+\item \strong{sur}: \code{(final_value - mean(x, na.rm = na.rm)) / stats::sd(x, na.rm = na.rm)}, where \code{final_value} is the most recent metric value.
 \item \strong{cv}: \code{stats::mean(unique(x), na.rm = na.rm) / stats::sd(unique(x), na.rm = na.rm)}
-\item \strong{res_mom}: calculates rolling windows for both the signal and the benchmark (from benchmark_returns_m_xts).
-It then regresses the signal on the benchmark to obtain alpha and beta and returns
-\code{(alpha + beta * current_benchmark) - current_signal}.
-\item \strong{idio_vol}: calculates rolling windows for both the signal and the benchmark, obtains beta via regression,
-and then computes \code{sqrt(sd(signal)^2 - beta^2 * sd(benchmark)^2)}.
+\item \strong{res_mom}: Performs rolling regressions between the metric and the benchmark (from \code{benchmark_returns_m_xts}).
+Computes \code{alpha} and \code{beta}, then returns \code{(alpha + beta * current_benchmark) - current_metric}.
+\item \strong{idio_vol}: Computes rolling volatility by regressing the metric against the benchmark, obtaining beta, then computing \code{sqrt(sd(metric)^2 - beta^2 * sd(benchmark)^2)}.
 }
-}
-\examples{
-\dontrun{
-  # Suppose features_m_df is a meta_dataframe object, benchmark_returns_m_xts is a meta_xts object,
-  # and "Alpha" is one of the signal columns and "SPY" is the benchmark column:
-  features_m_df <- compute_rolling(features_m_df, period = 3, signal = "Alpha", FUN = "res_mom",
-                                   benchmark_returns_m_xts = benchmark_returns_m_xts, bench = "SPY")
-}
-
 }

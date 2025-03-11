@@ -1305,7 +1305,7 @@ setMethod(
 })
 
 # Define the method for when 'data' is a data.frame
-methods::setMethod(
+setMethod(
   "create_meta_xts",
   signature(data = "data.frame"),
   function(data,

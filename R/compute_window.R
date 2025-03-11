@@ -1,76 +1,73 @@
 # compute_window ----------------------------------------------------
-#' Compute Rolling or Seasonal Calculation for a given signal in a meta_dataframe
+#' Compute Rolling or Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts
 #'
-#' This method computes a calculation for each observation in a \code{meta_dataframe} object by applying a
-#' predefined function (specified by a character) on the filtered values (for the same ticker) that fall within a period
-#' preceding the current observation's date. The filtering can be done either using a full rolling window (all dates between
-#' \code{current_date - period months} and \code{current_date}) or a seasonal window. In the seasonal mode, only observations
-#' whose months belong to the consecutive months immediately following the current observation's month are selected.
-
+#' This method computes rolling or seasonal statistics for a specified metric in a `meta_dataframe` or `meta_xts` object.
+#' The function applies a predefined calculation (`FUN`) to values within a specified time window.
 #'
-#' @param features_m_df A \code{meta_dataframe} object.
-#' @param period A \code{numeric} value representing the number of months to look back in case of 'rolling' and the number of months to look ahead in case of 'seasonal'.
-#' @param window A \code{character} specifying the window type. Can be either "rolling" or "seasonal". Default is "rolling".
-#' @param signal A \code{character} specifying the column name on which the rolling function is computed.
-#' @param FUN A \code{character} specifying the function to apply. Options are "median", "sd", "cagr", "skew", "sur", "mean_std",
-#' "res_mom", "idio_vol".
-#' @param benchmark_returns_m_xts A meta_xts object. Required for FUN "res_mom" and "idio_vol".
-#' @param selected_bench A \code{character} specifying the column name in benchmark_returns_m_xts@data to use. Required for FUN "res_mom" and "idio_vol".
-#' @param na.rm A \code{logical} indicating whether to remove NA values (default TRUE).
-#' @param only_unique A \code{logical} indicating whether to compute the metric on unique values only (default FALSE).
-#' @param feature_name A \code{character} specifying the name of the feature to be added to the meta_dataframe. If NULL,
-#' the feature name will be set to "<signal>_roll_<period>_<FUN>". Default is NULL.
-#' @param min_non_na A \code{numeric} value specifying the minimum number of non-NA values required to compute the rolling stat. Default is 0.
-#' The only exception is for FUN "cagr" where the default minimum number of non-NA values required is period + 1 (to ensure correct number of periods).
+#' The window can be either:
+#' - **Rolling:** Includes all dates within the range `[current_date - period months, current_date]`.
+#' - **Seasonal:** Includes only observations from the same ticker whose months match the consecutive months immediately following the current observation's month.
 #'
-#' @return A \code{meta_dataframe} object with an added column named \code{<signal>_<window>_<period>_<FUN>} in its
-#' \code{data} slot containing the computed values.
+#' @param data A `meta_dataframe` or `meta_xts` object.
+#' @param period A `numeric` value indicating the time window:
+#'   - For `rolling`, the number of months to look back.
+#'   - For `seasonal`, the number of months to look ahead.
+#' @param window A `character` specifying the window type: either "rolling" (default) or "seasonal".
+#' @param FUN A `character` specifying the function to apply. Supported options:
+#'   - "median", "sd", "cagr", "skew", "sur", "mean_std", "res_mom", "idio_vol".
+#' @param signal (For `meta_dataframe`) A `character` specifying the column name on which the rolling function is computed.
+#' @param metric (For `meta_xts`) A `character` specifying the metric column name.
+#' @param benchmark_returns_m_xts A `meta_xts` object. Required for `FUN` "res_mom" and "idio_vol".
+#' @param selected_bench A `character` specifying the column name in `benchmark_returns_m_xts@data` to use. Required for `FUN` "res_mom" and "idio_vol".
+#' @param na.rm A `logical` indicating whether to remove `NA` values (default: TRUE).
+#' @param only_unique A `logical` indicating whether to compute the metric using only unique values (default: FALSE).
+#' @param feature_name A `character` specifying the name of the computed feature. If NULL (default), the feature name is set to `"<metric>_<window>_<period>_<FUN>"`.
+#' @param min_non_na A `numeric` value specifying the minimum number of non-NA values required to compute the rolling statistic. Default is 0.
+#'   - Exception: For `FUN = "cagr"`, the default is `period + 1` to ensure sufficient periods.
+#'
+#' @return A modified `meta_dataframe` or `meta_xts` object with an additional column named `"<metric>_<window>_<period>_<FUN>"`,
+#' storing the computed values.
 #'
 #' @details
-#' For each row (current observation), the method identifies all previous observations (for the same ticker) whose dates fall
-#' between \code{current_date - period months} (inclusive) and \code{current_date} (inclusive) for 'rolling' and
-#' all past months that are 'period' ahead of current month, then applies a function, determined by \code{FUN},
-#' on the corresponding values in the specified signal column.
-#' If no matching observation is found, the resulting value is \code{NA}. The available functions are:
-#' \itemize{
-#'   \item \strong{median}: \code{stats::median(x, na.rm = na.rm)}
-#'   \item \strong{sd}: \code{stats::sd(x, na.rm = na.rm)}
-#'   \item \strong{skew}: computed as \code{mean((x - mean(x))^3, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)^3}
-#'   \item \strong{sur}: \code{(final_value - mean(x, na.rm = na.rm)) / stats::sd(x, na.rm = na.rm)}, where final_value is the current signal value.
-#'   \item \strong{cv}: \code{stats::mean(unique(x), na.rm = na.rm) / stats::sd(unique(x), na.rm = na.rm)}
-#'   \item \strong{res_mom}: calculates rolling windows for both the signal and the benchmark (from benchmark_returns_m_xts).
-#'         It then regresses the signal on the benchmark to obtain alpha and beta and returns
-#'         \code{(alpha + beta * current_benchmark) - current_signal}.
-#'   \item \strong{idio_vol}: calculates rolling windows for both the signal and the benchmark, obtains beta via regression,
-#'         and then computes \code{sqrt(sd(signal)^2 - beta^2 * sd(benchmark)^2)}.
-#' }
+#' The function filters observations within the specified time window and applies the selected `FUN`. If no matching observations are found, the result is `NA`.
 #'
-#' @examples
-#' \dontrun{
-#'   # Suppose features_m_df is a meta_dataframe object, benchmark_returns_m_xts is a meta_xts object,
-#'   # and "Alpha" is one of the signal columns and "SPY" is the benchmark column:
-#'   features_m_df <- compute_rolling(features_m_df, period = 3, signal = "Alpha", FUN = "res_mom",
-#'                                    benchmark_returns_m_xts = benchmark_returns_m_xts, bench = "SPY")
+#' Available functions:
+#' \itemize{
+#'   \item **median**: `stats::median(x, na.rm = na.rm)`
+#'   \item **sd**: `stats::sd(x, na.rm = na.rm)`
+#'   \item **skew**: `mean((x - mean(x))^3, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)^3`
+#'   \item **sur**: `(final_value - mean(x, na.rm = na.rm)) / stats::sd(x, na.rm = na.rm)`, where `final_value` is the most recent metric value.
+#'   \item **cv**: `stats::mean(unique(x), na.rm = na.rm) / stats::sd(unique(x), na.rm = na.rm)`
+#'   \item **res_mom**: Performs rolling regressions between the metric and the benchmark (from `benchmark_returns_m_xts`).
+#'         Computes `alpha` and `beta`, then returns `(alpha + beta * current_benchmark) - current_metric`.
+#'   \item **idio_vol**: Computes rolling volatility by regressing the metric against the benchmark, obtaining beta, then computing `sqrt(sd(metric)^2 - beta^2 * sd(benchmark)^2)`.
 #' }
 #'
 #' @export
-setGeneric("compute_window", function(features_m_df, period, signal, FUN, window = "rolling", benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE,
-                                              only_unique = FALSE, feature_name = NULL, min_non_na = 0){
+
+setGeneric("compute_window", function(data, period, FUN, ...){
   standardGeneric("compute_window")
 })
 
+#' method for meta_dataframe
 setMethod("compute_window",
-          signature(features_m_df = "meta_dataframe", period = "numeric", signal = "character", FUN = "character"),
-          function(features_m_df, period, signal, FUN, window = "rolling", benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE, only_unique = FALSE,
+          signature(data = "meta_dataframe", period = "numeric", FUN = "character"),
+          function(data, period, FUN, window = "rolling", signal, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE, only_unique = FALSE,
                    feature_name = NULL, min_non_na = 0) {
 
-            #Pass features_m_df as pre_silver_features_m_df
+            #Extract data
             ############
-            meta_dataframe_workflow <- features_m_df@workflow
-            meta_dataframe_name <- features_m_df@meta_dataframe_name
-            current_date <- features_m_df@current_date
-            pre_silver_features_m_df <- features_m_df@data
-            ############
+              ###Meta dataframe
+              meta_dataframe_workflow <- data@workflow
+              meta_dataframe_name <- data@meta_dataframe_name
+              current_date <- data@current_date
+              pre_silver_features_m_df <- data@data
+
+              ###Meta xts
+              is_returns_meta_xts <- inherits(benchmark_returns_m_xts, "returns_meta_xts")
+              benchmark_returns_m_xts_name <- if(is_returns_meta_xts) benchmark_returns_m_xts@meta_xts_name else NULL
+              benchmark_returns_m_xts <- if(is_returns_meta_xts) benchmark_returns_m_xts@data else NULL
+              ############
 
             #Initial Checks
             ############
@@ -95,15 +92,13 @@ setMethod("compute_window",
               if (window != "rolling"){
                 stop("The 'window' argument must be 'rolling' for FUN ", FUN)
               }
-              if (is.null(benchmark_returns_m_xts)) {
+              if (!is_returns_meta_xts) {
                 stop("benchmark_returns_m_xts must be provided for FUN ", FUN)
               }
               if (is.null(selected_bench)) {
                 stop("The 'selected_bench' argument must be provided for FUN ", FUN)
               }
-              if (!all(class(benchmark_returns_m_xts) == "returns_meta_xts")) {
-                stop("benchmark_returns_m_xts must be an returns_meta_xts object")
-              }
+
 
             }
 
@@ -164,9 +159,8 @@ setMethod("compute_window",
                 }
               ##Do the same for benchmark if it is not NULL
               if (!is.null(benchmark_returns_m_xts)){
-                ####Extract rolling window for benchmark from benchmark_returns_m_xts@data
-                bench_xts <- benchmark_returns_m_xts@data
-                bench_ret_values <- as.numeric(bench_xts[zoo::index(bench_xts) >= lower_date & zoo::index(bench_xts) <= current_row_date, selected_bench])
+                ####Extract rolling window for benchmark from benchmark_returns_m_xts
+                selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) >= lower_date & zoo::index(benchmark_returns_m_xts) <= current_row_date, selected_bench])
               }
 
               ##Returns NA in case of certain conditions
@@ -181,8 +175,8 @@ setMethod("compute_window",
                 if (!is.numeric(values)) {
                   return(NA_real_)
                 }
-                ###Return NA in case bench_ret_values length is 0
-                if (!is.null(benchmark_returns_m_xts) && length(bench_ret_values) == 0) {
+                ###Return NA in case selected_bench_ret_values length is 0
+                if (!is.null(benchmark_returns_m_xts) && length(selected_bench_ret_values) == 0) {
                   NA_real_
                 }
 
@@ -200,8 +194,8 @@ setMethod("compute_window",
                        cagr(begin = begin_value, final = final_value, period = period)
                        },
                      "mean_std" = mean_std(values, na.rm = na.rm),
-                     "res_mom" = res_mom(ret_values = values, bench_ret_values = bench_ret_values, na.rm = na.rm),
-                     "idio_vol" = idio_vol(ret_values = values, bench_ret_values = bench_ret_values, na.rm = na.rm),
+                     "res_mom" = res_mom(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
+                     "idio_vol" = idio_vol(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                      stop("Unsupported function type")
               )
 
@@ -237,6 +231,7 @@ setMethod("compute_window",
                    na.rm = na.rm,
                    only_unique = only_unique,
                    min_non_na = min_non_na,
+                   benchmark_returns_m_xts_name = benchmark_returns_m_xts_name,
                    selected_bench = if(!is.null(selected_bench)) selected_bench else NA_character_
               )
             )
@@ -252,6 +247,141 @@ setMethod("compute_window",
             ############
 
             return(pre_silver_features_m_df)
+          })
+
+#' method for meta_xts
+setMethod("compute_window",
+          signature(data = "metrics_meta_xts", period = "numeric", FUN = "character"),
+          function(data, period, FUN, window = "rolling", metric, na.rm = TRUE, only_unique = FALSE,
+                   feature_name = NULL, min_non_na = 0) {
+
+            #Extract relevant elements
+            ###############
+            meta_xts_workflow <- data@workflow
+            meta_xts_name <- data@meta_xts_name
+            current_date <- data@current_date
+            source <- data@source
+            pre_silver_m_xts <- data@data
+
+            ###############
+
+            #Initial checks
+            ###############
+            if (!metric %in% colnames(pre_silver_m_xts)) {
+              stop("The metric column does not exist in the xts object.")
+            }
+            if (!is.numeric(pre_silver_m_xts[, metric])) {
+              stop("The metric column must be numeric.")
+            }
+            if (period < 0) {
+              stop("The period must be greater or equal to 0.")
+            }
+            if (only_unique && FUN %in% c("cagr")){
+              stop("The 'only_unique' is not supported for FUN ", FUN)
+            }
+            if (FUN %in% c("res_mom", "idio_vol")) {
+              stop("The FUN ", FUN, " is not supported for metrics_meta_xts")
+            }
+
+            ###############
+
+            #Compute rolling values
+            ###############
+            rolling_values <- xts::xts(rep(NA_real_, nrow(pre_silver_m_xts)), order.by = zoo::index(pre_silver_m_xts))
+
+              ##Loop through xts
+              for (i in seq_len(nrow(pre_silver_m_xts))) {
+                current_row_date <- zoo::index(pre_silver_m_xts)[i]
+                lower_date <- lubridate::add_with_rollback(current_row_date, -months(period))
+
+                ###Rolling window
+                if (window == "rolling") {
+                  selected_xts <- pre_silver_m_xts[zoo::index(pre_silver_m_xts) >= lower_date &
+                                                 zoo::index(pre_silver_m_xts) <= current_row_date, metric]
+                ###Seasonal window
+                } else if (window == "seasonal") {
+                  current_month <- lubridate::month(current_row_date)
+                  fwd_months <- if (period == 0) months(0) else months(1:period)
+                  seasonal_months <- lubridate::month(lubridate::add_with_rollback(current_row_date, fwd_months, roll = TRUE))
+                  selected_xts <- pre_silver_m_xts[lubridate::month(zoo::index(pre_silver_m_xts)) %in% seasonal_months &
+                                                            zoo::index(pre_silver_m_xts) <= current_row_date, metric]
+                } else {
+                  stop("Invalid window type. Must be either 'rolling' or 'seasonal'.")
+                }
+
+                ###If length is 0, skip
+                if (length(selected_xts) == 0) next
+
+                ###Adjust values
+                values <- as.numeric(selected_xts)
+                begin_value <- head(values, 1)
+                final_value <- tail(values, 1)
+                if (only_unique) {
+                  values <- unique(values)
+                }
+                if (FUN == "cagr" && length(values) < period + 1) {
+                  rolling_values[i] <- NA_real_
+                  next
+                }
+                if (FUN != "cagr" && length(values) < min_non_na) {
+                  rolling_values[i] <- NA_real_
+                  next
+                }
+                if (!is.numeric(values)) {
+                  rolling_values[i] <- NA_real_
+                  next
+                }
+
+                ###Apply FUN
+                rolling_values[i] <- switch(FUN,
+                                            "median" = stats::median(values, na.rm = na.rm),
+                                            "sd" = stats::sd(values, na.rm = na.rm),
+                                            "skew" = skew(values, na.rm = na.rm),
+                                            "sur" = sur(final_value = final_value, past_values = values[-length(values)], na.rm = na.rm),
+                                            "cagr" = cagr(begin = begin_value, final = final_value, period = period),
+                                            "mean_std" = mean_std(values, na.rm = na.rm),
+                                            stop("Unsupported function type"))
+              }
+            ###############
+
+            #Assign computed values to a new column
+            ###############
+            short_window_name <- if (window == "rolling") "roll" else "seas"
+            new_col_name <- if (is.null(feature_name)) paste0(metric, "_", FUN, "_", short_window_name, "_", period, "m") else feature_name
+            pre_silver_m_xts <- cbind(pre_silver_m_xts, rolling_values)
+            colnames(pre_silver_m_xts)[ncol(pre_silver_m_xts)] <- new_col_name
+
+            #Update workflow
+            new_workflow <- list(
+              list(current_date = current_date,
+                   timestamp = Sys.time(),
+                   metric = metric,
+                   period = period,
+                   window = window,
+                   feature_name = new_col_name,
+                   FUN = FUN,
+                   call = match.call(),
+                   na.rm = na.rm,
+                   only_unique = only_unique,
+                   min_non_na = min_non_na)
+            )
+
+            #Recreate the meta_xts object
+            pre_silver_m_xts <- create_meta_xts(pre_silver_m_xts,
+                                                meta_xts_name = meta_xts_name,
+                                                workflow = c(meta_xts_workflow, new_workflow),
+                                                type = "metrics",
+                                                source = c(source,
+                                                           paste0("compute_", metric, "_", FUN, "_", short_window_name, "_", period, "m", "_", current_date))
+            )
+
+            names(pre_silver_m_xts@workflow)[length(pre_silver_m_xts@workflow)] <-
+              paste0("compute_", metric, "_", FUN, "_", short_window_name, "_", period, "m", "_", current_date)
+
+
+            return(pre_silver_m_xts)
+
+            ###############
           })
 
 
