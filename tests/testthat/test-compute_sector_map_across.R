@@ -1,4 +1,4 @@
-test_that("compute_sector_map works for single mapping", {
+test_that("compute_sector_map_across works for single mapping", {
 
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -50,7 +50,7 @@ test_that("compute_sector_map works for single mapping", {
     Utilities = ~ B
   )
 
-  meta_df <- compute_sector_map(features_m_df, metrics_xts, "sector", mapper)
+  meta_df <- compute_sector_map_across(features_m_df, metrics_xts, "sector", mapper)
 
   #Check if sector_mapped is correct
   A <- meta_df@data %>% dplyr::filter(tickers == "Stock A") %>% dplyr::pull(sector_mapped)
@@ -64,7 +64,7 @@ test_that("compute_sector_map works for single mapping", {
 
 })
 
-test_that("compute_sector_map works for arithmetic mapping", {
+test_that("compute_sector_map_across works for arithmetic mapping", {
 
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -116,7 +116,7 @@ test_that("compute_sector_map works for arithmetic mapping", {
     Utilities = ~ -B/A
   )
 
-  meta_df <- compute_sector_map(features_m_df, metrics_xts, "sector", mapper)
+  meta_df <- compute_sector_map_across(features_m_df, metrics_xts, "sector", mapper)
 
   #Check if sector_mapped is correct
   A <- meta_df@data %>% dplyr::filter(tickers == "Stock A") %>% dplyr::pull(sector_mapped)
@@ -130,7 +130,7 @@ test_that("compute_sector_map works for arithmetic mapping", {
 
 })
 
-test_that("compute_sector_map works for more complex mapping", {
+test_that("compute_sector_map_across works for more complex mapping", {
 
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -182,7 +182,7 @@ test_that("compute_sector_map works for more complex mapping", {
     Utilities = ~ -exp(B)/(A)^2
   )
 
-  meta_df <- compute_sector_map(features_m_df, metrics_xts, "sector", mapper, feature_name = "mapped_comm")
+  meta_df <- compute_sector_map_across(features_m_df, metrics_xts, "sector", mapper, feature_name = "mapped_comm")
 
   #Check if sector_mapped is correct
   A <- meta_df@data %>% dplyr::filter(tickers == "Stock A") %>% dplyr::pull(mapped_comm)
@@ -196,7 +196,7 @@ test_that("compute_sector_map works for more complex mapping", {
 
 })
 
-test_that("compute_sector_map throws error for NAs in sectors", {
+test_that("compute_sector_map_across throws error for NAs in sectors", {
 
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -249,12 +249,12 @@ test_that("compute_sector_map throws error for NAs in sectors", {
   )
 
   expect_error(
-    compute_sector_map(features_m_df, metrics_xts, "sector", mapper),
+    compute_sector_map_across(features_m_df, metrics_xts, "sector", mapper),
     "The sector column contains NAs.")
 
 })
 
-test_that("compute_sector_map throws error for wrong objs", {
+test_that("compute_sector_map_across throws error for wrong objs", {
 
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -307,7 +307,7 @@ test_that("compute_sector_map throws error for wrong objs", {
   )
 
   expect_error(
-    compute_sector_map(features_m_df, metrics_xts, "subsector", mapper),
+    compute_sector_map_across(features_m_df, metrics_xts, "subsector", mapper),
     "The specified sector column does not exist in the meta_dataframe.")
 
 
@@ -326,7 +326,7 @@ test_that("compute_sector_map throws error for wrong objs", {
 
 
   expect_error(
-    compute_sector_map(features_m_df, wrong_metrics_xts, "sector", mapper),
+    compute_sector_map_across(features_m_df, wrong_metrics_xts, "sector", mapper),
     "The meta_xts contains NAs.")
 
   wrong_mapper <- list(
@@ -335,7 +335,7 @@ test_that("compute_sector_map throws error for wrong objs", {
   )
 
   expect_error(
-    compute_sector_map(features_m_df, metrics_xts, "sector", wrong_mapper),
+    compute_sector_map_across(features_m_df, metrics_xts, "sector", wrong_mapper),
     "The mapper object must be a list of formulas.")
 
 
@@ -345,7 +345,7 @@ test_that("compute_sector_map throws error for wrong objs", {
   )
 
   expect_error(
-    compute_sector_map(features_m_df, metrics_xts, "sector", wrong_mapper),
+    compute_sector_map_across(features_m_df, metrics_xts, "sector", wrong_mapper),
     "The following sectors in meta_dataframe are missing in the mapper: Agro, Utilities")
 
 
@@ -364,7 +364,7 @@ test_that("compute_sector_map throws error for wrong objs", {
 
 
   expect_error(
-    compute_sector_map(features_m_df, wrong_metrics_xts, "sector", mapper),
+    compute_sector_map_across(features_m_df, wrong_metrics_xts, "sector", mapper),
     "Dates in meta_dataframe and meta_xts do not match.")
 
   wrong_features_m_df <- features_m_df
@@ -372,7 +372,7 @@ test_that("compute_sector_map throws error for wrong objs", {
 
 
   expect_error(
-    compute_sector_map(wrong_features_m_df, metrics_xts, "sector", mapper),
+    compute_sector_map_across(wrong_features_m_df, metrics_xts, "sector", mapper),
     "Current dates do not match between meta_dataframe and meta_xts.")
 
   wrong_mapper <- list(
@@ -382,7 +382,7 @@ test_that("compute_sector_map throws error for wrong objs", {
 
 
   expect_error(
-    compute_sector_map(features_m_df, metrics_xts, "sector", wrong_mapper),
+    compute_sector_map_across(features_m_df, metrics_xts, "sector", wrong_mapper),
     "The following sectors in meta_dataframe are missing in the mapper: Agro, Utilities")
 
 
@@ -392,7 +392,7 @@ test_that("compute_sector_map throws error for wrong objs", {
   )
 
   expect_error(
-    compute_sector_map(features_m_df, metrics_xts, "sector", wrong_mapper),
+    compute_sector_map_across(features_m_df, metrics_xts, "sector", wrong_mapper),
     "One or more variables in formula '~E' are missing in metrics_xts at date 2001-03-15")
 
   mixed_mapper <- list(
@@ -402,7 +402,7 @@ test_that("compute_sector_map throws error for wrong objs", {
 
 
   expect_error(
-    compute_sector_map(features_m_df, metrics_xts, "sector", mixed_mapper),
+    compute_sector_map_across(features_m_df, metrics_xts, "sector", mixed_mapper),
     "The mapper object must be a list of formulas."
   )
 

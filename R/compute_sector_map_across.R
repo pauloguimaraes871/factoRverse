@@ -1,4 +1,4 @@
-#' Compute Sector-Based Mapped Values
+#' Compute Sector-Based Mapped Values Across a Meta XTS
 #'
 #' This function assigns values from a `meta_xts` object to a new column in a `meta_dataframe`
 #' based on a sector mapping rule. The mapping determines which column from `meta_xts` should be used
@@ -21,11 +21,11 @@
 #' @return A modified `meta_dataframe` with the new column containing computed values.
 #'
 #' @export
-setGeneric("compute_sector_map", function(meta_dataframe, meta_xts, sector_column, mapper, ...) {
-  standardGeneric("compute_sector_map")
+setGeneric("compute_sector_map_across", function(meta_dataframe, meta_xts, sector_column, mapper, ...) {
+  standardGeneric("compute_sector_map_across")
 })
 
-setMethod("compute_sector_map",
+setMethod("compute_sector_map_across",
           signature(meta_dataframe = "meta_dataframe", meta_xts = "meta_xts", sector_column = "character", mapper = "list"),
           function(meta_dataframe, meta_xts, sector_column, mapper, feature_name = NULL, ...) {
 
@@ -144,7 +144,7 @@ setMethod("compute_sector_map",
                                                               type = "generic")
             ##Rename
             names(pre_silver_features_m_df@workflow)[length(pre_silver_features_m_df@workflow)] <-
-              paste0("compute_sector_map", meta_dataframe_current_date)
+              paste0("compute_sector_map_across", meta_dataframe_current_date)
             ############
 
             return(pre_silver_features_m_df)
