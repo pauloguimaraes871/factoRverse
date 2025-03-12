@@ -130,7 +130,7 @@ test_that("compute_sector_map works for arithmetic mapping", {
 
 })
 
-test_that("compute_sector_map works for functional mapping", {
+test_that("compute_sector_map works for more complex mapping", {
 
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -380,6 +380,7 @@ test_that("compute_sector_map throws error for wrong objs", {
     Utilities ~ B
   )
 
+
   expect_error(
     compute_sector_map(features_m_df, metrics_xts, "sector", wrong_mapper),
     "The following sectors in meta_dataframe are missing in the mapper: Agro, Utilities")
@@ -393,6 +394,17 @@ test_that("compute_sector_map throws error for wrong objs", {
   expect_error(
     compute_sector_map(features_m_df, metrics_xts, "sector", wrong_mapper),
     "One or more variables in formula '~E' are missing in metrics_xts at date 2001-03-15")
+
+  mixed_mapper <- list(
+    Agro = ~ A + B,
+    Utilities = "B"  # Incorrect
+  )
+
+
+  expect_error(
+    compute_sector_map(features_m_df, metrics_xts, "sector", mixed_mapper),
+    "The mapper object must be a list of formulas."
+  )
 
 })
 
