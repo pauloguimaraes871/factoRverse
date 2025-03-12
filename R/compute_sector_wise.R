@@ -46,6 +46,9 @@ setMethod("compute_sector_wise",
             if (!sector_column %in% names(pre_silver_features_m_df)) {
               stop("The sector column does not exist in the data frame.")
             }
+            if (any(is.na(pre_silver_features_m_df[[sector_column]]))) {
+              stop("The sector column contains NAs.")
+            }
             if (!signal %in% names(pre_silver_features_m_df)) {
               stop("The signal column does not exist in the data frame.")
             }

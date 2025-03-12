@@ -50,6 +50,7 @@ Collate:
     'commodity_factor_surprise.R'
     'compute_across.R'
     'compute_formula.R'
+    'compute_sector_map.R'
     'compute_sector_wise.R'
     'compute_window.R'
     'constructors.R'

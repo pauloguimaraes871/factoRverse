@@ -327,74 +327,6 @@ test_that("compute_sector_wise handles NAs in signal", {
 
 })
 
-test_that("compute_sector_wise handles NAs in sector", {
-  # Create meta_dataframe
-  features_m_df <- create_meta_dataframe(
-    list(
-      # "Alpha" matrix:
-      matrix(c(0, NA, 10, NA,
-               1, NA, 4, NA,
-               2, NA, NA, 5),
-             nrow = 3, ncol = 4),
-      # "Beta" matrix
-      matrix(c(4, 7, 5, 6,
-               5, NA, 4, 7,
-               6, -3, -2, NA),
-             nrow = 3, ncol = 4),
-      # "Gamma" matrix
-      matrix(c(8, 11, 4, 11,
-               9, -2, 4, 12,
-               10, -3, 2, 13),
-             nrow = 3, ncol = 4),
-      # "Sector" matrix
-      matrix(c(NA, "Utilities", NA,
-               NA, "Utilities", NA,
-               NA, "Utilities", NA,
-               NA, "Utilities", NA),
-             nrow = 3, ncol = 4)
-    ),
-    tickers = c("Stock A", "Stock B", "Stock C"),
-    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
-    features_names = c("Alpha", "Beta", "Gamma", "sector")
-  )
-
-  # Compute median
-  features_m_df <- compute_sector_wise(features_m_df, sector_column = "sector", signal = "Alpha", FUN = "median")
-
-  # For Stock A:
-  alpha_A <- features_m_df@data %>%
-    dplyr::filter(tickers == "Stock A") %>%
-    dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_sector_median)
-
-  expect_equal(alpha_A[1], median(c(0,10)))  # No previous record for first date
-  expect_equal(alpha_A[2], NA_real_)
-  expect_equal(alpha_A[3], median(c(4,2)))
-  expect_equal(alpha_A[4], median(c(NA,5), na.rm = TRUE))
-
-  # For Stock B:
-  alpha_B <- features_m_df@data %>%
-    dplyr::filter(tickers == "Stock B") %>%
-    dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_sector_median)
-
-  expect_equal(alpha_B, features_m_df@data %>% dplyr::filter(tickers == "Stock B") %>% dplyr::pull(Alpha))  # No previous record for first date
-
-  # For Stock c:
-  alpha_C <- features_m_df@data %>%
-    dplyr::filter(tickers == "Stock C") %>%
-    dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_sector_median)
-
-  expect_equal(alpha_C[1], median(c(0,10)))  # No previous record for first date
-  expect_equal(alpha_C[2], NA_real_)
-  expect_equal(alpha_C[3], median(c(4,2)))
-  expect_equal(alpha_C[4], median(c(NA,5), na.rm = TRUE))
-
-
-
-})
-
 test_that("compute_sector_wise works for min_non_NA above 0", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -499,6 +431,46 @@ test_that("compute_sector_wise works for min_non_NA above 0", {
   expect_equal(alpha_C[2], NA_real_)
   expect_equal(alpha_C[3], NA_real_)
   expect_equal(alpha_C[4], NA_real_)
+
+
+})
+
+test_that("compute_sector_wise fails for NAs in sector", {
+  # Create meta_dataframe
+  features_m_df <- create_meta_dataframe(
+    list(
+      # "Alpha" matrix:
+      matrix(c(0, NA, 10, NA,
+               1, NA, 4, NA,
+               2, NA, NA, 5),
+             nrow = 3, ncol = 4),
+      # "Beta" matrix
+      matrix(c(4, 7, 5, 6,
+               5, NA, 4, 7,
+               6, -3, -2, NA),
+             nrow = 3, ncol = 4),
+      # "Gamma" matrix
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      # "Sector" matrix
+      matrix(c(NA, "Utilities", NA,
+               NA, "Utilities", NA,
+               NA, "Utilities", NA,
+               NA, "Utilities", NA),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "sector")
+  )
+
+  # Compute median
+  expect_error(
+    compute_sector_wise(features_m_df, sector_column = "sector", signal = "Alpha", FUN = "median"),
+    "The sector column contains NAs."
+    )
 
 
 })
