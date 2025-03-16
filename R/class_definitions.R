@@ -2,6 +2,9 @@
 
 # Register 'xts' as an S4 class
 setOldClass("xts")
+# Register 'recipe' as an S4 class
+setOldClass("recipe")
+
 
 #meta_dataframe------------------------------------------------------
 
@@ -336,6 +339,7 @@ setClass(
 )
 
 
+
 #tickers_catalog------------------------------------------------------
 
 #' tickers_catalog Class
@@ -439,10 +443,8 @@ setClass(
 
 
 
-#-----------------------------------------------------------------------
-# meta_xts
-#-----------------------------------------------------------------------
 
+#meta_xts---------------------------------------------------------------
 #' An S4 class that stores a main xts object plus metadata about backtested returns.
 #'
 #' The meta_xts class is designed to hold:
@@ -669,11 +671,8 @@ setClass(
 )
 
 
-#-----------------------------------------------------------------------
-# hyperparams
-#-----------------------------------------------------------------------
 
-
+#hyperparams------------------------------------------------------------
 #' Define the `hyper_grid_domain` S4 Class
 #'
 #' This class represents parameters for defining the hyperparameter domain based on which tuning will be performed.
@@ -704,9 +703,8 @@ setClass(
 
   })
 
-#-----------------------------------------------------------------------
-# tuning_strat
-#-----------------------------------------------------------------------
+
+#tuning_strat-----------------------------------------------------------
 
 #' @title Base class for hyperparameter tuning strategies
 #' @description This class defines the common slots and structure for hyperparameter tuning strategies such as grid search, random search, and Bayesian optimization.
@@ -878,10 +876,8 @@ setClass(
   }
 )
 
-#-----------------------------------------------------------------------
-# keras
-#-----------------------------------------------------------------------
 
+#keras------------------------------------------------------------------
 #' @title Keras Architecture Parameters
 #' @description Class to encapsulate parameters for constructing a Keras neural network architecture.
 #'
@@ -904,10 +900,8 @@ setClass(
 )
 
 
-#-----------------------------------------------------------------------
-# cov_est_method
-#-----------------------------------------------------------------------
 
+#cov_est_method---------------------------------------------------------
 #' Define the `cov_est_method` S4 Class
 #'
 #' S4 class to represent a set of configurations for estimating the covariance matrix.
@@ -946,10 +940,8 @@ setClass("cov_est_method",
          }
 )
 
-#-----------------------------------------------------------------------
-# mvo_parameters
-#-----------------------------------------------------------------------
 
+#mvo_parameters---------------------------------------------------------
 
 #' Define the `mvo_parameters` S4 Class
 #'
@@ -995,9 +987,8 @@ setClass("mvo_parameters",
          }
 )
 
-#-----------------------------------------------------------------------
-# rp_parameters
-#-----------------------------------------------------------------------
+
+#rp_parameters----------------------------------------------------------
 #' Define the `rp_parameters` S4 Class
 #'
 #' S4 class to represent a set of configurations for risk-parity portfolios.
@@ -1018,10 +1009,8 @@ setClass("rp_parameters",
 )
 
 
-#-----------------------------------------------------------------------
-# concentration_constraint_policy
-#-----------------------------------------------------------------------
 
+#concentration_constraint_policy----------------------------------------
 #' @title Concentration Constraint Policy
 #' @description An S4 class to represent a concentration constraint policy
 #' in portfolio construction.
@@ -1049,10 +1038,8 @@ setClass(
 )
 
 
-#-----------------------------------------------------------------------
-# liquidity_constraint_policy
-#-----------------------------------------------------------------------
 
+#liquidity_constraint_policy--------------------------------------------
 #' @title Liquidity Constraint Policy
 #' @description An S4 class to represent a liquidity constraint policy in portfolio construction.
 #'
@@ -1078,10 +1065,8 @@ setClass(
   }
 )
 
-#-----------------------------------------------------------------------
-# turnover_constraint_policy
-#-----------------------------------------------------------------------
 
+#turnover_constraint_policy--------------------------------------------
 #' @title Turnover Constraint Policy
 #' @description An S4 class to represent a turnover constraint policy in portfolio construction.
 #'
@@ -1105,10 +1090,8 @@ setClass(
   }
 )
 
-#-----------------------------------------------------------------------
-# transaction_costs_parameters
-#-----------------------------------------------------------------------
 
+#transaction_costs_parameters-----------------------------------------------------
 #' Transaction Cost Parameters S4 Class
 #'
 #' This S4 class stores transaction cost parameters based on the BARRA model.
@@ -1136,11 +1119,8 @@ methods::setClass(
 
 
 
-#-----------------------------------------------------------------------
-# signal_port_parameters
-#-----------------------------------------------------------------------
 
-
+#signal_port_parameters------------------------------------------------
 #' @title Signal Portfolio Parameters
 #' @description Class to encapsulate parameters for constructing signal portfolios (portfolio-blending). Only needed when
 #' sb_algorithm is 'rp' or 'mvo'.
@@ -1191,10 +1171,8 @@ setClass(
 
 
 
-#-----------------------------------------------------------------------
-# alpha_test
-#-----------------------------------------------------------------------
 
+#alpha_test------------------------------------------------------------
 #' @title alpha_test_strategy Class
 #' @description The alpha_test_strategy class is designed to specify parameters of hypothesis testing regarding
 #' CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches.
@@ -1319,10 +1297,8 @@ setClass("frequentist_alpha_test_strategy",
          }
 )
 
-#-----------------------------------------------------------------------
-# bayesian_model_params
-#-----------------------------------------------------------------------
 
+#bayesian_model_params-------------------------------------------------
 #' @title bayesian_model_parameters Class
 #' @description A class encapsulating parameters necessary to specify the hierarchical Bayesian model and its priors.
 #'
@@ -1490,10 +1466,96 @@ setClass("bayesian_alpha_test_strategy",
          }
 )
 
-#-----------------------------------------------------------------------
-# ss_backtest_config
-#-----------------------------------------------------------------------
 
+#pp_backtest_config--------------------
+#' @title pp_backtest_config Class
+#' @description The pp_backtest_config class is designed to encapsulate the pre-processing configuration for a
+#' raw_features_m_df object. It wraps a recipes object and ensures that:
+#' \itemize{
+#'   \item The required meta columns (id, tickers, dates) are assigned the role \code{"id_vars"}.
+#'   \item All columns present in the \code{raw_features_m_df} object have an assigned role in the recipe.
+#'   \item No column is assigned an \code{"outcome"} role, so that targets are managed separately.
+#'   \item The provided \code{meta_dataframe_name} matches that stored in the \code{raw_features_m_df} object.
+#' }
+#' This class serves as a configuration object to be used by pre-processing functions within the package.
+#'
+#' @slot recipe A \code{recipe} object (from the \code{recipes} package) that encapsulates pre-processing steps.
+#'
+#' @details The recipe must be updated to assign \code{"id_vars"} to the columns
+#' \code{id}, \code{tickers}, and \code{dates}. Additionally, every column in \code{raw_features_m_df@data} must
+#' have an associated role in the recipe. No column should be assigned an outcome role; if so, targets should be kept in a separate meta data frame.
+#' The validity function performs these checks and returns an error if any requirement is not met.
+#'
+#'
+#' @export
+#' @export
+setClass("pp_backtest_config",
+         slots = list(
+           recipe = "recipe",
+           features = "character"
+         ),
+         validity = function(object) {
+           rec <- object@recipe
+           # Retrieve variable information from the recipe
+           var_info <- rec$term_info
+           step_types <- sapply(rec$steps, function(step) class(step)[1])  # Extract step types
+
+           # Define the expected step order
+           expected_order <- c(
+             "step_impute_",          # Imputation should be first
+             "step_unknown",          # Handle unknown factor levels
+             "step_novel",            # Handle factor levels
+             "step_other",            # Group rare factor levels
+             "step_YeoJohnson|step_BoxCox|step_log",  # Transformations for skewness
+             "step_discretize",       # Discretization (if used)
+             "step_dummy",            # Create dummy variables
+             "step_interact",         # Create interactions
+             "step_center|step_scale|step_range",  # Normalization
+             "step_pca|step_spatialsign"  # Multivariate transformations
+           )
+
+           # Find the first occurrence of each step type, handling missing steps safely
+           step_positions <- sapply(expected_order, function(pattern) {
+             matches <- grep(pattern, step_types)
+             if (length(matches) > 0) min(matches) else NA  # Assign NA if step is missing
+           })
+
+           # Remove missing steps before checking order
+           valid_positions <- step_positions[!is.na(step_positions)]
+
+           # Check if steps appear in the correct order
+           if (!all(sort(valid_positions) == valid_positions)) {
+             warning("The steps in the recipe are not in the recommended order. Please follow: \n",
+                    "1. Impute \n2. Handle factor levels \n3. Transform skewness \n4. Discretize (if needed) \n5. Create dummy variables \n6. Create interactions \n7. Normalize \n8. Apply multivariate transformations.")
+           }
+
+           # 1) Check that id, tickers, and dates are present with role "id_vars"
+           required_id_vars <- c("id", "tickers", "dates")
+           for (var in required_id_vars) {
+             if (!(var %in% var_info$variable))
+               return(paste("Required variable", var, "is not present in the recipe."))
+             role <- var_info$role[var_info$variable == var]
+             if (!("id_vars" %in% role))
+               return(paste("Variable", var, "must have the role 'id_vars'."))
+           }
+
+           # 2) Ensure all columns from raw_features_m_df have a role assigned in the recipe
+           missing_roles <- var_info %>% dplyr::filter(is.na(role)) %>% dplyr::pull(variable)
+           if (length(missing_roles) > 0)
+             return(paste("The following columns do not have an assigned role in the recipe:",
+                          paste(missing_roles, collapse = ", ")))
+
+           # 3) Check that no column has an outcome role.
+           has_outcome <- any(sapply(var_info$role, function(x) "outcome" %in% x))
+           if (has_outcome)
+             return("No column should have an 'outcome' role. Please manage targets in a separate meta_dataframe (target_meta_dataframe).")
+
+           TRUE
+         })
+
+
+
+#ss_backtest_config-----------------------------------------------------
 #' @title ss_backtest_config Class
 #' @description The ss_backtest_config class is designed to define an end-to-end signal selection experiment based on
 #' backtest returns of associated strategies. The class includes parameters for manipulating the backtest returns object and
@@ -1541,9 +1603,9 @@ setClass("ss_backtest_config",
          }
 )
 
-#-----------------------------------------------------------------------
-# ss_backtest_results
-#-----------------------------------------------------------------------
+
+
+#ss_backtest_results---------------------------------------------------
 #' S4 Class for Signal Selection Backtest Results
 #'
 #' This S4 class encapsulates the results and parameters from performing a signal selection backtest.
@@ -1574,10 +1636,8 @@ setClass(
   )
 )
 
-#-----------------------------------------------------------------------
-# sb_backtest_config
-#-----------------------------------------------------------------------
 
+#sb_backtest_config-----------------------------------------------------
 #' @title sb_backtest_config Class
 #' @description The sb_backtest_config class is designed to define an end-to-end signal-blending (heuristic or machine learning)
 #' experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
@@ -2258,10 +2318,8 @@ setClass(
   }
 )
 
-#-----------------------------------------------------------------------
-# sb_model
-#-----------------------------------------------------------------------
 
+#sb_model--------------------------------------------------------------
 #' Define the `sb_model` S4 Class
 #'
 #' This class represents a (re)fitted sb model. It encapsulates the algorithm used, hyperparameters, custom objective,
@@ -2298,10 +2356,8 @@ setClass(
 )
 
 
-#-----------------------------------------------------------------------
-# sb_backtest_results
-#-----------------------------------------------------------------------
 
+#sb_backtest_results---------------------------------------------------
 #' S4 Class for Time Series Walk-Forward Validation Results of Machine-Learning Models
 #'
 #' This S4 class encapsulates the results and parameters from performing walk-forward
@@ -2417,10 +2473,8 @@ setClass(
   }
 )
 
-#-----------------------------------------------------------------------
-# port_backtest_config
-#-----------------------------------------------------------------------
 
+#port_backtest_config---------------------------------------------------
 #' Class for Port Backtest Config
 #'
 #' An S4 class specifying parameters for backtesting stock-level portfolios.
@@ -2621,10 +2675,8 @@ setClass(
   }
 )
 
-#-----------------------------------------------------------------------
-# port
-#-----------------------------------------------------------------------
 
+#port-------------------------------------------------------------------
 #' Portfolio classes for backtesting portfolios
 #'
 #' These classes encapsulate various parameters and constraints used in backtesting portfolios.
@@ -2677,10 +2729,7 @@ setClass(
 #'
 NULL
 
-#--------------------
 # Base class: port
-#--------------------
-
 #' @rdname port-class
 #' @export
 setClass(
@@ -2787,9 +2836,7 @@ setClass(
   }
 )
 
-#--------------------
-# Subclass: signal_port
-#--------------------
+#signal_port
 #' @rdname port-class
 #' @export
 setClass(
@@ -2816,10 +2863,7 @@ setClass(
   }
 )
 
-#---------------------------
 # Subclass: stock_port class
-#---------------------------
-
 #' @rdname port-class
 #' @export
 setClass(
@@ -2846,11 +2890,8 @@ setClass(
   }
 )
 
-#-----------------------------------------------------------------------
-# port_backtest_results
-#-----------------------------------------------------------------------
 
-
+# port_backtest_results------------------------------------------------
 #' S4 Class for Portfolio Backtest Results
 #'
 #' This S4 class encapsulates the results and parameters from running a portfolio backtest based on
@@ -2906,9 +2947,9 @@ setClass(
 )
 
 
-#################################################################
 
 
+# port_backtest_cohort------------------------------------------------
 #' S4 Class for Portfolio Backtest Cohort
 #'
 #' This S4 class encapsulates the merged results of multiple portfolio backtests.
@@ -2952,13 +2993,11 @@ setClass("port_backtest_cohort",
 
 
 
+
+
 #####################################
 #########Accesor Methods############
 #####################################
-
-
-##########################################################
-
 
 # meta_dataframe acessors -------------------------------------------------
 
@@ -3011,7 +3050,8 @@ setMethod(
   }
 )
 
-## tickers_catalog accessors -------------------------------------------------
+
+# tickers_catalog accessors -------------------------------------------------
 #' Lookup method for tickers_catalog
 #'
 #' Filters the catalog by provided tickers.
@@ -3084,6 +3124,7 @@ setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog"),
           })
 
 
+
 # sb_model acessors -------------------------------------------------
 
 
@@ -3118,7 +3159,6 @@ setMethod("get_model", "sb_model", function(object) {
   return(object@model)
 })
 
-#############################################
 
 # sb_backtest_results and ss_backtest_results acessors --------------------------------------------
 
@@ -3343,7 +3383,6 @@ setMethod("as.list", "ss_backtest_results", function(x) {
   return(slot_list)
 })
 
-##########################
 
 # configs acessors -------------------------------------------------
 
@@ -3416,7 +3455,6 @@ setMethod("get_ss_backtest_config", "sb_backtest_config", function(object) {
   return(object@ss_backtest_config)
 })
 
-##########################
 
 # get tuning strategy -----------------------------------------------------
 
@@ -3473,7 +3511,6 @@ setMethod("get_tuning_strategy", "sb_backtest_results", function(object){
 
 })
 
-###########################
 
 # get hyper grid domain -----------------------------------------------------
 
@@ -3522,7 +3559,6 @@ setMethod("get_hyper_grid_domain", "sb_backtest_results", function(object){
 
 
 
-################################
 
 # get keras architecture -----------------------------------------------------
 
@@ -3622,7 +3658,6 @@ setMethod("as.list", "keras_architecture_parameters", function(x) {
   )
 })
 
-################################
 
 # get alpha_test_strategy -----------------------------------------------------
 
@@ -3697,7 +3732,6 @@ setMethod("get_alpha_test_strategy", "sb_backtest_config", function(object) {
 
 
 
-###########################
 
 # get priors -----------------------------------------------------
 #' @title Get brms priors
@@ -3731,7 +3765,6 @@ setMethod("get_brms_prior", "ss_backtest_config", function(object){
   }
 
 })
-###########################
 
 # get bayesian_model_params -----------------------------------------------------
 #' @title Get Bayesian Model Parameters
@@ -3777,7 +3810,8 @@ setMethod("get_bayesian_model_parameters", "ss_backtest_config",
 
 
 
-###########################
+
+
 
 # concentration_constraint policy  -----------------------------------------------------
 #' @title Get the Concentration Constraint Policy
@@ -3832,7 +3866,6 @@ setMethod("as.list", "concentration_constraint_policy", function(x) {
   )
 })
 
-###########################
 
 # liquidity_constraint_policy -----------------------------------------------------
 #' @title Accessor for Liquidity Constraint Policy
@@ -3872,6 +3905,8 @@ setMethod(
 )
 
 
+
+
 # turnover_constraint_policy -----------------------------------------------------
 #' @title Accessor for Turnover Constraint Policy
 #' @description Retrieves the turnover constraint policy from a `port_backtest_config` object.
@@ -3904,6 +3939,7 @@ setMethod("as.list", "turnover_constraint_policy", function(x, ...) {
     turnover_cap_rules = x@turnover_cap_rules
   )
 })
+
 
 
 # transaction_costs_parameters -----------------------------------------------------
@@ -3943,6 +3979,7 @@ setMethod("as.list", "transaction_costs_parameters", function(x, ...) {
 
 
 
+
 # liquidity_floor_cutoffs -----------------------------------------------------
 #' @title Accessor for Liquidity Floor Cutoffs
 #' @description Retrieves the liquidity floor cutoffs from a `port_backtest_config` object.
@@ -3962,7 +3999,7 @@ setMethod("get_liquidity_floor_cutoffs", "port_backtest_config", function(port_b
 
 
 
-###########################
+
 
 
 
