@@ -113,7 +113,7 @@ setMethod(
       return(
         new("signals_m_df",
           data = data,
-          workflow = NULL,
+          workflow = workflow,
           signals = names(data)[-c(1:3)],
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
@@ -552,6 +552,7 @@ setMethod(
 
   }
 )
+
 
 
 
@@ -1171,6 +1172,7 @@ setMethod(
 
 
 
+
 # meta_xts----------------------------------------------------------------
 
 #' Create a meta_xts, assets_meta_xts or metrics_meta_xts object.
@@ -1403,9 +1405,111 @@ setMethod(
 
 
 
-#-----------------------------------------------------------------------
-# ss_backtest
-#-----------------------------------------------------------------------
+
+#pp_backtest----------------------------
+#' Create a pp_backtest_config Object
+#'
+#' This function creates a new pp_config object given a raw_features_m_df object and an optional recipes object.
+#' If the recipes object is NULL (default), a new recipe is created using the raw_features_m_df object's data,
+#' and the columns id, tickers, and dates are updated to have the role "id_vars". If a recipes object is provided,
+#' it is used directly (its validity regarding roles and consistency with raw_features_m_df is checked).
+#'
+#' @param raw_features_m_df An object of class \code{raw_features_m_df}.
+#' @param recipe A \code{recipe} object from the \code{recipes} package. Defaults to \code{NULL}.
+#'
+#' @return A new \code{pp_config} object.
+#'
+#' @examples
+#' \dontrun{
+#'   # Assume raw_features_m_df is an instance of raw_features_m_df with a valid meta_dataframe_name.
+#'
+#'   # Case 1: Using a provided recipe object
+#'   base_recipe <- recipes::recipe(~ ., data = raw_obj@data)
+#'   rec_obj <- recipes::update_role(base_recipe, id, tickers, dates, new_role = "id_vars")
+#'   pp_config_obj1 <- create_pp_backtest_config(raw_features = raw_obj, rec_obj = rec_obj)
+#'
+#'   # Case 2: Using the default (NULL) recipe, which creates a new recipe internally
+#'   pp_config_obj2 <- create_pp_backtest_config(raw_features = raw_obj)
+#' }
+#'
+#' @export
+create_pp_backtest_config <- function(raw_features_m_df, rec_obj = NULL) {
+
+  if (is.null(rec_obj)) {
+    # Create a base recipe using all columns from raw_features data.
+    base_recipe <- recipes::recipe(~ ., data = raw_features_m_df@data)
+    # Update roles for id, tickers, and dates as id_vars.
+    rec_obj <- recipes::update_role(base_recipe, id, tickers, dates, new_role = "id_vars")
+  }
+
+  # Create the pp_config object.
+  pp_config_obj <- new("pp_backtest_config",
+                       features = raw_features_m_df@signals,
+                       recipe = rec_obj)
+
+  pp_config_obj
+}
+
+#' Add a Recipe Step to a pp_backtest_config Object
+#'
+#' This function applies a specified recipes step function to the recipe slot of a
+#' pp_backtest_config object. It uses rlang::enexpr to capture the step function.
+#' If the function is provided as a bare symbol or non-namespaced call, it is converted
+#' to a namespaced function call using the recipes package. This guarantees that the function
+#' is always called in the form recipes::function().
+#'
+#' @param config A pp_backtest_config object.
+#' @param step_fun A step function from the recipes package (e.g., recipes::step_impute_mean,
+#'   recipes::step_center, etc.). You can pass the function as a bare symbol (e.g., step_impute_mean)
+#'   or as recipes::step_impute_mean.
+#' @param ... Additional arguments to pass to the step function.
+#'
+#' @return An updated pp_backtest_config object with its recipe slot modified.
+#'
+#' @examples
+#' \dontrun{
+#'   # Assuming config is a pp_backtest_config object:
+#'   config <- add_pp_step(config, recipes::step_impute_mean, recipes::all_numeric_predictors())
+#'   # Alternatively, if you pass a bare symbol:
+#'   config <- add_pp_step(config, step_impute_mean, recipes::all_numeric_predictors())
+#' }
+#'
+#' @export
+add_pp_step <- function(config, step_fun, ...) {
+
+  ##Check
+  if (!inherits(config, "pp_backtest_config")) {
+    stop("config must be a pp_backtest_config object")
+  }
+
+  # Capture the expression for the step function.
+  step_fun_expr <- rlang::enexpr(step_fun)
+
+  # Determine the function using recipes:: always.
+  fun <- NULL
+  if (rlang::is_call(step_fun_expr, "::")) {
+    # If a namespaced call is provided, evaluate it.
+    fun <- eval(step_fun_expr)
+  } else if (rlang::is_symbol(step_fun_expr)) {
+    # If a bare symbol is provided, force using recipes:: by constructing a call.
+    fun <- eval(parse(text = paste0("recipes::", as_string(step_fun_expr))))
+  } else if (is.function(step_fun)) {
+    # If it's already a function, use it directly.
+    fun <- step_fun
+  } else {
+    stop("step_fun must be a function or a symbol.")
+  }
+
+  # Build the call: pass the recipe from config as the first argument plus any extra arguments.
+  call_step <- rlang::call2(fun, config@recipe, !!!list(...))
+
+  # Evaluate the call and update the recipe slot.
+  config@recipe <- eval(call_step)
+  config
+}
+
+
+#ss_backtest------------------------------------------------------------
 
 #' @title Create an ss_backtest_config Object
 #' @description This function constructs an object of class `ss_backtest_config`, ensuring the proper initialization
@@ -1574,10 +1678,8 @@ setMethod(
 )
 
 
-#-----------------------------------------------------------------------
-# alpha_test_strategy
-#-----------------------------------------------------------------------
 
+#alpha_test_strategy----------------------------------------------------
 #' @title Create an alpha_test_strategy object
 #' @description A constructor function to create instances of alpha_test_strategy or its subclasses
 #' (frequentist_alpha_test_strategy and bayesian_alpha_test_strategy).
@@ -1754,10 +1856,8 @@ setMethod(
   }
 )
 
-#-----------------------------------------------------------------------
-# bayesian_model_parameters
-#-----------------------------------------------------------------------
 
+#bayesian_model_parameters----------------------------------------------
 #' @title Create Bayesian Model Parameters
 #' @description Constructor for an S4 object of class \code{bayesian_model_parameters}.
 #'
@@ -2058,10 +2158,8 @@ setMethod(
 
 
 
-#-----------------------------------------------------------------------
-# tuning_strategy
-#-----------------------------------------------------------------------
 
+#tuning_strategy--------------------------------------------------------
 #' @title Hyperparameter Tuning Strategy Constructor
 #' @description A constructor function to create a tuning_strategy object, based on the specified tuning method.
 #' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
@@ -2239,11 +2337,8 @@ setMethod(
   }
 )
 
-#-----------------------------------------------------------------------
-# hyperparameters
-#-----------------------------------------------------------------------
 
-
+#hyperparameters--------------------------------------------------------
 #' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `sb_backtest_config`, a `tuning_strategy` or on its own.
 #'
 #' This generic function adds a new hyperparameter to an existing `hyper_grid_domain` object. The function is overloaded to handle different types of hyperparameters for different machine learning algorithms.
@@ -2644,10 +2739,9 @@ setMethod(
 )
 
 
-#-----------------------------------------------------------------------
-# keras_architecture
-#-----------------------------------------------------------------------
 
+
+#keras_architecture----------------------------------------------------
 #' @title Create Keras Architecture
 #' @description Constructor for creating an instance of `keras_architecture_parameters`.
 #'
@@ -2847,10 +2941,8 @@ setMethod(
   }
 )
 
-#-----------------------------------------------------------------------
-# cov_est_method
-#-----------------------------------------------------------------------
 
+#cov_est_method---------------------------------------------------------
 #' @title Create Covariance Estimation Method
 #' @description Constructor for creating an instance of `cov_est_method`.
 #'
@@ -3001,10 +3093,8 @@ setMethod(
 )
 
 
-#-----------------------------------------------------------------------
-# mvo_parameters
-#-----------------------------------------------------------------------
 
+#mvo_parameters-------------------------------------------------------
 #' @title Create MVO Parameters
 #' @description Constructor function for creating an instance of `mvo_parameters`.
 #'
@@ -3171,10 +3261,8 @@ setMethod(
 
 
 
-#-----------------------------------------------------------------------
-# rp_parameters
-#-----------------------------------------------------------------------
 
+#rp_parameters--------------------------------------------------------
 #' @title Create RP (Risk Parity) Parameters
 #' @description Constructor function for creating an instance of `rp_parameters`.
 #'
@@ -3305,11 +3393,8 @@ setMethod(
 
 
 
-#-----------------------------------------------------------------------
-# sb_backtest
-#-----------------------------------------------------------------------
 
-
+#sb_backtest------------------------------------------------------------
 #' @title Create sb_backtest_config Object
 #' @description Constructs an sb_backtest_config object.
 #'
@@ -3421,6 +3506,10 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 }
 
 
+
+
+
+#sb_metabacktest------------------------------------------------------------
 #' Create SB Meta Backtest Configuration
 #'
 #' The `create_sb_metabacktest_config` function creates an `sb_metabacktest_config` object by combining a `sb_backtest_config` for the meta-learner
@@ -3964,10 +4053,9 @@ setMethod(
   }
 )
 
-#-----------------------------------------------------------------------
-# port_backtest_config
-#-----------------------------------------------------------------------
 
+
+#port_backtest_config---------------------------------------------------
 #' @title Create port_backtest_config Object
 #' @description Constructs a `port_backtest_config` object containing all necessary parameters for backtesting stock-level portfolios.
 #'
@@ -4080,10 +4168,8 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
 }
 
 
-#-----------------------------------------------------------------------
-# concentration_constraint_policy
-#-----------------------------------------------------------------------
 
+#concentration_constraint_policy----------------------------------------
 #' @title Create Concentration Constraint Policy
 #' @description Constructor for a `concentration_constraint_policy` object.
 #'
@@ -4242,9 +4328,7 @@ setMethod(
 )
 
 
-#-----------------------------------------------------------------------
-# liquidity_constraint_policy
-#-----------------------------------------------------------------------
+#liquidity_constraint_policy-------------------------------------------
 #' @title Create Liquidity Constraint Policy
 #' @description Constructor for a `liquidity_constraint_policy` object.
 #'
@@ -4312,11 +4396,7 @@ setMethod(
 )
 
 
-
-
-#-----------------------------------------------------------------------
-# turnover_constraint_policy
-#-----------------------------------------------------------------------
+#turnover_constraint_policy--------------------------------------------
 #' @title Create Turnover Constraint Policy
 #' @description Constructor for a `turnover_constraint_policy` object.
 #'
@@ -4391,9 +4471,8 @@ setMethod(
   }
 )
 
-#-----------------------------------------------------------------------
-# transaction_cost_parameters
-#-----------------------------------------------------------------------
+
+#transaction_cost_parameters-------------------------------------------
 #' Create a New Transaction Cost Parameters Object
 #'
 #' This function constructs a new \code{transaction_cost_parameters} S4 object.
@@ -4472,10 +4551,8 @@ setMethod(
 )
 
 
-#-----------------------------------------------------------------------
-# liquidity_floor_cutoffs
-#-----------------------------------------------------------------------
 
+#liquidity_floor_cutoffs-----------------------------------------------
 #' @title Create Liquidity Floor Cutoffs
 #' @description Construct a liquidity_floor_cutoffs data frame from scratch.
 #'
@@ -4561,7 +4638,7 @@ create_liquidity_floor_cutoffs <- function(metric_name, metric_cutoffs) {
   return(df)
 }
 
-## ---- add_liquidity_floor_cutoffs ----
+##add_liquidity_floor_cutoffs
 
 #' @title Add Liquidity Floor Cutoffs
 #' @description Add or update liquidity floor cutoff values in an existing object.
@@ -4695,9 +4772,8 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
   return(object)
 }
 
-#-----------------------------------------------------------------------
-# create_port_backtest_cohort
-#-----------------------------------------------------------------------
+
+#create_port_backtest_cohort--------------------------------------------
 #' Create Portfolio Backtest Cohort
 #'
 #' This function creates a `port_backtest_cohort` object by merging a list of
