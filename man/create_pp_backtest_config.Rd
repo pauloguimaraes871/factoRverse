@@ -4,7 +4,7 @@
 \alias{create_pp_backtest_config}
 \title{Create a pp_backtest_config Object}
 \usage{
-create_pp_backtest_config(raw_features, rec_obj = NULL)
+create_pp_backtest_config(raw_features_m_df, recipe)
 }
 \arguments{
 \item{raw_features_m_df}{An object of class \code{raw_features_m_df}.}

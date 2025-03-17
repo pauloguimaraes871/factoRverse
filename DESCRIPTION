@@ -43,7 +43,6 @@ Imports:
     tictoc,
     xts
 Collate: 
-    'all_fill_panel.R'
     'calculate_eval_metrics.R'
     'class_definitions.R'
     'classify_stock_liquidity.R'
@@ -55,12 +54,8 @@ Collate:
     'compute_window.R'
     'constructors.R'
     'estimate_covariance_matrix.R'
-    'financial_fill_panel.R'
     'get_best_lambda.R'
-    'impute_sector_unavailable.R'
-    'industry_unavaiable_feature_fill.R'
     'instructions.R'
-    'normalize_panel_data.R'
     'plot_methods.R'
     'predict_methods.R'
     'print_methods.R'
@@ -71,8 +66,6 @@ Collate:
     'run_sb_backtest.R'
     'run_ss_backtest.R'
     'score_matrix.R'
-    'sd_rolling.R'
-    'sector_fill_panel.R'
     'sharpe_matrix.R'
     'summarize_performance.R'
     'summary_methods.R'

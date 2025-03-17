@@ -557,6 +557,7 @@ setMethod(
 
 
 
+
 # tickers_catalog------------------------------------------------------
 #' Create a tickers_catalog Object
 #'
@@ -1433,80 +1434,16 @@ setMethod(
 #' }
 #'
 #' @export
-create_pp_backtest_config <- function(raw_features_m_df, rec_obj = NULL) {
-
-  if (is.null(rec_obj)) {
-    # Create a base recipe using all columns from raw_features data.
-    base_recipe <- recipes::recipe(~ ., data = raw_features_m_df@data)
-    # Update roles for id, tickers, and dates as id_vars.
-    rec_obj <- recipes::update_role(base_recipe, id, tickers, dates, new_role = "id_vars")
-  }
+create_pp_backtest_config <- function(raw_features_m_df, recipe) {
 
   # Create the pp_config object.
   pp_config_obj <- new("pp_backtest_config",
                        features = raw_features_m_df@signals,
-                       recipe = rec_obj)
+                       recipe = recipe)
 
   pp_config_obj
 }
 
-#' Add a Recipe Step to a pp_backtest_config Object
-#'
-#' This function applies a specified recipes step function to the recipe slot of a
-#' pp_backtest_config object. It uses rlang::enexpr to capture the step function.
-#' If the function is provided as a bare symbol or non-namespaced call, it is converted
-#' to a namespaced function call using the recipes package. This guarantees that the function
-#' is always called in the form recipes::function().
-#'
-#' @param config A pp_backtest_config object.
-#' @param step_fun A step function from the recipes package (e.g., recipes::step_impute_mean,
-#'   recipes::step_center, etc.). You can pass the function as a bare symbol (e.g., step_impute_mean)
-#'   or as recipes::step_impute_mean.
-#' @param ... Additional arguments to pass to the step function.
-#'
-#' @return An updated pp_backtest_config object with its recipe slot modified.
-#'
-#' @examples
-#' \dontrun{
-#'   # Assuming config is a pp_backtest_config object:
-#'   config <- add_pp_step(config, recipes::step_impute_mean, recipes::all_numeric_predictors())
-#'   # Alternatively, if you pass a bare symbol:
-#'   config <- add_pp_step(config, step_impute_mean, recipes::all_numeric_predictors())
-#' }
-#'
-#' @export
-add_pp_step <- function(config, step_fun, ...) {
-
-  ##Check
-  if (!inherits(config, "pp_backtest_config")) {
-    stop("config must be a pp_backtest_config object")
-  }
-
-  # Capture the expression for the step function.
-  step_fun_expr <- rlang::enexpr(step_fun)
-
-  # Determine the function using recipes:: always.
-  fun <- NULL
-  if (rlang::is_call(step_fun_expr, "::")) {
-    # If a namespaced call is provided, evaluate it.
-    fun <- eval(step_fun_expr)
-  } else if (rlang::is_symbol(step_fun_expr)) {
-    # If a bare symbol is provided, force using recipes:: by constructing a call.
-    fun <- eval(parse(text = paste0("recipes::", as_string(step_fun_expr))))
-  } else if (is.function(step_fun)) {
-    # If it's already a function, use it directly.
-    fun <- step_fun
-  } else {
-    stop("step_fun must be a function or a symbol.")
-  }
-
-  # Build the call: pass the recipe from config as the first argument plus any extra arguments.
-  call_step <- rlang::call2(fun, config@recipe, !!!list(...))
-
-  # Evaluate the call and update the recipe slot.
-  config@recipe <- eval(call_step)
-  config
-}
 
 
 #ss_backtest------------------------------------------------------------

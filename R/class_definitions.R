@@ -1500,35 +1500,6 @@ setClass("pp_backtest_config",
            var_info <- rec$term_info
            step_types <- sapply(rec$steps, function(step) class(step)[1])  # Extract step types
 
-           # Define the expected step order
-           expected_order <- c(
-             "step_impute_",          # Imputation should be first
-             "step_unknown",          # Handle unknown factor levels
-             "step_novel",            # Handle factor levels
-             "step_other",            # Group rare factor levels
-             "step_YeoJohnson|step_BoxCox|step_log",  # Transformations for skewness
-             "step_discretize",       # Discretization (if used)
-             "step_dummy",            # Create dummy variables
-             "step_interact",         # Create interactions
-             "step_center|step_scale|step_range",  # Normalization
-             "step_pca|step_spatialsign"  # Multivariate transformations
-           )
-
-           # Find the first occurrence of each step type, handling missing steps safely
-           step_positions <- sapply(expected_order, function(pattern) {
-             matches <- grep(pattern, step_types)
-             if (length(matches) > 0) min(matches) else NA  # Assign NA if step is missing
-           })
-
-           # Remove missing steps before checking order
-           valid_positions <- step_positions[!is.na(step_positions)]
-
-           # Check if steps appear in the correct order
-           if (!all(sort(valid_positions) == valid_positions)) {
-             warning("The steps in the recipe are not in the recommended order. Please follow: \n",
-                    "1. Impute \n2. Handle factor levels \n3. Transform skewness \n4. Discretize (if needed) \n5. Create dummy variables \n6. Create interactions \n7. Normalize \n8. Apply multivariate transformations.")
-           }
-
            # 1) Check that id, tickers, and dates are present with role "id_vars"
            required_id_vars <- c("id", "tickers", "dates")
            for (var in required_id_vars) {
@@ -1545,13 +1516,17 @@ setClass("pp_backtest_config",
              return(paste("The following columns do not have an assigned role in the recipe:",
                           paste(missing_roles, collapse = ", ")))
 
-           # 3) Check that no column has an outcome role.
+           # 3) Check that var_info$role contains either only outcome or no outcome
+           has_all_outcome <- all(sapply(var_info$role, function(x) "outcome" %in% x)) #This is ok
            has_outcome <- any(sapply(var_info$role, function(x) "outcome" %in% x))
-           if (has_outcome)
-             return("No column should have an 'outcome' role. Please manage targets in a separate meta_dataframe (target_meta_dataframe).")
+           #It can be has_all_outcome and has_outcome, but not only has_outcome
+           if (has_outcome && !has_all_outcome){
+             return("Please create a specific meta_dataframe with appropriate type to manage targets separately.")
+          }
 
            TRUE
          })
+
 
 
 
