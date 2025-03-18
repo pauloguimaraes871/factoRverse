@@ -30,7 +30,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   )
 
   # Compute 'sum'
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha + Beta", ignore_NA = NULL, feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ Alpha + Beta, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -41,7 +41,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   expect_equal(alpha_A, c(4, 9, 8, 6))
 
   # Compute 'subtraction'
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha-Beta", ignore_NA = NULL, feature_name = "alfata")
+  features_m_df <- compute_formula(features_m_df, formula = alfata ~ Alpha-Beta, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -52,7 +52,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   expect_equal(alpha_A, c(-4, -3, 0, 12))
 
   # Compute ratio
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha/Gamma", ignore_NA = NULL, feature_name = "alfamma")
+  features_m_df <- compute_formula(features_m_df, formula = alfamma ~ Alpha/Gamma, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -63,7 +63,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   expect_equal(alpha_A, c(0, 3/11, 1, -3))
 
   # Compute 'product'
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha*Beta", ignore_NA = NULL, feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ Alpha*Beta, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -74,7 +74,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   expect_equal(alpha_A, c(0, 18, 16, -27))
 
   #Compute log
-  features_m_df <- compute_formula(features_m_df, formula = "log(Alpha)", ignore_NA = NULL, feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ log(Alpha), ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -85,7 +85,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   expect_equal(alpha_A, c(log(0), log(3), log(4), log(9)))
 
   #Compute sqrt
-  features_m_df <- compute_formula(features_m_df, formula = "sqrt(Alpha)", ignore_NA = NULL, feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ sqrt(Alpha), ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -96,7 +96,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   expect_equal(alpha_A, c(sqrt(0), sqrt(3), sqrt(4), sqrt(9)))
 
   #Compute exp
-  features_m_df <- compute_formula(features_m_df, formula = "exp(Alpha)", ignore_NA = NULL, feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ exp(Alpha), ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -107,7 +107,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   expect_equal(alpha_A, c(exp(0), exp(3), exp(4), exp(9)))
 
   #Compute exponential
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha^2", ignore_NA = NULL, feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ Alpha^2, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -118,7 +118,7 @@ test_that("compute_formula works for simple operations and ignore_na NULL", {
   expect_equal(alpha_A, c(0, 9, 16, 81))
 
   #Compute exponential
-  features_m_df <- compute_formula(features_m_df, formula = "1/Alpha", ignore_NA = NULL, feature_name = "al")
+  features_m_df <- compute_formula(features_m_df, formula = al ~ 1/Alpha, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -162,7 +162,7 @@ test_that("compute_formula works for simple operations and ignore_na not NULL", 
   )
 
   # Compute 'sum'
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha + Beta", ignore_NA = "Beta", feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ Alpha + Beta, ignore_NA = "Beta")
 
   # For Stock C:
   alpha_C <- features_m_df@data %>%
@@ -173,7 +173,7 @@ test_that("compute_formula works for simple operations and ignore_na not NULL", 
   expect_equal(alpha_C, c(10, NA, 2, 10))
 
   # Compute 'subtract'
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha - Beta", ignore_NA = "Beta", feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ Alpha - Beta, ignore_NA = "Beta")
 
   # For Stock C:
   alpha_C <- features_m_df@data %>%
@@ -184,7 +184,7 @@ test_that("compute_formula works for simple operations and ignore_na not NULL", 
   expect_equal(alpha_C, c(10, NA, 2, -6))
 
   # Compute 'ratio'
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha/Beta", ignore_NA = "Beta", feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ Alpha/Beta, ignore_NA = "Beta")
 
   # For Stock C:
   alpha_C <- features_m_df@data %>%
@@ -195,7 +195,7 @@ test_that("compute_formula works for simple operations and ignore_na not NULL", 
   expect_equal(alpha_C, c(10, NA, 2, 2/8))
 
   # Compute 'product'
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha*Beta", ignore_NA = "Beta", feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ Alpha*Beta, ignore_NA = "Beta")
 
   # For Stock C:
   alpha_C <- features_m_df@data %>%
@@ -208,7 +208,7 @@ test_that("compute_formula works for simple operations and ignore_na not NULL", 
 
   # Compute 'product' when two are NA
   features_m_df@data$Gamma[12] <- NA
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha*Beta*Gamma", ignore_NA = c("Alpha", "Beta"), feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ Alpha*Beta*Gamma, ignore_NA = c("Alpha", "Beta"))
 
   # For Stock C:
   alpha_C <- features_m_df@data %>%
@@ -253,7 +253,7 @@ test_that("compute_formula works for more complex operations and ignore_na NULL"
   )
 
   # (Alpha + Beta)/Beta
-  features_m_df <- compute_formula(features_m_df, formula = "(Alpha + Beta)/Beta", ignore_NA = NULL, feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, formula = albeta ~ (Alpha + Beta)/Beta, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -264,7 +264,7 @@ test_that("compute_formula works for more complex operations and ignore_na NULL"
   expect_equal(alpha_A, c(1, 9/6, 2, -2))
 
   # Alpha + Beta/Beta
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha+Beta/Beta", ignore_NA = NULL, feature_name = "alfata")
+  features_m_df <- compute_formula(features_m_df, formula = alfata ~ Alpha+Beta/Beta, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -275,7 +275,7 @@ test_that("compute_formula works for more complex operations and ignore_na NULL"
   expect_equal(alpha_A, c(1, 4, 5, 10))
 
   # Alpha*Gamma + Beta/(Gamma*Delta)
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha*Gamma + Beta/(Gamma*Delta)", ignore_NA = NULL, feature_name = "alfamma")
+  features_m_df <- compute_formula(features_m_df, formula = alfamma ~ Alpha*Gamma + Beta/(Gamma*Delta), ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -288,7 +288,7 @@ test_that("compute_formula works for more complex operations and ignore_na NULL"
   # (log(Alpha) + sqrt(Beta))/(Gamma + Delta)
   expect_warning(
   expect_warning(
-  features_m_df <- compute_formula(features_m_df, formula = "(log(Alpha) + sqrt(Beta))/(Gamma + Delta)", ignore_NA = NULL, feature_name = "albraba")
+  features_m_df <- compute_formula(features_m_df, formula = albraba ~ (log(Alpha) + sqrt(Beta))/(Gamma + Delta), ignore_NA = NULL)
   )
   )
 
@@ -305,7 +305,7 @@ test_that("compute_formula works for more complex operations and ignore_na NULL"
   )
 
   #Compute log
-  features_m_df <- compute_formula(features_m_df, formula = "log(Alpha) + Beta^3", ignore_NA = NULL, feature_name = "ronaldo")
+  features_m_df <- compute_formula(features_m_df, formula = ronaldo ~ log(Alpha) + Beta^3, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -350,7 +350,7 @@ test_that("compute_formula works for multiple NAs", {
   )
 
   # (Alpha + Beta)/Beta
-  features_m_df <- compute_formula(features_m_df, formula = "Alpha + Beta", ignore_NA = NULL, feature_name = "albeta")
+  features_m_df <- compute_formula(features_m_df, albeta ~ Alpha + Beta, ignore_NA = NULL)
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -396,13 +396,13 @@ test_that("compute_formula works throws an error when trying complex ops and ign
 
   #Mult/Div
   expect_error(
-    compute_formula(features_m_df, formula = "(Alpha + Beta)/Beta", ignore_NA = "Beta", feature_name = "albeta"),
+    compute_formula(features_m_df, formula = albeta ~ (Alpha + Beta)/Beta, ignore_NA = "Beta"),
     "When ignore_NA is specified, only basic arithmethic operations that do not mix addition/subtraction with multiplication/division are allowed."
   )
 
   #sqrt
   expect_error(
-    compute_formula(features_m_df, formula = "sqrt(Alpha)", ignore_NA = "Beta", feature_name = "albeta"),
+    compute_formula(features_m_df, formula = albea ~ sqrt(Alpha), ignore_NA = "Beta"),
     "When ignore_NA is specified, only basic arithmethic operations that do not mix addition/subtraction with multiplication/division are allowed."
   )
 
@@ -441,13 +441,13 @@ test_that("compute_formula works throws an error when columns are missing", {
 
   #Mult/Div
   expect_error(
-    compute_formula(features_m_df, formula = "(Alpha + Iota)/Beta", ignore_NA = NULL, feature_name = "albeta"),
+    compute_formula(features_m_df, formula = albeta ~ (Alpha + Iota)/Beta, ignore_NA = NULL),
     "The following columns are missing in the data: Iota"
   )
 
   #Mult/Div
   expect_error(
-    compute_formula(features_m_df, formula = "Alpha/Beta", ignore_NA = "Iota", feature_name = "albeta"),
+    compute_formula(features_m_df, formula = albeta ~ Alpha/Beta, ignore_NA = "Iota"),
     "The following columns are missing in the data: Iota"
   )
 
@@ -486,7 +486,7 @@ test_that("compute_formula works throws an error when ignore_NA matches all vars
 
   #Mult/Div
   expect_error(
-    compute_formula(features_m_df, formula = "Alpha/Beta", ignore_NA = c("Alpha", "Beta"), feature_name = "albeta"),
+    compute_formula(features_m_df, formula = albeta ~ Alpha/Beta, ignore_NA = c("Alpha", "Beta")),
     "The ignore_NA columns and formula columns are the same."
   )
 
@@ -526,7 +526,7 @@ test_that("compute_formula works throws an error when formula is wrong", {
 
   #Mult/Div
   expect_error(
-    compute_formula(features_m_df, formula = "(Alpha/Beta", feature_name = "albeta")
+    compute_formula(features_m_df, formula = "albeta ~ (Alpha/Beta", feature_name = "albeta")
     )
 
 
@@ -565,7 +565,7 @@ test_that("compute_formula fails for character arg", {
 
   # Invalid formula case: Using an undefined variable
   expect_error(
-    compute_formula(features_m_df, formula = "Alpha + Beta", feature_name = "invalid_feature"),
+    compute_formula(features_m_df, formula = "Alpha + Beta"),
   )
 
 

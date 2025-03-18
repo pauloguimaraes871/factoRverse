@@ -5,23 +5,22 @@
 #' is applied directly to each observation based on a user-defined formula.
 #'
 #' @param features_m_df A `meta_dataframe` object.
-#' @param formula A `character` string specifying the arithmetic formula to apply.
+#' @param formula A `formula` specifying the arithmetic formula to apply.
 #'   The formula should reference column names in `features_m_df` and can include `+`, `-`, `*`, `/`, and parentheses.
 #'   Example: "price / earnings", "revenue - expenses", "log(market_cap)".
 #' @param ignore_NA A `character vector` specifying which variables should be ignored in case of NA. The user can specify:
 #'   - A list of column names to replace NA values in those columns only.
-#' @param feature_name A `character` specifying the name of the new feature column.
 #'
 #' @return A `meta_dataframe` object with an added column containing the computed values based on the formula.
 #'
 #' @export
-setGeneric("compute_formula", function(features_m_df, formula, ignore_NA = NULL, feature_name) {
+setGeneric("compute_formula", function(features_m_df, formula, ignore_NA = NULL) {
   standardGeneric("compute_formula")
 })
 
 setMethod("compute_formula",
-          signature(features_m_df = "meta_dataframe", formula = "character"),
-          function(features_m_df, formula, ignore_NA = NULL, feature_name) {
+          signature(features_m_df = "meta_dataframe", formula = "formula"),
+          function(features_m_df, formula, ignore_NA = NULL) {
 
             #Extract data
             #################
@@ -30,8 +29,10 @@ setMethod("compute_formula",
               meta_dataframe_name <- features_m_df@meta_dataframe_name
               pre_silver_features_m_df <- features_m_df@data
 
-              ##Parse formula to identify column names
-              formula_expr <- rlang::parse_expr(formula)
+
+              ##Extract left-hand side (feature name) and right-hand side (formula expression)
+              feature_name <- as.character(formula[[2]]) #LHS
+              formula_expr <- formula[[3]]  # RHS expression
               formula_vars <- all.vars(formula_expr)
               formula_tokens <- all.names(formula_expr)
 
@@ -114,7 +115,7 @@ setMethod("compute_formula",
               new_workflow <- list(
                 list(
                   timestamp = Sys.time(),
-                  formula = formula,
+                  formula = deparse(formula),
                   ignore_NA = ignore_NA,
                   feature_name = feature_name,
                   call = match.call()
