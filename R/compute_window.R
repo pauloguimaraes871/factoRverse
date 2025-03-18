@@ -44,6 +44,10 @@
 #'   \item **res_mom**: Performs rolling regressions between the metric and the benchmark (from `benchmark_returns_m_xts`).
 #'         Computes `alpha` and `beta`, then returns `(alpha + beta * current_benchmark) - current_metric`.
 #'   \item **idio_vol**: Computes rolling volatility by regressing the metric against the benchmark, obtaining beta, then computing `sqrt(sd(metric)^2 - beta^2 * sd(benchmark)^2)`.
+#'   \item **count_if**: Counts the number of elements that satisfy a condition. The condition is specified by the `count_condition_fun` argument.
+#'   \item **max**: `max(x, na.rm = na.rm)`
+#'   \item **min**: `min(x, na.rm = na.rm)`
+#'   \item **lag**: Retrieves the observation that happened period months ago.
 #' }
 #'
 #' @export
@@ -83,40 +87,40 @@ setMethod("compute_window",
               stop("The signal column must be numeric.")
             }
             ##Check if period is >= 0
-            if (period < 0) {
-              stop("The period must be greater or equal to 0.")
-            }
-            ##Check for only unique and FUN
-            if (only_unique && FUN %in% c("cagr", "res_mom", "idio_vol")){
-              stop("The 'only_unique' is not supported for FUN ", FUN)
-            }
-            ##Additional Checks for FUN types
-            if (FUN %in% c("res_mom", "idio_vol")) {
-              if (window != "rolling"){
-                stop("The 'window' argument must be 'rolling' for FUN ", FUN)
+              if (period < 0) {
+                stop("The period must be greater or equal to 0.")
               }
-              if (!is_returns_meta_xts) {
-                stop("benchmark_returns_m_xts must be provided for FUN ", FUN)
+              ##Check for only unique and FUN
+              if (only_unique && FUN %in% c("cagr", "res_mom", "idio_vol", "lag")){
+                stop("The 'only_unique' is not supported for FUN ", FUN)
               }
-              if (is.null(selected_bench)) {
-                stop("The 'selected_bench' argument must be provided for FUN ", FUN)
+              ##Additional Checks for FUN types
+              if (FUN %in% c("res_mom", "idio_vol")) {
+                if (window != "rolling"){
+                  stop("The 'window' argument must be 'rolling' for FUN ", FUN)
+                }
+                if (!is_returns_meta_xts) {
+                  stop("benchmark_returns_m_xts must be provided for FUN ", FUN)
+                }
+                if (is.null(selected_bench)) {
+                  stop("The 'selected_bench' argument must be provided for FUN ", FUN)
+                }
               }
-            }
-            if (!FUN == "count_if" && !is.null(count_condition_fun)) {
-              stop("The 'count_condition_fun' argument is only supported for FUN 'count_if'.")
-            }
-            if (FUN == "count_if" && !is.function(count_condition_fun)){
-              stop("The 'count_condition_fun' argument must be a function.")
-            }
+              if (!FUN == "count_if" && !is.null(count_condition_fun)) {
+                stop("The 'count_condition_fun' argument is only supported for FUN 'count_if'.")
+              }
+              if (FUN == "count_if" && !is.function(count_condition_fun)){
+                stop("The 'count_condition_fun' argument must be a function.")
+              }
 
 
-            ############
+              ############
 
-            #Compute Rolling Calculation
-            ############
-            rolling_values <- purrr::map_dbl(seq_len(nrow(pre_silver_features_m_df)), function(i) {
+              #Compute Rolling Calculation
+              ############
+              rolling_values <- purrr::map_dbl(seq_len(nrow(pre_silver_features_m_df)), function(i) {
 
-              ##Get current row values
+                ##Get current row values
                 ###Extract from mdf
                 current_row <- pre_silver_features_m_df[i, ]
                 ticker_i <- current_row$tickers
@@ -140,7 +144,7 @@ setMethod("compute_window",
                   ####Filter
                   selected_pre_silver_features_m_df <- pre_silver_features_m_df %>%
                     dplyr::filter(tickers == ticker_i) %>%
-                    dplyr::filter(dates <= current_row_date) %>%
+                    dplyr::filter(dates <= current_row_date) %>% #This is crucial to avoid foward looking bias
                     dplyr::filter(lubridate::month(dates) %in% seasonal_months)
                 } else {
                   stop("Invalid window type. Must be either 'rolling' or 'seasonal'.")
@@ -149,8 +153,8 @@ setMethod("compute_window",
                 ###If no matching observation is found, return NA
                 if (nrow(selected_pre_silver_features_m_df) == 0) return(NA_real_)
 
-              ##Get the filtered values for the signal
-              values <- selected_pre_silver_features_m_df %>% dplyr::pull(!!rlang::sym(signal))
+                ##Get the filtered values for the signal
+                values <- selected_pre_silver_features_m_df %>% dplyr::pull(!!rlang::sym(signal))
                 ###Get begin and final (useful for cagr and sur)
                 begin_value <- head(values, 1)
                 final_value <- tail(values, 1)
@@ -165,16 +169,17 @@ setMethod("compute_window",
                     values <- unique(values) #Get unique values
                   }
                 }
-              ##Do the same for benchmark if it is not NULL
-              if (!is.null(benchmark_returns_m_xts)){
-                ####Extract rolling window for benchmark from benchmark_returns_m_xts
-                selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) >= lower_date & zoo::index(benchmark_returns_m_xts) <= current_row_date, selected_bench])
-              }
+                ##Do the same for benchmark if it is not NULL
+                if (!is.null(benchmark_returns_m_xts)){
+                  ####Extract rolling window for benchmark from benchmark_returns_m_xts
+                  selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) >= lower_date & zoo::index(benchmark_returns_m_xts) <= current_row_date, selected_bench])
+                }
 
-              ##Returns NA in case of certain conditions
+                ##Returns NA in case of certain conditions
                 ###Return NA in case min_non_na is not filled
-                if (FUN == "cagr" && length(values) < period + 1){
-                  message("For cagr, the should be at least ", period + 1, " values")
+                if (FUN %in% c("cagr", "lag") && length(values) < period + 1){
+                  if (FUN == "cagr") message("For cagr, the should be at least ", period + 1, " values")
+                  if (FUN == "lag") message("For lag, the should be at least ", period + 1, " values")
                   return(NA_real_)
                 }
                 if (FUN != "cagr" && length(values) < min_non_na) return(NA_real_)
@@ -188,8 +193,8 @@ setMethod("compute_window",
                   NA_real_
                 }
 
-              ##Depending on FUN, compute the rolling metric
-              switch(FUN,
+                ##Depending on FUN, compute the rolling metric
+                switch(FUN,
                      "median" = stats::median(values, na.rm = na.rm),
                      "sd" = stats::sd(values, na.rm = na.rm),
                      "skew" = skew(values, na.rm = na.rm),
@@ -205,6 +210,13 @@ setMethod("compute_window",
                      "res_mom" = res_mom(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                      "idio_vol" = idio_vol(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                      "count_if" = count_if(values, count_condition_fun = count_condition_fun),
+                     "max" = max(values, na.rm = na.rm),
+                     "min" = min(values, na.rm = na.rm),
+                     "lag" = {
+                       if (length(values) < 2) return(NA_real_)
+                       #Just provied begin value
+                       return(begin_value)
+                     },
                      stop("Unsupported function type")
               )
 

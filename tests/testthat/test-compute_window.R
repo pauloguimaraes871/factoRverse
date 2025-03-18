@@ -193,6 +193,119 @@ test_that("compute_window computes correct sd for period = 3 (Alpha)", {
   expect_equal(alpha_C[4], sd(c(2, 7, 10, 5), na.rm = TRUE))
 })
 
+test_that("compute_window computes correct max/min for period = 3 (Alpha)", {
+  # Create meta_dataframe with the same structure as Test 1
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  # Compute max for "Alpha" with period = 3;
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "max")
+
+  # For Stock A: Values: 0, 3, 10, 3.
+  alpha_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_max_roll_3m)
+
+  expect_equal(alpha_A[1], 0)
+  expect_equal(alpha_A[2], max(c(0, 3)))
+  expect_equal(alpha_A[3], max(c(4,3,0)))
+  expect_equal(alpha_A[4], max(c(4,3,0,9)))
+
+  # Compute min for "Alpha" with period = 3;
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "min")
+
+  # For Stock A: Values: 0, 3, 10, 3.
+  alpha_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_min_roll_3m)
+
+  expect_equal(alpha_A[1], 0)
+  expect_equal(alpha_A[2], min(c(0, 3)))
+  expect_equal(alpha_A[3], min(c(4,3,0)))
+  expect_equal(alpha_A[4], min(c(4,3,0,9)))
+
+})
+
+test_that("compute_window computes correct lag for period = 3 (Alpha)", {
+  # Create meta_dataframe with the same structure as Test 1
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  # Compute lag for "Alpha" with period = 3;
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "lag")
+
+  # For Stock A: Values: 0, 3, 10, 3.
+  alpha_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_lag_roll_3m)
+
+  expect_equal(alpha_A[1], NA_real_)
+  expect_equal(alpha_A[2], NA_real_)
+  expect_equal(alpha_A[3], NA_real_)
+  expect_equal(alpha_A[4], 0)
+
+  # Compute lag for "Alpha" with period = 1;
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "lag")
+
+  # For Stock A: Values: 0, 3, 10, 3.
+  alpha_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_lag_roll_1m)
+
+  expect_equal(alpha_A[1], NA_real_)
+  expect_equal(alpha_A[2], 0)
+  expect_equal(alpha_A[3], 3)
+  expect_equal(alpha_A[4], 4)
+
+})
+
+
 test_that("compute_window computes correct CAGR for period = 3 (Alpha)", {
   # Create meta_dataframe with the same structure as Test 1
   meta_df <- create_meta_dataframe(
