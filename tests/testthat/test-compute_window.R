@@ -253,6 +253,71 @@ test_that("compute_window computes correct CAGR for period = 3 (Alpha)", {
   expect_equal(Alpha_C[4], cagr(10, 9, 3))
 })
 
+test_that("compute_window computes correct count_if (0) for period = 3 (Alpha)", {
+  # Create meta_dataframe with the same structure as Test 1
+  meta_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 3, 10, 3,
+               3, 1, 7, 4,
+               4, 4, 2, 9),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  #compute count
+  meta_df <- compute_window(meta_df, period = 3, signal = "Alpha", FUN = "count_if", count_condition_fun = function(x) x == 0)
+
+  # For period = 3, only the last date (2001-06-15) should have a valid CAGR value
+  # For Stock A.
+  alpha_A <- meta_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_count_if_roll_3m)
+
+  expect_equal(alpha_A[1], 1)
+  expect_equal(alpha_A[2], 1)
+  expect_equal(alpha_A[3], 1)
+  expect_equal(alpha_A[4], 1)
+
+  # For Stock B:
+  Alpha_B <- meta_df@data %>%
+    dplyr::filter(tickers == "Stock B") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_count_if_roll_3m)
+
+  expect_equal(Alpha_B[1], 0)
+  expect_equal(Alpha_B[2], 0)
+  expect_equal(Alpha_B[3], 0)
+  expect_equal(Alpha_B[4], 0)
+
+  # For Stock C
+  Alpha_C <- meta_df@data %>%
+    dplyr::filter(tickers == "Stock C") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_count_if_roll_3m)
+
+  expect_equal(Alpha_C[1], 0)
+  expect_equal(Alpha_C[2], 0)
+  expect_equal(Alpha_C[3], 0)
+  expect_equal(Alpha_C[4], 0)
+
+})
+
 test_that("compute_window computes correct skew values for random NAs and min_non_na > 2", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
@@ -611,69 +676,69 @@ test_that("compute_window correctly computes CAGR for different periods and sign
 
 test_that("compute_window correctly sensibilizes periods for CAGR, assigning NA when length < period + 1", {
 
-    # Create meta_dataframe
-    meta_df <- create_meta_dataframe(
-      list(
-        matrix(c(3, 3, 9, 3,    # Column 1: Stock A (dates in order: 2001-03-15, 2001-04-15, 2001-05-15, 2001-06-15)
-                 1, -2, 4, 4,     # Column 2: Stock B
-                 2, 5, 5, 5),    # Column 3: Stock C
-               nrow = 3, ncol = 4),
-        # "Beta" matrix
-        matrix(c(4, 7, 5, 6,
-                 5, 2, 4, 7,
-                 6, -3, -2, 8),
-               nrow = 3, ncol = 4),
-        # "Gamma" matrix:
-        matrix(c(8, 11, 4, 11,
-                 9, -2, 4, 12,
-                 10, -3, 2, 13),
-               nrow = 3, ncol = 4),
-        # "Delta" matrix:
-        matrix(c(3, 8, 5, 9,
-                 7, -1, -2, 8,
-                 9, 0, 0, 7),
-               nrow = 3, ncol = 4)
-      ),
-      tickers = c("Stock A", "Stock B", "Stock C"),
-      dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
-      features_names = c("Alpha", "Beta", "Gamma", "Delta")
-    )
+  # Create meta_dataframe
+  meta_df <- create_meta_dataframe(
+    list(
+      matrix(c(3, 3, 9, 3,    # Column 1: Stock A (dates in order: 2001-03-15, 2001-04-15, 2001-05-15, 2001-06-15)
+               1, -2, 4, 4,     # Column 2: Stock B
+               2, 5, 5, 5),    # Column 3: Stock C
+             nrow = 3, ncol = 4),
+      # "Beta" matrix
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      # "Gamma" matrix:
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      # "Delta" matrix:
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
 
-    meta_df <- compute_window(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 1)
+  meta_df <- compute_window(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 1)
 
-    alpha_A <- meta_df@data %>%
-      dplyr::filter(tickers == "Stock A") %>%
-      dplyr::arrange(dates) %>%
-      dplyr::pull(Alpha_cagr_roll_2m)
+  alpha_A <- meta_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_cagr_roll_2m)
 
-    expect_true(is.na(alpha_A[1]))  # No previous record for first date
-    expect_true(is.na(alpha_A[2]))
-    expect_equal(alpha_A[3], cagr(3, 4, 2))
-    expect_equal(alpha_A[4], cagr(3, 5, 2))
+  expect_true(is.na(alpha_A[1]))  # No previous record for first date
+  expect_true(is.na(alpha_A[2]))
+  expect_equal(alpha_A[3], cagr(3, 4, 2))
+  expect_equal(alpha_A[4], cagr(3, 5, 2))
 
-    meta_df <- compute_window(meta_df, period = 3, signal = "Alpha", FUN = "cagr", min_non_na = 10)
+  meta_df <- compute_window(meta_df, period = 3, signal = "Alpha", FUN = "cagr", min_non_na = 10)
 
-    alpha_A <- meta_df@data %>%
-      dplyr::filter(tickers == "Stock A") %>%
-      dplyr::arrange(dates) %>%
-      dplyr::pull(Alpha_cagr_roll_3m)
+  alpha_A <- meta_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_cagr_roll_3m)
 
-    expect_true(is.na(alpha_A[1]))  # No previous record for first date
-    expect_true(is.na(alpha_A[2]))
-    expect_true(is.na(alpha_A[3]))
-    expect_equal(alpha_A[4], cagr(3, 5, 3))
+  expect_true(is.na(alpha_A[1]))  # No previous record for first date
+  expect_true(is.na(alpha_A[2]))
+  expect_true(is.na(alpha_A[3]))
+  expect_equal(alpha_A[4], cagr(3, 5, 3))
 
-    meta_df <- compute_window(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
+  meta_df <- compute_window(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
 
-    alpha_A <- meta_df@data %>%
-      dplyr::filter(tickers == "Stock A") %>%
-      dplyr::arrange(dates) %>%
-      dplyr::pull(Alpha_cagr_roll_1m)
+  alpha_A <- meta_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_cagr_roll_1m)
 
-    expect_true(is.na(alpha_A[1]))  # No previous record for first date
-    expect_equal(alpha_A[2], cagr(3, 3, 1))
-    expect_equal(alpha_A[3], cagr(3, 4, 1))
-    expect_equal(alpha_A[4], cagr(4, 5, 1))
+  expect_true(is.na(alpha_A[1]))  # No previous record for first date
+  expect_equal(alpha_A[2], cagr(3, 3, 1))
+  expect_equal(alpha_A[3], cagr(3, 4, 1))
+  expect_equal(alpha_A[4], cagr(4, 5, 1))
 
 })
 
@@ -1005,11 +1070,11 @@ test_that("compute_window computes correct res_mom for period = 3 (Alpha)", {
     xts::xts(data.frame(IBOV = c(-4,-2,4,5),
                         SMLL = c(1,5,10,5)),
              order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15"))
-             ))
+    ))
 
   # Compute sd for "Alpha" with period = 3;
   features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "res_mom",
-                                   benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
+                                  benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -1080,7 +1145,7 @@ test_that("compute_window computes correct idio_vol for period = 3 (Alpha)", {
 
   # Compute sd for "Alpha" with period = 3;
   features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
-                                   benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
+                                  benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
@@ -1152,21 +1217,21 @@ test_that("compute_window throws an error when bench is wrong is different from 
 
   # Bench length
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
-                               benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV"),
+                              benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV"),
                "Lengths of returns and benchmark returns differ")
 
 
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
-                               benchmark_returns_m_xts = bench_returns_m_xts),
+                              benchmark_returns_m_xts = bench_returns_m_xts),
                "The 'selected_bench' argument must be provided for FUN idio_vol")
 
 
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
-                               benchmark_returns_m_xts = NULL, selected_bench = "IBOV"),
+                              benchmark_returns_m_xts = NULL, selected_bench = "IBOV"),
                "benchmark_returns_m_xts must be provided for FUN idio_vol")
 
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
-                               benchmark_returns_m_xts = bench_returns_m_xts@data, selected_bench = "IBOV"),
+                              benchmark_returns_m_xts = bench_returns_m_xts@data, selected_bench = "IBOV"),
                "benchmark_returns_m_xts must be provided for FUN idio_vol")
 
 
@@ -1266,6 +1331,14 @@ test_that("compute_window throws an error for wrong FUN", {
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "CAGR"),
                "Unsupported function type")
 
+  # Compute
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "count_if"),
+               "The 'count_condition_fun' argument must be a function.")
+
+  # Compute
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "cagr", count_condition_fun = function(x) x > 2),
+               "The 'count_condition_fun' argument is only supported for FUN 'count_if'.")
+
 })
 
 test_that("compute_window throws an error for wrong data type", {
@@ -1357,9 +1430,9 @@ test_that("compute_window computes correct CAGR values for period = 3 (A) in met
                1, 7, 4, 4,
                2, 9, 9, 5,
                1, 6, 4, -2
-               ),
-             nrow = 4, ncol = 4, byrow = TRUE,
-             dimnames = list(NULL, c("A", "B", "C", "D"))),
+      ),
+      nrow = 4, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
       order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15"))
     ),
     meta_xts_name = "test_xts", type = "metrics"
@@ -1418,7 +1491,7 @@ test_that("compute_window computes correct mean_std values for period = 2 (A) in
 
   metrics_xts <- create_meta_xts(
     xts::xts(metrics_matrix,
-      order.by = dates),
+             order.by = dates),
     meta_xts_name = "test_xts", type = "metrics"
   )
 

@@ -24,6 +24,9 @@
 #' @param feature_name A `character` specifying the name of the computed feature. If NULL (default), the feature name is set to `"<metric>_<window>_<period>_<FUN>"`.
 #' @param min_non_na A `numeric` value specifying the minimum number of non-NA values required to compute the rolling statistic. Default is 0.
 #'   - Exception: For `FUN = "cagr"`, the default is `period + 1` to ensure sufficient periods.
+#' @param count_condition_fun A function that takes a numeric vector and returns a logical vector.
+#' The function should return `TRUE` for elements that should be counted. Only used for FUN = "count_if".
+
 #'
 #' @return A modified `meta_dataframe` or `meta_xts` object with an additional column named `"<metric>_<window>_<period>_<FUN>"`,
 #' storing the computed values.
@@ -53,7 +56,7 @@ setGeneric("compute_window", function(data, period, FUN, ...){
 setMethod("compute_window",
           signature(data = "meta_dataframe", period = "numeric", FUN = "character"),
           function(data, period, FUN, window = "rolling", signal, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE, only_unique = FALSE,
-                   feature_name = NULL, min_non_na = 0) {
+                   feature_name = NULL, min_non_na = 0, count_condition_fun = NULL) {
 
             #Extract data
             ############
@@ -98,9 +101,14 @@ setMethod("compute_window",
               if (is.null(selected_bench)) {
                 stop("The 'selected_bench' argument must be provided for FUN ", FUN)
               }
-
-
             }
+            if (!FUN == "count_if" && !is.null(count_condition_fun)) {
+              stop("The 'count_condition_fun' argument is only supported for FUN 'count_if'.")
+            }
+            if (FUN == "count_if" && !is.function(count_condition_fun)){
+              stop("The 'count_condition_fun' argument must be a function.")
+            }
+
 
             ############
 
@@ -196,6 +204,7 @@ setMethod("compute_window",
                      "mean_std" = mean_std(values, na.rm = na.rm),
                      "res_mom" = res_mom(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                      "idio_vol" = idio_vol(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
+                     "count_if" = count_if(values, count_condition_fun = count_condition_fun),
                      stop("Unsupported function type")
               )
 
@@ -232,6 +241,7 @@ setMethod("compute_window",
                    only_unique = only_unique,
                    min_non_na = min_non_na,
                    benchmark_returns_m_xts_name = benchmark_returns_m_xts_name,
+                   count_condition_fun = count_condition_fun,
                    selected_bench = if(!is.null(selected_bench)) selected_bench else NA_character_
               )
             )
@@ -643,3 +653,47 @@ idio_vol <- function(ret_values, bench_ret_values, na.rm = TRUE) {
   ###########
 
 }
+
+#' Count elements that satisfy a condition
+#'
+#' The `count_if` function counts the number of elements in `values`
+#' that satisfy the condition specified in `count_condition_fun`.
+#'
+#' @param values A numeric vector of values to evaluate.
+#' @param count_condition_fun A function that takes a numeric vector and returns a logical vector.
+#' The function should return `TRUE` for elements that should be counted.
+#' @param na.rm Logical. If `TRUE`, ignores `NA` values when counting. Default is `TRUE`.
+#'
+#' @return An integer representing the count of values satisfying the condition.
+#' @export
+#'
+#' @examples
+#' count_if(c(1, 0, 3, 0, 5), function(x) x == 0)  # Counts zeros -> returns 2
+#' count_if(c(1, 2, 3, 4, 5), function(x) x > 2)   # Counts values greater than 2 -> returns 3
+#' count_if(c(1, NA, 3, 0, 5), function(x) x == 0, na.rm = TRUE)  # Ignores NA, counts 0s -> returns 1
+#' count_if(c(1, NA, 3, 0, 5), function(x) x == 0, na.rm = FALSE) # Includes NA, counts 0s -> returns NA
+count_if <- function(values, count_condition_fun, na.rm = TRUE) {
+
+  #Initial checks
+  if (!is.numeric(values)) stop("values must be numeric.")
+  if (!is.function(count_condition_fun)) stop("count_condition_fun must be a function.")
+
+  #Get vector that satisfies condition
+  logical_vector <- count_condition_fun(values)
+
+  if (!is.logical(logical_vector)) {
+    stop("count_condition_fun must return a logical vector.")
+  }
+
+  #Count
+  if (na.rm) {
+    logical_vector <- logical_vector & !is.na(logical_vector)
+  } else if (any(is.na(logical_vector))) {
+    return(NA_integer_) # Return NA if NA values are present and na.rm = FALSE
+  }
+
+  sum(logical_vector)
+}
+
+
+
