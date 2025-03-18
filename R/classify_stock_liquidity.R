@@ -2,9 +2,9 @@
 #'
 #' @param liquidity_m_df A data frame (similar to `features_m_df`) containing columns for id, tickers, dates, and one or more market liquidity measures (e.g., inflation-adjusted mean financial volume).
 #' All tickers in current stock universe must have a unique correspondence in this data frame.
-#' @param liquidity_floor_cutoffs_list Optional. A list of named vectors containing cutoff values for liquidity metrics specified in `liquidity_m_df`.
+#' @param liquidity_floor_cutoffs Optional. A data.frame containing cutoff values for liquidity metrics specified in `liquidity_m_df`.
 #' The names should match the metrics and values should be the minimum acceptable values (adjust for inflation)
-#' Stocks that have all metrics higher than defined in a `liquidity_floor_cutoffs_list` element will receive a liquidity classification at least equal to it.
+#' Stocks that have all metrics higher than defined in a `liquidity_floor_cutoffs` element will receive a liquidity classification at least equal to it.
 #' Elements should be: "micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps"
 #' Classification should be in ascending order (from lest liquid to most liquid) for all metrics.
 #' If set in decimals, values will be interpreted as quantiles and classification will be set according to quantiles
@@ -47,7 +47,7 @@ classify_stock_liquidity <- function(liquidity_floor_cutoffs, liquidity_m_df,
   if (!all(liquidity_floor_cutoffs == dplyr::arrange(liquidity_floor_cutoffs, !!rlang::sym(liquidity_metrics[1])))){
     stop("liquidity_floor_cutoffs is not in ascending order")
   }
-  ###Make sure orders of metrics in liquidity_floor_cutoffs_list match
+  ###Make sure orders of metrics in liquidity_floor_cutoffs match
   if (!all(liquidity_floor_cutoffs %>%
            dplyr::select(-liquidity_classification) %>%
            apply(2, function(x) order(x)) %>% #Get the order of each col
@@ -108,23 +108,23 @@ classify_stock_liquidity <- function(liquidity_floor_cutoffs, liquidity_m_df,
     dplyr::rowwise() %>%
     dplyr::mutate(
       liquidity_classification = {
-      # For each row in liquidity_floor_cutoffs, check if all liquidity metrics
-      # in the current stock row are greater than or equal to the corresponding cutoff.
-      satisfied <- purrr::map_lgl(
-        .x = seq_len(nrow(liquidity_floor_cutoffs)),
-        .f = function(i) {
-          all(dplyr::c_across(dplyr::all_of(liquidity_metrics)) >=
-                as.numeric(liquidity_floor_cutoffs[i, liquidity_metrics]))
+        # For each row in liquidity_floor_cutoffs, check if all liquidity metrics
+        # in the current stock row are greater than or equal to the corresponding cutoff.
+        satisfied <- purrr::map_lgl(
+          .x = seq_len(nrow(liquidity_floor_cutoffs)),
+          .f = function(i) {
+            all(dplyr::c_across(dplyr::all_of(liquidity_metrics)) >=
+                  as.numeric(liquidity_floor_cutoffs[i, liquidity_metrics]))
+          }
+        )
+        # If at least one threshold is satisfied, assign the classification corresponding
+        # to the highest threshold (i.e., the one with the largest index); otherwise "nano_caps".
+        if (any(satisfied)) {
+          liquidity_floor_cutoffs$liquidity_classification[max(which(satisfied))]
+        } else {
+          "nano_caps"
         }
-      )
-      # If at least one threshold is satisfied, assign the classification corresponding
-      # to the highest threshold (i.e., the one with the largest index); otherwise "nano_caps".
-      if (any(satisfied)) {
-        liquidity_floor_cutoffs$liquidity_classification[max(which(satisfied))]
-      } else {
-        "nano_caps"
-      }
-    }) %>%
+      }) %>%
     dplyr::ungroup() %>%
     as.data.frame()
 

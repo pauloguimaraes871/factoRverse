@@ -66,6 +66,8 @@ Collate:
     'run_sb_backtest.R'
     'run_ss_backtest.R'
     'score_matrix.R'
+    'screen_by_conditions.R'
+    'screen_by_liquidity.R'
     'sharpe_matrix.R'
     'summarize_performance.R'
     'summary_methods.R'

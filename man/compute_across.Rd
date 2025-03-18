@@ -4,24 +4,12 @@
 \alias{compute_across}
 \title{Compute Across: Apply a Calculation Between meta_dataframe and meta_xts}
 \usage{
-compute_across(
-  meta_dataframe,
-  meta_xts,
-  signal,
-  metric,
-  FUN,
-  feature_name = NULL,
-  ...
-)
+compute_across(meta_dataframe, meta_xts, FUN, feature_name = NULL, ...)
 }
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object containing financial or factor data.}
 
 \item{meta_xts}{A \code{meta_xts} object containing time series data (e.g., market metrics).}
-
-\item{signal}{A \code{character} specifying the column name in \code{meta_dataframe} to be used in the calculation.}
-
-\item{metric}{A \code{character} specifying the column name in \code{meta_xts} to be used in the calculation.}
 
 \item{FUN}{A \code{character} specifying the operation to perform. Must be one of:
 \itemize{
@@ -36,6 +24,10 @@ compute_across(
 If \code{NULL}, the feature name will be generated as "\if{html}{\out{<signal>}}\emph{\if{html}{\out{<metric>}}}\if{html}{\out{<FUN>}}_across".}
 
 \item{...}{Additional arguments (currently not used).}
+
+\item{signal}{A \code{character} specifying the column name in \code{meta_dataframe} to be used in the calculation.}
+
+\item{metric}{A \code{character} specifying the column name in \code{meta_xts} to be used in the calculation.}
 }
 \value{
 A modified \code{meta_dataframe} object with a new column containing the computed values.

@@ -4,12 +4,12 @@
 \alias{compute_formula}
 \title{Compute Formula-Based Signal Calculation}
 \usage{
-compute_formula(features_m_df, formula, ignore_NA = NULL, feature_name)
+compute_formula(features_m_df, formula, ignore_NA = NULL)
 }
 \arguments{
 \item{features_m_df}{A \code{meta_dataframe} object.}
 
-\item{formula}{A \code{character} string specifying the arithmetic formula to apply.
+\item{formula}{A \code{formula} specifying the arithmetic formula to apply.
 The formula should reference column names in \code{features_m_df} and can include \code{+}, \code{-}, \code{*}, \code{/}, and parentheses.
 Example: "price / earnings", "revenue - expenses", "log(market_cap)".}
 
@@ -17,8 +17,6 @@ Example: "price / earnings", "revenue - expenses", "log(market_cap)".}
 \itemize{
 \item A list of column names to replace NA values in those columns only.
 }}
-
-\item{feature_name}{A \code{character} specifying the name of the new feature column.}
 }
 \value{
 A \code{meta_dataframe} object with an added column containing the computed values based on the formula.

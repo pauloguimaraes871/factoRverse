@@ -340,6 +340,7 @@ setClass(
 
 
 
+
 #tickers_catalog------------------------------------------------------
 
 #' tickers_catalog Class
