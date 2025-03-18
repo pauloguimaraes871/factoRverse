@@ -9,7 +9,7 @@ screen_by_liquidity(
   liquidity_m_df,
   liquidity_floor_cutoffs,
   liquidity_floor_rule,
-  verbose = TRUE
+  ...
 )
 }
 \arguments{

@@ -15,7 +15,8 @@
   na.rm = TRUE,
   only_unique = FALSE,
   feature_name = NULL,
-  min_non_na = 0
+  min_non_na = 0,
+  count_condition_fun = NULL
 )
 }
 \description{

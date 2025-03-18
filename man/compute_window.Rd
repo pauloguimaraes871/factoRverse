@@ -40,6 +40,9 @@ compute_window(data, period, FUN, ...)
 \itemize{
 \item Exception: For \code{FUN = "cagr"}, the default is \code{period + 1} to ensure sufficient periods.
 }}
+
+\item{count_condition_fun}{A function that takes a numeric vector and returns a logical vector.
+The function should return \code{TRUE} for elements that should be counted. Only used for FUN = "count_if".}
 }
 \value{
 A modified \code{meta_dataframe} or \code{meta_xts} object with an additional column named \code{"<metric>_<window>_<period>_<FUN>"},
@@ -68,5 +71,9 @@ Available functions:
 \item \strong{res_mom}: Performs rolling regressions between the metric and the benchmark (from \code{benchmark_returns_m_xts}).
 Computes \code{alpha} and \code{beta}, then returns \code{(alpha + beta * current_benchmark) - current_metric}.
 \item \strong{idio_vol}: Computes rolling volatility by regressing the metric against the benchmark, obtaining beta, then computing \code{sqrt(sd(metric)^2 - beta^2 * sd(benchmark)^2)}.
+\item \strong{count_if}: Counts the number of elements that satisfy a condition. The condition is specified by the \code{count_condition_fun} argument.
+\item \strong{max}: \code{max(x, na.rm = na.rm)}
+\item \strong{min}: \code{min(x, na.rm = na.rm)}
+\item \strong{lag}: Retrieves the observation that happened period months ago.
 }
 }
