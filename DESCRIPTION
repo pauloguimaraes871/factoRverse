@@ -48,6 +48,7 @@ Collate:
     'classify_stock_liquidity.R'
     'compute_across.R'
     'compute_formula.R'
+    'compute_score.R'
     'compute_sector_map.R'
     'compute_sector_map_across.R'
     'compute_sector_wise.R'
