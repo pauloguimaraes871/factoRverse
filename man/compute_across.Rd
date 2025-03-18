@@ -29,6 +29,7 @@ compute_across(
 \item \strong{"ratio"}: divides the \code{signal} values by the corresponding \code{metric} value.
 \item \strong{"subtract"}: subtracts the \code{metric} value from the \code{signal} value.
 \item \strong{"sum"}: adds the \code{metric} value to the \code{signal} value.
+\item \strong{"just_append"}: appends the \code{metric} value to time-correspondent row.
 }}
 
 \item{feature_name}{(Optional) A \code{character} specifying the name of the new feature to be added to \code{meta_dataframe}.

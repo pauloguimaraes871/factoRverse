@@ -15,6 +15,7 @@
 #'     \item \strong{"ratio"}: divides the \code{signal} values by the corresponding \code{metric} value.
 #'     \item \strong{"subtract"}: subtracts the \code{metric} value from the \code{signal} value.
 #'     \item \strong{"sum"}: adds the \code{metric} value to the \code{signal} value.
+#'     \item \strong{"just_append"}: appends the \code{metric} value to time-correspondent row.
 #'   }
 #' @param feature_name (Optional) A \code{character} specifying the name of the new feature to be added to \code{meta_dataframe}.
 #' If \code{NULL}, the feature name will be generated as "<signal>_<metric>_<FUN>_across".
@@ -28,14 +29,14 @@
 #' between the two objects and applies the selected function to all matching rows.
 #' If no common dates exist, the function returns an error.
 #' @export
-setGeneric("compute_across", function(meta_dataframe, meta_xts, signal, metric, FUN, feature_name = NULL, ...) {
+setGeneric("compute_across", function(meta_dataframe, meta_xts, FUN, feature_name = NULL, ...) {
   standardGeneric("compute_across")
 })
 
 # Method for meta_dataframe and meta_xts
 setMethod("compute_across",
-          signature(meta_dataframe = "meta_dataframe", meta_xts = "meta_xts", signal = "character", metric = "character", FUN = "character"),
-          function(meta_dataframe, meta_xts, signal, metric, FUN, feature_name = NULL, ...) {
+          signature(meta_dataframe = "meta_dataframe", meta_xts = "meta_xts", FUN = "character"),
+          function(meta_dataframe, meta_xts, FUN, feature_name = NULL, signal = NULL, metric, ...) {
 
             #Extract objs
             ###############
@@ -63,8 +64,10 @@ setMethod("compute_across",
                 stop("Current dates do not match between meta_dataframe and meta_xts.")
               }
               ##Ensure signal exists in pre_silver_features_m_df
-              if (!(signal %in% colnames(pre_silver_features_m_df))) {
-                stop("The specified signal does not exist in the meta_dataframe.")
+              if (!FUN == "just_append"){
+                if (!(!is.null(signal) && signal %in% colnames(pre_silver_features_m_df))) {
+                  stop("The specified signal does not exist in the meta_dataframe.")
+                }
               }
               ##Ensure metric exists in meta_xts
               if (!(metric %in% colnames(pre_silver_meta_xts))) {
@@ -75,9 +78,9 @@ setMethod("compute_across",
                 stop("Dates in meta_dataframe and meta_xts do not match.")
               }
               ##Ensure FUN is one of the predefined functions
-              valid_FUNs <- c("product", "ratio", "subtract", "sum")
+              valid_FUNs <- c("product", "ratio", "subtract", "sum", "just_append")
               if (!(FUN %in% valid_FUNs)) {
-                stop("Invalid FUN specified. Must be one of: 'product', 'ratio', 'subtract', 'sum'.")
+                stop("Invalid FUN specified. Must be one of: 'product', 'ratio', 'subtract', 'sum', 'just_append'.")
               }
             ###############
 
@@ -86,12 +89,23 @@ setMethod("compute_across",
 
               ##Generate feature name if needed
               if (is.null(feature_name)) {
-                new_col_name <- paste0(signal, "_across_", metric, "_", FUN)
+                new_col_name <- if (!FUN == "just_append") paste0(signal, "_across_", metric, "_", FUN) else paste0("append_", metric)
               } else {
                 new_col_name <- feature_name
               }
 
               ##Apply function row-wise
+              if (FUN == "just_append"){
+                ###Directly append time-correspondent values from pre_silver_meta_xts
+                  ####Select signal column
+                  selected_metric_pre_silver_meta_xts <- pre_silver_meta_xts[, metric]
+                  ####Turn in df
+                  selected_metric_pre_silver_df <- data.frame(dates = zoo::index(selected_metric_pre_silver_meta_xts)) %>%
+                    dplyr::mutate(!!new_col_name := as.numeric(selected_metric_pre_silver_meta_xts)) ##Add metric
+                  ####Append
+                  pre_silver_features_m_df <- pre_silver_features_m_df %>%
+                    dplyr::left_join(selected_metric_pre_silver_df, by = "dates")
+              } else {
               pre_silver_features_m_df <- pre_silver_features_m_df %>%
                 dplyr::mutate(!!new_col_name := switch(
                   FUN,
@@ -99,9 +113,9 @@ setMethod("compute_across",
                   "ratio" = .data[[signal]] / purrr::map_dbl(.data$dates, ~ as.numeric(pre_silver_meta_xts[as.character(.x), metric])),
                   "subtract" = .data[[signal]] - purrr::map_dbl(.data$dates, ~ as.numeric(pre_silver_meta_xts[as.character(.x), metric])),
                   "sum" = .data[[signal]] + purrr::map_dbl(.data$dates, ~ as.numeric(pre_silver_meta_xts[as.character(.x), metric])),
-                  stop("Invalid FUN. Must be one of 'product', 'ratio', 'subtract', or 'sum'.")
+                  stop("Invalid FUN. Must be one of 'product', 'ratio', 'subtract', 'sum' or 'just_append'.")
                 ))
-
+              }
 
               ############
               ##Finalize with the workflow

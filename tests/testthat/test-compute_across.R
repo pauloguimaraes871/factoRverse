@@ -97,6 +97,32 @@ test_that("compute_across works for basic operations", {
   expect_equal(A, c(3/3, 3/7, 4/9, 5/3))
 
 
+  #Compute just appending the signal
+  meta_df <- compute_across(meta_dataframe = meta_df, meta_xts = metrics_xts, metric = "B", FUN = "just_append")
+
+  #For all dates
+  append_B_first <- meta_df@data %>%
+    dplyr::filter(dates == "2001-03-15") %>%
+    dplyr::pull(append_B)
+  expect_true(all(append_B_first == 3))
+
+  append_B_second <- meta_df@data %>%
+    dplyr::filter(dates == "2001-04-15") %>%
+    dplyr::pull(append_B)
+  expect_true(all(append_B_second == 7))
+
+  append_B_third <- meta_df@data %>%
+    dplyr::filter(dates == "2001-05-15") %>%
+    dplyr::pull(append_B)
+  expect_true(all(append_B_third == 9))
+
+  append_B_fourth <- meta_df@data %>%
+    dplyr::filter(dates == "2001-06-15") %>%
+    dplyr::pull(append_B)
+  expect_true(all(append_B_fourth == 3))
+
+
+
 })
 
 test_that("compute_across works for basic operations with NAs", {
@@ -321,9 +347,6 @@ test_that("compute_across throws an error for wrong objects", {
     "Dates in meta_dataframe and meta_xts do not match."
   )
 
-
-
-
 })
 
 test_that("compute_across throws an error for wrong FUN", {
@@ -373,7 +396,9 @@ test_that("compute_across throws an error for wrong FUN", {
   #Compute product
   expect_error(
     compute_across(meta_dataframe = meta_df, meta_xts = metrics_xts, signal = "Alpha", metric = "B", FUN = "prod"),
-    "Invalid FUN specified. Must be one of: 'product', 'ratio', 'subtract', 'sum'."
+    "Invalid FUN specified. Must be one of: 'product', 'ratio', 'subtract', 'sum', 'just_append'."
   )
 
 })
+
+
