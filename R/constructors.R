@@ -265,79 +265,119 @@ setMethod(
 
 #' Create a target_m_df from a meta_dataframe
 #'
-#' @param meta_dataframe A `meta_dataframe` object containing stock data.
-#' @param past_ret_column Character, indicating the column in `meta_df` that contains the past 1-month return.
-#' @param benchmark_returns_m_xts A `meta_xts` object containing benchmark returns.
+#' @param daily_returns_m_df A `meta_dataframe` object containing daily stock returns data.
+#' @param daily_bench_returns_m_xts A `meta_xts` object containing daily benchmark returns.
+#' @param past_ret_column Character, indicating the column in `daily_returns_m_df` that contains returns.
 #' @param selected_bench Character, indicating the column in `benchmark_returns_m_xts` to use as the benchmark.
-#' @param fwd_horizon Integer, the number of months to compute forward returns (must be a multiple of past_ret_horizon).
+#' @param fwd_horizon Integer, the number of months to compute forward returns
+#' @param selected_dates A vector of dates to subset the calculation.
+#' @param active_returns Logical, indicating whether to calculate active returns.
 #'
-#' @return A `target_m_df` object containing future return metrics for ML modeling.
+#' @return A `target_m_df` object containing future return metrics.
 #' @export
-create_target_m_df <- function(meta_df, past_ret_column, benchmark_returns_m_xts, selected_bench, fwd_horizon) {
-  # Defensive checks
-  if (!inherits(meta_df, "meta_dataframe")) stop("meta_df must be a meta_dataframe object.")
-  if (!inherits(benchmark_returns_m_xts, "meta_xts")) stop("benchmark_returns_m_xts must be a meta_xts object.")
-  if (!is.character(past_ret_column) || length(past_ret_column) != 1) stop("past_ret_column must be a character string.")
-  if (!is.character(selected_bench) || length(selected_bench) != 1) stop("selected_bench must be a character string.")
-  if (!is.numeric(fwd_horizon) || fwd_horizon %% 1 != 0 || fwd_horizon < 1) stop("fwd_horizon must be a positive integer.")
+setMethod("create_target_m_df",
+          signature(daily_returns_m_df = "meta_dataframe", daily_bench_returns_m_xts = "meta_xts"),
+          function(daily_returns_m_df, daily_bench_returns_m_xts, past_ret_column, selected_bench, fwd_horizon, selected_dates, active_returns) {
 
-  # Extract data
-  meta_data <- meta_df@data
-  bench_data_xts <- benchmark_returns_m_xts@data
+            #Initial checks
+            ###############
+            if (!all(selected_dates %in% daily_returns_m_df@data$dates)){
+              stop("Some selected_dates do not exist in meta_dataframe.")
+            }
+            if (!all(selected_dates %in% zoo::index(daily_bench_returns_m_xts@data))){
+              stop("Some selected_dates do not exist in benchmark_returns_m_xts.")
+            }
+            if (!all(zoo::index(benchmark_returns@data) %in% daily_returns_m_df@data$dates)){
+              stop("All dates in benchmark_returns_m_xts must be included in daily_returns_m_df.")
+            }
+            if (!selected_bench %in% colnames(daily_bench_returns_m_xts@data)){
+              stop("selected_bench must be a column in benchmark_returns_m_xts.")
+            }
+            if (!past_ret_column %in% colnames(daily_returns_m_df@data)){
+              stop("past_ret_column must be a column in daily_returns_m_df.")
+            }
 
-  # Compute forward returns using purrr::map_dbl
-  fwd_returns <- purrr::map_dbl(seq_len(nrow(meta_data)), function(i) {
-    current_row <- meta_data[i, ]
-    ticker_i <- current_row$tickers
-    current_date <- current_row$dates
+            ##############
 
-    # Compute forward dates
-    fwd_dates <- lubridate::add_with_rollback(current_date, months(fwd_horizon))
+            #Calculate
+            ##############
+            selected_dates_daily_returns_m_df <- daily_returns_m_df@data %>% dplyr::filter(dates %in% selected_dates)
+            bench_data_xts <- daily_bench_returns_m_xts@data
 
-    # Retrieve forward returns from meta_data
-    fwd_rows <- meta_data %>%
-      dplyr::filter(tickers == ticker_i, dates == fwd_dates)
+              ##Compute forward returns using purrr::map_dbl
+              selected_target_m_df_list <- purrr::map_dfr(seq_len(nrow(selected_dates_daily_returns_m_df)), function(i) {
+                current_row <- selected_dates_daily_returns_m_df[i, ]
+                current_date <- current_row$dates
 
-    if (nrow(fwd_rows) == 0) {
-      # If no forward row exists, replace with corresponding benchmark return
-      bench_ret <- bench_data_xts[zoo::index(bench_data_xts) == fwd_dates, selected_bench]
-      return(ifelse(length(bench_ret) == 0, NA_real_, bench_ret))
-    }
+                ###Compute forward dates
+                fwd_dates <- lubridate::add_with_rollback(current_date, months(1:fwd_horizon))
 
-    # Extract forward return
-    fwd_ret <- fwd_rows[[past_ret_column]]
-    if (is.na(fwd_ret)) return(0)  # Replace NA values with 0
-    return(fwd_ret)
-  })
+                ###If any of the dates in exceed current_date, return NA
+                if (any(fwd_dates > daily_returns_m_df@current_date)) return(NA_real_)
 
-  # Convert to xts
-  fwd_returns_xts <- xts::xts(fwd_returns, order.by = meta_data$dates)
-  bench_returns_xts <- bench_data_xts[, selected_bench]
+                ###Retrieve all forward returns from daily_returns_m_df and replace NAs with 0
+                daily_returns_m_d_fwd <- daily_returns_m_df@data %>% #Get from complete database
+                  dplyr::filter(dates %in% fwd_dates) %>% #Subset ticker_i and only fwd dates
+                  dplyr::mutate(dplyr::across(dplyr::all_of(past_ret_column), ~ tidyr::replace_na(.x, 0))) #Replace NAs with 0
 
-  # Summarize performance
-  performance_summary <- summarize_performance(
-    selected_backtest_returns_corrected_positions_m_xts_upd_ref = fwd_returns_xts,
-    selected_market_factor_proxy_m_xts_upd_ref = bench_returns_xts,
-    model_structure = "no_pooled",
-    model_spec_theme_level = "random_intercept_fixed_slope",
-    lmer_control = NULL,
-    selected_signal_themes_m_d_ref = NULL,
-    active_returns = TRUE
-  )
+                ###Do the same with benchmark
+                selected_daily_bench_returns_m_xts_fwd <- daily_bench_returns_m_xts@data[
+                  which(zoo::index(daily_bench_returns_m_xts@data) %in% fwd_dates), #Only fwd dates
+                  selected_bench] #Only the specified benchmark
 
-  # Create target_m_df object
-  target_m_df <- new("target_m_df",
-                     data = meta_data,
-                     workflow = meta_df@workflow,
-                     signals = paste0("target_", fwd_horizon, "m"),
-                     unique_dates = meta_df@unique_dates,
-                     unique_tickers = meta_df@unique_tickers,
-                     n_obs = meta_df@n_obs,
-                     current_date = meta_df@current_date,
-                     meta_dataframe_name = paste0(meta_df@meta_dataframe_name, "_target"))
+                ###Convert to meta_xts
+                daily_returns_m_xts_fwd <- create_meta_xts(daily_returns_m_d_fwd)
 
-  return(target_m_df)
-}
+                ###Pass to summarize
+                target_m_d_ref <- summarize_performance(
+                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = daily_returns_m_xts_fwd,
+                  selected_market_factor_proxy_m_xts_upd_ref = selected_daily_bench_returns_m_xts_fwd,
+                  model_structure = "no_pooled",
+                  model_spec_theme_level = NULL,
+                  lmer_control = NULL,
+                  selected_signal_themes_m_d_ref = NULL,
+                  active_returns = active_returns
+                )$signal_universe_m_d_ref
+
+                ###Replace dates of target_m_d_ref with current_date
+                target_m_d_ref$dates <- current_date
+
+              return(target_m_d_ref)
+            })
+            ##############
+
+            #Finalize
+            ##############
+
+            ##Use bind_rows to combine all dataframes in the list
+            target_m_df <- dplyr::bind_rows(selected_target_m_df_list)
+
+            ##Rename all metrics (except first three columns id, tickers and dates) to fwd_metric_fwd_horizon_m
+            target_m_df <- target_m_df %>% dplyr::rename_with(~ paste0(., "_", fwd_horizon, "m"), .cols = -c(1:3))
+
+            ##Create target_m_df object
+              ###New enty to workflow
+              new_entry <- list(
+                list(current_date = current_date,  # Current date
+                     timestamp = Sys.time(),        # Timestamp
+                     selected_bench = selected_bench, # Selected benchmark
+                     bench_returns_m_xts_name = daily_bench_returns_m_xts@meta_xts_name, # Benchmark name
+                     past_ret_column = past_ret_column, # Past return column
+                     fwd_horizon = fwd_horizon, # Forward horizon
+                     selected_dates = selected_dates, # Selected dates
+                     active_returns = active_returns, # Active returns
+                     call = match.call() # Call
+                )
+              )
+
+            target_m_df <- create_meta_dataframe(target_m_df, type = "target",
+                                                 meta_dataframe_name = daily_returns_m_df@meta_dataframe_name,
+                                                 workflow = c(daily_returns_m_df@workflow, new_workflow)
+                                                 )
+
+            return(target_m_df)
+          })
+
 
 
 #' @describeIn create_meta_dataframe Method for \code{list} Signature
