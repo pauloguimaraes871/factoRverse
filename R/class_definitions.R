@@ -1468,69 +1468,6 @@ setClass("bayesian_alpha_test_strategy",
 )
 
 
-#pp_backtest_config--------------------
-#' @title pp_backtest_config Class
-#' @description The pp_backtest_config class is designed to encapsulate the pre-processing configuration for a
-#' raw_features_m_df object. It wraps a recipes object and ensures that:
-#' \itemize{
-#'   \item The required meta columns (id, tickers, dates) are assigned the role \code{"id_vars"}.
-#'   \item All columns present in the \code{raw_features_m_df} object have an assigned role in the recipe.
-#'   \item No column is assigned an \code{"outcome"} role, so that targets are managed separately.
-#'   \item The provided \code{meta_dataframe_name} matches that stored in the \code{raw_features_m_df} object.
-#' }
-#' This class serves as a configuration object to be used by pre-processing functions within the package.
-#'
-#' @slot recipe A \code{recipe} object (from the \code{recipes} package) that encapsulates pre-processing steps.
-#'
-#' @details The recipe must be updated to assign \code{"id_vars"} to the columns
-#' \code{id}, \code{tickers}, and \code{dates}. Additionally, every column in \code{raw_features_m_df@data} must
-#' have an associated role in the recipe. No column should be assigned an outcome role; if so, targets should be kept in a separate meta data frame.
-#' The validity function performs these checks and returns an error if any requirement is not met.
-#'
-#'
-#' @export
-#' @export
-setClass("pp_backtest_config",
-         slots = list(
-           recipe = "recipe",
-           features = "character"
-         ),
-         validity = function(object) {
-           rec <- object@recipe
-           # Retrieve variable information from the recipe
-           var_info <- rec$term_info
-           step_types <- sapply(rec$steps, function(step) class(step)[1])  # Extract step types
-
-           # 1) Check that id, tickers, and dates are present with role "id_vars"
-           required_id_vars <- c("id", "tickers", "dates")
-           for (var in required_id_vars) {
-             if (!(var %in% var_info$variable))
-               return(paste("Required variable", var, "is not present in the recipe."))
-             role <- var_info$role[var_info$variable == var]
-             if (!("id_vars" %in% role))
-               return(paste("Variable", var, "must have the role 'id_vars'."))
-           }
-
-           # 2) Ensure all columns from raw_features_m_df have a role assigned in the recipe
-           missing_roles <- var_info %>% dplyr::filter(is.na(role)) %>% dplyr::pull(variable)
-           if (length(missing_roles) > 0)
-             return(paste("The following columns do not have an assigned role in the recipe:",
-                          paste(missing_roles, collapse = ", ")))
-
-           # 3) Check that var_info$role contains either only outcome or no outcome
-           has_all_outcome <- all(sapply(var_info$role, function(x) "outcome" %in% x)) #This is ok
-           has_outcome <- any(sapply(var_info$role, function(x) "outcome" %in% x))
-           #It can be has_all_outcome and has_outcome, but not only has_outcome
-           if (has_outcome && !has_all_outcome){
-             return("Please create a specific meta_dataframe with appropriate type to manage targets separately.")
-          }
-
-           TRUE
-         })
-
-
-
-
 #ss_backtest_config-----------------------------------------------------
 #' @title ss_backtest_config Class
 #' @description The ss_backtest_config class is designed to define an end-to-end signal selection experiment based on

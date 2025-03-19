@@ -227,7 +227,7 @@ test_that("step_winsorize works with a single-column dataframe", {
   expect_true(all(baked_df$x <= expected_upper))
 })
 
-test_that("step_winsorize correctly works inside run_pp_backtest", {
+test_that("step_winsorize correctly works inside map_recipe_timewise", {
 
   # Load Excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(
@@ -256,12 +256,9 @@ test_that("step_winsorize correctly works inside run_pp_backtest", {
     recipes::update_role(sector_c1, new_role = "predictor") %>%
     step_winsorize(recipes::all_numeric_predictors(), probs = c(0.05, 0.95))
 
-  # Create pp_config
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE, type = "generic")
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE, type = "generic")
 
   # Extract processed data
   processed_data <- pp_panel@data
@@ -321,13 +318,10 @@ test_that("step_winsorize throws an error when trying to winsorize categorical v
     recipes::update_role(sector_c1, new_role = "predictor") %>%
     step_winsorize(recipes::all_predictors(), probs = c(0.05, 0.95))
 
-  # Create pp_config
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   set.seed(123)
   expect_error(
-  run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE, type = "generic")
+  map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE, type = "generic")
   )
 
 })
@@ -533,7 +527,7 @@ test_that("step_impute_sector throws an error when trying to impute non-numeric 
   expect_error(recipes::prep(rec, training = df))
 })
 
-test_that("step_impute_sector correctly works inside run_pp_backtest", {
+test_that("step_impute_sector correctly works inside map_recipe_timewise", {
   # Load Excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(
     csv_file_name = "toy_features.xlsx",
@@ -561,12 +555,9 @@ test_that("step_impute_sector correctly works inside run_pp_backtest", {
     recipes::update_role(sector_c1, new_role = "predictor") %>%
     step_impute_sector(recipes::all_numeric_predictors(), sector = "sector_c1", method = "mean")
 
-  # Create pp_config
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE, type = "generic")
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE, type = "generic")
 
   # Extract processed data
   processed_data <- pp_panel@data
@@ -604,8 +595,8 @@ test_that("step_impute_sector correctly works inside run_pp_backtest", {
 })
 
 
-#run_pp_backtest----------------------
-test_that("run_pp_backtest works for step_impute_mean + mode - Excel Files", {
+#map_recipe_timewise----------------------
+test_that("map_recipe_timewise works for step_impute_mean + mode - Excel Files", {
 
   #Load excel and set inputs and outputs
   data <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -630,12 +621,9 @@ test_that("run_pp_backtest works for step_impute_mean + mode - Excel Files", {
     recipes::step_impute_mean(recipes::all_numeric_predictors()) %>%
     recipes::step_impute_mode(sector_c1)
 
-  #Create pp_config for median imputation
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   #Run
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE)
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE)
 
   # Extract processed data
   processed_data <- pp_panel@data
@@ -662,7 +650,7 @@ test_that("run_pp_backtest works for step_impute_mean + mode - Excel Files", {
 
 })
 
-test_that("run_pp_backtest works for step_impute_bag - Excel Files", {
+test_that("map_recipe_timewise works for step_impute_bag - Excel Files", {
 
   # Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -689,12 +677,9 @@ test_that("run_pp_backtest works for step_impute_bag - Excel Files", {
     recipes::step_impute_bag(recipes::all_numeric_predictors(), -sector_c1)
 
 
-  # Create pp_config for bagged imputation
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE)
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE)
 
   # Extract processed data
   processed_data <- pp_panel@data
@@ -725,7 +710,7 @@ test_that("run_pp_backtest works for step_impute_bag - Excel Files", {
 
 })
 
-test_that("run_pp_backtest works for step_impute_knn - Excel Files", {
+test_that("map_recipe_timewise works for step_impute_knn - Excel Files", {
 
   # Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -751,12 +736,9 @@ test_that("run_pp_backtest works for step_impute_knn - Excel Files", {
     recipes::step_impute_mode(sector_c1) %>%  # Impute sector_c1 first
     recipes::step_impute_knn(recipes::all_numeric_predictors(), neighbors = 5)  # Use KNN imputation
 
-  # Create pp_config for KNN imputation
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE)
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE)
 
   # Extract processed data
   processed_data <- pp_panel@data
@@ -785,7 +767,7 @@ test_that("run_pp_backtest works for step_impute_knn - Excel Files", {
 
 })
 
-test_that("run_pp_backtest works for handling factors - Excel Files", {
+test_that("map_recipe_timewise works for handling factors - Excel Files", {
 
   # Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -820,12 +802,9 @@ test_that("run_pp_backtest works for handling factors - Excel Files", {
     recipes::step_unknown(sector_c1) %>%
     recipes::step_dummy(sector_c1, one_hot = TRUE)  # Convert sector_c1 to dummy variables
 
-  # Create pp_config for KNN imputation
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE)
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE)
 
   # Extract processed data
   processed_data <- pp_panel@data
@@ -869,12 +848,9 @@ test_that("run_pp_backtest works for handling factors - Excel Files", {
     recipes::step_unknown(sector_c1) %>%
     recipes::step_dummy(sector_c1, one_hot = TRUE)  # Convert sector_c1 to dummy variables
 
-  # Create pp_config for KNN imputation
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE)
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE)
 
   # Ensure no NA values remain in numeric columns and sector_c1 dummy variables
   expect_false(anyNA(processed_data))
@@ -882,7 +858,7 @@ test_that("run_pp_backtest works for handling factors - Excel Files", {
 
 })
 
-test_that("run_pp_backtest works for handling factors when not imputing with mode - Excel Files", {
+test_that("map_recipe_timewise works for handling factors when not imputing with mode - Excel Files", {
 
   # Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -917,12 +893,9 @@ test_that("run_pp_backtest works for handling factors when not imputing with mod
     recipes::step_unknown(sector_c1) %>%
     recipes::step_dummy(sector_c1, one_hot = TRUE)  # Convert sector_c1 to dummy variables
 
-  # Create pp_config
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE)
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE)
 
   # Extract processed data
   processed_data <- pp_panel@data
@@ -937,7 +910,7 @@ test_that("run_pp_backtest works for handling factors when not imputing with mod
 
 })
 
-test_that("run_pp_backtest works for step_range (in parallel) - Excel Files", {
+test_that("map_recipe_timewise works for step_range (in parallel) - Excel Files", {
 
   # Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -966,13 +939,10 @@ test_that("run_pp_backtest works for step_range (in parallel) - Excel Files", {
     step_winsorize(recipes::all_numeric_predictors()) %>% # Apply winsorization
     recipes::step_range(recipes::all_numeric_predictors(), min = -1, max = 1)  # Apply min-max scaling
 
-  # Create pp_config for step_range
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run
   future::plan("multisession")
   set.seed(123)
-  pp_panel <- run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = TRUE)
+  pp_panel <- map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = TRUE)
 
   # Extract processed data
   processed_data <- pp_panel@data
@@ -1004,7 +974,7 @@ test_that("run_pp_backtest works for step_range (in parallel) - Excel Files", {
 
 })
 
-test_that("run_pp_backtest throws an error when rows with only NAs are not correctly handled", {
+test_that("map_recipe_timewise throws an error when rows with only NAs are not correctly handled", {
 
   # Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -1042,18 +1012,15 @@ test_that("run_pp_backtest throws an error when rows with only NAs are not corre
     recipes::step_unknown(sector_c1) %>%
     recipes::step_dummy(sector_c1, one_hot = TRUE)  # Convert sector_c1 to dummy variables
 
-  # Create pp_config for KNN imputation
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run and check that will not work bco of NAs in KNN (Some rows will have NAs because of only NAs in rows)
   expect_error(
-    run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE),
+    map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE),
     "Data contains missing values")
 
 
 })
 
-test_that("run_pp_backtest throws an error when there is only one observation in a row", {
+test_that("map_recipe_timewise throws an error when there is only one observation in a row", {
 
   # Load excel and set inputs and outputs
   results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
@@ -1094,16 +1061,83 @@ test_that("run_pp_backtest throws an error when there is only one observation in
     recipes::step_unknown(sector_c1) %>%
     recipes::step_dummy(sector_c1, one_hot = TRUE)  # Convert sector_c1 to dummy variables
 
-  # Create pp_config for KNN imputation
-  pp_config <- create_pp_backtest_config(panel, recipe = recipe)
-
   # Run and check that will not work bco of NAs in KNN (Some rows will have NAs because of only NAs in rows)
   expect_error(
   expect_warning(
-    run_pp_backtest(panel, pp_config, verbose = TRUE, parallel = FALSE),
+    map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE),
     "Not enough data to prep the recipe for date: 2023-07-15")
   )
 
 
 })
+
+#integration with other functions
+test_that("map_recipe_timewise integrates with tickers_catalog and compute FUNs", {
+skip()
+  # Load excel and set inputs and outputs
+  results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
+                                              features_sheet_names = c("ebit_12m", "ir_3m", "sharpe", "mkt_cap", "sector_c1"),
+                                              features_sheet_range = c("D4:F22"),
+                                              tickers_sheet_range = c("C4:C22"),
+                                              dates_sheet_range = c("D1:F1"),
+                                              output_sheet_name = c("panel"),
+                                              output_sheet_range = c("B1:I58"),
+                                              industry_classification_column_name = c("sector_c1"))
+
+  # Apply function
+  panel <- create_meta_dataframe(data = results$inputs$feature_list,
+                                 tickers = results$inputs$tickers$...1,
+                                 dates  = results$inputs$dates,
+                                 features_names = results$inputs$features_names)
+
+
+  #Get real date_first_quote and date_last_quote
+  date_first_quote <- readxl::read_excel(test_path("testdata", "toy_features.xlsx"),
+                                         sheet = "date_first_quote",
+                                         range = "A1:B20",
+                                         col_names = TRUE
+  ) %>% as.data.frame()
+
+  date_last_quote <- readxl::read_excel(test_path("testdata", "toy_features.xlsx"),
+                                        sheet = "date_last_quote",
+                                        range = "A1:B20",
+                                        col_names = TRUE
+  ) %>% as.data.frame()
+
+  #tickers catalog
+  tickers_catalog <- create_tickers_catalog(panel, date_first_quote, date_last_quote)
+
+  #read
+  pre_silver_panel <- read_tickers_catalog(panel, tickers_catalog)
+
+  #compute FUNs
+  pre_silver_panel <- pre_silver_panel %>% compute_formula(formula = "ebit_12m/mkt_cap", feature_name = "ebit_y")
+
+
+  # Create recipe with step_impute_knn and step_impute_mode for sector_c1
+  recipe <- recipes::recipe(panel@data) %>%
+    recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+    recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+    recipes::update_role(sector_c1, new_role = "predictor") %>%
+    recipes::step_impute_knn(
+      recipes::all_numeric_predictors(),
+      neighbors = 5,
+      impute_with = recipes::imp_vars(recipes::all_numeric_predictors()) # Exclude sector_c1 from imputation
+    )%>%  # Use KNN imputation
+    recipes::step_unknown(sector_c1) %>%
+    recipes::step_dummy(sector_c1, one_hot = TRUE)  # Convert sector_c1 to dummy variables
+
+
+
+})
+
+
+
+
+
+
+
+
+
+
 

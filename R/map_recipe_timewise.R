@@ -1,46 +1,70 @@
-#' Run Time-wise Preprocessing Backtest
+#' Map a Recipe to Sequential Dates
 #'
-#' This method performs a time-wise backtest preprocessing on a
-#' \code{raw_features_m_df} object using the recipe stored in a
-#' \code{pp_backtest_config} object. For each date, the recipe is prepped on the
+#' This method maps recipes in a time-wise manner to a
+#' \code{meta_dataframe} object using the \code{recipe} supplied.
+#' For each date, the recipe is prepped and baked on the
 #' subset of data available at the specific date. This ensures that no future
 #' information is used during preprocessing.
 #'
 #' Parallel processing is achieved using \code{furrr::future_map}; ensure that an appropriate
 #' future plan is set (e.g., \code{future::plan(future::multisession)}).
 #'
-#' @param raw_features_m_df A \code{raw_features_m_df} object.
-#' @param pp_backtest_config A \code{pp_backtest_config} object that contains a recipe in its \code{recipe} slot.
+#' @param meta_dataframe A \code{meta_dataframe} object.
+#' @param recipe A \code{recipe} object that contains a recipe in its \code{recipe} slot.
+#' In special, make sure that:
+#' \itemize{
+#'   \item The required meta columns (id, tickers, dates) are assigned the role \code{"id_vars"}.
+#'   \item All columns present in the \code{meta_dataframe} object have an assigned role in the recipe.
+#'   \item Target variables are preproessed separetely
+#' }
+#'
 #' @param verbose A logical indicating whether to print messages during the process. Default is \code{FALSE}.
 #'
 #' @return A time-wise preprocessed \code{meta_dataframe}.
 #'
-#' @examples
-#' \dontrun{
-#'   # Assume raw_obj is an instance of raw_features_m_df and config_obj is a
-#'   # pp_backtest_config object (created via create_pp_backtest_config) that contains a recipe.
-#'   preprocessed_df <- run_pp_backtest(raw_features_m_df = raw_obj, config_obj = config_obj)
-#' }
-#'
 #' @importFrom recipes prep bake tidy
 #' @export
-setGeneric("run_pp_backtest", function(raw_features_m_df, config_obj, ...) {
-  standardGeneric("run_pp_backtest")
+setGeneric("map_recipe_timewise", function(meta_dataframe, recipe, ...) {
+  standardGeneric("map_recipe_timewise")
 })
 
-setMethod("run_pp_backtest",
-          signature(raw_features_m_df = "raw_features_m_df", config_obj = "pp_backtest_config"),
-          function(raw_features_m_df, config_obj, verbose, parallel = TRUE, type = "signals") {
+setMethod("map_recipe_timewise",
+          signature(meta_dataframe = "meta_dataframe", recipe = "recipe"),
+          function(meta_dataframe, recipe, verbose, parallel = TRUE, type = "signals") {
 
-            #Extract objects
+            #Initial steps
             #################
-              ##Recipe
-              recipe <- config_obj@recipe
+             ##Extract objs
+              meta_dataframe_current_date <- meta_dataframe@current_date
+              meta_dataframe_workflow <- meta_dataframe@workflow
+              meta_dataframe_name <- meta_dataframe@meta_dataframe_name
+              pre_silver_features_m_df <- meta_dataframe@data
 
-              ##Raw features
-              meta_dataframe_workflow <- raw_features_m_df@workflow
-              meta_dataframe_name <- raw_features_m_df@meta_dataframe_name
-              pre_silver_features_m_df <- raw_features_m_df@data
+             ##Check that id, tickers, and dates are present with role "id_vars"
+             var_info <- recipe$term_info
+             required_id_vars <- c("id", "tickers", "dates")
+             for (var in required_id_vars) {
+               if (!(var %in% var_info$variable))
+                 return(paste("Required variable", var, "is not present in the recipe."))
+               role <- var_info$role[var_info$variable == var]
+               if (!("id_vars" %in% role))
+                 return(paste("Variable", var, "must have the role 'id_vars'."))
+             }
+
+             ##Check that all columns in meta_dataframe have a role assigned in recipe
+             missing_roles <- var_info %>% dplyr::filter(is.na(role)) %>% dplyr::pull(variable)
+             if (length(missing_roles) > 0)
+               return(paste("The following columns do not have an assigned role in the recipe:",
+                            paste(missing_roles, collapse = ", ")))
+
+             ##Check that var_info$role contains either only outcome or no outcome
+             has_all_outcome <- all(sapply(var_info$role, function(x) "outcome" %in% x)) #This is ok
+             has_outcome <- any(sapply(var_info$role, function(x) "outcome" %in% x))
+             #It can be has_all_outcome and has_outcome, but not only has_outcome
+             if (has_outcome && !has_all_outcome){
+               return("Please create a specific meta_dataframe with appropriate type to manage targets separately.")
+             }
+
             #################
 
             #Process each date in parallel.
@@ -116,17 +140,27 @@ setMethod("run_pp_backtest",
 
             #Return the preprocessed meta_dataframe
             #################
-            preprocessed_features_m_df <- create_meta_dataframe(preprocessed_features_m_df,
-                                                                meta_dataframe_name = meta_dataframe_name,
-                                                                workflow = c(meta_dataframe_workflow, list(recipe)),
-                                                                type = type)
+                ##Finalize with the workflow
+                new_workflow <- list(
+                  list(current_date = meta_dataframe_current_date,  # Current date
+                       timestamp = Sys.time(),        # Timestamp
+                       recipe = recipe,
+                       call = match.call()
+                  )
+                )
+
+                ##Recreate
+                silver_features_m_df <- create_meta_dataframe(preprocessed_features_m_df,
+                                                              meta_dataframe_name = meta_dataframe_name,
+                                                              workflow = c(meta_dataframe_workflow, new_workflow),
+                                                              type = type)
 
 
             ##Rename
-            names(preprocessed_features_m_df@workflow)[length(preprocessed_features_m_df@workflow)] <-
-              paste0("preprocessing_recipe", "_", preprocessed_features_m_df@current_date)
+            names(silver_features_m_df@workflow)[length(silver_features_m_df@workflow)] <-
+              paste0("preprocessing_recipe", "_", silver_features_m_df@current_date)
 
-            return(preprocessed_features_m_df)
+            return(silver_features_m_df)
 
 
           })
@@ -317,6 +351,7 @@ tidy.step_winsorize <- function(x, ...) {
 required_pkgs.step_winsorize <- function(x, ...) {
   c("dplyr", "tidyr", "recipes")
 }
+
 
 
 

@@ -1407,45 +1407,6 @@ setMethod(
 
 
 
-#pp_backtest----------------------------
-#' Create a pp_backtest_config Object
-#'
-#' This function creates a new pp_config object given a raw_features_m_df object and an optional recipes object.
-#' If the recipes object is NULL (default), a new recipe is created using the raw_features_m_df object's data,
-#' and the columns id, tickers, and dates are updated to have the role "id_vars". If a recipes object is provided,
-#' it is used directly (its validity regarding roles and consistency with raw_features_m_df is checked).
-#'
-#' @param raw_features_m_df An object of class \code{raw_features_m_df}.
-#' @param recipe A \code{recipe} object from the \code{recipes} package. Defaults to \code{NULL}.
-#'
-#' @return A new \code{pp_config} object.
-#'
-#' @examples
-#' \dontrun{
-#'   # Assume raw_features_m_df is an instance of raw_features_m_df with a valid meta_dataframe_name.
-#'
-#'   # Case 1: Using a provided recipe object
-#'   base_recipe <- recipes::recipe(~ ., data = raw_obj@data)
-#'   rec_obj <- recipes::update_role(base_recipe, id, tickers, dates, new_role = "id_vars")
-#'   pp_config_obj1 <- create_pp_backtest_config(raw_features = raw_obj, rec_obj = rec_obj)
-#'
-#'   # Case 2: Using the default (NULL) recipe, which creates a new recipe internally
-#'   pp_config_obj2 <- create_pp_backtest_config(raw_features = raw_obj)
-#' }
-#'
-#' @export
-create_pp_backtest_config <- function(raw_features_m_df, recipe) {
-
-  # Create the pp_config object.
-  pp_config_obj <- new("pp_backtest_config",
-                       features = raw_features_m_df@signals,
-                       recipe = recipe)
-
-  pp_config_obj
-}
-
-
-
 #ss_backtest------------------------------------------------------------
 
 #' @title Create an ss_backtest_config Object
