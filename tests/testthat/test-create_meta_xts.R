@@ -161,6 +161,127 @@ test_that("create_meta_xts works for a data.frame object with long format (inclu
 
 })
 
+test_that("create_meta_xts works for a meta_dataframe", {
+
+  #Initiate a meta_dataframe with daily returns
+  dates <- seq.Date(from = as.Date("2002-01-01"), to = as.Date("2002-02-28"), by = "days")
+
+  set.seed(123)
+  happy_stock <- rnorm(length(dates), 0, 1) #No NAS
+  ipo_stock <- c(rep(NA, 20), rnorm(length(dates) - 20, 0, 1)) #IPO
+  delisted_stock <- c(rnorm(length(dates) - 22, 0, 1), rep(NA, 22)) #Delisted
+  iliquid_stock <- c(0, 0, NA, rnorm(length(dates) - 6, 0, 1), 0, NA, 0) #IPO and Delisted
+  wrong_stock <- rnorm(length(dates), 0, 1) #No NAS before initial listing and after unlisting
+
+  #Combine dates and tickers (happy, ipo, delisted and illiquid) into a grid)
+  daily_returns_m_df <- expand.grid(c("happy", "ipo", "delisted", "illiquid", "wrong"), dates) %>%
+    dplyr::mutate(id = paste(Var1, Var2, sep = "-"), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::arrange(id) %>%
+    dplyr::mutate(ret = c(delisted_stock, happy_stock, iliquid_stock, ipo_stock, wrong_stock))
+  daily_returns_m_df$tickers <- as.character(daily_returns_m_df$tickers)
+  daily_returns_m_df <- create_meta_dataframe(daily_returns_m_df, type = "raw", meta_dataframe_name = "daily_bronze")
+
+  #Create a features_m_df
+  features_m_df <- daily_returns_m_df@data %>% dplyr::filter(dates %in% c("2002-01-15", "2002-02-15")) %>%
+    dplyr::mutate(book_yield = rnorm(nrow(.)), dy_med_36m = rnorm(nrow(.)))
+
+  #For each row in features_m_df, check if corresponding ret is NA and replace it by NA if it is
+  features_m_df <- features_m_df %>% dplyr::mutate(book_yield = ifelse(is.na(ret), NA, book_yield),
+                                                   dy_med_36m = ifelse(is.na(ret), NA, dy_med_36m)) %>%
+    create_meta_dataframe(type = "raw", meta_dataframe_name = "bronze")
+
+  date_first_quote <- data.frame(
+    tickers = c("happy", "ipo", "delisted", "illiquid", "wrong"),
+    date_first_quote = as.Date(c("2000-01-12", "2002-01-21", "2000-01-05", "2000-02-25", "2002-01-06"))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("happy", "ipo", "delisted", "illiquid", "wrong"),
+    date_last_quote = as.Date(c("2002-02-28", "2002-02-28", "2002-02-05", "2002-02-25", "2002-02-06"))
+  )
+
+  #Create tickers catalog
+  tickers_catalog <- create_tickers_catalog(
+    raw_features_m_df = daily_returns_m_df,
+    date_first_quote = date_first_quote,
+    date_last_quote = date_last_quote
+  )
+
+  #read catalog
+  pre_silver_daily_returns_m_df <- read_tickers_catalog(
+    daily_returns_m_df,
+    tickers_catalog = tickers_catalog
+  )
+
+  #Check that read_tickers_catalog correctly assigned NA to happy, ipo, delisted and wrong
+  first_date_happy <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["happy"]) %>% dplyr::slice_min(dates,n = 1)
+  expect_equal(first_date_happy$dates, dates[1])
+
+  first_date_ipo <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["ipo"]) %>% dplyr::slice_min(dates,n = 1)
+  expect_equal(first_date_ipo$dates, date_first_quote$date_first_quote[2])
+
+  first_date_delisted <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["delisted"]) %>% dplyr::slice_min(dates,n = 1)
+  expect_equal(first_date_delisted$dates, first_date_happy$dates) #Delisted and happy have the same first date
+
+  first_date_illiquid <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["illiquid"]) %>% dplyr::slice_min(dates,n = 1)
+  expect_equal(first_date_delisted$dates, first_date_happy$dates) #Illiquid and happy have the same first date
+
+  first_date_wrong <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["wrong"]) %>% dplyr::slice_min(dates,n = 1)
+  expect_equal(first_date_wrong$dates, date_first_quote$date_first_quote[5])
+
+  last_date_happy <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["happy"]) %>% dplyr::slice_max(dates,n = 1)
+  expect_equal(last_date_happy$dates, date_last_quote$date_last_quote[1])
+
+  last_date_ipo <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["ipo"]) %>% dplyr::slice_max(dates,n = 1)
+  expect_equal(last_date_ipo$dates, last_date_happy$dates)
+
+  last_date_delisted <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["delisted"]) %>% dplyr::slice_max(dates,n = 1)
+  expect_equal(last_date_delisted$dates, date_last_quote$date_last_quote[3] + 10) #stock is only considered delisted after 10 days without trading
+
+  last_date_illiquid <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["illiquid"]) %>% dplyr::slice_max(dates,n = 1)
+  expect_equal(last_date_illiquid$dates, last_date_happy$dates)
+
+  last_date_wrong <- pre_silver_daily_returns_m_df@data %>%
+    dplyr::filter(tickers %in% tickers_catalog@perm_id["wrong"]) %>% dplyr::slice_max(dates,n = 1)
+  expect_equal(last_date_wrong$dates, date_last_quote$date_last_quote[5] + 10) #stock is only considered delisted after 10 days without trading
+
+  #Create meta xts
+  suppressWarnings(
+  meta_xts <- create_meta_xts(data = pre_silver_daily_returns_m_df)
+  )
+
+  #Check that illiquid matches pre_silver_daily
+  expect_equal(meta_xts@data[, tickers_catalog@perm_id["illiquid"]] %>% as.numeric(),
+               iliquid_stock)
+
+  #Check that delisted has only NAs after date_last_quote
+  expect_equal(meta_xts@data[, tickers_catalog@perm_id["delisted"]] %>% as.numeric(),
+               delisted_stock)
+
+  #Check that ipo has only NAs before date_first_quote
+  expect_equal(meta_xts@data[, tickers_catalog@perm_id["ipo"]] %>% as.numeric(),
+               ipo_stock)
+
+  #Check that WRONG has only NAs before date_first_quote and after date_last_quote + 10
+  expect_false(identical(meta_xts@data[, tickers_catalog@perm_id["wrong"]] %>% as.numeric(), wrong_stock))
+  expect_equal(meta_xts@data["2002-01-01/2002-01-05", tickers_catalog@perm_id["wrong"]] %>% as.numeric() %>% unique(),
+               NA_real_)
+  expect_equal(meta_xts@data["2002-02-17/2002-02-28", tickers_catalog@perm_id["wrong"]] %>% as.numeric() %>% unique(),
+               NA_real_)
+
+})
+
+
 test_that("create_meta_xts fails for not providing dates, tickers or metric_name correctly", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
@@ -196,7 +317,7 @@ test_that("create_meta_xts fails for not providing dates, tickers or metric_name
   expect_error(
     create_meta_xts(mocked_backtest_returns_m_xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
                     metric_name = "monthly_raw_returns"),
-    "Error: No valid dates found. Please provide a 'dates' column or pass a 'dates' argument."
+    "Error: No valid dates found. Please provide a 'dates' column, valid rownames, or pass a 'dates' argument."
   )
 
 
