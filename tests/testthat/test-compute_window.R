@@ -643,13 +643,13 @@ test_that("compute_window works correctly window = SEASONAL", {
   )
 
   #Period = 1
-  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "fwd_seasonal")
 
   # For Stock A
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_seas_1m)
+    dplyr::pull(Alpha_mean_std_fwd_seas_1m)
 
   #Expect all NAs until there are at least two past obs
   expect_true(all(is.na(alpha_A[1:23])))
@@ -659,13 +659,13 @@ test_that("compute_window works correctly window = SEASONAL", {
   expect_equal(alpha_A[35], mean_std(c(15,6)))
 
   #Period = 3
-  features_m_df <- compute_window(features_m_df, period = 3, signal = "Beta", FUN = "sd", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Beta", FUN = "sd", window = "fwd_seasonal")
 
   # For Stock A
   Beta_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Beta_sd_seas_3m)
+    dplyr::pull(Beta_sd_fwd_seas_3m)
 
   #Expect all NAs until there are at least two past obs
   expect_true(all(is.na(Beta_A[1:10])))
@@ -674,13 +674,13 @@ test_that("compute_window works correctly window = SEASONAL", {
   expect_equal(Beta_A[35], sd(c(0,5,14,8,-4,5,14,-1)))
 
   #Period = 0
-  features_m_df <- compute_window(features_m_df, period = 0, signal = "Gamma", FUN = "median", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 0, signal = "Gamma", FUN = "median", window = "fwd_seasonal")
 
   # For Stock A
   Gamma_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Gamma_median_seas_0m)
+    dplyr::pull(Gamma_median_fwd_seas_0m)
 
   #For median, no NAs
   expect_equal(Gamma_A[1], 12)
@@ -712,13 +712,13 @@ test_that("compute_window works when small meta_dataframe is being used", {
   )
 
   #Period = 1
-  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "fwd_seasonal")
 
   # For Stock A
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_seas_1m)
+    dplyr::pull(Alpha_mean_std_fwd_seas_1m)
 
   #Expect all NAs until there are at least two past obs
   expect_true(all(is.na(alpha_A)))
@@ -1085,7 +1085,7 @@ test_that("compute_window errors if the window is wrong", {
 
   expect_error(
     compute_window(features_m_df, period = 1, signal = "Alpha", window = "organized", FUN = "cagr"),
-    "Invalid window type. Must be either 'rolling' or 'seasonal'."
+    "Invalid window type. Must be either 'rolling' or 'fwd_seasonal'."
   )
 })
 
@@ -1409,7 +1409,7 @@ test_that("compute_window throws an error when window seasonal is used for wrong
   )
 
   # Compute
-  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol", window = "seasonal", only_unique = FALSE),
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol", window = "fwd_seasonal", only_unique = FALSE),
                "The 'window' argument must be 'rolling' for FUN idio_vol")
 
 })
@@ -1608,9 +1608,9 @@ test_that("compute_window computes correct mean_std values for period = 2 (A) in
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 2, metric = "A", FUN = "mean_std", window = "seasonal")
+  metrics_xts <- compute_window(metrics_xts, period = 2, metric = "A", FUN = "mean_std", window = "fwd_seasonal")
 
-  metric_values <- metrics_xts@data[, "A_mean_std_seas_2m"] %>% as.numeric()
+  metric_values <- metrics_xts@data[, "A_mean_std_fwd_seas_2m"] %>% as.numeric()
 
   expect_true(all(is.na(metric_values[1:11])))
 
@@ -1737,7 +1737,7 @@ test_that("compute_window throws errors when FUN or period is wrong ", {
 
   expect_error(
     compute_window(metrics_xts, period = 3, metric = "A", FUN = "cagr", window = "exp"),
-    "Invalid window type. Must be either 'rolling' or 'seasonal'."
+    "Invalid window type. Must be either 'rolling' or 'fwd_seasonal'."
   )
 
 
