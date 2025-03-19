@@ -66,9 +66,9 @@ setMethod(
   function(data, meta_dataframe_name = "not_identified",
            workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL, type = "generic", ...) {
     # Check for type argument
-    if (!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features")) {
+    if (!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features", "raw")) {
       stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
-                     'weights', 'priors', 'signals' or 'features'.")
+                     'weights', 'priors', 'signals', 'features' or 'raw'.")
     }
 
     # Is it coercible
@@ -245,8 +245,99 @@ setMethod(
         )
       )
     }
+
+    if (type == "raw") {
+      return(
+        new("raw_features_m_df",
+            data = data,
+            workflow = NULL,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name,
+            current_date = current_date
+        )
+      )
+    }
   }
 )
+
+#' Create a target_m_df from a meta_dataframe
+#'
+#' @param meta_dataframe A `meta_dataframe` object containing stock data.
+#' @param past_ret_column Character, indicating the column in `meta_df` that contains the past 1-month return.
+#' @param benchmark_returns_m_xts A `meta_xts` object containing benchmark returns.
+#' @param selected_bench Character, indicating the column in `benchmark_returns_m_xts` to use as the benchmark.
+#' @param fwd_horizon Integer, the number of months to compute forward returns (must be a multiple of past_ret_horizon).
+#'
+#' @return A `target_m_df` object containing future return metrics for ML modeling.
+#' @export
+create_target_m_df <- function(meta_df, past_ret_column, benchmark_returns_m_xts, selected_bench, fwd_horizon) {
+  # Defensive checks
+  if (!inherits(meta_df, "meta_dataframe")) stop("meta_df must be a meta_dataframe object.")
+  if (!inherits(benchmark_returns_m_xts, "meta_xts")) stop("benchmark_returns_m_xts must be a meta_xts object.")
+  if (!is.character(past_ret_column) || length(past_ret_column) != 1) stop("past_ret_column must be a character string.")
+  if (!is.character(selected_bench) || length(selected_bench) != 1) stop("selected_bench must be a character string.")
+  if (!is.numeric(fwd_horizon) || fwd_horizon %% 1 != 0 || fwd_horizon < 1) stop("fwd_horizon must be a positive integer.")
+
+  # Extract data
+  meta_data <- meta_df@data
+  bench_data_xts <- benchmark_returns_m_xts@data
+
+  # Compute forward returns using purrr::map_dbl
+  fwd_returns <- purrr::map_dbl(seq_len(nrow(meta_data)), function(i) {
+    current_row <- meta_data[i, ]
+    ticker_i <- current_row$tickers
+    current_date <- current_row$dates
+
+    # Compute forward dates
+    fwd_dates <- lubridate::add_with_rollback(current_date, months(fwd_horizon))
+
+    # Retrieve forward returns from meta_data
+    fwd_rows <- meta_data %>%
+      dplyr::filter(tickers == ticker_i, dates == fwd_dates)
+
+    if (nrow(fwd_rows) == 0) {
+      # If no forward row exists, replace with corresponding benchmark return
+      bench_ret <- bench_data_xts[zoo::index(bench_data_xts) == fwd_dates, selected_bench]
+      return(ifelse(length(bench_ret) == 0, NA_real_, bench_ret))
+    }
+
+    # Extract forward return
+    fwd_ret <- fwd_rows[[past_ret_column]]
+    if (is.na(fwd_ret)) return(0)  # Replace NA values with 0
+    return(fwd_ret)
+  })
+
+  # Convert to xts
+  fwd_returns_xts <- xts::xts(fwd_returns, order.by = meta_data$dates)
+  bench_returns_xts <- bench_data_xts[, selected_bench]
+
+  # Summarize performance
+  performance_summary <- summarize_performance(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = fwd_returns_xts,
+    selected_market_factor_proxy_m_xts_upd_ref = bench_returns_xts,
+    model_structure = "no_pooled",
+    model_spec_theme_level = "random_intercept_fixed_slope",
+    lmer_control = NULL,
+    selected_signal_themes_m_d_ref = NULL,
+    active_returns = TRUE
+  )
+
+  # Create target_m_df object
+  target_m_df <- new("target_m_df",
+                     data = meta_data,
+                     workflow = meta_df@workflow,
+                     signals = paste0("target_", fwd_horizon, "m"),
+                     unique_dates = meta_df@unique_dates,
+                     unique_tickers = meta_df@unique_tickers,
+                     n_obs = meta_df@n_obs,
+                     current_date = meta_df@current_date,
+                     meta_dataframe_name = paste0(meta_df@meta_dataframe_name, "_target"))
+
+  return(target_m_df)
+}
 
 
 #' @describeIn create_meta_dataframe Method for \code{list} Signature
@@ -1334,8 +1425,9 @@ setMethod(
         data <- data[, setdiff(colnames(data), "dates"), drop = FALSE]
       } else {
         # Attempt to use rownames as dates
-        date_vec <- as.Date(rownames(data))
+        date_vec <- tryCatch(as.Date(rownames(data)), error = function(e) numeric(0))
       }
+
       # Error check: ensure we have valid dates
       if (length(date_vec) == 0 || all(is.na(date_vec))) {
         stop("Error: No valid dates found. Please provide a 'dates' column, valid rownames, or pass a 'dates' argument.")
@@ -1355,8 +1447,13 @@ setMethod(
       if (!all(c("tickers", "dates") %in% colnames(data))) {
         stop("Error: For long format, the data.frame must contain 'tickers' and 'dates' columns.")
       }
-      # Identify feature columns (excluding 'tickers' and 'dates')
-      feature_cols <- setdiff(colnames(data), c("tickers", "dates"))
+      # Identify feature columns (excluding 'id', tickers' and 'dates')
+      feature_cols <- setdiff(colnames(data), c("id", "tickers", "dates"))
+        ##Check that metric_name legnth is equal to feature_cols length
+        if (!is.null(metric_name) && length(metric_name) != length(feature_cols)) {
+          stop("Error: When data_format is 'long' and metric_name is provided as a vector, its length must equal the number of feature columns.")
+        }
+
       result_list <- list()
 
       for (feat in feature_cols) {
@@ -1364,7 +1461,7 @@ setMethod(
         wide_df <- tidyr::pivot_wider(data,
                                       id_cols = dates,
                                       names_from = tickers,
-                                      values_from = feat)
+                                      values_from =  dplyr::all_of(feat))
         # Use provided dates if available; otherwise use the pivoted 'dates' column.
         if (!is.null(dates)) {
           date_vec <- as.Date(dates)
@@ -1403,9 +1500,46 @@ setMethod(
   }
 )
 
+# Define the method for when 'data' is a meta_dataframe
+setMethod(
+  "create_meta_xts",
+  signature(data = "meta_dataframe"),
+  function(data,
+           type = c("returns", "metrics"),
+           asset_type = "not_identified",
+           meta_xts_name = "not_identified",
+           metric_name = NULL,
+           source = NULL) {
 
+    #Retrieve data.frame
+    meta_dataframe <- data@data
 
+    #Create new workflow entry
+    new_entry <- list(
+      list(
+        current_date = data@current_date, #Current date
+        timestamp = Sys.time() #Timestamp
+      )
+    )
 
+    updated_workflow <- c(data@workflow, new_entry)
+    names(updated_workflow)[length(updated_workflow)] <- paste0("meta_xts_coercion", data@current_date)
+
+    #Pass to 'data.frame' method
+    results <- create_meta_xts(data = meta_dataframe,
+                               type = type,
+                               asset_type = asset_type,
+                               meta_xts_name = meta_xts_name,
+                               metric_name = metric_name,
+                               workflow = updated_workflow,
+                               data_format = "long",
+                               source = source,
+                               dates = NULL)
+
+    return(results)
+
+  }
+)
 
 #ss_backtest------------------------------------------------------------
 
