@@ -21,7 +21,7 @@ test_that("create_meta_xts works for a xts object with no type specification a d
     #Message for asset type
   expect_warning(
     #Warning for decimal form
-  results <- create_meta_xts(mocked_backtest_returns_m_xts)
+    results <- create_meta_xts(mocked_backtest_returns_m_xts)
   ), "Asset_type not identified for 'returns_meta_xts' subclass"
   ), "Detected frequency is: monthly"
   )
@@ -257,7 +257,7 @@ test_that("create_meta_xts works for a meta_dataframe", {
 
   #Create meta xts
   suppressWarnings(
-  meta_xts <- create_meta_xts(data = pre_silver_daily_returns_m_df)
+    meta_xts <- create_meta_xts(data = pre_silver_daily_returns_m_df)
   )
 
   #Check that illiquid matches pre_silver_daily

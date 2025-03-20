@@ -267,28 +267,40 @@ setMethod(
 #'
 #' @param daily_returns_m_df A `meta_dataframe` object containing daily stock returns data.
 #' @param daily_bench_returns_m_xts A `meta_xts` object containing daily benchmark returns.
+#' @param features_m_df A `meta_dataframe` object containing features data.
 #' @param past_ret_column Character, indicating the column in `daily_returns_m_df` that contains returns.
 #' @param selected_bench Character, indicating the column in `benchmark_returns_m_xts` to use as the benchmark.
 #' @param fwd_horizon Integer, the number of months to compute forward returns
-#' @param selected_dates A vector of dates to subset the calculation.
 #' @param active_returns Logical, indicating whether to calculate active returns.
+#'
+#' @details All ids from features_m_df are used to create the target_m_df.
+#' The target_m_df is created by calculating the forward returns for each id in features_m_df.
+#' The forward returns are calculated by shifting the returns in daily_returns_m_df by fwd_horizon months.
+#' The benchmark returns are calculated by shifting the returns in daily_bench_returns_m_xts by fwd_horizon months.
+#' The active returns are calculated by subtracting the benchmark returns from the forward returns.
 #'
 #' @return A `target_m_df` object containing future return metrics.
 #' @export
+setGeneric("create_target_m_df", function(daily_returns_m_df, daily_bench_returns_m_xts, features_m_df, ...) {
+  standardGeneric("create_target_m_df")
+})
+
+
 setMethod("create_target_m_df",
-          signature(daily_returns_m_df = "meta_dataframe", daily_bench_returns_m_xts = "meta_xts"),
-          function(daily_returns_m_df, daily_bench_returns_m_xts, past_ret_column, selected_bench, fwd_horizon, selected_dates, active_returns) {
+          signature(daily_returns_m_df = "meta_dataframe", daily_bench_returns_m_xts = "meta_xts", features_m_df = "meta_dataframe"),
+          function(daily_returns_m_df, daily_bench_returns_m_xts, features_m_df, past_ret_column, selected_bench, fwd_horizon, active_returns, parallel = TRUE) {
 
             #Initial checks
             ###############
-            if (!all(selected_dates %in% daily_returns_m_df@data$dates)){
-              stop("Some selected_dates do not exist in meta_dataframe.")
+            if (features_m_df@current_date != daily_returns_m_df@current_date){
+              stop("features_m_df and daily_returns_m_df must have the same current_date.")
             }
-            if (!all(selected_dates %in% zoo::index(daily_bench_returns_m_xts@data))){
-              stop("Some selected_dates do not exist in benchmark_returns_m_xts.")
+            if (!all(features_m_df@data$id %in% daily_returns_m_df@data$id)){
+              stop("Some ids from features_m_df do not exist in daily_returns_m_df")
             }
-            if (!all(zoo::index(benchmark_returns@data) %in% daily_returns_m_df@data$dates)){
-              stop("All dates in benchmark_returns_m_xts must be included in daily_returns_m_df.")
+            distinct_dates <- setdiff(daily_returns_m_df@data$dates, zoo::index(daily_bench_returns_m_xts@data))
+            if (length(distinct_dates) > 0){
+              stop("Some dates from daily_returns_m_df do not exist in benchmark_returns_m_xts.")
             }
             if (!selected_bench %in% colnames(daily_bench_returns_m_xts@data)){
               stop("selected_bench must be a column in benchmark_returns_m_xts.")
@@ -301,36 +313,63 @@ setMethod("create_target_m_df",
 
             #Calculate
             ##############
-            selected_dates_daily_returns_m_df <- daily_returns_m_df@data %>% dplyr::filter(dates %in% selected_dates)
-            bench_data_xts <- daily_bench_returns_m_xts@data
 
-              ##Compute forward returns using purrr::map_dbl
-              selected_target_m_df_list <- purrr::map_dfr(seq_len(nrow(selected_dates_daily_returns_m_df)), function(i) {
-                current_row <- selected_dates_daily_returns_m_df[i, ]
-                current_date <- current_row$dates
+              ##Get selected dates and ids
+              selected_ids <- features_m_df@data %>% dplyr::pull(id)
+              selected_daily_returns_m_df <- daily_returns_m_df@data %>% dplyr::filter(id %in% selected_ids)
+              selected_dates <- selected_daily_returns_m_df %>% dplyr::pull(dates) %>% unique()
+              selected_daily_bench_returns_m_xts <- daily_bench_returns_m_xts@data[, selected_bench]
+
+              ##Build fwd_date_process fun
+              fwd_date_process <- function(i){
+
+                ###Subset current row and date
+                current_date <- selected_dates[i]
+                selected_daily_returns_m_d_ref <- selected_daily_returns_m_df %>% dplyr::filter(dates %in% current_date)
+                current_tickers <- selected_daily_returns_m_d_ref %>% dplyr::pull(tickers)
+
+                ####Print
+                cat(crayon::cyan(paste0("Processing date ", format(as.Date(current_date), "%Y-%m-%d"))))
+                cat("\n")
+
+                ####Ensure current row is correctly assigned
+                if (nrow(selected_daily_returns_m_d_ref) == 0) {
+                  stop("No data found for selected date: ", current_date)
+                }
 
                 ###Compute forward dates
-                fwd_dates <- lubridate::add_with_rollback(current_date, months(1:fwd_horizon))
+                fwd_dates <- lubridate::add_with_rollback(current_date, months(0:fwd_horizon))
+                seq_fwd_dates <- seq.Date(from = fwd_dates[1], to = fwd_dates[length(fwd_dates)], by = "days")
 
                 ###If any of the dates in exceed current_date, return NA
-                if (any(fwd_dates > daily_returns_m_df@current_date)) return(NA_real_)
+                if (any(seq_fwd_dates > daily_returns_m_df@current_date)){
+                  return(selected_daily_returns_m_d_ref %>% dplyr::select(id, tickers, dates))
+                }
 
-                ###Retrieve all forward returns from daily_returns_m_df and replace NAs with 0
-                daily_returns_m_d_fwd <- daily_returns_m_df@data %>% #Get from complete database
-                  dplyr::filter(dates %in% fwd_dates) %>% #Subset ticker_i and only fwd dates
+                ###Retrieve all forward returns from selected_daily_returns_m_df and replace NAs with 0
+                selected_daily_returns_m_d_fwd <- daily_returns_m_df@data %>% #Get from complete database
+                  dplyr::filter(tickers %in% current_tickers, dates %in% seq_fwd_dates) %>% #Subset ticker_i and only fwd dates
                   dplyr::mutate(dplyr::across(dplyr::all_of(past_ret_column), ~ tidyr::replace_na(.x, 0))) #Replace NAs with 0
 
                 ###Do the same with benchmark
-                selected_daily_bench_returns_m_xts_fwd <- daily_bench_returns_m_xts@data[
-                  which(zoo::index(daily_bench_returns_m_xts@data) %in% fwd_dates), #Only fwd dates
-                  selected_bench] #Only the specified benchmark
+                selected_daily_bench_returns_m_xts_fwd <- selected_daily_bench_returns_m_xts[
+                  which(zoo::index(selected_daily_bench_returns_m_xts) %in% seq_fwd_dates), #Only fwd dates
+                  ]
+
+                ###Check if there are any NAs in selected_daily_returns_m_d_fwd or selected_daily_bench_returns_m_xts_fwd and stop
+                if (any(is.na(selected_daily_returns_m_d_fwd)) | any(is.na(selected_daily_bench_returns_m_xts_fwd))) {
+                  stop("There are NAs in selected_daily_returns_m_d_fwd or selected_daily_bench_returns_m_xts_fwd.")
+                }
 
                 ###Convert to meta_xts
-                daily_returns_m_xts_fwd <- create_meta_xts(daily_returns_m_d_fwd)
+                selected_daily_returns_m_xts_fwd <- create_meta_xts(selected_daily_returns_m_d_fwd, type = "returns",
+                                                                    data_format = "long", asset_type = "stocks")
+
+                if (current_date == as.Date("2001-10-15")) browser()
 
                 ###Pass to summarize
                 target_m_d_ref <- summarize_performance(
-                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = daily_returns_m_xts_fwd,
+                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_daily_returns_m_xts_fwd@data,
                   selected_market_factor_proxy_m_xts_upd_ref = selected_daily_bench_returns_m_xts_fwd,
                   model_structure = "no_pooled",
                   model_spec_theme_level = NULL,
@@ -339,26 +378,43 @@ setMethod("create_target_m_df",
                   active_returns = active_returns
                 )$signal_universe_m_d_ref
 
+                cat(crayon::cyan(paste0("Finished processing date ", format(as.Date(current_date), "%Y-%m-%d"))))
+                cat("\n\n--------------------------------\n\n")
+
                 ###Replace dates of target_m_d_ref with current_date
                 target_m_d_ref$dates <- current_date
 
-              return(target_m_d_ref)
-            })
+                return(target_m_d_ref)
+
+              }
+
+              ##Compute forward returns using purrr::map or future::future_map
+              if (parallel){
+                selected_target_m_df_list <- furrr::future_map(seq_len(length(selected_dates)),
+                                                                .f = fwd_date_process,
+                                                                .options = furrr::furrr_options(seed = TRUE)
+                                                                )
+              } else {
+                selected_target_m_df_list <- purrr::map(seq_len(length(selected_dates)), .f = fwd_date_process)
+              }
+
             ##############
 
             #Finalize
             ##############
 
-            ##Use bind_rows to combine all dataframes in the list
-            target_m_df <- dplyr::bind_rows(selected_target_m_df_list)
+            ##Use bind_rows to combine all dataframes in the list and correct id
+            target_m_df <- dplyr::bind_rows(selected_target_m_df_list) %>%
+              dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
+              dplyr::arrange(id)
 
             ##Rename all metrics (except first three columns id, tickers and dates) to fwd_metric_fwd_horizon_m
-            target_m_df <- target_m_df %>% dplyr::rename_with(~ paste0(., "_", fwd_horizon, "m"), .cols = -c(1:3))
+            target_m_df <- target_m_df %>% dplyr::rename_with(~ paste0("fwd_", ., "_", fwd_horizon, "m"), .cols = -c(1:3))
 
             ##Create target_m_df object
               ###New enty to workflow
               new_entry <- list(
-                list(current_date = current_date,  # Current date
+                list(current_date = daily_returns_m_df@current_date,  # Current date
                      timestamp = Sys.time(),        # Timestamp
                      selected_bench = selected_bench, # Selected benchmark
                      bench_returns_m_xts_name = daily_bench_returns_m_xts@meta_xts_name, # Benchmark name
@@ -366,6 +422,7 @@ setMethod("create_target_m_df",
                      fwd_horizon = fwd_horizon, # Forward horizon
                      selected_dates = selected_dates, # Selected dates
                      active_returns = active_returns, # Active returns
+                     parallel = parallel,
                      call = match.call() # Call
                 )
               )
