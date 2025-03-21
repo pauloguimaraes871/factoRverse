@@ -713,7 +713,7 @@ test_that("create_target_m_df works in an update workflow", {
 
   date_last_quote <- data.frame(
     tickers = c("happy2", "ipo", "new_ipo", "delisted", "illiquid", "wrong"),
-    date_last_quote = as.Date(c("2002-03-15", "2002-03-15", "2002-03-15", "2001-11-07", "2002-03-10", "2002-02-04"))
+    date_last_quote = as.Date(c("2002-03-15", "2002-03-02", "2002-03-15", "2001-11-07", "2002-03-10", "2002-02-04"))
   )
 
   #Create tickers catalog
@@ -1014,6 +1014,7 @@ test_that("create_target_m_df works in an update workflow", {
   )
 
   fourth_fwd_ret_xts@data[c(63:91), "4c37ff6e6a"] <- bench_fwd[c(63:91)]
+  fourth_fwd_ret_xts@data[c(89:91), "9f6bf24009"] <- bench_fwd[c(89:91)] #fill for ipo (was delisted)
 
 
   tickers_universe_m_d_ref <- summarize_performance(fourth_fwd_ret_xts@data, bench_fwd,
