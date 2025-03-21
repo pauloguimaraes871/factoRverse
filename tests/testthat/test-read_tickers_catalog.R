@@ -1379,6 +1379,9 @@ test_that("read_tickers_catalog correctly responds to n_days_tolerance", {
   expect_equal(nrow(results@data %>% dplyr::filter(tickers == "9ac40e33b6", dates == "2023-09-15")), 1)
   expect_equal(nrow(results2@data %>% dplyr::filter(tickers == "9ac40e33b6", dates == "2023-09-15")), 0)
 
+  expect_false(tickers_catalog@catalog[14,"delisted"])
+  expect_true(tickers_catalog2@catalog[14,"delisted"])
+
 })
 
 test_that("read_tickers_catalog throws an error when versions do not match", {

@@ -1274,7 +1274,7 @@ test_that("update_tickers_catalog works for an untraded changing ticker (no new 
   expect_true("CAFE3" %in% results@old)
   expect_true(results@perm_id["LEIT4"] %>% unname() == results@perm_id["CAFE3"] %>% unname())
 
-  expect_true(results@perm_id["CAFE3"] == third_update@perm_id["CAFE3"])
+  expect_true(identical(results@perm_id["CAFE3"], third_update@perm_id["CAFE3"]))
   expect_true(results@perm_id["LEIT4"] %>% unname() == third_update@perm_id["CAFE3"] %>% unname())
 
   # Check for last quote
