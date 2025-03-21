@@ -190,7 +190,7 @@ setMethod(
       return(
         new("groups_m_df",
           data = data,
-          workflow = NULL,
+          workflow = workflow,
           signals = names(data)[-c(1:3)],
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
@@ -205,7 +205,7 @@ setMethod(
       return(
         new("priors_m_df",
           data = data,
-          workflow = NULL,
+          workflow = workflow,
           signals = names(data)[-c(1:3)],
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
@@ -220,7 +220,7 @@ setMethod(
       return(
         new("target_m_df",
           data = data,
-          workflow = NULL,
+          workflow = workflow,
           signals = names(data)[-c(1:3)],
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
@@ -235,7 +235,7 @@ setMethod(
       return(
         new("weights_m_df",
           data = data,
-          workflow = NULL,
+          workflow = workflow,
           signals = names(data)[-c(1:3)],
           unique_dates = unique_dates_count,
           unique_tickers = unique_tickers_count,
@@ -298,15 +298,18 @@ setMethod("create_target_m_df",
             if (!all(features_m_df@data$id %in% daily_returns_m_df@data$id)){
               stop("Some ids from features_m_df do not exist in daily_returns_m_df")
             }
-            distinct_dates <- setdiff(daily_returns_m_df@data$dates, zoo::index(daily_bench_returns_m_xts@data))
-            if (length(distinct_dates) > 0){
-              stop("Some dates from daily_returns_m_df do not exist in benchmark_returns_m_xts.")
+            if (!identical(as.character(sort(unique(daily_returns_m_df@data$dates))),
+                           as.character(sort(zoo::index(daily_bench_returns_m_xts@data))))){
+              stop("Dates from daily_returns_m_df and daily_bench_returns_m_xts should match.")
             }
             if (!selected_bench %in% colnames(daily_bench_returns_m_xts@data)){
               stop("selected_bench must be a column in benchmark_returns_m_xts.")
             }
             if (!past_ret_column %in% colnames(daily_returns_m_df@data)){
               stop("past_ret_column must be a column in daily_returns_m_df.")
+            }
+            if (fwd_horizon < 1){
+              stop("fwd_horizon must be greater than 0.")
             }
 
             ##############
@@ -365,7 +368,38 @@ setMethod("create_target_m_df",
                 selected_daily_returns_m_xts_fwd <- create_meta_xts(selected_daily_returns_m_d_fwd, type = "returns",
                                                                     data_format = "long", asset_type = "stocks")
 
-                if (current_date == as.Date("2001-10-15")) browser()
+                ###Replace NAs at this point with bench_returns
+                ###NAs at this point come up because of binding the distinct sized return series
+                ###If a series has a smaller size, it will be filled with NAs for dates in which the original series had no information
+                ###This is inherent to a delisted stock
+
+                    ####Get NAs
+                    na_idx <- is.na(selected_daily_returns_m_xts_fwd@data)
+
+                      #####Conservatively check if NAs occur in a trailing block
+                      is_trailing_na <- function(col_na) {
+                        first_na <- which(col_na)[1]
+                        if (is.na(first_na)) return(TRUE)  # No NA in column
+                        all(col_na[first_na:length(col_na)])
+                      }
+
+                      ####Check each column of the logical matrix
+                      na_pattern_ok <- apply(na_idx, 2, is_trailing_na)
+
+                      ####Stop if any column violates the rule
+                      if (!all(na_pattern_ok)) {
+                        bad_tickers <- colnames(na_idx)[!na_pattern_ok]
+                        stop("Invalid NA pattern in the following tickers: ",
+                             paste(bad_tickers, collapse = ", "),
+                             ". NAs must form a trailing block (e.g., due to delisting).")
+                      }
+
+                    ####Ensure alignment of rows
+                    stopifnot(identical(zoo::index(selected_daily_returns_m_xts_fwd@data), zoo::index(selected_daily_bench_returns_m_xts_fwd)))
+
+                    ####Replace NAs row-wise
+                    selected_daily_returns_m_xts_fwd@data[na_idx] <-
+                      as.numeric(selected_daily_bench_returns_m_xts_fwd)[row(selected_daily_returns_m_xts_fwd@data)][na_idx] #Replace NAs with bench_returns
 
                 ###Pass to summarize
                 target_m_d_ref <- summarize_performance(
@@ -429,8 +463,10 @@ setMethod("create_target_m_df",
 
             target_m_df <- create_meta_dataframe(target_m_df, type = "target",
                                                  meta_dataframe_name = daily_returns_m_df@meta_dataframe_name,
-                                                 workflow = c(daily_returns_m_df@workflow, new_workflow)
+                                                 workflow = c(daily_returns_m_df@workflow, new_entry)
                                                  )
+
+            names(target_m_df@workflow)[length(target_m_df@workflow)] <- paste0("create_target_m_df_", daily_returns_m_df@current_date)
 
             return(target_m_df)
           })
@@ -619,16 +655,17 @@ setMethod(
 #'
 #' @param old_features_m_df A features meta_dataframe object with previous data
 #' @param new_features_m_df A features meta dataframe object with new data
+#' @param batch_type A character string indicating the batch type. Default is 'monthly'
 #'
 #' @return Updated meta_dataframe object
-setGeneric("update_meta_dataframe", function(old_features_m_df, new_features_m_df) {
+setGeneric("update_meta_dataframe", function(old_features_m_df, new_features_m_df, ...) {
   standardGeneric("update_meta_dataframe")
 })
 
 #' @exportMethod update_meta_dataframe
 setMethod(
   "update_meta_dataframe", signature(old_features_m_df = "meta_dataframe", new_features_m_df = "meta_dataframe"),
-  function(old_features_m_df, new_features_m_df){
+  function(old_features_m_df, new_features_m_df, batch_type = "monthly"){
 
     #Initial prep
     ###############
@@ -669,14 +706,21 @@ setMethod(
       if (length(dplyr::intersect(old_features_m_df$dates, new_features_m_df$dates)) > 0){
         stop("There are common dates between old_features_m_df and new_features_m_df.")
       }
-      ##Check that number of unique dates in new_features_m_df is equal to 1
-      if (length(unique(new_features_m_df$dates)) != 1){
-        stop("Number of unique dates in new_features_m_df is not equal to 1.")
+      ##Check that number of unique dates in new_features_m_df is equal to expectations
+      if (batch_type == "monthly"){
+        if (length(unique(new_features_m_df$dates)) != 1){
+          stop("Number of unique dates in new_features_m_df is not equal to 1.")
+        }
       }
-      ##Check that current_date in new_features_m_df is 1 months ahead of current_date in old_features_m_df
-      if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))){
-        stop("Current date in new_features_m_df should be 1 months ahead of current_date in old_features_m_df.")
+      if (batch_type == "daily"){
+        if (length(unique(new_features_m_df$dates)) %in% c(15, 40)){
+          stop("Number of unique dates in new_features_m_df is not in a reasonable range for daily data.")
+        }
       }
+        ##Check that current_date in new_features_m_df is 1 months ahead of current_date in old_features_m_df
+        if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))){
+          stop("Current date in new_features_m_df should be 1 months ahead of current_date in old_features_m_df.")
+        }
       ##Check that each column class match between old_features_m_df and new_features_m_df
       if (!all(sapply(
         colnames(old_features_m_df),
@@ -740,6 +784,7 @@ setMethod(
 
   }
 )
+
 
 
 
@@ -1362,6 +1407,7 @@ setMethod(
 
 
 
+
 # meta_xts----------------------------------------------------------------
 
 #' Create a meta_xts, assets_meta_xts or metrics_meta_xts object.
@@ -1516,13 +1562,18 @@ setMethod(
       # For wide format, first check if 'dates' argument is provided.
       if (!is.null(dates)) {
         date_vec <- as.Date(dates)
+        # Enforce that user-supplied dates are sorted
+        if (is.unsorted(date_vec)) {
+          stop("Error: 'dates' vector provided by the user must be sorted in ascending order.")
+        }
+        # Do NOT reorder data here — assume the user supplied aligned dates
       } else if ("dates" %in% colnames(data)) {
+        # Sort data based on dates column, and extract date vector
+        data <- data[order(as.Date(data$dates)), , drop = FALSE]
         date_vec <- as.Date(data[["dates"]])
-        # Remove the dates column from data before conversion
         data <- data[, setdiff(colnames(data), "dates"), drop = FALSE]
       } else {
-        # Attempt to use rownames as dates
-        date_vec <- tryCatch(as.Date(rownames(data)), error = function(e) numeric(0))
+        stop("Error: No 'dates' column found. Please provide a 'dates' column or pass a 'dates' argument.")
       }
 
       # Error check: ensure we have valid dates
@@ -1530,7 +1581,9 @@ setMethod(
         stop("Error: No valid dates found. Please provide a 'dates' column, valid rownames, or pass a 'dates' argument.")
       }
 
+      #Create xts
       data_xts <- xts::as.xts(data, order.by = date_vec)
+
       # Delegate to the xts method
       return(create_meta_xts(data = data_xts,
                              type = type,
@@ -1539,6 +1592,7 @@ setMethod(
                              metric_name = metric_name,
                              workflow = workflow,
                              source = source))
+
     } else { # data_format == "long"
       # For long format, verify required columns exist.
       if (!all(c("tickers", "dates") %in% colnames(data))) {
@@ -1546,14 +1600,20 @@ setMethod(
       }
       # Identify feature columns (excluding 'id', tickers' and 'dates')
       feature_cols <- setdiff(colnames(data), c("id", "tickers", "dates"))
+
         ##Check that metric_name legnth is equal to feature_cols length
         if (!is.null(metric_name) && length(metric_name) != length(feature_cols)) {
           stop("Error: When data_format is 'long' and metric_name is provided as a vector, its length must equal the number of feature columns.")
         }
-
       result_list <- list()
 
       for (feat in feature_cols) {
+
+        # If user did not provide dates, sort data first by 'dates'
+        if (is.null(dates)) {
+          data <- data[order(as.Date(data$dates)), , drop = FALSE]
+        }
+
         # Pivot the data: tickers become columns and dates are the id column
         wide_df <- tidyr::pivot_wider(data,
                                       id_cols = dates,
@@ -1562,14 +1622,27 @@ setMethod(
         # Use provided dates if available; otherwise use the pivoted 'dates' column.
         if (!is.null(dates)) {
           date_vec <- as.Date(dates)
+
+          # Enforce that user-supplied dates are sorted
+          if (is.unsorted(date_vec)) {
+            stop("Error: 'dates' vector provided by the user must be sorted in ascending order.")
+          }
+          # No reordering done — assume user gave aligned data
         } else {
-          date_vec <- as.Date(wide_df[["dates"]])
-        }
+          date_vec <- as.Date(wide_df$dates)
+          wide_df <- wide_df[order(date_vec), , drop = FALSE]
+          date_vec <- date_vec[order(date_vec)]
+          }
+
         # Error check for valid dates in the long branch
         if (length(date_vec) == 0 || all(is.na(date_vec))) {
           stop("Error: No valid dates found in pivoted data. Please check your 'dates' column or provide a 'dates' argument.")
         }
+
+        # Remove the 'dates' column from the wide_df
         wide_data <- wide_df[, setdiff(colnames(wide_df), "dates"), drop = FALSE]
+
+        # Create xts object
         data_xts <- xts::as.xts(wide_data, order.by = date_vec)
 
         # Set the metric name: use the feature name if metric_name is NULL,
@@ -1638,7 +1711,8 @@ setMethod(
   }
 )
 
-#ss_backtest------------------------------------------------------------
+
+# ss_backtest------------------------------------------------------------
 
 #' @title Create an ss_backtest_config Object
 #' @description This function constructs an object of class `ss_backtest_config`, ensuring the proper initialization
@@ -1808,7 +1882,8 @@ setMethod(
 
 
 
-#alpha_test_strategy----------------------------------------------------
+
+# alpha_test_strategy----------------------------------------------------
 #' @title Create an alpha_test_strategy object
 #' @description A constructor function to create instances of alpha_test_strategy or its subclasses
 #' (frequentist_alpha_test_strategy and bayesian_alpha_test_strategy).
@@ -1986,7 +2061,8 @@ setMethod(
 )
 
 
-#bayesian_model_parameters----------------------------------------------
+
+# bayesian_model_parameters----------------------------------------------
 #' @title Create Bayesian Model Parameters
 #' @description Constructor for an S4 object of class \code{bayesian_model_parameters}.
 #'
@@ -2288,7 +2364,8 @@ setMethod(
 
 
 
-#tuning_strategy--------------------------------------------------------
+
+# tuning_strategy--------------------------------------------------------
 #' @title Hyperparameter Tuning Strategy Constructor
 #' @description A constructor function to create a tuning_strategy object, based on the specified tuning method.
 #' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
@@ -2467,7 +2544,8 @@ setMethod(
 )
 
 
-#hyperparameters--------------------------------------------------------
+
+# hyperparameters--------------------------------------------------------
 #' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `sb_backtest_config`, a `tuning_strategy` or on its own.
 #'
 #' This generic function adds a new hyperparameter to an existing `hyper_grid_domain` object. The function is overloaded to handle different types of hyperparameters for different machine learning algorithms.
@@ -2870,7 +2948,8 @@ setMethod(
 
 
 
-#keras_architecture----------------------------------------------------
+
+# keras_architecture----------------------------------------------------
 #' @title Create Keras Architecture
 #' @description Constructor for creating an instance of `keras_architecture_parameters`.
 #'
@@ -3071,7 +3150,8 @@ setMethod(
 )
 
 
-#cov_est_method---------------------------------------------------------
+
+# cov_est_method---------------------------------------------------------
 #' @title Create Covariance Estimation Method
 #' @description Constructor for creating an instance of `cov_est_method`.
 #'
@@ -3223,7 +3303,8 @@ setMethod(
 
 
 
-#mvo_parameters-------------------------------------------------------
+
+# mvo_parameters-------------------------------------------------------
 #' @title Create MVO Parameters
 #' @description Constructor function for creating an instance of `mvo_parameters`.
 #'
@@ -3391,7 +3472,8 @@ setMethod(
 
 
 
-#rp_parameters--------------------------------------------------------
+
+# rp_parameters--------------------------------------------------------
 #' @title Create RP (Risk Parity) Parameters
 #' @description Constructor function for creating an instance of `rp_parameters`.
 #'
@@ -3523,7 +3605,8 @@ setMethod(
 
 
 
-#sb_backtest------------------------------------------------------------
+
+# sb_backtest------------------------------------------------------------
 #' @title Create sb_backtest_config Object
 #' @description Constructs an sb_backtest_config object.
 #'
@@ -3638,7 +3721,8 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 
 
 
-#sb_metabacktest------------------------------------------------------------
+
+# sb_metabacktest------------------------------------------------------------
 #' Create SB Meta Backtest Configuration
 #'
 #' The `create_sb_metabacktest_config` function creates an `sb_metabacktest_config` object by combining a `sb_backtest_config` for the meta-learner
@@ -4184,7 +4268,8 @@ setMethod(
 
 
 
-#port_backtest_config---------------------------------------------------
+
+# port_backtest_config---------------------------------------------------
 #' @title Create port_backtest_config Object
 #' @description Constructs a `port_backtest_config` object containing all necessary parameters for backtesting stock-level portfolios.
 #'
@@ -4298,7 +4383,8 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
 
 
 
-#concentration_constraint_policy----------------------------------------
+
+# concentration_constraint_policy----------------------------------------
 #' @title Create Concentration Constraint Policy
 #' @description Constructor for a `concentration_constraint_policy` object.
 #'
@@ -4457,7 +4543,8 @@ setMethod(
 )
 
 
-#liquidity_constraint_policy-------------------------------------------
+
+# liquidity_constraint_policy-------------------------------------------
 #' @title Create Liquidity Constraint Policy
 #' @description Constructor for a `liquidity_constraint_policy` object.
 #'
@@ -4525,7 +4612,8 @@ setMethod(
 )
 
 
-#turnover_constraint_policy--------------------------------------------
+
+# turnover_constraint_policy--------------------------------------------
 #' @title Create Turnover Constraint Policy
 #' @description Constructor for a `turnover_constraint_policy` object.
 #'
@@ -4601,7 +4689,8 @@ setMethod(
 )
 
 
-#transaction_cost_parameters-------------------------------------------
+
+# transaction_cost_parameters-------------------------------------------
 #' Create a New Transaction Cost Parameters Object
 #'
 #' This function constructs a new \code{transaction_cost_parameters} S4 object.
@@ -4681,7 +4770,8 @@ setMethod(
 
 
 
-#liquidity_floor_cutoffs-----------------------------------------------
+
+# liquidity_floor_cutoffs-----------------------------------------------
 #' @title Create Liquidity Floor Cutoffs
 #' @description Construct a liquidity_floor_cutoffs data frame from scratch.
 #'
@@ -4902,7 +4992,8 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
 }
 
 
-#create_port_backtest_cohort--------------------------------------------
+
+# create_port_backtest_cohort--------------------------------------------
 #' Create Portfolio Backtest Cohort
 #'
 #' This function creates a `port_backtest_cohort` object by merging a list of
