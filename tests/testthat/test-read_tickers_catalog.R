@@ -1058,6 +1058,190 @@ test_that("read_tickers_catalog works for an untraded changing ticker (no new pe
 
 })
 
+test_that("read_tickers_catalog works for a ticker changing ticker in a daily context", {
+
+  #Initiate a meta_dataframe with daily returns
+  dates <- seq.Date(from = as.Date("2000-01-01"), to = as.Date("2002-02-15"), by = "days")
+
+  set.seed(123)
+  happy_stock <- rnorm(length(dates), 0, 1) #No NAS
+  ipo_stock <- c(rep(NA, 50), rnorm(length(dates) - 50, 0, 1)) #IPO
+  delisted_stock <- c(rnorm(length(dates) - 100, 0, 1), rep(NA, 100)) #Delisted
+  iliquid_stock <- rnorm(length(dates), 0, 1) #Illiq
+  iliquid_stock[sample(size = 80, x = length(iliquid_stock))] <- sample(size = 80, c(0, NA), replace = TRUE)
+  wrong_stock <- rnorm(length(dates), 0, 1) #No NAS before initial listing and after unlisting
+
+  #Combine dates and tickers (happy, ipo, delisted and illiquid) into a grid)
+  daily_returns_m_df <- expand.grid(c("happy", "ipo", "delisted", "illiquid", "wrong"), dates) %>%
+    dplyr::mutate(id = paste(Var1, Var2, sep = "-"), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::arrange(id) %>%
+    dplyr::mutate(ret = c(delisted_stock, happy_stock, iliquid_stock, ipo_stock, wrong_stock))
+  daily_returns_m_df$tickers <- as.character(daily_returns_m_df$tickers)
+  daily_returns_m_df <- create_meta_dataframe(daily_returns_m_df, type = "raw", meta_dataframe_name = "daily_bronze")
+
+  date_first_quote <- data.frame(
+    tickers = c("happy", "ipo", "delisted", "illiquid", "wrong"),
+    date_first_quote = as.Date(c("1999-01-12", "2000-02-20", "1999-01-05", "1999-01-12", "2001-01-06"))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("happy", "ipo", "delisted", "illiquid", "wrong"),
+    date_last_quote = as.Date(c("2002-02-15", "2002-02-15", "2001-11-07", "2002-02-15", "2002-02-04"))
+  )
+
+
+  #Create tickers catalog
+  tickers_catalog_daily <- create_tickers_catalog(
+    raw_features_m_df = daily_returns_m_df,
+    date_first_quote = date_first_quote,
+    date_last_quote = date_last_quote
+  )
+
+  #read catalog
+  pre_silver_daily_returns_m_df <- read_tickers_catalog(
+    daily_returns_m_df,
+    tickers_catalog = tickers_catalog_daily
+  )
+
+  #Check that delisted, ipo and wrongs had some removals
+  expect_equal(
+    pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-02-15`$row_removal_summary[1, "out_trd_rg_only_NA"],
+    daily_returns_m_df@data %>% dplyr::filter(tickers == "delisted", dates > date_last_quote$date_last_quote[3]) %>% nrow() - 10 #n_days_Tol
+  )
+  expect_equal(
+    pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-02-15`$row_removal_summary[1, "out_trd_rg_not_only_NA"],
+    0
+  )
+  expect_equal(
+    pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-02-15`$row_removal_summary[2, "out_trd_rg_only_NA"],
+    daily_returns_m_df@data %>% dplyr::filter(tickers == "ipo", dates < date_first_quote$date_first_quote[2]) %>% nrow()
+  )
+  expect_equal(
+    pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-02-15`$row_removal_summary[2, "out_trd_rg_not_only_NA"],
+    0
+  )
+  expect_equal(
+    pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-02-15`$row_removal_summary[3, "out_trd_rg_only_NA"],
+    0
+  )
+  expect_equal(
+    pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-02-15`$row_removal_summary[3, "out_trd_rg_not_only_NA"],
+    daily_returns_m_df@data %>% dplyr::filter(tickers == "wrong",
+                                              dates < date_first_quote$date_first_quote[5] |
+                                                dates > date_last_quote$date_last_quote[5]) %>% nrow() - 10
+  )
+
+  #A new batch arrives
+  #Initiate a meta_dataframe with daily returns
+  dates <- seq.Date(from = as.Date("2002-02-16"), to = as.Date("2002-03-15"), by = "days")
+
+  set.seed(123)
+  happy_stock2 <- rnorm(length(dates), 0, 1) #No NAS
+  ipo_stock <- rnorm(length(dates), 0 , 1)  #IPO
+  another_ipo <- c(rep(NA, 20), rnorm(length(dates) - 20, 0, 1)) #New IPO
+  delisted <- rep(NA, length(dates))
+  iliquid_stock <- rnorm(length(dates), 0, 1) #Illiq
+  iliquid_stock[sample(size = 5, x = length(iliquid_stock))] <- sample(size = 5, c(0, NA), replace = TRUE)
+  wrong_stock <- rnorm(length(dates), 0, 1) #No NAS before initial listing and after unlisting
+
+  #Combine dates and tickers
+  new_daily_returns_m_df <- expand.grid(c("happy2", "ipo", "new_ipo", "delisted", "illiquid", "wrong"), dates) %>%
+    dplyr::mutate(id = paste(Var1, Var2, sep = "-"), .before = Var1) %>%
+    dplyr::rename(tickers = Var1, dates = Var2) %>%
+    dplyr::arrange(id) %>%
+    dplyr::mutate(ret = c(delisted, happy_stock2, iliquid_stock, ipo_stock, another_ipo, wrong_stock))
+  new_daily_returns_m_df$tickers <- as.character(new_daily_returns_m_df$tickers)
+  new_daily_returns_m_df <- create_meta_dataframe(new_daily_returns_m_df, type = "raw", meta_dataframe_name = "new_daily_bronze")
+
+
+  date_first_quote <- data.frame(
+    tickers = c("happy2", "ipo", "new_ipo", "delisted", "illiquid", "wrong"),
+    date_first_quote = as.Date(c("1999-01-12", "2000-02-20", "2002-03-08", "1999-01-05", "1999-01-12", "2001-01-06"))
+  )
+
+  date_last_quote <- data.frame(
+    tickers = c("happy2", "ipo", "new_ipo", "delisted", "illiquid", "wrong"),
+    date_last_quote = as.Date(c("2002-03-15", "2002-03-15", "2002-03-15", "2001-11-07", "2002-03-10", "2002-02-04"))
+  )
+
+  #Create tickers catalog
+  new_tickers_catalog_daily <- create_tickers_catalog(
+    raw_features_m_df = new_daily_returns_m_df,
+    date_first_quote = date_first_quote,
+    date_last_quote = date_last_quote
+  )
+
+  # Create ticker_change
+  ticker_changes <- data.frame(
+    new_tickers = c("happy2"),
+    old_tickers = c("happy"),
+    change_date = as.Date(c("2002-03-02"))
+  )
+  # Update catalog
+  updated_catalog_daily <- update_tickers_catalog(
+    old_tickers_catalog = tickers_catalog_daily,
+    new_tickers_catalog = new_tickers_catalog_daily,
+    ticker_changes = ticker_changes
+  )
+  #read catalog
+  second_pre_silver_daily_returns_m_df <- read_tickers_catalog(
+    new_daily_returns_m_df,
+    tickers_catalog = updated_catalog_daily
+  )
+  #Check that there are no removals for happy2, ipo or illiq
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-03-15`$row_removal_summary %>%
+      dplyr::filter(tickers %in% c("happy2", "ipo", "illiquid")) %>% nrow(),
+    0)
+
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@data %>% dplyr::filter(tickers == updated_catalog_daily@perm_id["happy2"]) %>%
+      dplyr::select(-id, -tickers),
+    new_daily_returns_m_df@data %>% dplyr::filter(tickers == "happy2") %>%
+      dplyr::select(-id, -tickers)
+  )
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@data %>% dplyr::filter(tickers == updated_catalog_daily@perm_id["ipo"]) %>%
+      dplyr::select(-id, -tickers),
+    new_daily_returns_m_df@data %>% dplyr::filter(tickers == "ipo") %>%
+      dplyr::select(-id, -tickers)
+  )
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@data %>% dplyr::filter(tickers == updated_catalog_daily@perm_id["illiquid"]) %>%
+      dplyr::select(-id, -tickers),
+    new_daily_returns_m_df@data %>% dplyr::filter(tickers == "illiquid") %>%
+      dplyr::select(-id, -tickers)
+  )
+  #Check that delisted, ipo and wrongs had some removals
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-03-15`$row_removal_summary[1, "out_trd_rg_only_NA"],
+    new_daily_returns_m_df@data %>% dplyr::filter(tickers == "delisted") %>% nrow()
+  )
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-03-15`$row_removal_summary[1, "out_trd_rg_not_only_NA"],
+    0
+  )
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-03-15`$row_removal_summary[2, "out_trd_rg_only_NA"],
+    new_daily_returns_m_df@data %>% dplyr::filter(tickers == "new_ipo", dates < date_first_quote$date_first_quote[3]) %>% nrow()
+  )
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-03-15`$row_removal_summary[2, "out_trd_rg_not_only_NA"],
+    0
+  )
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-03-15`$row_removal_summary[3, "out_trd_rg_only_NA"],
+    0
+  )
+  expect_equal(
+    second_pre_silver_daily_returns_m_df@workflow$`read_tickers_catalog_2002-03-15`$row_removal_summary[3, "out_trd_rg_not_only_NA"],
+    new_daily_returns_m_df@data %>% dplyr::filter(tickers == "wrong") %>% nrow()
+  )
+
+
+})
+
 test_that("read_tickers_catalog works for an untraded IPO ticker", {
   # Create a catalog
   old_raw_features_m_df <- create_meta_dataframe(

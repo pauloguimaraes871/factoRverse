@@ -80,6 +80,26 @@ setMethod("read_tickers_catalog",
               raw_features_m_df <- raw_features_m_df %>%
                 dplyr::left_join(catalog %>% dplyr::select(tickers, perm_id, tickers_first_quote, tickers_last_quote, untraded), by = "tickers")
 
+                  ###In cases of ticker changes, two distinct tickers have a same perm_id
+                  ###This way, the new ticker first quote will be mapped with ticker change date, not with old ticker first quote
+                  ###In a daily freq meta_dataframe, this might lead to incorrect exclusions
+                  ###Group 'catalog' by 'perm_id' to handle tickers sharing the same perm_id
+                  catalog_summary <- dplyr::group_by(catalog, perm_id) %>%
+                    dplyr::summarize( #Summarize to get min and max dates for each perm_id
+                      min_first = if (all(is.na(tickers_first_quote))) as.Date(NA) else min(tickers_first_quote, na.rm = TRUE),
+                      max_last  = if (all(is.na(tickers_last_quote)))  as.Date(NA) else max(tickers_last_quote,  na.rm = TRUE),
+                      .groups   = "drop"
+                    )
+
+                  ###Join those summarized columns back into main data 'raw_features_m_df'
+                  raw_features_m_df <- dplyr::left_join(raw_features_m_df, catalog_summary, by = "perm_id") %>%
+                    ####Replace the original quotes with the summarized min/max, converting ±Inf to NA when all were NA
+                    dplyr::mutate(
+                      tickers_first_quote = dplyr::if_else(is.infinite(min_first), as.Date(NA), min_first),
+                      tickers_last_quote  = dplyr::if_else(is.infinite(max_last),  as.Date(NA), max_last)
+                    ) %>% dplyr::select(-min_first, -max_last) #Remove unnecessary columns
+
+
               ##Remove rows where date is untraded or outside the trading range
                 ###Count untraded
                 removed_untraded_summary <- raw_features_m_df %>%
