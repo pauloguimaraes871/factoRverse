@@ -129,8 +129,8 @@ test_that("create_meta_xts works for a data.frame object with long format (inclu
   expect_equal(names(results), c("book_yield", "dy_med_36m"))
 
   #Check data is wide
-  expect_equal(colnames(results$book_yield@data), signals_m_df$tickers %>% unique())
-  expect_equal(colnames(results$dy_med_36m@data), signals_m_df$tickers %>% unique())
+  expect_equal(sort(colnames(results$book_yield@data)), sort(unique(signals_m_df$tickers)))
+  expect_equal(sort(colnames(results$dy_med_36m@data)), sort(unique(signals_m_df$tickers)))
 
   #Check dates are right
   expect_equal(zoo::index(results$book_yield@data) %>% as.character(), signals_m_df$dates %>% unique() %>% as.character())
@@ -157,6 +157,39 @@ test_that("create_meta_xts works for a data.frame object with long format (inclu
   )
 
 
+
+
+})
+
+test_that("create_meta_xts works for a data.frame object with long format (including presence of NAs)", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+
+  signals_m_df[1, "book_yield"] <- NA #Create a NA to mimick an IPO
+  signals_m_df[c(107, 108), "dy_med_36m"] <- NA #Create a NA to mimick a delisting
+
+  results <- create_meta_xts(data = signals_m_df %>% dplyr::select(id, tickers, dates, book_yield, dy_med_36m),
+                             type = "metrics", data_format = "long", meta_xts_name = "signals_m_df"
+  )
+
+  #now change the order
+  wrong_order_signals_m_df <- signals_m_df[sample(seq_len(nrow(signals_m_df))),]
+
+  results2 <- create_meta_xts(data = wrong_order_signals_m_df %>% dplyr::select(id, tickers, dates, book_yield, dy_med_36m),
+                             type = "metrics", data_format = "long", meta_xts_name = "signals_m_df"
+  )
+
+
+  #Check both result match (although not necessarily in same col order)
+  expect_equal(results$book_yield@data[,results2$book_yield@series], results2$book_yield@data)
+  expect_equal(results$dy_med_36m@data[,results2$dy_med_36m@series], results2$dy_med_36m@data)
+
+  expect_equal(
+    results2$book_yield@data$SBFG3 %>% as.numeric(),
+    wrong_order_signals_m_df %>% dplyr::filter(tickers == "SBFG3") %>%
+      dplyr::select(id, tickers, dates, book_yield) %>% dplyr::arrange(dates) %>%
+      dplyr::pull(book_yield)
+  )
 
 
 })
@@ -281,7 +314,6 @@ test_that("create_meta_xts works for a meta_dataframe", {
 
 })
 
-
 test_that("create_meta_xts fails for not providing dates, tickers or metric_name correctly", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
@@ -317,9 +349,38 @@ test_that("create_meta_xts fails for not providing dates, tickers or metric_name
   expect_error(
     create_meta_xts(mocked_backtest_returns_m_xts, type = "returns", asset_type = "signals", meta_xts_name = "mocked",
                     metric_name = "monthly_raw_returns"),
-    "Error: No valid dates found. Please provide a 'dates' column, valid rownames, or pass a 'dates' argument."
+    "Error: No 'dates' column found. Please provide a 'dates' column or pass a 'dates' argument."
   )
 
 
+
+})
+
+test_that("create_meta_xts fails when user-provided dates vector is unsorted", {
+
+  load(paste(test_path(), "/testdata/", "toy_preprocessed_signal_selection_obj.RData", sep =""))
+
+  # Unsorted dates on purpose
+  unsorted_dates <- rev(unique(signals_m_df$dates))
+
+  set.seed(123)
+  mocked_backtest_returns_m_df <- data.frame(
+    book_yield = rnorm(length(unsorted_dates), mean = 1, sd = 0.35),
+    dy_med_36m = rnorm(length(unsorted_dates), mean = 0.75, sd = 0.25),
+    eps_yield = rnorm(length(unsorted_dates), mean = 5, sd = 3),
+    mom_res_12m = rnorm(length(unsorted_dates), mean = 1.5, sd = 0.35),
+    roe_3m = rnorm(length(unsorted_dates), mean = 1, sd = 2),
+    sharpe_6m = rnorm(length(unsorted_dates), mean = 2.5, sd = 0.35),
+    low_vol_36m = rnorm(length(unsorted_dates), mean = 7.5, sd = 0.75)
+  )
+
+  expect_error(
+    create_meta_xts(
+      data = mocked_backtest_returns_m_df,
+      dates = unsorted_dates,
+      data_format = "wide"
+    ),
+    "Error: 'dates' vector provided by the user must be sorted in ascending order"
+  )
 
 })
