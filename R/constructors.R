@@ -685,35 +685,31 @@ setMethod(
       old_class <- class(old_features_m_df)
       new_class <- class(new_features_m_df)
 
-      ##data.frame
-      old_features_m_df <- old_features_m_df@data
-      new_features_m_df <- new_features_m_df@data
-
     ###############
 
     #Check if both meta_dataframes are compatible
     ###############
       ##Check colnames match
-      if (ncol(old_features_m_df) != ncol(new_features_m_df) ||
-          any(colnames(old_features_m_df) != colnames(new_features_m_df))){
+      if (ncol(old_features_m_df@data) != ncol(new_features_m_df@data) ||
+          any(colnames(old_features_m_df@data) != colnames(new_features_m_df@data))){
         stop("Column names between old_features_m_df and new_features_m_df do not match.")
       }
       ##Check that there is NO id intersection between old_features_m_df and new_features_m_df
-      if (length(dplyr::intersect(old_features_m_df$id, new_features_m_df$id)) > 0){
+      if (length(dplyr::intersect(old_features_m_df@data$id, new_features_m_df@data$id)) > 0){
         stop("There are common ids between old_features_m_df and new_features_m_df.")
       }
       ##Check that there is NO date intersection between old_features_m_df and new_features_m_df
-      if (length(dplyr::intersect(old_features_m_df$dates, new_features_m_df$dates)) > 0){
+      if (length(dplyr::intersect(old_features_m_df@data$dates, new_features_m_df@data$dates)) > 0){
         stop("There are common dates between old_features_m_df and new_features_m_df.")
       }
       ##Check that number of unique dates in new_features_m_df is equal to expectations
       if (batch_type == "monthly"){
-        if (length(unique(new_features_m_df$dates)) != 1){
+        if (length(unique(new_features_m_df@data$dates)) != 1){
           stop("Number of unique dates in new_features_m_df is not equal to 1.")
         }
       }
       if (batch_type == "daily"){
-        if (length(unique(new_features_m_df$dates)) %in% c(15, 40)){
+        if (length(unique(new_features_m_df@data$dates)) %in% c(15, 40)){
           stop("Number of unique dates in new_features_m_df is not in a reasonable range for daily data.")
         }
       }
@@ -723,8 +719,8 @@ setMethod(
         }
       ##Check that each column class match between old_features_m_df and new_features_m_df
       if (!all(sapply(
-        colnames(old_features_m_df),
-        function(col) identical(class(old_features_m_df[[col]]), class(new_features_m_df[[col]]))
+        colnames(old_features_m_df@data),
+        function(col) identical(class(old_features_m_df@data[[col]]), class(new_features_m_df@data[[col]]))
       ))) {
         stop("Column classes between old_features_m_df and new_features_m_df do not match.")
       }
@@ -749,9 +745,14 @@ setMethod(
 
     ###############
 
-    #Bind rows
+    #Consolidate
     ###############
-    updated_meta_dataframe <- dplyr::bind_rows(old_features_m_df, new_features_m_df) %>% dplyr::arrange(id)
+    updated_meta_dataframe <- consolidate_generic_meta_dataframes(
+      main_generic_m_df = old_features_m_df,
+      supplemental_generic_m_df = new_features_m_df,
+      type = "generic",
+      consolidate_name = FALSE
+    )
     ###############
 
     #Update Workflow
@@ -771,16 +772,11 @@ setMethod(
 
     ###############
 
-    #Create new meta_dataframe object
+    #Update workflow
     ###############
-    updated_meta_dataframe <- create_meta_dataframe(
-      data = updated_meta_dataframe,
-      workflow = update_workflow,
-      meta_dataframe_name = old_features_m_df_name
-    )
+    updated_meta_dataframe@workflow <- update_workflow
 
     return(updated_meta_dataframe)
-
 
   }
 )
