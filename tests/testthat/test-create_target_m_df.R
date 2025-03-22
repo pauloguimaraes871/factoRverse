@@ -56,11 +56,6 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   )
 
   #Create tickers catalog
-  tickers_catalog_daily <- create_tickers_catalog(
-    raw_features_m_df = daily_returns_m_df,
-    date_first_quote = date_first_quote,
-    date_last_quote = date_last_quote
-  )
   tickers_catalog_features <- create_tickers_catalog(
     raw_features_m_df = feat_m_df,
     date_first_quote = date_first_quote,
@@ -70,7 +65,7 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   #read catalog
   pre_silver_daily_returns_m_df <- read_tickers_catalog(
     daily_returns_m_df,
-    tickers_catalog = tickers_catalog_daily
+    tickers_catalog = tickers_catalog_features
   )
   pre_silver_features_m_df <- read_tickers_catalog(
     feat_m_df,
@@ -105,11 +100,11 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   )
 
   #Check that calculation is correct for some specific cases
-  ticker_1 <- tickers_catalog_daily@perm_id["delisted"] %>% unname() #delisted
-  ticker_2 <- tickers_catalog_daily@perm_id["happy"] %>% unname() #happy
-  ticker_3 <- tickers_catalog_daily@perm_id["ipo"] %>% unname() #happy
-  ticker_4 <- tickers_catalog_daily@perm_id["illiquid"] %>% unname() #happy
-  ticker_5 <- tickers_catalog_daily@perm_id["wrong"] %>% unname() #happy
+  ticker_1 <- tickers_catalog_features@perm_id["delisted"] %>% unname() #delisted
+  ticker_2 <- tickers_catalog_features@perm_id["happy"] %>% unname() #happy
+  ticker_3 <- tickers_catalog_features@perm_id["ipo"] %>% unname() #happy
+  ticker_4 <- tickers_catalog_features@perm_id["illiquid"] %>% unname() #happy
+  ticker_5 <- tickers_catalog_features@perm_id["wrong"] %>% unname() #happy
 
 
   #Get obs for next 3 months beginning in 2000-01-15
@@ -341,11 +336,6 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   )
 
   #Create tickers catalog
-  tickers_catalog_daily <- create_tickers_catalog(
-    raw_features_m_df = daily_returns_m_df,
-    date_first_quote = date_first_quote,
-    date_last_quote = date_last_quote
-  )
   tickers_catalog_features <- create_tickers_catalog(
     raw_features_m_df = feat_m_df,
     date_first_quote = date_first_quote,
@@ -355,7 +345,7 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   #read catalog
   pre_silver_daily_returns_m_df <- read_tickers_catalog(
     daily_returns_m_df,
-    tickers_catalog = tickers_catalog_daily
+    tickers_catalog = tickers_catalog_features
   )
   pre_silver_features_m_df <- read_tickers_catalog(
     feat_m_df,
@@ -390,11 +380,11 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   )
 
   #Check that calculation is correct for some specific cases
-  ticker_1 <- tickers_catalog_daily@perm_id["delisted"] %>% unname() #delisted
-  ticker_2 <- tickers_catalog_daily@perm_id["happy"] %>% unname() #happy
-  ticker_3 <- tickers_catalog_daily@perm_id["ipo"] %>% unname() #happy
-  ticker_4 <- tickers_catalog_daily@perm_id["illiquid"] %>% unname() #happy
-  ticker_5 <- tickers_catalog_daily@perm_id["wrong"] %>% unname() #happy
+  ticker_1 <- tickers_catalog_features@perm_id["delisted"] %>% unname() #delisted
+  ticker_2 <- tickers_catalog_features@perm_id["happy"] %>% unname() #happy
+  ticker_3 <- tickers_catalog_features@perm_id["ipo"] %>% unname() #happy
+  ticker_4 <- tickers_catalog_features@perm_id["illiquid"] %>% unname() #happy
+  ticker_5 <- tickers_catalog_features@perm_id["wrong"] %>% unname() #happy
 
 
   #Get obs for next 1 months beginning in 2000-01-15
@@ -634,11 +624,6 @@ test_that("create_target_m_df works in an update workflow", {
   )
 
   #Create tickers catalog
-  tickers_catalog_daily <- create_tickers_catalog(
-    raw_features_m_df = daily_returns_m_df,
-    date_first_quote = date_first_quote,
-    date_last_quote = date_last_quote
-  )
   tickers_catalog_features <- create_tickers_catalog(
     raw_features_m_df = feat_m_df,
     date_first_quote = date_first_quote,
@@ -648,7 +633,7 @@ test_that("create_target_m_df works in an update workflow", {
   #read catalog
   pre_silver_daily_returns_m_df <- read_tickers_catalog(
     daily_returns_m_df,
-    tickers_catalog = tickers_catalog_daily
+    tickers_catalog = tickers_catalog_features
   )
   pre_silver_features_m_df <- read_tickers_catalog(
     feat_m_df,
@@ -717,7 +702,7 @@ test_that("create_target_m_df works in an update workflow", {
   )
 
   #Create tickers catalog
-  new_tickers_catalog_daily <- create_tickers_catalog(
+  new_tickers_catalog_features <- create_tickers_catalog(
     raw_features_m_df = new_daily_returns_m_df,
     date_first_quote = date_first_quote,
     date_last_quote = date_last_quote
@@ -737,8 +722,8 @@ test_that("create_target_m_df works in an update workflow", {
 
   # Update catalog
   updated_catalog_daily <- update_tickers_catalog(
-    old_tickers_catalog = tickers_catalog_daily,
-    new_tickers_catalog = new_tickers_catalog_daily,
+    old_tickers_catalog = tickers_catalog_features,
+    new_tickers_catalog = new_tickers_catalog_features,
     ticker_changes = ticker_changes
   )
 
@@ -1133,11 +1118,6 @@ test_that("create_target_m_df throws an error when objects do not match expectat
   )
 
   #Create tickers catalog
-  tickers_catalog_daily <- create_tickers_catalog(
-    raw_features_m_df = daily_returns_m_df,
-    date_first_quote = date_first_quote,
-    date_last_quote = date_last_quote
-  )
   tickers_catalog_features <- create_tickers_catalog(
     raw_features_m_df = feat_m_df,
     date_first_quote = date_first_quote,
@@ -1147,7 +1127,7 @@ test_that("create_target_m_df throws an error when objects do not match expectat
   #read catalog
   pre_silver_daily_returns_m_df <- read_tickers_catalog(
     daily_returns_m_df,
-    tickers_catalog = tickers_catalog_daily
+    tickers_catalog = tickers_catalog_features
   )
   pre_silver_features_m_df <- read_tickers_catalog(
     feat_m_df,

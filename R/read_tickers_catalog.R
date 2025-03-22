@@ -37,8 +37,8 @@ setMethod("read_tickers_catalog",
             #Initial checks
             #################
               ##Check that meta_dataframe names match
-              if (!stringr::str_detect(raw_features_m_df@meta_dataframe_name, tickers_catalog@meta_dataframe_name)) {
-                stop("The meta_dataframe_name of raw_features_m_df does not match the one in tickers_catalog")
+              if (!stringr::str_detect(raw_features_m_df@meta_dataframe_name, tickers_catalog@meta_dataframe_name) && verbose) {
+                message(paste0("Applying ", tickers_catalog@meta_dataframe_name, " tickers_catalog to ", raw_features_m_df@meta_dataframe_name))
               }
               ##Check that versions match
               if (raw_features_m_df@current_date != tickers_catalog@current_date) {

@@ -1638,9 +1638,9 @@ test_that("read_tickers_catalog throws an error when versions do not match", {
                                              features_names = raw_features_input$inputs$features_names,
                                              meta_dataframe_name = "other_name")
 
-  expect_error(
+  expect_message(
     read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog),
-    "The meta_dataframe_name of raw_features_m_df does not match the one in tickers_catalog"
+    "Applying not_identified tickers_catalog to other_name"
   )
 
 
