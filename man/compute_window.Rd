@@ -2,7 +2,7 @@
 % Please edit documentation in R/compute_window.R
 \name{compute_window}
 \alias{compute_window}
-\title{Compute Rolling or Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts}
+\title{Compute Rolling or Fwd Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts}
 \usage{
 compute_window(data, period, FUN, ...)
 }
@@ -12,7 +12,7 @@ compute_window(data, period, FUN, ...)
 \item{period}{A \code{numeric} value indicating the time window:
 \itemize{
 \item For \code{rolling}, the number of months to look back.
-\item For \code{seasonal}, the number of months to look ahead.
+\item For \code{fwd_seasonal}, the number of months to look ahead.
 }}
 
 \item{FUN}{A \code{character} specifying the function to apply. Supported options:
@@ -20,7 +20,7 @@ compute_window(data, period, FUN, ...)
 \item "median", "sd", "cagr", "skew", "sur", "mean_std", "res_mom", "idio_vol".
 }}
 
-\item{window}{A \code{character} specifying the window type: either "rolling" (default) or "seasonal".}
+\item{window}{A \code{character} specifying the window type: either "rolling" (default) or "fwd_seasonal".}
 
 \item{signal}{(For \code{meta_dataframe}) A \code{character} specifying the column name on which the rolling function is computed.}
 
@@ -56,7 +56,7 @@ The function applies a predefined calculation (\code{FUN}) to values within a sp
 The window can be either:
 \itemize{
 \item \strong{Rolling:} Includes all dates within the range \verb{[current_date - period months, current_date]}.
-\item \strong{Seasonal:} Includes only observations from the same ticker whose months match the consecutive months immediately following the current observation's month.
+\item \strong{Fwd Seasonal:} Includes only observations from the same ticker whose months match the consecutive months immediately following the current observation's month.
 }
 
 The function filters observations within the specified time window and applies the selected \code{FUN}. If no matching observations are found, the result is \code{NA}.
