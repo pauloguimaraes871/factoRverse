@@ -435,8 +435,8 @@ setMethod("summary", "tickers_catalog", function(object, summary_id = NULL) {
 
     # Extract year from date columns
     object@catalog <- dplyr::mutate(object@catalog,
-                                    year_first = lubridate::year(object@catalog$date_first_quote),
-                                    year_last = lubridate::year(object@catalog$date_last_quote))
+                                    year_first = lubridate::year(object@catalog$tickers_first_quote),
+                                    year_last = lubridate::year(object@catalog$tickers_last_quote))
 
     # Count occurrences of first quotes by year
     first_quotes_summary <- object@catalog %>%

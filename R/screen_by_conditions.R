@@ -32,6 +32,7 @@ setMethod("screen_by_conditions", "meta_dataframe", function(meta_dataframe, ...
   new_workflow <- list(
     list(current_date = meta_dataframe@current_date,  # Current date
          timestamp = Sys.time(), # Timestamp
+         condition = match.call(expand.dots = FALSE)$...,
          screening_call = match.call()
     )
   )
