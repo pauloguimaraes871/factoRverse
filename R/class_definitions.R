@@ -2449,7 +2449,6 @@ setClass(
     port_construction_method = "character",
     mvo_parameters = "ANY",
     rp_parameters = "ANY",
-    sb_backtest_config = "ANY",
     sb_backtest_results = "ANY",
     main_liquidity_metric = "character",
     liquidity_floor_cutoffs = "ANY",
@@ -2490,22 +2489,10 @@ setClass(
     }
 
     ###Check classes
-      ####SB Config
-      if (!is.null(object@sb_backtest_config)){
-        if(!inherits(object@sb_backtest_config, "sb_backtest_config")){
-          stop("sb_backtest_config must be an object of class sb_backtest_config.")
-        }
-        if(!is.null(object@sb_backtest_results)){
-          stop("sb_backtest_results must be NULL if sb_backtest_config is provided.")
-        }
-      }
       ####SB Results
       if (!is.null(object@sb_backtest_results)){
         if(!inherits(object@sb_backtest_results, "sb_backtest_results")){
           stop("sb_backtest_results must be an object of class sb_backtest_results")
-        }
-        if(!is.null(object@sb_backtest_config)){
-          stop("sb_backtest_config must be NULL if sb_backtest_results is provided.")
         }
       }
       ####MVO
@@ -2521,9 +2508,9 @@ setClass(
         }
       }
 
-    ###Check if chosen_score_metric_and_position is provided if sb_backtest_results and sb_backtest_config are not provided
-    if (is.null(object@sb_backtest_results) & is.null(object@sb_backtest_config) & is.null(object@chosen_score_metric_and_position)){
-      stop("chosen_score_metric_and_position must be provided if sb_backtest_results and sb_backtest_config are not provided.")
+    ###Check if chosen_score_metric_and_position is provided if sb_backtest_results not provided
+    if (is.null(object@sb_backtest_results) && is.null(object@chosen_score_metric_and_position)){
+      stop("chosen_score_metric_and_position must be provided if sb_backtest_results is not provided.")
     }
 
     ##Check chosen_score_metric_and_position
@@ -2830,7 +2817,6 @@ setClass(
     port_returns_m_xts = "meta_xts",
     final_stock_port = "stock_port",
     port_construction_method = "character",
-    sb_backtest_results = "ANY",
     stock_universe_m_df = "stock_universe_m_df",
     final_stock_universe_m_d_ref = "stock_universe_m_df",
     port_backtest_workflow = "list",
@@ -2838,19 +2824,13 @@ setClass(
   ),
   validity = function(object) {
 
-    if (!is.null(object@port_backtest_config)) {
-      if (!inherits(object@port_backtest_config, "port_backtest_config")) {
-        return("port_backtest_config must be a 'port_backtest_config' object")
-      }
+    if (!is.null(object@port_backtest_config) && !inherits(object@port_backtest_config, "port_backtest_config")) {
+      return("port_backtest_config must be a 'port_backtest_config' object or NULL")
     }
 
     if (!is.null(object@port_metrics_m_xts) && !inherits(object@port_metrics_m_xts, "meta_xts")) {
       return("port_metrics_m_xts must be a 'meta_xts' object or NULL")
     }
-
-     if (!is.null(object@sb_backtest_results) && !inherits(object@sb_backtest_results, "sb_backtest_results")) {
-      return("sb_backtest_results must be a 'sb_backtest_results' object")
-     }
 
     if (length(object@backtest_identifier) != 1) {
       return("backtest_identifier must be a single character string")

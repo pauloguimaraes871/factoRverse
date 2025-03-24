@@ -4303,7 +4303,6 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         port_construction_method = "ew",
                                         mvo_parameters = NULL,
                                         rp_parameters = NULL,
-                                        sb_backtest_config = NULL,
                                         sb_backtest_results = NULL,
                                         main_liquidity_metric,
                                         liquidity_floor_cutoffs = NULL,
@@ -4349,7 +4348,7 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
   }
 
   # Ensure that at least one of sb_backtest_results or chosen_score_metric_and_position is provided
-  if (is.null(sb_backtest_results) && is.null(sb_backtest_config) && is.null(chosen_score_metric_and_position) && port_construction_method != "custom_weights") {
+  if (is.null(sb_backtest_results) && is.null(chosen_score_metric_and_position) && port_construction_method != "custom_weights") {
     stop("chosen_score_metric_and_position must be provided if sb_backtest object is NULL and port_construction_method is not 'custom_weights'.")
   }
 
@@ -4365,7 +4364,6 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
     port_construction_method = port_construction_method,
     mvo_parameters = mvo_parameters,
     rp_parameters = rp_parameters,
-    sb_backtest_config = sb_backtest_config,
     sb_backtest_results = sb_backtest_results,
     main_liquidity_metric = main_liquidity_metric,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs,

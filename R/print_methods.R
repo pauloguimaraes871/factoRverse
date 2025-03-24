@@ -1770,11 +1770,9 @@ setMethod("show", "port_backtest_config", function(object) {
   if(!is.null(object@sb_backtest_results)){
     cat("Stock-Level Predictions from Backtest: ", object@sb_backtest_results@backtest_identifier, "\n")
   }
-  if(!is.null(object@sb_backtest_config)){
-    cat("Stock-Level Predictions from Config: ", object@sb_backtest_config@config_name, "\n")
-  }
   if(!is.null(object@chosen_score_metric_and_position)){
-    cat("Chosen Score Metric & Position: ", object@chosen_score_metric_and_position, "\n")
+    cat("Chosen Score Metric: ", names(object@chosen_score_metric_and_position), "\n")
+    cat("Chosen Score Position: ", object@chosen_score_metric_and_position, "\n")
   }
   cat("Eligibility Quantile Range: ", paste(object@eligibility_quantile_range, collapse = " - "), "\n")
   cat("Min Eligible Assets Fallback: ")
