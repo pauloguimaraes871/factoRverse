@@ -308,7 +308,6 @@ consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_
       stop("Column names do not match exactly. Please check and try again.")
     }
 
-
     ##Full Join them. If base is NULL, it will return only main_generic_m_df
     consolidated_generic_m_df <- dplyr::bind_rows(main_generic_m_df@data, supplemental_generic_m_df@data) %>% dplyr::arrange(id) %>%
       create_meta_dataframe(meta_dataframe_name =
@@ -318,7 +317,7 @@ consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_
                             } else {
                               main_generic_m_df@meta_dataframe_name
                             }, type = type,
-                               port_backtest_worklow = if (type == "stock_universe") main_generic_m_df@workflow else NULL
+                            port_backtest_workflow = if (type == "stock_universe") main_generic_m_df@port_backtest_workflow else NULL
                             )
 
   return(consolidated_generic_m_df)
@@ -411,13 +410,11 @@ consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest
       ##Consolidate data
       if (grepl("_m_df$", slot_name)) {
 
-        if (slot_name == "stock_universe_m_df") browser()
-
         ###Use the "dataframes" consolidation
         updated_obj <- consolidate_generic_meta_dataframes(
           main_generic_m_df = old_obj,  # the 'main' object
           supplemental_generic_m_df  = new_obj,  # the 'additional' object
-          type = stringr::str_remove(class(new_obj), "_m_df"),
+          type = stringr::str_remove(class(old_obj), "_m_df"),
           consolidate_name = FALSE
         )
 
@@ -427,7 +424,7 @@ consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest
         updated_obj <- consolidate_generic_meta_xts(
           main_generic_m_xts       = old_obj,
           supplemental_generic_m_xts = new_obj,
-          type = stringr::str_remove(class(new_obj), "_m_xts"),
+          type = stringr::str_remove(class(old_obj), "_meta_xts"),
           consolidate_name = FALSE,
           operation = "bind_rows"
         )
@@ -438,6 +435,7 @@ consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest
       }
 
         ####Update workflow
+        if (!is.null(new_obj)){
         new_entry <- list(
           list(
             new_date = new_obj@current_date,
@@ -452,6 +450,7 @@ consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest
 
         ####Update the new object's workflow
         updated_obj@workflow <- updated_workflow
+        }
 
         ####Return the updated object
         updated_obj
