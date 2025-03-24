@@ -35,7 +35,7 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  liquidity_m_df = liquidity_m_df,
@@ -44,7 +44,8 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
                                  benchmark_weights_m_df = benchmark_weights_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
-                                 verbose = TRUE)
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Expected results
@@ -329,6 +330,11 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
   expect_equal(as.Date(zoo::index(results@port_metrics_m_xts@data)[3]), as.Date(c("2023-04-15")))
 
 
+
+  #Summary, plot and print
+  expect_no_error(print(results))
+  expect_no_error(print(port_config))
+
 })
 
 test_that("run_port_backtest works for a simple sw single signal strategy with only a liquidity_floor_rule constraint and selected benchmark", {
@@ -368,7 +374,7 @@ test_that("run_port_backtest works for a simple sw single signal strategy with o
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
   results <- run_port_backtest(signals_m_df = signals_m_df,
                                fwd_return_m_df = fwd_return_m_df,
                                liquidity_m_df = liquidity_m_df,
@@ -377,7 +383,8 @@ test_that("run_port_backtest works for a simple sw single signal strategy with o
                                benchmark_weights_m_df = benchmark_weights_m_df,
                                benchmark_returns_m_xts = benchmark_returns_m_xts,
                                custom_stock_metrics_m_df = port_metrics_m_df,
-                               verbose = TRUE)
+                               verbose = TRUE),
+  "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Expected results
@@ -690,7 +697,7 @@ test_that("run_port_backtest works for a simple cs single signal strategy with o
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  liquidity_m_df = liquidity_m_df,
@@ -699,7 +706,8 @@ test_that("run_port_backtest works for a simple cs single signal strategy with o
                                  benchmark_weights_m_df = benchmark_weights_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
-                                 verbose = TRUE)
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Expected results
@@ -1023,9 +1031,10 @@ test_that("run_port_backtest works for a simple rp single signal strategy with o
   benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark")
   port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, roe_3m))
   stock_groups_m_df <- create_meta_dataframe(stock_groups_m_df, type = "groups")
-  daily_stock_returns_m_xts <- suppressWarnings(
-    create_meta_xts(daily_stock_returns_m_xts, type = "returns", asset_type = "stocks", meta_xts_name = "B3")
-    )
+  expect_warning(
+  daily_stock_returns_m_xts <-  create_meta_xts(daily_stock_returns_m_xts, type = "returns", asset_type = "stocks", meta_xts_name = "B3"),
+    "There are NA values in the time series."
+  )
   daily_benchmark_returns_m_xts_mocked <- suppressWarnings(
     create_meta_xts(xts::xts(data.frame(
       ibov = rnorm(n = nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5),
@@ -1036,7 +1045,7 @@ test_that("run_port_backtest works for a simple rp single signal strategy with o
   )
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  liquidity_m_df = liquidity_m_df,
@@ -1048,7 +1057,8 @@ test_that("run_port_backtest works for a simple rp single signal strategy with o
                                  benchmark_weights_m_df = benchmark_weights_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
-                                 verbose = TRUE)
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Expected results
@@ -1274,11 +1284,11 @@ test_that("run_port_backtest works for a simple rp single signal strategy with o
                rp_port_2@universe_m_d_ref@data %>% dplyr::pull(weights)
   )
 
-  #Check that weights are somewhat lower for high vol
-  high_vol_ids <- signals_m_d_ref %>% dplyr::filter(vol_36m >= quantile(vol_36m, .67)) %>% dplyr::pull(id)
-  expect_lt(
-    results@stock_universe_m_df@data %>% dplyr::filter(is_eligible == 1, id %in% high_vol_ids) %>% dplyr::pull(weights) %>% mean(),
-    results@stock_universe_m_df@data %>% dplyr::filter(is_eligible == 1, !id %in% high_vol_ids) %>% dplyr::pull(weights) %>% mean()
+  #Check that weights are somewhat higher for high roe
+  high_roe_ids <- signals_m_d_ref %>% dplyr::filter(roe_3m >= quantile(roe_3m, .67)) %>% dplyr::pull(id)
+  expect_gt(
+    results@stock_universe_m_df@data %>% dplyr::filter(is_eligible == 1, id %in% high_roe_ids) %>% dplyr::pull(weights) %>% mean(),
+    results@stock_universe_m_df@data %>% dplyr::filter(is_eligible == 1, !id %in% high_roe_ids) %>% dplyr::pull(weights) %>% mean()
   )
 
   #Check for port_weights for benchmark
@@ -1373,13 +1383,13 @@ test_that("run_port_backtest works for a oos_predictions blended strategy with o
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
 
   #run_sb_backtest
-  suppressWarnings(
+  expect_warning(
   sb_results <- run_sb_backtest(
     features_m_df = signals_m_df,
     target_m_df = target_m_df,
     config = glmnet_config,
     parallel = TRUE
-  )
+  ), "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
   )
 
   #Create port_backtest_config
@@ -1403,7 +1413,7 @@ test_that("run_port_backtest works for a oos_predictions blended strategy with o
     add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  config = port_config,
@@ -1412,7 +1422,8 @@ test_that("run_port_backtest works for a oos_predictions blended strategy with o
                                  benchmark_weights_m_df = benchmark_weights_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
-                                 verbose = TRUE)
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Expected results
@@ -1717,9 +1728,9 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
   benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
   port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, dy_med_36m, mom_res_12m, roe_3m))
   stock_groups_m_df <- create_meta_dataframe(stock_groups_m_df, type = "groups")
-  daily_stock_returns_m_xts <- suppressWarnings(
-    create_meta_xts(daily_stock_returns_m_xts, type = "returns", asset_type = "stocks", meta_xts_name = "B3")
-  )
+  expect_warning(daily_stock_returns_m_xts <- create_meta_xts(daily_stock_returns_m_xts, type = "returns", asset_type = "stocks", meta_xts_name = "B3"),
+  "There are NA values in the time series.")
+
   daily_benchmark_returns_m_xts_mocked <- suppressWarnings(
     create_meta_xts(xts::xts(data.frame(
       ibov = rnorm(n = nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5),
@@ -1738,13 +1749,14 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
 
   #run_sb_backtest
-  suppressWarnings(
+  expect_warning(
     sb_results <- run_sb_backtest(
       features_m_df = signals_m_df,
       target_m_df = target_m_df,
       config = glmnet_config,
       parallel = TRUE
-    )
+    ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
   )
 
   #Create port_backtest_config
@@ -1774,7 +1786,7 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
 
   #Run port_backtest
   set.seed(123)
-  suppressWarnings(
+  expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  config = port_config,
@@ -1786,7 +1798,8 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
                                  daily_stock_returns_m_xts = daily_stock_returns_m_xts,
                                  daily_bench_returns_m_xts = daily_benchmark_returns_m_xts_mocked,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
-                                 verbose = TRUE)
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Expected results
@@ -2201,7 +2214,7 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
 
 })
 
-test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (trained inside run_port) blended strategy and 'mvo' with liquidity, turnover and user_rules, but no selected benchmark", {
+test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blended strategy and 'mvo' with liquidity, turnover and user_rules, but no selected benchmark", {
 
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
@@ -2248,19 +2261,19 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
                        grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
 
 
-  #suppressWarnings(
-  #  sb_results <- run_sb_backtest(
-  #    features_m_df = signals_m_df,
-  #    target_m_df = target_m_df,
-  #    config = glmnet_config,
-  #    parallel = TRUE
-  #  )
-  #)
+  expect_warning(
+    sb_results <- run_sb_backtest(
+      features_m_df = signals_m_df,
+      target_m_df = target_m_df,
+      config = glmnet_config,
+      parallel = TRUE
+    ), "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
 
   #Create port_backtest_config
   port_config <- create_port_backtest_config(eligibility_quantile_range = c(0.67, 1.0),
-                                             #sb_backtest_results = sb_results,
-                                             sb_backtest_config = glmnet_config,
+                                             sb_backtest_results = sb_results,
                                              initial_buffer_period = 5,
                                              rebalancing_months = 4,
                                              port_construction_method = "mvo",
@@ -2282,22 +2295,24 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
+  expect_warning(
+  expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  config = port_config,
                                  liquidity_m_df = liquidity_m_df,
-                                 target_m_df = target_m_df,
                                  volatility_m_df = volatility_m_df,
                                  stock_groups_m_df = stock_groups_m_df,
-                                 benchmark_weights_m_df = NULL,
-                                 benchmark_returns_m_xts = NULL,
                                  daily_stock_returns_m_xts = daily_stock_returns_m_xts,
-                                 daily_bench_returns_m_xts = NULL,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
                                  user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
                                  verbose = TRUE,
-                                 .test_seed = 123)
+                                 .test_seed = 123),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  ), "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
+  ),
+  "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
   )
 
   #Expected results
@@ -2308,7 +2323,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
   fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
   port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
-  oos_predictions_m_d_ref <- results@sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- sb_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
   daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
@@ -2361,7 +2376,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
   )
 
   #port_allocation
-  suppressWarnings(
+  expect_warning(
   port_allocation_1 <- allocate_port(
     port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
     updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
@@ -2370,7 +2385,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
     main_liquidity_metric = "mean_volfin_3m",
     transaction_cost_parameters <- as.list(port_config@transaction_costs_parameters),
     selected_benchmark_weights_m_d_ref = NULL
-  )
+  ), "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
   )
 
   #Port Metric
@@ -2395,7 +2410,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
   fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
   port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
-  oos_predictions_m_d_ref <- results@sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- sb_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
   daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
@@ -2437,7 +2452,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
   fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
   port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
-  oos_predictions_m_d_ref <- results@sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- sb_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
   daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
@@ -2488,7 +2503,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
   )
 
   #port_allocation
-  suppressWarnings(
+  expect_warning(
   port_allocation_3 <- allocate_port(
     port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
     updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
@@ -2497,7 +2512,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions (tra
     main_liquidity_metric = "mean_volfin_3m",
     transaction_cost_parameters <- as.list(port_config@transaction_costs_parameters),
     selected_benchmark_weights_m_d_ref = NULL
-  )
+  ), "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
   )
 
   #Port Metric
@@ -2668,7 +2683,7 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     sw_results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  liquidity_m_df = liquidity_m_df,
@@ -2676,7 +2691,8 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
                                  config = sw_config,
                                  benchmark_weights_m_df = benchmark_weights_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
-                                 verbose = TRUE)
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
 
@@ -2707,7 +2723,7 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
   skimmed_port_metrics_m_df <- port_metrics_m_df
   skimmed_port_metrics_m_df@data <- port_metrics_m_df@data %>% dplyr::select(-vol_36m)
 
-  suppressWarnings(
+  expect_warning(
     cs_results <- run_port_backtest(signals_m_df = signals_m_df,
                                     fwd_return_m_df = fwd_return_m_df,
                                     liquidity_m_df = liquidity_m_df,
@@ -2716,7 +2732,8 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
                                     benchmark_weights_m_df = benchmark_weights_m_df,
                                     benchmark_returns_m_xts = benchmark_returns_m_xts,
                                     custom_stock_metrics_m_df = skimmed_port_metrics_m_df,
-                                    verbose = TRUE)
+                                    verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Create port_backtest_config 3
@@ -2742,7 +2759,7 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     cw_results <- run_port_backtest(signals_m_df = signals_m_df,
                                     fwd_return_m_df = fwd_return_m_df,
                                     liquidity_m_df = liquidity_m_df,
@@ -2751,7 +2768,8 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
                                     benchmark_weights_m_df = benchmark_weights_m_df,
                                     benchmark_returns_m_xts = benchmark_returns_m_xts,
                                     custom_stock_metrics_m_df = port_metrics_m_df,
-                                    verbose = TRUE)
+                                    verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Create cohort
@@ -2904,14 +2922,15 @@ test_that("run_port_backtest work for a benchmark-agnostic long-short cohort", {
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     long_results <- run_port_backtest(signals_m_df = signals_m_df,
                                       fwd_return_m_df = fwd_return_m_df,
                                       liquidity_m_df = liquidity_m_df,
                                       volatility_m_df = volatility_m_df,
                                       config = long_config,
                                       custom_stock_metrics_m_df = port_metrics_m_df,
-                                      verbose = TRUE)
+                                      verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
 
@@ -2938,14 +2957,15 @@ test_that("run_port_backtest work for a benchmark-agnostic long-short cohort", {
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     short_results <- run_port_backtest(signals_m_df = signals_m_df,
                                       fwd_return_m_df = fwd_return_m_df,
                                       liquidity_m_df = liquidity_m_df,
                                       volatility_m_df = volatility_m_df,
                                       config = short_config,
                                       custom_stock_metrics_m_df = port_metrics_m_df,
-                                      verbose = TRUE)
+                                      verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
   #Create cohort
@@ -3011,7 +3031,6 @@ test_that("run_port_backtest work for a benchmark-agnostic long-short cohort", {
 
 })
 
-
 #ERRORS
 test_that("run_port_backtest throws error for incompatible port_backtests", {
 
@@ -3049,14 +3068,15 @@ test_that("run_port_backtest throws error for incompatible port_backtests", {
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     config1_results <- run_port_backtest(signals_m_df = signals_m_df,
                                       fwd_return_m_df = fwd_return_m_df,
                                       liquidity_m_df = liquidity_m_df,
                                       volatility_m_df = volatility_m_df,
                                       config = config1,
                                       custom_stock_metrics_m_df = port_metrics_m_df,
-                                      verbose = TRUE)
+                                      verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
 
@@ -3083,14 +3103,15 @@ test_that("run_port_backtest throws error for incompatible port_backtests", {
 
 
   #Run port_backtest
-  suppressWarnings(
+  expect_warning(
     config2_results <- run_port_backtest(signals_m_df = signals_m_df,
                                        fwd_return_m_df = fwd_return_m_df,
                                        liquidity_m_df = liquidity_m_df,
                                        volatility_m_df = volatility_m_df,
                                        config = config2,
                                        custom_stock_metrics_m_df = port_metrics_m_df,
-                                       verbose = TRUE)
+                                       verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
 
 
@@ -3145,5 +3166,589 @@ test_that("run_port_backtest throws error for incompatible port_backtests", {
 
 })
 
+test_that("run_port_backtest throws error for wrong normalization in port_backtests", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #meta_dataframes
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id,tickers,dates,vol_36m))
+
+  #Create port_backtest_config 1
+  chosen_score_metric_and_position <- c(vol_36m = "long")
+  config1 <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                         eligibility_quantile_range = c(0.67, 1.0),
+                                         initial_buffer_period = 2,
+                                         rebalancing_months = 4,
+                                         port_construction_method = "sw",
+                                         main_liquidity_metric = "mean_volfin_3m",
+                                         config_name = "long_vol_36m"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
 
 
+  norm_recipe <- recipes::recipe(signals_m_df@data) %>%
+    recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+    recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+    step_winsorize(recipes::all_numeric_predictors())
+  wrong_signals_m_df <- map_recipe_timewise(signals_m_df, norm_recipe)
+
+  #Run port_backtest
+  expect_warning(
+  run_port_backtest(signals_m_df = signals_m_df,
+                                         fwd_return_m_df = fwd_return_m_df,
+                                         liquidity_m_df = liquidity_m_df,
+                                         volatility_m_df = volatility_m_df,
+                                         config = config1,
+                                         custom_stock_metrics_m_df = port_metrics_m_df,
+                                         verbose = TRUE),
+  "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  )
+
+  expect_warning(
+    run_port_backtest(signals_m_df = wrong_signals_m_df,
+                      fwd_return_m_df = fwd_return_m_df,
+                      liquidity_m_df = liquidity_m_df,
+                      volatility_m_df = volatility_m_df,
+                      config = config1,
+                      custom_stock_metrics_m_df = port_metrics_m_df,
+                      verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  )
+
+  norm_recipe <- recipes::recipe(fwd_return_m_df@data) %>%
+    recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+    recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+    recipes::step_normalize(recipes::all_numeric_predictors(), na_rm = TRUE)
+  suppressWarnings(
+  wrong_fwd_return_m_df <- map_recipe_timewise(fwd_return_m_df, norm_recipe, type = "target")
+  )
+
+  #Run port_backtest
+  expect_error(
+    expect_warning(
+    run_port_backtest(signals_m_df = signals_m_df,
+                      fwd_return_m_df = wrong_fwd_return_m_df,
+                      liquidity_m_df = liquidity_m_df,
+                      volatility_m_df = volatility_m_df,
+                      config = config1,
+                      custom_stock_metrics_m_df = port_metrics_m_df,
+                      verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
+    ,"Normalization found in fwd_return_m_df workflow."
+  )
+
+  norm_recipe <- recipes::recipe(liquidity_m_df@data) %>%
+    recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+    recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+    recipes::step_normalize(recipes::all_numeric_predictors(), na_rm = TRUE)
+    wrong_liquidity_m_df <- map_recipe_timewise(liquidity_m_df, norm_recipe, type = "generic")
+
+
+  #Run port_backtest
+  expect_error(
+    expect_warning(
+    run_port_backtest(signals_m_df = signals_m_df,
+                      fwd_return_m_df = fwd_return_m_df,
+                      liquidity_m_df = wrong_liquidity_m_df,
+                      volatility_m_df = volatility_m_df,
+                      config = config1,
+                      custom_stock_metrics_m_df = port_metrics_m_df,
+                      verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+    ),
+    "Normalization found in liquidity_m_df workflow."
+  )
+
+
+
+  norm_recipe <- recipes::recipe(volatility_m_df@data) %>%
+    recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+    recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+    recipes::step_normalize(recipes::all_numeric_predictors(), na_rm = TRUE)
+  suppressWarnings(
+    wrong_volatility_m_df <- map_recipe_timewise(volatility_m_df, norm_recipe, type = "generic")
+  )
+
+  #Run port_backtest
+  expect_error(
+    expect_warning(
+    run_port_backtest(signals_m_df = signals_m_df,
+                      fwd_return_m_df = fwd_return_m_df,
+                      liquidity_m_df = liquidity_m_df,
+                      volatility_m_df = wrong_volatility_m_df,
+                      config = config1,
+                      custom_stock_metrics_m_df = port_metrics_m_df,
+                      verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+    ),
+    "Normalization found in volatility_workflow workflow."
+  )
+
+})
+
+test_that("run_port_backtest throws an error for selected benchmark missing", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #meta_dataframes
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id,tickers,dates,vol_36m))
+
+  #Create port_backtest_config 1
+  chosen_score_metric_and_position <- c(vol_36m = "long")
+  config1 <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                         eligibility_quantile_range = c(0.67, 1.0),
+                                         initial_buffer_period = 2,
+                                         rebalancing_months = 4,
+                                         port_construction_method = "sw",
+                                         main_liquidity_metric = "mean_volfin_3m",
+                                         config_name = "long_vol_36m"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+
+  #Run port_backtest
+  expect_error(
+    expect_warning(
+    run_port_backtest(signals_m_df = signals_m_df,
+                      fwd_return_m_df = fwd_return_m_df,
+                      liquidity_m_df = liquidity_m_df,
+                      volatility_m_df = volatility_m_df,
+                      benchmark_weights_m_df = benchmark_weights_m_df,
+                      config = config1,
+                      custom_stock_metrics_m_df = port_metrics_m_df,
+                      verbose = TRUE)
+  , "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
+  , "selected_benchmark must be provided with benchmark_weights_m_df."
+  )
+
+
+  #Run port_backtest
+  expect_error(
+    expect_warning(
+    run_port_backtest(signals_m_df = signals_m_df,
+                      fwd_return_m_df = fwd_return_m_df,
+                      liquidity_m_df = liquidity_m_df,
+                      volatility_m_df = volatility_m_df,
+                      benchmark_returns_m_xts = benchmark_returns_m_xts,
+                      config = config1,
+                      custom_stock_metrics_m_df = port_metrics_m_df,
+                      verbose = TRUE)
+    , "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
+    ,"selected_benchmark must be provided with benchmark_returns_m_xts."
+  )
+
+})
+
+#UPDATE
+test_that("update_port_backtest works for a simple sw single signal strategy with a selected benchmark and
+          user_defined_OR_rules, with new month a rebalancing month", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Create port_backtest_config
+  chosen_score_metric_and_position <- c(roe_3m = "long")
+  port_config <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                             eligibility_quantile_range = c(0.67, 1.0),
+                                             selected_benchmark = "ibov",
+                                             initial_buffer_period = 5,
+                                             rebalancing_months = 4,
+                                             port_construction_method = "sw",
+                                             main_liquidity_metric = "mean_volfin_3m",
+                                             config_name = "guara_model"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+  #meta_dataframes at 2023-03-15
+  #Suppose a esg focused portfolio
+  set.seed(123)
+  user_defined_OR_rules_m_df_total <- signals_m_df %>% dplyr::select(id, tickers, dates) %>%
+    dplyr::mutate(esg_score = sample(c("esg", "non-esg"), dplyr::n(), replace = TRUE)) %>%
+    dplyr::mutate(esg = sample(c(1,0), dplyr::n(), replace = TRUE)) %>% create_meta_dataframe()
+
+  signals_m_df <- create_meta_dataframe(signals_m_df %>% dplyr::filter(!dates == "2023-04-15"), type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df %>% dplyr::filter(!dates == "2023-04-15") %>%
+                                             dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-03-15", NA_real_, fwd_return_1m))
+                                           , type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "liq")
+  volatility_m_df <- create_meta_dataframe(volatility_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "vol")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts["2022-10-15/2023-03-15"], asset_type = "benchmark", meta_xts_name = "bench_returns")
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
+  user_defined_OR_rules_m_df <- create_meta_dataframe(user_defined_OR_rules_m_df_total@data %>% dplyr::filter(!dates == "2023-04-15"))
+
+
+  #Run port_backtest
+  expect_warning(
+  expect_warning(
+    results <- run_port_backtest(signals_m_df = signals_m_df,
+                                 fwd_return_m_df = fwd_return_m_df,
+                                 liquidity_m_df = liquidity_m_df,
+                                 volatility_m_df = volatility_m_df,
+                                 config = port_config,
+                                 user_defined_OR_rules_m_df = user_defined_OR_rules_m_df,
+                                 benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                 custom_stock_metrics_m_df = port_metrics_m_df,
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  ),
+  "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
+  )
+
+  #Check some not yet tested points
+  #All OR are eligible
+  expect_equal(
+  results@stock_universe_m_df@data %>%
+    dplyr::filter(id %in% (user_defined_OR_rules_m_df@data %>% dplyr::filter(esg == 1) %>% dplyr::pull(id))) %>%
+    dplyr::pull(is_eligible) %>% unique(),
+  1)
+
+  #Even those with low roe
+  expect_equal(
+    results@stock_universe_m_df@data %>%
+      dplyr::filter(id %in% (user_defined_OR_rules_m_df@data %>% dplyr::filter(esg == 1) %>% dplyr::pull(id)),
+                    pre_eligible_assets == 0
+                    ) %>%
+      dplyr::pull(is_eligible) %>% unique(),
+    1)
+
+  #A new batch of data arrives
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+  #meta_dataframes at 2023-04-15
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df, meta_dataframe_name = "liq")
+  volatility_m_df <- create_meta_dataframe(volatility_m_df, meta_dataframe_name = "vol")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark", meta_xts_name = "bench_returns")
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
+  user_defined_OR_rules_m_df <- create_meta_dataframe(user_defined_OR_rules_m_df_total@data)
+
+  #Run port_backtest
+  expect_warning(
+  expect_warning(
+    expect_warning(
+    new_results <- run_port_backtest(signals_m_df = signals_m_df,
+                                     fwd_return_m_df = fwd_return_m_df,
+                                     liquidity_m_df = liquidity_m_df,
+                                     volatility_m_df = volatility_m_df,
+                                     config = port_config,
+                                     user_defined_OR_rules_m_df = user_defined_OR_rules_m_df,
+                                     benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                     custom_stock_metrics_m_df = port_metrics_m_df,
+                                     verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."),
+    "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
+    ),
+  "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
+  )
+
+
+  #Update results
+  suppressWarnings(
+  updated_results <- update_port_backtest(signals_m_df = signals_m_df,
+                                          fwd_return_m_df = fwd_return_m_df,
+                                          liquidity_m_df = liquidity_m_df,
+                                          volatility_m_df = volatility_m_df,
+                                          old_results = results,
+                                          benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                          custom_stock_metrics_m_df = port_metrics_m_df,
+                                          user_defined_OR_rules_m_df = user_defined_OR_rules_m_df
+                                          )
+  )
+
+  #Check that updated objects match new results
+  expect_equal(new_results@port_weights_m_df@data, updated_results@port_weights_m_df@data)
+  expect_equal(new_results@port_costs_m_xts@data, updated_results@port_costs_m_xts@data)
+  expect_equal(new_results@port_returns_m_xts@data, updated_results@port_returns_m_xts@data)
+  expect_equal(new_results@port_metrics_m_xts@data, updated_results@port_metrics_m_xts@data)
+  expect_equal(new_results@transactions_log@data, updated_results@transactions_log@data)
+  expect_equal(new_results@stock_universe_m_df@data, updated_results@stock_universe_m_df@data)
+  expect_equal(new_results@final_stock_port, updated_results@final_stock_port)
+  expect_equal(updated_results@port_backtest_config@initial_buffer_period, length(unique(signals_m_df@data$dates)) - 1)
+
+})
+
+test_that("update_port_backtest works for a simple cs single signal strategy with a selected benchmark,
+          with new month a post-rebalancing month AND 2 REBALANCINGS", {
+
+            #Create signals_m_d_ref
+            load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+            #Create port_backtest_config
+            chosen_score_metric_and_position <- c(roe_3m = "long")
+            port_config <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                                       eligibility_quantile_range = c(0.67, 1.0),
+                                                       selected_benchmark = "ibov",
+                                                       initial_buffer_period = 4,
+                                                       rebalancing_months = 2,
+                                                       port_construction_method = "cs",
+                                                       main_liquidity_metric = "mean_volfin_3m",
+                                                       config_name = "guara_model"
+            ) %>%
+              add_liquidity_floor_cutoffs(
+                metric_name = c("mean_volfin_3m", "presence"),
+                metric_cutoffs = list(
+                  c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+                  c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+                )
+              ) %>%
+              add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+              add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+            #meta_dataframes at 2023-02-15
+            signals_m_df <- create_meta_dataframe(signals_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), type = "signals", meta_dataframe_name = "signals")
+            fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")) %>%
+                                                       dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-02-15", NA_real_, fwd_return_1m))
+                                                     , type = "target", meta_dataframe_name = "fwd")
+            liquidity_m_df <- create_meta_dataframe(liquidity_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "liq")
+            volatility_m_df <- create_meta_dataframe(volatility_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "vol")
+            benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts["2022-10-15/2023-02-15"], asset_type = "benchmark", meta_xts_name = "bench_returns")
+            benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "bench_weights")
+            port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
+
+
+            #Run port_backtest
+            expect_warning(
+              results <- run_port_backtest(signals_m_df = signals_m_df,
+                                           fwd_return_m_df = fwd_return_m_df,
+                                           liquidity_m_df = liquidity_m_df,
+                                           volatility_m_df = volatility_m_df,
+                                           benchmark_weights_m_df = benchmark_weights_m_df,
+                                           config = port_config,
+                                           benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                           custom_stock_metrics_m_df = port_metrics_m_df,
+                                           verbose = TRUE),
+              "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+            )
+
+
+            #A new batch of data arrives
+            load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+            #meta_dataframes at 2023-04-15
+            signals_m_df <- create_meta_dataframe(signals_m_df %>% dplyr::filter(!dates %in% c("2023-04-15")), type = "signals", meta_dataframe_name = "signals")
+            fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df %>% dplyr::filter(!dates %in% c("2023-04-15")) %>%
+                                                       dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-03-15", NA_real_, fwd_return_1m))
+                                                     , type = "target", meta_dataframe_name = "fwd")
+            liquidity_m_df <- create_meta_dataframe(liquidity_m_df %>% dplyr::filter(!dates %in% c("2023-04-15")), meta_dataframe_name = "liq")
+            volatility_m_df <- create_meta_dataframe(volatility_m_df %>% dplyr::filter(!dates %in% c("2023-04-15")), meta_dataframe_name = "vol")
+            benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts["2022-10-15/2023-03-15"], asset_type = "benchmark", meta_xts_name = "bench_returns")
+            benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df %>% dplyr::filter(!dates %in% c("2023-04-15")), meta_dataframe_name = "bench_weights")
+            port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
+
+            #Run port_backtest
+            expect_warning(
+              new_results <- run_port_backtest(signals_m_df = signals_m_df,
+                                               fwd_return_m_df = fwd_return_m_df,
+                                               liquidity_m_df = liquidity_m_df,
+                                               volatility_m_df = volatility_m_df,
+                                               benchmark_weights_m_df = benchmark_weights_m_df,
+                                               config = port_config,
+                                               benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                               custom_stock_metrics_m_df = port_metrics_m_df,
+                                               verbose = TRUE),
+              "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+            )
+
+            #Update results
+            expect_warning(
+              updated_results <- update_port_backtest(signals_m_df = signals_m_df,
+                                                      fwd_return_m_df = fwd_return_m_df,
+                                                      liquidity_m_df = liquidity_m_df,
+                                                      volatility_m_df = volatility_m_df,
+                                                      benchmark_weights_m_df = benchmark_weights_m_df,
+                                                      old_results = results,
+                                                      benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                                      custom_stock_metrics_m_df = port_metrics_m_df
+              ), "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+            )
+
+            #Check that updated objects match new results
+            expect_equal(new_results@port_weights_m_df@data, updated_results@port_weights_m_df@data)
+            expect_equal(new_results@port_costs_m_xts@data, updated_results@port_costs_m_xts@data)
+            expect_equal(new_results@port_returns_m_xts@data, updated_results@port_returns_m_xts@data)
+            expect_equal(new_results@port_metrics_m_xts@data, updated_results@port_metrics_m_xts@data)
+            expect_equal(new_results@transactions_log@data, updated_results@transactions_log@data)
+            expect_equal(new_results@stock_universe_m_df@data, updated_results@stock_universe_m_df@data)
+            expect_equal(new_results@final_stock_port, updated_results@final_stock_port)
+            expect_equal(updated_results@port_backtest_config@initial_buffer_period, length(unique(signals_m_df@data$dates)) - 1)
+
+
+            #New batch again
+            load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+            #meta_dataframes at 2023-04-15
+            signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals", meta_dataframe_name = "signals")
+            fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target", meta_dataframe_name = "fwd")
+            liquidity_m_df <- create_meta_dataframe(liquidity_m_df, meta_dataframe_name = "liq")
+            volatility_m_df <- create_meta_dataframe(volatility_m_df, meta_dataframe_name = "vol")
+            benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark", meta_xts_name = "bench_returns")
+            benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, meta_dataframe_name = "bench_weights")
+            port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
+
+            #Run port_backtest
+            expect_warning(
+              new_results2 <- run_port_backtest(signals_m_df = signals_m_df,
+                                               fwd_return_m_df = fwd_return_m_df,
+                                               liquidity_m_df = liquidity_m_df,
+                                               volatility_m_df = volatility_m_df,
+                                               benchmark_weights_m_df = benchmark_weights_m_df,
+                                               config = port_config,
+                                               benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                               custom_stock_metrics_m_df = port_metrics_m_df,
+                                               verbose = TRUE),
+              "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+            )
+
+            #Update results 2
+            expect_warning(
+              updated_results2 <- update_port_backtest(signals_m_df = signals_m_df,
+                                                      fwd_return_m_df = fwd_return_m_df,
+                                                      liquidity_m_df = liquidity_m_df,
+                                                      volatility_m_df = volatility_m_df,
+                                                      benchmark_weights_m_df = benchmark_weights_m_df,
+                                                      old_results = updated_results,
+                                                      benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                                      custom_stock_metrics_m_df = port_metrics_m_df
+              ), "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+            )
+
+
+            #Check that updated objects match new results
+            expect_equal(new_results2@port_weights_m_df@data, updated_results2@port_weights_m_df@data)
+            expect_equal(new_results2@port_costs_m_xts@data, updated_results2@port_costs_m_xts@data)
+            expect_equal(new_results2@port_returns_m_xts@data, updated_results2@port_returns_m_xts@data)
+            expect_equal(new_results2@port_metrics_m_xts@data, updated_results2@port_metrics_m_xts@data)
+            expect_equal(new_results2@transactions_log@data, updated_results2@transactions_log@data)
+            expect_equal(new_results2@stock_universe_m_df@data, updated_results2@stock_universe_m_df@data)
+            expect_equal(new_results2@final_stock_port, updated_results2@final_stock_port)
+            expect_equal(updated_results2@port_backtest_config@initial_buffer_period, length(unique(signals_m_df@data$dates)) - 1)
+
+})
+
+####TEST UPDATE PORT BACKTEST IN A SB + SS UPDATE WORKFLOW. CONSIDER LAST MONTH A A REBALANCING MONTH
+
+test_that("update_port_backtest throws errors for uncompatible objects", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Create port_backtest_config
+  chosen_score_metric_and_position <- c(roe_3m = "long")
+  port_config <- create_port_backtest_config(chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                             eligibility_quantile_range = c(0.67, 1.0),
+                                             selected_benchmark = "ibov",
+                                             initial_buffer_period = 3,
+                                             rebalancing_months = 4,
+                                             port_construction_method = "sw",
+                                             main_liquidity_metric = "mean_volfin_3m",
+                                             config_name = "guara_model"
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+  #meta_dataframes at 2023-03-15
+  #Suppose a esg focused portfolio
+  set.seed(123)
+  user_defined_OR_rules_m_df_total <- signals_m_df %>% dplyr::select(id, tickers, dates) %>%
+    dplyr::mutate(esg_score = sample(c("esg", "non-esg"), dplyr::n(), replace = TRUE)) %>%
+    dplyr::mutate(esg = sample(c(1,0), dplyr::n(), replace = TRUE)) %>% create_meta_dataframe()
+
+  signals_m_df <- create_meta_dataframe(signals_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")) %>%
+                                             dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-02-15", NA_real_, fwd_return_1m))
+                                           , type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "liq")
+  volatility_m_df <- create_meta_dataframe(volatility_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "vol")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts["2022-10-15/2023-02-15"], asset_type = "benchmark", meta_xts_name = "bench_returns")
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
+  user_defined_OR_rules_m_df <- create_meta_dataframe(user_defined_OR_rules_m_df_total@data %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")))
+
+
+  #Run port_backtest
+  expect_warning(
+  expect_warning(
+    results <- run_port_backtest(signals_m_df = signals_m_df,
+                                 fwd_return_m_df = fwd_return_m_df,
+                                 liquidity_m_df = liquidity_m_df,
+                                 volatility_m_df = volatility_m_df,
+                                 config = port_config,
+                                 user_defined_OR_rules_m_df = user_defined_OR_rules_m_df,
+                                 benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                 custom_stock_metrics_m_df = port_metrics_m_df,
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  ), "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint.")
+
+  #Update port_backtest
+  #A new batch of data arrives
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+  #meta_dataframes at 2023-04-15
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df, meta_dataframe_name = "liq")
+  volatility_m_df <- create_meta_dataframe(volatility_m_df, meta_dataframe_name = "vol")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark", meta_xts_name = "bench_returns")
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
+  user_defined_OR_rules_m_df <- create_meta_dataframe(user_defined_OR_rules_m_df_total@data)
+
+
+  expect_error(
+    update_port_backtest(signals_m_df = signals_m_df,
+                         fwd_return_m_df = fwd_return_m_df,
+                         liquidity_m_df = liquidity_m_df,
+                         volatility_m_df = volatility_m_df,
+                         old_results = results,
+                         benchmark_returns_m_xts = benchmark_returns_m_xts,
+                         custom_stock_metrics_m_df = port_metrics_m_df,
+                         user_defined_OR_rules_m_df = user_defined_OR_rules_m_df
+    ),
+    "The current_date in the new signals_m_df is not equal to the current_date in the old_results \\+ 1 month"
+  )
+
+
+
+
+})

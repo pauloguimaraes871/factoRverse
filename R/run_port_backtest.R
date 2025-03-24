@@ -7,14 +7,13 @@
 #' @param liquidity_m_df A meta_dataframe containing liquidity metrics.
 #' @param volatility_m_df A meta_dataframe containing volatility metrics.
 #' @param results An object of class \code{port_backtest_results} specifying the portfolio backtest results to be updated.
-#' @param n_update The expected number of periods to update
 #' @param parallel Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).
 #' @param ... Additional arguments (if needed).
 #'
 #' @return An object of class \code{port_backtest_results} containing the portfolio backtest results.
 #'
 #' @export
-setGeneric("update_port_backtest", function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, n_update, old_results, new_config, ...) standardGeneric("update_port_backtest"))
+setGeneric("update_port_backtest", function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, old_results, ...) standardGeneric("update_port_backtest"))
 
 #' @describeIn update_port_backtest Updates a portfolio backtest using based on a \code{port_backtest_results} object.
 #'
@@ -23,17 +22,24 @@ setGeneric("update_port_backtest", function(signals_m_df, fwd_return_m_df, liqui
 #'
 #' @export
 setMethod("update_port_backtest",
-          signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe", liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe", n_update = "numeric",
-                    old_results = "port_backtest_results", new_config = "port_backtest_config"),
-          function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, n_update, old_results, new_config, #Base Port Backtest Objs
+          signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe", liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe",
+                    old_results = "port_backtest_results"),
+          function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, old_results, #Base Port Backtest Objs
+                   updated_sb_backtest_results = NULL, #Updated SB Backtest Objs
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
-                   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, #Covariance Estimation
+                   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, #Covariance Estimation
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
                    winsorization_probs = c(0.025, 0.975), #Winsorization
-                   verbose = TRUE, parallel = TRUE){
+                   verbose = TRUE, parallel = TRUE, .test_seed = NULL){
 
             #Check adherence between new objects and old object (names and dates)
             #######################
+              ##Check if current_date is equal to old_results current_date + 1 months
+              if(signals_m_df@current_date != ##It will be checked that current_date matches across new objects in run_port_backtest
+                 lubridate::add_with_rollback(old_results@port_backtest_workflow$current_date, months(1))){
+                stop("The current_date in the new signals_m_df is not equal to the current_date in the old_results + 1 month")
+              }
+
               ##Gather all arguments into a single named list (only those that have @meta_dataframe_name or meta_xts_name)
               new_objects_list <- list(
                 signals_m_df = signals_m_df,
@@ -49,7 +55,7 @@ setMethod("update_port_backtest",
                 custom_stock_metrics_m_df = custom_stock_metrics_m_df,
                 user_defined_OR_rules_m_df = user_defined_OR_rules_m_df,
                 user_defined_AND_rules_m_df = user_defined_AND_rules_m_df
-                )
+              )
 
               old_objects_names_list <- list(
                 signals_m_df = old_results@port_backtest_workflow$signals_object_name,
@@ -71,58 +77,57 @@ setMethod("update_port_backtest",
               dates_covered <- old_results@port_backtest_workflow$dates_covered
 
               ##Perform check
-              check_update_backtest_objects(new_objects_list = new_objects_list, old_objects_names_list = old_objects_names_list, dates_covered = dates_covered)
-              #######################
-
-            #Check config_name and sb_backtest_results
-            #######################
-              ##Config Name
-              if (new_config@config_name != old_results@port_backtest_workflow$config_name){
-                stop("config_name in new_config does not match the one in old_results.")
-              }
+              check_update_backtest_objects(new_objects_list = new_objects_list, old_objects_names_list = old_objects_names_list,
+                                            dates_covered = dates_covered, n_update = 1)
 
               ##SB Backtest Results
-              if (!is.null(new_config@sb_backtest_config)){
-                stop("update_port_backtest does not support sb_backtest_config. Please use a config with sb_backtest_results instead.")
-              }
-
-              if (!is.null(new_config@sb_backtest_results)){
-                ###This is the case for sb_backtest_results in new_config
-                if (!identical(new_config@sb_backtest_results@backtest_identifier, old_results@sb_backtest_results@backtest_identifier)){
-                  stop("sb backtest_identifier in new_config does not match the one in old_results.")
+              if (!is.null(updated_sb_backtest_results)){
+                ###Check backtest identifier
+                if (!identical(updated_sb_backtest_results@backtest_identifier, old_results@port_backtest_workflow$sb_backtest_identifier)){
+                  stop("backtest_identifier in updated_sb_backtest_results does not match the one in old_results.")
+                }
+                if (updated_sb_backtest_results@sb_backtest_workflow$current_date != lubridate::add_with_rollback(old_results@port_backtest_workflow$current_date, months(1))){
+                  stop("current_date in updated_sb_backtest_results does not match the one in old_results + 1 month.")
                 }
               } else {
-                ###This is the case for no sb_backtest_results in new_config
-                if (!is.null(old_results@sb_backtest_results)){
-                  stop("sb_backtest_results in old_results is not NULL but new_config does not have sb_backtest_results.")
+                ###This is the case for no updated_sb_backtest_results
+                if (!is.null(old_results@port_backtest_workflow$sb_backtest_identifier)){
+                  stop("sb_backtest_identifier in old_results is not NULL but updated_sb_backtest_results is.")
                 }
               }
 
             #######################
 
+            #Update old port_backtest_config
+            #######################
+            new_config <- old_results@port_backtest_config
+            new_config@initial_buffer_period <-            #New update must happen at last date of last backtest, in order to re-use
+              old_results@port_backtest_workflow$n_dates   #now populated fwd_returns_m_df at the last date.
 
+              ##Check if new initial_buffer_period is equal to length(signals_m_df@data$dates)
+              if(new_config@initial_buffer_period != length(unique(signals_m_df@data$dates)) - 1){
+                stop("The new initial_buffer_period is not equal to amount of unique dates in signals_m_df - 1")
+              }
 
-
-
-
-
+              ##Update sb_backtest_results
+              if (!is.null(updated_sb_backtest_results)){
+                new_config <- new_config %>% add_sb_backtest_results(updated_sb_backtest_results)
+              }
 
             #######################
 
-            #Adapt initial_buffer_period and re-run
+            #Re-run!!
             #######################
-              ##Change initial_buffer_period
-              config@initial_buffer_period <- length(dates_covered) + 1
-              ##Re-run
+
+              ##Retrive objects from last period
+              .old_backtest_port_weights_m_d_ref <- old_results@port_weights_m_df@data %>% dplyr::filter(dates == sort(dates_covered)[length(dates_covered)])
+              .old_backtest_port_costs_d_ref <- old_results@port_costs_m_xts@data %>% as.data.frame() %>% dplyr::slice_tail(n = 1)
+
               update_port_backtest_results <- run_port_backtest(
                 ###Base Port Backtest Objs
-                signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df, liquidity_m_df = liquidity_m_df, volatility_m_df, config = config,
-                ###SB/SS Backtest Objs
-                target_m_df = target_m_df, port_backtest_cohort = port_backtest_cohort, backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
-                signal_themes_m_df = signal_themes_m_df, priors_m_df = priors_m_df, custom_signal_weights_m_df = custom_signal_weights_m_df,
-                custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df, gsm_algorithm = gsm_algorithm, .test_seed = .test_seed,
+                signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df, liquidity_m_df = liquidity_m_df, volatility_m_df, config = new_config,
                 ###Constraints Objs
-                stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
+                stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts,
                 ###Covariance Estimation
                 daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts,
                 ###Custom Objs
@@ -131,7 +136,8 @@ setMethod("update_port_backtest",
                 ###Winsorization
                 winsorization_probs = winsorization_probs,
                 ###Other
-                verbose = verbose, parallel = parallel
+                verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+                .update = TRUE, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref
               )
 
             #######################
@@ -139,23 +145,37 @@ setMethod("update_port_backtest",
             #Consolidate results
             #######################
               ##results objects
-              port_backtest_outputs_list <- list(
-                port_weights_m_df = update_port_backtest_results@port_weights_m_df,
-                stock_universe_m_df = update_port_backtest_results@stock_universe_m_df,
-                port_returns_m_xts = update_port_backtest_results@port_returns_m_xts,
-                port_costs_m_xts = update_port_backtest_results@port_costs_m_xts,
-                port_metrics_m_xts = update_port_backtest_results@port_metrics_m_xts
-              )
+              ##No need to bind information already in old_port_backtest_outputs_list
+                new_port_backtest_outputs_list <- list(
+                  port_weights_m_df = update_port_backtest_results@port_weights_m_df,
+                  stock_universe_m_df = update_port_backtest_results@stock_universe_m_df,
+                  port_returns_m_xts = update_port_backtest_results@port_returns_m_xts,
+                  port_costs_m_xts = update_port_backtest_results@port_costs_m_xts,
+                  port_metrics_m_xts = update_port_backtest_results@port_metrics_m_xts
+                )
 
               ##Consolidate
-              updated_results_list <- consolidate_backtest_results(backtest_outputs_list = port_backtest_outputs_list)
+                ###m_df and m_xts
+                updated_results_list <- consolidate_backtest_results(new_backtest_outputs_list = new_port_backtest_outputs_list,
+                                                                     old_backtest_results = old_results)
+                ###others
+                update_port_backtest_results@transactions_log@data <- c(old_results@transactions_log@data,
+                                                                        update_port_backtest_results@transactions_log@data)
+
 
               ##Reassign the updated objects back into 'update_port_backtest_results'
-              update_port_backtest_results@port_weights_m_df   <- updated_m_df_results_list[["port_weights_m_df"]]
-              update_port_backtest_results@stock_universe_m_df <- updated_m_df_results_list[["stock_universe_m_df"]]
-              update_port_backtest_results@port_returns_m_xts  <- updated_m_df_results_list[["port_returns_m_xts"]]
-              update_port_backtest_results@port_costs_m_xts    <- updated_m_df_results_list[["port_costs_m_xts"]]
-              update_port_backtest_results@port_metrics_m_xts  <- updated_m_df_results_list[["port_metrics_m_xts"]]
+              update_port_backtest_results@port_weights_m_df   <- updated_results_list[["port_weights_m_df"]]
+              update_port_backtest_results@stock_universe_m_df <- updated_results_list[["stock_universe_m_df"]]
+              update_port_backtest_results@port_returns_m_xts  <- updated_results_list[["port_returns_m_xts"]]
+              update_port_backtest_results@port_costs_m_xts    <- updated_results_list[["port_costs_m_xts"]]
+              update_port_backtest_results@port_metrics_m_xts  <- updated_results_list[["port_metrics_m_xts"]]
+
+                ###In case of an empty update
+                if (is.null(update_port_backtest_results@final_stock_port)){
+                  update_port_backtest_results@final_stock_port <- old_results@final_stock_port
+                  update_port_backtest_results@stock_universe_m_df <- old_results@stock_universe_m_df
+                  update_port_backtest_results@final_stock_universe_m_d_ref <- old_results@final_stock_universe_m_d_ref
+                }
 
               #######################
 
@@ -198,13 +218,12 @@ setMethod("run_port_backtest",
           signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe", liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe",
                     config = "port_backtest_config"),
           function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, config,  #Base Port Backtest Objs
-                   target_m_df = NULL, port_backtest_cohort = NULL, backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, priors_m_df = NULL, ##SB Backtest Objs
-                   custom_signal_weights_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, gsm_algorithm = "ols", .test_seed = NULL, ##SB Backtest Objs
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
-                   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, #Covariance Estimation
+                   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, #Covariance Estimation and active rets
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
                    winsorization_probs = c(0.025, 0.975), #Winsorization
-                   verbose = TRUE, parallel = TRUE) {
+                   verbose = TRUE, parallel = TRUE, .test_seed = NULL,
+                   .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_costs_d_ref = NULL) {
 
             ##Assign default values for internal function
             ###########################
@@ -247,36 +266,9 @@ setMethod("run_port_backtest",
               }
             ###########################
 
-            #Get or fabricate oos_sb_outputs_m_df
+            #Get oos_sb_outputs_m_df
             ###########################
-              sb_backtest_config <- config@sb_backtest_config
               sb_backtest_results <- config@sb_backtest_results
-              ####If SB Config is provided, run_sb_backtest
-              if (!is.null(sb_backtest_config) && is.null(sb_backtest_results)){
-                ##Print
-                if(verbose){
-                  cat(crayon::cyan("Running Signal Blending Backtest based on sb_backtest_config \n"))
-                }
-                ###Check is sb_backtest_config 'class' is 'sb_backtest_config' and not 'sb_metabacktest_config'
-                if(class(sb_backtest_config) == "sb_metabacktest_config"){
-                  stop("run_port_backtest currently does not support running sb_metabacktests inside it. Please provide a",
-                       "'sb_metabacktest_results' instead")
-                }
-
-                ##Run!
-                sb_backtest_results <- run_sb_backtest(
-                  #Base SB Objs
-                  features_m_df = signals_m_df, target_m_df = target_m_df, config = sb_backtest_config,
-                  #SS Objs
-                  port_backtest_cohort = port_backtest_cohort, backtest_returns_m_xts = backtest_returns_m_xts, ##Derive backtest returns from either
-                  benchmark_returns_m_xts = benchmark_returns_m_xts, ##Benchmark is the same object
-                  signal_themes_m_df = signal_themes_m_df, priors_m_df = priors_m_df,
-                  #Custom objs
-                  custom_signal_weights_m_df = custom_signal_weights_m_df, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
-                  #Misc
-                  winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, .test_seed = .test_seed, verbose = verbose, parallel = parallel
-                )
-              }
 
               ###Extract oos_predictions_m_df
               if (!is.null(sb_backtest_results)){
@@ -297,6 +289,7 @@ setMethod("run_port_backtest",
                   dplyr::select(id, tickers, dates, pred) #Get OOS Predictions and exclude target to be more confident of no data leakage
                 oos_predictions_workflow <- sb_backtest_results@oos_sb_outputs_m_df@workflow
                 oos_predictions_object_name <- sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name
+                oos_predictions_current_date <- sb_backtest_results@oos_sb_outputs_m_df@current_date
               } else {
                 oos_predictions_m_df <- NULL
               }
@@ -308,37 +301,71 @@ setMethod("run_port_backtest",
               ##signals_m_df
               signals_workflow <- signals_m_df@workflow #Get workflow
                 ###Check for normalization
-                if (!"normalization" %in% unlist(signals_workflow)){
-                  warning ("Normalization not found in workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
-                }
+                  ####Identify workflow elements containing 'preprocessing_recipe'
+                  recipe_idx <- which(stringr::str_detect(names(signals_workflow), "preprocessing_recipe"))
+
+                  ####First check if there is a preprocessing_recipe
+                  if (length(recipe_idx) == 0){
+                    warning("Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
+                  }
+
+                  ####For each recipe found, check if any numeric transform step is present
+                  for (rec in lapply(recipe_idx, function(i) signals_workflow[[i]]$recipe)) {
+                    steps <- vapply(rec$steps, function(s) class(s)[1], "")
+                    if (!any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
+                      warning("Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
+                  }
                 signals_object_name <- signals_m_df@meta_dataframe_name #Get mdf name
+                signals_current_date <- signals_m_df@current_date #Get current date
                 signals_m_df <- signals_m_df@data #Get signals_m_df
 
               ##fwd_return_m_df
               fwd_return_workflow <- fwd_return_m_df@workflow #Get workflow
                 ###Check for normalization
-                if ("normalization" %in% unlist(fwd_return_workflow)){
-                  stop ("Normalization found in fwd_return_m_df workflow.")
-                }
+                  ####Identify workflow elements containing 'preprocessing_recipe'
+                  recipe_idx <- which(stringr::str_detect(names(fwd_return_workflow), "preprocessing_recipe"))
+
+                  ####For each recipe found, check if any numeric transform step is present
+                  for (rec in lapply(recipe_idx, function(i) fwd_return_workflow[[i]]$recipe)) {
+                    steps <- vapply(rec$steps, function(s) class(s)[1], "")
+                    if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
+                      stop("Normalization found in fwd_return_m_df workflow.")
+                  }
                 fwd_return_object_name <- fwd_return_m_df@meta_dataframe_name #Get mdf name
+                fwd_returns_current_date <- fwd_return_m_df@current_date #Get current date
                 fwd_return_m_df <- fwd_return_m_df@data #Get fwd_return_m_df
 
               ##liquidity_m_df
                 liquidity_workflow <- liquidity_m_df@workflow #Get workflow
                 ###Check for normalization
-                if ("normalization" %in% unlist(liquidity_workflow)){
-                  stop ("Normalization found in liquidity_m_df workflow.")
-                }
+                  ####Identify workflow elements containing 'preprocessing_recipe'
+                  recipe_idx <- which(stringr::str_detect(names(liquidity_workflow), "preprocessing_recipe"))
+
+                  ####For each recipe found, check if any numeric transform step is present
+                  for (rec in lapply(recipe_idx, function(i) liquidity_workflow[[i]]$recipe)) {
+                    steps <- vapply(rec$steps, function(s) class(s)[1], "")
+                    if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
+                      stop("Normalization found in liquidity_m_df workflow.")
+                  }
+
                 liquidity_object_name <- liquidity_m_df@meta_dataframe_name #Get mdf name
+                liquidity_current_date <- liquidity_m_df@current_date #Get current date
                 liquidity_m_df <- liquidity_m_df@data #Get liquidity_m_df
 
               ##volatility_m_df
                 volatility_workflow <- volatility_m_df@workflow #Get workflow
                 ###Check for normalization
-                if ("normalization" %in% unlist(volatility_workflow)){
-                  stop ("Normalization found in volatility_m_df workflow.")
-                }
+                  ####Identify workflow elements containing 'preprocessing_recipe'
+                  recipe_idx <- which(stringr::str_detect(names(volatility_workflow), "preprocessing_recipe"))
+
+                  ####For each recipe found, check if any numeric transform step is present
+                  for (rec in lapply(recipe_idx, function(i) volatility_workflow[[i]]$recipe)) {
+                    steps <- vapply(rec$steps, function(s) class(s)[1], "")
+                    if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
+                      stop("Normalization found in volatility_workflow workflow.")
+                  }
                 volatility_object_name <- volatility_m_df@meta_dataframe_name #Get mdf name
+                volatility_current_date <- volatility_m_df@current_date #Get current date
                 volatility_m_df <- volatility_m_df@data #Get volatility_m_df
 
               ##Extract configuration parameters from the port_backtest_config object
@@ -373,6 +400,7 @@ setMethod("run_port_backtest",
                     if (!is.null(daily_stock_returns_m_xts)){
                       daily_stock_returns_object_name <- daily_stock_returns_m_xts@meta_xts_name
                       daily_stock_returns_workflow <- daily_stock_returns_m_xts@workflow
+                      daily_stock_returns_current_date <- daily_stock_returns_m_xts@current_date
                       daily_stock_returns_m_xts <- daily_stock_returns_m_xts@data
                     }
                     if (!is.null(daily_bench_returns_m_xts)){
@@ -382,11 +410,13 @@ setMethod("run_port_backtest",
                       }
                       daily_bench_returns_object_name <- daily_bench_returns_m_xts@meta_xts_name
                       daily_bench_returns_workflow <- daily_bench_returns_m_xts@workflow
+                      daily_bench_returns_current_date <- daily_bench_returns_m_xts@current_date
                       daily_bench_returns_m_xts <- daily_bench_returns_m_xts@data
                     }
                     if (!is.null(stock_groups_m_df)){ #Used for both NA filling as for concentration_constraint_policy group constraints
                       stock_groups_object_name <- stock_groups_m_df@meta_dataframe_name
                       stock_groups_workflow <- stock_groups_m_df@workflow
+                      stock_groups_current_date <- stock_groups_m_df@current_date
                       stock_groups_m_df <- stock_groups_m_df@data
                     }
 
@@ -399,6 +429,7 @@ setMethod("run_port_backtest",
                       }
                       benchmark_weights_object_name <- benchmark_weights_m_df@meta_dataframe_name
                       benchmark_weights_workflow <- benchmark_weights_m_df@workflow
+                      benchmark_weights_current_date <- benchmark_weights_m_df@current_date
                       benchmark_weights_m_df <- benchmark_weights_m_df@data
                     }
                     ####Bench Returns
@@ -409,6 +440,7 @@ setMethod("run_port_backtest",
                       }
                       benchmark_returns_object_name <- benchmark_returns_m_xts@meta_xts_name
                       benchmark_returns_workflow <- benchmark_returns_m_xts@workflow
+                      benchmark_returns_current_date <- benchmark_returns_m_xts@current_date
                       benchmark_returns_m_xts <- benchmark_returns_m_xts@data
                     }
 
@@ -436,24 +468,28 @@ setMethod("run_port_backtest",
                     if (!is.null(custom_stock_weights_m_df)){
                       custom_stock_weights_object_name <- custom_stock_weights_m_df@meta_dataframe_name
                       custom_stock_weights_workflow <- custom_stock_weights_m_df@workflow
+                      custom_stock_weights_current_date <- custom_stock_weights_m_df@current_date
                       custom_stock_weights_m_df <- custom_stock_weights_m_df@data
                     }
                     #####Custom Stock Metrics
                     if (!is.null(custom_stock_metrics_m_df)){
                       custom_stock_metrics_object_name <- custom_stock_metrics_m_df@meta_dataframe_name
                       custom_stock_metrics_workflow <- custom_stock_metrics_m_df@workflow
+                      custom_stock_metrics_current_date <- custom_stock_metrics_m_df@current_date
                       custom_stock_metrics_m_df <- custom_stock_metrics_m_df@data
                     }
                     #####User Defined OR Rules
                     if (!is.null(user_defined_OR_rules_m_df)){
                       user_defined_OR_rules_object_name <- user_defined_OR_rules_m_df@meta_dataframe_name
                       user_defined_OR_rules_workflow <- user_defined_OR_rules_m_df@workflow
+                      user_defined_OR_rules_current_date <- user_defined_OR_rules_m_df@current_date
                       user_defined_OR_rules_m_df <- user_defined_OR_rules_m_df@data
                     }
                     #####User Defined AND Rules
                     if (!is.null(user_defined_AND_rules_m_df)){
                       user_defined_AND_rules_object_name <- user_defined_AND_rules_m_df@meta_dataframe_name
                       user_defined_AND_rules_workflow <- user_defined_AND_rules_m_df@workflow
+                      user_defined_AND_rules_current_date <- user_defined_AND_rules_m_df@current_date
                       user_defined_AND_rules_m_df <- user_defined_AND_rules_m_df@data
                     }
 
@@ -461,51 +497,82 @@ setMethod("run_port_backtest",
 
            #Run Port Backtest Internal
            ###########################
-           port_backtest_results <- run_port_backtest_internal(
-             #Base Objects
-             signals_m_df = signals_m_df, oos_predictions_m_df = oos_predictions_m_df, chosen_score_metric_and_position = chosen_score_metric_and_position, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
-             #Backtest Scheme
-             rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
-             #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
-             port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
-             selected_benchmark = selected_benchmark,
-             #RP/MVO Parameters
-             rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
-             #Covariance Estimation
-             cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
-             daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
-             #Constraints
-             liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
-             #Liquidity Information (Constraints and Active Returns Calculation)
-             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
-             #Group and benchmark constraints (stock groups also used to fill covariance data)
-             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
-             #Return calculation (needs also liquidity and vol for net returns)
-             volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
-             #Stock Weights
-             custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
-             user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
-             #Misc
-             lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
-             verbose = verbose, parallel = parallel, .test_seed = .test_seed
-           )
+            ##Check if all objects current_date match
+            check_consistent_dates(list(
+              if (!is.null(signals_m_df)) signals_current_date else NULL,
+              if (!is.null(fwd_return_m_df)) fwd_returns_current_date else NULL,
+              if (!is.null(volatility_m_df)) volatility_current_date else NULL,
+              if (!is.null(liquidity_m_df)) liquidity_current_date else NULL,
+              if (!is.null(stock_groups_m_df)) stock_groups_current_date else NULL,
+              if (!is.null(benchmark_weights_m_df)) benchmark_weights_current_date else NULL,
+              if (!is.null(benchmark_returns_m_xts)) benchmark_returns_current_date else NULL,
+              if (!is.null(daily_stock_returns_m_xts)) daily_stock_returns_current_date else NULL,
+              if (!is.null(daily_bench_returns_m_xts)) daily_bench_returns_current_date else NULL,
+              if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_current_date else NULL,
+              if (!is.null(custom_stock_metrics_m_df)) custom_stock_metrics_current_date else NULL,
+              if (!is.null(user_defined_OR_rules_m_df)) user_defined_OR_rules_current_date else NULL,
+              if (!is.null(user_defined_AND_rules_m_df)) user_defined_AND_rules_current_date else NULL,
+              if (!is.null(oos_predictions_m_df)) oos_predictions_current_date else NULL
+           ))
+
+            ##Run internal FUN
+             port_backtest_results <- run_port_backtest_internal(
+               #Base Objects
+               signals_m_df = signals_m_df, oos_predictions_m_df = oos_predictions_m_df, chosen_score_metric_and_position = chosen_score_metric_and_position, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
+               #Backtest Scheme
+               rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
+               #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
+               port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
+               selected_benchmark = selected_benchmark,
+               #RP/MVO Parameters
+               rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
+               #Covariance Estimation
+               cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
+               daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
+               #Constraints
+               liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
+               #Liquidity Information (Constraints and Active Returns Calculation)
+               liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
+               #Group and benchmark constraints (stock groups also used to fill covariance data)
+               stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
+               #Return calculation (needs also liquidity and vol for net returns)
+               volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
+               #Stock Weights
+               custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
+               user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
+               #Misc
+               lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
+               verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+               #Update
+               .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref
+             )
            ###########################
 
            #Adjust Port Backtest Results
            ###########################
-             ##Add signal_blending_results
-             port_backtest_results@sb_backtest_results <- sb_backtest_results
+
+             ##Config
+             port_backtest_results@port_backtest_config <- config
 
              ##IDs
              port_backtest_results@port_backtest_workflow$config_name <- config@config_name
              port_backtest_results@backtest_identifier <- paste0("c:", config@config_name, "_s:", signals_object_name, "_f:", fwd_return_object_name)
              port_backtest_results@port_backtest_workflow$backtest_identifier <- port_backtest_results@backtest_identifier
+             port_backtest_results@port_backtest_workflow$current_date <- signals_current_date #already tested if all match
+
+             ##Add sb identifier
+             if (!is.null(sb_backtest_results)){
+             port_backtest_results@port_backtest_workflow$sb_backtest_identifier <- sb_backtest_results@backtest_identifier
+             }
+
 
              ##Workflow and names for stock_universe, port_returns, port_metrics etc
                ###Workflow/Source
                  ####Meta Dataframes
-                 port_backtest_results@stock_universe_m_df@workflow <- list(paste0("stock_universe_m_df result of ", port_backtest_results@backtest_identifier))
-                 port_backtest_results@final_stock_universe_m_d_ref@workflow <- list(paste0("final_stock_universe_m_d_ref result of ", port_backtest_results@backtest_identifier))
+                 if (!(.update && length(port_backtest_results@stock_universe_m_df) == 0)){ #Skip empty updates
+                   port_backtest_results@stock_universe_m_df@workflow <- list(paste0("stock_universe_m_df result of ", port_backtest_results@backtest_identifier))
+                   port_backtest_results@final_stock_universe_m_d_ref@workflow <- list(paste0("final_stock_universe_m_d_ref result of ", port_backtest_results@backtest_identifier))
+                 }
                  port_backtest_results@port_weights_m_df@workflow <- list(paste0("port_weights_m_df result of ", port_backtest_results@backtest_identifier))
                  port_backtest_results@transactions_log@workflow <- list(paste0("transactions_log result of ", port_backtest_results@backtest_identifier))
 
@@ -518,8 +585,10 @@ setMethod("run_port_backtest",
 
                 ###Names
                  ####Meta Dataframes
+                 if (!(.update && length(port_backtest_results@stock_universe_m_df) == 0)){ #Skip empty updates
                  port_backtest_results@stock_universe_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
                  port_backtest_results@final_stock_universe_m_d_ref@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+                 }
                  port_backtest_results@port_weights_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
 
 
@@ -527,6 +596,7 @@ setMethod("run_port_backtest",
               ###Fwd Returns
               port_backtest_results@port_backtest_workflow$fwd_return_object_name <- fwd_return_object_name
               port_backtest_results@port_backtest_workflow$fwd_return_workflow <- fwd_return_workflow
+
               ###Signals
               port_backtest_results@port_backtest_workflow$signals_object_name <- signals_object_name
               port_backtest_results@port_backtest_workflow$signals_workflow <- signals_workflow
@@ -682,7 +752,10 @@ run_port_backtest_internal <- function(
   user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
   #Misc
   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
-  verbose = TRUE, parallel = TRUE, .test_seed = NULL){
+  verbose = TRUE, parallel = TRUE, .test_seed = NULL,
+  #Update
+  .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_costs_d_ref = NULL){
+
 
   #Measure time to run and run gc
   elapsed_time <- system.time({
@@ -806,7 +879,9 @@ run_port_backtest_internal <- function(
       }
 
       ####Create object to store benchmark metrics
-      if (!is.null(custom_stock_metrics_m_df)){
+      if (!is.null(custom_stock_metrics_m_df) &&
+          !is.null(selected_benchmark_weights_m_df)){ #Selected bench weights are needed to calc bench metrics
+        ####Get most up-to-date benchmark metrics (matching current date)
         benchmark_metrics_m_xts <- xts::xts(as.data.frame(
           lapply(custom_stock_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
                  function(x) rep(NA, length(dates_backtest)))
@@ -833,6 +908,10 @@ run_port_backtest_internal <- function(
     #########################
     if (verbose){
       ###Text otherwise
+        if (.update){
+        cat(crayon::cyan(paste("Updating portfolio backtest")))
+        cat("\n")
+        }
       cat("=============================\n")
       cat(crayon::cyan(paste("Portfolio Construction Method:", port_construction_method)))
       cat("\n")
@@ -952,9 +1031,21 @@ run_port_backtest_internal <- function(
 
       ###Rebalance if it's a rebalancing month
       ##############################
-      is_rebalancing_month <- (lubridate::month(current_date) %in% rebalancing_months) || d == (initial_buffer_period)
-      if (is_rebalancing_month){
+      if (.update){
+        #For an update, don't rebuild the portfolio at initial_buffer_period, as this port is already done.
+        if (d == initial_buffer_period){
+          is_rebalancing_month <- FALSE #Don't rebuild
+          is_update_pickup <- TRUE #Pickup last port
+        } else {
+          is_rebalancing_month <- (lubridate::month(current_date) %in% rebalancing_months) #Rebalance at rebalancing months given it is not the initial_buffer_period
+          is_update_pickup <- FALSE #Don't pickup last port
+        }
+      } else {
+        is_rebalancing_month <- (lubridate::month(current_date) %in% rebalancing_months) || d == (initial_buffer_period)
+        is_update_pickup <- FALSE
+      }
 
+      if (is_rebalancing_month){
         ####Print refitting message
         if (verbose){
           cat("\n")
@@ -1082,70 +1173,76 @@ run_port_backtest_internal <- function(
       ####Print
       if(verbose){
         cat("\n")
-        cat(crayon::green(paste("Portfolio rebalancing completed")))
+        if (is_update_pickup){
+          cat(crayon::green(paste("Picking-up old portfolio")))
+        } else {
+          cat(crayon::green(paste("Portfolio rebalancing completed")))
+        }
       }
 
       ##############################
 
-      ###Allocate Portfolio
+      ###Allocate Portfolio (if not an update pickup)
       ##############################
-      ####Print
-      if(verbose){
-        cat("\n")
-        cat("Allocating portfolio")
-        cat("\n")
-      }
+      if (!is_update_pickup){
+        ####Print
+        if(verbose){
+          cat("\n")
+          cat("Allocating portfolio")
+          cat("\n")
+        }
 
-      ###Allocate the portfolio and register transactions and costs
-      port_allocation_results_list <- allocate_port(
-        #Compute Transactions
-          ##Bop and eop port weights (bop will be passed to be rescaled in case of no rebalancing and then added to placeholder)
-          port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
-          ##Stock universe (If rebalancing month, rebalanced weights will be passed along)
-          stock_universe_m_d_ref = if (is_rebalancing_month) stock_universe_m_d_ref else NULL,
+        ###Allocate the portfolio and register transactions and costs
+        port_allocation_results_list <- allocate_port(
+          #Compute Transactions
+            ##Bop and eop port weights (bop will be passed to be rescaled in case of no rebalancing and then added to placeholder)
+            port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+            ##Stock universe (If rebalancing month, rebalanced weights will be passed along)
+            stock_universe_m_d_ref = if (is_rebalancing_month) stock_universe_m_d_ref else NULL,
 
-        #Transaction costs data
-          ##Liquidity and vol data
-          liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref, main_liquidity_metric = main_liquidity_metric,
-          ##BARRA parameters and direct cost
-          transaction_costs_parameters <- transaction_costs_parameters,
+          #Transaction costs data
+            ##Liquidity and vol data
+            liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref, main_liquidity_metric = main_liquidity_metric,
+            ##BARRA parameters and direct cost
+            transaction_costs_parameters <- transaction_costs_parameters,
 
-        #Selected benchmark weights
-        selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
+          #Selected benchmark weights
+          selected_benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref,
 
-        #Misc
-        verbose = verbose
-      )
-
-      ####Collect data
-      #####Portfolio weights
-      port_weights_m_d_ref_list[[d - initial_buffer_period + 1]] <- port_allocation_results_list$port_weights_m_d_ref
-      transactions_log_m_d_ref_list[[d - initial_buffer_period + 1]] <- port_allocation_results_list$transactions_log_m_d_ref
-
-      #####Portfolio costs
-      port_costs_m_xts[current_date + 1, ] <- port_allocation_results_list$port_costs_d_ref %>%
-        dplyr::select(colnames(port_costs_m_xts)) %>% #Ensure order
-        as.numeric() #Convert to numeric
-
-      ##############################
-
-      ###Calculate Port Metrics
-      ##############################
-      ####Calculate Port Metrics if provided
-      if (!is.null(custom_stock_metrics_m_d_ref)){
-        port_metrics_d_ref <- calculate_port_metrics(
-          #Port Weights
-          port_weights_m_d_ref = port_allocation_results_list$port_weights_m_d_ref,
-          #Custom Metrics
-          custom_stock_metrics_m_d_ref = custom_stock_metrics_m_d_ref
+          #Misc
+          verbose = verbose
         )
 
         ####Collect data
+        #####Portfolio weights
+        port_weights_m_d_ref_list[[d - initial_buffer_period + 1]] <- port_allocation_results_list$port_weights_m_d_ref
+        transactions_log_m_d_ref_list[[d - initial_buffer_period + 1]] <- port_allocation_results_list$transactions_log_m_d_ref
+
         #####Portfolio costs
-        port_metrics_m_xts[current_date, ] <- port_metrics_d_ref %>%
-          dplyr::select(colnames(port_metrics_m_xts)) %>% #Ensure order
+        port_costs_m_xts[current_date + 1, ] <- port_allocation_results_list$port_costs_d_ref %>%
+          dplyr::select(colnames(port_costs_m_xts)) %>% #Ensure order
           as.numeric() #Convert to numeric
 
+        ##############################
+
+        ###Calculate Port Metrics
+        ##############################
+        ####Calculate Port Metrics if provided
+        if (!is.null(custom_stock_metrics_m_d_ref)){
+          port_metrics_d_ref <- calculate_port_metrics(
+            #Port Weights
+            port_weights_m_d_ref = port_allocation_results_list$port_weights_m_d_ref,
+            #Custom Metrics
+            custom_stock_metrics_m_d_ref = custom_stock_metrics_m_d_ref
+          )
+
+          ####Collect data
+          #####Portfolio costs
+          port_metrics_m_xts[current_date, ] <- port_metrics_d_ref %>%
+            dplyr::select(colnames(port_metrics_m_xts)) %>% #Ensure order
+            as.numeric() #Convert to numeric
+
+        }
       }
 
       ##############################
@@ -1158,9 +1255,17 @@ run_port_backtest_internal <- function(
         #Fwd Returns
         fwd_return_m_d_ref = fwd_return_m_d_ref, fwd_selected_benchmark_return = fwd_selected_benchmark_return,
         #Current Weights
-        port_weights_m_d_ref = port_allocation_results_list$port_weights_m_d_ref,
+        port_weights_m_d_ref = if (is_update_pickup){
+          .old_backtest_port_weights_m_d_ref #Just pick-up last portfolio in .update
+        } else {
+          port_allocation_results_list$port_weights_m_d_ref
+        } ,
         #Total cost
-        total_cost = port_allocation_results_list$port_costs_d_ref %>% dplyr::pull(total_cost),
+        total_cost = if (is_update_pickup){
+          .old_backtest_port_costs_d_ref %>% dplyr::pull(total_cost) #Just pick-up last portfolio in .update
+        } else {
+          port_allocation_results_list$port_costs_d_ref %>% dplyr::pull(total_cost)
+        },
         #Verbose
         verbose = verbose
       )
@@ -1275,22 +1380,27 @@ run_port_backtest_internal <- function(
     lower_quantile_winsorization = lower_quantile_winsorization,
     upper_quantile_winsorization = upper_quantile_winsorization,
     #Call
+    update = .update,
     call = match.call()
   )
 
   ###Port Weights
+  if (.update) port_weights_m_d_ref_list <- port_weights_m_d_ref_list[sapply(port_weights_m_d_ref_list, function(x) !is.null(x))]
   port_weights_m_df <- create_meta_dataframe(do.call(rbind, port_weights_m_d_ref_list) %>% dplyr::arrange(id), type = "weights")
   ###Port Allocationg Log
   names(transactions_log_m_d_ref_list) <- dates_backtest
+  if (.update) transactions_log_m_d_ref_list <- transactions_log_m_d_ref_list[sapply(transactions_log_m_d_ref_list, function(x) !is.null(x))]
   transactions_log <- new("transactions_log", data = transactions_log_m_d_ref_list, workflow = port_backtest_workflow)
 
   ###Port Costs
+  if (.update) port_costs_m_xts <- port_costs_m_xts %>% na.omit()
   port_costs_m_xts <- create_meta_xts(port_costs_m_xts, type = "metrics",
                                       metric_name = "port_costs",
                                       meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_costs_m_xts)))
   ###Port Metrics
   if (!is.null(custom_stock_metrics_m_d_ref)){
     metrics <- paste0(custom_stock_metrics_m_d_ref %>% dplyr::select(-id, -tickers, -dates) %>% colnames(), collapse = "_") #Derive metrics names
+    if (.update) port_metrics_m_xts <- port_metrics_m_xts %>% na.omit()
     port_metrics_m_xts <- create_meta_xts(port_metrics_m_xts, type = "metrics",
                                           metric_name = metrics,
                                           meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_metrics_m_xts)))
@@ -1301,16 +1411,29 @@ run_port_backtest_internal <- function(
   rows_to_keep <- !apply(port_returns_m_xts, 1, function(row) all(is.na(row))) #Exclude rows with all NAs
   port_returns_m_xts <- create_meta_xts(port_returns_m_xts[rows_to_keep,], type = "returns", asset_type = "ports",
                                         meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_returns_m_xts)))
-
   ###Stock Universe (turn into a signle meta_dataframe)
-    ####Complete
-    stock_universe_m_df <- do.call(rbind, stock_universe_m_d_ref_list) %>% dplyr::arrange(id)
-    rownames(stock_universe_m_df) <- NULL
-    stock_universe_m_df <- create_meta_dataframe(stock_universe_m_df, type = "stock_universe", port_backtest_workflow = port_backtest_workflow)
-    ####Final
-    final_stock_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::arrange(id)
-    rownames(final_stock_universe_m_d_ref) <- NULL
-    final_stock_universe_m_d_ref <- create_meta_dataframe(final_stock_universe_m_d_ref, type = "stock_universe", port_backtest_workflow = port_backtest_workflow)
+    if (.update && length(stock_universe_m_d_ref_list) == 0 && !exists("stock_port")){
+      #####This refers to an empty update, when there is no rebalancing month in the update
+      stock_universe_m_df <- NULL
+      final_stock_universe_m_d_ref <- NULL
+      stock_port <- NULL
+    } else {
+      if (.update){
+        ###If stock_universe_m_d_ref_list is not empty, remove NULL elements
+        stock_universe_m_d_ref_list <- stock_universe_m_d_ref_list[sapply(stock_universe_m_d_ref_list, function(x) !is.null(x))]
+      }
+      ####Get stock universes
+        #####Complete
+        stock_universe_m_df <- do.call(rbind, stock_universe_m_d_ref_list) %>% dplyr::arrange(id)
+        rownames(stock_universe_m_df) <- NULL
+        stock_universe_m_df <- create_meta_dataframe(stock_universe_m_df, type = "stock_universe", port_backtest_workflow = port_backtest_workflow)
+
+        #####Final
+        final_stock_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::arrange(id)
+        rownames(final_stock_universe_m_d_ref) <- NULL
+        final_stock_universe_m_d_ref <- create_meta_dataframe(final_stock_universe_m_d_ref, type = "stock_universe", port_backtest_workflow = port_backtest_workflow)
+
+    }
 
   ###Get final object
     port_backtest_results <- new(
@@ -1320,13 +1443,14 @@ run_port_backtest_internal <- function(
       port_costs_m_xts = port_costs_m_xts,
       port_metrics_m_xts = port_metrics_m_xts,
       port_returns_m_xts = port_returns_m_xts,
-      final_stock_port = stock_port,
+      final_stock_port = if (.update && !exists("stock_port")) NULL else stock_port, #If an update is applied without rebalancing, this will be NULL
       port_construction_method = port_construction_method,
-      sb_backtest_results = NULL,
-      stock_universe_m_df = stock_universe_m_df,
-      final_stock_universe_m_d_ref = final_stock_universe_m_d_ref,
+      port_backtest_config = NULL,
+      stock_universe_m_df = stock_universe_m_df, #If an update is applied without rebalancing, this will be NULL
+      final_stock_universe_m_d_ref = final_stock_universe_m_d_ref, #If an update is applied without rebalancing, this will be NULL
       port_backtest_workflow = port_backtest_workflow,
-      backtest_identifier = port_backtest_workflow$backtest_identifier
+      backtest_identifier = port_backtest_workflow$backtest_identifier,
+      update = .update
     )
 
     #Return
