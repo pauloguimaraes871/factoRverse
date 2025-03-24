@@ -659,46 +659,81 @@ validate_liquidity_floor_cutoffs <- function(liquidity_floor_cutoffs, main_liqui
   invisible(TRUE)
 }
 
-#' Validate update_backtest_inputs
+
+
+#' Check for Consistent Dates in a Vector (Allowing NULLs)
 #'
-#' @description
-#' Checks that each object in a named list of `_m_df` or `_m_xts` objects:
-#' \itemize{
-#'   \item Matches the expected name in the \code{results@port_backtest_workflow}.
-#'   \item Has new dates beyond those in \code{dates_covered}.
-#'   \item Starts exactly one month after the last date in \code{dates_covered}.
-#'   \item Contains exactly \code{n_update} new dates, as specified in
-#'         \code{results@port_backtest_config@n_update}.
-#' }
+#' Checks whether all non-NULL date values in a given vector or list are equal.
 #'
-#' @param new_objects_list A named list of `_m_df` or `_m_xts` objects, each object having
-#'                         a \code{meta_dataframe_name} or \code{meta_xts_name} slot,
-#'                         plus a \code{@data} slot with actual data.
-#' @param results          A backtest results object that must contain:
-#'   \itemize{
-#'     \item \code{@port_backtest_workflow}, where each object name is stored in a field
-#'           named \code{<prefix>_obj_name}.
-#'     \item \code{@port_backtest_config}, which must have \code{n_update}.
-#'   }
-#' @param dates_covered    A vector of dates that have already been covered by the backtest.
+#' @param current_dates A list or vector of dates. Can include `NULL` or `NA` values.
 #'
-#' @return
-#' \code{TRUE} (invisibly) if all checks pass, otherwise raises an error via \code{stop()}.
+#' @return Invisibly returns `TRUE` if all non-NULL, non-NA dates are identical;
+#' otherwise, throws an error listing the differing dates.
 #'
 #' @examples
 #' \dontrun{
-#'   # Example usage (pseudo-code):
-#'   new_list <- list(
-#'     signals_m_df = my_signals_m_df,
-#'     daily_stock_returns_m_xts = my_daily_stock_returns_m_xts
-#'   )
-#'   check_backtest_objects(
-#'     new_objects_list = new_list,
-#'     results = my_results,
-#'     dates_covered = my_dates_covered
-#'   )
+#' dates <- list(as.Date("2023-01-15"), as.Date("2023-01-15"), NULL)
+#' check_consistent_dates(dates)
 #' }
-check_update_backtest_objects <- function(new_objects_list, old_objects_names, dates_covered) {
+#'
+#' @export
+check_consistent_dates <- function(current_dates) {
+  # Remove NULLs and NAs
+  valid_dates <- current_dates[!vapply(current_dates, function(x) is.null(x) || is.na(x), logical(1))]
+
+  unique_dates <- unique(valid_dates)
+
+  if (length(unique_dates) > 1) {
+    stop(
+      "Inconsistent current_date values found: ",
+      paste(as.character(as.Date(as.numeric(unique_dates), origin = "1970-01-01")), collapse = ", ")
+    )
+  }
+
+  invisible(TRUE)
+}
+
+
+
+#' Validate Updated Backtest Objects
+#'
+#' @description
+#' Checks that each named `_m_df` or `_m_xts` object in \code{new_objects_list}
+#' satisfies the following conditions:
+#' \itemize{
+#'   \item Its internal \code{meta_dataframe_name} or \code{meta_xts_name} matches
+#'         the expected name in \code{old_objects_names_list[[arg_name]]}.
+#'   \item It provides new dates beyond those in \code{dates_covered}.
+#'   \item Unless it is a daily returns object (named `"daily_stock_returns_m_xts"`
+#'         or `"daily_bench_returns_m_xts"`), it starts exactly one month after
+#'         the last date in \code{dates_covered}.
+#'   \item The total number of new dates matches the required \code{n_update}
+#'         (taken from \code{config@n_update} inside the function).
+#' }
+#'
+#' @param new_objects_list A named list of `_m_df` or `_m_xts` objects. Each object
+#'   must have:
+#'   \itemize{
+#'     \item A \code{meta_dataframe_name} or \code{meta_xts_name} slot (depending
+#'           on whether it’s an \code{_m_df} or \code{_m_xts} object).
+#'     \item A \code{@data} slot containing the underlying data (a \code{data.frame}
+#'           in the case of an \code{_m_df}, or an \code{xts} object for an \code{_m_xts}).
+#'     \item A \code{@current_date} slot (optional for your checks, but used in
+#'           some places).
+#'   }
+#' @param old_objects_names_list A named list or vector that maps each \code{arg_name}
+#'   in \code{new_objects_list} to the “official” or expected name. For example:
+#'   \code{old_objects_names_list[["signals_m_df"]]} might be \code{"my_signals"}.
+#' @param dates_covered A vector of dates that have already been covered by previous
+#'   backtest data. The function checks that the new objects contain dates strictly
+#'   after these.
+#' @param n_update The number of new dates that should be present in the updated objects.
+#'
+#' @return
+#' Returns \code{TRUE} invisibly if all checks pass. Otherwise, it raises an error
+#' via \code{stop()}.
+#'
+check_update_backtest_objects <- function(new_objects_list, old_objects_names_list, dates_covered, n_update) {
 
   ##Initial Prep
   ###############
@@ -716,7 +751,6 @@ check_update_backtest_objects <- function(new_objects_list, old_objects_names, d
   ###############
   for (arg_name in names(new_objects_list)) {
     obj <- new_objects_list[[arg_name]]
-    old_obj <- old_results[[arg_name]]
 
     ###If NULL, skip
     if (is.null(obj)) next
@@ -725,14 +759,17 @@ check_update_backtest_objects <- function(new_objects_list, old_objects_names, d
     if (grepl("_m_df$", arg_name)) {
       ####Extract meta name
       meta_name <- obj@meta_dataframe_name #Suffix is _m_df => check meta_dataframe_name
-      expected_name <- old_obj@meta_dataframe_name
+      expected_name <- old_objects_names_list[[arg_name]]
       ####Extract dates for m_df
       new_obj_dates <- obj@data %>% dplyr::pull(dates) %>% unique() %>% sort() #Suffix is _m_df => acess underlying data.frame
+      new_current_date <- obj@current_date
     } else if (grepl("_m_xts$", arg_name)) {
       ####Extract meta name
       meta_name <- obj@meta_xts_name #Suffix is _m_xts => check meta_xts_name
+      expected_name <- old_objects_names_list[[arg_name]]
       ####Extract dates for m_xts
       new_obj_dates <- zoo::index(obj@data)
+      new_current_date <- obj@current_date
     } else {
       # If object name doesn't end in _m_df or _m_xts, skip
       next
@@ -766,7 +803,11 @@ check_update_backtest_objects <- function(new_objects_list, old_objects_names, d
       ))
     }
 
+    ###Check if new_current_date is n_update months ahead of old_current_date
+
+
     ####Check if new date is within expected range
+    if (!arg_name %in% c("daily_stock_returns_m_xts", "daily_bench_returns_m_xts")){
     expected_next_date <- lubridate::add_with_rollback(last_date_covered, months(1))
     if (first_new_date != expected_next_date) {
       stop(sprintf(
@@ -777,15 +818,16 @@ check_update_backtest_objects <- function(new_objects_list, old_objects_names, d
     }
 
     ####Check if total new # of dates is consistent with n_update
-    if ((length(new_obj_dates) - length(dates_covered)) != config@n_update) {
+    if ((length(new_obj_dates) - length(dates_covered)) != n_update) {
       stop(sprintf(
         paste0("The new dates in %s do not conform to the expected n_update.\n",
                "Expected total length: %s\nGot total length: %s"),
         arg_name,
-        length(dates_covered) + config@n_update,
+        length(dates_covered) + n_update,
         length(new_obj_dates)
       ))
     }
+   }
   }
   ###############
 
