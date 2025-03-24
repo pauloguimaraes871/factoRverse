@@ -255,8 +255,18 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
 
   #Now run with winsorize and normalize
-  winsorized_predictions_m_df <- predictions_m_df@data %>% dplyr::select(-names(features_passthrough_and_positions)) %>% winsorize_panel_data(probs = c(0.025,0.975))
-  normalized_predictions_m_df <- winsorized_predictions_m_df %>% normalize_panel_data()
+  only_predictions_m_df <- predictions_m_df
+  only_predictions_m_df@data <- only_predictions_m_df@data %>% dplyr::select(-names(features_passthrough_and_positions))
+
+  recipe <- recipes::recipe(only_predictions_m_df@data) %>%
+    recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+    recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+    recipes::step_zv(recipes::all_numeric_predictors()) %>%
+    step_winsorize(recipes::all_numeric_predictors(), probs = c(0.025,0.975)) %>%
+    recipes::step_range(recipes::all_numeric_predictors(), min = -1, max = 1)
+
+  normalized_predictions_m_df <- map_recipe_timewise(only_predictions_m_df, recipe = recipe, parallel = TRUE)
+
   normalized_predictions_m_df <- dplyr::left_join(normalized_predictions_m_df@data,
                                                  features_m_df@data %>% dplyr::select(id, names(features_passthrough_and_positions)),
                                                  by = "id")
@@ -267,8 +277,10 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
   expect_equal(predictions_m_df@data, normalized_predictions_m_df)
 
   #Check for correct winsorization
-  expect_equal(predictions_m_df@workflow,
-               list(c("winsorization with 0.025 0.975 quantiles and following variables with Infs preserved: "), c("normalization")))
+  expect_equal(names(predictions_m_df@workflow), "preprocessing_recipe_2023-07-15")
+  expect_equal(length(predictions_m_df@workflow$`preprocessing_recipe_2023-07-15`$recipe$steps), 3)
+
+
 
 
 })

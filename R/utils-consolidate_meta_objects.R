@@ -8,8 +8,11 @@
 #' @param winsorize_predictions Logical; if `TRUE`, performs winsorization on predictions to mitigate the effect of outliers. Default is `TRUE`.
 #' @param normalize_predictions Logical; if `TRUE`, normalizes predictions to ensure comparability across models. Default is `TRUE`.
 #' @param winsorization_probs A numeric vector of length 2 specifying the lower and upper quantile probabilities for winsorization. Default is `c(0.025, 0.975)`.
-#' @param features_passthrough Character; specifies which features from `features_m_df` to include in the output. Options are `"none"`, `"all"`, or specific feature names. Default is `"none"`.
+#' @param features_passthrough_and_positions Character; specifies which features from `features_m_df` to include in the output. Options are `"none"`, `"all"`, or specific feature names. Default is `"none"`.
 #' @param features_m_df A meta dataframe of features to include in the passthrough. Only required if `features_passthrough` is not `"none"`. Default is `NULL`.
+#' @param parallel Logical; if `TRUE`, parallel processing is used to speed up the consolidation process. Default is `TRUE`.
+#' @param verbose Logical; if `TRUE`, progress messages are printed. Default is `TRUE`.
+#'
 #'
 #' @details
 #' The function performs a series of validation checks to ensure the consistency of input data:
@@ -39,7 +42,7 @@
 #'
 consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_outputs_list,
                                             winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
-                                            features_passthrough_and_positions = "none", features_m_df = NULL) {
+                                            features_passthrough_and_positions = "none", features_m_df = NULL, parallel = TRUE, verbose = TRUE) {
 
   #Initial checks
   #########################
@@ -122,9 +125,31 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_outputs_list,
     ##Transform to meta dataframe
     oos_predictions_m_df <- create_meta_dataframe(oos_predictions_m_df, type = "signals")
 
-    # Perform Winsorization and Normalization
-    if (winsorize_predictions) oos_predictions_m_df <- winsorize_panel_data(oos_predictions_m_df, probs = winsorization_probs)
-    if (normalize_predictions) oos_predictions_m_df <- normalize_panel_data(oos_predictions_m_df)
+    ##Perform Winsorization and Normalization
+    if (any(winsorize_predictions, normalize_predictions)) {
+
+      ###Define recipe
+      oos_preds_recipe <- recipes::recipe(oos_predictions_m_df@data) %>%
+        recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+        recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+        recipes::step_zv(recipes::all_predictors()) # Remove zero variance predictors
+
+        ####Winsorize Step
+        if (winsorize_predictions) {
+          oos_preds_recipe <- oos_preds_recipe %>%
+            step_winsorize(recipes::all_numeric_predictors(), probs = winsorization_probs) # Winsorize
+        }
+        ####Normalize Step
+        if (normalize_predictions) {
+          oos_preds_recipe <- oos_preds_recipe %>%
+            recipes::step_range(recipes::all_numeric_predictors(), min = -1, max = 1) # Normalize
+        }
+      ###Apply recipe
+      oos_predictions_m_df <- map_recipe_timewise(oos_predictions_m_df, recipe = oos_preds_recipe,
+                                                  parallel = parallel, verbose = verbose)
+
+    }
+
   #########################
 
   # Add Pass-through features
@@ -292,7 +317,9 @@ consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_
                               paste0(main_generic_m_df@meta_dataframe_name, "_", supplemental_generic_m_df@meta_dataframe_name)
                             } else {
                               main_generic_m_df@meta_dataframe_name
-                            }, type = type)
+                            }, type = type,
+                               port_backtest_worklow = if (type == "stock_universe") main_generic_m_df@workflow else NULL
+                            )
 
   return(consolidated_generic_m_df)
 }
@@ -300,45 +327,46 @@ consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_
 #' @title Consolidate Newly Produced Backtest Results
 #'
 #' @description
-#' This function takes a named list of newly produced backtest results, each either
-#' an \code{_m_df} or an \code{_m_xts} object, and merges each with the corresponding
-#' old object retrieved from the global \code{results} object. The old object is
-#' treated as the "main" data source, and the new object as the "additional" data.
+#' This function takes a named list of newly produced backtest results (the "new" objects),
+#' and merges each with the corresponding old object from an explicitly provided list
+#' (`old_backtest_outputs_list`). The old object is treated as the "main" data source,
+#' and the new object as the "supplemental" data to be appended.
 #'
 #' Specifically:
 #' \itemize{
 #'   \item For objects whose name ends with \code{"_m_df"}, the function uses
 #'         \code{\link{consolidate_generic_meta_dataframes}}.
-#'   \item For objects whose name ends with \code{"_m_xts"}, it uses
+#'   \item For objects whose name ends with \code{"_m_xts"}, the function uses
 #'         \code{\link{consolidate_generic_meta_xts}}, with an operation of
 #'         \code{"bind_rows"}.
 #' }
 #'
-#' @param backtest_outputs_list A named list of new backtest results. Each element's
-#'   name (like \code{"port_weights_m_df"}) must match the corresponding slot name in
-#'   the global \code{results} object. Values should be S4 objects that have a
-#'   \code{data} slot (accessible via \code{new_obj@data}).
+#' @param new_backtest_outputs_list A named list of **new** backtest objects (S4).
+#'   Each element's name (e.g. \code{"port_weights_m_df"}) must match the slot name
+#'   used in the old backtest. These objects are the "additional" data.
 #'
-#' @return A named list of consolidated objects, each updated to include both the
-#' old and new data. The order of returned elements matches the order in
-#' \code{backtest_outputs_list}.
+#' @param old_backtest_results An **old** port_backtest_results objects (S4).
+#'   These objects are considered the "main" data source.
+#'
+#' @return A named list of **consolidated** S4 objects. The returned list has
+#' the same names as \code{new_backtest_outputs_list}, but each item now contains
+#' **both** old and new data merged together in \code{new_obj@data}.
 #'
 #' @details
-#' The function will:
 #' \enumerate{
-#'   \item Look up an old object in the global \code{results} by the same name.
-#'   \item If the name ends with \code{"_m_df"}, call
-#'         \code{consolidate_generic_meta_dataframes(main_generic_m_df = old_obj,
-#'         additional_generic_m_df = new_obj, ...)}.
-#'   \item If the name ends with \code{"_m_xts"}, call
-#'         \code{consolidate_generic_meta_xts(main_generic_m_xts = old_obj,
-#'         additional_generic_m_xts = new_obj, ...)}.
-#'   \item Update the \code{@data} slot of the new object with the consolidated result.
-#'   \item Return the updated new object in the output list.
+#'   \item Looks up an old object in \code{old_backtest_outputs_list} by the same key.
+#'   \item If the name ends with \code{"_m_df"}, calls
+#'       \code{consolidate_generic_meta_dataframes(main_generic_m_df = old_obj,
+#'       supplemental_generic_m_df = new_obj, ...)}.
+#'   \item If the name ends with \code{"_m_xts"}, calls
+#'       \code{consolidate_generic_meta_xts(main_generic_m_xts = old_obj,
+#'       supplemental_generic_m_xts = new_obj, ...)}.
+#'   \item Updates \code{new_obj@data} slot with the merged data.
+#'   \item Returns the updated \code{new_obj} in the output list.
 #' }
 #'
-#' An error will be thrown if \code{results[[slot_name]]} does not exist or if the
-#' slot name does not match the expected \code{"_m_df"} or \code{"_m_xts"} pattern.
+#' An error is thrown if no matching old object is found, or if the slot name does not
+#' match the \code{"_m_df"} or \code{"_m_xts"} pattern.
 #'
 #' @seealso
 #' \code{\link{consolidate_generic_meta_dataframes}},
@@ -346,69 +374,87 @@ consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_
 #'
 #' @examples
 #' \dontrun{
-#'   # Suppose you have a global 'results' object with old backtest results,
-#'   # and you produce a new list of updated objects:
-#'   new_list <- list(
-#'     port_weights_m_df = new_port_weights_m_df,
-#'     stock_universe_m_df = new_stock_universe_m_df,
-#'     port_returns_m_xts = new_port_returns_m_xts
+#'   # Suppose you have:
+#'   #   - old_results (port_backtest_results) with existing data
+#'   #   - a new list 'new_list' with updated S4 objects
+#'
+#'   # Construct the 'old_backtest_outputs_list':
+#'   old_list <- list(
+#'     port_weights_m_df   = old_results@port_weights_m_df,
+#'     stock_universe_m_df = old_results@stock_universe_m_df,
+#'     port_returns_m_xts  = old_results@port_returns_m_xts,
+#'     port_costs_m_xts    = old_results@port_costs_m_xts
+#'     # add more as needed...
 #'   )
 #'
-#'   # Consolidate
-#'   updated_list <- consolidate_backtest_results(new_list)
-#'
-#'   # 'updated_list' now holds consolidated versions of the new objects,
-#'   # each combined with the old data in 'results'.
+#'   # Then call:
+#'   updated_list <- consolidate_backtest_results(
+#'     new_backtest_outputs_list = new_list,
+#'     old_backtest_outputs_list = old_list
+#'   )
 #' }
 #'
-consolidate_backtest_results <- function(backtest_outputs_list){
+consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest_results){
 
-  ### Consolidate using purrr
+  #Consolidate using purrr
   updated_results_list <- purrr::imap(
-    .x = backtest_outputs_list,
+    .x = new_backtest_outputs_list,
     .f = function(new_obj, slot_name){
 
-      #### Retrieve the old object by the same slot name from 'results'
-      old_obj <- results[[slot_name]]
-      ##### Check if it exists
+      ##Retrieve the old object by the same slot name
+      old_obj <- methods::slot(old_backtest_results, slot_name)
+      ##Check if it exists
       if (is.null(old_obj)) {
-        stop(sprintf("No old object named '%s' in 'results'.", slot_name))
+        stop(sprintf("No old object named '%s' in 'old_backtest_outputs_list'.", slot_name))
       }
 
-      #### Consolidate data
+      ##Consolidate data
       if (grepl("_m_df$", slot_name)) {
 
-        # Use the "dataframes" consolidation
-        consolidated_m_df <- consolidate_generic_meta_dataframes(
+        if (slot_name == "stock_universe_m_df") browser()
+
+        ###Use the "dataframes" consolidation
+        updated_obj <- consolidate_generic_meta_dataframes(
           main_generic_m_df = old_obj,  # the 'main' object
           supplemental_generic_m_df  = new_obj,  # the 'additional' object
           type = stringr::str_remove(class(new_obj), "_m_df"),
           consolidate_name = FALSE
         )
-        # Update the new object's data slot
-        new_obj@data <- consolidated_m_df
 
       } else if (grepl("_m_xts$", slot_name)) {
 
-        # Use the "xts" consolidation
-        consolidated_m_xts <- consolidate_generic_meta_xts(
+        ###Use the "xts" consolidation
+        updated_obj <- consolidate_generic_meta_xts(
           main_generic_m_xts       = old_obj,
           supplemental_generic_m_xts = new_obj,
           type = stringr::str_remove(class(new_obj), "_m_xts"),
           consolidate_name = FALSE,
           operation = "bind_rows"
         )
-        # Update the new object's data slot
-        new_obj@data <- consolidated_m_xts
 
       } else {
-        # If neither, we warn and return the new object unchanged
-        warning(sprintf("Slot '%s' doesn't match _m_df nor _m_xts suffix; skipping.", slot_name))
-        return(new_obj)
+        ###If neither, warn and return the new object unchanged
+        stop(sprintf("Slot '%s' doesn't match _m_df nor _m_xts suffix."))
       }
 
-      #### Return the updated object
-      new_obj
+        ####Update workflow
+        new_entry <- list(
+          list(
+            new_date = new_obj@current_date,
+            timestamp = Sys.time(),
+            incremental_obj_workflow = new_obj@workflow
+          )
+        )
+
+        updated_workflow <- c(old_obj@workflow, new_entry) #Add to the old workflow
+        names(updated_workflow)[length(updated_workflow)] <- paste0("update_", new_obj@current_date)
+
+
+        ####Update the new object's workflow
+        updated_obj@workflow <- updated_workflow
+
+        ####Return the updated object
+        updated_obj
     }
   )
   return(updated_results_list)
@@ -424,13 +470,13 @@ consolidate_backtest_results <- function(backtest_outputs_list){
 #' It processes evaluation metrics across multiple backtest results and integrates them with meta-level data.
 #'
 #' @param meta_custom_objective A character string representing the custom objective (e.g., 'min_rss').
-#' @param base_sb_backtest_outputs_list A list of backtest results for processing.
+#' @param base_sb_backtest_results_list A list of backtest results for processing.
 #' @param meta_custom_signal_universe_metrics_m_df Meta-level metrics dataframe.
 #' @param base_custom_signal_universe_metrics_m_df Base-level metrics dataframe.
 #'
 #' @return A combined and processed dataframe of signal universe metrics.
 #'
-derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, base_sb_backtest_outputs_list,
+derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, base_sb_backtest_results_list,
                                                        meta_custom_signal_universe_metrics_m_df, base_custom_signal_universe_metrics_m_df
                                                         ) {
 
@@ -439,7 +485,7 @@ derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, ba
     ###Use reduce to join all oos_testing_eval_metrics_m_df into a consolidate object
     purrr::map(
       ####Apply a map function to transform each oos_testing_eval_metrics_m_xts into a meta_dataframe-like object
-      base_sb_backtest_outputs_list,
+      base_sb_backtest_results_list,
       function(x){
         x@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% #First extract all oos_testing eval metrics xts
           tibble::rownames_to_column(var = "dates") %>% #Rename to dates column
