@@ -45,16 +45,16 @@ setMethod("map_recipe_timewise",
              required_id_vars <- c("id", "tickers", "dates")
              for (var in required_id_vars) {
                if (!(var %in% var_info$variable))
-                 return(paste("Required variable", var, "is not present in the recipe."))
+                 stop(paste("Required variable", var, "is not present in the recipe."))
                role <- var_info$role[var_info$variable == var]
                if (!("id_vars" %in% role))
-                 return(paste("Variable", var, "must have the role 'id_vars'."))
+                 stop(paste("Variable", var, "must have the role 'id_vars'."))
              }
 
              ##Check that all columns in meta_dataframe have a role assigned in recipe
              missing_roles <- var_info %>% dplyr::filter(is.na(role)) %>% dplyr::pull(variable)
              if (length(missing_roles) > 0)
-               return(paste("The following columns do not have an assigned role in the recipe:",
+               stop(paste("The following columns do not have an assigned role in the recipe:",
                             paste(missing_roles, collapse = ", ")))
 
              ##Check that var_info$role contains either only outcome or no outcome
@@ -62,7 +62,7 @@ setMethod("map_recipe_timewise",
              has_outcome <- any(sapply(var_info$role, function(x) "outcome" %in% x))
              #It can be has_all_outcome and has_outcome, but not only has_outcome
              if (has_outcome && !has_all_outcome){
-               return("Please create a specific meta_dataframe with appropriate type to manage targets separately.")
+               stop("Please create a specific meta_dataframe with appropriate type to manage targets separately.")
              }
 
             #################
