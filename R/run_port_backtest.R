@@ -648,6 +648,16 @@ setMethod("run_port_backtest",
                 port_backtest_results@port_backtest_workflow$custom_stock_metrics_object_name <- custom_stock_metrics_object_name
                 port_backtest_results@port_backtest_workflow$custom_stock_metrics_workflow <- custom_stock_metrics_workflow
               }
+              ###user_defined_OR_rules_m_df
+              if (!is.null(user_defined_OR_rules_m_df)){
+                port_backtest_results@port_backtest_workflow$user_defined_OR_rules_object_name <- user_defined_OR_rules_object_name
+                port_backtest_results@port_backtest_workflow$user_defined_OR_rules_workflow <- user_defined_OR_rules_workflow
+              }
+              ###user_defined_AND_rules_m_df
+              if (!is.null(user_defined_AND_rules_m_df)){
+                port_backtest_results@port_backtest_workflow$user_defined_AND_rules_object_name <- user_defined_AND_rules_object_name
+                port_backtest_results@port_backtest_workflow$user_defined_AND_rules_workflow <- user_defined_AND_rules_workflow
+              }
 
             ##Call
             port_backtest_results@port_backtest_workflow$call <- sys.call(-2)
@@ -894,7 +904,6 @@ run_port_backtest_internal <- function(
     } else {
       selected_benchmark_returns_m_xts <- NULL
       selected_benchmark_weights_m_df <- NULL
-      selected_daily_bench_returns_m_xts <- NULL
       selected_daily_cov_matrix_bench_m_xts <- NULL
     }
 
