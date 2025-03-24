@@ -535,7 +535,7 @@ setClass(
   validity = function(object) {
     main_xts <- object@data
     idx <- zoo::index(main_xts)
-    freq_info <- xts::periodicity(main_xts)
+    freq_info <- suppressWarnings(xts::periodicity(main_xts))
     discovered_scale <- freq_info$scale
 
     # Check for consecutive dates
@@ -2804,6 +2804,7 @@ setClass(
 #' @slot port_returns_m_xts A meta xts object containing portfolio returns (raw and net returns) indexed by dates.
 #' @slot port_backtest_workflow A list detailing the portfolio backtest workflow, including parameters, rebalancing dates, and other metadata.
 #' @slot backtest_identifier A character string representing the backtest identifier.
+#' @slot update A logical indicating whether the backtest results are an update or an original backtest.
 #'
 #' @export
 setClass(
@@ -2815,14 +2816,29 @@ setClass(
     port_costs_m_xts = "meta_xts",
     port_metrics_m_xts = "ANY",
     port_returns_m_xts = "meta_xts",
-    final_stock_port = "stock_port",
+    final_stock_port = "ANY",
     port_construction_method = "character",
-    stock_universe_m_df = "stock_universe_m_df",
-    final_stock_universe_m_d_ref = "stock_universe_m_df",
+    stock_universe_m_df = "ANY", #In an update, this might be empty
+    final_stock_universe_m_d_ref = "ANY", #In an update, this might be empty
     port_backtest_workflow = "list",
-    backtest_identifier = "character"
+    backtest_identifier = "character",
+    update = "logical"
   ),
   validity = function(object) {
+
+    #Updated objects are temporarily allowed to have empty stock_universe_m_df and final_stock_universe_m_d_ref
+    if (!object@update){
+      #Check classes of final-stock_port, stock_universe_m_df and final_stock_universe_m_d_ref
+      if (!inherits(object@final_stock_port, "stock_port")) {
+        return("final_stock_port must be a 'stock_port' object")
+      }
+      if (!inherits(object@stock_universe_m_df, "stock_universe_m_df")) {
+        return("stock_universe_m_df must be a 'stock_universe_m_df' object")
+      }
+      if (!inherits(object@final_stock_universe_m_d_ref, "stock_universe_m_df")) {
+        return("final_stock_universe_m_d_ref must be a 'stock_universe_m_df' object")
+      }
+    }
 
     if (!is.null(object@port_backtest_config) && !inherits(object@port_backtest_config, "port_backtest_config")) {
       return("port_backtest_config must be a 'port_backtest_config' object or NULL")
