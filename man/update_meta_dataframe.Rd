@@ -4,12 +4,14 @@
 \alias{update_meta_dataframe}
 \title{Update Meta Dataframe}
 \usage{
-update_meta_dataframe(old_features_m_df, new_features_m_df)
+update_meta_dataframe(old_features_m_df, new_features_m_df, ...)
 }
 \arguments{
 \item{old_features_m_df}{A features meta_dataframe object with previous data}
 
 \item{new_features_m_df}{A features meta dataframe object with new data}
+
+\item{batch_type}{A character string indicating the batch type. Default is 'monthly'}
 }
 \value{
 Updated meta_dataframe object
