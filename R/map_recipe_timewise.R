@@ -30,7 +30,7 @@ setGeneric("map_recipe_timewise", function(meta_dataframe, recipe, ...) {
 
 setMethod("map_recipe_timewise",
           signature(meta_dataframe = "meta_dataframe", recipe = "recipe"),
-          function(meta_dataframe, recipe, verbose, parallel = TRUE, type = "signals") {
+          function(meta_dataframe, recipe, verbose = TRUE, parallel = TRUE, type = "signals") {
 
             #Initial steps
             #################
