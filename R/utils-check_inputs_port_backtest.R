@@ -123,7 +123,7 @@ check_inputs_port_backtest <- function(
     }
 
     #Check if it is less than the number of assets
-    mean_n_assets <- signals_m_df %>% dplyr::group_by(date) %>% dplyr::summarize(n_assets = n()) %>% dplyr::pull(n_assets) %>% mean()
+    mean_n_assets <- signals_m_df %>% dplyr::group_by(date) %>% dplyr::summarize(n_assets = dplyr::n()) %>% dplyr::pull(n_assets) %>% mean()
     if(min_eligible_assets_fallback >= mean_n_assets){
       stop("min_eligible_assets_fallback should be less than the average number of assets.")
     }

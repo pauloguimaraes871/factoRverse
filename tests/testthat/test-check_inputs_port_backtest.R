@@ -1328,6 +1328,45 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       verbose = TRUE
     ),"fwd_return_m_df before last period should contain only numeric columns with non-NAs.")
 
+  #Number of dates with NAs only 1
+  wrong_fwd_return_m_df <- target_m_df %>% dplyr::select(-fwd_return_3m, -fwd_return_6m)
+  wrong_fwd_return_m_df$fwd_return_1m[which(wrong_fwd_return_m_df$dates == as.Date("2001-06-15"))] <- NA
+
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = NULL,
+      daily_bench_returns_m_xts = NULL,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 25,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = wrong_fwd_return_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = NULL,
+      liquidity_constraint_policy = NULL,
+      turnover_constraint_policy = NULL,
+      liquidity_floor_cutoffs = NULL,
+      user_defined_OR_rules_m_df = NULL,
+      user_defined_AND_rules_m_df = NULL,
+      transaction_costs_parameters = list(strategy_aum = 10, direct_transaction_cost = 0.07, alpha = 0.5, lambda = "dynamic"),
+      verbose = TRUE
+    ),"fwd_return_m_df can't have NAs in the first backtesting period")
+
+
 
   #IDs do not match
   wrong_fwd_return_m_df <- target_m_df %>% dplyr::select(-fwd_return_3m, -fwd_return_6m)
@@ -1787,6 +1826,76 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
       verbose = TRUE
     ), "Error in concentration_constraint_policy: names of group constraints must match groups in stock_groups_m_df"
   )
+
+  #not mvo and concentration
+  wrong_concentration_constraint_policy <- concentration_constraint_policy
+
+  expect_error(
+    expect_message(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      rebalancing_months = 7,
+      initial_buffer_period = 2,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = target_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = wrong_concentration_constraint_policy,
+      verbose = TRUE
+    ), "concentration_constraint_policy is only available for port_construction_method = 'mvo'. Ignoring concentration_constraint_policy"
+  )
+  )
+
+  #benchmark not present
+  wrong_concentration_constraint_policy <- concentration_constraint_policy
+  wrong_benchmark_returns_m_xts <- benchmark_returns_m_xts
+  colnames(wrong_benchmark_returns_m_xts)[1] <- "abeb"
+
+  expect_error(
+      check_inputs_port_backtest(
+        signals_m_df = signals_m_df,
+        oos_predictions_m_df = NULL,
+        min_eligible_assets_fallback = NULL,
+        chosen_score_metric_and_position = c(Alpha = "long"),
+        rebalancing_months = 7,
+        initial_buffer_period = 2,
+        port_construction_method = "sw",
+        eligibility_quantile_range = c(0.5,0.75),
+        daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+        daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+        cov_matrix_benchmark = "ibov",
+        cov_matrix_sample_size = 100,
+        selected_benchmark = "abeb",
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        stock_groups_m_df = stock_groups_m_df,
+        liquidity_m_df = liquidity_m_df,
+        main_liquidity_metric = "mean_volfin_3m",
+        volatility_m_df = volatility_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        custom_stock_weights_m_df = NULL,
+        fwd_return_m_df = target_m_df,
+        custom_stock_metrics_m_df = NULL,
+        concentration_constraint_policy = wrong_concentration_constraint_policy,
+        verbose = TRUE
+      ), "selected_benchmark should be present in benchmark_returns_m_xts"
+    )
+
+
 
 
 })
