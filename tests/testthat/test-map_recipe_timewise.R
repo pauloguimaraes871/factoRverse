@@ -1,4 +1,4 @@
-#sector_winsorize----------------
+#winsorize----------------
 test_that("step_winsorize prep computes correct limits", {
   # Sample dataset
   df <- data.frame(
@@ -1020,6 +1020,77 @@ test_that("map_recipe_timewise throws an error when rows with only NAs are not c
 
 })
 
+test_that("map_recipe_timewise throws error when roles are not correctly defined", {
+
+  # Load excel and set inputs and outputs
+  results <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
+                                              features_sheet_names = c("ebit_12m", "ir_3m", "sharpe", "mkt_cap", "sector_c1"),
+                                              features_sheet_range = c("D4:F22"),
+                                              tickers_sheet_range = c("C4:C22"),
+                                              dates_sheet_range = c("D1:F1"),
+                                              output_sheet_name = c("panel"),
+                                              output_sheet_range = c("B1:I58"),
+                                              industry_classification_column_name = c("sector_c1"))
+
+  # Apply function
+  panel <- create_meta_dataframe(data = results$inputs$feature_list,
+                                 tickers = results$inputs$tickers$...1,
+                                 dates  = results$inputs$dates,
+                                 features_names = results$inputs$features_names)
+
+  # Introduce a missing factor level for a random date
+  set.seed(123)
+  random_date <- sample(unique(panel@data$dates), 1)
+  panel@data <- panel@data %>%
+    dplyr::mutate(sector_c1 = ifelse(dates == random_date & sector_c1 == "Indústria", NA, sector_c1))
+
+
+  # Create recipe with step_impute_knn and step_impute_mode for sector_c1
+  recipe <- recipes::recipe(panel@data) %>%
+    recipes::step_impute_knn(
+      recipes::all_numeric_predictors(),
+      neighbors = 5,
+      impute_with = recipes::imp_vars(recipes::all_numeric_predictors())
+      )
+
+  # Run and check that will not work bco of NAs in KNN (Some rows will have NAs because of only NAs in rows)
+  expect_error(
+    map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE),
+    "Variable id must have the role 'id_vars'.")
+
+
+
+  # Create recipe with step_impute_knn and step_impute_mode for sector_c1
+  recipe <- recipes::recipe(panel@data) %>%
+    recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+    recipes::step_impute_knn(
+      recipes::all_numeric_predictors(),
+      neighbors = 5,
+      impute_with = recipes::imp_vars(recipes::all_numeric_predictors())
+    )
+
+  expect_error(
+    map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE),
+    "The following columns do not have an assigned role in the recipe: ebit_12m, ir_3m, sharpe, mkt_cap, sector_c1")
+
+  recipe <- recipes::recipe(panel@data) %>%
+    recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+    recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+    recipes::update_role(sector_c1, new_role = "outcome") %>%
+    recipes::step_impute_knn(
+      recipes::all_numeric_predictors(),
+      neighbors = 5,
+      impute_with = recipes::imp_vars(recipes::all_numeric_predictors())
+    )
+
+  expect_error(
+    map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE),
+    "Please create a specific meta_dataframe with appropriate type to manage targets separately.")
+
+
+
+})
+
 test_that("map_recipe_timewise throws an error when there is only one observation in a row", {
 
   # Load excel and set inputs and outputs
@@ -1070,6 +1141,7 @@ test_that("map_recipe_timewise throws an error when there is only one observatio
 
 
 })
+
 
 #integration with other functions
 test_that("map_recipe_timewise integrates with tickers_catalog and compute FUNs", {
