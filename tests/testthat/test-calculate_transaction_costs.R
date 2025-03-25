@@ -57,13 +57,16 @@ test_that("calculate transaction costs works for constant lambda at new rebalanc
                                                  main_liquidity_metric = "mean_volfin_3m"
   )
 
+
   #Get transaction costs
+  expect_message(
   results <- calculate_transaction_costs(
     transactions_m_d_ref = transactions_m_d_ref,
     alpha = 0.5, lambda = .5,
     direct_transaction_cost = 0.07,
     strategy_aum = 1,
-    verbose = FALSE
+    verbose = TRUE
+  )
   )
 
   #Compare with hand-calculated (transaction_cost_calc)
