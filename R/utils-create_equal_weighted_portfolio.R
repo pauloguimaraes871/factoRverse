@@ -39,7 +39,7 @@ create_equal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
     cat("\n")
     cat(crayon::green(paste("Equal-weights succesfully defined")))
     cat("\n")
-    elapsed_time <- tictoc::toc()
+    tictoc::toc()
   }
 
   #Return

@@ -194,7 +194,7 @@ create_mvo_portfolio <- function(universe_m_d_ref,
     cat("\n")
     cat(paste("Expected Sharpe:", round(expected_sharpe[as.numeric(gsub("V", "", best_portfolio))],3)))
     cat("\n")
-    elapsed_time <- tictoc::toc()
+    tictoc::toc()
   }
 
   #Return

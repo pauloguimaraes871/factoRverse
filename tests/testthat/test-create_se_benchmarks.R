@@ -21,7 +21,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when all signals are
   )
 
   signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, "none")
-  signal_universe_m_d_ref$final_signal <- signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01)
+  signal_universe_m_d_ref$final_signal <- suppressWarnings(signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01))
   signal_universe_m_d_ref$pre_eligible_assets <- c(1,1,1)
 
   expected_results <- signal_universe_m_d_ref
@@ -58,7 +58,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when one signal is n
   )
 
   signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, "none")
-  signal_universe_m_d_ref$final_signal <- signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01)
+  signal_universe_m_d_ref$final_signal <- suppressWarnings(signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01))
   signal_universe_m_d_ref$pre_eligible_assets <- c(1,1,0)
 
   expected_results <- signal_universe_m_d_ref
@@ -89,7 +89,7 @@ test_that("create_se_benchmarks correctly builds benchmarks when one theme has n
   )
 
   signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, "none")
-  signal_universe_m_d_ref$final_signal <- signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01)
+  signal_universe_m_d_ref$final_signal <- suppressWarnings(signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01))
   signal_universe_m_d_ref$pre_eligible_assets <- c(1,0,1)
   selected_signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
                                       tickers = c("Alpha", "low_Beta", "Gamma"),
@@ -105,6 +105,67 @@ test_that("create_se_benchmarks correctly builds benchmarks when one theme has n
   expect_equal(create_se_benchmarks(signal_universe_m_d_ref, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref),
                dplyr::select(expected_results, id, tickers, dates, theme_ss, theme_sb),
                tolerance = 1e-3)
+
+
+})
+
+test_that("create_se_benchmarks throws error when no significant signal or no theme", {
+
+  #Create signals_m_d_ref_test
+  signal_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+                                        tickers = c("Alpha", "low_Beta", "Gamma"),
+                                        dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                        mean_active_return = rnorm(3, 0, 1),
+                                        tracking_error = runif(3, 0, 1),
+                                        IR = rnorm(3,0,1),
+                                        alpha = rnorm(3,0,1),
+                                        AP = rnorm(3,0,1),
+                                        beta = rnorm(3,0,1),
+                                        treynor = rnorm(3,0,1),
+                                        p_value = c(0.55,0.2,0.30)
+  )
+
+  signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, "none")
+  signal_universe_m_d_ref$final_signal <- suppressWarnings(signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01))
+  signal_universe_m_d_ref$pre_eligible_assets <- c(0,0,0)
+  selected_signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+                                               tickers = c("Alpha", "low_Beta", "Gamma"),
+                                               dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                               theme = c("value", "momentum", "value")
+  )
+
+
+  expect_error(create_se_benchmarks(signal_universe_m_d_ref, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref),
+               "No statistically significant signals to build se_benchmarks")
+
+
+  #Create signals_m_d_ref_test
+  signal_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+                                        tickers = c("Alpha", "low_Beta", "Gamma"),
+                                        dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                        mean_active_return = rnorm(3, 0, 1),
+                                        tracking_error = runif(3, 0, 1),
+                                        IR = rnorm(3,0,1),
+                                        alpha = rnorm(3,0,1),
+                                        AP = rnorm(3,0,1),
+                                        beta = rnorm(3,0,1),
+                                        treynor = rnorm(3,0,1),
+                                        p_value = c(0.025,0.02,0.03)
+  )
+
+  signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, "none")
+  signal_universe_m_d_ref$final_signal <- suppressWarnings(signal_transform(signal_universe_m_d_ref$alpha, 0.99, 0.01))
+  signal_universe_m_d_ref$pre_eligible_assets <- c(1,1,1)
+  selected_signal_themes_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "Gamma-2001-07-15"),
+                                               tickers = c("Alpha",  "Gamma"),
+                                               dates = c("2001-07-15",  "2001-07-15"),
+                                               theme = c("value", "value")
+  )
+
+  expect_error(create_se_benchmarks(signal_universe_m_d_ref, selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref),
+               "Some tickers do not have a theme assigned")
+
+
 
 
 })

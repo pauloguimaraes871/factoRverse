@@ -8,5 +8,7 @@ utils::globalVariables(c("id", "tickers", "untraded", "delisted", "listed", "old
                          "pred", "updated_port_weights", "is_eligible", "total_cost", "n_assets",
                          "fwd_return_1m", "liquidity_classification", "exp_ret_score", "individual_alpha",
                          ".", "bop_port_weights", "is_in_buffered_quantile_range", "was_in_old_portfolio",
-                         "does_liquidity_meets_turnover_cap_rule", "turnover_cap_rule", "liquidity_floor"
+                         "does_liquidity_meets_turnover_cap_rule", "turnover_cap_rule", "liquidity_floor",
+                         "rel_risk_contr", "max_weight", "min_weight", "cap_score", "pre_eligible_assets",
+                         "theme", "theme_sb"
                          ))

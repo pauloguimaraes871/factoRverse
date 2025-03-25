@@ -56,7 +56,7 @@ create_cap_scaled_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap
     cat("\n")
     cat(crayon::green(paste("Cap-scaled weights succesfully defined")))
     cat("\n")
-    elapsed_time <- tictoc::toc()
+    tictoc::toc()
   }
 
   #Return

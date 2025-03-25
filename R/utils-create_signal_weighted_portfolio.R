@@ -36,7 +36,7 @@ create_signal_weighted_portfolio <- function(universe_m_d_ref, verbose = TRUE){
     cat("\n")
     cat(crayon::green(paste("Signal weights succesfully defined")))
     cat("\n")
-    elapsed_time <- tictoc::toc()
+    tictoc::toc()
   }
 
 

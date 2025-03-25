@@ -37,7 +37,7 @@ create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix, rp
     cat("\n")
     cat(crayon::green(paste("Risk Parity weights succesfully defined")))
     cat("\n")
-    elapsed_time <- tictoc::toc()
+    tictoc::toc()
   }
 
 
