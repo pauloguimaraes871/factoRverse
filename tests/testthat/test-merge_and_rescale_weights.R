@@ -73,7 +73,6 @@ test_that("merge_and_rescale weight works for first rebalancing - 1 delisting in
 
 })
 
-
 test_that("merge_and_rescale weight works for first rebalancing - 1 IPO", {
 
   #Create signals_m_d_ref
@@ -266,6 +265,63 @@ test_that("merge_and_rescale weight works for non-rebalancing - 1 IPO", {
 
 })
 
+test_that("merge_and_rescale weight works for non-rebalancing - 1 IPO - no bench", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
+
+  #Current date
+  current_date <- "2001-06-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
+  updated_port_weights_m_lstd_ref$bop_port_weights <- c(0.25, 0.15, 0.35, 0, 0.50)
+
+  #Exclude a stock
+  updated_port_weights_m_lstd_ref <- updated_port_weights_m_lstd_ref %>% dplyr::filter(!tickers == "Stock D")
+
+
+  #Results
+  #Expect delisting message
+  expect_message(
+    results <- merge_and_rescale_weights(port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
+                                         updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+                                         selected_benchmark_weights_m_d_ref = NULL
+    )
+  )
+
+  #Checks that only new tickers are contemplated in results
+  expect_equal(results$port_weights_m_d_ref$tickers, port_weights_placeholder_m_d_ref$tickers)
+  expect_false("Stock B" %in% results$port_weights_m_d_ref$tickers)
+  expect_true("Stock D" %in% results$port_weights_m_d_ref$tickers)
+
+  #Check that weights sum to 1
+  expect_equal(sum(results$port_weights_m_d_ref$eop_port_weights), 1)
+
+  #Check that weights are correctly re-scaled
+  expect_equal(results$port_weights_m_d_ref$eop_port_weights, c(0.25/(0.25 + 0.35 + 0.50), 0.35/(0.25 + 0.35 + 0.50), 0, 0.50/(0.25 + 0.35 + 0.50)))
+
+  #Check that delisted_tickers are correct
+  expect_equal(results$delisted_tickers_old_universe, "Stock B")
+  expect_equal(results$delisted_tickers_old_portfolio, "Stock B")
+  expect_equal(results$tickers_both_universes, dplyr::intersect(port_weights_placeholder_m_d_ref$tickers, updated_port_weights_m_lstd_ref$tickers))
+
+  #Check that ipos tickers are right
+  expect_equal(results$ipo_tickers, "Stock D")
+
+  #Check that there are no bench weights
+  expect_true(is.null(results$port_weights_m_d_ref$bench_weights))
+
+
+})
 
 test_that("merge_and_rescale weights works for toy_preprocessed_data in a new rebalancing", {
 

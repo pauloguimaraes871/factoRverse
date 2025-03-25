@@ -10,5 +10,6 @@ utils::globalVariables(c("id", "tickers", "untraded", "delisted", "listed", "old
                          ".", "bop_port_weights", "is_in_buffered_quantile_range", "was_in_old_portfolio",
                          "does_liquidity_meets_turnover_cap_rule", "turnover_cap_rule", "liquidity_floor",
                          "rel_risk_contr", "max_weight", "min_weight", "cap_score", "pre_eligible_assets",
-                         "theme", "theme_sb"
+                         "theme", "theme_sb", "row_id", "period_return", "eop_port_weights", "daily_vol",
+                         "obs", "delta"
                          ))
