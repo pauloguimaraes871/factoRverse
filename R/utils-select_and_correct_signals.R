@@ -37,7 +37,7 @@ select_and_correct_signals <- function(signals_m_df, chosen_signals_and_position
 
   ###selected_signals_m_df
   ###Check if all signals are in signals_m_df
-  if(!any(chosen_signals %in% colnames(signals_m_df)[-c(1:3)])){
+  if(any(!chosen_signals %in% colnames(signals_m_df)[-c(1:3)])){
     stop("all chosen signals should have a matching position in signals_m_df")
   }
 

@@ -29,7 +29,7 @@
 create_performance_m_df <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, active_returns, verbose = TRUE){
 
   #Check for selected_market_factor_proxy if active_returns is TRUE
-  if(is.null(selected_market_factor_proxy_m_xts_upd_ref) & active_returns){
+  if(is.null(selected_market_factor_proxy_m_xts_upd_ref) && active_returns){
     stop("The selected_market_factor_proxy_m_xts_upd_ref object can't be NULL when active_returns is TRUE.")
   }
 
@@ -71,49 +71,49 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     baseline_benchmark_m_xts_upd_ref_decimals <- (1 + baseline_benchmark_m_xts_upd_ref_decimals)/(1 + selected_market_factor_proxy_vector_upd_ref_decimals) - 1
   }
 
-      ###Message
-      if(verbose){
-        # Display the starting message based on the type of returns
-        if(active_returns) {
-          cat("\nStarting to calculate active performance metrics...\n")
-        } else {
-          cat("\nStarting to calculate raw performance metrics...\n")
-        }
+  ###Message
+  if(verbose){
+    # Display the starting message based on the type of returns
+    if(active_returns) {
+      cat("\nStarting to calculate active performance metrics...\n")
+    } else {
+      cat("\nStarting to calculate raw performance metrics...\n")
+    }
 
-        # Identify columns where all values are positive
-        positive_columns <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals)[
-          apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals, 2, function(x) all(x > 0))
-        ]
-        positive_columns <- positive_columns[which(!is.na(positive_columns))] #Remove NAs
+    # Identify columns where all values are positive
+    positive_columns <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals)[
+      apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals, 2, function(x) all(x > 0))
+    ]
+    positive_columns <- positive_columns[which(!is.na(positive_columns))] #Remove NAs
 
-        # Check if there are any columns with all positive returns
-        if(length(positive_columns) > 0){
-          if(active_returns) {
-            warning("The following active return columns only contains positive values, compromising some calculations: ",
-                    paste(positive_columns, collapse = ", "))
-          } else {
-            warning("The following raw return columns only contains positive values, compromising some calculations: ",
-                    paste(positive_columns, collapse = ", "))
-          }
-        }
-
-        # Identify columns where all values are NA
-        NA_columns <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals)[
-          apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals, 2, function(x) all(is.na(x)))
-        ]
-        # Check if there are any columns with all positive returns
-        if(length(NA_columns) > 0){
-          if(active_returns) {
-            warning("The following active return columns only contains NA: ",
-                    paste(NA_columns, collapse = ", "))
-          } else {
-            warning("The following raw return columns only contains NA: ",
-                    paste(NA_columns, collapse = ", "))
-          }
-        }
-
-
+    # Check if there are any columns with all positive returns
+    if(length(positive_columns) > 0){
+      if(active_returns) {
+        warning("The following active return columns only contains positive values, compromising some calculations: ",
+                paste(positive_columns, collapse = ", "))
+      } else {
+        warning("The following raw return columns only contains positive values, compromising some calculations: ",
+                paste(positive_columns, collapse = ", "))
       }
+    }
+
+    # Identify columns where all values are NA
+    NA_columns <- colnames(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals)[
+      apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals, 2, function(x) all(is.na(x)))
+    ]
+    # Check if there are any columns with all positive returns
+    if(length(NA_columns) > 0){
+      if(active_returns) {
+        warning("The following active return columns only contains NA: ",
+                paste(NA_columns, collapse = ", "))
+      } else {
+        warning("The following raw return columns only contains NA: ",
+                paste(NA_columns, collapse = ", "))
+      }
+    }
+
+
+  }
 
 
   #################
@@ -121,51 +121,51 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
   ##Calculate base metrics using PerformanceAnalytics
   ##########################
 
-    ##Create own function to deal with NAs properly
-    safe_compute <- function(strategy_returns, metric_fun, multiply = 1, benchmark_returns = NULL, ...) {
-      if (!is.null(benchmark_returns)) {
-        # Align based on non-NA strategy returns
-        common_index <- zoo::index(strategy_returns)[!is.na(strategy_returns)]
-        strategy_clean <- strategy_returns[common_index]
-        benchmark_clean <- benchmark_returns[common_index]
+  ##Create own function to deal with NAs properly
+  safe_compute <- function(strategy_returns, metric_fun, multiply = 1, benchmark_returns = NULL, ...) {
+    if (!is.null(benchmark_returns)) {
+      # Align based on non-NA strategy returns
+      common_index <- zoo::index(strategy_returns)[!is.na(strategy_returns)]
+      strategy_clean <- strategy_returns[common_index]
+      benchmark_clean <- benchmark_returns[common_index]
 
-        # Check if data exists after alignment
-        if (length(strategy_clean) == 0 || length(benchmark_clean) == 0) {
-          return(NA)
-        }
-
-        # Attempt to compute the metric with benchmark
-        result <- tryCatch(
-          multiply * as.numeric(metric_fun(strategy_clean, Rb = benchmark_clean, ...)),
-          error = function(e) NA
-        )
-      } else {
-        # Remove NA values from strategy returns
-        strategy_clean <- strategy_returns[!is.na(strategy_returns)]
-
-        # Check if data exists after removing NAs
-        if (length(strategy_clean) == 0) {
-          return(NA)
-        }
-
-        # Attempt to compute the metric without benchmark
-        result <- tryCatch(
-          multiply * as.numeric(metric_fun(strategy_clean, ...)),
-          error = function(e) NA
-        )
+      # Check if data exists after alignment
+      if (length(strategy_clean) == 0 || length(benchmark_clean) == 0) {
+        return(NA)
       }
 
-      return(result)
+      # Attempt to compute the metric with benchmark
+      result <- tryCatch(
+        multiply * as.numeric(metric_fun(strategy_clean, Rb = benchmark_clean, ...)),
+        error = function(e) NA
+      )
+    } else {
+      # Remove NA values from strategy returns
+      strategy_clean <- strategy_returns[!is.na(strategy_returns)]
+
+      # Check if data exists after removing NAs
+      if (length(strategy_clean) == 0) {
+        return(NA)
+      }
+
+      # Attempt to compute the metric without benchmark
+      result <- tryCatch(
+        multiply * as.numeric(metric_fun(strategy_clean, ...)),
+        error = function(e) NA
+      )
     }
+
+    return(result)
+  }
 
   ##Build the data.frame with column-wise computations
 
-      ### Ensure Alignment of Strategy and Benchmark Data
-      ### This step assumes that both xts objects share the same date index or have overlapping dates.
-      ### Adjust as necessary based on your data structure.
-      common_dates <- zoo::index(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals) %in% zoo::index(baseline_benchmark_m_xts_upd_ref_decimals)
-      selected_returns_aligned <- selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals[common_dates]
-      benchmark_aligned <- baseline_benchmark_m_xts_upd_ref_decimals[common_dates]
+  ### Ensure Alignment of Strategy and Benchmark Data
+  ### This step assumes that both xts objects share the same date index or have overlapping dates.
+  ### Adjust as necessary based on your data structure.
+  common_dates <- zoo::index(selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals) %in% zoo::index(baseline_benchmark_m_xts_upd_ref_decimals)
+  selected_returns_aligned <- selected_backtest_returns_corrected_positions_m_xts_upd_ref_decimals[common_dates]
+  benchmark_aligned <- baseline_benchmark_m_xts_upd_ref_decimals[common_dates]
 
 
   ##Construct the performance_m_df Data Frame

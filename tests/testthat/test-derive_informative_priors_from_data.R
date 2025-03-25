@@ -979,3 +979,32 @@ test_that("derive_informative_priors_from_data works for model spec 4", {
   options(scipen = original_scipen)
 
 })
+
+test_that("derive_informative_priors error handling works", {
+
+  expect_error(
+  derive_informative_priors_from_data(priors_m_upd_ref = data.frame(tickers = c("A", "B"), theme = c("value", "growth")),
+                                      model_spec_theme_level = "fixed_intercept_fixed_slope",
+                                      half_t_df = "30", lmer_optimizer = "Nelder_Mead"),
+  "half_t_df should be numeric"
+  )
+
+  expect_error(
+    derive_informative_priors_from_data(priors_m_upd_ref = data.frame(tickers = c("A", "B"), theme = c("value", "growth")),
+                                        model_spec_theme_level = "intercept_fixed_slope",
+                                        half_t_df = 30, lmer_optimizer = "Nelder_Mead"),
+    "Invalid model specification."
+  )
+
+  expect_error(
+    derive_informative_priors_from_data(priors_m_upd_ref = data.frame(tickers = c("A", "B", "A"), theme = c("value", "growth", "momentum")),
+                                        model_spec_theme_level = "fixed_intercept_fixed_slope",
+                                        half_t_df = 30, lmer_optimizer = "Nelder_Mead"),
+    "Each ticker should be uniquely linked to a single theme."
+  )
+
+
+
+
+
+})

@@ -342,7 +342,7 @@ test_that("create_performance_m_df works with NAs (one column only NAs)", {
 })
 
 
-test_that("create_performance_m_df throws a warning for backtests with only positive values", {
+test_that("create_performance_m_df throws a warning for backtests with only positive values and errors for when selected_market_factor_proxy_m_xts is NULL", {
 
   set.seed(123)
   backtest_returns_m_xts <- xts::xts(data.frame(A = rlnorm(100, 0, 1), B = rnorm(100, 0, 1)),
@@ -363,6 +363,55 @@ test_that("create_performance_m_df throws a warning for backtests with only posi
 
   # Check that the specific warning is among the captured warnings
   expect_true(any(grepl("The following raw return columns only contains positive values, compromising some calculations: A", warnings)))
+
+  set.seed(123)
+  backtest_returns_m_xts <- xts::xts(data.frame(A = rlnorm(100, 0, 1), B = rnorm(100, 0, 1)),
+                                     order.by = seq.Date(from = as.Date("2000-01-01"), by = "months", length.out = 100)
+  )
+
+  selected_market_factor_proxy_m_xts <- xts::xts(data.frame(Bench = rep(0, 100)),
+                                                 order.by = seq.Date(from = as.Date("2000-01-01"), by = "months", length.out = 100)
+  )
+  # Capture all warnings
+  warnings <- testthat::capture_warnings({
+    performance_df <- create_performance_m_df(
+      backtest_returns_m_xts,
+      selected_market_factor_proxy_m_xts,
+      active_returns = TRUE
+    )
+  })
+
+  # Check that the specific warning is among the captured warnings
+  expect_true(any(grepl("The following active return columns only contains positive values, compromising some calculations: A", warnings)))
+
+
+  #random wrong
+  selected_market_factor_proxy_m_xts <- xts::xts(data.frame(Bench = rnorm(100, -1000, 1)),
+                                                 order.by = seq.Date(from = as.Date("2000-01-01"), by = "months", length.out = 100)
+  )
+
+  # Capture all warnings
+  warnings <- testthat::capture_warnings({
+    performance_df <- create_performance_m_df(
+      backtest_returns_m_xts,
+      selected_market_factor_proxy_m_xts,
+      active_returns = TRUE
+    )
+  })
+
+  # Check that the specific warning is among the captured warnings
+  expect_true(length(warnings) > 0)
+
+  #  missing selected_market_factor_proxy_m_xts
+
+  expect_error(
+  create_performance_m_df(
+      backtest_returns_m_xts,
+      selected_market_factor_proxy_m_xts = NULL,
+      active_returns = TRUE
+    ),
+  "The selected_market_factor_proxy_m_xts_upd_ref object can't be NULL when active_returns is TRUE."
+  )
 
 
 })

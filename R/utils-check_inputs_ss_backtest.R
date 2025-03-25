@@ -109,11 +109,26 @@ check_inputs_ss_backtest <- function(
   if(length(chosen_signals_and_positions) == 1){
     stop("More than one signal must be provided in order to run a ss_backtest")
   }
-
   ###Check if there are repeated signals in chosen_signals
   if(!identical(names(chosen_signals_and_positions), unique(names(chosen_signals_and_positions)))){
     stop("each signal must be chosen only once")
   }
+
+  #forced signals
+  if (!is.null(forced_signals)){
+    if (any(!names(forced_signals) %in% colnames(signals_m_df))){
+      stop("forced_signals not available in signals_m_df")
+    }
+    ###Check if there are repeated forced_signals
+    if(!identical(names(forced_signals), unique(names(forced_signals)))){
+      stop("each forced signal must be chosen only once")
+    }
+    ###Check if forced signals is "force"
+    if(!all(forced_signals %in% c("force"))){
+      stop("forced_signals should be 'force'")
+    }
+  }
+
 
   #signals_m_df
   ###Coercible
@@ -128,6 +143,11 @@ check_inputs_ss_backtest <- function(
   #Check for presence of low
   if(any(grepl("low_", colnames(signals_m_df)))){
     stop("signals_m_df column names should not contain 'low_'.")
+  }
+
+  #Check for presence of low_
+  if(any(grepl("low_", names(chosen_signals_and_positions)))){
+    stop("chosen_signals_and_positions should not contain 'low_'.")
   }
 
   ###Check if all chosen_signals are present in signals_m_df
@@ -145,10 +165,6 @@ check_inputs_ss_backtest <- function(
 
   if(any(names(chosen_signals_and_positions) %in% categorical_signals)){
     warning("Categorical signals included in chosen_signals_and_positions.")
-  }
-  #Check for presence of low_
-  if(any(grepl("low_", names(chosen_signals_and_positions)))){
-    stop("chosen_signals_and_positions should not contain 'low_'.")
   }
 
   #initial_sample_size
@@ -211,11 +227,11 @@ check_inputs_ss_backtest <- function(
     stop("dates in benchmark_returns_m_xts must be of class Date")
   }
 
-  if(any(!benchmark_returns_dates %in% backtest_returns_dates)){
+  if(!identical(benchmark_returns_dates, backtest_returns_dates)){
     stop("dates in benchmark_returns_m_xts and backtest_returns_m_xts must be the same")
   }
 
-  if(any(apply(benchmark_returns_m_xts, 2, function(x) all(is.na(x))))){
+  if(any(apply(benchmark_returns_m_xts, 2, function(x) any(is.na(x))))){
     stop("benchmark_returns_m_xts must not have any NA values")
   }
 
@@ -229,15 +245,16 @@ check_inputs_ss_backtest <- function(
   }
 
   #signal_themes_m_df
+
+  ###Check if signal_themes_m_df contemplates theme column
+  if(enable_theme_representativeness && is.null(signal_themes_m_df)){
+    stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
+  }
+
   ##Check if it is coercible
   if(!is_coercible_to_meta_dataframe(signal_themes_m_df)){
     stop("signal_themes_m_df must be coercible to a meta dataframe")
    }
-
-  ###Check if signal_themes_m_df contemplates theme column
-  if(enable_theme_representativeness & is.null(signal_themes_m_df)){
-    stop("signal_themes_m_df must be provided if enable_theme_representativeness is TRUE")
-  }
 
   if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
     stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")

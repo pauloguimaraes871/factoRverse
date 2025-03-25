@@ -1,17 +1,21 @@
-test_that("check_inputs_ss_backtest throws an error when trying to choose a signal not present in signals_m_df", {
+test_that("check_inputs_ss_backtest throws an error when chosen_signals_and_positions is wrong", {
 
   #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
   chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long", Delta = "short")
 
-  expect_error(check_inputs_ss_backtest(chosen_signals_and_positions = chosen_signals_and_positions,
+  expect_error(check_inputs_ss_backtest(chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = NULL,
                                         signals_m_df = signals_m_df),
                "signal selection not avaiable in signals_m_df")
 
-})
 
-test_that("check_inputs_ss_backtest throws an error when trying to choose a signal not present in signals_m_df ", {
+  chosen_signals_and_positions <- c(Alpha = "long", low_Beta = "long", Gamma = "long")
+
+  expect_error(check_inputs_ss_backtest(chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = NULL,
+                                        signals_m_df = signals_m_df),
+               "chosen_signals_and_positions should not contain 'low_'.")
+
 
   #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -25,12 +29,38 @@ test_that("check_inputs_ss_backtest throws an error when trying to choose a sign
 
   expect_error(
     check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
-                             backtest_returns_m_xts = backtest_returns_m_xts,
+                             backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL,
                              enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
                              signal_themes_m_df = signal_themes_m_df, priors_m_df = priors_m_df, p_correction_method = p_correction_method,
                              rebalancing_months = 6),
     "signal selection not avaiable in signals_m_df"
   )
+
+
+})
+
+test_that("check_inputs_ss_backtest throws an error when signals_m_df contain low_", {
+
+  #Create signals_m_d_ref_test
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+
+  colnames(signals_m_df)[4] <- c("low_Alpha")
+
+
+  expect_error(
+    check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                             backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL,
+                             enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             signal_themes_m_df = signal_themes_m_df, priors_m_df = priors_m_df, p_correction_method = p_correction_method,
+                             rebalancing_months = 6),
+    "signals_m_df column names should not contain 'low_'."
+  )
+
 
 
 })
@@ -87,7 +117,7 @@ test_that("check_inputs_ss_backtest throws a warning when trying to run ss_backt
 
 })
 
-test_that("check_inputs_ss_backtest throws an error when forced_signals not present in signals_m_df ", {
+test_that("check_inputs_ss_backtest throws an error when forced_signals are wrong ", {
 
   #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -98,8 +128,6 @@ test_that("check_inputs_ss_backtest throws an error when forced_signals not pres
   p_correction_method <- "none"
   rebalancing_months <- 6
 
-
-
   expect_error(
     check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
                              backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = c(Tau = "long"), initial_sample_size = 3,
@@ -109,6 +137,28 @@ test_that("check_inputs_ss_backtest throws an error when forced_signals not pres
                              signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                              rebalancing_months = 6),
     "forced_signals not available in signals_m_df"
+  )
+
+  expect_error(
+    check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                             backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = c(Alpha = "neutral"), initial_sample_size = 3,
+                             enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                             signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                             signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                             rebalancing_months = 6),
+    "forced_signals should be 'force'"
+  )
+
+  expect_error(
+    check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                             backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = c(Alpha = "long", Alpha = "short"), initial_sample_size = 3,
+                             enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                             signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                             signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                             rebalancing_months = 6),
+    "each forced signal must be chosen only once"
   )
 
 
@@ -142,7 +192,7 @@ test_that("check_inputs_ss_backtest thrown an error when trying to choose a sign
 
 })
 
-test_that("check_inputs_ss_backtest thrown an error when backtest_return_m_xts or benchmark_return_m_xts has wrong format", {
+test_that("check_inputs_ss_backtest thrown an error when backtest_return_m_xts or benchmark_return_m_xts have wrong format", {
 
   #Test for NAs in backtest_returns_m_xts
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -356,6 +406,69 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_m_xts o
                "all chosen_signals_and_positions with their corrected position should be present in backtest_returns_m_xts")
 
 
+  #Create signals_m_d_ref_test
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  wrong_benchmark_returns_m_xts <- benchmark_returns_m_xts
+  wrong_benchmark_returns_m_xts[3,2] <- NA
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = wrong_benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "benchmark_returns_m_xts must not have any NA values")
+
+
+  #Create signals_m_d_ref_test
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "sep500", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "market_factor_proxy must be present in benchmark_returns_m_xts")
+
+
+  #Create signals_m_d_ref_test
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
+  expect_error(check_inputs_ss_backtest(chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = NULL,
+                                        signals_m_df = signals_m_df, initial_sample_size = "two"),
+               "initial_sample_size must be numeric")
+
+  wrong_backtest_returns_m_xts <- backtest_returns_m_xts[-2, ]
+
+  expect_error(check_inputs_ss_backtest(chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = NULL,
+                                        signals_m_df = signals_m_df, initial_sample_size = 3,
+                                        backtest_returns_m_xts = wrong_backtest_returns_m_xts),
+               "backtest_returns_m_xts must have consecutive dates")
+
+  expect_error(check_inputs_ss_backtest(chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = NULL,
+                                        signals_m_df = signals_m_df, initial_sample_size = 3,
+                                        backtest_returns_m_xts = as.data.frame(backtest_returns_m_xts)),
+               "backtest_returns_m_xts must be a xts object")
+
+
+
 
 })
 
@@ -420,15 +533,14 @@ test_that("check_inputs_ss_backtest thrown an error when signal_themes_m_df has 
 
   p_correction_method <- "none"
   rebalancing_months <- 6
-  signal_themes_m_df[7:12,"tickers"] <- "Beta"
-  signal_themes_m_df[7:12,"id"] <- paste0(signal_themes_m_df[7:12,"tickers"], "-", signal_themes_m_df[7:12,"dates"])
+  wrong_signal_themes_m_df <- signal_themes_m_df %>% dplyr::filter(!tickers %in% "Gamma")
 
   expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
                                         backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
                                         enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
                                         market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
                                         signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
-                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        signal_themes_m_df = wrong_signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "all chosen_signals_and_positions with their corrected position should be present in signal_themes_m_df")
 
@@ -463,7 +575,10 @@ test_that("check_inputs_ss_backtest thrown an error when signal_themes_m_df has 
 
   p_correction_method <- "none"
   rebalancing_months <- 6
-  signal_themes_m_df$dates[which(signal_themes_m_df$dates == "2001-04-15")] <- "2001-07-15"
+  wrong_signal_themes_m_df <- signal_themes_m_df %>%
+    dplyr::mutate(dates = dplyr::if_else(dates == as.Date("2001-04-15"), as.Date("2002-07-15"), dates)) %>%
+    dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
+    dplyr::arrange(id)
 
 
   expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
@@ -471,7 +586,7 @@ test_that("check_inputs_ss_backtest thrown an error when signal_themes_m_df has 
                                         enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
                                         market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
                                         signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
-                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        signal_themes_m_df = wrong_signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "dates in signal_themes_m_df and signals_m_df must be the same")
 
@@ -497,6 +612,28 @@ test_that("check_inputs_ss_backtest thrown an error when signal_themes_m_df has 
                                         signal_themes_m_df = wrong_signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "chosen_signals_and_positions must have a theme classification for every date")
+
+
+  #Check for NA in signal_themes_m_df
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  wrong_signal_themes_m_df <- signal_themes_m_df
+  wrong_signal_themes_m_df[3,4] <- NA
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = wrong_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "signal_themes_m_df should not have NAs")
+
 
 })
 
@@ -559,6 +696,28 @@ test_that("check_inputs_ss_backtest thrown an error when priors_m_df has wrong f
                                         signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
                "themes in priors_m_df and signal_themes_m_df should match")
+
+
+  #Check for theme matching in prior_m_df
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  wrong_priors_m_df <- priors_m_df
+  wrong_priors_m_df[3,4] <- NA
+  adj_signal_themes_m_df <- signal_themes_m_df %>% dplyr::mutate(theme = dplyr::if_else(theme == "growth", "value", theme))
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "priors_m_df should not have NAs")
+
 
 
 })
@@ -638,6 +797,58 @@ test_that("check_inputs_ss_backtest thrown an error when custom_signal_universe_
                                         signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = wrong_custom_signal_universe_metrics_m_df,
                                         signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6))
+
+  #Check for NA
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  custom_signal_universe_metrics_m_df <- signal_themes_m_df %>% dplyr::select(id, tickers, dates) %>%
+    dplyr::filter(!dates %in% c("2001-05-15", "2001-07-15"),!tickers == "Delta") %>%
+    dplyr::mutate(pe = rnorm(nrow(.)), pb = rnorm(nrow(.)), ps = rnorm(nrow(.)), roe = rnorm(nrow(.)), roa = rnorm(nrow(.)), debt_to_equity = rnorm(nrow(.))) %>%
+    dplyr::arrange(id)
+
+  wrong_custom_signal_universe_metrics_m_df <- custom_signal_universe_metrics_m_df
+  wrong_custom_signal_universe_metrics_m_df[3,4] <- NA
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 2,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = wrong_custom_signal_universe_metrics_m_df,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "custom_signal_universe_metrics_m_df should not have NAs"
+               )
+
+  #Check for heuristic sb
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  custom_signal_universe_metrics_m_df <- signal_themes_m_df %>% dplyr::select(id, tickers, dates) %>%
+    dplyr::filter(!dates %in% c("2001-05-15", "2001-07-15"),!tickers == "Delta") %>%
+    dplyr::mutate(pe = rnorm(nrow(.)), pb = rnorm(nrow(.)), ps = rnorm(nrow(.)), roe = rnorm(nrow(.)), roa = rnorm(nrow(.)), debt_to_equity = rnorm(nrow(.))) %>%
+    dplyr::arrange(id)
+
+  wrong_custom_signal_universe_metrics_m_df <- custom_signal_universe_metrics_m_df
+  colnames(wrong_custom_signal_universe_metrics_m_df)[4] <- "arith_mean_ret"
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 2,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = wrong_custom_signal_universe_metrics_m_df,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "custom_signal_universe_metrics_m_df should not have colnames that match the usual output from summarize_performance"
+  )
+
 
 
 })
@@ -975,8 +1186,352 @@ test_that("check_inputs_ss_backtest throws an error when user_priors has wrong f
                                         rebalancing_months = 6),
                "user_priors structure is invalid for theme-level model specification 'fixed_intercept_fixed_slope'.")
 
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  user_priors <- c(
+    # Prior for Value and Mom
+    brms::set_prior("normal(0.0012, 0.0016)", class = "b", coef = "themevalue"),
+    brms::set_prior("normal(0.0025, 0.0016)", class = "b", coef = "thememomentum"),
+    brms::set_prior("normal(0.03, 0.002)", class = "b", coef = "themevalue:market_factor_proxy"),
+    brms::set_prior("normal(0.0000, 0.004)", class = "b", coef = "thememomentum:market_factor_proxy"),
+
+    # Prior for sd of Intercept at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
+
+    # Prior for sd of market_factor_proxy at theme:tickers level
+    brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
+
+    # Prior for residual error (sigma)
+    brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
+
+    # LKJ prior for correlations
+    brms::set_prior("lkj(2)", class = "cor")
+  )
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = "bayesian",
+                                        user_priors = user_priors,
+                                        theme_level_intercept = "Random", theme_level_slope = "Fix",
+                                        rebalancing_months = 6),
+               "Invalid model specification at theme-level")
+
+
 
 
 })
 
+test_that("check_inputs_ss_backtest have wrong lmer_control", {
+
+  #Check for wrong colnames
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+  wrong_lmer_control <- list(optCtrl = list(maxfun = 1000))
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = wrong_lmer_control, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "lmer_control should have only 'lmer_optimizer', 'lmer_optimization_objective' or 'hierarchical_p_value_method' as names.")
+
+
+  wrong_lmer_control <- list(lmer_optimizer = "mqo")
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = wrong_lmer_control, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "lmer_optimizer should be one of 'Nelder_Mead', 'bobyqa', 'nlminbwrap' or 'nloptwrap'")
+
+
+  wrong_lmer_control <- list(lmer_optimization_objective = "lik")
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = wrong_lmer_control, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "lmer_optimization_objective should be one of 'likelihood' or 'REML'")
+
+
+  wrong_lmer_control <- list(hierarchical_p_value_method = "lik")
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = wrong_lmer_control, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
+
+
+
+  lmer_control <- list(hierarchical_p_value_method = "Kenward-Roger")
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = lmer_control, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, theme_level_intercept = NULL, theme_level_slope = "fixed"),
+               "For 'partial_pooled' model structure, 'theme_level_intercept' and 'theme_level_slope' must be provided.")
+
+  })
+
+test_that("check_inputs_ss_backtest throws error when p_correction arguments are wrong", {
+
+  #Check for wrong colnames
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "NONE"
+  rebalancing_months <- 6
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "p_correction_method must be one of 'holm', 'hochberg', 'hommel', 'bonferroni', 'BH', 'BY', 'fdr', 'bayesian' or 'none'")
+
+
+  p_correction_method <- "bayesian"
+  rebalancing_months <- 6
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "no_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "bayesian p_correction_method is currently only available for partial_pooled model_structure")
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 1.1, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "signal_significance_threshold must be between 0 and 1")
+
+
+
+
+
+})
+
+test_that("check_inputs_ss_backtest have wrong bayesian spec", {
+
+  #Load
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "bayesian"
+  rebalancing_months <- 6
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL),
+               "Currently, bayesian fit requires user_priors or priors_m_df.")
+
+
+
+  #Load
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short")
+
+  p_correction_method <- "bayesian"
+  rebalancing_months <- 6
+
+  prior_derivation_control <- c(t_df = 3)
+
+  adj_signal_themes_m_df <- signal_themes_m_df %>% dplyr::mutate(theme = dplyr::if_else(tickers == "Delta", "momentum", theme))
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL, prior_derivation_control = prior_derivation_control),
+               "prior_derivation_control should have only 'half_t_df' as names.")
+
+  #Load
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short")
+
+  p_correction_method <- "bayesian"
+  rebalancing_months <- 6
+
+  brms_control <- c(Chain = 3)
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL, prior_derivation_control = NULL, brms_control = brms_control),
+               "brms_control must be a list containing 'chains', 'iter', 'warmup', 'thin', 'seed' and/or 'adapt_delta'.")
+
+
+
+  brms_control <- list(chains = -3, iter = 1000)
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL, prior_derivation_control = NULL, brms_control = brms_control),
+               "chains must be a positive number.")
+
+
+
+  brms_control <- list(chains = 3, iter = -1000)
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL, prior_derivation_control = NULL, brms_control = brms_control),
+               "iter must be a positive number.")
+
+
+  brms_control <- list(chains = 3, warmup = -1000)
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL, prior_derivation_control = NULL, brms_control = brms_control),
+               "warmup must be a positive number.")
+
+
+  brms_control <- list(chains = 3, thin = -1000)
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL, prior_derivation_control = NULL, brms_control = brms_control),
+               "thin must be a positive number.")
+
+
+  brms_control <- list(adapt_delta = 3)
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL, prior_derivation_control = NULL, brms_control = brms_control),
+               "adapt_delta should be between 0 and 1.")
+
+
+  brms_control <- list(warmup = 1000, iter = 100)
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = FALSE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = adj_signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6, user_priors = NULL, prior_derivation_control = NULL, brms_control = brms_control),
+               "warmup must be less than iter")
+
+
+
+})
+
+test_that("check_inputs_ss_backtest throws error when p_correction arguments are wrong", {
+
+  #Check for wrong colnames
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = "6"),
+               "rebalancing_months should be numeric.")
+
+
+  colnames(benchmark_returns_m_xts)[1] <- 3
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = 3, model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "market_factor_proxy must be character")
+
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = "TRUE",
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "active_returns must be logical")
+
+
+})
 

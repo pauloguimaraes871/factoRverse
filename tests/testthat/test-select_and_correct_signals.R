@@ -20,7 +20,7 @@ test_that("select_and_correct_signals correctly subsets signals_m_df and signal_
                                                            backtest_returns_m_xts = backtest_returns_m_xts,
                                                            signals_m_df = signals_m_df)$selected_signal_themes_m_df
 
-  expect_equal(c("Alpha", "low_Beta", "Gamma"), unique(subsetted_themes$tickers))
+  expect_equal(c("Alpha", "Gamma","low_Beta"), unique(subsetted_themes$tickers))
 
 })
 
@@ -233,6 +233,22 @@ test_that("check_inputs_ss_backtest throws an error when trying to choose a sign
     "all chosen signals should have a matching position in signal_themes_m_df"
   )
 
+
+
+})
+
+test_that("check_inputs_ss_backtest throws an error when trying to choose a signal not present in signals_m_df ", {
+
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long", Tau = "long")
+
+  expect_error(
+    select_and_correct_signals(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                               signal_themes_m_df = signal_themes_m_df,
+                               backtest_returns_m_xts = backtest_returns_m_xts),
+    "all chosen signals should have a matching position in signals_m_df"
+  )
 
 
 })
