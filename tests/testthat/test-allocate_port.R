@@ -237,6 +237,8 @@ test_that("allocate_port pipeline works for toy preprocessed data", {
   transaction_costs_parameters$strategy_aum <- 1000
   liquidity_constraint_policy$liquidity_floor_rule <- "small_caps"
   liquidity_constraint_policy$liquidity_cap_rules <- NULL
+  fwd_return_m_df <- target_m_df %>% dplyr::select(id, tickers, dates, fwd_return_1m) %>%
+    dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == as.Date("2023-04-15"), NA, fwd_return_1m))
 
 
   #Check
@@ -250,7 +252,7 @@ test_that("allocate_port pipeline works for toy preprocessed data", {
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = target_m_df %>% dplyr::select(id, tickers, dates, fwd_return_1m), transaction_costs_parameters = transaction_costs_parameters,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )

@@ -72,7 +72,7 @@
 #' }
 #'
 allocate_port <- function(
-  #Portfolio Weights
+    #Portfolio Weights
   port_weights_placeholder_m_d_ref, updated_port_weights_m_lstd_ref,
   #Stock Universe
   stock_universe_m_d_ref,
