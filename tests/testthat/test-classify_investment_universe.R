@@ -1094,3 +1094,329 @@ test_that("classify_investment_universe throws an error when no signals are sign
   )
 
 })
+
+test_that("classify investment_universe throws an error for wrong obj", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #THEME SB
+  signal_universe_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+                                        tickers = c("Alpha", "low_Beta", "Gamma"),
+                                        dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                        mean_active_return = rnorm(3, 0, 1),
+                                        tracking_error = runif(3, 0, 1),
+                                        IR = rnorm(3,0,1),
+                                        alpha = rnorm(3,0,1),
+                                        alpha_t_stat = rnorm(3,0,1),
+                                        beta = rnorm(3,0,1),
+                                        treynor = rnorm(3,0,1),
+                                        p_value = c(0.025,0.20,0.03)
+  )
+
+  signal_groups_m_d_ref <- data.frame(id = c("Alpha-2001-07-15", "low_Beta-2001-07-15", "Gamma-2001-07-15"),
+                                      tickers = c("Alpha", "low_Beta", "Gamma"),
+                                      dates = c("2001-07-15", "2001-07-15", "2001-07-15"),
+                                      theme = c("Value", "Momentum", "Value")
+  )
+
+
+  signal_universe_m_d_ref$adjusted_p_value <- p.adjust(signal_universe_m_d_ref$p_value, "none")
+  signal_universe_m_d_ref$exp_ret_score <- signal_transform(signal_universe_m_d_ref$alpha, 0.01, 0.99)
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 liquidity_m_d_ref = liquidity_m_df,
+                                 asset_object = "stocks"),
+    "liquidity_m_d_ref should have only one date"
+  )
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 benchmark_weights_m_d_ref = benchmark_weights_m_df,
+                                 asset_object = "stocks"),
+    "benchmark_weights_m_d_ref should have only one date"
+  )
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 updated_port_weights_m_lstd_ref = benchmark_weights_m_df,
+                                 asset_object = "stocks"),
+    "updated_port_weights_m_lstd_ref should have only one date"
+  )
+
+  wrong_liquidity_constraint_policy <- liquidity_constraint_policy
+  wrong_liquidity_constraint_policy$liquidity_floor_rule <- "nano_caps"
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 liquidity_constraint_policy = wrong_liquidity_constraint_policy,
+                                 asset_object = "stocks"),
+    "liquidity_floor_rule not supported"
+  )
+
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 concentration_constraint_policy = concentration_constraint_policy,
+                                 asset_object = "stocks"),
+    "benchmark_weights_m_d_ref can't be missing if concentration_constraint_policy is set"
+  )
+
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == as.Date("2001-04-15"))
+  benchmark_weights_m_d_ref$ibov[1] <- 0
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 concentration_constraint_policy = concentration_constraint_policy,
+                                 benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 asset_object = "stocks"),
+    "benchmark weights must sum to 1"
+  )
+
+
+  #Create user_defined_OR_rules_m_d_ref
+  wrong_user_defined_OR_rules_m_d_ref <- data.frame(
+    id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
+    pretty_stocks = c(1,1,0)
+  )
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 user_defined_OR_rules_m_d_ref = wrong_user_defined_OR_rules_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 asset_object = "stocks"),
+    "user_defined_OR_rules_m_d_ref must have 5 columns"
+  )
+
+  #Create user_defined_AND_rules_m_d_ref
+  wrong_user_defined_AND_rules_m_d_ref <- data.frame(
+    id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
+    pretty_stocks = c(1,1,0)
+  )
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 user_defined_AND_rules_m_d_ref = wrong_user_defined_AND_rules_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 asset_object = "stocks"),
+    "user_defined_AND_rules_m_d_ref must have 5 columns"
+  )
+
+  #Create user_defined_OR_rules_m_d_ref
+  wrong_user_defined_OR_rules_m_d_ref <- data.frame(
+    id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
+    pretty = c("pretty", "pretty", "ugly"),
+    pretty_stocks = c(1,2,0)
+  )
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 user_defined_OR_rules_m_d_ref = wrong_user_defined_OR_rules_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 asset_object = "stocks"),
+    "last column of user_defined_OR_rules_m_d_ref must be 0 or 1"
+  )
+
+  #Create wrong_user_defined_AND_rules_m_d_ref
+  wrong_user_defined_AND_rules_m_d_ref <- data.frame(
+    id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
+    pretty = c("pretty", "pretty", "ugly"),
+    pretty_stocks = c(1,2,0)
+  )
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 user_defined_AND_rules_m_d_ref = wrong_user_defined_AND_rules_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 asset_object = "stocks"),
+    "last column of user_defined_AND_rules_m_d_ref must be 0 or 1"
+  )
+
+  #Create user_defined_OR_rules_m_d_ref
+  wrong_user_defined_OR_rules_m_d_ref <- data.frame(
+    id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
+    pretty = c(5, 2, 3),
+    pretty_stocks = c(1,1,0)
+  )
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 user_defined_OR_rules_m_d_ref = wrong_user_defined_OR_rules_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 asset_object = "stocks"),
+    "column before last of user_defined_OR_rules_m_d_ref must be character"
+  )
+
+  #Create user_defined_AND_rules_m_d_ref
+  wrong_user_defined_AND_rules_m_d_ref <- data.frame(
+    id = c("Stock A-2020-05-15", "Stock B-2020-05-15", "Stock C-2020-05-15"),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2020-05-15", "2020-05-15", "2020-05-15")),
+    pretty = c(5, 2, 3),
+    pretty_stocks = c(1,1,0)
+  )
+
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 user_defined_AND_rules_m_d_ref = wrong_user_defined_AND_rules_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 asset_object = "stocks"),
+    "column before last of user_defined_AND_rules_m_d_ref must be character"
+  )
+
+
+
+
+  wrong_concentration_constraint_policy <- concentration_constraint_policy
+  wrong_concentration_constraint_policy$benchmark <- c("ibov", "smll")
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 concentration_constraint_policy = wrong_concentration_constraint_policy,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 benchmark_weights_m_d_ref = benchmark_weights_m_df %>% dplyr::filter(dates == as.Date("2001-05-15")),
+                                 asset_object = "stocks"),
+    "Only one benchmark is allowed when setting max_abs_active_individual_weight."
+  )
+
+
+
+})
+
+test_that("apply_stocks_pre_eligibility works for min_eligible_assets_fallback", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #derive universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
+    signals_m_d_ref  = signals_m_df %>% dplyr::filter(dates == "2001-04-15"),
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    lower_quantile_winsorization = 0.025,
+    upper_quantile_winsorization = 0.975
+  )
+
+  results <- apply_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref,
+                               eligibility_quantile_range = c(0.9, 1),
+                               min_eligible_assets_fallback = 3,
+                               verbose = TRUE
+                               )
+
+  #Check that we have 3 pre_eligible
+  expect_equal(results$pre_eligible_assets %>% sum(), 3)
+  expect_equal(results %>% dplyr::slice_max(exp_ret_score, n = 3) %>% dplyr::pull(pre_eligible_assets) %>% unique(), 1)
+
+
+})
+
+test_that("apply_stocks_pre_eligibility works for min_eligible_assets_fallback when no need to fallback", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #derive universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
+    signals_m_d_ref  = signals_m_df %>% dplyr::filter(dates == "2001-04-15"),
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    lower_quantile_winsorization = 0.025,
+    upper_quantile_winsorization = 0.975
+  )
+
+
+  results <-
+    apply_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref,
+                                 eligibility_quantile_range = c(0.9, 1),
+                                 min_eligible_assets_fallback = 1,
+                                 verbose = TRUE)
+
+
+
+  #Check that we have 3 pre_eligible
+  expect_equal(results$pre_eligible_assets %>% sum(), 1)
+  expect_equal(results %>% dplyr::slice_min(exp_ret_score, n = 4) %>% dplyr::pull(pre_eligible_assets) %>% unique(), 0)
+
+})
+
+test_that("apply_stocks_pre_eligibility throws an error when current range in eligibility_quantile_range reaches 0.50", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #derive universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
+    signals_m_d_ref  = signals_m_df %>% dplyr::filter(dates == "2001-04-15"),
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    lower_quantile_winsorization = 0.025,
+    upper_quantile_winsorization = 0.975
+  )
+
+
+  expect_error(
+    apply_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref,
+                                 eligibility_quantile_range = c(0.9, 1),
+                                 min_eligible_assets_fallback = 5,
+                                 verbose = TRUE),
+    "The difference between the min and max values of eligibility_quantile_range reached 0.50 without obtaining the minimum number of eligible assets \\(iteration: 9 \\)."
+  )
+
+
+})
+
+test_that("apply_stocks_pre_eligibility works for categorical variables", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #derive universe
+  set.seed(123)
+  signals_m_d_ref  <- signals_m_df %>% dplyr::filter(dates == "2001-04-15") %>%
+    dplyr::mutate(fin = sample(c(1, 0), 5, replace = TRUE))
+
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
+    signals_m_d_ref = signals_m_d_ref,
+    chosen_score_metric_and_position = c(fin = "long"),
+    lower_quantile_winsorization = 0.025,
+    upper_quantile_winsorization = 0.975
+  )
+
+  results <- apply_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref,
+                                          eligibility_quantile_range = c(0.9, 1),
+                                          min_eligible_assets_fallback = 3,
+                                          verbose = TRUE
+  )
+
+
+  #Check that all financials were elected
+  expect_true(all((signals_m_d_ref %>% dplyr::filter(fin == 1) %>% dplyr::pull(tickers)) %in%
+                  (results %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers)))
+              )
+
+  expect_true(all((results %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers)) %in%
+                   (signals_m_d_ref %>% dplyr::filter(fin == 1) %>% dplyr::pull(tickers))
+              ))
+
+
+
+})
+
+
+
+
+

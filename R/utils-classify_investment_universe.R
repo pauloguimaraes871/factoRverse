@@ -141,7 +141,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##Check if benchmark_weights sum to 1
-  if (!is.null(benchmark_weights_m_d_ref) && any(colSums(dplyr::select(benchmark_weights_m_d_ref, -tickers, -id, -dates)) - 1 > 0.02)){
+  if (!is.null(benchmark_weights_m_d_ref) && any(abs(colSums(dplyr::select(benchmark_weights_m_d_ref, -tickers, -id, -dates)) - 1 )> 0.02)){
     stop("benchmark weights must sum to 1")
   }
 
@@ -542,33 +542,33 @@ apply_stocks_pre_eligibility <- function(stock_universe_m_d_ref,
                     pre_eligible_count, eligibility_quantile_range[1], eligibility_quantile_range[2]))
       }
     } else {
-    # Loop until either the fallback number is reached or the quantile range is too wide
-    while (pre_eligible_count < min_eligible_assets_fallback) {
-      iteration <- iteration + 1
+      # Loop until either the fallback number is reached or the quantile range is too wide
+      while (pre_eligible_count < min_eligible_assets_fallback) {
+        iteration <- iteration + 1
 
-      # Check if the current range has reached 0.50
-      current_range <- diff(eligibility_quantile_range)
-      if (current_range >= 0.50) {
-        stop(paste("The difference between the min and max values of eligibility_quantile_range reached 0.50 without",
-                   "obtaining the minimum number of eligible assets (iteration:", iteration, ")."))
+        # Check if the current range has reached 0.50
+        current_range <- diff(eligibility_quantile_range)
+        if (current_range >= 0.50) {
+          stop(paste("The difference between the min and max values of eligibility_quantile_range reached 0.50 without",
+                     "obtaining the minimum number of eligible assets (iteration:", iteration, ")."))
+        }
+
+        # Expand the range by 0.05 on each side, with limits 0 and 1.
+        eligibility_quantile_range[1] <- max(0, eligibility_quantile_range[1] - 0.05)
+        eligibility_quantile_range[2] <- min(1, eligibility_quantile_range[2] + 0.05)
+
+        # Update the pre_eligible_assets based on the new range
+        stock_universe_m_d_ref <- classify_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref, eligibility_quantile_range = eligibility_quantile_range)
+        pre_eligible_count <- sum(stock_universe_m_d_ref$pre_eligible_assets, na.rm = TRUE)
+
+        # Print details of the current iteration if verbose is TRUE
+        if (verbose) {
+          cat(sprintf("Iteration %d: Eligible count = %d, eligibility_quantile_range = (%.2f, %.2f)\n",
+                      iteration, pre_eligible_count, eligibility_quantile_range[1], eligibility_quantile_range[2]))
+        }
       }
-
-      # Expand the range by 0.05 on each side, with limits 0 and 1.
-      eligibility_quantile_range[1] <- max(0, eligibility_quantile_range[1] - 0.05)
-      eligibility_quantile_range[2] <- min(1, eligibility_quantile_range[2] + 0.05)
-
-      # Update the pre_eligible_assets based on the new range
-      stock_universe_m_d_ref <- classify_stocks_pre_eligibility(stock_universe_m_d_ref = stock_universe_m_d_ref, eligibility_quantile_range = eligibility_quantile_range)
-      pre_eligible_count <- sum(universe_m_d_ref$pre_eligible_assets, na.rm = TRUE)
-
-      # Print details of the current iteration if verbose is TRUE
-      if (verbose) {
-        cat(sprintf("Iteration %d: Eligible count = %d, eligibility_quantile_range = (%.2f, %.2f)\n",
-                    iteration, pre_eligible_count, eligibility_quantile_range[1], eligibility_quantile_range[2]))
-       }
-     }
-   }
- }
+    }
+  }
 
   return(stock_universe_m_d_ref)
 }
@@ -610,29 +610,29 @@ classify_stocks_pre_eligibility <- function(stock_universe_m_d_ref, eligibility_
   ##Categorical case
   if (categorical_variable){
     ###Mark all '1' assets as eligible
-      updated_stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
+    updated_stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
       dplyr::mutate(pre_eligible_assets = dplyr::if_else(
         exp_ret_score == max(exp_ret_score), #If equal to max value, is eligible
         1L,
         0L
       ))
 
-  return(updated_stock_universe_m_d_ref)
+    return(updated_stock_universe_m_d_ref)
 
   } else {
     ##Non-categorical case
 
-      ###Calculate quantiles
-      lower_range <- quantile(exp_ret_score, probs = min(eligibility_quantile_range), na.rm = TRUE)
-      upper_range <- quantile(exp_ret_score, probs = max(eligibility_quantile_range), na.rm = TRUE)
+    ###Calculate quantiles
+    lower_range <- quantile(exp_ret_score, probs = min(eligibility_quantile_range), na.rm = TRUE)
+    upper_range <- quantile(exp_ret_score, probs = max(eligibility_quantile_range), na.rm = TRUE)
 
-      ###Update stock universe
-      updated_stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
-        dplyr::mutate(pre_eligible_assets = dplyr::if_else(
-          exp_ret_score >= lower_range & exp_ret_score <= upper_range, #Check if exp_ret_score is inside tunnel
-          1L,
-          0L
-        ))
+    ###Update stock universe
+    updated_stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
+      dplyr::mutate(pre_eligible_assets = dplyr::if_else(
+        exp_ret_score >= lower_range & exp_ret_score <= upper_range, #Check if exp_ret_score is inside tunnel
+        1L,
+        0L
+      ))
 
     return(updated_stock_universe_m_d_ref)
   }
