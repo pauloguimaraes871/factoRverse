@@ -311,7 +311,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
     turnover_cap_rules <- names(turnover_constraint_policy$turnover_cap_rules) #Rule represents a liq. classification to apply policy
 
     ###Apply Buffer Rules Iteratively
-    for (i in 1:length(turnover_cap_rules)){
+    for (i in seq_along(turnover_cap_rules)){
       ####Apply turnover cap rule
       turnover_cap_rule_m_d_ref <-
         apply_turnover_cap_rule(stock_universe_m_d_ref = universe_m_d_ref, #Stock Universe
@@ -394,10 +394,10 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##Group Representativeness Eligibility
-  if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) & !is.null(groups_m_d_ref)){
+  if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) && !is.null(groups_m_d_ref)){
     groups <- groups_m_d_ref %>% dplyr::select(-id, -tickers, -dates) %>% colnames()
     #For each group classification
-    for(i in 1:length(groups)){
+    for(i in seq_along(groups)){
       group_classification_m_d_ref <- universe_m_d_ref[, c("is_eligible", groups[i])]
 
       #Get eligible and ineligible groups
@@ -406,7 +406,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
       #If there are ineligible groups
       if(length(ineligible_groups > 0)){ #Check if there are ineglibile groups
-        for(j in 1:length(ineligible_groups)){
+        for(j in seq_along(ineligible_groups)){
           ##For each ineligible group
           assets_in_ineligible_groups <- universe_m_d_ref[ #Get stocks that belong to the ineligible group
             which(universe_m_d_ref[,groups[i]] == ineligible_groups[j]),]
