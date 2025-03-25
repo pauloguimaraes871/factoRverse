@@ -59,7 +59,7 @@ test_that("check_inputs_port_backtest throws an error when chosen_score_metric_a
 
 })
 
-test_that("check_inputs_port_backtest throws an error when eligibility_quantile_range is not right", {
+test_that("check_inputs_port_backtest throws an error when eligibility_quantile_range/min_eligibility_fallback/rebal/buffer are not right", {
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
@@ -110,6 +110,97 @@ test_that("check_inputs_port_backtest throws an error when eligibility_quantile_
     daily_stock_returns_m_xts = daily_stock_returns_m_xts,
     daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
   ), "eligibility_quantile_range should be between 0 and 1."
+  )
+
+  #Wrong min_eligible_assets_fallback
+  wrong_min_fallback <- 3500
+
+  expect_error(check_inputs_port_backtest(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    rebalancing_months = 7,
+    initial_buffer_period = 12,
+    port_construction_method = "sw",
+    min_eligible_assets_fallback = wrong_min_fallback,
+    eligibility_quantile_range = c(0.67, 1),
+    daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
+  ), "min_eligible_assets_fallback should be less than the average number of assets."
+  )
+
+
+  #Wrong min_eligible_assets_fallback
+  wrong_min_fallback <- -2
+
+  expect_error(check_inputs_port_backtest(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    rebalancing_months = 7,
+    initial_buffer_period = 12,
+    port_construction_method = "sw",
+    min_eligible_assets_fallback = wrong_min_fallback,
+    eligibility_quantile_range = c(0.67, 1),
+    daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
+  ), "min_eligible_assets_fallback should be a positive integer."
+  )
+
+  #Wrong rebal months
+  expect_error(check_inputs_port_backtest(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    rebalancing_months = -7,
+    initial_buffer_period = 12,
+    port_construction_method = "sw",
+    min_eligible_assets_fallback = NULL,
+    eligibility_quantile_range = c(0.67, 1),
+    daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
+  ), "rebalancing_months should be between 1 and 12."
+  )
+
+
+  #Wrong rebal months
+  expect_error(check_inputs_port_backtest(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    rebalancing_months = "seven",
+    initial_buffer_period = 12,
+    port_construction_method = "sw",
+    min_eligible_assets_fallback = NULL,
+    eligibility_quantile_range = c(0.67, 1),
+    daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
+  ), "rebalancing_months should be numeric."
+  )
+
+  #Wrong buffer
+  expect_error(check_inputs_port_backtest(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    rebalancing_months = 7,
+    initial_buffer_period = -12,
+    port_construction_method = "sw",
+    min_eligible_assets_fallback = NULL,
+    eligibility_quantile_range = c(0.67, 1),
+    daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
+  ), "initial_buffer_period must be higher than 1"
+  )
+
+
+  #Wrong rebal months
+  expect_error(check_inputs_port_backtest(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    rebalancing_months = 7,
+    initial_buffer_period = "two",
+    port_construction_method = "sw",
+    min_eligible_assets_fallback = NULL,
+    eligibility_quantile_range = c(0.67, 1),
+    daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
+  ), "initial_buffer_period must be numeric"
   )
 
 
@@ -207,6 +298,24 @@ test_that("check_inputs_port_backtest throws an error when daily_stock_returns_m
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+
+  #wrong format
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      cov_matrix_sample_size = 252,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = as.data.frame(daily_stock_returns_m_xts),
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
+    ), "daily_stock_returns_m_xts must be a xts object"
+  )
 
   #Absence of cov_matrix_sample_size
   expect_error(
@@ -387,6 +496,42 @@ test_that("check_inputs_port_backtest throws an error when daily_bench_returns_m
     ), "cov_matrix_benchmark must be present in daily_bench_returns_m_xts"
   )
 
+  #No daily xts returns
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = NULL,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_sample_size = 100,
+      cov_matrix_benchmark = "ibov"
+    ), "daily_stock_returns_m_xts must be provided together with daily_bench_returns_m_xts"
+  )
+
+
+  #df
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = as.data.frame(daily_benchmark_returns_m_xts),
+      cov_matrix_sample_size = 100,
+      cov_matrix_benchmark = "ibov"
+    ), "daily_bench_returns_m_xts must be a xts object"
+  )
 
 })
 
@@ -545,6 +690,33 @@ test_that("check_inputs_port_backtest throws an error when stock_groups_m_df is 
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #wrong_stock_groups_m_df
+  wrong_stock_groups_m_df <- stock_groups_m_df
+  wrong_stock_groups_m_df$Subsector <- as.factor(wrong_stock_groups_m_df$Subsector)
+
+
+  #Wrong benchmark
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = wrong_stock_groups_m_df
+    ), "all group columns in stock_groups_m_df must be character"
+  )
+
 
   #wrong_stock_groups_m_df
   wrong_stock_groups_m_df <- stock_groups_m_df
@@ -1905,6 +2077,40 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
   #Load
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
 
+
+  #no liq m df
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      min_eligible_assets_fallback = NULL,
+      oos_predictions_m_df = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      rebalancing_months = 7,
+      initial_buffer_period = 2,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = NULL,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = target_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = NULL,
+      liquidity_constraint_policy = liquidity_constraint_policy,
+      verbose = TRUE
+    ), "liquidity_m_df must be coercible to a meta dataframe"
+  )
+
+
+
   #at least liquidity_floor_rule or cap
   wrong_liquidity_constraint_policy <- liquidity_constraint_policy
   wrong_liquidity_constraint_policy$liquidity_floor_rule <- NULL
@@ -3216,6 +3422,42 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #multiple arguments for strategy_aum
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      rebalancing_months = 7,
+      initial_buffer_period = 2,
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = target_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = NULL,
+      liquidity_constraint_policy = liquidity_constraint_policy,
+      turnover_constraint_policy = turnover_constraint_policy,
+      liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+      user_defined_OR_rules_m_df = NULL,
+      user_defined_AND_rules_m_df = NULL,
+      port_construction_method = "ew",
+      transaction_costs_parameters = NULL,
+      verbose = TRUE
+    ), "transaction_costs_parameters can't be missing"
+  )
 
   #multiple arguments for strategy_aum
   wrong_transaction_costs_parameters <- transaction_costs_parameters

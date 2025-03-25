@@ -123,7 +123,7 @@ check_inputs_port_backtest <- function(
     }
 
     #Check if it is less than the number of assets
-    mean_n_assets <- signals_m_df %>% dplyr::group_by(date) %>% dplyr::summarize(n_assets = dplyr::n()) %>% dplyr::pull(n_assets) %>% mean()
+    mean_n_assets <- signals_m_df %>% dplyr::group_by(dates) %>% dplyr::summarize(n_assets = dplyr::n()) %>% dplyr::pull(n_assets) %>% mean()
     if(min_eligible_assets_fallback >= mean_n_assets){
       stop("min_eligible_assets_fallback should be less than the average number of assets.")
     }
@@ -179,7 +179,7 @@ check_inputs_port_backtest <- function(
 
     #Check if chosen_score_metric_and_position is not NULL
     if (!is.null(chosen_score_metric_and_position) ||
-       (!is.null(custom_stock_weights_m_df) && port_construction_method == "custom_weights")){
+        (!is.null(custom_stock_weights_m_df) && port_construction_method == "custom_weights")){
       stop("either chosen_score_metric_and_position, oos_predictions_m_df or custom_stock_weights_m_df should be provided.")
     }
 

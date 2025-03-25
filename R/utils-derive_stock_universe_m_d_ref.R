@@ -81,10 +81,6 @@ derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_r
 
   #Initialize the stock universe data frame
   ####################
-    ##Get tickers and date
-    current_tickers <- signals_m_d_ref %>% dplyr::pull(tickers)
-    current_date <- signals_m_d_ref %>% dplyr::pull(dates) %>% unique()
-
     ##Join into data.frame
     stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates)
   ####################
@@ -94,8 +90,6 @@ derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_r
     ###oos_predictions_m_d_ref
     if (!is.null(oos_predictions_m_d_ref)) {
       # Define the metric name for expected return score
-      exp_ret_score_metric <- "oos_pred"
-
       stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
         dplyr::left_join(
           oos_predictions_m_d_ref %>% dplyr::select(id, pred),
@@ -114,11 +108,9 @@ derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_r
       if (chosen_score_metric_and_position == "long") {
         position <- 1
         chosen_score <- names(chosen_score_metric_and_position)
-        exp_ret_score_metric <- chosen_score
       } else {
         position <- -1
         chosen_score <- names(chosen_score_metric_and_position)
-        exp_ret_score_metric <- paste0("low_", chosen_score)
       }
 
       #####Check if the chosen score column exists in signals_m_d_ref

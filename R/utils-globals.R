@@ -6,5 +6,5 @@ utils::globalVariables(c("id", "tickers", "untraded", "delisted", "listed", "old
                          "has_not_na", "count", "untrd_not_only_NA_TRUE", "untrd_not_only_NA_FALSE",
                          "out_trd_rg_not_only_NA_FALSE", "out_trd_rg_not_only_NA_TRUE", ":=",
                          "pred", "updated_port_weights", "is_eligible", "total_cost", "n_assets",
-                         "fwd_return_1m", "liquidity_classification"
+                         "fwd_return_1m", "liquidity_classification", "exp_ret_score"
                          ))

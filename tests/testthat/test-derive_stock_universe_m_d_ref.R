@@ -48,7 +48,6 @@ test_that("derive_stock_universe_m_d_ref works for 'short' chosen_score_metric_a
 
 })
 
-
 test_that("derive_stock_universe_m_d_ref works for oos_predictions_m_df", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
@@ -110,6 +109,68 @@ test_that("derive_stock_universe_m_d_ref works for oos_predictions_m_df", {
                                   oos_predictions_m_d_ref = oos_preds_m_d_ref,
                                   lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization),
     expected_results)
+
+
+})
+
+test_that("derive_stock_universe_m_d_ref throws errors for incorrect selections", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #Current date
+  current_date <- "2001-06-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+
+  #Chosen Score
+  chosen_score_metric_and_position <- c(Alma = "long")
+
+  #Expect error
+  expect_error(
+    derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                  lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization),
+    "The chosen score column 'Alma' is not found in signals_m_d_ref.")
+
+  #Chosen Score not provided
+  expect_error(
+    derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = NULL,
+                                  lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization),
+    "Either oos_predictions_m_d_ref or chosen_score_metric_and_position must be provided.")
+
+  #Both provided
+  chosen_score_metric_and_position <- c(Alpha = "long")
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Both provided
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", training_sample_size = 6, rebalancing_months = 6,
+                                          target_fwd_name = c("fwd_premium_3m"))
+
+  target_m_df <- target_m_df %>% create_meta_dataframe()
+  features_m_df <- signals_m_df %>% create_meta_dataframe()
+
+  set.seed(123)
+  #Apply function
+  suppressMessages(suppressWarnings({
+    sb_backtest_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = ols_config,
+      parallel = FALSE,
+      verbose = TRUE
+    )}))
+
+  #Get OOS Preds
+  oos_preds_m_df <- sb_backtest_results@oos_sb_outputs_m_df@data
+
+  expect_error(
+    derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                                  oos_predictions_m_d_ref = oos_preds_m_df,
+                                  lower_quantile_winsorization = lower_quantile_winsorization,
+                                  upper_quantile_winsorization = upper_quantile_winsorization),
+    "Only one of oos_predictions_m_d_ref or chosen_score_metric_and_position should be provided.")
 
 
 })
