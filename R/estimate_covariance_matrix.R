@@ -46,7 +46,7 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
   n_dates <- length(returns_m_xts_upd_ref_dates)
 
   ##check
-  if(n_dates < cov_matrix_sample_size){
+  if(!is.null(cov_matrix_sample_size) && n_dates < cov_matrix_sample_size){
     stop("Not enough dates to estimate covariance matrix")
   }
 
@@ -171,7 +171,7 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
     cat("\n")
     cat(crayon::green(paste("Covariance matrix estimated using", cov_estimation_method, "method.")))
     cat("\n")
-    elapsed_time <- tictoc::toc()
+    tictoc::toc()
   }
 
   #Return
