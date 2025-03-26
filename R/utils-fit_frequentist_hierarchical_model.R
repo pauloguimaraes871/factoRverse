@@ -64,7 +64,7 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
   if (!lmer_optimizer %in% c("nloptwrap", "bobyqa", "Nelder_Mead", "nlminbwrap")){
     stop("Invalid optimizer. Please choose from 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'.")
   }
-  if (!lmer_optimization_objective %in% c(TRUE, FALSE)){
+  if (!is.logical(lmer_optimization_objective)){
     stop("Invalid optimization objective. Please choose from TRUE or FALSE.")
   }
 
@@ -90,7 +90,7 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
   lmer_model <- lmerTest::lmer(formula = lmer_formula,
                                data = selected_backtest_returns_corrected_positions_m_upd_ref,
                                control = lme4::lmerControl(optimizer = lmer_optimizer), REML = lmer_optimization_objective
-                               )
+  )
 
   ########################
 
@@ -107,7 +107,7 @@ fit_frequentist_hierarchical_model <- function(signal_universe_m_d_ref,
       selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref, model_spec_theme_level = model_spec_theme_level,
       #How to calc p-value
       hierarchical_p_value_method = hierarchical_p_value_method
-      )
+    )
 
   }
   ########################
