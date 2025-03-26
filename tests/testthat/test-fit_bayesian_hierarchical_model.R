@@ -85,7 +85,10 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(brm_model$family$family, "gaussian")
 
   expect_true(all(brm_model$basis$levels$theme %in% unique(selected_signal_themes_m_d_ref$theme)))
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_d_ref$theme), "_" ,unique(selected_signal_themes_m_d_ref$tickers))))
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in%
+                    (selected_signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::pull(theme_tickers))
+                  ))
+
 
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers)"))
 
@@ -123,19 +126,20 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   cols_to_compare <- c("prior", "class", "coef", "group", "source")
 
   # Sort the data frames
-  user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
+  user_priors_in_model <- user_priors_in_model[, cols_to_compare]
 
   # Correct the class for the LKJ prior
-  user_priors_in_model_sorted$class[user_priors_in_model_sorted$prior == "lkj_corr_cholesky(2)"] <- "cor"
-  user_priors_in_model_sorted$prior[user_priors_in_model_sorted$prior == "lkj_corr_cholesky(2)"] <- "lkj(2)"
+  user_priors_in_model$class[user_priors_in_model$prior == "lkj_corr_cholesky(2)"] <- "cor"
+  user_priors_in_model$prior[user_priors_in_model$prior == "lkj_corr_cholesky(2)"] <- "lkj(2)"
 
-  user_priors_in_model_sorted_2 <- user_priors_in_model_sorted[c(1,3,5,6,4,7,2),]
-  rownames(user_priors_in_model_sorted_2) <- NULL
-  elected_priors_sorted <- elected_priors[, cols_to_compare]
-  rownames(elected_priors_sorted) <- NULL
+  rownames(user_priors_in_model) <- NULL
+  elected_priors <- elected_priors[, cols_to_compare]
+  rownames(elected_priors) <- NULL
 
-  expect_equal(user_priors_in_model_sorted_2, elected_priors_sorted)
-
+  expect_equal(
+    user_priors_in_model %>% dplyr::arrange(dplyr::across(dplyr::everything())),
+    elected_priors %>% dplyr::arrange(dplyr::across(dplyr::everything()))
+  )
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.85)
@@ -319,7 +323,9 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(class(brm_model), "brmsfit")
   expect_equal(brm_model$family$family, "gaussian")
 
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_df$theme), "_" ,unique(selected_signal_themes_m_df$tickers))))
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in%
+                    (selected_signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::pull(theme_tickers))
+  ))
 
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "0 + theme + market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
@@ -356,18 +362,19 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   cols_to_compare <- c("prior", "class", "coef", "group", "source")
 
   # Sort the data frames
-  user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
+  user_priors_in_model <- user_priors_in_model[, cols_to_compare]
 
-  user_priors_in_model_sorted$class[1] <- "cor"
-  user_priors_in_model_sorted$prior[1] <- "lkj(2)"
-  user_priors_in_model_sorted2 <- user_priors_in_model_sorted[c(4,3,2,5,6,7,1),]
-  rownames(user_priors_in_model_sorted2) <- NULL
+  user_priors_in_model$class[1] <- "cor"
+  user_priors_in_model$prior[1] <- "lkj(2)"
+  rownames(user_priors_in_model) <- NULL
 
+  elected_priors <- elected_priors[, cols_to_compare]
+  rownames(elected_priors) <- NULL
 
-  elected_priors_sorted <- elected_priors[, cols_to_compare]
-  rownames(elected_priors_sorted) <- NULL
-
-  expect_equal(user_priors_in_model_sorted2, elected_priors_sorted)
+  testthat::expect_equal(
+    user_priors_in_model %>% dplyr::arrange(dplyr::across(dplyr::everything())),
+    elected_priors %>% dplyr::arrange(dplyr::across(dplyr::everything()))
+  )
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.99)
@@ -538,7 +545,9 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(class(brm_model), "brmsfit")
   expect_equal(brm_model$family$family, "gaussian")
 
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_df$theme), "_" ,unique(selected_signal_themes_m_df$tickers))))
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in%
+                    (selected_signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::pull(theme_tickers))
+  ))
 
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
@@ -574,18 +583,20 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   cols_to_compare <- c("prior", "class", "coef", "group", "source")
 
   # Sort the data frames
-  user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
+  user_priors_in_model <- user_priors_in_model[, cols_to_compare]
 
-  user_priors_in_model_sorted$class[1] <- "cor"
-  user_priors_in_model_sorted$prior[1] <- "lkj(2)"
-  user_priors_in_model_sorted2 <- user_priors_in_model_sorted[c(4,2,5,3,6,7,8,1),]
-  rownames(user_priors_in_model_sorted2) <- NULL
+  user_priors_in_model$class[1] <- "cor"
+  user_priors_in_model$prior[1] <- "lkj(2)"
+  rownames(user_priors_in_model) <- NULL
 
 
-  elected_priors_sorted <- elected_priors[, cols_to_compare]
-  rownames(elected_priors_sorted) <- NULL
+  elected_priors <- elected_priors[, cols_to_compare]
+  rownames(elected_priors) <- NULL
 
-  expect_equal(user_priors_in_model_sorted2, elected_priors_sorted)
+  expect_equal(
+    user_priors_in_model %>% dplyr::arrange(dplyr::across(dplyr::everything())),
+    elected_priors %>% dplyr::arrange(dplyr::across(dplyr::everything()))
+  )
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
@@ -760,7 +771,9 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
   expect_equal(class(brm_model), "brmsfit")
   expect_equal(brm_model$family$family, "gaussian")
 
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_df$theme), "_" ,unique(selected_signal_themes_m_df$tickers))))
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in%
+                    (selected_signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::pull(theme_tickers))
+  ))
 
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "0 + theme + theme:market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
@@ -796,8 +809,8 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
   cols_to_compare <- c("prior", "class", "coef", "group", "source")
 
   # Sort the data frames
-  user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
-  rownames(user_priors_in_model_sorted) <- NULL
+  user_priors_in_model <- user_priors_in_model[, cols_to_compare]
+  rownames(user_priors_in_model) <- NULL
 
   #Create priors for model
   corrected_priors <- c(
@@ -820,35 +833,45 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
     brms::set_prior("lkj(2)", class = "cor")
   )
 
-  elected_priors_sorted <- corrected_priors[, cols_to_compare]
-  rownames(elected_priors_sorted) <- NULL
+  elected_priors <- corrected_priors[, cols_to_compare]
+  rownames(elected_priors) <- NULL
+
+
+  user_priors_in_model$class[which(user_priors_in_model$class == "L")] <- "cor"
+  user_priors_in_model$prior[which(user_priors_in_model$prior == "lkj_corr_cholesky(2)")] <- "lkj(2)"
 
   # Check if they have the same rows
-  combined <- dplyr::full_join(
-    elected_priors_sorted %>% dplyr::mutate(source_df = "elected"),
-    user_priors_in_model_sorted %>% dplyr::mutate(source_df = "user"),
-    by = c("prior", "class", "coef", "group", "source")
+  expect_equal(
+    user_priors_in_model %>% dplyr::arrange(dplyr::across(dplyr::everything())),
+    elected_priors %>% dplyr::arrange(dplyr::across(dplyr::everything()))
   )
+
+
+  #combined <- dplyr::full_join(
+  #  elected_priors_sorted %>% dplyr::mutate(source_df = "elected"),
+  #  user_priors_in_model_sorted %>% dplyr::mutate(source_df = "user"),
+  #  by = c("prior", "class", "coef", "group", "source")
+  #)
 
   # Find rows only in one of the data frames
-  differences <- combined %>% dplyr::filter(is.na(source_df.x) | is.na(source_df.y))
+  #differences <- combined %>% dplyr::filter(is.na(source_df.x) | is.na(source_df.y))
 
   # Define the expected discrepancies
-  expected_discrepancies <- data.frame(
-    prior = c("lkj(2)", "lkj_corr_cholesky(2)"),
-    class = c("cor", "L"),
-    coef = c("", ""),
-    group = c("", ""),
-    source = c("user", "user"),
-    source_df.x = c("elected", NA_character_),
-    source_df.y = c(NA_character_, "user"),
-    stringsAsFactors = FALSE
-  )
+  #expected_discrepancies <- data.frame(
+  #  prior = c("lkj(2)", "lkj_corr_cholesky(2)"),
+  #  class = c("cor", "L"),
+  #  coef = c("", ""),
+  #  group = c("", ""),
+  #  source = c("user", "user"),
+  #  source_df.x = c("elected", NA_character_),
+  #  source_df.y = c(NA_character_, "user"),
+  #  stringsAsFactors = FALSE
+  #)
 
   # Check if discrepancies match expected
-  is_okay <- setequal(differences, expected_discrepancies)
+  #is_okay <- setequal(differences, expected_discrepancies)
 
-  expect_true(is_okay)
+  #expect_true(is_okay)
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
@@ -1017,8 +1040,9 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_equal(class(brm_model), "brmsfit")
   expect_equal(brm_model$family$family, "gaussian")
 
-  expect_true(all(brm_model$basis$levels$`theme:tickers` %in% paste0(unique(selected_signal_themes_m_df$theme), "_" ,unique(selected_signal_themes_m_df$tickers))))
-
+  expect_true(all(brm_model$basis$levels$`theme:tickers` %in%
+                    (selected_signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::pull(theme_tickers))
+  ))
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "market_factor_proxy + (1 + market_factor_proxy | theme:tickers)"))
 
   #Construct data
@@ -1054,18 +1078,19 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   cols_to_compare <- c("prior", "class", "coef", "group", "source")
 
   # Sort the data frames
-  user_priors_in_model_sorted <- user_priors_in_model[, cols_to_compare]
+  user_priors_in_model <- user_priors_in_model[, cols_to_compare]
 
-  user_priors_in_model_sorted$class[2] <- "cor"
-  user_priors_in_model_sorted$prior[2] <- "lkj(2)"
-  user_priors_in_model_sorted2 <- user_priors_in_model_sorted[c(1,3,4,5,6,2),]
-  rownames(user_priors_in_model_sorted2) <- NULL
+  user_priors_in_model$class[2] <- "cor"
+  user_priors_in_model$prior[2] <- "lkj(2)"
+  rownames(user_priors_in_model) <- NULL
 
+  elected_priors <- elected_priors[, cols_to_compare]
+  rownames(elected_priors) <- NULL
 
-  elected_priors_sorted <- elected_priors[, cols_to_compare]
-  rownames(elected_priors_sorted) <- NULL
-
-  expect_equal(user_priors_in_model_sorted2, elected_priors_sorted)
+  expect_equal(
+    user_priors_in_model %>% dplyr::arrange(dplyr::across(dplyr::everything())),
+    elected_priors %>% dplyr::arrange(dplyr::across(dplyr::everything()))
+  )
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
