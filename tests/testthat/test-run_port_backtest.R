@@ -1395,14 +1395,12 @@ test_that("run_port_backtest works for a oos_predictions blended strategy with o
   #Create port_backtest_config
   port_config <- create_port_backtest_config(eligibility_quantile_range = c(0.67, 1.0),
                                              selected_benchmark = "ibov",
-                                             sb_backtest_results = sb_results,
                                              initial_buffer_period = 5,
                                              rebalancing_months = 4,
                                              port_construction_method = "sw",
                                              main_liquidity_metric = "mean_volfin_3m",
                                              config_name = "guara_model"
-  ) %>% add_sb_backtest_results(sb_results) %>%
-    add_liquidity_floor_cutoffs(
+  ) %>% add_liquidity_floor_cutoffs(
       metric_name = c("mean_volfin_3m", "presence"),
       metric_cutoffs = list(
         c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
@@ -1416,6 +1414,7 @@ test_that("run_port_backtest works for a oos_predictions blended strategy with o
   expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
+                                 sb_backtest_results = sb_results,
                                  config = port_config,
                                  liquidity_m_df = liquidity_m_df,
                                  volatility_m_df = volatility_m_df,
@@ -1762,14 +1761,12 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
   #Create port_backtest_config
   port_config <- create_port_backtest_config(eligibility_quantile_range = c(0.67, 1.0),
                                              selected_benchmark = "ibov",
-                                             sb_backtest_results = sb_results,
                                              initial_buffer_period = 5,
                                              rebalancing_months = 4,
                                              port_construction_method = "mvo",
                                              main_liquidity_metric = "mean_volfin_3m",
                                              config_name = "guara_model"
-  ) %>% add_sb_backtest_results(sb_results) %>%
-    add_liquidity_floor_cutoffs(
+  ) %>% add_liquidity_floor_cutoffs(
       metric_name = c("mean_volfin_3m", "presence"),
       metric_cutoffs = list(
         c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
@@ -1790,6 +1787,7 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  config = port_config,
+                                 sb_backtest_results = sb_results,
                                  liquidity_m_df = liquidity_m_df,
                                  volatility_m_df = volatility_m_df,
                                  stock_groups_m_df = stock_groups_m_df,
@@ -2211,6 +2209,8 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
   expect_equal(as.Date(zoo::index(results@port_metrics_m_xts@data)[2]), as.Date(c("2023-03-15")))
   expect_equal(as.Date(zoo::index(results@port_metrics_m_xts@data)[3]), as.Date(c("2023-04-15")))
 
+  #backtest identifier
+  expect_equal(results@port_backtest_workflow$sb_backtest_identifier, sb_results@backtest_identifier)
 
 })
 
@@ -2273,7 +2273,6 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
 
   #Create port_backtest_config
   port_config <- create_port_backtest_config(eligibility_quantile_range = c(0.67, 1.0),
-                                             sb_backtest_results = sb_results,
                                              initial_buffer_period = 5,
                                              rebalancing_months = 4,
                                              port_construction_method = "mvo",
@@ -2301,6 +2300,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  config = port_config,
+                                 sb_backtest_results = sb_results,
                                  liquidity_m_df = liquidity_m_df,
                                  volatility_m_df = volatility_m_df,
                                  stock_groups_m_df = stock_groups_m_df,

@@ -6,7 +6,7 @@
 \usage{
 derive_adapted_custom_signal_universe_m_df(
   meta_custom_objective,
-  base_sb_backtest_outputs_list,
+  base_sb_backtest_results_list,
   meta_custom_signal_universe_metrics_m_df,
   base_custom_signal_universe_metrics_m_df
 )
@@ -14,7 +14,7 @@ derive_adapted_custom_signal_universe_m_df(
 \arguments{
 \item{meta_custom_objective}{A character string representing the custom objective (e.g., 'min_rss').}
 
-\item{base_sb_backtest_outputs_list}{A list of backtest results for processing.}
+\item{base_sb_backtest_results_list}{A list of backtest results for processing.}
 
 \item{meta_custom_signal_universe_metrics_m_df}{Meta-level metrics dataframe.}
 

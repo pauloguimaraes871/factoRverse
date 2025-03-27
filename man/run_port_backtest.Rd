@@ -20,27 +20,23 @@ run_port_backtest(
   liquidity_m_df,
   volatility_m_df,
   config,
-  target_m_df = NULL,
-  port_backtest_cohort = NULL,
-  backtest_returns_m_xts = NULL,
-  benchmark_returns_m_xts = NULL,
-  signal_themes_m_df = NULL,
-  priors_m_df = NULL,
-  custom_signal_weights_m_df = NULL,
-  custom_signal_universe_metrics_m_df = NULL,
-  gsm_algorithm = "ols",
-  .test_seed = NULL,
+  sb_backtest_results = NULL,
   stock_groups_m_df = NULL,
   benchmark_weights_m_df = NULL,
   daily_stock_returns_m_xts = NULL,
   daily_bench_returns_m_xts = NULL,
+  benchmark_returns_m_xts = NULL,
   custom_stock_weights_m_df = NULL,
   custom_stock_metrics_m_df = NULL,
   user_defined_OR_rules_m_df = NULL,
   user_defined_AND_rules_m_df = NULL,
   winsorization_probs = c(0.025, 0.975),
   verbose = TRUE,
-  parallel = TRUE
+  parallel = TRUE,
+  .test_seed = NULL,
+  .update = FALSE,
+  .old_backtest_port_weights_m_d_ref = NULL,
+  .old_backtest_port_costs_d_ref = NULL
 )
 }
 \arguments{
@@ -55,6 +51,8 @@ run_port_backtest(
 \item{config}{An object of class \code{port_backtest_config} specifying the portfolio backtest configuration.}
 
 \item{...}{Additional arguments (if needed).}
+
+\item{sb_backtest_results}{An object of class \code{sb_backtest_results} containing the results of a signal blending backtest.}
 
 \item{parallel}{Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).}
 }

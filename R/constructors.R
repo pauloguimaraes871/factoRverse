@@ -4140,25 +4140,7 @@ setMethod("add_sb_backtest_config", "port_backtest_config", function(object, new
   return(object)
 })
 
-#' Add one sb_backtest_results object to a port_backtest_config
-#'
-#' @param object A`port_backtest_config` object.
-#' @param  One or more `sb_backtest_results` objects to add.
-#'
-#' @return An updated `port_backtest_config` object with added sb_backtest_results.
-#' @export
-setGeneric("add_sb_backtest_results", function(object, ...) standardGeneric("add_sb_backtest_results"))
 
-setMethod("add_sb_backtest_results", "port_backtest_config", function(object, sb_backtest_results, ...) {
-  # Add obj
-  object@sb_backtest_results <- sb_backtest_results
-
-  # Validate the object explicitly
-  validObject(object)
-
-  # Return the updated object
-  return(object)
-})
 
 
 #' Remove an sb_backtest_config by name from an sb_metabacktest_config
@@ -4282,7 +4264,6 @@ setMethod(
 #' If missing and port_construction_method is "mvo", a default is created.
 #' @param rp_parameters An object of class `rp_parameters` for risk parity portfolios. Only required if `port_construction_method` is "rp".
 #' If missing and port_construction_method is "rp", a default is created.
-#' @param sb_backtest_results An object of class `sb_backtest_results`. Must be NULL if using an independent signal backtest configuration.
 #' @param main_liquidity_metric A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.
 #' @param liquidity_floor_cutoffs An object (e.g., a data frame) containing liquidity cutoff values.
 #' @param liquidity_constraint_policy An object of class `liquidity_constraint_policy` (optional).
@@ -4303,7 +4284,6 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         port_construction_method = "ew",
                                         mvo_parameters = NULL,
                                         rp_parameters = NULL,
-                                        sb_backtest_results = NULL,
                                         main_liquidity_metric,
                                         liquidity_floor_cutoffs = NULL,
                                         liquidity_constraint_policy = NULL,
@@ -4347,11 +4327,6 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
     )
   }
 
-  # Ensure that at least one of sb_backtest_results or chosen_score_metric_and_position is provided
-  if (is.null(sb_backtest_results) && is.null(chosen_score_metric_and_position) && port_construction_method != "custom_weights") {
-    stop("chosen_score_metric_and_position must be provided if sb_backtest object is NULL and port_construction_method is not 'custom_weights'.")
-  }
-
   # Create and return the new port_backtest_config object
   new("port_backtest_config",
     chosen_score_metric_and_position = chosen_score_metric_and_position,
@@ -4364,7 +4339,6 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
     port_construction_method = port_construction_method,
     mvo_parameters = mvo_parameters,
     rp_parameters = rp_parameters,
-    sb_backtest_results = sb_backtest_results,
     main_liquidity_metric = main_liquidity_metric,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs,
     liquidity_constraint_policy = liquidity_constraint_policy,

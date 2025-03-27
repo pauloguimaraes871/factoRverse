@@ -1484,6 +1484,7 @@ setClass("bayesian_alpha_test_strategy",
 setClass("ss_backtest_config",
          slots = list(
            chosen_signals_and_positions = "character",
+           port_backtest_cohort = "ANY",
            initial_sample_size = "numeric",
            rebalancing_months = "numeric",
            active_returns = "logical",
@@ -1513,6 +1514,13 @@ setClass("ss_backtest_config",
                stop("alpha_test_strategy must be an object of class alpha_test_strategy")
              }
            }
+
+           if (!is.null(object@port_backtest_cohort)){
+             if (!inherits(object@port_backtest_cohort, "port_backtest_cohort")) {
+               stop("port_backtest_cohort must be an object of class port_backtest_cohort")
+             }
+           }
+
          }
 )
 
@@ -1545,7 +1553,8 @@ setClass(
     bayesian_results = "ANY",
     p_correction_method = "character",
     ss_backtest_workflow = "list",
-    backtest_identifier = "character"
+    backtest_identifier = "character",
+    update = "logical"
   )
 )
 
@@ -2449,7 +2458,6 @@ setClass(
     port_construction_method = "character",
     mvo_parameters = "ANY",
     rp_parameters = "ANY",
-    sb_backtest_results = "ANY",
     main_liquidity_metric = "character",
     liquidity_floor_cutoffs = "ANY",
     liquidity_constraint_policy = "ANY",
@@ -2470,6 +2478,9 @@ setClass(
     if (object@port_construction_method == "custom_weights"){
       stop("custom_weights port_construction_method is not supported at this time.")
     }
+    if (object@port_construction_method == "custom_weights" && !is.null(object@chosen_score_metric_and_position)){
+      stop("chosen_score_metric_and_position must be NULL when port_construction_method is custom_weights")
+    }
 
     if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo")){
       stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'")
@@ -2489,12 +2500,6 @@ setClass(
     }
 
     ###Check classes
-      ####SB Results
-      if (!is.null(object@sb_backtest_results)){
-        if(!inherits(object@sb_backtest_results, "sb_backtest_results")){
-          stop("sb_backtest_results must be an object of class sb_backtest_results")
-        }
-      }
       ####MVO
       if (!is.null(object@mvo_parameters)){
         if(!inherits(object@mvo_parameters, "mvo_parameters")){
@@ -2507,11 +2512,6 @@ setClass(
           stop("rp_parameters must be an object of class rp_parameters.")
         }
       }
-
-    ###Check if chosen_score_metric_and_position is provided if sb_backtest_results not provided
-    if (is.null(object@sb_backtest_results) && is.null(object@chosen_score_metric_and_position)){
-      stop("chosen_score_metric_and_position must be provided if sb_backtest_results is not provided.")
-    }
 
     ##Check chosen_score_metric_and_position
     if(!is.null(object@chosen_score_metric_and_position) &&

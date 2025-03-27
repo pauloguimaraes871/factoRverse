@@ -2,52 +2,52 @@
 % Please edit documentation in R/validators.R
 \name{check_update_backtest_objects}
 \alias{check_update_backtest_objects}
-\title{Validate update_backtest_inputs}
+\title{Validate Updated Backtest Objects}
 \usage{
 check_update_backtest_objects(
   new_objects_list,
-  old_objects_names,
-  dates_covered
+  old_objects_names_list,
+  dates_covered,
+  n_update
 )
 }
 \arguments{
-\item{new_objects_list}{A named list of \verb{_m_df} or \verb{_m_xts} objects, each object having
-a \code{meta_dataframe_name} or \code{meta_xts_name} slot,
-plus a \code{@data} slot with actual data.}
-
-\item{dates_covered}{A vector of dates that have already been covered by the backtest.}
-
-\item{results}{A backtest results object that must contain:
+\item{new_objects_list}{A named list of \verb{_m_df} or \verb{_m_xts} objects. Each object
+must have:
 \itemize{
-\item \code{@port_backtest_workflow}, where each object name is stored in a field
-named \code{<prefix>_obj_name}.
-\item \code{@port_backtest_config}, which must have \code{n_update}.
+\item A \code{meta_dataframe_name} or \code{meta_xts_name} slot (depending
+on whether it’s an \code{_m_df} or \code{_m_xts} object).
+\item A \code{@data} slot containing the underlying data (a \code{data.frame}
+in the case of an \code{_m_df}, or an \code{xts} object for an \code{_m_xts}).
+\item A \code{@current_date} slot (optional for your checks, but used in
+some places).
 }}
+
+\item{old_objects_names_list}{A named list or vector that maps each \code{arg_name}
+in \code{new_objects_list} to the “official” or expected name. For example:
+\code{old_objects_names_list[["signals_m_df"]]} might be \code{"my_signals"}.}
+
+\item{dates_covered}{A vector of dates that have already been covered by previous
+backtest data. The function checks that the new objects contain dates strictly
+after these.}
+
+\item{n_update}{The number of new dates that should be present in the updated objects.}
 }
 \value{
-\code{TRUE} (invisibly) if all checks pass, otherwise raises an error via \code{stop()}.
+Returns \code{TRUE} invisibly if all checks pass. Otherwise, it raises an error
+via \code{stop()}.
 }
 \description{
-Checks that each object in a named list of \verb{_m_df} or \verb{_m_xts} objects:
+Checks that each named \verb{_m_df} or \verb{_m_xts} object in \code{new_objects_list}
+satisfies the following conditions:
 \itemize{
-\item Matches the expected name in the \code{results@port_backtest_workflow}.
-\item Has new dates beyond those in \code{dates_covered}.
-\item Starts exactly one month after the last date in \code{dates_covered}.
-\item Contains exactly \code{n_update} new dates, as specified in
-\code{results@port_backtest_config@n_update}.
-}
-}
-\examples{
-\dontrun{
-  # Example usage (pseudo-code):
-  new_list <- list(
-    signals_m_df = my_signals_m_df,
-    daily_stock_returns_m_xts = my_daily_stock_returns_m_xts
-  )
-  check_backtest_objects(
-    new_objects_list = new_list,
-    results = my_results,
-    dates_covered = my_dates_covered
-  )
+\item Its internal \code{meta_dataframe_name} or \code{meta_xts_name} matches
+the expected name in \code{old_objects_names_list[[arg_name]]}.
+\item It provides new dates beyond those in \code{dates_covered}.
+\item Unless it is a daily returns object (named \code{"daily_stock_returns_m_xts"}
+or \code{"daily_bench_returns_m_xts"}), it starts exactly one month after
+the last date in \code{dates_covered}.
+\item The total number of new dates matches the required \code{n_update}
+(taken from \code{config@n_update} inside the function).
 }
 }

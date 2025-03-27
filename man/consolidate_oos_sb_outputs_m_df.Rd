@@ -10,7 +10,9 @@ consolidate_oos_sb_outputs_m_df(
   normalize_predictions = TRUE,
   winsorization_probs = c(0.025, 0.975),
   features_passthrough_and_positions = "none",
-  features_m_df = NULL
+  features_m_df = NULL,
+  parallel = TRUE,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -22,9 +24,13 @@ consolidate_oos_sb_outputs_m_df(
 
 \item{winsorization_probs}{A numeric vector of length 2 specifying the lower and upper quantile probabilities for winsorization. Default is \code{c(0.025, 0.975)}.}
 
+\item{features_passthrough_and_positions}{Character; specifies which features from \code{features_m_df} to include in the output. Options are \code{"none"}, \code{"all"}, or specific feature names. Default is \code{"none"}.}
+
 \item{features_m_df}{A meta dataframe of features to include in the passthrough. Only required if \code{features_passthrough} is not \code{"none"}. Default is \code{NULL}.}
 
-\item{features_passthrough}{Character; specifies which features from \code{features_m_df} to include in the output. Options are \code{"none"}, \code{"all"}, or specific feature names. Default is \code{"none"}.}
+\item{parallel}{Logical; if \code{TRUE}, parallel processing is used to speed up the consolidation process. Default is \code{TRUE}.}
+
+\item{verbose}{Logical; if \code{TRUE}, progress messages are printed. Default is \code{TRUE}.}
 }
 \value{
 A \code{meta_dataframe} object containing the consolidated predictions, optionally with normalized and winsorized values, and passthrough features.

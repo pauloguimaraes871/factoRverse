@@ -4,66 +4,72 @@
 \alias{consolidate_backtest_results}
 \title{Consolidate Newly Produced Backtest Results}
 \usage{
-consolidate_backtest_results(backtest_outputs_list)
+consolidate_backtest_results(new_backtest_outputs_list, old_backtest_results)
 }
 \arguments{
-\item{backtest_outputs_list}{A named list of new backtest results. Each element's
-name (like \code{"port_weights_m_df"}) must match the corresponding slot name in
-the global \code{results} object. Values should be S4 objects that have a
-\code{data} slot (accessible via \code{new_obj@data}).}
+\item{new_backtest_outputs_list}{A named list of \strong{new} backtest objects (S4).
+Each element's name (e.g. \code{"port_weights_m_df"}) must match the slot name
+used in the old backtest. These objects are the "additional" data.}
+
+\item{old_backtest_results}{An \strong{old} port_backtest_results objects (S4).
+These objects are considered the "main" data source.}
 }
 \value{
-A named list of consolidated objects, each updated to include both the
-old and new data. The order of returned elements matches the order in
-\code{backtest_outputs_list}.
+A named list of \strong{consolidated} S4 objects. The returned list has
+the same names as \code{new_backtest_outputs_list}, but each item now contains
+\strong{both} old and new data merged together in \code{new_obj@data}.
 }
 \description{
-This function takes a named list of newly produced backtest results, each either
-an \code{_m_df} or an \code{_m_xts} object, and merges each with the corresponding
-old object retrieved from the global \code{results} object. The old object is
-treated as the "main" data source, and the new object as the "additional" data.
+This function takes a named list of newly produced backtest results (the "new" objects),
+and merges each with the corresponding old object from an explicitly provided list
+(\code{old_backtest_outputs_list}). The old object is treated as the "main" data source,
+and the new object as the "supplemental" data to be appended.
 
 Specifically:
 \itemize{
 \item For objects whose name ends with \code{"_m_df"}, the function uses
 \code{\link{consolidate_generic_meta_dataframes}}.
-\item For objects whose name ends with \code{"_m_xts"}, it uses
+\item For objects whose name ends with \code{"_m_xts"}, the function uses
 \code{\link{consolidate_generic_meta_xts}}, with an operation of
 \code{"bind_rows"}.
 }
 }
 \details{
-The function will:
 \enumerate{
-\item Look up an old object in the global \code{results} by the same name.
-\item If the name ends with \code{"_m_df"}, call
+\item Looks up an old object in \code{old_backtest_outputs_list} by the same key.
+\item If the name ends with \code{"_m_df"}, calls
 \code{consolidate_generic_meta_dataframes(main_generic_m_df = old_obj,
-        additional_generic_m_df = new_obj, ...)}.
-\item If the name ends with \code{"_m_xts"}, call
+      supplemental_generic_m_df = new_obj, ...)}.
+\item If the name ends with \code{"_m_xts"}, calls
 \code{consolidate_generic_meta_xts(main_generic_m_xts = old_obj,
-        additional_generic_m_xts = new_obj, ...)}.
-\item Update the \code{@data} slot of the new object with the consolidated result.
-\item Return the updated new object in the output list.
+      supplemental_generic_m_xts = new_obj, ...)}.
+\item Updates \code{new_obj@data} slot with the merged data.
+\item Returns the updated \code{new_obj} in the output list.
 }
 
-An error will be thrown if \code{results[[slot_name]]} does not exist or if the
-slot name does not match the expected \code{"_m_df"} or \code{"_m_xts"} pattern.
+An error is thrown if no matching old object is found, or if the slot name does not
+match the \code{"_m_df"} or \code{"_m_xts"} pattern.
 }
 \examples{
 \dontrun{
-  # Suppose you have a global 'results' object with old backtest results,
-  # and you produce a new list of updated objects:
-  new_list <- list(
-    port_weights_m_df = new_port_weights_m_df,
-    stock_universe_m_df = new_stock_universe_m_df,
-    port_returns_m_xts = new_port_returns_m_xts
+  # Suppose you have:
+  #   - old_results (port_backtest_results) with existing data
+  #   - a new list 'new_list' with updated S4 objects
+
+  # Construct the 'old_backtest_outputs_list':
+  old_list <- list(
+    port_weights_m_df   = old_results@port_weights_m_df,
+    stock_universe_m_df = old_results@stock_universe_m_df,
+    port_returns_m_xts  = old_results@port_returns_m_xts,
+    port_costs_m_xts    = old_results@port_costs_m_xts
+    # add more as needed...
   )
 
-  # Consolidate
-  updated_list <- consolidate_backtest_results(new_list)
-
-  # 'updated_list' now holds consolidated versions of the new objects,
-  # each combined with the old data in 'results'.
+  # Then call:
+  updated_list <- consolidate_backtest_results(
+    new_backtest_outputs_list = new_list,
+    old_backtest_outputs_list = old_list
+  )
 }
 
 }

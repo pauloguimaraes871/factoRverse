@@ -2,7 +2,7 @@
 % Please edit documentation in R/run_port_backtest.R
 \name{update_port_backtest}
 \alias{update_port_backtest}
-\alias{update_port_backtest,meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,numeric,port_backtest_results,port_backtest_config-method}
+\alias{update_port_backtest,meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_backtest_results-method}
 \title{Update Portfolio Backtest
 The \code{update_port_backtest} function will take an existing \code{port_backtest_results} object and update it with
 new dates. This function is useful when you want to add new dates to an existing backtest without having to re-run the entire backtest.}
@@ -12,31 +12,30 @@ update_port_backtest(
   fwd_return_m_df,
   liquidity_m_df,
   volatility_m_df,
-  n_update,
   old_results,
-  new_config,
   ...
 )
 
-\S4method{update_port_backtest}{meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,numeric,port_backtest_results,port_backtest_config}(
+\S4method{update_port_backtest}{meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_backtest_results}(
   signals_m_df,
   fwd_return_m_df,
   liquidity_m_df,
   volatility_m_df,
-  n_update,
   old_results,
-  new_config,
+  updated_sb_backtest_results = NULL,
   stock_groups_m_df = NULL,
   benchmark_weights_m_df = NULL,
   daily_stock_returns_m_xts = NULL,
   daily_bench_returns_m_xts = NULL,
+  benchmark_returns_m_xts = NULL,
   custom_stock_weights_m_df = NULL,
   custom_stock_metrics_m_df = NULL,
   user_defined_OR_rules_m_df = NULL,
   user_defined_AND_rules_m_df = NULL,
   winsorization_probs = c(0.025, 0.975),
   verbose = TRUE,
-  parallel = TRUE
+  parallel = TRUE,
+  .test_seed = NULL
 )
 }
 \arguments{
@@ -47,8 +46,6 @@ update_port_backtest(
 \item{liquidity_m_df}{A meta_dataframe containing liquidity metrics.}
 
 \item{volatility_m_df}{A meta_dataframe containing volatility metrics.}
-
-\item{n_update}{The expected number of periods to update}
 
 \item{...}{Additional arguments (if needed).}
 
@@ -71,9 +68,7 @@ new dates. This function is useful when you want to add new dates to an existing
   fwd_return_m_df = meta_dataframe,
   liquidity_m_df = meta_dataframe,
   volatility_m_df = meta_dataframe,
-  n_update = numeric,
-  old_results = port_backtest_results,
-  new_config = port_backtest_config
+  old_results = port_backtest_results
 )}: Updates a portfolio backtest using based on a \code{port_backtest_results} object.
 
 This method extracts the parameters from the \code{results} object (of class \code{port_backtest_results}), modifies initial_buffer_period, performs the

@@ -15,8 +15,6 @@ create_port_backtest_config(
   port_construction_method = "ew",
   mvo_parameters = NULL,
   rp_parameters = NULL,
-  sb_backtest_config = NULL,
-  sb_backtest_results = NULL,
   main_liquidity_metric,
   liquidity_floor_cutoffs = NULL,
   liquidity_constraint_policy = NULL,
@@ -48,8 +46,6 @@ If missing and port_construction_method is "mvo", a default is created.}
 
 \item{rp_parameters}{An object of class \code{rp_parameters} for risk parity portfolios. Only required if \code{port_construction_method} is "rp".
 If missing and port_construction_method is "rp", a default is created.}
-
-\item{sb_backtest_results}{An object of class \code{sb_backtest_results}. Must be NULL if using an independent signal backtest configuration.}
 
 \item{main_liquidity_metric}{A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.}
 

@@ -24,5 +24,7 @@ signals derived from simple stock characteristics or expected returns from machi
 \item{\code{port_backtest_workflow}}{A list detailing the portfolio backtest workflow, including parameters, rebalancing dates, and other metadata.}
 
 \item{\code{backtest_identifier}}{A character string representing the backtest identifier.}
+
+\item{\code{update}}{A logical indicating whether the backtest results are an update or an original backtest.}
 }}
 

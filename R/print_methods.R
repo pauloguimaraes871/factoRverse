@@ -1764,15 +1764,19 @@ setMethod("show", "port_backtest_config", function(object) {
   cat("Main Liquidity Metric: ", object@main_liquidity_metric, "\n\n")
 
   # Expected Return Score
-  cat("------------------------------\n")
-  cat("Expected Return Score:\n")
-  cat("------------------------------\n")
-  if(!is.null(object@sb_backtest_results)){
-    cat("Stock-Level Predictions from Backtest: ", object@sb_backtest_results@backtest_identifier, "\n")
-  }
-  if(!is.null(object@chosen_score_metric_and_position)){
+  if (!is.null(object@chosen_score_metric_and_position)){
+    cat("------------------------------\n")
+    cat("Expected Return Score:\n")
+    cat("------------------------------\n")
+
     cat("Chosen Score Metric: ", names(object@chosen_score_metric_and_position), "\n")
     cat("Chosen Score Position: ", object@chosen_score_metric_and_position, "\n")
+  }
+  if (!is.null(object@chosen_score_metric_and_position) && object@port_construction_method != "custom_weights"){
+    cat("------------------------------\n")
+    cat("Expected Return Score:\n")
+    cat("------------------------------\n")
+    cat("Derived through SB OOS Predictions")
   }
   cat("Eligibility Quantile Range: ", paste(object@eligibility_quantile_range, collapse = " - "), "\n")
   cat("Min Eligible Assets Fallback: ")

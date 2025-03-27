@@ -45,7 +45,10 @@ run_port_backtest_internal(
   upper_quantile_winsorization = 0.975,
   verbose = TRUE,
   parallel = TRUE,
-  .test_seed = NULL
+  .test_seed = NULL,
+  .update = FALSE,
+  .old_backtest_port_weights_m_d_ref = NULL,
+  .old_backtest_port_costs_d_ref = NULL
 )
 }
 \arguments{

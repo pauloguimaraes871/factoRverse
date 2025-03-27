@@ -109,10 +109,6 @@ setMethod("update_port_backtest",
                 stop("The new initial_buffer_period is not equal to amount of unique dates in signals_m_df - 1")
               }
 
-              ##Update sb_backtest_results
-              if (!is.null(updated_sb_backtest_results)){
-                new_config <- new_config %>% add_sb_backtest_results(updated_sb_backtest_results)
-              }
 
             #######################
 
@@ -126,6 +122,8 @@ setMethod("update_port_backtest",
               update_port_backtest_results <- run_port_backtest(
                 ###Base Port Backtest Objs
                 signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df, liquidity_m_df = liquidity_m_df, volatility_m_df, config = new_config,
+                ###SB Backtest Results
+                sb_backtest_results = updated_sb_backtest_results,
                 ###Constraints Objs
                 stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts,
                 ###Covariance Estimation
@@ -140,27 +138,27 @@ setMethod("update_port_backtest",
                 .update = TRUE, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref
               )
 
-            #######################
+              #######################
 
-            #Consolidate results
-            #######################
+              #Consolidate results
+              #######################
               ##results objects
               ##No need to bind information already in old_port_backtest_outputs_list
-                new_port_backtest_outputs_list <- list(
-                  port_weights_m_df = update_port_backtest_results@port_weights_m_df,
-                  stock_universe_m_df = update_port_backtest_results@stock_universe_m_df,
-                  port_returns_m_xts = update_port_backtest_results@port_returns_m_xts,
-                  port_costs_m_xts = update_port_backtest_results@port_costs_m_xts,
-                  port_metrics_m_xts = update_port_backtest_results@port_metrics_m_xts
-                )
+              new_port_backtest_outputs_list <- list(
+                port_weights_m_df = update_port_backtest_results@port_weights_m_df,
+                stock_universe_m_df = update_port_backtest_results@stock_universe_m_df,
+                port_returns_m_xts = update_port_backtest_results@port_returns_m_xts,
+                port_costs_m_xts = update_port_backtest_results@port_costs_m_xts,
+                port_metrics_m_xts = update_port_backtest_results@port_metrics_m_xts
+              )
 
               ##Consolidate
-                ###m_df and m_xts
-                updated_results_list <- consolidate_backtest_results(new_backtest_outputs_list = new_port_backtest_outputs_list,
-                                                                     old_backtest_results = old_results)
-                ###others
-                update_port_backtest_results@transactions_log@data <- c(old_results@transactions_log@data,
-                                                                        update_port_backtest_results@transactions_log@data)
+              ###m_df and m_xts
+              updated_results_list <- consolidate_backtest_results(new_backtest_outputs_list = new_port_backtest_outputs_list,
+                                                                   old_backtest_results = old_results)
+              ###others
+              update_port_backtest_results@transactions_log@data <- c(old_results@transactions_log@data,
+                                                                      update_port_backtest_results@transactions_log@data)
 
 
               ##Reassign the updated objects back into 'update_port_backtest_results'
@@ -170,12 +168,12 @@ setMethod("update_port_backtest",
               update_port_backtest_results@port_costs_m_xts    <- updated_results_list[["port_costs_m_xts"]]
               update_port_backtest_results@port_metrics_m_xts  <- updated_results_list[["port_metrics_m_xts"]]
 
-                ###In case of an empty update
-                if (is.null(update_port_backtest_results@final_stock_port)){
-                  update_port_backtest_results@final_stock_port <- old_results@final_stock_port
-                  update_port_backtest_results@stock_universe_m_df <- old_results@stock_universe_m_df
-                  update_port_backtest_results@final_stock_universe_m_d_ref <- old_results@final_stock_universe_m_d_ref
-                }
+              ###In case of an empty update
+              if (is.null(update_port_backtest_results@final_stock_port)){
+                update_port_backtest_results@final_stock_port <- old_results@final_stock_port
+                update_port_backtest_results@stock_universe_m_df <- old_results@stock_universe_m_df
+                update_port_backtest_results@final_stock_universe_m_d_ref <- old_results@final_stock_universe_m_d_ref
+              }
 
               #######################
 
@@ -211,13 +209,15 @@ setGeneric("run_port_backtest", function(signals_m_df, fwd_return_m_df, liquidit
 #'
 #' This method extracts the parameters from the \code{config} object (of class \code{port_backtest_config}) and then calls
 #' the internal function \code{run_port_backtest_internal} to perform the backtest.
-#'
+#' @param sb_backtest_results An object of class \code{sb_backtest_results} containing the results of a signal blending backtest.
 #'
 #' @export
 setMethod("run_port_backtest",
           signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe", liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe",
                     config = "port_backtest_config"),
+
           function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, config,  #Base Port Backtest Objs
+                   sb_backtest_results = NULL, #SB Backtest Results
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, #Covariance Estimation and active rets
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
@@ -228,275 +228,275 @@ setMethod("run_port_backtest",
             ##Assign default values for internal function
             ###########################
 
-              ###Base objs
-              chosen_score_metric_and_position <- NULL
-              selected_benchmark <- NULL
-              oos_predictions_m_df <- NULL
-              eligibility_quantile_range = c(0.9, 1.0)
-              min_eligible_assets_fallback <- NULL
+            ###Base objs
+            chosen_score_metric_and_position <- NULL
+            selected_benchmark <- NULL
+            oos_predictions_m_df <- NULL
+            eligibility_quantile_range = c(0.9, 1.0)
+            min_eligible_assets_fallback <- NULL
 
-              ###Portfolio objs
-              port_construction_method <- "ew"
-              cov_matrix_sample_size <- 21
-              cov_estimation_method <- "sample"
-              cov_matrix_benchmark <- NULL
-              active_returns <- TRUE
-              rp_method <- "cyclical-spinu"
-              n_random_ports <- 2000
-              random_ports_method <- "sample"
-              opt_objective <- "sharpe"
-              opt_method <- "random"
-              concentration_constraint_policy <- NULL
-              liquidity_constraint_policy <- NULL
-              turnover_constraint_policy <- NULL
+            ###Portfolio objs
+            port_construction_method <- "ew"
+            cov_matrix_sample_size <- 21
+            cov_estimation_method <- "sample"
+            cov_matrix_benchmark <- NULL
+            active_returns <- TRUE
+            rp_method <- "cyclical-spinu"
+            n_random_ports <- 2000
+            random_ports_method <- "sample"
+            opt_objective <- "sharpe"
+            opt_method <- "random"
+            concentration_constraint_policy <- NULL
+            liquidity_constraint_policy <- NULL
+            turnover_constraint_policy <- NULL
 
-              ###Liq objs
-              liquidity_floor_cutoffs <- NULL
+            ###Liq objs
+            liquidity_floor_cutoffs <- NULL
 
-              #Winsorization probs
-              lower_quantile_winsorization <- min(winsorization_probs)
-              upper_quantile_winsorization <- max(winsorization_probs)
+            #Winsorization probs
+            lower_quantile_winsorization <- min(winsorization_probs)
+            upper_quantile_winsorization <- max(winsorization_probs)
 
-              ##Set missing values to TRUE
-              if(missing(verbose)){
-                verbose <- TRUE
-              }
-              if(missing(parallel)){
-                parallel <- TRUE
-              }
+            ##Set missing values to TRUE
+            if(missing(verbose)){
+              verbose <- TRUE
+            }
+            if(missing(parallel)){
+              parallel <- TRUE
+            }
             ###########################
 
             #Get oos_sb_outputs_m_df
             ###########################
-              sb_backtest_results <- config@sb_backtest_results
-
-              ###Extract oos_predictions_m_df
-              if (!is.null(sb_backtest_results)){
-
-                ####Check for object conformity
-                  #####signals_m_df
-                  if (sb_backtest_results@sb_backtest_workflow$features_object_name != signals_m_df@meta_dataframe_name){
-                    stop("Signals object name does not match the one used in the SB Backtest")
-                  }
-                  #####benchmark_returns_m_xts
-                  if (sb_backtest_results@sb_backtest_workflow$backtest_type != "base_learner" && #Test is only applicable for base-learners
-                      sb_backtest_results@sb_backtest_workflow$benchmark_returns_object_name != benchmark_returns_m_xts@meta_xts_name){
-                    stop("Benchmark Returns object name does not match the one used in the SB Backtest")
-                  }
-
-                ####Get results
-                oos_predictions_m_df <- sb_backtest_results@oos_sb_outputs_m_df@data %>%
-                  dplyr::select(id, tickers, dates, pred) #Get OOS Predictions and exclude target to be more confident of no data leakage
-                oos_predictions_workflow <- sb_backtest_results@oos_sb_outputs_m_df@workflow
-                oos_predictions_object_name <- sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name
-                oos_predictions_current_date <- sb_backtest_results@oos_sb_outputs_m_df@current_date
-              } else {
-                oos_predictions_m_df <- NULL
+            ###Extract oos_predictions_m_df
+            if (!is.null(sb_backtest_results)){
+              ####Check for object conformity
+              #####signals_m_df
+              if (sb_backtest_results@sb_backtest_workflow$features_object_name != signals_m_df@meta_dataframe_name){
+                stop("Signals object name does not match the one used in the SB Backtest")
+              }
+              #####benchmark_returns_m_xts
+              if (sb_backtest_results@sb_backtest_workflow$backtest_type != "base_learner" && #Test is only applicable for base-learners
+                  sb_backtest_results@sb_backtest_workflow$benchmark_returns_object_name != benchmark_returns_m_xts@meta_xts_name){
+                stop("Benchmark Returns object name does not match the one used in the SB Backtest")
               }
 
-           ###########################
+              ####Get results
+              oos_predictions_m_df <- sb_backtest_results@oos_sb_outputs_m_df@data %>%
+                dplyr::select(id, tickers, dates, pred) #Get OOS Predictions and exclude target to be more confident of no data leakage
+              oos_predictions_workflow <- sb_backtest_results@oos_sb_outputs_m_df@workflow
+              oos_predictions_object_name <- sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name
+              oos_predictions_current_date <- sb_backtest_results@oos_sb_outputs_m_df@current_date
+            } else {
+              if (is.null(config@chosen_score_metric_and_position) && config@port_construction_method != "custom_weights"){
+                stop("chosen_score_metric_and_position must be provided if sb_backtest object is NULL and port_construction_method is not 'custom_weights'.")
+              }
+              oos_predictions_m_df <- NULL
+            }
 
-           #Get data from S4 Obj
-           ###########################
-              ##signals_m_df
-              signals_workflow <- signals_m_df@workflow #Get workflow
-                ###Check for normalization
-                  ####Identify workflow elements containing 'preprocessing_recipe'
-                  recipe_idx <- which(stringr::str_detect(names(signals_workflow), "preprocessing_recipe"))
+            ###########################
 
-                  ####First check if there is a preprocessing_recipe
-                  if (length(recipe_idx) == 0){
-                    warning("Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
-                  }
+            #Get data from S4 Obj
+            ###########################
+            ##signals_m_df
+            signals_workflow <- signals_m_df@workflow #Get workflow
+            ###Check for normalization
+            ####Identify workflow elements containing 'preprocessing_recipe'
+            recipe_idx <- which(stringr::str_detect(names(signals_workflow), "preprocessing_recipe"))
 
-                  ####For each recipe found, check if any numeric transform step is present
-                  for (rec in lapply(recipe_idx, function(i) signals_workflow[[i]]$recipe)) {
-                    steps <- vapply(rec$steps, function(s) class(s)[1], "")
-                    if (!any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
-                      warning("Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
-                  }
-                signals_object_name <- signals_m_df@meta_dataframe_name #Get mdf name
-                signals_current_date <- signals_m_df@current_date #Get current date
-                signals_m_df <- signals_m_df@data #Get signals_m_df
+            ####First check if there is a preprocessing_recipe
+            if (length(recipe_idx) == 0){
+              warning("Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
+            }
 
-              ##fwd_return_m_df
-              fwd_return_workflow <- fwd_return_m_df@workflow #Get workflow
-                ###Check for normalization
-                  ####Identify workflow elements containing 'preprocessing_recipe'
-                  recipe_idx <- which(stringr::str_detect(names(fwd_return_workflow), "preprocessing_recipe"))
+            ####For each recipe found, check if any numeric transform step is present
+            for (rec in lapply(recipe_idx, function(i) signals_workflow[[i]]$recipe)) {
+              steps <- vapply(rec$steps, function(s) class(s)[1], "")
+              if (!any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
+                warning("Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest.")
+            }
+            signals_object_name <- signals_m_df@meta_dataframe_name #Get mdf name
+            signals_current_date <- signals_m_df@current_date #Get current date
+            signals_m_df <- signals_m_df@data #Get signals_m_df
 
-                  ####For each recipe found, check if any numeric transform step is present
-                  for (rec in lapply(recipe_idx, function(i) fwd_return_workflow[[i]]$recipe)) {
-                    steps <- vapply(rec$steps, function(s) class(s)[1], "")
-                    if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
-                      stop("Normalization found in fwd_return_m_df workflow.")
-                  }
-                fwd_return_object_name <- fwd_return_m_df@meta_dataframe_name #Get mdf name
-                fwd_returns_current_date <- fwd_return_m_df@current_date #Get current date
-                fwd_return_m_df <- fwd_return_m_df@data #Get fwd_return_m_df
+            ##fwd_return_m_df
+            fwd_return_workflow <- fwd_return_m_df@workflow #Get workflow
+            ###Check for normalization
+            ####Identify workflow elements containing 'preprocessing_recipe'
+            recipe_idx <- which(stringr::str_detect(names(fwd_return_workflow), "preprocessing_recipe"))
 
-              ##liquidity_m_df
-                liquidity_workflow <- liquidity_m_df@workflow #Get workflow
-                ###Check for normalization
-                  ####Identify workflow elements containing 'preprocessing_recipe'
-                  recipe_idx <- which(stringr::str_detect(names(liquidity_workflow), "preprocessing_recipe"))
+            ####For each recipe found, check if any numeric transform step is present
+            for (rec in lapply(recipe_idx, function(i) fwd_return_workflow[[i]]$recipe)) {
+              steps <- vapply(rec$steps, function(s) class(s)[1], "")
+              if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
+                stop("Normalization found in fwd_return_m_df workflow.")
+            }
+            fwd_return_object_name <- fwd_return_m_df@meta_dataframe_name #Get mdf name
+            fwd_returns_current_date <- fwd_return_m_df@current_date #Get current date
+            fwd_return_m_df <- fwd_return_m_df@data #Get fwd_return_m_df
 
-                  ####For each recipe found, check if any numeric transform step is present
-                  for (rec in lapply(recipe_idx, function(i) liquidity_workflow[[i]]$recipe)) {
-                    steps <- vapply(rec$steps, function(s) class(s)[1], "")
-                    if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
-                      stop("Normalization found in liquidity_m_df workflow.")
-                  }
+            ##liquidity_m_df
+            liquidity_workflow <- liquidity_m_df@workflow #Get workflow
+            ###Check for normalization
+            ####Identify workflow elements containing 'preprocessing_recipe'
+            recipe_idx <- which(stringr::str_detect(names(liquidity_workflow), "preprocessing_recipe"))
 
-                liquidity_object_name <- liquidity_m_df@meta_dataframe_name #Get mdf name
-                liquidity_current_date <- liquidity_m_df@current_date #Get current date
-                liquidity_m_df <- liquidity_m_df@data #Get liquidity_m_df
+            ####For each recipe found, check if any numeric transform step is present
+            for (rec in lapply(recipe_idx, function(i) liquidity_workflow[[i]]$recipe)) {
+              steps <- vapply(rec$steps, function(s) class(s)[1], "")
+              if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
+                stop("Normalization found in liquidity_m_df workflow.")
+            }
 
-              ##volatility_m_df
-                volatility_workflow <- volatility_m_df@workflow #Get workflow
-                ###Check for normalization
-                  ####Identify workflow elements containing 'preprocessing_recipe'
-                  recipe_idx <- which(stringr::str_detect(names(volatility_workflow), "preprocessing_recipe"))
+            liquidity_object_name <- liquidity_m_df@meta_dataframe_name #Get mdf name
+            liquidity_current_date <- liquidity_m_df@current_date #Get current date
+            liquidity_m_df <- liquidity_m_df@data #Get liquidity_m_df
 
-                  ####For each recipe found, check if any numeric transform step is present
-                  for (rec in lapply(recipe_idx, function(i) volatility_workflow[[i]]$recipe)) {
-                    steps <- vapply(rec$steps, function(s) class(s)[1], "")
-                    if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
-                      stop("Normalization found in volatility_workflow workflow.")
-                  }
-                volatility_object_name <- volatility_m_df@meta_dataframe_name #Get mdf name
-                volatility_current_date <- volatility_m_df@current_date #Get current date
-                volatility_m_df <- volatility_m_df@data #Get volatility_m_df
+            ##volatility_m_df
+            volatility_workflow <- volatility_m_df@workflow #Get workflow
+            ###Check for normalization
+            ####Identify workflow elements containing 'preprocessing_recipe'
+            recipe_idx <- which(stringr::str_detect(names(volatility_workflow), "preprocessing_recipe"))
 
-              ##Extract configuration parameters from the port_backtest_config object
-                ###Base Backtest Config
-                chosen_score_metric_and_position <- config@chosen_score_metric_and_position
-                selected_benchmark <- config@selected_benchmark
-                eligibility_quantile_range <- config@eligibility_quantile_range
-                min_eligible_assets_fallback <- config@min_eligible_assets_fallback
-                initial_buffer_period <- config@initial_buffer_period
-                rebalancing_months <- config@rebalancing_months
+            ####For each recipe found, check if any numeric transform step is present
+            for (rec in lapply(recipe_idx, function(i) volatility_workflow[[i]]$recipe)) {
+              steps <- vapply(rec$steps, function(s) class(s)[1], "")
+              if (any(steps %in% c("step_center","step_scale","step_normalize","step_range")))
+                stop("Normalization found in volatility_workflow workflow.")
+            }
+            volatility_object_name <- volatility_m_df@meta_dataframe_name #Get mdf name
+            volatility_current_date <- volatility_m_df@current_date #Get current date
+            volatility_m_df <- volatility_m_df@data #Get volatility_m_df
 
-                ###Port objs
-                port_construction_method <- config@port_construction_method
-                  ####Liquidity
-                  main_liquidity_metric <- config@main_liquidity_metric
-                  liquidity_floor_cutoffs <- config@liquidity_floor_cutoffs
-                  liquidity_constraint_policy <- as.list(config@liquidity_constraint_policy) #All port construction can have liquidity floor rule
+            ##Extract configuration parameters from the port_backtest_config object
+            ###Base Backtest Config
+            chosen_score_metric_and_position <- config@chosen_score_metric_and_position
+            selected_benchmark <- config@selected_benchmark
+            eligibility_quantile_range <- config@eligibility_quantile_range
+            min_eligible_assets_fallback <- config@min_eligible_assets_fallback
+            initial_buffer_period <- config@initial_buffer_period
+            rebalancing_months <- config@rebalancing_months
+
+            ###Port objs
+            port_construction_method <- config@port_construction_method
+            ####Liquidity
+            main_liquidity_metric <- config@main_liquidity_metric
+            liquidity_floor_cutoffs <- config@liquidity_floor_cutoffs
+            liquidity_constraint_policy <- as.list(config@liquidity_constraint_policy) #All port construction can have liquidity floor rule
 
 
-                  ####Transaction costs
-                  transaction_costs_parameters <- as.list(config@transaction_costs_parameters)
+            ####Transaction costs
+            transaction_costs_parameters <- as.list(config@transaction_costs_parameters)
 
-                  ####Covariance Estimation
-                    #####Config objs
-                    cov_est_method <- config@cov_est_method
-                    cov_estimation_method <- cov_est_method@cov_estimation_method
-                    cov_matrix_sample_size <- cov_est_method@cov_matrix_sample_size
-                    active_returns <- cov_est_method@active_returns
-                    cov_matrix_benchmark <- cov_est_method@cov_matrix_benchmark
+            ####Covariance Estimation
+            #####Config objs
+            cov_est_method <- config@cov_est_method
+            cov_estimation_method <- cov_est_method@cov_estimation_method
+            cov_matrix_sample_size <- cov_est_method@cov_matrix_sample_size
+            active_returns <- cov_est_method@active_returns
+            cov_matrix_benchmark <- cov_est_method@cov_matrix_benchmark
 
-                    #####Data objs
-                    if (!is.null(daily_stock_returns_m_xts)){
-                      daily_stock_returns_object_name <- daily_stock_returns_m_xts@meta_xts_name
-                      daily_stock_returns_workflow <- daily_stock_returns_m_xts@workflow
-                      daily_stock_returns_current_date <- daily_stock_returns_m_xts@current_date
-                      daily_stock_returns_m_xts <- daily_stock_returns_m_xts@data
-                    }
-                    if (!is.null(daily_bench_returns_m_xts)){
-                      ###Check
-                      if (is.null(selected_benchmark)){
-                        stop("selected_benchmark must be provided with daily_bench_returns_m_xts.")
-                      }
-                      daily_bench_returns_object_name <- daily_bench_returns_m_xts@meta_xts_name
-                      daily_bench_returns_workflow <- daily_bench_returns_m_xts@workflow
-                      daily_bench_returns_current_date <- daily_bench_returns_m_xts@current_date
-                      daily_bench_returns_m_xts <- daily_bench_returns_m_xts@data
-                    }
-                    if (!is.null(stock_groups_m_df)){ #Used for both NA filling as for concentration_constraint_policy group constraints
-                      stock_groups_object_name <- stock_groups_m_df@meta_dataframe_name
-                      stock_groups_workflow <- stock_groups_m_df@workflow
-                      stock_groups_current_date <- stock_groups_m_df@current_date
-                      stock_groups_m_df <- stock_groups_m_df@data
-                    }
+            #####Data objs
+            if (!is.null(daily_stock_returns_m_xts)){
+              daily_stock_returns_object_name <- daily_stock_returns_m_xts@meta_xts_name
+              daily_stock_returns_workflow <- daily_stock_returns_m_xts@workflow
+              daily_stock_returns_current_date <- daily_stock_returns_m_xts@current_date
+              daily_stock_returns_m_xts <- daily_stock_returns_m_xts@data
+            }
+            if (!is.null(daily_bench_returns_m_xts)){
+              ###Check
+              if (is.null(selected_benchmark)){
+                stop("selected_benchmark must be provided with daily_bench_returns_m_xts.")
+              }
+              daily_bench_returns_object_name <- daily_bench_returns_m_xts@meta_xts_name
+              daily_bench_returns_workflow <- daily_bench_returns_m_xts@workflow
+              daily_bench_returns_current_date <- daily_bench_returns_m_xts@current_date
+              daily_bench_returns_m_xts <- daily_bench_returns_m_xts@data
+            }
+            if (!is.null(stock_groups_m_df)){ #Used for both NA filling as for concentration_constraint_policy group constraints
+              stock_groups_object_name <- stock_groups_m_df@meta_dataframe_name
+              stock_groups_workflow <- stock_groups_m_df@workflow
+              stock_groups_current_date <- stock_groups_m_df@current_date
+              stock_groups_m_df <- stock_groups_m_df@data
+            }
 
-                  ####Benchmark-Related
-                    ####Bench weights
-                    if (!is.null(benchmark_weights_m_df)){
-                      ###Check
-                      if (is.null(selected_benchmark)){
-                        stop("selected_benchmark must be provided with benchmark_weights_m_df.")
-                      }
-                      benchmark_weights_object_name <- benchmark_weights_m_df@meta_dataframe_name
-                      benchmark_weights_workflow <- benchmark_weights_m_df@workflow
-                      benchmark_weights_current_date <- benchmark_weights_m_df@current_date
-                      benchmark_weights_m_df <- benchmark_weights_m_df@data
-                    }
-                    ####Bench Returns
-                    if (!is.null(benchmark_returns_m_xts)){
-                      ###Check
-                      if (is.null(selected_benchmark)){
-                        stop("selected_benchmark must be provided with benchmark_returns_m_xts.")
-                      }
-                      benchmark_returns_object_name <- benchmark_returns_m_xts@meta_xts_name
-                      benchmark_returns_workflow <- benchmark_returns_m_xts@workflow
-                      benchmark_returns_current_date <- benchmark_returns_m_xts@current_date
-                      benchmark_returns_m_xts <- benchmark_returns_m_xts@data
-                    }
+            ####Benchmark-Related
+            ####Bench weights
+            if (!is.null(benchmark_weights_m_df)){
+              ###Check
+              if (is.null(selected_benchmark)){
+                stop("selected_benchmark must be provided with benchmark_weights_m_df.")
+              }
+              benchmark_weights_object_name <- benchmark_weights_m_df@meta_dataframe_name
+              benchmark_weights_workflow <- benchmark_weights_m_df@workflow
+              benchmark_weights_current_date <- benchmark_weights_m_df@current_date
+              benchmark_weights_m_df <- benchmark_weights_m_df@data
+            }
+            ####Bench Returns
+            if (!is.null(benchmark_returns_m_xts)){
+              ###Check
+              if (is.null(selected_benchmark)){
+                stop("selected_benchmark must be provided with benchmark_returns_m_xts.")
+              }
+              benchmark_returns_object_name <- benchmark_returns_m_xts@meta_xts_name
+              benchmark_returns_workflow <- benchmark_returns_m_xts@workflow
+              benchmark_returns_current_date <- benchmark_returns_m_xts@current_date
+              benchmark_returns_m_xts <- benchmark_returns_m_xts@data
+            }
 
-                  ####Determine portfolio construction parameters based on the method
-                  if (port_construction_method %in% c("rp")) {
+            ####Determine portfolio construction parameters based on the method
+            if (port_construction_method %in% c("rp")) {
 
-                    ####RP Parameters
-                    rp_parameters <- config@rp_parameters
-                      rp_method <- rp_parameters@rp_method
+              ####RP Parameters
+              rp_parameters <- config@rp_parameters
+              rp_method <- rp_parameters@rp_method
 
-                    } else if (port_construction_method %in% c("mvo")) {
-                    ####MVO Parameters
-                    mvo_parameters <- config@mvo_parameters
-                      n_random_ports <- mvo_parameters@n_random_ports
-                      random_ports_method <- mvo_parameters@random_ports_method
-                      opt_objective <- mvo_parameters@opt_objective
-                      opt_method <- mvo_parameters@opt_method
-                      ##Constraints
-                      if (!is.null(config@turnover_constraint_policy)) turnover_constraint_policy <- as.list(config@turnover_constraint_policy)
-                      if (!is.null(config@concentration_constraint_policy)) concentration_constraint_policy <- as.list(config@concentration_constraint_policy)
-                  }
+            } else if (port_construction_method %in% c("mvo")) {
+              ####MVO Parameters
+              mvo_parameters <- config@mvo_parameters
+              n_random_ports <- mvo_parameters@n_random_ports
+              random_ports_method <- mvo_parameters@random_ports_method
+              opt_objective <- mvo_parameters@opt_objective
+              opt_method <- mvo_parameters@opt_method
+              ##Constraints
+              if (!is.null(config@turnover_constraint_policy)) turnover_constraint_policy <- as.list(config@turnover_constraint_policy)
+              if (!is.null(config@concentration_constraint_policy)) concentration_constraint_policy <- as.list(config@concentration_constraint_policy)
+            }
 
-                  ####Custom
-                    #####Custom Stock Weights
-                    if (!is.null(custom_stock_weights_m_df)){
-                      custom_stock_weights_object_name <- custom_stock_weights_m_df@meta_dataframe_name
-                      custom_stock_weights_workflow <- custom_stock_weights_m_df@workflow
-                      custom_stock_weights_current_date <- custom_stock_weights_m_df@current_date
-                      custom_stock_weights_m_df <- custom_stock_weights_m_df@data
-                    }
-                    #####Custom Stock Metrics
-                    if (!is.null(custom_stock_metrics_m_df)){
-                      custom_stock_metrics_object_name <- custom_stock_metrics_m_df@meta_dataframe_name
-                      custom_stock_metrics_workflow <- custom_stock_metrics_m_df@workflow
-                      custom_stock_metrics_current_date <- custom_stock_metrics_m_df@current_date
-                      custom_stock_metrics_m_df <- custom_stock_metrics_m_df@data
-                    }
-                    #####User Defined OR Rules
-                    if (!is.null(user_defined_OR_rules_m_df)){
-                      user_defined_OR_rules_object_name <- user_defined_OR_rules_m_df@meta_dataframe_name
-                      user_defined_OR_rules_workflow <- user_defined_OR_rules_m_df@workflow
-                      user_defined_OR_rules_current_date <- user_defined_OR_rules_m_df@current_date
-                      user_defined_OR_rules_m_df <- user_defined_OR_rules_m_df@data
-                    }
-                    #####User Defined AND Rules
-                    if (!is.null(user_defined_AND_rules_m_df)){
-                      user_defined_AND_rules_object_name <- user_defined_AND_rules_m_df@meta_dataframe_name
-                      user_defined_AND_rules_workflow <- user_defined_AND_rules_m_df@workflow
-                      user_defined_AND_rules_current_date <- user_defined_AND_rules_m_df@current_date
-                      user_defined_AND_rules_m_df <- user_defined_AND_rules_m_df@data
-                    }
+            ####Custom
+            #####Custom Stock Weights
+            if (!is.null(custom_stock_weights_m_df)){
+              custom_stock_weights_object_name <- custom_stock_weights_m_df@meta_dataframe_name
+              custom_stock_weights_workflow <- custom_stock_weights_m_df@workflow
+              custom_stock_weights_current_date <- custom_stock_weights_m_df@current_date
+              custom_stock_weights_m_df <- custom_stock_weights_m_df@data
+            }
+            #####Custom Stock Metrics
+            if (!is.null(custom_stock_metrics_m_df)){
+              custom_stock_metrics_object_name <- custom_stock_metrics_m_df@meta_dataframe_name
+              custom_stock_metrics_workflow <- custom_stock_metrics_m_df@workflow
+              custom_stock_metrics_current_date <- custom_stock_metrics_m_df@current_date
+              custom_stock_metrics_m_df <- custom_stock_metrics_m_df@data
+            }
+            #####User Defined OR Rules
+            if (!is.null(user_defined_OR_rules_m_df)){
+              user_defined_OR_rules_object_name <- user_defined_OR_rules_m_df@meta_dataframe_name
+              user_defined_OR_rules_workflow <- user_defined_OR_rules_m_df@workflow
+              user_defined_OR_rules_current_date <- user_defined_OR_rules_m_df@current_date
+              user_defined_OR_rules_m_df <- user_defined_OR_rules_m_df@data
+            }
+            #####User Defined AND Rules
+            if (!is.null(user_defined_AND_rules_m_df)){
+              user_defined_AND_rules_object_name <- user_defined_AND_rules_m_df@meta_dataframe_name
+              user_defined_AND_rules_workflow <- user_defined_AND_rules_m_df@workflow
+              user_defined_AND_rules_current_date <- user_defined_AND_rules_m_df@current_date
+              user_defined_AND_rules_m_df <- user_defined_AND_rules_m_df@data
+            }
 
-           ###########################
+            ###########################
 
-           #Run Port Backtest Internal
-           ###########################
+            #Run Port Backtest Internal
+            ###########################
             ##Check if all objects current_date match
             check_consistent_dates(list(
               if (!is.null(signals_m_df)) signals_current_date else NULL,
@@ -513,151 +513,151 @@ setMethod("run_port_backtest",
               if (!is.null(user_defined_OR_rules_m_df)) user_defined_OR_rules_current_date else NULL,
               if (!is.null(user_defined_AND_rules_m_df)) user_defined_AND_rules_current_date else NULL,
               if (!is.null(oos_predictions_m_df)) oos_predictions_current_date else NULL
-           ))
+            ))
 
             ##Run internal FUN
-             port_backtest_results <- run_port_backtest_internal(
-               #Base Objects
-               signals_m_df = signals_m_df, oos_predictions_m_df = oos_predictions_m_df, chosen_score_metric_and_position = chosen_score_metric_and_position, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
-               #Backtest Scheme
-               rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
-               #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
-               port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
-               selected_benchmark = selected_benchmark,
-               #RP/MVO Parameters
-               rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
-               #Covariance Estimation
-               cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
-               daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
-               #Constraints
-               liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
-               #Liquidity Information (Constraints and Active Returns Calculation)
-               liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
-               #Group and benchmark constraints (stock groups also used to fill covariance data)
-               stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
-               #Return calculation (needs also liquidity and vol for net returns)
-               volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
-               #Stock Weights
-               custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
-               user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
-               #Misc
-               lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
-               verbose = verbose, parallel = parallel, .test_seed = .test_seed,
-               #Update
-               .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref
-             )
-           ###########################
+            port_backtest_results <- run_port_backtest_internal(
+              #Base Objects
+              signals_m_df = signals_m_df, oos_predictions_m_df = oos_predictions_m_df, chosen_score_metric_and_position = chosen_score_metric_and_position, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
+              #Backtest Scheme
+              rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
+              #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
+              port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
+              selected_benchmark = selected_benchmark,
+              #RP/MVO Parameters
+              rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
+              #Covariance Estimation
+              cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
+              daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
+              #Constraints
+              liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
+              #Liquidity Information (Constraints and Active Returns Calculation)
+              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
+              #Group and benchmark constraints (stock groups also used to fill covariance data)
+              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
+              #Return calculation (needs also liquidity and vol for net returns)
+              volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
+              #Stock Weights
+              custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
+              user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
+              #Misc
+              lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
+              verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+              #Update
+              .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref
+            )
+            ###########################
 
-           #Adjust Port Backtest Results
-           ###########################
+            #Adjust Port Backtest Results
+            ###########################
 
-             ##Config
-             port_backtest_results@port_backtest_config <- config
+            ##Config
+            port_backtest_results@port_backtest_config <- config
 
-             ##IDs
-             port_backtest_results@port_backtest_workflow$config_name <- config@config_name
-             port_backtest_results@backtest_identifier <- paste0("c:", config@config_name, "_s:", signals_object_name, "_f:", fwd_return_object_name)
-             port_backtest_results@port_backtest_workflow$backtest_identifier <- port_backtest_results@backtest_identifier
-             port_backtest_results@port_backtest_workflow$current_date <- signals_current_date #already tested if all match
+            ##IDs
+            port_backtest_results@port_backtest_workflow$config_name <- config@config_name
+            port_backtest_results@backtest_identifier <- paste0("c:", config@config_name, "_s:", signals_object_name, "_f:", fwd_return_object_name)
+            port_backtest_results@port_backtest_workflow$backtest_identifier <- port_backtest_results@backtest_identifier
+            port_backtest_results@port_backtest_workflow$current_date <- signals_current_date #already tested if all match
 
-             ##Add sb identifier
-             if (!is.null(sb_backtest_results)){
-             port_backtest_results@port_backtest_workflow$sb_backtest_identifier <- sb_backtest_results@backtest_identifier
-             }
-
-
-             ##Workflow and names for stock_universe, port_returns, port_metrics etc
-               ###Workflow/Source
-                 ####Meta Dataframes
-                 if (!(.update && length(port_backtest_results@stock_universe_m_df) == 0)){ #Skip empty updates
-                   port_backtest_results@stock_universe_m_df@workflow <- list(paste0("stock_universe_m_df result of ", port_backtest_results@backtest_identifier))
-                   port_backtest_results@final_stock_universe_m_d_ref@workflow <- list(paste0("final_stock_universe_m_d_ref result of ", port_backtest_results@backtest_identifier))
-                 }
-                 port_backtest_results@port_weights_m_df@workflow <- list(paste0("port_weights_m_df result of ", port_backtest_results@backtest_identifier))
-                 port_backtest_results@transactions_log@workflow <- list(paste0("transactions_log result of ", port_backtest_results@backtest_identifier))
-
-                 ####Meta xts
-                 port_backtest_results@port_returns_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_returns_m_xts@data))
-                 port_backtest_results@port_costs_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_costs_m_xts@data))
-                 if (!is.null(custom_stock_metrics_m_df)){
-                   port_backtest_results@port_metrics_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_metrics_m_xts@data))
-                 }
-
-                ###Names
-                 ####Meta Dataframes
-                 if (!(.update && length(port_backtest_results@stock_universe_m_df) == 0)){ #Skip empty updates
-                 port_backtest_results@stock_universe_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
-                 port_backtest_results@final_stock_universe_m_d_ref@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
-                 }
-                 port_backtest_results@port_weights_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+            ##Add sb identifier
+            if (!is.null(sb_backtest_results)){
+              port_backtest_results@port_backtest_workflow$sb_backtest_identifier <- sb_backtest_results@backtest_identifier
+            }
 
 
-             ##Add workflows, config_names and objects
-              ###Fwd Returns
-              port_backtest_results@port_backtest_workflow$fwd_return_object_name <- fwd_return_object_name
-              port_backtest_results@port_backtest_workflow$fwd_return_workflow <- fwd_return_workflow
+            ##Workflow and names for stock_universe, port_returns, port_metrics etc
+            ###Workflow/Source
+            ####Meta Dataframes
+            if (!(.update && length(port_backtest_results@stock_universe_m_df) == 0)){ #Skip empty updates
+              port_backtest_results@stock_universe_m_df@workflow <- list(paste0("stock_universe_m_df result of ", port_backtest_results@backtest_identifier))
+              port_backtest_results@final_stock_universe_m_d_ref@workflow <- list(paste0("final_stock_universe_m_d_ref result of ", port_backtest_results@backtest_identifier))
+            }
+            port_backtest_results@port_weights_m_df@workflow <- list(paste0("port_weights_m_df result of ", port_backtest_results@backtest_identifier))
+            port_backtest_results@transactions_log@workflow <- list(paste0("transactions_log result of ", port_backtest_results@backtest_identifier))
 
-              ###Signals
-              port_backtest_results@port_backtest_workflow$signals_object_name <- signals_object_name
-              port_backtest_results@port_backtest_workflow$signals_workflow <- signals_workflow
-              ###Liquidity
-              port_backtest_results@port_backtest_workflow$liquidity_object_name <- liquidity_object_name
-              port_backtest_results@port_backtest_workflow$liquidity_workflow <- liquidity_workflow
-              ###Volatility
-              port_backtest_results@port_backtest_workflow$volatility_object_name <- volatility_object_name
-              port_backtest_results@port_backtest_workflow$volatility_workflow <- volatility_workflow
-              ###OOS Predictions
-              if (!is.null(oos_predictions_m_df)){
-                port_backtest_results@port_backtest_workflow$oos_predictions_object_name <- oos_predictions_object_name
-                port_backtest_results@port_backtest_workflow$oos_predictions_workflow <- oos_predictions_workflow
-                port_backtest_results@port_backtest_workflow$port_backtest_workflow$backtest_identifier <-
-                  c(port_backtest_results@port_backtest_workflow$backtest_identifier, "_oos:", oos_predictions_object_name)
-              }
-              ###Stock Groups
-              if (!is.null(stock_groups_m_df)){
-                port_backtest_results@port_backtest_workflow$stock_groups_object_name <- stock_groups_object_name
-                port_backtest_results@port_backtest_workflow$stock_groups_workflow <- stock_groups_workflow
-              }
-              ###Benchmark Weights
-              if (!is.null(benchmark_weights_m_df)){
-                port_backtest_results@port_backtest_workflow$benchmark_weights_object_name <- benchmark_weights_object_name
-                port_backtest_results@port_backtest_workflow$benchmark_weights_workflow <- benchmark_weights_workflow
-              }
-              ###Benchmark Returns
-              if (!is.null(benchmark_returns_m_xts)){
-                port_backtest_results@port_backtest_workflow$benchmark_returns_object_name <- benchmark_returns_object_name
-                port_backtest_results@port_backtest_workflow$benchmark_returns_workflow <- benchmark_returns_workflow
-              }
-              ###Daily Stock Returns
-              if (!is.null(daily_stock_returns_m_xts)){
-                port_backtest_results@port_backtest_workflow$daily_stock_returns_object_name <- daily_stock_returns_object_name
-                port_backtest_results@port_backtest_workflow$daily_stock_returns_workflow <- daily_stock_returns_workflow
-              }
-              ###Daily Bench Returns
-              if (!is.null(daily_bench_returns_m_xts)){
-                port_backtest_results@port_backtest_workflow$daily_bench_returns_object_name <- daily_bench_returns_object_name
-                port_backtest_results@port_backtest_workflow$daily_bench_returns_workflow <- daily_bench_returns_workflow
-              }
-              ###Custom Stock Weights
-              if (!is.null(custom_stock_weights_m_df)){
-                port_backtest_results@port_backtest_workflow$custom_stock_weights_object_name <- custom_stock_weights_object_name
-                port_backtest_results@port_backtest_workflow$custom_stock_weights_workflow <- custom_stock_weights_workflow
-              }
-              ###Custom Stock Metrics
-              if (!is.null(custom_stock_metrics_m_df)){
-                port_backtest_results@port_backtest_workflow$custom_stock_metrics_object_name <- custom_stock_metrics_object_name
-                port_backtest_results@port_backtest_workflow$custom_stock_metrics_workflow <- custom_stock_metrics_workflow
-              }
-              ###user_defined_OR_rules_m_df
-              if (!is.null(user_defined_OR_rules_m_df)){
-                port_backtest_results@port_backtest_workflow$user_defined_OR_rules_object_name <- user_defined_OR_rules_object_name
-                port_backtest_results@port_backtest_workflow$user_defined_OR_rules_workflow <- user_defined_OR_rules_workflow
-              }
-              ###user_defined_AND_rules_m_df
-              if (!is.null(user_defined_AND_rules_m_df)){
-                port_backtest_results@port_backtest_workflow$user_defined_AND_rules_object_name <- user_defined_AND_rules_object_name
-                port_backtest_results@port_backtest_workflow$user_defined_AND_rules_workflow <- user_defined_AND_rules_workflow
-              }
+            ####Meta xts
+            port_backtest_results@port_returns_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_returns_m_xts@data))
+            port_backtest_results@port_costs_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_costs_m_xts@data))
+            if (!is.null(custom_stock_metrics_m_df)){
+              port_backtest_results@port_metrics_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_metrics_m_xts@data))
+            }
+
+            ###Names
+            ####Meta Dataframes
+            if (!(.update && length(port_backtest_results@stock_universe_m_df) == 0)){ #Skip empty updates
+              port_backtest_results@stock_universe_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+              port_backtest_results@final_stock_universe_m_d_ref@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+            }
+            port_backtest_results@port_weights_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+
+
+            ##Add workflows, config_names and objects
+            ###Fwd Returns
+            port_backtest_results@port_backtest_workflow$fwd_return_object_name <- fwd_return_object_name
+            port_backtest_results@port_backtest_workflow$fwd_return_workflow <- fwd_return_workflow
+
+            ###Signals
+            port_backtest_results@port_backtest_workflow$signals_object_name <- signals_object_name
+            port_backtest_results@port_backtest_workflow$signals_workflow <- signals_workflow
+            ###Liquidity
+            port_backtest_results@port_backtest_workflow$liquidity_object_name <- liquidity_object_name
+            port_backtest_results@port_backtest_workflow$liquidity_workflow <- liquidity_workflow
+            ###Volatility
+            port_backtest_results@port_backtest_workflow$volatility_object_name <- volatility_object_name
+            port_backtest_results@port_backtest_workflow$volatility_workflow <- volatility_workflow
+            ###OOS Predictions
+            if (!is.null(oos_predictions_m_df)){
+              port_backtest_results@port_backtest_workflow$oos_predictions_object_name <- oos_predictions_object_name
+              port_backtest_results@port_backtest_workflow$oos_predictions_workflow <- oos_predictions_workflow
+              port_backtest_results@port_backtest_workflow$port_backtest_workflow$backtest_identifier <-
+                c(port_backtest_results@port_backtest_workflow$backtest_identifier, "_oos:", oos_predictions_object_name)
+            }
+            ###Stock Groups
+            if (!is.null(stock_groups_m_df)){
+              port_backtest_results@port_backtest_workflow$stock_groups_object_name <- stock_groups_object_name
+              port_backtest_results@port_backtest_workflow$stock_groups_workflow <- stock_groups_workflow
+            }
+            ###Benchmark Weights
+            if (!is.null(benchmark_weights_m_df)){
+              port_backtest_results@port_backtest_workflow$benchmark_weights_object_name <- benchmark_weights_object_name
+              port_backtest_results@port_backtest_workflow$benchmark_weights_workflow <- benchmark_weights_workflow
+            }
+            ###Benchmark Returns
+            if (!is.null(benchmark_returns_m_xts)){
+              port_backtest_results@port_backtest_workflow$benchmark_returns_object_name <- benchmark_returns_object_name
+              port_backtest_results@port_backtest_workflow$benchmark_returns_workflow <- benchmark_returns_workflow
+            }
+            ###Daily Stock Returns
+            if (!is.null(daily_stock_returns_m_xts)){
+              port_backtest_results@port_backtest_workflow$daily_stock_returns_object_name <- daily_stock_returns_object_name
+              port_backtest_results@port_backtest_workflow$daily_stock_returns_workflow <- daily_stock_returns_workflow
+            }
+            ###Daily Bench Returns
+            if (!is.null(daily_bench_returns_m_xts)){
+              port_backtest_results@port_backtest_workflow$daily_bench_returns_object_name <- daily_bench_returns_object_name
+              port_backtest_results@port_backtest_workflow$daily_bench_returns_workflow <- daily_bench_returns_workflow
+            }
+            ###Custom Stock Weights
+            if (!is.null(custom_stock_weights_m_df)){
+              port_backtest_results@port_backtest_workflow$custom_stock_weights_object_name <- custom_stock_weights_object_name
+              port_backtest_results@port_backtest_workflow$custom_stock_weights_workflow <- custom_stock_weights_workflow
+            }
+            ###Custom Stock Metrics
+            if (!is.null(custom_stock_metrics_m_df)){
+              port_backtest_results@port_backtest_workflow$custom_stock_metrics_object_name <- custom_stock_metrics_object_name
+              port_backtest_results@port_backtest_workflow$custom_stock_metrics_workflow <- custom_stock_metrics_workflow
+            }
+            ###user_defined_OR_rules_m_df
+            if (!is.null(user_defined_OR_rules_m_df)){
+              port_backtest_results@port_backtest_workflow$user_defined_OR_rules_object_name <- user_defined_OR_rules_object_name
+              port_backtest_results@port_backtest_workflow$user_defined_OR_rules_workflow <- user_defined_OR_rules_workflow
+            }
+            ###user_defined_AND_rules_m_df
+            if (!is.null(user_defined_AND_rules_m_df)){
+              port_backtest_results@port_backtest_workflow$user_defined_AND_rules_object_name <- user_defined_AND_rules_object_name
+              port_backtest_results@port_backtest_workflow$user_defined_AND_rules_workflow <- user_defined_AND_rules_workflow
+            }
 
             ##Call
             port_backtest_results@port_backtest_workflow$call <- sys.call(-2)
@@ -738,7 +738,7 @@ setMethod("run_port_backtest",
 #' }
 #'
 run_port_backtest_internal <- function(
-  #Base Objects
+    #Base Objects
   signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
   #Backtest Scheme
   rebalancing_months, initial_buffer_period,
@@ -859,7 +859,7 @@ run_port_backtest_internal <- function(
       ##Get most up-to-date portfolio metrics (matching current date)
       port_metrics_m_xts <- xts::xts(as.data.frame(lapply(
         custom_stock_metrics_m_df %>% dplyr::select(-id, -tickers, -dates),
-               function(x) rep(NA, length(dates_backtest)))
+        function(x) rep(NA, length(dates_backtest)))
       ), order.by = dates_backtest)
       ##Get colnames
       colnames(port_metrics_m_xts) <- colnames(custom_stock_metrics_m_df %>% dplyr::select(-id, -tickers, -dates))
@@ -917,10 +917,10 @@ run_port_backtest_internal <- function(
     #########################
     if (verbose){
       ###Text otherwise
-        if (.update){
+      if (.update){
         cat(crayon::cyan(paste("Updating portfolio backtest")))
         cat("\n")
-        }
+      }
       cat("=============================\n")
       cat(crayon::cyan(paste("Portfolio Construction Method:", port_construction_method)))
       cat("\n")
@@ -1116,28 +1116,28 @@ run_port_backtest_internal <- function(
 
         ####Set Portfolio Weights
         ##############################
-          ###Place a .test_seed if needed
-          if (!is.null(.test_seed)){
-            set.seed(.test_seed)
-          }
+        ###Place a .test_seed if needed
+        if (!is.null(.test_seed)){
+          set.seed(.test_seed)
+        }
 
-          ###Run Portfolio Construction
-          stock_port <- set_portfolio_weights(
-            #Stock universe object
-            universe_m_d_ref = stock_universe_m_d_ref,
-            #Stock Portfolio Construction method
-            port_construction_method = port_construction_method,
-            #Set liquidity constraint policy for stocks
-            liquidity_constraint_policy = liquidity_constraint_policy, liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = main_liquidity_metric,
-            #Set concentration constraint policy for stocks
-            concentration_constraint_policy = concentration_constraint_policy,
-            #Set turnover constraint policy for stocks
-            turnover_constraint_policy = turnover_constraint_policy,
-            #Groups
-            groups_m_d_ref = stock_groups_m_d_ref,
-            #Covariance Estimation Method
-            cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
-            active_returns = active_returns,
+        ###Run Portfolio Construction
+        stock_port <- set_portfolio_weights(
+          #Stock universe object
+          universe_m_d_ref = stock_universe_m_d_ref,
+          #Stock Portfolio Construction method
+          port_construction_method = port_construction_method,
+          #Set liquidity constraint policy for stocks
+          liquidity_constraint_policy = liquidity_constraint_policy, liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = main_liquidity_metric,
+          #Set concentration constraint policy for stocks
+          concentration_constraint_policy = concentration_constraint_policy,
+          #Set turnover constraint policy for stocks
+          turnover_constraint_policy = turnover_constraint_policy,
+          #Groups
+          groups_m_d_ref = stock_groups_m_d_ref,
+          #Covariance Estimation Method
+          cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
+          active_returns = active_returns,
             #Returns sample for covariance estimation
             returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
             #Risk-Parity method
