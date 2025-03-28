@@ -194,6 +194,29 @@ test_that("check_inputs_ss_backtest thrown an error when trying to choose a sign
 
 test_that("check_inputs_ss_backtest thrown an error when backtest_return_m_xts or benchmark_return_m_xts have wrong format", {
 
+  #all dates of backtest after initial sample size must be present in signals
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  chosen_signals_and_positions <- c(Alpha = "long", Beta = "short", Gamma = "long")
+
+
+  p_correction_method <- "none"
+  rebalancing_months <- 6
+
+  signals_m_df <- signals_m_df %>% dplyr::filter(!dates %in% c("2001-08-15"))
+
+
+
+  expect_error(check_inputs_ss_backtest(signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions,
+                                        backtest_returns_m_xts = backtest_returns_m_xts, forced_signals = NULL, initial_sample_size = 3,
+                                        enable_theme_representativeness = TRUE, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                        market_factor_proxy = "IBOV", model_structure = "partial_pooled", lmer_control = NULL, active_returns = TRUE,
+                                        signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
+                                        signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
+                                        rebalancing_months = 6),
+               "all backtest_dates from initial_sample_size onwards must be present in signals_m_df"
+  )
+
   #Test for NAs in backtest_returns_m_xts
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
 
@@ -281,7 +304,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_m_xts o
                                         signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
                                         signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
-               "all backtest_dates derived from signals_m_df must be present in backtest_returns_m_xts"
+               "There is only one date in backtest_returns_m_xts before the first training date"
   )
 
   #backtest_returns_m_xts can have more dates than signals_m_df

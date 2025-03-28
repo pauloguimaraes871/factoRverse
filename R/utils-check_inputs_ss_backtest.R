@@ -194,18 +194,18 @@ check_inputs_ss_backtest <- function(
     stop("backtest_returns_m_xts must not have any NA")
   }
 
-  if(any(!unique(dplyr::pull(signals_m_df, dates))[-c(1:initial_sample_size)] %in% backtest_returns_dates)){
-    stop("all backtest_dates derived from signals_m_df must be present in backtest_returns_m_xts")
+  if(any(!backtest_returns_dates[-c(1:(initial_sample_size-1))] %in% unique(signals_m_df$dates))){
+    stop("all backtest_dates from initial_sample_size onwards must be present in signals_m_df")
   }
 
-  backtest_returns_dates_before_first_training <- backtest_returns_dates[which(backtest_returns_dates <= sort(unique(dplyr::pull(signals_m_df, dates)))[initial_sample_size])]
+  backtest_returns_dates_before_first_training <- backtest_returns_dates[which(backtest_returns_dates <= backtest_returns_dates[initial_sample_size])]
 
   if (length(backtest_returns_dates_before_first_training) < 2) {
     stop("There is only one date in backtest_returns_m_xts before the first training date")
   }
 
-  if(length(backtest_returns_dates_before_first_training) < initial_sample_size){
-    stop("backtest_returns_m_xts must have at least initial_sample_size rows at first training date")
+  if (nrow(backtest_returns_m_xts) < initial_sample_size) {
+    stop("backtest_returns_m_xts must have at least initial_sample_size rows.")
   }
 
   if(!all(diff(as.numeric(format(backtest_returns_dates, "%Y")) * 12 + as.numeric(format(backtest_returns_dates, "%m"))) == 1)){
