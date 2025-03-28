@@ -1772,11 +1772,11 @@ setMethod("show", "port_backtest_config", function(object) {
     cat("Chosen Score Metric: ", names(object@chosen_score_metric_and_position), "\n")
     cat("Chosen Score Position: ", object@chosen_score_metric_and_position, "\n")
   }
-  if (!is.null(object@chosen_score_metric_and_position) && object@port_construction_method != "custom_weights"){
+  if (is.null(object@chosen_score_metric_and_position) && object@port_construction_method != "custom_weights"){
     cat("------------------------------\n")
     cat("Expected Return Score:\n")
     cat("------------------------------\n")
-    cat("Derived through SB OOS Predictions")
+    cat("Derived through SB OOS Predictions\n")
   }
   cat("Eligibility Quantile Range: ", paste(object@eligibility_quantile_range, collapse = " - "), "\n")
   cat("Min Eligible Assets Fallback: ")
