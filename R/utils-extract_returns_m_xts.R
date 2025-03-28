@@ -55,10 +55,10 @@ extract_returns_m_xts <- function(port_backtest_cohort, signals_m_df, benchmark_
         corrected_score_metric <- if(position == "short") paste0("low_", score_metric) else score_metric
         return(corrected_score_metric)
       } else if (!is.null(x@sb_backtest_results) && port_type == "signal_blend"){
-      ###For signal blend, use backtest id
+        ###For signal blend, use backtest id
         return(x@sb_backtest_results@backtest_identifier)
       } else if (port_type == "custom_weights"){
-      ####For custom weights, just use config_name
+        ####For custom weights, just use config_name
         return(x@port_backtest_config@config_name)
       } else {
         stop("Can't simplify column names for this port_type")
@@ -77,6 +77,9 @@ extract_returns_m_xts <- function(port_backtest_cohort, signals_m_df, benchmark_
     ###Change colnames
     colnames(backtest_returns_m_xts@data) <- simple_colnames
   }
+
+  ##Add name
+  backtest_returns_m_xts@meta_xts_name <- port_backtest_cohort@cohort_name
 
   #####################
 
