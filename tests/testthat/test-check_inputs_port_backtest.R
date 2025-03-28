@@ -663,8 +663,9 @@ test_that("check_inputs_port_backtest throws an error when benchmark_returns_m_x
       fwd_return_m_df = wrong_target_m_df,
       liquidity_m_df = wrong_liquidity_m_df,
       volatility_m_df = wrong_volatility_m_df,
-      benchmark_weights_m_df = NULL,
+      benchmark_weights_m_df = benchmark_weights_m_df,
       custom_stock_weights = NULL,
+      liquidity_floor_cutoffs = NULL,
       verbose = TRUE,
       main_liquidity_metric = "mean_volfin_3m",
       chosen_score_metric_and_position = c(Alpha = "long"),
@@ -886,6 +887,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_m_df is not
       chosen_score_metric_and_position = c(Alpha = "long"),
       min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
+      liquidity_floor_cutoffs = NULL,
       initial_buffer_period = 4,
       port_construction_method = "sw",
       eligibility_quantile_range = c(0.5,0.75),
@@ -918,6 +920,7 @@ test_that("check_inputs_port_backtest throws an error when volatility_m_df is no
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       min_eligible_assets_fallback = NULL,
+      liquidity_floor_cutoffs = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1038,6 +1041,7 @@ test_that("check_inputs_port_backtest throws an error when benchmark_weights_m_d
       min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
+      liquidity_floor_cutoffs = NULL,
       port_construction_method = "sw",
       eligibility_quantile_range = c(0.5,0.75),
       daily_stock_returns_m_xts = daily_stock_returns_m_xts,
@@ -1167,6 +1171,30 @@ test_that("check_inputs_port_backtest throws an error when benchmark_weights_m_d
     ), "weights in benchmark_weights_m_df should sum to 1 in every date."
   )
 
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      min_eligible_assets_fallback = NULL,
+      rebalancing_months = 7,
+      initial_buffer_period = 4,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = NULL
+    ), "benchmark_weights_m_df must be provided when selected_benchmark is provided"
+  )
+
 })
 
 test_that("check_inputs_port_backtest throws an error when custom_stock_weights_m_df is not right", {
@@ -1187,6 +1215,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_weights_
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       min_eligible_assets_fallback = NULL,
+      liquidity_floor_cutoffs = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 4,
       port_construction_method = "sw",
@@ -1341,6 +1370,7 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       chosen_score_metric_and_position = c(Alpha = "long"),
       min_eligible_assets_fallback = NULL,
       rebalancing_months = 7,
+      liquidity_floor_cutoffs = NULL,
       initial_buffer_period = 4,
       port_construction_method = "sw",
       eligibility_quantile_range = c(0.5,0.75),
@@ -1675,6 +1705,7 @@ test_that("check_inputs_port_backtest throws an error when custom_stock_metrics_
       oos_predictions_m_df = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       min_eligible_assets_fallback = NULL,
+      liquidity_floor_cutoffs = NULL,
       rebalancing_months = 7,
       initial_buffer_period = 2,
       port_construction_method = "sw",
@@ -1746,6 +1777,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
       signals_m_df = signals_m_df,
       oos_predictions_m_df = NULL,
       min_eligible_assets_fallback = NULL,
+      liquidity_floor_cutoffs = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -1884,19 +1916,19 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
       daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
       cov_matrix_benchmark = "ibov",
       cov_matrix_sample_size = 100,
-      selected_benchmark = "ibov",
+      selected_benchmark = NULL,
       benchmark_returns_m_xts = benchmark_returns_m_xts,
       stock_groups_m_df = stock_groups_m_df,
       liquidity_m_df = liquidity_m_df,
       main_liquidity_metric = "mean_volfin_3m",
       volatility_m_df = volatility_m_df,
-      benchmark_weights_m_df = NULL,
+      benchmark_weights_m_df = benchmark_weights_m_df,
       custom_stock_weights_m_df = NULL,
       fwd_return_m_df = target_m_df,
       custom_stock_metrics_m_df = NULL,
       concentration_constraint_policy = concentration_constraint_policy,
       verbose = TRUE
-    ), "Error in concentration_constraint_policy: benchmark_weights_m_df can't be missing if concentration_constraint_policy is set"
+    ), "selected_benchmark must be provided when benchmark_weights_m_df is provided"
   )
 
   #stock groups missing
@@ -2122,6 +2154,7 @@ test_that("check_inputs_port_backtest throws an error when liquidity_constraint_
       signals_m_df = signals_m_df,
       min_eligible_assets_fallback = NULL,
       oos_predictions_m_df = NULL,
+      liquidity_floor_cutoffs = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -2681,6 +2714,41 @@ test_that("check_inputs_port_backtest throws an error when liquidity_floor_cutof
       liquidity_floor_cutoffs = wrong_liquidity_floor_cutoffs_df,
       verbose = TRUE
     ),  "liquidity metrics orders in liquidity_floor_cutoffs are conflicting"
+  )
+
+  #wrong order for not main metric
+  wrong_liquidity_floor_cutoffs_df <- liquidity_floor_cutoffs_df
+  colnames(wrong_liquidity_floor_cutoffs_df)[2] <- "negotiability"
+
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      rebalancing_months = 7,
+      initial_buffer_period = 2,
+      port_construction_method = "sw",
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = target_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = NULL,
+      liquidity_constraint_policy = NULL,
+      liquidity_floor_cutoffs = wrong_liquidity_floor_cutoffs_df,
+      verbose = TRUE
+    ),  "all liquidity_floor_cutoffs must be present in liquidity_m_df"
   )
 
   #not normalized

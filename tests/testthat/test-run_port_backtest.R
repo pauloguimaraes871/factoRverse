@@ -3809,8 +3809,10 @@ test_that("update_port_backtest works for a simple sw single signal strategy wit
   liquidity_m_df <- create_meta_dataframe(liquidity_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "liq")
   volatility_m_df <- create_meta_dataframe(volatility_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "vol")
   benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts["2022-10-15/2023-03-15"], asset_type = "benchmark", meta_xts_name = "bench_returns")
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "bench_weights")
   port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
   user_defined_OR_rules_m_df <- create_meta_dataframe(user_defined_OR_rules_m_df_total@data %>% dplyr::filter(!dates == "2023-04-15"))
+
 
 
   #Run port_backtest
@@ -3821,6 +3823,7 @@ test_that("update_port_backtest works for a simple sw single signal strategy wit
                                  liquidity_m_df = liquidity_m_df,
                                  volatility_m_df = volatility_m_df,
                                  config = port_config,
+                                 benchmark_weights_m_df = benchmark_weights_m_df,
                                  user_defined_OR_rules_m_df = user_defined_OR_rules_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
@@ -3855,6 +3858,7 @@ test_that("update_port_backtest works for a simple sw single signal strategy wit
   liquidity_m_df <- create_meta_dataframe(liquidity_m_df, meta_dataframe_name = "liq")
   volatility_m_df <- create_meta_dataframe(volatility_m_df, meta_dataframe_name = "vol")
   benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark", meta_xts_name = "bench_returns")
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, meta_dataframe_name = "bench_weights")
   port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
   user_defined_OR_rules_m_df <- create_meta_dataframe(user_defined_OR_rules_m_df_total@data)
 
@@ -3867,6 +3871,7 @@ test_that("update_port_backtest works for a simple sw single signal strategy wit
                                      liquidity_m_df = liquidity_m_df,
                                      volatility_m_df = volatility_m_df,
                                      config = port_config,
+                                     benchmark_weights_m_df = benchmark_weights_m_df,
                                      user_defined_OR_rules_m_df = user_defined_OR_rules_m_df,
                                      benchmark_returns_m_xts = benchmark_returns_m_xts,
                                      custom_stock_metrics_m_df = port_metrics_m_df,
@@ -3885,6 +3890,7 @@ test_that("update_port_backtest works for a simple sw single signal strategy wit
                                           liquidity_m_df = liquidity_m_df,
                                           volatility_m_df = volatility_m_df,
                                           old_results = results,
+                                          benchmark_weights_m_df = benchmark_weights_m_df,
                                           benchmark_returns_m_xts = benchmark_returns_m_xts,
                                           custom_stock_metrics_m_df = port_metrics_m_df,
                                           user_defined_OR_rules_m_df = user_defined_OR_rules_m_df
@@ -4100,6 +4106,7 @@ test_that("update_port_backtest throws errors for uncompatible objects", {
                                            , type = "target", meta_dataframe_name = "fwd")
   liquidity_m_df <- create_meta_dataframe(liquidity_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "liq")
   volatility_m_df <- create_meta_dataframe(volatility_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "vol")
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "bench_weights")
   benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts["2022-10-15/2023-02-15"], asset_type = "benchmark", meta_xts_name = "bench_returns")
   port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
   user_defined_OR_rules_m_df <- create_meta_dataframe(user_defined_OR_rules_m_df_total@data %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")))
@@ -4112,6 +4119,7 @@ test_that("update_port_backtest throws errors for uncompatible objects", {
                                  fwd_return_m_df = fwd_return_m_df,
                                  liquidity_m_df = liquidity_m_df,
                                  volatility_m_df = volatility_m_df,
+                                 benchmark_weights_m_df = benchmark_weights_m_df,
                                  config = port_config,
                                  user_defined_OR_rules_m_df = user_defined_OR_rules_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -4129,6 +4137,7 @@ test_that("update_port_backtest throws errors for uncompatible objects", {
   liquidity_m_df <- create_meta_dataframe(liquidity_m_df, meta_dataframe_name = "liq")
   volatility_m_df <- create_meta_dataframe(volatility_m_df, meta_dataframe_name = "vol")
   benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark", meta_xts_name = "bench_returns")
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, meta_dataframe_name = "bench_weights")
   port_metrics_m_df <- create_meta_dataframe(signals_m_df@data, "stock_metrics")
   user_defined_OR_rules_m_df <- create_meta_dataframe(user_defined_OR_rules_m_df_total@data)
 
@@ -4138,6 +4147,7 @@ test_that("update_port_backtest throws errors for uncompatible objects", {
                          fwd_return_m_df = fwd_return_m_df,
                          liquidity_m_df = liquidity_m_df,
                          volatility_m_df = volatility_m_df,
+                         benchmark_weights_m_df = benchmark_weights_m_df,
                          old_results = results,
                          benchmark_returns_m_xts = benchmark_returns_m_xts,
                          custom_stock_metrics_m_df = port_metrics_m_df,

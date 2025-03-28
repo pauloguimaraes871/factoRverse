@@ -432,6 +432,10 @@ check_inputs_port_backtest <- function(
   #######benchmark_weights_m_df
   ###################
   if (!is.null(benchmark_weights_m_df)){
+    #Selected benchmark
+    if (is.null(selected_benchmark)){
+      stop("selected_benchmark must be provided when benchmark_weights_m_df is provided")
+    }
     #Coercibility
     if(!is_coercible_to_meta_dataframe(benchmark_weights_m_df)){
       stop("benchmark_weights_m_df must be coercible to a meta dataframe")
@@ -461,6 +465,10 @@ check_inputs_port_backtest <- function(
 
     if(any(apply(as.data.frame(benchmark_weights_sum[,-1]), 2, function(x) any(abs(x - 1) > 0.02)))){
       stop("weights in benchmark_weights_m_df should sum to 1 in every date.")
+    }
+  } else {
+    if (!is.null(selected_benchmark)){
+      stop("benchmark_weights_m_df must be provided when selected_benchmark is provided")
     }
   }
 
