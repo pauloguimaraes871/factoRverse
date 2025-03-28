@@ -185,7 +185,7 @@ test_that("check_inputs_port_backtest throws an error when eligibility_quantile_
     eligibility_quantile_range = c(0.67, 1),
     daily_stock_returns_m_xts = daily_stock_returns_m_xts,
     daily_bench_returns_m_xts = daily_benchmark_returns_m_xts
-  ), "initial_buffer_period must be higher than 1"
+  ), "initial_buffer_period must be higher than 0"
   )
 
 
