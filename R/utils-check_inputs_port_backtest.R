@@ -685,6 +685,11 @@ check_inputs_port_backtest <- function(
   ###############################
   if(!is.null(liquidity_floor_cutoffs)){
 
+    #Check if all liquidity_floor_cutoffs are contemplated
+    if (!all(colnames(liquidity_floor_cutoffs)[-1] %in% colnames(liquidity_m_df))){
+      stop("all liquidity_floor_cutoffs must be present in liquidity_m_df")
+    }
+
     validate_liquidity_floor_cutoffs(liquidity_floor_cutoffs, main_liquidity_metric)
 
   }
