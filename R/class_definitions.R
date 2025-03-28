@@ -651,11 +651,6 @@ setClass(
       stop("NAs are not allowed in transactions_log object.")
     }
 
-    #Check if unique dates length is equal to 2 for each element in list
-    if(any(sapply(object@data, function(x) length(unique(x$dates)) != 2))){
-      stop("transactions_log object must contain two unique dates for each element.")
-    }
-
     #Check if alpha and lambda are between 0 and 1 for each element
     if(any(purrr::map_lgl(object@data, function(x) any(x$alpha <= 0 | x$alpha > 1)))){
       stop("Alpha must be between 0 and 1.")
@@ -1484,7 +1479,6 @@ setClass("bayesian_alpha_test_strategy",
 setClass("ss_backtest_config",
          slots = list(
            chosen_signals_and_positions = "character",
-           port_backtest_cohort = "ANY",
            initial_sample_size = "numeric",
            rebalancing_months = "numeric",
            active_returns = "logical",
@@ -1514,13 +1508,6 @@ setClass("ss_backtest_config",
                stop("alpha_test_strategy must be an object of class alpha_test_strategy")
              }
            }
-
-           if (!is.null(object@port_backtest_cohort)){
-             if (!inherits(object@port_backtest_cohort, "port_backtest_cohort")) {
-               stop("port_backtest_cohort must be an object of class port_backtest_cohort")
-             }
-           }
-
          }
 )
 
@@ -1546,8 +1533,8 @@ setClass(
   "ss_backtest_results",
   slots = list(
     ss_backtest_config = "ANY",
-    signal_universe_m_df = "meta_dataframe",
-    final_signal_universe_m_d_ref = "meta_dataframe",
+    signal_universe_m_df = "ANY",
+    final_signal_universe_m_d_ref = "ANY",
     selected_market_factor_proxy_m_xts = "meta_xts",
     frequentist_results = "ANY",
     bayesian_results = "ANY",
@@ -1555,7 +1542,22 @@ setClass(
     ss_backtest_workflow = "list",
     backtest_identifier = "character",
     update = "logical"
-  )
+  ),
+  validity = function(object){
+
+    if (!is.null(object@signal_universe_m_df)){
+      if (!inherits(object@signal_universe_m_df, "signal_universe_m_df")){
+        stop("signal_universe_m_df must be an object of class signal_universe_m_df")
+      }
+    }
+    if (!is.null(object@final_signal_universe_m_d_ref)){
+      if (!inherits(object@final_signal_universe_m_d_ref, "signal_universe_m_df")){
+        stop("final_signal_universe_m_d_ref must be an object of class signal_universe_m_df")
+      }
+    }
+
+
+  }
 )
 
 
