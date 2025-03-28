@@ -362,7 +362,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_m_xts o
                                         signal_significance_threshold = 0.05, priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL,
                                         signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
-               "backtest_returns_m_xts must have at least initial_sample_size rows")
+               "There is only one date in backtest_returns_m_xts before the first training date")
 
 
 
@@ -455,7 +455,7 @@ test_that("check_inputs_ss_backtest thrown an error when backtest_return_m_xts o
                                         signals_m_df = signals_m_df, initial_sample_size = "two"),
                "initial_sample_size must be numeric")
 
-  wrong_backtest_returns_m_xts <- backtest_returns_m_xts[-2, ]
+  wrong_backtest_returns_m_xts <- backtest_returns_m_xts[-4, ]
 
   expect_error(check_inputs_ss_backtest(chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = NULL,
                                         signals_m_df = signals_m_df, initial_sample_size = 3,
