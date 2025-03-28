@@ -73,12 +73,16 @@ setMethod("update_port_backtest",
                 user_defined_AND_rules_m_df = old_results@port_backtest_workflow$user_defined_AND_rules_object_name
               )
 
-              ##Baseline info for dates comparison
-              dates_covered <- old_results@port_backtest_workflow$dates_covered
+
+              old_objects_dates_covered_list <- purrr::map(seq_len(length(old_objects_names_list)), function(i){
+                old_results@port_backtest_workflow$dates_covered
+              })  ##Baseline info for dates comparison
+              names(old_objects_dates_covered_list) <- names(old_objects_names_list)
+
 
               ##Perform check
               check_update_backtest_objects(new_objects_list = new_objects_list, old_objects_names_list = old_objects_names_list,
-                                            dates_covered = dates_covered, n_update = 1)
+                                            old_objects_dates_covered_list = old_objects_dates_covered_list, n_update = 1)
 
               ##SB Backtest Results
               if (!is.null(updated_sb_backtest_results)){
@@ -116,6 +120,7 @@ setMethod("update_port_backtest",
             #######################
 
               ##Retrive objects from last period
+              dates_covered <- old_objects_dates_covered_list[["signals_m_df"]]
               .old_backtest_port_weights_m_d_ref <- old_results@port_weights_m_df@data %>% dplyr::filter(dates == sort(dates_covered)[length(dates_covered)])
               .old_backtest_port_costs_d_ref <- old_results@port_costs_m_xts@data %>% as.data.frame() %>% dplyr::slice_tail(n = 1)
 
@@ -1016,10 +1021,23 @@ run_port_backtest_internal <- function(
           dplyr::rename(bop_port_weights = updated_port_weights) #This is eop_port_weights from last period updated by fwd_1m_returns. This means that this carries the composition from last period.
       } else {
         #For first period, just get the composition of last period. Weights are initialized as zero.
-        updated_port_weights_m_lstd_ref <- signals_m_df %>%
-          dplyr::select(id, tickers, dates) %>%
-          dplyr::filter(dates == last_date) %>%
-          dplyr::mutate(bop_port_weights = 0)
+        if (last_date %in% unique(signals_m_df$dates)){
+          ##If there is a last date, it will be used as reference for first updated_port_weights_m_lstd_ref
+          updated_port_weights_m_lstd_ref <- signals_m_df %>%
+            dplyr::select(id, tickers, dates) %>%
+            dplyr::filter(dates == last_date) %>%
+            dplyr::mutate(bop_port_weights = 0)
+        } else {
+          ##If there is no last date, current_date will be used as reference for first updated_port_weights_m_lstd_ref.
+          ##This brings no problem to the backtest
+          if (verbose) message(paste0("As initial_buffer_period is 1, current_date, instead of last_date, will be used as a reference for",
+                                      " first updated_port_weights_m_lstd_ref. This brings no problem to the backtest, but invalidates delisted and ipo tickers",
+                                      " inference at first period."))
+          updated_port_weights_m_lstd_ref <- signals_m_df %>%
+            dplyr::select(id, tickers, dates) %>%
+            dplyr::filter(dates == current_date) %>%
+            dplyr::mutate(bop_port_weights = 0)
+          }
       }
 
       ####Meta xts (up to date references)

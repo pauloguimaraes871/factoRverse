@@ -129,9 +129,6 @@ check_inputs_port_backtest <- function(
     }
   }
 
-
-
-
   #######exp_ret_score_metric
   ###################
   if (!is.null(chosen_score_metric_and_position)){
@@ -169,8 +166,8 @@ check_inputs_port_backtest <- function(
   if(!is.numeric(initial_buffer_period)){
     stop("initial_buffer_period must be numeric")
   }
-  if(initial_buffer_period <= 1){
-    stop("initial_buffer_period must be higher than 1")
+  if(initial_buffer_period <= 0){
+    stop("initial_buffer_period must be higher than 0")
   }
 
 
