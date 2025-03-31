@@ -11,8 +11,6 @@ create_sb_backtest_config(
   training_sample_size,
   rebalancing_months,
   split_method = "expanding",
-  ss_backtest_config = NULL,
-  ss_backtest_results = NULL,
   chosen_signals_and_positions = NULL,
   custom_objective = "squared_error",
   keras_architecture_parameters = NULL,
@@ -34,10 +32,6 @@ create_sb_backtest_config(
 \item{rebalancing_months}{Months (numeric) when model should be rebalanced (refit).}
 
 \item{split_method}{Character string indicating the data splitting method ('expanding' or 'rolling').}
-
-\item{ss_backtest_config}{An object of class \code{ss_backtest_config}, specifying the single strategy backtest configuration.}
-
-\item{ss_backtest_results}{An object of class \code{ss_backtest_results}, containing the results of the single strategy backtest.}
 
 \item{custom_objective}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.}
 

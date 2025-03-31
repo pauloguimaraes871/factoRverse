@@ -40,7 +40,8 @@ run_ss_backtest(
   custom_signal_universe_metrics_m_df = NULL,
   verbose = TRUE,
   parallel = TRUE,
-  winsorization_probs = c(0.025, 0.975)
+  winsorization_probs = c(0.025, 0.975),
+  .update = FALSE
 )
 
 run_ss_backtest_internal(
@@ -70,7 +71,8 @@ run_ss_backtest_internal(
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
   verbose = TRUE,
-  parallel = TRUE
+  parallel = TRUE,
+  .update = FALSE
 )
 }
 \arguments{

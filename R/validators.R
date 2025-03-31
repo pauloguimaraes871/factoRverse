@@ -733,12 +733,10 @@ check_consistent_dates <- function(current_dates) {
 #' Returns \code{TRUE} invisibly if all checks pass. Otherwise, it raises an error
 #' via \code{stop()}.
 #'
-check_update_backtest_objects <- function(new_objects_list, old_objects_names_list, dates_covered, n_update) {
+check_update_backtest_objects <- function(new_objects_list, old_objects_names_list, old_objects_dates_covered_list, n_update) {
 
   ##Initial Prep
   ###############
-    ###Get last_dates_covered
-    last_date_covered <- dates_covered[length(dates_covered)]
 
     ###Helper function: remove "_m_df" or "_m_xts" from the name
     remove_suffix <- function(x) {
@@ -750,7 +748,9 @@ check_update_backtest_objects <- function(new_objects_list, old_objects_names_li
   ##Loop through each object, detect suffix, check object name and dates
   ###############
   for (arg_name in names(new_objects_list)) {
+
     obj <- new_objects_list[[arg_name]]
+    old_dates_covered <- old_objects_dates_covered_list[[arg_name]]
 
     ###If NULL, skip
     if (is.null(obj)) next
@@ -790,13 +790,14 @@ check_update_backtest_objects <- function(new_objects_list, old_objects_names_li
 
     ###Check dates
     ####Check if new object is somehow shorter than the last date covered
-    if (length(new_obj_dates) <= length(dates_covered)) {
+    if (length(new_obj_dates) <= length(old_dates_covered)) {
       stop(sprintf("No new dates to cover for %s!", arg_name))
     }
 
     ####Check if new date is within dates covered
-    first_new_date <- new_obj_dates[length(dates_covered) + 1]
-    if (first_new_date %in% dates_covered) {
+    first_new_date <- new_obj_dates[length(old_dates_covered) + 1]
+
+    if (first_new_date %in% old_dates_covered) {
       stop(sprintf(
         "The first new date of %s is already covered by the existing backtest results.",
         arg_name
@@ -807,6 +808,9 @@ check_update_backtest_objects <- function(new_objects_list, old_objects_names_li
 
 
     ####Check if new date is within expected range
+    #####Get last_dates_covered
+    last_date_covered <- old_dates_covered[length(old_dates_covered)]
+
     if (!arg_name %in% c("daily_stock_returns_m_xts", "daily_bench_returns_m_xts")){
     expected_next_date <- lubridate::add_with_rollback(last_date_covered, months(1))
     if (first_new_date != expected_next_date) {
@@ -818,12 +822,12 @@ check_update_backtest_objects <- function(new_objects_list, old_objects_names_li
     }
 
     ####Check if total new # of dates is consistent with n_update
-    if ((length(new_obj_dates) - length(dates_covered)) != n_update) {
+    if ((length(new_obj_dates) - length(old_dates_covered)) != n_update) {
       stop(sprintf(
         paste0("The new dates in %s do not conform to the expected n_update.\n",
                "Expected total length: %s\nGot total length: %s"),
         arg_name,
-        length(dates_covered) + n_update,
+        length(old_dates_covered) + n_update,
         length(new_obj_dates)
       ))
     }

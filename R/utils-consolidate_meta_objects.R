@@ -317,7 +317,8 @@ consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_
                             } else {
                               main_generic_m_df@meta_dataframe_name
                             }, type = type,
-                            port_backtest_workflow = if (type == "stock_universe") main_generic_m_df@port_backtest_workflow else NULL
+                            port_backtest_workflow = if (type == "stock_universe") main_generic_m_df@port_backtest_workflow else NULL,
+                            ss_backtest_workflow = if (type == "signal_universe") main_generic_m_df@ss_backtest_workflow else NULL
                             )
 
   return(consolidated_generic_m_df)
