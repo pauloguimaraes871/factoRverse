@@ -42,8 +42,8 @@ test_that("set_eval_function correctly sets a glmnet model", {
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -56,7 +56,7 @@ test_that("set_eval_function correctly sets a glmnet model", {
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -223,8 +223,8 @@ test_that("set_eval_function correctly sets a ranger model", {
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -237,7 +237,7 @@ test_that("set_eval_function correctly sets a ranger model", {
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -390,8 +390,8 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -404,7 +404,7 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -587,8 +587,8 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -601,7 +601,7 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -805,8 +805,8 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -818,7 +818,7 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1078,8 +1078,8 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -1091,7 +1091,7 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1398,8 +1398,8 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -1411,7 +1411,7 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1762,8 +1762,8 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -1775,7 +1775,7 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -2161,8 +2161,8 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -2174,7 +2174,7 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,

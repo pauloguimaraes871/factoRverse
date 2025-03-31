@@ -13,7 +13,6 @@
 #' @param split_method The method used for splitting the data, either 'expanding' or 'rolling' (default is 'expanding').
 #'
 #' @return A list containing the training, validation, and refit samples.
-#' @export
 #'
 time_series_split <- function(current_date, features_m_df, target_m_df, dates_m_vector, training_sample_size, validation_sample_size = 0, target_fwd,
                               target_fwd_name, split_method = "expanding"){
@@ -23,8 +22,8 @@ time_series_split <- function(current_date, features_m_df, target_m_df, dates_m_
   ################
 
   #Check structure
-  if(!(is.matrix(features_m_df) | is.data.frame(features_m_df)) ||
-     !(is.matrix(target_m_df) | is.data.frame(target_m_df)) ||
+  if(!(is.matrix(features_m_df) || is.data.frame(features_m_df)) ||
+     !(is.matrix(target_m_df) || is.data.frame(target_m_df)) ||
      !(any(is.factor(dates_m_vector), inherits(dates_m_vector, "Date"))) ||
      !(is.numeric(target_fwd)) ||
      !(is.character(target_fwd_name)) ||
@@ -32,44 +31,44 @@ time_series_split <- function(current_date, features_m_df, target_m_df, dates_m_
      !is.numeric(validation_sample_size)
   ){
     stop("Objects not in correct class.")
-  } else {}
+  }
 
   #Check for corret format in current_date
   if(!lubridate::is.Date(current_date) ||
      is.na(as.Date(current_date, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d"))) ||
     length(current_date) != 1){
     stop("current_date must be a single date object with format %Y-%m-%d")
-  } else {}
+  }
 
 
   #Check for correct format in dates_m_vector
   if(any(!lubridate::is.Date(dates_m_vector)) ||
      any(is.na(as.Date(dates_m_vector, format = "%Y-%m-%d", tryFormats = c("%Y-%m-%d"))))){
     stop("dates_m_vector must be a date object with format %Y-%m-%d")
-  } else {}
+  }
 
   #Check for correct format in features_m_df
   if(!all(c("id", "tickers", "dates") %in% colnames(features_m_df))){
     stop("features_m_df should have id, tickers and dates columns.")
-  } else {}
+  }
 
   #Check structure of dates_m_vector and features_m_df$dates
   if(!all(as.character(dates_m_vector) %in% unique(as.character(features_m_df$dates))) ||
      !all(unique(as.character(features_m_df$dates)) %in% as.character(dates_m_vector))){
     stop("all dates in dates_m_vector must have a correspondence in features_m_df")
-  } else {}
+  }
 
   #Check structure of dates_m_vector and target_m_df$dates
   if(!all(as.character(dates_m_vector) %in% unique(as.character(target_m_df$dates))) ||
      !all(unique(as.character(target_m_df$dates)) %in% as.character(dates_m_vector))){
     stop("all dates in dates_m_vector must have a correspondence in target_m_df")
-  } else {}
+  }
   if(length(dates_m_vector) <= target_fwd){
     stop("dates_m_vector should have more dates than target_fwd")
-  } else {}
+  }
   if(!all(dates_m_vector == dates_m_vector[order(dates_m_vector)])){
     stop("dates_m_vector should be in ascending chronological order")
-  } else {}
+  }
 
   #Check if method is corret
   if(!split_method %in% c("expanding", "rolling")){
@@ -148,7 +147,7 @@ time_series_split <- function(current_date, features_m_df, target_m_df, dates_m_
   #Get validation sample objects
   features_validation_sample <- features_m_df[validation_sample_ref,]
   target_validation_sample <- target_vector[validation_sample_ref]
-  } else {}
+  }
   #Refitting
   ###################
   refit_d_ref <- which(as.Date(features_m_df$dates, format = "%Y-%m-%d") >= dates_m_vector[1] &

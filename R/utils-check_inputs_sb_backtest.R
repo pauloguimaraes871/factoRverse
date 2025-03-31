@@ -538,12 +538,12 @@ check_inputs_sb_backtest <- function(
 
 
   #Check for correct hyperparameters names in hyper_grid_domain_list
-  if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & !is.null(hyper_grid_domain_list)){
+  if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && !is.null(hyper_grid_domain_list)){
     stop("ols and heuristic sb algorithms do not support hyperparameters.")
   }
 
 
-  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") & is.null(hyper_grid_domain_list)){
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && is.null(hyper_grid_domain_list)){
     stop("hyper_grid_domain must be set when sb_algorithm is different from ols.")
   }
 
@@ -756,7 +756,7 @@ check_inputs_sb_backtest <- function(
     if(!is.logical(active_returns)){
       stop("active_returns should be logical")
     }
-    if(active_returns & is.null(cov_matrix_benchmark)){
+    if(active_returns && is.null(cov_matrix_benchmark)){
       stop("cov_matrix_benchmark should be set if active_returns is TRUE")
     }
 

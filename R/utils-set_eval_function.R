@@ -9,7 +9,6 @@
 #'
  set_eval_function <- function(ml_algorithm, tuning_method){ #General Parameters
 
-  squared_error <- pseudo_huber_error <- quantile_error <- early_stopping_rounds <- objective <- NULL
   #If tuning == grid or random, return a function to be used by purrr or furrr functionals
   #If tuning == bayesian_opt, return a function to be passed to ParBayesianOptimization package
 
