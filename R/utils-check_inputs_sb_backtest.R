@@ -46,7 +46,7 @@
 #'
 #'
 check_inputs_sb_backtest <- function(
-    #Data
+  #Data
   features_m_df, target_m_df, training_sample_size, target_fwd_name,
   #Time
   validation_sample_size, rebalancing_months, split_method,
@@ -237,11 +237,11 @@ check_inputs_sb_backtest <- function(
   ##Check for existence and NAs in heuristic sb metric
   if (sb_algorithm %in% c("sw", "mvo")){
     if (!stringr::str_remove_all(custom_objective, "max_") %>% stringr::str_remove_all("min_") %in% colnames(signal_universe_m_df)){
-      stop("Heuristic Signal Blending Metric not found in signal_universe_m_df")
+      stop("heuristic signal blending metric not found in signal_universe_m_df")
     }
     heuristic_sb_metric <- signal_universe_m_df %>% dplyr::pull(stringr::str_remove_all(custom_objective, "max_") %>% stringr::str_remove_all("min_"))
     if (any(is.na(heuristic_sb_metric))){
-      stop("Heuristic Signal Blending Metric contains NAs")
+      stop("heuristic signal blending metric contains NAs")
     }
   }
 
@@ -268,7 +268,7 @@ check_inputs_sb_backtest <- function(
       stop("backtest_returns_m_xts must have at least training_sample_size + validation_sample_size rows")
     }
 
-    if(any(!signal_universe_m_df %>% dplyr::pull(dates) %in% backtest_returns_dates)){
+    if(any(!unique(dplyr::pull(signal_universe_m_df, dates)) %in% backtest_returns_dates)){
       stop("all dates in signal_universe_m_df must be present in backtest_returns_m_xts")
     }
 
@@ -317,7 +317,7 @@ check_inputs_sb_backtest <- function(
       stop("dates in benchmark_returns_m_xts and backtest_returns_m_xts must be the same")
     }
 
-    if(any(apply(benchmark_returns_m_xts, 2, function(x) all(is.na(x))))){
+    if(any(apply(benchmark_returns_m_xts, 2, function(x) any(is.na(x))))){
       stop("benchmark_returns_m_xts must not have any NA values")
     }
 
@@ -362,7 +362,7 @@ check_inputs_sb_backtest <- function(
 
   if(!is.null(signal_themes_m_df)){
     ##Check if signal_themes_m_df contemplates theme column
-    if(any(!colnames(signal_themes_m_df) == c("id", "tickers", "dates", "theme"))){
+    if(any(!colnames(signal_themes_m_df) %in% c("id", "tickers", "dates", "theme"))){
       stop("signal_themes_m_df must have columns 'id', 'tickers', 'dates' and 'theme'")
     }
 
@@ -416,6 +416,7 @@ check_inputs_sb_backtest <- function(
     if(any(!(signal_universe_m_df %>% dplyr::pull(id)) %in% (custom_signal_weights_m_df %>% dplyr::pull(id)))){
       stop("all ids in signal_universe_m_df should have a correspondence in custom_signal_weights_m_df")
     }
+
     ##Check if any weight belong to a non-eligible ticker
     non_zero_weight_id <- custom_signal_weights_m_df %>% dplyr::filter(weights != 0) %>% dplyr::pull(id)
     non_eligible_id <- signal_universe_m_df %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(id)
@@ -429,17 +430,17 @@ check_inputs_sb_backtest <- function(
     check_signal_presence <- !stringr::str_remove_all(non_zero_weight_signals, pattern = "low_") %in% colnames(features_m_df)
     if (any(check_signal_presence)) {
       stop("There is a signal mismatch between non zero-weight signals in custom_signal_weights_m_df and features_m_df: ",
-           paste(non_zero_weight_signals[check_signal_presence], collapse = ", ")
+           paste(unique(non_zero_weight_signals[check_signal_presence]), collapse = ", ")
       )
     }
 
     #Check if weights sum to 1
-    custom_signal_weights_m_df %>%
+    custom_signal_weights_m_df_check_sum <- custom_signal_weights_m_df %>%
       dplyr::group_by(dates) %>%
       dplyr::summarise(sum_w = sum(weights)) %>%
       dplyr::mutate(check_sum_1 = abs(sum_w - 1) < 0.02)
-    if(any(custom_signal_weights_m_df$check_sum_1 == FALSE)){
-      stop(paste("Weights do not sum to 1 at dates:", custom_signal_weights_m_df$dates[which(custom_signal_weights_m_df$check_sum_1 == FALSE)], collapse = ", "))
+    if(any(custom_signal_weights_m_df_check_sum$check_sum_1 == FALSE)){
+      stop(paste("custom_signal_weights_m_df do not sum to 1 at dates:", custom_signal_weights_m_df_check_sum$dates[which(custom_signal_weights_m_df_check_sum$check_sum_1 == FALSE)], collapse = ", "))
     }
 
   }
@@ -561,12 +562,12 @@ check_inputs_sb_backtest <- function(
   if(sb_algorithm == "xgb" && !all(names(hyper_grid_domain_list) == c("min_child_weight", "max_depth", "subsample", "colsample_bytree",
                                                                       "eta", "alpha", "gamma", "nrounds"))){
     stop("hyperparameters do not match sb_algorithm choice")
-  } else {}
+  }
 
   #NN
   if(sb_algorithm == "nn" && !all(names(hyper_grid_domain_list) == c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"))){
     stop("hyperparameters do not match sb_algorithm choice")
-  } else {}
+  }
 
 
 
@@ -579,9 +580,9 @@ check_inputs_sb_backtest <- function(
   if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("grid_search")){
     if(any(
       #Check if hyper_grid_domain_list is a list
-      !(class(hyper_grid_domain_list) == "list"),
+      !(class(hyper_grid_domain_list) == "list") ||
       #Check if hyper_grid_domain_list is a list of vectors
-      !all(sapply(hyper_grid_domain_list, function(x) is.vector(x))),
+      !all(sapply(hyper_grid_domain_list, function(x) is.vector(x))) ||
       #Check if hyper_grid_domain_list contains numeric values
       !all(sapply(hyper_grid_domain_list, function(x) is.numeric(x)))
     )
@@ -601,17 +602,17 @@ check_inputs_sb_backtest <- function(
     tryCatch({
       if(any(
         #Check if hyper_grid_domain_list is a list
-        !(class(hyper_grid_domain_list) == "list"),
+        !(class(hyper_grid_domain_list) == "list") ||
         #Check if hyper_grid_domain_list is a list of lists
-        !all(sapply(hyper_grid_domain_list, function(x) is.list(x))),
+        !all(sapply(hyper_grid_domain_list, function(x) is.list(x))) ||
         #Check if every element contains data for distribution choice and pars
-        !all(sapply(hyper_grid_domain_list, function(x) names(x) %in% c("distribution_choice", "pars", "value"))),
+        !all(sapply(hyper_grid_domain_list, function(x) names(x) %in% c("distribution_choice", "pars", "value"))) ||
         #Check if distribution choices match allowed choices
-        !all(sapply(hyper_grid_domain_list, function(x) all(x$distribution_choice %in% c("normal", "uniform", "lognormal", "constant")))),
+        !all(sapply(hyper_grid_domain_list, function(x) all(x$distribution_choice %in% c("normal", "uniform", "lognormal", "constant")))) ||
         #Check if pars are numeric and not NA
-        !all(sapply(hyper_grid_domain_list, function(x) all(is.numeric(x$pars) | is.numeric(x$value), !is.na(x$pars) | !is.na(x$value)))),
+        !all(sapply(hyper_grid_domain_list, function(x) all(is.numeric(x$pars) | is.numeric(x$value), !is.na(x$pars) | !is.na(x$value)))) ||
         #Check if pars are named
-        !all(sapply(hyper_grid_domain_list, function(x) ifelse(x$distribution_choice != "constant", all(!is.null(names(x$pars))), any(names(x) %in% c("value"))))),
+        !all(sapply(hyper_grid_domain_list, function(x) ifelse(x$distribution_choice != "constant", all(!is.null(names(x$pars))), any(names(x) %in% c("value"))))) ||
         #Check if pars match each possible distribution choice
         !all(sapply(hyper_grid_domain_list, function(x) ifelse(x$distribution_choice == "uniform", all(names(x$pars) == c("min", "max")),
                                                                ifelse(x$distribution_choice == "normal", all(names(x$pars) == c("mean", "sd")),
@@ -700,7 +701,7 @@ check_inputs_sb_backtest <- function(
   if(sb_algorithm == "nn"){
 
     if(is.data.frame(keras_architecture_parameters) || !is.list(keras_architecture_parameters) ||
-       !all(names(keras_architecture_parameters) == c("units", "n_layers", "activation", "nn_optimizer", "batch_norm_option"))){
+       !all(c("units", "n_layers", "activation", "nn_optimizer", "batch_norm_option") %in% names(keras_architecture_parameters))){
       stop("keras_architecture_parameters should be a list with units, n_layers, activation, nn_optimizer and batch_norm_option elements")
     }
 
@@ -883,7 +884,7 @@ check_inputs_sb_backtest <- function(
     #Check domain
     if(!all(0 <= hyper_domain, hyper_domain <= 1)){
       stop("mtry should be set in interval [0,1]")
-    } else {}
+    }
     ##########
 
     #max.depth
@@ -907,11 +908,11 @@ check_inputs_sb_backtest <- function(
     } else {
       if(!all(is.integer(hyper_domain))){
         stop("max.depth should be integer")
-      } else {}
+      }
     }
     if(!all(hyper_domain > 0)){
       stop("max.depth should be positive")
-    } else {}
+    }
     ##########
 
   }
@@ -936,7 +937,7 @@ check_inputs_sb_backtest <- function(
     #Check domain
     if(!all(0 <= hyper_domain, hyper_domain <= 1)){
       stop("eta should be set in interval [0,1]")
-    } else {}
+    }
     ##########
 
     #max_depth
@@ -960,11 +961,11 @@ check_inputs_sb_backtest <- function(
     } else {
       if(!all(is.integer(hyper_domain))){
         stop("max_depth should be integer")
-      } else {}
+      }
     }
     if(!all(hyper_domain > 0)){
       stop("max_depth should be positive")
-    } else {}
+    }
     ##########
 
     #colsample_bytree
@@ -983,7 +984,7 @@ check_inputs_sb_backtest <- function(
     #Check domain
     if(!all(0 <= hyper_domain, hyper_domain <= 1)){
       stop("colsample_bytree should be set in interval [0,1]")
-    } else {}
+    }
     ##########
 
     #subsample
@@ -1002,7 +1003,7 @@ check_inputs_sb_backtest <- function(
     #Check domain
     if(!all(0 <= hyper_domain, hyper_domain <= 1)){
       stop("subsample should be set in interval [0,1]")
-    } else {}
+    }
     ##########
 
   }
@@ -1028,7 +1029,7 @@ check_inputs_sb_backtest <- function(
     #Check domain
     if(!all(0 <= hyper_domain, hyper_domain < 1)){
       stop("droprate should be set in interval [0,1)")
-    } else {}
+    }
     ##########
 
     #number_of_epochs
@@ -1052,11 +1053,11 @@ check_inputs_sb_backtest <- function(
     } else {
       if(!all(is.integer(hyper_domain))){
         stop("number_of_epochs should be integer")
-      } else {}
+      }
     }
     if(!all(hyper_domain > 0)){
       stop("number_of_epochs should be positive")
-    } else {}
+    }
     ##########
 
     #size_of_batch
@@ -1080,11 +1081,11 @@ check_inputs_sb_backtest <- function(
     } else {
       if(!all(is.integer(hyper_domain))){
         stop("size_of_batch should be integer")
-      } else {}
+      }
     }
     if(!all(hyper_domain > 0)){
       stop("size_of_batch should be positive")
-    } else {}
+    }
     ##########
 
 
