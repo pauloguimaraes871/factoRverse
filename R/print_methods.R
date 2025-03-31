@@ -1617,8 +1617,8 @@ setMethod("show", "bayesian_model_parameters", function(object) {
 #' @export
 setMethod("show", "ss_backtest_results", function(object) {
 
-  # Extract the ss_backtest_workflow
-  ss_backtest_workflow <- object@ss_backtest_workflow
+  # Extract the most recent ss_backtest_workflow
+  ss_backtest_workflow <- object@ss_backtest_workflow[[length(object@ss_backtest_workflow)]]
 
   # Create a neat display of the ss_backtest_workflow
   cat("Signal Selection Backtest Workflow Metadata\n")
@@ -2104,7 +2104,7 @@ setMethod("show", "transaction_costs_parameters", function(object) {
 #'
 #' @export
 setMethod("show", "port_backtest_results", function(object) {
-  workflow <- object@port_backtest_workflow
+  workflow <- object@port_backtest_workflow[[length(object@port_backtest_workflow)]]
 
   cat("==============================\n")
   cat("Portfolio Backtest Results\n")
@@ -2213,7 +2213,7 @@ setMethod("show", "port_backtest_cohort", function(object) {
   # Loop through Backtests
   for (i in seq_along(object@port_backtest_results_list)) {
     port_backtest <- object@port_backtest_results_list[[i]]
-    port_backtest_workflow <- port_backtest@port_backtest_workflow
+    port_backtest_workflow <- port_backtest@port_backtest_workflow[[length(port_backtest@port_backtest_workflow)]] # Get the last workflow
     port_backtest_config <- port_backtest@port_backtest_config
 
     # Use a color from the palette
