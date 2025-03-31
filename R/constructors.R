@@ -3612,8 +3612,6 @@ setMethod(
 #' @param rebalancing_months Months (numeric) when model should be rebalanced (refit).
 #' @param split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @param tuning_strategy An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.
-#' @param ss_backtest_config An object of class `ss_backtest_config`, specifying the single strategy backtest configuration.
-#' @param ss_backtest_results An object of class `ss_backtest_results`, containing the results of the single strategy backtest.
 #' @param custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
 #' @param keras_architecture_parameters An object of class `keras_architecture_parameters` providing parameters specific to keras-based neural networks.
 #' @param signal_port_parameters An object of class `signal_port_parameters`, specifying the parameters for constructing signal portfolios (portfolio-blending).
@@ -3624,7 +3622,6 @@ setMethod(
 #' @return An sb_backtest_config object.
 #' @export
 create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
-                                      ss_backtest_config = NULL, ss_backtest_results = NULL,
                                       chosen_signals_and_positions = NULL,
                                       custom_objective = "squared_error", keras_architecture_parameters = NULL, signal_port_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
                                       config_name = "not_identified") {
@@ -3639,9 +3636,7 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   ## Chosen_signals_and_positions
   ### Presence of other objects
   if (any(!is.null(ss_backtest_config), !is.null(ss_backtest_results))) {
-    if (!is.null(chosen_signals_and_positions)) {
-      stop("chosen_signals_and_positions should only be provided when 'ss_backtest_config' or 'ss_backtest_results' are missing.")
-    }
+
     if (!is.null(ss_backtest_config)) {
       chosen_signals_and_positions <- ss_backtest_config@chosen_signals_and_positions
       message("chosen_signals_and_positions will follow underlying ss_backtest_config")
@@ -4996,6 +4991,7 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
 #' @return An object of class `port_backtest_cohort`.
 #' @export
 create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name) {
+
   # Input Validation
   ## Check that backtest identifiers are unique
   if (length(unique(sapply(port_backtest_results_list, function(x) x@backtest_identifier))) != length(port_backtest_results_list)) {
@@ -5014,7 +5010,8 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
     stop("All elements of port_backtest_results_list must be of class 'port_backtest_results'.")
   }
   ## Ensure that all backtests use the same benchmark
-  if (length(unique(sapply(port_backtest_results_list, function(x) x@port_backtest_workflow$selected_benchmark))) > 1) {
+  if (length(unique(sapply(port_backtest_results_list,
+                           function(x) x@port_backtest_workflow[[length(x@port_backtest_workflow)]]$selected_benchmark))) > 1) {
     stop("All backtests must use the same benchmark.")
   }
   ## Ensure all backtest identifiers are unique
@@ -5030,8 +5027,9 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
     "benchmark_returns_object_name", "daily_assets_returns_object_name", "daily_bench_returns_object_name",
     "liquidity_object_name", "volatility_object_name", "benchmark_weights_object_name"
   )
+
   ## Extract the workflow list from each backtest object
-  workflow_list <- lapply(port_backtest_results_list, function(x) x@port_backtest_workflow)
+  workflow_list <- lapply(port_backtest_results_list, function(x) x@port_backtest_workflow[[length(x@port_backtest_workflow)]])
   ## Store the common values from the first backtest for comparison
   common_values <- workflow_list[[1]][required_params]
   ## Loop over each backtest and verify required parameters match
@@ -5181,7 +5179,7 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
   net_active_returns_m_xts <- if (benchmark_used) merge_return_column("net_active_return", include_bench = FALSE) else NULL
   ## Define the benchmark source (if applicable) and backtest sources
   if (include_bench) {
-    bench_source <- port_backtest_results_list[[1]]@port_backtest_workflow$benchmark_returns_object_name
+    bench_source <- port_backtest_results_list[[1]]@port_backtest_workflow[[length(port_backtest_results_list[[1]]@port_backtest_workflow)]]$benchmark_returns_object_name
   }
   backtest_sources <- sapply(port_backtest_results_list, function(x) x@backtest_identifier)
 
@@ -5310,7 +5308,7 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
 
     ### If bench metric was added, include the bench source as well
     if (bench_consistent) {
-      bench_source <- port_backtest_results_list[[1]]@port_backtest_workflow$benchmark_returns_object_name
+      bench_source <- port_backtest_results_list[[1]]@port_backtest_workflow[[length(port_backtest_results_list[[1]]@port_backtest_workflow)]]$benchmark_returns_object_name
       source_vector <- c(backtest_sources, bench_source)
     } else {
       source_vector <- backtest_sources
