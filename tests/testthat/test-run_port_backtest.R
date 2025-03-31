@@ -2210,7 +2210,7 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
   expect_equal(as.Date(zoo::index(results@port_metrics_m_xts@data)[3]), as.Date(c("2023-04-15")))
 
   #backtest identifier
-  expect_equal(results@port_backtest_workflow$sb_backtest_identifier, sb_results@backtest_identifier)
+  expect_equal(results@port_backtest_workflow[[1]]$sb_backtest_identifier, sb_results@backtest_identifier)
 
 })
 
@@ -3516,21 +3516,21 @@ test_that("run_port_backtest throws error for incompatible port_backtests", {
   #Create cohort
   #Different selected_benchmark
   wrong_config1_results <- config1_results
-  wrong_config1_results@port_backtest_workflow$selected_benchmark <- "ibov"
+  wrong_config1_results@port_backtest_workflow[[length(wrong_config1_results@port_backtest_workflow)]]$selected_benchmark <- "ibov"
 
   expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
                "All backtests must use the same benchmark.")
 
   #Different initial buffer period
   wrong_config1_results <- config1_results
-  wrong_config1_results@port_backtest_workflow$initial_buffer_period <- 3
+  wrong_config1_results@port_backtest_workflow$`2023-04-15`$initial_buffer_period <- 3
 
   expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
                "Incompatibility found in parameter: initial_buffer_period for backtest result at index 2")
 
   #Different signals_obj name
   wrong_config1_results <- config1_results
-  wrong_config1_results@port_backtest_workflow$signals_object_name <- "signals123"
+  wrong_config1_results@port_backtest_workflow$`2023-04-15`$signals_object_name <- "signals123"
 
   expect_error(create_port_backtest_cohort(list(wrong_config1_results, config2_results), cohort_name = "wrong_cohort"),
                "Incompatibility found in parameter: signals_object_name for backtest result at index 2")
