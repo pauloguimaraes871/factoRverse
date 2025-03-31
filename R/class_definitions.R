@@ -2315,7 +2315,6 @@ setClass(
     validation_eval_metrics_hyper_choice_m_xts = "ANY",
     feature_importance_m_df = "meta_dataframe",
     final_feature_importance_m_d_ref = "meta_dataframe",
-    ss_backtest_results = "ANY",
     sb_backtest_workflow = "list",
     backtest_identifier = "character"
   ), validity = function(object){
@@ -2330,10 +2329,6 @@ setClass(
 
     if(!class(object@final_gsm) %in% c("lm", "rpart")){
       stop("final_gsm must be a 'lm' or 'rpart' object")
-    }
-
-    if(!is.null(object@ss_backtest_results) && !inherits(object@ss_backtest_results, "ss_backtest_results")){
-      stop("ss_backtest_results must be an 'ss_backtest_results' object")
     }
 
     if(!is.null(object@validation_eval_metrics_hyper_choice_m_xts) && !inherits(object@validation_eval_metrics_hyper_choice_m_xts, "meta_xts")){
