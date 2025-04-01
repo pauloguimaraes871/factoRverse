@@ -2266,6 +2266,7 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
 
   #Hyper tuning
   set.seed(123)
+  suppressWarnings(
   hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -2278,6 +2279,7 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
                                    parallel = parallel,
                                    verbose = verbose
                                    )
+  )
 
 
   #Compare hyper tuning via bayesian opt
