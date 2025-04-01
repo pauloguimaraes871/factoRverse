@@ -318,7 +318,7 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
 
       #Create expanded hyper grid list
       expanded_hyper_grid_list <- list() #Create expanded hyper_grid_list as usual
-      for(j in 1:ncol(dplyr::select(chosen_eval_metric_validation_current_date, -chosen_eval_metric))){
+      for (j in seq_len(ncol(dplyr::select(chosen_eval_metric_validation_current_date, -chosen_eval_metric)))){
         expanded_hyper_grid_list[[j]] <- #To each element, a column!
           dplyr::select(chosen_eval_metric_validation_current_date, -chosen_eval_metric)[,j]
       }

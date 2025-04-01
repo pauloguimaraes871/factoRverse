@@ -43,8 +43,8 @@ test_that("all hyperparameters are explored in grid search", {
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -57,7 +57,7 @@ test_that("all hyperparameters are explored in grid search", {
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -174,8 +174,8 @@ test_that("all hyperparameters are explored in random search", {
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -188,7 +188,7 @@ test_that("all hyperparameters are explored in random search", {
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -318,8 +318,8 @@ test_that("best_iteration is included in chosen_eval_metric_validation", {
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -332,7 +332,7 @@ test_that("best_iteration is included in chosen_eval_metric_validation", {
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -431,8 +431,8 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -445,7 +445,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -503,7 +503,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
 
 
   hyper_eval_test <- list()
-  for(i in 1:length(hyperparameters_grid$alpha)){
+  for(i in seq_along(length(hyperparameters_grid$alpha))){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -596,8 +596,8 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -610,7 +610,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -669,7 +669,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 
   hyper_eval_test <- list()
   set.seed(123)
-  for(i in 1:length(hyperparameters_grid$mtry)){
+  for(i in seq_along(length(hyperparameters_grid$mtry))){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                       features_validation_sample = ts_splits$validation$features_validation_sample,
                                       target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -772,8 +772,8 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -786,7 +786,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -839,7 +839,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
                                                           n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
-  for(i in 1:length(hyperparameters_grid$min_child_weight)){
+  for(i in seq_along(length(hyperparameters_grid$min_child_weight))){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -941,8 +941,8 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -955,7 +955,7 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1011,7 +1011,7 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
                                                           n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
-  for(i in 1:length(hyperparameters_grid$regularizer_l1)){
+  for(i in seq_along(length(hyperparameters_grid$regularizer_l1))){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -1109,8 +1109,8 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -1123,7 +1123,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1183,7 +1183,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
   hyper_eval_test <- list()
   set.seed(123)
   hyper_eval_test <-
-    foreach::foreach(i = 1:length(hyperparameters_grid$alpha), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_along(length(hyperparameters_grid$alpha)), .options.future = list(seed = TRUE)) %dofuture% {
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
           target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -1279,8 +1279,8 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -1293,7 +1293,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1354,7 +1354,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   set.seed(123)
   hyper_eval_test <-
   suppressWarnings(
-  foreach::foreach(i = 1:length(hyperparameters_grid$mtry), .options.future = list(seed = TRUE)) %dofuture% {
+  foreach::foreach(i = seq_along(length(hyperparameters_grid$mtry)), .options.future = list(seed = TRUE)) %dofuture% {
                                 FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
 
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
@@ -1450,8 +1450,8 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -1464,7 +1464,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1524,7 +1524,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   hyper_eval_test <- list()
   set.seed(123)
   hyper_eval_test <-
-    foreach::foreach(i = 1:length(hyperparameters_grid$mtry), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_along(length(hyperparameters_grid$mtry)), .options.future = list(seed = TRUE)) %dofuture% {
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
           target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -1628,8 +1628,8 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -1642,7 +1642,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1696,7 +1696,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
                                                           n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
   hyper_eval_test <-
-    foreach::foreach(i = 1:length(hyperparameters_grid$min_child_weight), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_along(length(hyperparameters_grid$min_child_weight)), .options.future = list(seed = TRUE)) %dofuture% {
 
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
@@ -1800,8 +1800,8 @@ skip()
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -1814,7 +1814,7 @@ skip()
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -1871,7 +1871,7 @@ skip()
   hyper_eval_test <- list()
   suppressMessages(
   hyper_eval_test <-
-    foreach::foreach(i = 1:length(hyperparameters_grid$regularizer_l1), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_along(length(hyperparameters_grid$regularizer_l1)), .options.future = list(seed = TRUE)) %dofuture% {
 
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
@@ -2026,7 +2026,7 @@ skip()
   suppressMessages(
   hyper_eval_test <-
     #For some reason, results here are not reproducible when running in parallel
-    foreach::foreach(i = 1:length(hyperparameters_grid$regularizer_l1), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_along(length(hyperparameters_grid$regularizer_l1)), .options.future = list(seed = TRUE)) %dofuture% {
 
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
@@ -2217,8 +2217,8 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -2227,18 +2227,16 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
 
   #Check Inputs
   expect_no_error(
-    suppressWarnings(
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
         chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
         init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
       )
-    )
   )
 
   #Translate metrics
@@ -2268,18 +2266,19 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
 
   #Hyper tuning
   set.seed(123)
-  hyper_tune_results <- suppressWarnings(hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
-                                                    full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
-                                                    features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
-                                                    eval_function = FUN, custom_objective_translated = custom_objective_translated,
-                                                    chosen_eval_metric_translated = chosen_eval_metric_translated, early_stop = early_stop,
-                                                    chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
-                                                    hyper_grid_domain_list = hyper_grid_domain_list, n_iter = n_iter, acq = acq,
-                                                    init_points = init_points, k_iter = k_iter,
-                                                    keras_architecture_parameters = keras_architecture_parameters,
-                                                    parallel = parallel,
-                                                    verbose = verbose
-  ))
+  hyper_tune_results <- hyper_tune(tuning_method = tuning_method, ml_algorithm = sb_algorithm, target_fwd_name = target_fwd_name,
+                                   full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
+                                   features_validation_sample = ts_splits$validation$features_validation_sample, target_validation_sample = ts_splits$validation$target_validation_sample,
+                                   eval_function = FUN, custom_objective_translated = custom_objective_translated,
+                                   chosen_eval_metric_translated = chosen_eval_metric_translated, early_stop = early_stop,
+                                   chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau,
+                                   hyper_grid_domain_list = hyper_grid_domain_list, n_iter = n_iter, acq = acq,
+                                   init_points = init_points, k_iter = k_iter,
+                                   keras_architecture_parameters = keras_architecture_parameters,
+                                   parallel = parallel,
+                                   verbose = verbose
+                                   )
+
 
   #Compare hyper tuning via bayesian opt
   test_eval_function <- function(alpha, lambda.min.ratio){
@@ -2436,8 +2435,8 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = FA
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -2450,7 +2449,7 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = FA
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -2657,8 +2656,8 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -2671,7 +2670,7 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -2922,8 +2921,8 @@ test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber er
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -2936,7 +2935,7 @@ test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber er
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -3192,8 +3191,8 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = TRUE", {
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -3206,7 +3205,7 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = TRUE", {
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -3423,8 +3422,8 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = TR
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -3437,7 +3436,7 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = TR
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -3647,8 +3646,8 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -3661,7 +3660,7 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
@@ -3915,8 +3914,8 @@ skip()
     dplyr::rename(tickers = Var1, dates = Var2) %>%
     dplyr::mutate(is_eligible = 1) %>%
     dplyr::arrange(id)
-  backtest_returns_xts <- NULL
-  benchmark_returns_xts <- NULL
+  backtest_returns_m_xts <- NULL
+  benchmark_returns_m_xts <- NULL
   signal_themes_m_df <- NULL
   custom_signal_weights_m_df <- NULL
   gsm_algorithm <- "ols"
@@ -3929,7 +3928,7 @@ skip()
       check_inputs_sb_backtest(
         features_m_df = toy_preprocessed_features, target_m_df = toy_preprocessed_targets, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,
         validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
-        backtest_returns_xts = backtest_returns_xts, benchmark_returns_xts = benchmark_returns_xts, cov_matrix_benchmark = cov_matrix_benchmark,
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
         rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
         custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
