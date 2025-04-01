@@ -127,14 +127,62 @@ test_that("calculate_eval_metric correctly sets chosen_eval_metric as score", {
 })
 
 # Define test cases
-test_that("calculate_eval_metrics handles NA in pred error", {
+test_that("calculate_eval_metrics returns error", {
+
+  # Example data
+  error <- c(0.1, -0.2, -0.05)
+  pred <- c(0.9, 2.2, 1.05)
+  target <- c(1.0, 2.0, 1.0)
+
+  expect_equal(
+    calculate_eval_metrics(pred = pred, target = target, huber_delta = 1, quantile_tau= 0.5, return_error = TRUE)$error,
+    error
+  )
+
+
+
+})
+
+
+# Define test cases
+test_that("calculate_eval_metrics handles NA in pred and target", {
 
   # Example data
   error <- c(0.1, -0.2, 0.05)
   pred <- c(NA, 2.2, 1.05)
   target <- c(1.0, 2.0, 1.0)
 
-  expect_error(calculate_eval_metrics(error = error, pred = pred, target = target, huber_delta = 1, quantile_tau= 0.5))
+  expect_error(
+    calculate_eval_metrics(pred = pred, target = target, huber_delta = 1, quantile_tau= 0.5),
+    "Error in calculate_eval_metrics: NAs present in pred"
+  )
+
+  # Example data
+  error <- c(0.1, -0.2, 0.05)
+  pred <- c(0.9, 2.2, 1.05)
+  target <- c(NA, NA, NA)
+
+  expect_equal(
+    calculate_eval_metrics(pred = pred, target = target, huber_delta = 1, quantile_tau= 0.5),
+    data.frame(Score = NA_real_, rss = NA, cp = NA, rmse = NA, mae = NA, mphe = NA, mpe = NA, mape = NA, hr = NA, mb = NA)
+  )
+
+
+
+})
+
+# Define test cases
+test_that("calculate_eval_metrics throws an error when chosen_eval_metric is wrong", {
+
+  # Example data
+  error <- c(0.1, -0.2, 0.05)
+  pred <- c(0.9, 2.2, 1.05)
+  target <- c(1.0, 2.0, 1.0)
+
+  expect_error(
+    calculate_eval_metrics(pred = pred, target = target, huber_delta = 1, quantile_tau= 0.5, chosen_eval_metric = "RMSE"),
+    "chosen_eval_metric should be one of rmse, rss, cp, mae, mphe, mpe, mape, hr"
+  )
 
 })
 
@@ -182,3 +230,4 @@ test_that("calculate_eval_metrics correctly handles best iteration from early st
 
 
 })
+

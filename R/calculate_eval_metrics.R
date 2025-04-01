@@ -36,7 +36,7 @@ calculate_eval_metrics <- function(pred, target, huber_delta = 1, quantile_tau =
     stop("Error in calculate_eval_metrics: NAs present in pred")
   }
 
-  if(!is.numeric(best_iteration) & !is.null(best_iteration)){
+  if(!is.numeric(best_iteration) && !is.null(best_iteration)){
     stop("best_iteration should either be NULL or numeric.")
   }
 
@@ -60,15 +60,15 @@ calculate_eval_metrics <- function(pred, target, huber_delta = 1, quantile_tau =
     validation_sample_hr <- NA
     validation_sample_mb <- NA
   } else {
-  validation_sample_rss <- 1 - sum(error^2)/sum(target^2) #R2
-  validation_sample_cp <- mean(pred*target) #Cross-Product
-  validation_sample_rmse <- sqrt(mean(error^2)) #RMSE
-  validation_sample_mae <- mean(abs(error)) #mae
-  validation_sample_mphe <- mean(huber_delta^2 * (sqrt(1 + (error / huber_delta)^2) - 1)) #Pseudo-Huber
-  validation_sample_mpe <- mean(ifelse(error>=0, quantile_tau * (error), (1-quantile_tau)*(-error))) #Pinball
-  validation_sample_mape <- mean(abs(error/target)) #MAPE
-  validation_sample_hr <- length(which(sign(pred) == sign(target)))/length(target)
-  validation_sample_mb <- mean(error)
+    validation_sample_rss <- 1 - sum(error^2)/sum(target^2) #R2
+    validation_sample_cp <- mean(pred*target) #Cross-Product
+    validation_sample_rmse <- sqrt(mean(error^2)) #RMSE
+    validation_sample_mae <- mean(abs(error)) #mae
+    validation_sample_mphe <- mean(huber_delta^2 * (sqrt(1 + (error / huber_delta)^2) - 1)) #Pseudo-Huber
+    validation_sample_mpe <- mean(ifelse(error>=0, quantile_tau * (error), (1-quantile_tau)*(-error))) #Pinball
+    validation_sample_mape <- mean(abs(error/target)) #MAPE
+    validation_sample_hr <- length(which(sign(pred) == sign(target)))/length(target)
+    validation_sample_mb <- mean(error)
   }
 
   #Return DF
@@ -82,7 +82,7 @@ calculate_eval_metrics <- function(pred, target, huber_delta = 1, quantile_tau =
                    mpe = -validation_sample_mpe, #Pinball
                    mape = -validation_sample_mape, #MAPE
                    hr = validation_sample_hr #Hit Rate
-                   ),
+    ),
     rss = validation_sample_rss,
     cp = validation_sample_cp,
     rmse = validation_sample_rmse,
