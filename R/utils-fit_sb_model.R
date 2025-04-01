@@ -227,4 +227,6 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                       keras_architecture_parameters = keras_architecture_parameters
   )
 
+  return(sb_model_fit)
+
 }

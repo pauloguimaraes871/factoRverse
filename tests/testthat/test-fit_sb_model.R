@@ -174,6 +174,7 @@ test_that("fit_sb_model works for RP", {
                           target_m_refit = target_m_refit,
                           custom_objective_translated = custom_objective,
                           huber_delta = 1, quantile_tau = .5, early_stop = NULL,
+                          groups_m_d_ref = NULL,
                           keras_architecture_parameters = NULL, chosen_eval_metric_translated = NULL,
                           most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                           selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
