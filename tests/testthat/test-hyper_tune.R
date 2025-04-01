@@ -503,7 +503,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
 
 
   hyper_eval_test <- list()
-  for(i in seq_along(length(hyperparameters_grid$alpha))){
+  for(i in seq_len(length(hyperparameters_grid$alpha))){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -669,7 +669,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
 
   hyper_eval_test <- list()
   set.seed(123)
-  for(i in seq_along(length(hyperparameters_grid$mtry))){
+  for(i in seq_len(length(hyperparameters_grid$mtry))){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                       features_validation_sample = ts_splits$validation$features_validation_sample,
                                       target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -839,7 +839,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
                                                           n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
-  for(i in seq_along(length(hyperparameters_grid$min_child_weight))){
+  for(i in seq_len(length(hyperparameters_grid$min_child_weight))){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -1011,7 +1011,7 @@ test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = 
   hyperparameters_grid <- create_expanded_hyper_grid_list(hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method,
                                                           n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
-  for(i in seq_along(length(hyperparameters_grid$regularizer_l1))){
+  for(i in seq_len(length(hyperparameters_grid$regularizer_l1))){
     hyper_eval_test[[i]] <- FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
                                 target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -1183,7 +1183,7 @@ test_that("random_search/grid_search: hyper_tuning works for glmnet when Paralle
   hyper_eval_test <- list()
   set.seed(123)
   hyper_eval_test <-
-    foreach::foreach(i = seq_along(length(hyperparameters_grid$alpha)), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_len(length(hyperparameters_grid$alpha)), .options.future = list(seed = TRUE)) %dofuture% {
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
           target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -1354,7 +1354,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   set.seed(123)
   hyper_eval_test <-
   suppressWarnings(
-  foreach::foreach(i = seq_along(length(hyperparameters_grid$mtry)), .options.future = list(seed = TRUE)) %dofuture% {
+  foreach::foreach(i = seq_len(length(hyperparameters_grid$mtry)), .options.future = list(seed = TRUE)) %dofuture% {
                                 FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
 
                                 features_validation_sample = ts_splits$validation$features_validation_sample,
@@ -1524,7 +1524,7 @@ test_that("random_search/grid_search: hyper_tuning works for random_forest when 
   hyper_eval_test <- list()
   set.seed(123)
   hyper_eval_test <-
-    foreach::foreach(i = seq_along(length(hyperparameters_grid$mtry)), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_len(length(hyperparameters_grid$mtry)), .options.future = list(seed = TRUE)) %dofuture% {
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
           target_validation_sample = ts_splits$validation$target_validation_sample,
@@ -1696,7 +1696,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
                                                           n_iter = n_iter, ml_algorithm = sb_algorithm)
   hyper_eval_test <- list()
   hyper_eval_test <-
-    foreach::foreach(i = seq_along(length(hyperparameters_grid$min_child_weight)), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_len(length(hyperparameters_grid$min_child_weight)), .options.future = list(seed = TRUE)) %dofuture% {
 
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
@@ -1871,7 +1871,7 @@ skip()
   hyper_eval_test <- list()
   suppressMessages(
   hyper_eval_test <-
-    foreach::foreach(i = seq_along(length(hyperparameters_grid$regularizer_l1)), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_len(length(hyperparameters_grid$regularizer_l1)), .options.future = list(seed = TRUE)) %dofuture% {
 
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
@@ -2026,7 +2026,7 @@ skip()
   suppressMessages(
   hyper_eval_test <-
     #For some reason, results here are not reproducible when running in parallel
-    foreach::foreach(i = seq_along(length(hyperparameters_grid$regularizer_l1)), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(i = seq_len(length(hyperparameters_grid$regularizer_l1)), .options.future = list(seed = TRUE)) %dofuture% {
 
       FUN(full_data_training_sample_clean = ts_splits$training$full_data_training_sample_clean,
           features_validation_sample = ts_splits$validation$features_validation_sample,
