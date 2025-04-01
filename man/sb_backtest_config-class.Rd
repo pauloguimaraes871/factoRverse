@@ -19,10 +19,6 @@ ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXt
 
 \item{\code{tuning_strategy}}{An object of class \code{tuning_strategy}, specifying the strategy for tuning hyperparameters.}
 
-\item{\code{ss_backtest_config}}{An object of class \code{ss_backtest_config}, specifying the single strategy backtest configuration.}
-
-\item{\code{ss_backtest_results}}{An object of class \code{ss_backtest_results}, containing the results of the single strategy backtest.}
-
 \item{\code{port_backtest_config}}{An object of class \code{port_backtest_config}, containing instructions to create SB portfolios for heuristic algorithms.}
 
 \item{\code{training_sample_size}}{Number of observations to include in each training sample.}
