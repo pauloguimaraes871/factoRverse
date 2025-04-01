@@ -22,7 +22,7 @@ utils::globalVariables(c("id", "tickers", "untraded", "delisted", "listed", "old
                          "cor_theme:tickers__Intercept__market_factor_proxy", ".width", ".point", ".interval", ".prediction",
                          "theme_tickers", "posterior_geom_mean_ret", "posterior_specific_risk", "sum_w",
                          "squared_error", "pseudo_huber_error", "quantile_error", "early_stopping_rounds",
-                         "objective"
+                         "objective", "Var1", "Var2"
 
 
 

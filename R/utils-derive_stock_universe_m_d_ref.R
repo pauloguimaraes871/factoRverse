@@ -73,64 +73,64 @@ derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_r
       stop("Either oos_predictions_m_d_ref or chosen_score_metric_and_position must be provided.")
     }
 
-    ##Check if one of oos_predictions_m_d_ref and chosen_score_metric_and_position are provided
-    if (!is.null(oos_predictions_m_d_ref) && !is.null(chosen_score_metric_and_position)) {
-      stop("Only one of oos_predictions_m_d_ref or chosen_score_metric_and_position should be provided.")
-    }
+  ##Check if one of oos_predictions_m_d_ref and chosen_score_metric_and_position are provided
+  if (!is.null(oos_predictions_m_d_ref) && !is.null(chosen_score_metric_and_position)) {
+    stop("Only one of oos_predictions_m_d_ref or chosen_score_metric_and_position should be provided.")
+  }
   ####################
 
   #Initialize the stock universe data frame
   ####################
-    ##Join into data.frame
-    stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates)
+  ##Join into data.frame
+  stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates)
   ####################
 
   #Add exp_ret_score
   ####################
-    ###oos_predictions_m_d_ref
-    if (!is.null(oos_predictions_m_d_ref)) {
-      # Define the metric name for expected return score
-      stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
-        dplyr::left_join(
-          oos_predictions_m_d_ref %>% dplyr::select(id, pred),
-          by = "id"
-        ) %>%
-        dplyr::rename(exp_ret_score = pred) %>%
-        dplyr::mutate(exp_ret_score = signal_transform(
-          exp_ret_score,
-          lower_quantile_winsorization = lower_quantile_winsorization,
-          upper_quantile_winsorization = upper_quantile_winsorization
-        ))
+  ###oos_predictions_m_d_ref
+  if (!is.null(oos_predictions_m_d_ref)) {
+    # Define the metric name for expected return score
+    stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
+      dplyr::left_join(
+        oos_predictions_m_d_ref %>% dplyr::select(id, pred),
+        by = "id"
+      ) %>%
+      dplyr::rename(exp_ret_score = pred) %>%
+      dplyr::mutate(exp_ret_score = signal_transform(
+        exp_ret_score,
+        lower_quantile_winsorization = lower_quantile_winsorization,
+        upper_quantile_winsorization = upper_quantile_winsorization
+      ))
+  } else {
+    ###chosen score metric
+    ####No predictions provided: use signals from signals_m_d_ref.
+    ####Determine position and chosen signal metric.
+    if (chosen_score_metric_and_position == "long") {
+      position <- 1
+      chosen_score <- names(chosen_score_metric_and_position)
     } else {
-      ###chosen score metric
-      ####No predictions provided: use signals from signals_m_d_ref.
-      ####Determine position and chosen signal metric.
-      if (chosen_score_metric_and_position == "long") {
-        position <- 1
-        chosen_score <- names(chosen_score_metric_and_position)
-      } else {
-        position <- -1
-        chosen_score <- names(chosen_score_metric_and_position)
-      }
-
-      #####Check if the chosen score column exists in signals_m_d_ref
-      if (!chosen_score %in% names(signals_m_d_ref)) {
-        stop("The chosen score column '", chosen_score, "' is not found in signals_m_d_ref.")
-      }
-
-      ####Add chosen score
-      stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
-        dplyr::left_join(
-          signals_m_d_ref %>% dplyr::select(id, !!rlang::sym(chosen_score)),
-          by = "id"
-        ) %>%
-        dplyr::rename(exp_ret_score = !!rlang::sym(chosen_score)) %>%
-        dplyr::mutate(exp_ret_score = signal_transform(
-          exp_ret_score * position,
-          lower_quantile_winsorization = lower_quantile_winsorization,
-          upper_quantile_winsorization = upper_quantile_winsorization
-        ))
+      position <- -1
+      chosen_score <- names(chosen_score_metric_and_position)
     }
 
-    return(stock_universe_m_d_ref)
+    #####Check if the chosen score column exists in signals_m_d_ref
+    if (!chosen_score %in% names(signals_m_d_ref)) {
+      stop("The chosen score column '", chosen_score, "' is not found in signals_m_d_ref.")
+    }
+
+    ####Add chosen score
+    stock_universe_m_d_ref <- stock_universe_m_d_ref %>%
+      dplyr::left_join(
+        signals_m_d_ref %>% dplyr::select(id, !!rlang::sym(chosen_score)),
+        by = "id"
+      ) %>%
+      dplyr::rename(exp_ret_score = !!rlang::sym(chosen_score)) %>%
+      dplyr::mutate(exp_ret_score = signal_transform(
+        exp_ret_score * position,
+        lower_quantile_winsorization = lower_quantile_winsorization,
+        upper_quantile_winsorization = upper_quantile_winsorization
+      ))
+  }
+
+  return(stock_universe_m_d_ref)
 }
