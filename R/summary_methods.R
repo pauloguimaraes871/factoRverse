@@ -1454,13 +1454,14 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
   )
 
   # Display Main Information always
+  sb_backtest_workflow <- object@sb_backtest_workflow[[length(object@sb_backtest_workflow)]]
   cat("Backtest Identifier:", object@backtest_identifier, "\n")
-  cat("SB Algorithm:", object@sb_backtest_workflow$sb_algorithm, "\n")
+  cat("SB Algorithm:", sb_backtest_workflow$sb_algorithm, "\n")
   cat("Final Model Object Class:", object@final_sb_model@model_class, "\n")
-  cat("Custom Objective:", object@sb_backtest_workflow$custom_objective, "\n")
-  if(!object@sb_backtest_workflow$sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")) cat("Chosen Evaluation Metric:", object@sb_backtest_workflow$chosen_eval_metric, "\n")
-  cat("Testing Sample Dates:", format(as.Date(object@sb_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")
-  cat("Rebalancing Dates:", format(as.Date(object@sb_backtest_workflow$rebalance_dates), "%d-%m-%Y"), "\n")
+  cat("Custom Objective:", sb_backtest_workflow$custom_objective, "\n")
+  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")) cat("Chosen Evaluation Metric:", sb_backtest_workflow$chosen_eval_metric, "\n")
+  cat("Testing Sample Dates:", format(as.Date(sb_backtest_workflow$dates_testing_sample), "%d-%m-%Y"), "\n")
+  cat("Rebalancing Dates:", format(as.Date(sb_backtest_workflow$rebalance_dates), "%d-%m-%Y"), "\n")
 
   if (is.null(summary_id)) {
     cat("\nPlease choose a table to display:\n")
