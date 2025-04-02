@@ -55,7 +55,7 @@ setMethod("explain_prediction",
 
             # Extract objects
             ##################
-            sb_backtest_workflow <- sb_backtest_results@sb_backtest_workflow
+            sb_backtest_workflow <- sb_backtest_results@sb_backtest_workflow[[length(sb_backtest_results@sb_backtest_workflow)]]
             oos_sb_outputs_m_df <- sb_backtest_results@oos_sb_outputs_m_df@data
             feature_importance_m_df <- sb_backtest_results@feature_importance_m_df@data
             gsm_algorithm <- sb_backtest_workflow$gsm_algorithm
