@@ -1763,121 +1763,6 @@ create_ss_backtest_config <- function(
   )
 }
 
-#' Add a `ss_backtest_config` or a `ss_backtest_results` to an existing `sb_backtest_config`.
-#'
-#' This generic function adds an existing `ss_backtest_config` or a `ss_backtest_results`
-#' to an `sb_backtest_config` object or creates a new `ss_backtest_config` if none is provided (i.e., when ss_backtest_obj is `missing`).
-#'
-#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
-#' @param ss_backtest_object An object of class `ss_backtest_config`, `ss_backtest_results` or `missing`.
-#' If `NULL`, additional parameters must be provided to create a new `ss_backtest_config`.
-#' @param ... Additional arguments required to create a new `ss_backtest_config`, only needed when ss_backtest_obj is `missing`.
-#' @return An updated `sb_backtest_config` object with the specified or newly created ss_backtest_obj.
-#' @export
-setGeneric("add_ss_backtest_obj", function(object, ss_backtest_obj, ...) {
-  standardGeneric("add_ss_backtest_obj")
-})
-
-#' @describeIn add_ss_backtest_obj Add an existing ss_backtest_obj to the `sb_backtest_config`.
-#'
-#' This method adds a pre-existing `ss_backtest_config` to the `sb_backtest_config`.
-#' It replaces any existing ss_backtest_obj in `sb_backtest_config`.
-#'
-#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
-#' @param ss_backtest_obj  An object of class `ss_backtest_config`.
-#' @return The updated `sb_backtest_config` object with the provided `ss_backtest_obj`.
-#' @export
-setMethod(
-  "add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "ss_backtest_config"),
-  function(object, ss_backtest_obj) {
-    # Place ss_backtest_object
-    object@ss_backtest_config <- ss_backtest_obj
-
-    ## Chosen_signals_and_positions
-    object@chosen_signals_and_positions <- ss_backtest_obj@chosen_signals_and_positions
-    message("chosen_signals_and_positions will follow underlying ss_backtest_config")
-
-    # Validate the object explicitly
-    validObject(object)
-
-    return(object)
-  }
-)
-
-#' @describeIn add_ss_backtest_obj Add an existing ss_backtest_obj to the `sb_backtest_config`.
-#'
-#' This method adds a pre-existing `ss_backtest_results` to the `sb_backtest_config`.
-#' It replaces any existing ss_backtest_obj in `sb_backtest_config`.
-#'
-#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
-#' @param ss_backtest_obj  An object of class `sb_backtest_config`.
-#' @return The updated `sb_backtest_config` object with the provided `ss_backtest_obj`.
-#' @export
-setMethod(
-  "add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "ss_backtest_results"),
-  function(object, ss_backtest_obj) {
-    # Place ss_backtest_results
-    object@ss_backtest_results <- ss_backtest_obj
-
-    ## Chosen_signals_and_positions
-    object@chosen_signals_and_positions <- ss_backtest_obj@ss_backtest_workflow$chosen_signals_and_positions
-    message("chosen_signals_and_positions will follow underlying ss_backtest_results")
-
-
-    # Validate the object explicitly
-    validObject(object)
-
-    return(object)
-  }
-)
-
-#' @describeIn add_ss_backtest_obj Add an existing ss_backtest_obj to the `sb_backtest_config`.
-#'
-#' This method creates a `ss_backtest_config` to add to the `sb_backtest_config`.
-#'
-#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
-#' @param
-#' @return The updated `sb_backtest_config` object with the created `ss_backtest_config`.
-#' @export
-setMethod(
-  "add_ss_backtest_obj", signature(object = "sb_backtest_config", ss_backtest_obj = "missing"),
-  function(object, initial_sample_size, rebalancing_months, active_returns = TRUE, split_method = "expanding",
-           chosen_signals_and_positions = "all",
-           alpha_test_strategy = NULL, config_name = "not_identified") {
-    # Create an empty alpha_test_strategy
-    if (is.null(alpha_test_strategy)) {
-      alpha_test_strategy <- create_alpha_test_strategy()
-    }
-
-    # create ss_backtest_config
-    ss_backtest_config <- create_ss_backtest_config(
-      chosen_signals_and_positions = chosen_signals_and_positions,
-      initial_sample_size = initial_sample_size,
-      rebalancing_months = rebalancing_months,
-      active_returns = active_returns,
-      split_method = split_method,
-      alpha_test_strategy = alpha_test_strategy,
-      config_name = config_name
-    )
-
-    # Include
-    object@ss_backtest_config <- ss_backtest_config
-
-    ## Chosen_signals_and_positions
-    object@chosen_signals_and_positions <- chosen_signals_and_positions
-    message("chosen_signals_and_positions will follow underlying ss_backtest_config")
-
-
-
-    # Validate the object explicitly
-    validObject(object)
-
-    return(object)
-  }
-)
-
-
-
 
 # alpha_test_strategy----------------------------------------------------
 #' @title Create an alpha_test_strategy object
@@ -3634,20 +3519,6 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   }
 
   ## Chosen_signals_and_positions
-  ### Presence of other objects
-  if (any(!is.null(ss_backtest_config), !is.null(ss_backtest_results))) {
-
-    if (!is.null(ss_backtest_config)) {
-      chosen_signals_and_positions <- ss_backtest_config@chosen_signals_and_positions
-      message("chosen_signals_and_positions will follow underlying ss_backtest_config")
-    } else {
-      chosen_signals_and_positions <- ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions
-      message("chosen_signals_and_positions will follow underlying ss_backtest_results")
-    }
-    if (sb_algorithm == "custom_weights") {
-      message("only positions in chosen_signals_and_positions are applied when sb_algorithm is custom_weights.")
-    }
-  }
   ### Custom weights warning
   if (sb_algorithm == "custom_weights" && is.null(chosen_signals_and_positions)) {
     message(
@@ -3655,8 +3526,7 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
       "in custom_signal_weights_m_df will be eligible."
     )
   }
-
-  if (is.null(ss_backtest_config) && is.null(ss_backtest_results) && is.null(chosen_signals_and_positions)) {
+  if (is.null(chosen_signals_and_positions)) {
     chosen_signals_and_positions <- "all"
   }
 
@@ -3696,8 +3566,6 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
     chosen_signals_and_positions = chosen_signals_and_positions,
     rebalancing_months = rebalancing_months,
     split_method = split_method,
-    ss_backtest_config = ss_backtest_config,
-    ss_backtest_results = ss_backtest_results,
     tuning_strategy = tuning_strategy,
     custom_objective = custom_objective,
     keras_architecture_parameters = keras_architecture_parameters,
