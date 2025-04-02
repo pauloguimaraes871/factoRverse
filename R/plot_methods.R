@@ -369,7 +369,6 @@ setMethod(
       if (nrow(df_fun) == 0) stop("No data available after removing NaN values from Calc_Stat.")
 
       # Cross-sectional bar plot
-
       p <-
         ggplot2::ggplot(df_fun, ggplot2::aes(x = interaction(!!!rlang::syms(clustering_variables)), y = Calc_Stat)) +
         ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = black) +
@@ -733,6 +732,7 @@ setMethod(
             y = dep_y
           )
       } else {
+        if (clustering_variables == "dates") df$dates <- as.factor(df$dates)
         # Grouped regression lines
         p <- ggplot2::ggplot(df, ggplot2::aes_string(x = variable, y = dep_y, color = clustering_variables)) +
           ggplot2::geom_point(alpha = 0.8) +
@@ -2562,7 +2562,8 @@ setMethod(
 setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_df = NULL) {
 
   # List of available plots
-  if(x@sb_backtest_workflow$sb_algorithm %in% c("glmnet", "rf", "xgb", "nn")){
+  sb_backtest_workflow <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
+  if(sb_backtest_workflow$sb_algorithm %in% c("glmnet", "rf", "xgb", "nn")){
     available_plots <- c(
       "Chosen Evaluation Metric Over Time",
       "Test vs Validation Chosen Evaluation Metric Over Time",
@@ -2585,7 +2586,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     )
   }
 
-  if(x@sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo", "custom_weights")){
+  if(sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo", "custom_weights")){
     available_plots <- c(
       "All Evaluation Metrics Over Time",
       "Consolidated OOS Testing Metrics",
@@ -2639,10 +2640,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
   validation_eval_metrics_hyper_choice <- if (!is.null(x@validation_eval_metrics_hyper_choice_m_xts)) x@validation_eval_metrics_hyper_choice_m_xts@data %>% as.data.frame() else NULL
   consolidated_eval_metrics <- x@consolidated_eval_metrics
   hyper_choice_df <- if (!is.null(x@best_hyperparameters_m_xts)) x@best_hyperparameters_m_xts@data %>% as.data.frame() else NULL
-  chosen_eval_metric <- x@sb_backtest_workflow$chosen_eval_metric
+  chosen_eval_metric <- sb_backtest_workflow$chosen_eval_metric
   chosen_eval_metric_validation <- x@chosen_eval_metric_validation
-  sb_algorithm <- x@sb_backtest_workflow$sb_algorithm
-  rebalance_dates <- x@sb_backtest_workflow$rebalance_dates
+  sb_algorithm <- sb_backtest_workflow$sb_algorithm
+  rebalance_dates <- sb_backtest_workflow$rebalance_dates
 
   # Define color palette
   neon_blue <- "#00BFFF"
@@ -3342,7 +3343,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
       plot(x@oos_sb_outputs_m_df, dep_y = dep_y, type = "regression")
     } else {
       #Plot others
-      plot(x@oos_sb_outputs_m_df, dep_y = dep_y)
+      plot(x@oos_sb_outputs_m_df, dep_y = NULL)
     }
 
 
@@ -3557,7 +3558,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
        stop("Invalid date format. Use 'YYYY-MM-DD'.")
      }
      if (length(selection) == 1 && nzchar(selection)) {
-       selected_date <- selection
+       selected_date <- as.Date(selection)
      } else {
        stop("Invalid date selection. Please select just one date. \n")
      }
