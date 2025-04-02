@@ -220,10 +220,6 @@ setMethod("show", "tickers_catalog", function(object) {
 })
 
 
-
-
-
-
 #meta_xts------------------------------------------
 #' @title Show method for meta_xts
 #' @description
@@ -368,7 +364,7 @@ setMethod("show", "metrics_meta_xts", function(object) {
 
 
 
-
+#hyper_grid_domain------------------------------------------
 #' Print method for hyper_grid_domain
 #'
 #' This method prints the contents of a `hyper_grid_domain` object in a user-friendly format.
@@ -415,6 +411,7 @@ setMethod("show", "hyper_grid_domain", function(object) {
 })
 
 
+#tuning_strategy------------------------------------------
 #' @title Show Method for `tuning_strategy`
 #' @description Custom show method for displaying the general information of objects that extend `tuning_strategy`.
 #' This method prints the tuning method, machine learning algorithm, validation sample size, split method, evaluation metric,
@@ -567,7 +564,7 @@ setMethod("show", "bayesian_opt_strategy", function(object) {
 })
 
 
-
+# keras_architecture_parameters------------------------------------------------
 #' @title Print keras_architecture_parameters
 #' @description Method to print an object of class `keras_architecture_parameters`.
 #'
@@ -587,7 +584,7 @@ setMethod("show", "keras_architecture_parameters", function(object) {
 })
 
 
-
+# sb_backtest_config------------------------------------------------
 #' @title Show SB Backtest Config
 #' @description Prints the contents of an `sb_backtest_config` object, detailing the various parameters and their configurations.
 #'
@@ -749,33 +746,18 @@ setMethod("show", "sb_backtest_config", function(object) {
     }
   }
 
-  if(!is.null(object@ss_backtest_results)){
-    cat("\n")
-    cat("Printing Signal Selection Backtest:\n")
-    cat("==============================\n")
-    print(object@ss_backtest_results)
-  }
-
-
-  if(!is.null(object@ss_backtest_config)){
-    cat("\n")
-    cat("Printing Signal Selection Configuration:\n")
-    cat("==============================\n")
-    print(object@ss_backtest_config)
-  }
-
-  if(is.null(object@ss_backtest_config) && is.null(object@ss_backtest_results)){
+  if (!is.null(object@chosen_signals_and_positions)){
     cat("Chosen Signals and Positions:\n")
     print(object@chosen_signals_and_positions, quote = FALSE)
+  } else {
+    cat("Chosen Signals and Positions derived through SS Backtest \n")
   }
-
-
 
   cat("\n=================================\n")
 })
 
 
-
+# sb_metabacktest_config------------------------------------------------
 #' Show Method for sb_metabacktest_config Class
 #'
 #' Displays detailed information about each configuration in the `sb_metabacktest_config` object.
@@ -987,6 +969,7 @@ setMethod("show", "sb_metabacktest_config",
             invisible(NULL)
           })
 
+# sb_model------------------------------------------------
 #' Show Method for sb_model Class
 #'
 #' This method provides a summary of the `sb_model` object, including
@@ -1048,6 +1031,7 @@ setMethod("show", "sb_model", function(object) {
 })
 
 
+# sb_backtest_results------------------------------------------------
 #' Show Method for sb_backtest_results Class
 #'
 #' This method displays a detailed summary of the `sb_backtest_results` object,
@@ -1063,7 +1047,7 @@ setMethod("show", "sb_model", function(object) {
 setMethod("show", "sb_backtest_results", function(object) {
 
   # Extract the sb_backtest_workflow
-  sb_backtest_workflow <- object@sb_backtest_workflow
+  sb_backtest_workflow <- object@sb_backtest_workflow[[length(object@sb_backtest_workflow)]]
 
   # Create a neat display of the sb_backtest_workflow
   cat("SB Backtest Workflow Metadata\n")
@@ -1176,7 +1160,7 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("  Chosen Signals and Positions:\n")
   print(sb_backtest_workflow$chosen_signals_and_positions)
   cat("Features:", paste(sb_backtest_workflow$features, collapse = ", "), "\n")
-  cat("  Features Workflow:\n")
+  cat("Features Workflow:\n")
   if(is.null(sb_backtest_workflow$features_workflow)){
     cat("    No Features Workflow\n")
   } else {
@@ -1195,15 +1179,6 @@ setMethod("show", "sb_backtest_results", function(object) {
                                                                        collapse = ", "), "\n")
 
   cat("Features Object:", sb_backtest_workflow$features_object, "\n")
-
-  cat("Feature Selection Backtest Information:\n")
-  if(!is.null(object@ss_backtest_results)){
-    cat("\n")
-    cat("=================================\n")
-    print(object@ss_backtest_results)
-  } else {
-    cat("  No feature selection backtest results available.\n")
-  }
 
 
   cat("=================================\n")
@@ -1252,7 +1227,7 @@ setMethod("show", "sb_backtest_results", function(object) {
 })
 
 
-
+# sb_metabacktest_results------------------------------------------------
 #' @title Show Method for sb_metabacktest_results Class
 #' @description Displays the contents of an `sb_metabacktest_results` object,
 #' including consolidated and time series evaluation metrics.
@@ -1433,6 +1408,7 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
 })
 
+# ss_backtest_config------------------------------------------------
 #' @title Show Signal Selection Backtest Config
 #' @description Prints the contents of an `ss_backtest_config` object, detailing the various parameters and their configurations.
 #'
@@ -1476,7 +1452,7 @@ setMethod("show", "ss_backtest_config", function(object) {
   cat("\n==============================\n")
 })
 
-
+# alpha_test_strategy------------------------------------------------
 #' @title Show Alpha Test Strategy
 #' @description Prints the contents of an `alpha_test_strategy` object, detailing the various parameters and their configurations.
 #' @param object An `alpha_test_strategy` object to be displayed.
@@ -1602,6 +1578,7 @@ setMethod("show", "bayesian_model_parameters", function(object) {
   }
 })
 
+# ss_backtest_results------------------------------------------------
 #' Show Method for ss_backtest_results Class
 #'
 #' This method displays a detailed summary of the `ss_backtest_results` object,
@@ -1738,7 +1715,7 @@ setMethod("show", "ss_backtest_results", function(object) {
 })
 
 
-#############################################
+#port_backtest_config--------------------------
 
 #' @title Show Port Backtest Config
 #' @description Prints the contents of a `port_backtest_config` object, detailing its various
@@ -1958,6 +1935,7 @@ setMethod(
   }
 )
 
+#cov_est_method--------------------------
 #' @title Show Covariance Estimation Method
 #' @description Displays the configuration of a `cov_est_method` object, including the estimation method,
 #' the sample size used for the covariance matrix, whether active returns are used, and the benchmark used.
@@ -1973,7 +1951,7 @@ setMethod("show", "cov_est_method", function(object) {
   cat("Covariance Matrix Benchmark: ", object@cov_matrix_benchmark, "\n")
 })
 
-
+#mvo_parameters--------------------------
 #' @title Show MVO Parameters
 #' @description Displays the mean-variance optimization parameters contained in a `mvo_parameters` object.
 #' @param object A `mvo_parameters` object.
@@ -1988,7 +1966,7 @@ setMethod("show", "mvo_parameters", function(object) {
   cat("Optimization Objective: ", object@opt_objective, "\n")
 })
 
-
+#rp_parameters--------------------------
 #' @title Show Risk-Parity Parameters
 #' @description Displays the risk-parity configuration contained in a `rp_parameters` object.
 #' @param object A `rp_parameters` object.
@@ -2000,7 +1978,7 @@ setMethod("show", "rp_parameters", function(object) {
   cat("Risk-Parity Method: ", object@rp_method, "\n")
 })
 
-
+#concentration_constraint_policy--------------------------
 #' @title Show Concentration Constraint Policy
 #' @description Prints the contents of a `concentration_constraint_policy` object,
 #' detailing the benchmark, the maximum absolute active weight for individual assets,
@@ -2028,6 +2006,7 @@ setMethod("show", "concentration_constraint_policy", function(object) {
   }
 })
 
+#liquidity_constraint_policy--------------------------
 #' @title Show Liquidity Constraint Policy
 #' @description Prints the contents of a `liquidity_constraint_policy` object,
 #' including the liquidity floor rule and liquidity cap rules.
@@ -2053,6 +2032,7 @@ setMethod("show", "liquidity_constraint_policy", function(object) {
   }
 })
 
+#turnover_constraint_policy--------------------------
 #' @title Show Turnover Constraint Policy
 #' @description Prints the contents of a `turnover_constraint_policy` object,
 #' including the quantile range buffer and the turnover cap rules.
@@ -2078,6 +2058,7 @@ setMethod("show", "turnover_constraint_policy", function(object) {
   }
 })
 
+#transaction_costs_parameters--------------------------
 #' @title Show Transaction Cost Parameters
 #' @description Prints the contents of a `transaction_costs_parameters` object,
 #' including direct transaction cost, strategy AUM, alpha, and lambda.
@@ -2093,6 +2074,7 @@ setMethod("show", "transaction_costs_parameters", function(object) {
   cat("Lambda: ", object@lambda, "\n")
 })
 
+#port_backtest_results--------------------------
 #' @title Show Port Backtest Results
 #' @description Displays a detailed summary of the `port_backtest_results` object,
 #' including workflow metadata, portfolio construction details, date and stock information,
@@ -2156,6 +2138,7 @@ setMethod("show", "port_backtest_results", function(object) {
   invisible(object)
 })
 
+#port_backtest_cohort--------------------------
 #' @title Show Method for port_backtest_cohort Class
 #' @description Displays a detailed summary of a `port_backtest_cohort` object.
 #' It focuses on the configuration settings contained in the common
