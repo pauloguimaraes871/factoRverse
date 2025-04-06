@@ -13,18 +13,22 @@ run_sb_backtest(features_m_df, target_m_df, config, ...)
   features_m_df,
   target_m_df,
   config,
+  ss_backtest_results = NULL,
   port_backtest_cohort = NULL,
   backtest_returns_m_xts = NULL,
   benchmark_returns_m_xts = NULL,
   signal_themes_m_df = NULL,
-  priors_m_df = NULL,
   custom_signal_weights_m_df = NULL,
   custom_signal_universe_metrics_m_df = NULL,
   winsorization_probs = c(0.025, 0.975),
   gsm_algorithm = "ols",
   verbose = TRUE,
   parallel = TRUE,
-  .test_seed = NULL
+  .test_seed = NULL,
+  .update = FALSE,
+  .old_backtest_covered_dates = NULL,
+  .old_oos_sb_outputs_m_df = NULL,
+  .old_sb_model_fit = NULL
 )
 
 \S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,sb_metabacktest_config}(
@@ -93,7 +97,11 @@ run_sb_backtest_internal(
   parallel = TRUE,
   upper_quantile_winsorization = 0.975,
   lower_quantile_winsorization = 0.025,
-  .test_seed = NULL
+  .test_seed = NULL,
+  .update = FALSE,
+  .old_backtest_covered_dates = NULL,
+  .old_oos_sb_outputs_m_df = NULL,
+  .old_sb_model_fit = NULL
 )
 }
 \arguments{
@@ -105,6 +113,8 @@ XXXX is the name of the target variable, number is the amount of forward periods
 \item{config}{A \code{sb_metabacktest_config} object containing a meta learner configuration and multiple individual configurations.}
 
 \item{...}{Additional arguments (not used in this method).}
+
+\item{ss_backtest_results}{An object of class \code{ss_backtest_results} containing the results of a signal selection backtest.}
 
 \item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_universe_m_df},}
 
@@ -281,9 +291,6 @@ Keras has some limitations when working in parallel, especially when using bayes
 }
 
 \examples{
-# Assuming features_m_df and target_m_df are meta_dataframe objects
-# and config is an `sb_backtest_config` object
-result <- run_sb_backtest(features_m_df, target_m_df, config, training_sample_size = 30, rebalacing_months = c(6,12), verbose = TRUE, parallel = TRUE)
 # Assuming features_m_df and target_m_df are meta_dataframe objects
 # and meta_config is an sb_metabacktest_config object
 results_list <- run_sb_backtest(features_m_df, target_m_df, training_sample_size = 30, rebalacing_months = c(6,12), meta_config)

@@ -8,7 +8,6 @@ derive_signal_universe_m_df(
   config,
   features_m_df,
   ss_backtest_results,
-  ss_backtest_config,
   backtest_returns_m_xts,
   benchmark_returns_m_xts,
   signal_themes_m_df,
@@ -25,8 +24,6 @@ derive_signal_universe_m_df(
 \item{features_m_df}{Feature matrix dataframe}
 
 \item{ss_backtest_results}{Signal Selection Backtest results}
-
-\item{ss_backtest_config}{Signal Selection Backtest config}
 
 \item{backtest_returns_m_xts}{XTS of backtest returns}
 

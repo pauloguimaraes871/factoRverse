@@ -36,7 +36,8 @@ run_port_backtest(
   .test_seed = NULL,
   .update = FALSE,
   .old_backtest_port_weights_m_d_ref = NULL,
-  .old_backtest_port_costs_d_ref = NULL
+  .old_backtest_port_costs_d_ref = NULL,
+  .old_backtest_covered_dates = NULL
 )
 }
 \arguments{
