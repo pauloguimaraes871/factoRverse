@@ -290,6 +290,7 @@ consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_
 
   #Checks if main and new are being provided and return according to require_main
   #############
+
     ##main_generic_m_df
     if (is.null(main_generic_m_df)){
       ###If main_generic_m_df is NULL, just pass NULL or supplemental_generic_m_df
@@ -318,7 +319,8 @@ consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_
                               main_generic_m_df@meta_dataframe_name
                             }, type = type,
                             port_backtest_workflow = if (type == "stock_universe") main_generic_m_df@port_backtest_workflow else NULL,
-                            ss_backtest_workflow = if (type == "signal_universe") main_generic_m_df@ss_backtest_workflow else NULL
+                            ss_backtest_workflow = if (type == "signal_universe") main_generic_m_df@ss_backtest_workflow else NULL,
+                            sb_backtest_workflow = if (type == "oos_sb_outputs") supplemental_generic_m_df@sb_backtest_workflow else NULL
                             )
 
   return(consolidated_generic_m_df)
@@ -403,8 +405,15 @@ consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest
 
       ##Retrieve the old object by the same slot name
       old_obj <- methods::slot(old_backtest_results, slot_name)
+
+      ##For oos_testing_eval_metrics_m_xts, best_hyperparameters_m_xts,
+      ##validation_eval_metrics_hyper_choice_m_xts, chosen_eval_metric_validation,
+      ##it is possible that old obj is NULL
+
       ##Check if it exists
-      if (is.null(old_obj)) {
+      if (!slot_name %in% c("oos_testing_eval_metrics_m_xts", "best_hyperparameters_m_xts",
+                            "validation_eval_metrics_hyper_choice_m_xts", "chosen_eval_metric_validation") &&
+          is.null(old_obj)) {
         stop(sprintf("No old object named '%s' in 'old_backtest_outputs_list'.", slot_name))
       }
 
