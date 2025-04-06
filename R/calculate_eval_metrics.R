@@ -32,10 +32,6 @@ calculate_eval_metrics <- function(pred, target, huber_delta = 1, quantile_tau =
                                    early_stop = NULL, best_iteration = NULL, return_error = FALSE
                                    ){
 
-  if(any(is.na(pred))){
-    stop("Error in calculate_eval_metrics: NAs present in pred")
-  }
-
   if(!is.numeric(best_iteration) && !is.null(best_iteration)){
     stop("best_iteration should either be NULL or numeric.")
   }
@@ -49,7 +45,7 @@ calculate_eval_metrics <- function(pred, target, huber_delta = 1, quantile_tau =
 
 
  #Calculate eval metrics
-  if(all(is.na(error), is.na(target))){
+  if(all(is.na(error), is.na(target)) || any(is.na(pred))){
     validation_sample_rss <- NA
     validation_sample_cp <- NA
     validation_sample_rmse <- NA

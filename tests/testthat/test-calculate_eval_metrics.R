@@ -152,10 +152,22 @@ test_that("calculate_eval_metrics handles NA in pred and target", {
   pred <- c(NA, 2.2, 1.05)
   target <- c(1.0, 2.0, 1.0)
 
-  expect_error(
+  expect_equal(
     calculate_eval_metrics(pred = pred, target = target, huber_delta = 1, quantile_tau= 0.5),
-    "Error in calculate_eval_metrics: NAs present in pred"
+    data.frame(Score = NA_real_, rss = NA, cp = NA, rmse = NA, mae = NA, mphe = NA, mpe = NA, mape = NA, hr = NA, mb = NA)
   )
+
+  # Example data
+  error <- c(0.1, -0.2, 0.05)
+  pred <- c(NA, NA, NA)
+  target <- c(1.0, 2.0, 1.0)
+
+  expect_equal(
+    calculate_eval_metrics(pred = pred, target = target, huber_delta = 1, quantile_tau= 0.5),
+    data.frame(Score = NA_real_, rss = NA, cp = NA, rmse = NA, mae = NA, mphe = NA, mpe = NA, mape = NA, hr = NA, mb = NA)
+  )
+
+
 
   # Example data
   error <- c(0.1, -0.2, 0.05)
