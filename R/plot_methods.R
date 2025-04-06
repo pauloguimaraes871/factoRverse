@@ -1443,7 +1443,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             input <- base::trimws(input)
 
             # If user types 'all', return all columns
-            if (tolower(input) == "all") {
+            if (tolower(input) %in% c("all", "")) {
               selected_cols <- cols
             } else {
               # Split the input by commas and trim whitespace on each token
@@ -1480,7 +1480,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             is_returns_xts <- methods::is(x, "returns_meta_xts")
 
             if (is_returns_xts) {
-              if (is.null(plot_perf_metric) && length(unique(lubridate::year(zoo::index(x)))) > 1) {
+              if (is.null(plot_perf_metric) && length(unique(lubridate::year(zoo::index(x@data)))) > 1) {
                 resp_perf <- readline(prompt = "Do you want to plot a performance metric? (yes/no): ")
                 plot_perf_metric <- tolower(resp_perf) == "yes"
               }
@@ -2636,7 +2636,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
   }
 
   # Extract relevant data from the S4 object
-  oos_testing_eval_metrics <- x@oos_testing_eval_metrics_m_xts@data %>% as.data.frame()
+  oos_testing_eval_metrics <- if (!is.null(x@oos_testing_eval_metrics_m_xts)) x@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() else NULL
   validation_eval_metrics_hyper_choice <- if (!is.null(x@validation_eval_metrics_hyper_choice_m_xts)) x@validation_eval_metrics_hyper_choice_m_xts@data %>% as.data.frame() else NULL
   consolidated_eval_metrics <- x@consolidated_eval_metrics
   hyper_choice_df <- if (!is.null(x@best_hyperparameters_m_xts)) x@best_hyperparameters_m_xts@data %>% as.data.frame() else NULL
@@ -2686,10 +2686,12 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   # Some treatments to oos_testing_eval_metrics
   # Change colnames
-  colnames(oos_testing_eval_metrics) <- paste("oos_testing_", colnames(oos_testing_eval_metrics), sep = "")
-  # Add dates column
-  oos_testing_eval_metrics <- oos_testing_eval_metrics %>% dplyr::mutate(dates = rownames(oos_testing_eval_metrics))
-  oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") # Coerce to dates
+  if (!is.null(oos_testing_eval_metrics)){
+    colnames(oos_testing_eval_metrics) <- paste("oos_testing_", colnames(oos_testing_eval_metrics), sep = "")
+    # Add dates column
+    oos_testing_eval_metrics <- oos_testing_eval_metrics %>% dplyr::mutate(dates = rownames(oos_testing_eval_metrics))
+    oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") # Coerce to dates
+  }
 
   if (!sb_algorithm %in% c("ols", "rp", "sw", "ew", "mvo", "custom_weights")) {
     # Some treatments to validation_eval_metrics_hyper_choice
@@ -2700,40 +2702,46 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     validation_eval_metrics_hyper_choice$dates <- as.Date(validation_eval_metrics_hyper_choice$dates, format = "%Y-%m-%d") # Coerce to dates
 
     # Join test and validation
-    oos_testing_and_validation <- dplyr::left_join(oos_testing_eval_metrics, validation_eval_metrics_hyper_choice, by = 'dates')
+    if (!is.null(oos_testing_eval_metrics)){
+      oos_testing_and_validation <- dplyr::left_join(oos_testing_eval_metrics, validation_eval_metrics_hyper_choice, by = 'dates')
+      # Melt
+      oos_testing_and_validation <- oos_testing_and_validation %>% reshape::melt(id.vars = "dates")
+      oos_testing_and_validation$dates <- as.Date(oos_testing_and_validation$dates, format = "%Y-%m-%d")
 
-    # Melt
-    oos_testing_and_validation <- oos_testing_and_validation %>% reshape::melt(id.vars = "dates")
-    oos_testing_and_validation$dates <- as.Date(oos_testing_and_validation$dates, format = "%Y-%m-%d")
+      # OOS test data
+      oos_testing_data <-  oos_testing_and_validation %>%
+        dplyr::filter(stringr::str_detect(variable, "oos_testing_")) %>% # Filter only OOS test
+        dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
+        dplyr::group_by(variable) %>% # Group by variable
+        dplyr::mutate(variable_mean = mean(value, na.rm = TRUE)) %>% # Take variable mean
+        dplyr::ungroup() # Ungroup
 
-    # OOS test data
-    oos_testing_data <-  oos_testing_and_validation %>%
-      dplyr::filter(stringr::str_detect(variable, "oos_testing_")) %>% # Filter only OOS test
-      dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
-      dplyr::group_by(variable) %>% # Group by variable
-      dplyr::mutate(variable_mean = mean(value, na.rm = TRUE)) %>% # Take variable mean
-      dplyr::ungroup() # Ungroup
+      # Chosen eval metric - test data
+      chosen_eval_testing_data <- oos_testing_and_validation %>%
+        dplyr::filter(variable == paste("oos_testing_", chosen_eval_metric, sep = "")) %>% # Filter only OOS test chosen eval metric
+        dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
+        dplyr::mutate(overall_mean = mean(value, na.rm = TRUE)) %>% # Add overall mean
+        dplyr::group_by(year) %>% # Group by year
+        dplyr::mutate(yearly_mean = mean(value, na.rm = TRUE)) %>% # Take yearly mean
+        dplyr::ungroup() # Ungroup
 
-    # Chosen eval metric - test data
-    chosen_eval_testing_data <- oos_testing_and_validation %>%
-      dplyr::filter(variable == paste("oos_testing_", chosen_eval_metric, sep = "")) %>% # Filter only OOS test chosen eval metric
-      dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
-      dplyr::mutate(overall_mean = mean(value, na.rm = TRUE)) %>% # Add overall mean
-      dplyr::group_by(year) %>% # Group by year
-      dplyr::mutate(yearly_mean = mean(value, na.rm = TRUE)) %>% # Take yearly mean
-      dplyr::ungroup() # Ungroup
+      # Validation data
+      validation_data <- oos_testing_and_validation %>%
+        dplyr::filter(stringr::str_detect(variable, "validation_")) %>% # Filter only validation
+        dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
+        dplyr::filter(!is.na(value)) # Filter out NAs
 
-    # Validation data
-    validation_data <- oos_testing_and_validation %>%
-      dplyr::filter(stringr::str_detect(variable, "validation_")) %>% # Filter only validation
-      dplyr::mutate(year = lubridate::year(dates)) %>% # Using lubridate::year() to extract year
-      dplyr::filter(!is.na(value)) # Filter out NAs
+      # Chosen eval metric - validation data
+      chosen_eval_validation_data <- oos_testing_and_validation %>%
+        dplyr::filter(variable == paste("validation_", chosen_eval_metric, sep = "")) %>% # Filter only chosen validation metric
+        dplyr::filter(!is.na(value)) # Filter out NAs
 
-    # Chosen eval metric - validation data
-    chosen_eval_validation_data <- oos_testing_and_validation %>%
-      dplyr::filter(variable == paste("validation_", chosen_eval_metric, sep = "")) %>% # Filter only chosen validation metric
-      dplyr::filter(!is.na(value)) # Filter out NAs
-
+    } else {
+      if (plot_name %in% c("Chosen Evaluation Metric Over Time", "Test vs Validation Chosen Evaluation Metric Over Time",
+                           "All Evaluation Metrics Over Time", "Consolidated OOS Testing Metrics")){
+        stop("Chosen evaluation metric over time plot requires a non NULL oos_testing_eval_metrics.")
+      }
+    }
   }
 
   # Initialize plots list
@@ -2872,7 +2880,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
       )
 
-    print(plots_list$best_hyper_over_time)
+    # Print the plot
+    suppressMessages(
+      print(plots_list$best_hyper_over_time)
+    )
 
   } else if (plot_name == "Hyperparameters vs Error") {
     # PLOT 4: Hyperparameters vs Error
@@ -4085,8 +4096,11 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   pos_color <- neon_green    # Define positive contribution color
   neg_color <- "red"         # Define negative contribution color
 
+  # SS Workflow
+  ss_backtest_workflow <- x@ss_backtest_workflow[[length(x@ss_backtest_workflow)]]
+
   # List of available plots
-  if(x@ss_backtest_workflow$p_correction_method == "bayesian"){
+  if(ss_backtest_workflow$p_correction_method == "bayesian"){
   available_plots <- c(
     "Time-Series Metrics by Signal",
     "Average Time-Series Metrics by Theme",
@@ -4161,8 +4175,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     #Get brm_model
     brm_model <- x@bayesian_results$brm_model
     #Get theme-level parameters
-    theme_level_intercept <- x@ss_backtest_workflow$theme_level_intercept
-    theme_level_slope <- x@ss_backtest_workflow$theme_level_slope
+    theme_level_intercept <- ss_backtest_workflow$theme_level_intercept
+    theme_level_slope <- ss_backtest_workflow$theme_level_slope
     model_spec_theme_level <- paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")
 
     #priors
@@ -4233,11 +4247,20 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables)
 
   } else if (plot_name == "Waterfall Plot by Signal") {
-    # Plot 7: Waterfall Plot by Ticker
+
+        # Plot 7: Waterfall Plot by Ticker
+    if (ss_backtest_workflow$model_structure == "no_pooled"){
     final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
       dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
                     beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
                     residual = specific_risk)
+    } else {
+      final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
+        dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
+                      beta_x_mean_market_factor_proxy = individual_beta * mean_market_factor_proxy,
+                      residual = specific_risk) %>%
+        dplyr::rename(alpha = individual_alpha)
+    }
 
     plot_type <- "waterfall"
     clustering_variables <- "tickers"
@@ -4249,10 +4272,18 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Waterfall Plot by Theme") {
     # Plot 8: Waterfall Plot by Ticker
-    final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
-                    beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
-                    residual = specific_risk)
+    if (ss_backtest_workflow$model_structure == "no_pooled"){
+      final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
+        dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
+                      beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
+                      residual = specific_risk)
+    } else {
+      final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
+        dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
+                      beta_x_mean_market_factor_proxy = individual_beta * mean_market_factor_proxy,
+                      residual = specific_risk) %>%
+        dplyr::rename(alpha = individual_alpha)
+    }
 
     plot_type <- "waterfall"
     clustering_variables <- "theme"

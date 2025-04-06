@@ -746,6 +746,7 @@ setMethod("show", "sb_backtest_config", function(object) {
     }
   }
 
+  cat("------------------------------\n")
   if (!is.null(object@chosen_signals_and_positions)){
     cat("Chosen Signals and Positions:\n")
     print(object@chosen_signals_and_positions, quote = FALSE)
@@ -990,11 +991,11 @@ setMethod("show", "sb_model", function(object) {
   cat("SB Algorithm: ", object@sb_algorithm, "\n")
 
   # Display the best hyperparameters if they exist
-  cat("Best Hyperparameters: ")
+  cat("Best Hyperparameters: \n")
   if (length(object@best_hyperparameters) > 0) {
-    cat(object@best_hyperparameters)
+    print(object@best_hyperparameters %>% round(5))
   } else {
-    cat("No hyperparameters available.\n")
+    cat("\nNo hyperparameters available.\n")
   }
 
   # Display the custom objective if it exists
@@ -1002,7 +1003,15 @@ setMethod("show", "sb_model", function(object) {
     cat("Custom Objective: ")
     cat(object@custom_objective)
   } else {
-    cat("No custom objective specified.\n")
+    cat("\nNo custom objective specified.\n")
+  }
+
+  # Display eligible signals
+  if (!is.null(object@eligible_signals)) {
+    cat("Eligible Signals: ")
+    cat(object@eligible_signals)
+  } else {
+    cat("\nNo eligible signals specified.\n")
   }
 
   # Display the Huber delta if it is set
@@ -2210,21 +2219,21 @@ setMethod("show", "port_backtest_cohort", function(object) {
     if (!is.null(port_backtest_workflow$chosen_score_metric_and_position)){
       cat(sprintf("  chosen_score_metric_and_position: %s\n",
                   paste0(names(port_backtest_workflow$chosen_score_metric_and_position)," - ",port_backtest_workflow$chosen_score_metric_and_position))
-          )
+      )
     } else {
       cat(sprintf("  oos_predictions_object_name: %s\n", port_backtest_workflow$oos_predictions_object_name))
       cat("  SB Backtest Results:\n")
       cat(sprintf("    sb_backtest_identifier: %s\n", port_backtest@sb_backtest_results@backtest_identifier))
       cat(sprintf("    sb_algorithm: %s\n", port_backtest@sb_backtest_results@sb_backtest_workflow$sb_algorithm))
       cat(sprintf("    custom_objective: %s\n", port_backtest@sb_backtest_results@sb_backtest_workflow$custom_objective))
-        if (!is.null(port_backtest@sb_backtest_results@ss_backtest_results)){
-          cat("     SS Backtest Results:\n")
-          cat(sprintf("      ss_backtest_identifier: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@backtest_identifier))
-          cat(sprintf("      model_structure: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$model_structure))
-          cat(sprintf("      p_correction_method: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$p_correction_method))
-        } else {
-          cat("     No SS Backtest Results Available\n")
-        }
+      if (!is.null(port_backtest@sb_backtest_results@ss_backtest_results)){
+        cat("     SS Backtest Results:\n")
+        cat(sprintf("      ss_backtest_identifier: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@backtest_identifier))
+        cat(sprintf("      model_structure: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$model_structure))
+        cat(sprintf("      p_correction_method: %s\n", port_backtest@sb_backtest_results@ss_backtest_results@ss_backtest_workflow$p_correction_method))
+      } else {
+        cat("     No SS Backtest Results Available\n")
+      }
     }
     cat(sprintf("  eligibility_quantile_range: %s\n", paste0(min(port_backtest_workflow$eligibility_quantile_range),"-",max(port_backtest_workflow$eligibility_quantile_range))))
     cat(sprintf("  min_eligible_assets_fallback: %s\n", port_backtest_workflow$min_eligible_assets_fallback))
