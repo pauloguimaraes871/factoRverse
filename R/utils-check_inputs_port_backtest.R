@@ -583,7 +583,7 @@ check_inputs_port_backtest <- function(
   }
 
   #Normalization
-  if (all(fwd_return_m_df %>% dplyr::pull(fwd_return_1m) >= -1 & fwd_return_m_df %>% dplyr::pull(fwd_return_1m) <= 1)){
+  if (all(fwd_return_m_df %>% dplyr::pull(fwd_return_1m) >= -1 & fwd_return_m_df %>% dplyr::pull(fwd_return_1m) <= 1, na.rm = TRUE)){
     stop("values in fwd_return_m_df should not be normalized")
   }
 
@@ -776,6 +776,7 @@ check_inputs_port_backtest <- function(
     }
 
   }
+
 
   ######################
 
