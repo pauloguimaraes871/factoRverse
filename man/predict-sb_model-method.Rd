@@ -2,7 +2,7 @@
 % Please edit documentation in R/predict_methods.R
 \name{predict,sb_model-method}
 \alias{predict,sb_model-method}
-\title{Predict Method for sb_model Class}
+\title{Predict Method for sb_model Class and meta_dataframe}
 \usage{
 \S4method{predict}{sb_model}(
   object,
@@ -15,10 +15,8 @@
 \item{object}{An instance of the \code{sb_model} class containing the
 refitted model and its parameters.}
 
-\item{new_features_m_df}{A data frame or an object of class \code{meta_dataframe}
-containing new feature data for which predictions are to be made. The
-data frame must be structured correctly and should not include the first
-three columns, which are reserved for identifiers.}
+\item{new_features_m_df}{A  \code{meta_dataframe} or a coercible data.frame
+containing new feature data for which predictions are to be made.}
 }
 \value{
 A numeric vector of predictions for the new feature data.
@@ -31,8 +29,7 @@ learning algorithms and applies the appropriate prediction logic.
 \details{
 The function first validates that \code{new_features_m_df} is coercible
 to a \code{meta_dataframe}. It extracts the relevant data from the input and
-uses the appropriate prediction method based on the specified machine
-learning algorithm (e.g., OLS, GLMNET, RF, XGB, NN).
+uses the appropriate prediction method based on the specified signal blending algo
 }
 \examples{
 # Assuming `refit_model` is an instance of `sb_model`

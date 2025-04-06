@@ -6,7 +6,7 @@
 \usage{
 \S4method{predict}{signal_port}(
   object,
-  new_features_m_df_clean,
+  new_features_m_df,
   upper_quantile_winsorization,
   lower_quantile_winsorization
 )
@@ -15,14 +15,14 @@
 \item{object}{An instance of the \code{signal_port} class containing the
 signal portfolio and respective weights.}
 
-\item{upper_quantile_winsorization}{Numeric value for upper winsorization}
-
-\item{lower_quantile_winsorization}{Numeric value for lower winsorization}
-
 \item{new_features_m_df}{A data frame or an object of class \code{meta_dataframe}
 containing new feature data for which predictions are to be made. The
 data frame must be structured correctly and should not include the first
 three columns, which are reserved for identifiers.}
+
+\item{upper_quantile_winsorization}{Numeric value for upper winsorization}
+
+\item{lower_quantile_winsorization}{Numeric value for lower winsorization}
 }
 \description{
 This method generates predictions using a signal_port obejct

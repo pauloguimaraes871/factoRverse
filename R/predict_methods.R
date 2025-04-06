@@ -12,12 +12,16 @@
 #'   three columns, which are reserved for identifiers.
 #' @param upper_quantile_winsorization Numeric value for upper winsorization
 #' @param lower_quantile_winsorization Numeric value for lower winsorization
-#' @export
 #'
-#' @export
-setMethod("predict", "signal_port", function(object, new_features_m_df_clean,
-                                             upper_quantile_winsorization, lower_quantile_winsorization) {
+setMethod("predict",
+          signature = list(object = "signal_port"),
+          function(object, new_features_m_df,
+                   upper_quantile_winsorization, lower_quantile_winsorization) {
 
+  #Check if new_features_m_df does not contain identifiers
+  if (any(c("id", "tickers", "dates") %in% colnames(new_features_m_df_clean))) {
+    stop("new_features_m_df_clean should not contain identifiers (id, tickers, dates).")
+  }
 
   #Check if all signals are present in new_features_m_df_clean
   if(!all(object@eligible_assets %in% colnames(new_features_m_df_clean))){
@@ -42,7 +46,7 @@ setMethod("predict", "signal_port", function(object, new_features_m_df_clean,
 })
 
 
-#' Predict Method for sb_model Class
+#' Predict Method for sb_model Class and meta_dataframe
 #'
 #' This method generates predictions using a refitted sb model
 #' based on the provided new feature data. It accommodates different machine
@@ -50,17 +54,14 @@ setMethod("predict", "signal_port", function(object, new_features_m_df_clean,
 #'
 #' @param object An instance of the `sb_model` class containing the
 #'   refitted model and its parameters.
-#' @param new_features_m_df A data frame or an object of class `meta_dataframe`
-#'   containing new feature data for which predictions are to be made. The
-#'   data frame must be structured correctly and should not include the first
-#'   three columns, which are reserved for identifiers.
+#' @param new_features_m_df A  `meta_dataframe` or a coercible data.frame
+#'  containing new feature data for which predictions are to be made.
 #'
 #' @return A numeric vector of predictions for the new feature data.
 #'
 #' @details The function first validates that `new_features_m_df` is coercible
 #' to a `meta_dataframe`. It extracts the relevant data from the input and
-#' uses the appropriate prediction method based on the specified machine
-#' learning algorithm (e.g., OLS, GLMNET, RF, XGB, NN).
+#' uses the appropriate prediction method based on the specified signal blending algo
 #'
 #' @examples
 #' # Assuming `refit_model` is an instance of `sb_model`
@@ -68,21 +69,38 @@ setMethod("predict", "signal_port", function(object, new_features_m_df_clean,
 #' predictions <- predict(refit_model, new_data)
 #'
 #' @export
-setMethod("predict", "sb_model", function(object, new_features_m_df,
-                                          lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975) {
+setMethod("predict",
+          signature = list(object = "sb_model"),
+          function(object, new_features_m_df,
+                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975) {
 
-  #Validate input
+  ##Validate and prepare inputs
+  ##################
   if (!is_coercible_to_meta_dataframe(new_features_m_df)) {
     stop("new_features_m_df must be coercible to meta_dataframe.")
   }
 
-  #Prepare new data
-  ################
-  #Extract data.frame in case of meta_dataframe obj
-  if(is_meta_dataframe(new_features_m_df)){
-    new_data <- new_features_m_df@data[,-c(1:3)] #get data
-  } else {
-    new_data <- new_features_m_df[,-c(1:3)]
+  ##Check if it is a meta_dataframe
+  if (is(new_features_m_df, "meta_dataframe")) {
+    ##Correct signals and positions
+    ###Get eligible signals and positions
+    eligible_signals <- object@eligible_signals
+    elected_signals_and_positions <- ifelse(stringr::str_detect(eligible_signals, pattern = "low_"), "short", "long")
+    names(elected_signals_and_positions) <- stringr::str_remove_all(eligible_signals, pattern = "low_")
+
+    ###Correct
+    new_features_m_df <- select_and_correct_signals(
+      signals_m_df = new_features_m_df@data, #Extract eligible signals from features_m_df and then correct them (multiply short signal by -1)
+      chosen_signals_and_positions = elected_signals_and_positions #Get instruction on what to change features
+    )$selected_signals_corrected_positions_m_df
+  }
+
+  ##Remove ids
+  new_data <- new_features_m_df[,-c(1:3)]
+
+  ##Check if eligible signals perfectly match colnames of new_data
+  if (!identical(object@eligible_signals, colnames(new_data))) {
+    stop("Not all eligible signals are present in new_features_m_df")
   }
   ################
 
@@ -111,7 +129,7 @@ setMethod("predict", "sb_model", function(object, new_features_m_df,
     rf = as.numeric(predict(sb_model_fit, data = janitor::clean_names(new_data))$predictions), #prediction for RF
     xgb = as.numeric(predict(sb_model_fit, newdata = as.matrix(new_data))), #predictions for XGB
     nn = as.numeric(predict(sb_model_fit, x = as.matrix(new_data))), #predictions for NN
-    signal_port = as.numeric(predict(sb_model_fit, new_features_m_df_clean = new_data,
+    signal_port = as.numeric(predict(sb_model_fit, new_features_m_df = new_data,
                                      lower_quantile_winsorization = lower_quantile_winsorization,
                                      upper_quantile_winsorization = upper_quantile_winsorization)) #Predictions for signal ports
   )
@@ -150,8 +168,10 @@ setMethod("predict", "sb_model", function(object, new_features_m_df,
 #' predictions <- predict(ml_wf_model, new_data)
 #'
 #' @export
-setMethod("predict", "sb_backtest_results", function(object, new_features_m_df,
-                                                     lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975) {
+setMethod("predict",
+          signature = list(object = "sb_backtest_results"),
+          function(object, new_features_m_df,
+                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975) {
 
 
   #Get objects of sb_backtest_workflow
@@ -162,6 +182,7 @@ setMethod("predict", "sb_backtest_results", function(object, new_features_m_df,
                          lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization)
 
   return(predictions)
+
 })
 
 
