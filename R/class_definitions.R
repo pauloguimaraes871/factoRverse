@@ -1570,8 +1570,6 @@ setClass(
 #' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
 #' @slot target_fwd_name Name of the target variable in `target_m_df`.
 #' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
-#' @slot ss_backtest_config An object of class `ss_backtest_config`, specifying the single strategy backtest configuration.
-#' @slot ss_backtest_results An object of class `ss_backtest_results`, containing the results of the single strategy backtest.
 #' @slot port_backtest_config An object of class `port_backtest_config`, containing instructions to create SB portfolios for heuristic algorithms.
 #' @slot training_sample_size Number of observations to include in each training sample.
 #' @slot rebalancing_months Months (numeric) when model should be rebalanced (refit).
@@ -1598,8 +1596,6 @@ setClass(
     sb_algorithm = "character",
     target_fwd_name = "character",
     tuning_strategy = "ANY",
-    ss_backtest_config = "ANY",
-    ss_backtest_results = "ANY",
     chosen_signals_and_positions = "character",
     split_method = "character",
     training_sample_size = "numeric",
@@ -1620,35 +1616,15 @@ setClass(
   ),
   validity = function(object) {
 
-    #Check for ss_backtest_config OR ss_backtest_results
-    if(!is.null(object@ss_backtest_config) && !is.null(object@ss_backtest_results)) {
-      return("Only one of a ss_backtest_config or a ss_backtest_results object should be provided.")
-    }
-    ##SS Backtest Config Class
-    if(!is.null(object@ss_backtest_config)){
-      if(!inherits(object@ss_backtest_config, "ss_backtest_config")) {
-        return("ss_backtest_config must be of class 'ss_backtest_config'.")
-      }
-    }
-    ##SS Backtest Results Class
-    if(!is.null(object@ss_backtest_results)){
-      if(!inherits(object@ss_backtest_results, "ss_backtest_results")) {
-        return("ss_backtest_results must be of class 'ss_backtest_results'.")
-      }
-    }
     ##Chosen Signals and Positions
-    if (is.null(object@ss_backtest_config) && is.null(object@ss_backtest_results)) {
-      if (length(object@chosen_signals_and_positions) == 1){
-        if(!object@chosen_signals_and_positions == "all"){
-          stop("chosen_signals_and_positions should be 'all' or a named vector with signals and positions")
+      if (!is.null(object@chosen_signals_and_positions)){
+        if (length(object@chosen_signals_and_positions) == 1 && !object@chosen_signals_and_positions == "all"){
+            stop("chosen_signals_and_positions should be 'all' or a named vector with signals and positions")
         }
-      } else {
-        if(any(!object@chosen_signals_and_positions %in% c("long", "short"))){
+        if (length(object@chosen_signals_and_positions) > 1 && any(!object@chosen_signals_and_positions %in% c("long", "short"))){
           stop("chosen_signals_and_positions should be either 'long' or 'short'.")
         }
       }
-    }
-
 
     #Check for valid sb_algorithm
     valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo", "custom_weights")
@@ -1684,7 +1660,7 @@ setClass(
       )
       valid_oos_eval_metrics <- c("rss", "cp", "rmse", "mae", "mphe", "mpe", "mape", "hr", "mb")
       if (!substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% c(valid_heuristic_sb_metrics, valid_oos_eval_metrics)){
-        warning("Custom_objective is not one of typical valid heuristic performance. Please be sure that the metric is present in signal_univers_m_df")
+        warning("custom_objective is not one of typical valid heuristic performance. Please be sure that the metric is present in signal_universe_m_df")
       }
 
       if (substr(object@custom_objective, 5, nchar(object@custom_objective)) %in% valid_oos_eval_metrics){
@@ -2306,15 +2282,15 @@ setClass(
   slots = list(
     oos_sb_outputs_m_df = "meta_dataframe",
     sb_backtest_config = "ANY",
-    oos_testing_eval_metrics_m_xts = "meta_xts",
+    oos_testing_eval_metrics_m_xts = "ANY",
     consolidated_eval_metrics = "data.frame",
-    final_sb_model = "sb_model",
+    final_sb_model = "ANY", #In an update, this can be empty
     final_gsm = "ANY",
     chosen_eval_metric_validation = "ANY",
     best_hyperparameters_m_xts = "ANY",
     validation_eval_metrics_hyper_choice_m_xts = "ANY",
-    feature_importance_m_df = "meta_dataframe",
-    final_feature_importance_m_d_ref = "meta_dataframe",
+    feature_importance_m_df = "ANY", #In an update, this can be empty
+    final_feature_importance_m_d_ref = "ANY", #In an update, this can be empty
     sb_backtest_workflow = "list",
     backtest_identifier = "character"
   ), validity = function(object){
@@ -2326,17 +2302,32 @@ setClass(
       }
     }
 
-
-    if(!class(object@final_gsm) %in% c("lm", "rpart")){
+    if (!is.null(object@final_gsm) && !class(object@final_gsm) %in% c("lm", "rpart")){
       stop("final_gsm must be a 'lm' or 'rpart' object")
     }
 
-    if(!is.null(object@validation_eval_metrics_hyper_choice_m_xts) && !inherits(object@validation_eval_metrics_hyper_choice_m_xts, "meta_xts")){
+    if (!is.null(object@validation_eval_metrics_hyper_choice_m_xts) && !inherits(object@validation_eval_metrics_hyper_choice_m_xts, "meta_xts")){
       stop("validation_eval_metrics_hyper_choice_xts must be an 'meta_xts' object")
     }
 
-    if(!is.null(object@best_hyperparameters_m_xts) && !inherits(object@best_hyperparameters_m_xts, "meta_xts")){
+    if (!is.null(object@best_hyperparameters_m_xts) && !inherits(object@best_hyperparameters_m_xts, "meta_xts")){
       stop("best_hyperparameters_xts must be an 'meta_xts' object")
+    }
+
+    if (!is.null(object@oos_testing_eval_metrics_m_xts) && !inherits(object@oos_testing_eval_metrics_m_xts, "meta_xts")){
+      stop("oos_testing_eval_metrics_m_xts must be an 'meta_xts' object")
+    }
+
+    if (!is.null(object@final_sb_model) && !inherits(object@final_sb_model, "sb_model")) {
+      return("final_sb_model must be a 'sb_model' object")
+    }
+
+    if (!is.null(object@feature_importance_m_df) && !inherits(object@feature_importance_m_df, "meta_dataframe")) {
+      return("feature_importance_m_df must be a 'meta_dataframe' object")
+    }
+
+    if (!is.null(object@final_feature_importance_m_d_ref) && !inherits(object@final_feature_importance_m_d_ref, "meta_dataframe")) {
+      return("final_feature_importance_m_d_ref must be a 'meta_dataframe' object")
     }
 
   }
