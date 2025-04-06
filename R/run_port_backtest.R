@@ -118,8 +118,11 @@ setMethod("update_port_backtest",
             #Update old port_backtest_config
             #######################
             new_config <- old_results@port_backtest_config
-            new_config@initial_buffer_period <-            #New update must happen at last date of last backtest, in order to re-use
-              old_port_workflow_last_batch$n_dates         #now populated fwd_returns_m_df at the last date.
+            #New update must happen at last date of last backtest, in order to re-use
+            #now populated fwd_returns_m_df at the last date.
+            #Suppose last date was 2023-05-15. This means that we have weights for 2023-05-15, but naturally we do not have fwd_returns for 2023-05-16.
+            #In new update, we are in 2023-06-15. We take backtest back to 2023-05-15 and use fwd_returns obj, which will be used to roll port forward.
+            new_config@initial_buffer_period <- old_port_workflow_last_batch$n_dates
 
             ##Check if new initial_buffer_period is equal to length(signals_m_df@data$dates)
             if(new_config@initial_buffer_period != length(unique(signals_m_df@data$dates)) - 1){
@@ -133,8 +136,9 @@ setMethod("update_port_backtest",
             #######################
 
             ##Retrive objects from last period
-            dates_covered <- old_objects_dates_covered_list[["signals_m_df"]]
-            .old_backtest_port_weights_m_d_ref <- old_results@port_weights_m_df@data %>% dplyr::filter(dates == sort(dates_covered)[length(dates_covered)])
+            .old_backtest_covered_dates <- old_objects_dates_covered_list[["signals_m_df"]] %>% sort()
+            .old_backtest_port_weights_m_d_ref <- old_results@port_weights_m_df@data %>%
+              dplyr::filter(dates == sort(.old_backtest_covered_dates)[length(.old_backtest_covered_dates)])
             .old_backtest_port_costs_d_ref <- old_results@port_costs_m_xts@data %>% as.data.frame() %>% dplyr::slice_tail(n = 1)
 
             updated_port_backtest_results <- run_port_backtest(
@@ -153,7 +157,8 @@ setMethod("update_port_backtest",
               winsorization_probs = winsorization_probs,
               ###Other
               verbose = verbose, parallel = parallel, .test_seed = .test_seed,
-              .update = TRUE, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref
+              .update = TRUE, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+              .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref, .old_backtest_covered_dates = .old_backtest_covered_dates
             )
 
             #######################
@@ -246,7 +251,7 @@ setMethod("run_port_backtest",
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
                    winsorization_probs = c(0.025, 0.975), #Winsorization
                    verbose = TRUE, parallel = TRUE, .test_seed = NULL,
-                   .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_costs_d_ref = NULL) {
+                   .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_costs_d_ref = NULL, .old_backtest_covered_dates = NULL) {
 
             ##Assign default values for internal function
             ###########################
@@ -567,7 +572,8 @@ setMethod("run_port_backtest",
                 lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
                 verbose = verbose, parallel = parallel, .test_seed = .test_seed,
                 #Update
-                .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref
+                .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+                .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref, .old_backtest_covered_dates = .old_backtest_covered_dates
               )
             ###########################
 
@@ -581,7 +587,7 @@ setMethod("run_port_backtest",
             port_backtest_results@port_backtest_workflow$config_name <- config@config_name
             port_backtest_results@backtest_identifier <- paste0("c:", config@config_name, "_s:", signals_object_name, "_f:", fwd_return_object_name)
             port_backtest_results@port_backtest_workflow$backtest_identifier <- port_backtest_results@backtest_identifier
-              port_backtest_results@port_backtest_workflow$current_date <- signals_current_date #already tested if all match
+            port_backtest_results@port_backtest_workflow$current_date <- signals_current_date #already tested if all match
 
             ##Add sb identifier
             if (!is.null(sb_backtest_results)){
@@ -791,7 +797,7 @@ run_port_backtest_internal <- function(
   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
   verbose = TRUE, parallel = TRUE, .test_seed = NULL,
   #Update
-  .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_costs_d_ref = NULL){
+  .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_costs_d_ref = NULL, .old_backtest_covered_dates = NULL){
 
 
   #Measure time to run and run gc
@@ -1081,11 +1087,12 @@ run_port_backtest_internal <- function(
 
       ##############################
 
-      ###Rebalance if it's a rebalancing month
+      #Rebalance if it's a rebalancing month
       ##############################
+      #Define if it is a rebalancing month based on .update
       if (.update){
         #For an update, don't rebuild the portfolio at initial_buffer_period, as this port is already done.
-        if (d == initial_buffer_period){
+        if (current_date %in% .old_backtest_covered_dates){
           is_rebalancing_month <- FALSE #Don't rebuild
           is_update_pickup <- TRUE #Pickup last port
         } else {

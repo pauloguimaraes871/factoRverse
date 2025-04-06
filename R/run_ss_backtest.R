@@ -150,6 +150,7 @@ setMethod("update_ss_backtest",
           #Update old_ss_backtest_config
           #######################
           new_config <- old_results@ss_backtest_config
+          #We are in 2023-05-15. We then just update forward 1 date to 2023-06-15. There are not fwd objects for ss, making it simple
           new_config@initial_sample_size <- old_ss_workflow_last_batch$n_dates + 1  #New update must happen at last date of last backtest + 1
 
             ##Check if new initial_buffer_period is equal to length(zoo::index(updated_backtest_returns_m_xts@data))
@@ -184,7 +185,9 @@ setMethod("update_ss_backtest",
                                                                 old_backtest_results = old_results)
 
            ##Reassign the updated objects back into 'updated_ss_backtest_results'
+           ##Note that one does not need to consolidate final_signal_universe_m_d_ref
            updated_ss_backtest_results@signal_universe_m_df <- updated_results_list[["signal_universe_m_df"]]
+
 
 
            ##In case of an empty update
@@ -503,7 +506,7 @@ setMethod("run_ss_backtest",
 
               ###Workflow and names for signal_universe_m_df and final_signal_universe_m_d_ref
                 ####Signal Universe
-                if (!is.null(ss_backtest_results@signal_universe_m_df)){
+                if (!(.update && is.null(ss_backtest_results@signal_universe_m_df))){ #Skip empty updates
                   ss_backtest_results@signal_universe_m_df@workflow <- list(paste0("signal_universe_m_df result of ", ss_backtest_results@backtest_identifier))
                   ss_backtest_results@signal_universe_m_df@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
                 }
@@ -790,17 +793,31 @@ run_ss_backtest_internal <- function(
       ###Rebalancing Dates
       dates_backtest <- dates_m_vector[initial_sample_size:(initial_sample_size + backtest_length - 1)] #These are dates inside backtest
 
-      first_rebalance_date <- min(dates_backtest) #Get first rebalancing date
-      rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
-        c(first_rebalance_date, dates_backtest[which(lubridate::month(dates_backtest) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
-      )
-      rebalance_dates <- rebalance_dates[order(rebalance_dates)] #Re-order
+      if (!.update){
+        ####Get first rebalancing date
+        first_rebalance_date <- min(dates_backtest)
+        ####Get all rebalancing dates
+        rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
+          c(first_rebalance_date, dates_backtest[which(lubridate::month(dates_backtest) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
+        )
+        ####Re-order ascending just to be sure
+        rebalance_dates <- rebalance_dates[order(rebalance_dates)]
+        ###Last rebalance date
+        last_rebalance_date <- max(rebalance_dates)
+      } else {
+        rebalance_dates <- dates_backtest[which(lubridate::month(dates_backtest) %in% rebalancing_months)]
+        if (length(rebalance_dates) > 0){
+          first_rebalance_date <- min(rebalance_dates) #In an update, first testing date is not a rebalancing month necessarily
+          last_rebalance_date <- max(rebalance_dates)
+          rebalance_dates <- rebalance_dates[order(rebalance_dates)]
+        } else {
+          first_rebalance_date <- NULL
+          last_rebalance_date <- NULL
+        }
+      }
 
       ###Number of rebalancing months
       n_rebalance_months <- length(rebalance_dates)
-
-      ###Last rebalance date
-      last_rebalance_date <- max(rebalance_dates)
 
       ###Create signal_universe list structure to get results
       signal_universe_m_d_ref_list <- list()
