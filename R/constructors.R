@@ -147,7 +147,7 @@ setMethod(
     if (type == "oos_sb_outputs") {
       # Check for workflow
       if (is.null(sb_backtest_workflow)) {
-        stop("sb_backtest_workflow argument must be provided for signal_universe type")
+        stop("sb_backtest_workflow argument must be provided for oos_sb_outputs type")
       }
 
       return(
@@ -4892,7 +4892,7 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
   required_params <- c(
     "selected_benchmark", "dates_covered", "initial_buffer_period", "dates_backtest",
     "signals_object_name", "fwd_returns_object_name", "stock_groups_object_name",
-    "benchmark_returns_object_name", "daily_assets_returns_object_name", "daily_bench_returns_object_name",
+    "benchmark_returns_object_name", "daily_stocks_returns_object_name", "daily_bench_returns_object_name",
     "liquidity_object_name", "volatility_object_name", "benchmark_weights_object_name"
   )
 
