@@ -513,10 +513,6 @@ setMethod("summary", "tickers_catalog", function(object, summary_id = NULL) {
 })
 
 
-
-
-
-
 #' @title Summary Method for meta_xts Class
 #' @description Provides summary statistics for meta_xts objects, including numeric summaries,
 #' yearly trends, series frequency tables, and (for returns_meta_xts) a performance metrics table.
@@ -2300,9 +2296,10 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
     display_table(metrics_by_eligibility, "Metrics Summary by Eligibility")
 
   } else if (table_name == "Top_Signals") {
+    ss_backtest_workflow <- object@ss_backtest_workflow[[length(object@ss_backtest_workflow)]]
     # Top signals by avg_ir, including alpha_t_stat
-    if(object@ss_backtest_workflow$active_returns){
-      if(object@ss_backtest_workflow$p_correction_method == "bayesian"){
+    if(ss_backtest_workflow$active_returns){
+      if(ss_backtest_workflow$p_correction_method == "bayesian"){
         #Bayesian
         top_signals <- final_signal_universe_df %>%
           dplyr::group_by(tickers) %>%
@@ -2319,7 +2316,7 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
         display_table(top_signals, "Top Signals by Average Information Ratio")
       } else {
         #Frequentist
-        if(object@ss_backtest_workflow$model_structure == "no_pooled"){
+        if(ss_backtest_workflow$model_structure == "no_pooled"){
           ###No Pooled
           top_signals <- final_signal_universe_df %>%
             dplyr::group_by(tickers) %>%
@@ -2350,7 +2347,7 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
       }
 
     } else {
-      if(object@ss_backtest_workflow$p_correction_method == "bayesian"){
+      if(ss_backtest_workflow$p_correction_method == "bayesian"){
         #Bayesian
         top_signals <- final_signal_universe_df %>%
           dplyr::group_by(tickers) %>%
@@ -2367,7 +2364,7 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
         display_table(top_signals, "Top Signals by Average Sharpe Ratio")
       } else {
         #Frequentist
-        if(object@ss_backtest_workflow$model_structure == "no_pooled"){
+        if(ss_backtest_workflow$model_structure == "no_pooled"){
           ###No Pooled
           top_signals <- final_signal_universe_df %>%
             dplyr::group_by(tickers) %>%
@@ -2398,10 +2395,10 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
     }
 
   } else if (table_name == "Top_Themes") {
-
+    ss_backtest_workflow <- object@ss_backtest_workflow[[length(object@ss_backtest_workflow)]]
     # Top signals by avg_ir, including alpha_t_stat
-    if(object@ss_backtest_workflow$active_returns){
-      if(object@ss_backtest_workflow$p_correction_method == "bayesian"){
+    if(ss_backtest_workflow$active_returns){
+      if(ss_backtest_workflow$p_correction_method == "bayesian"){
         #Bayesian
         top_signals <- final_signal_universe_df %>%
           dplyr::group_by(theme) %>%
@@ -2418,7 +2415,7 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
         display_table(top_signals, "Top Themes by Average Information Ratio")
       } else {
         #Frequentist
-        if(object@ss_backtest_workflow$model_structure == "no_pooled"){
+        if(ss_backtest_workflow$model_structure == "no_pooled"){
           ###No Pooled
           top_signals <- final_signal_universe_df %>%
             dplyr::group_by(theme) %>%
@@ -2449,7 +2446,7 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
       }
 
     } else {
-      if(object@ss_backtest_workflow$p_correction_method == "bayesian"){
+      if(ss_backtest_workflow$p_correction_method == "bayesian"){
         #Bayesian
         top_signals <- final_signal_universe_df %>%
           dplyr::group_by(theme) %>%
@@ -2466,7 +2463,7 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
         display_table(top_signals, "Top Themes by Average Sharpe Ratio")
       } else {
         #Frequentist
-        if(object@ss_backtest_workflow$model_structure == "no_pooled"){
+        if(ss_backtest_workflow$model_structure == "no_pooled"){
           ###No Pooled
           top_signals <- final_signal_universe_df %>%
             dplyr::group_by(theme) %>%
