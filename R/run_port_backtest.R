@@ -44,6 +44,22 @@ setMethod("update_port_backtest",
               stop("The current_date in the new signals_m_df is not equal to the current_date in the old_results + 1 month")
             }
 
+            ##SB Backtest Results
+            if (!is.null(updated_sb_backtest_results)){
+              ###Check backtest identifier
+              if (!identical(updated_sb_backtest_results@backtest_identifier, old_port_workflow_last_batch$sb_backtest_identifier)){
+                stop("backtest_identifier in updated_sb_backtest_results does not match the one in old_results.")
+              }
+              if (updated_sb_backtest_results@sb_backtest_workflow$current_date != lubridate::add_with_rollback(old_port_workflow_last_batch$current_date, months(1))){
+                stop("current_date in updated_sb_backtest_results does not match the one in old_results + 1 month.")
+              }
+            } else {
+              ###This is the case for no updated_sb_backtest_results
+              if (!is.null(old_port_workflow_last_batch$sb_backtest_identifier)){
+                stop("sb_backtest_identifier in old_results is not NULL but updated_sb_backtest_results is.")
+              }
+            }
+
             ##Gather all arguments into a single named list (only those that have @meta_dataframe_name or meta_xts_name)
             new_objects_list <- list(
               signals_m_df = signals_m_df,
@@ -97,21 +113,6 @@ setMethod("update_port_backtest",
             check_update_backtest_objects(new_objects_list = new_objects_list, old_objects_names_list = old_objects_names_list,
                                           old_objects_dates_covered_list = old_objects_dates_covered_list, n_update = 1)
 
-            ##SB Backtest Results
-            if (!is.null(updated_sb_backtest_results)){
-              ###Check backtest identifier
-              if (!identical(updated_sb_backtest_results@backtest_identifier, old_port_workflow_last_batch$sb_backtest_identifier)){
-                stop("backtest_identifier in updated_sb_backtest_results does not match the one in old_results.")
-              }
-              if (updated_sb_backtest_results@sb_backtest_workflow$current_date != lubridate::add_with_rollback(old_port_workflow_last_batch$current_date, months(1))){
-                stop("current_date in updated_sb_backtest_results does not match the one in old_results + 1 month.")
-              }
-            } else {
-              ###This is the case for no updated_sb_backtest_results
-              if (!is.null(old_port_workflow_last_batch$sb_backtest_identifier)){
-                stop("sb_backtest_identifier in old_results is not NULL but updated_sb_backtest_results is.")
-              }
-            }
 
             #######################
 
