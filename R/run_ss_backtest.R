@@ -105,6 +105,13 @@ setMethod("update_ss_backtest",
                lubridate::add_with_rollback(old_ss_workflow_last_batch$current_date, months(1))){
               stop("The current_date in the new signals_m_df is not equal to the current_date in the old_results + 1 month")
             }
+            ##Backtest returns m xts
+            if (!identical(updated_backtest_returns_m_xts@meta_xts_name, old_ss_workflow_last_batch$backtest_returns_object_name)){
+              stop("The updated_backtest_returns_m_xts object does not match the backtest_returns_object_name in the old_results object")
+            }
+            if (updated_backtest_returns_m_xts@current_date != lubridate::add_with_rollback(old_ss_workflow_last_batch$current_date, months(1))){
+              stop("The current_date in the updated_backtest_returns_m_xts object is not equal to the current_date in the old_results object + 1 month")
+            }
 
             ##Gather all arguments into a single named list (only those that have @meta_dataframe_name or meta_xts_name)
             new_objects_list <- list(
@@ -138,13 +145,6 @@ setMethod("update_ss_backtest",
             check_update_backtest_objects(new_objects_list = new_objects_list, old_objects_names_list = old_objects_names_list,
                                           old_objects_dates_covered_list = old_objects_dates_covered_list, n_update = 1)
 
-            ##Backtest returns m xts
-            if (!identical(updated_backtest_returns_m_xts@meta_xts_name, old_ss_workflow_last_batch$backtest_returns_object_name)){
-              stop("The updated_backtest_returns_m_xts object does not match the backtest_returns_object_name in the old_results object")
-            }
-            if (updated_backtest_returns_m_xts@current_date != lubridate::add_with_rollback(old_ss_workflow_last_batch$current_date, months(1))){
-              stop("The current_date in the updated_backtest_returns_m_xts object is not equal to the current_date in the old_results object + 1 month")
-            }
           #######################
 
           #Update old_ss_backtest_config
@@ -1069,7 +1069,7 @@ run_ss_backtest_internal <- function(
   if (!.update || (.update && exists("signal_universe_m_df") > 0)){
   signal_universe_m_df <- withCallingHandlers({
     signal_universe_m_df <- signal_universe_m_df %>% dplyr::arrange(id)
-    create_meta_dataframe(signal_universe_m_df, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
+    suppressMessages(create_meta_dataframe(signal_universe_m_df, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe"))
   },
   warning = function(w) {
     warning("Signal universe creation warning: ", conditionMessage(w))
@@ -1080,7 +1080,7 @@ run_ss_backtest_internal <- function(
   if (!.update || (.update && exists("signal_universe_m_df") > 0)){
   final_signal_universe_m_d_ref <- withCallingHandlers({
     signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::arrange(id)
-    create_meta_dataframe(signal_universe_m_d_ref, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe")
+    suppressMessages(create_meta_dataframe(signal_universe_m_d_ref, ss_backtest_workflow = ss_backtest_workflow, type = "signal_universe"))
   },
   warning = function(w) {
     warning("Final signal universe creation warning: ", conditionMessage(w))
@@ -1091,7 +1091,7 @@ run_ss_backtest_internal <- function(
   ##Create meta_xts
   ###Create selected_market_factor_proxy_m_xts
   selected_market_factor_proxy_m_xts <- withCallingHandlers({
-    create_meta_xts(selected_market_factor_proxy_m_xts, type = "returns", asset_type = "benchmark", source = ss_backtest_workflow$backtest_identifier)
+    suppressMessages(create_meta_xts(selected_market_factor_proxy_m_xts, type = "returns", asset_type = "benchmark", source = ss_backtest_workflow$backtest_identifier))
   },
   warning = function(w) {
     warning("Market factor proxy creation warning: ", conditionMessage(w))

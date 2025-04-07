@@ -231,7 +231,7 @@ check_inputs_sb_backtest <- function(
 
 
   #Check structure of signal_universe_m_df
-  if(!(is_coercible_to_meta_dataframe(signal_universe_m_df))){
+  if(!(suppressMessages(is_coercible_to_meta_dataframe(signal_universe_m_df)))){
     stop("signal_universe_m_df should be coercible to meta_dataframe object")
   }
   ##Check for existence and NAs in heuristic sb metric

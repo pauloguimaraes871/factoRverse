@@ -216,7 +216,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
     if (verbose){
       pre_eligible_signals <- universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers) #Get pre_eligible_assets
       eligibility_proportion <- length(pre_eligible_signals)/nrow(universe_m_d_ref) #Get proportion of eligible assets
-      cat(paste0("The following ", crayon::magenta(length(pre_eligible_signals)), " signals (", round(eligibility_proportion*100, 2), "% of the total) ",
+      cat(paste0("\nThe following ", crayon::magenta(length(pre_eligible_signals)), " signals (", round(eligibility_proportion*100, 2), "% of the total) ",
                  "showed statistical significant alphas:",
                  paste(pre_eligible_signals, collapse = ", "), "\n"))
     }
@@ -238,7 +238,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
     if (verbose) {
       pre_eligible_assets <- universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers)
       eligibility_proportion <- length(pre_eligible_assets) / nrow(universe_m_d_ref)
-      cat(paste0("The following ", crayon::magenta(length(pre_eligible_assets)), " assets (", round(eligibility_proportion * 100, 2), "% of the total) ",
+      cat(paste0("\nThe following ", crayon::magenta(length(pre_eligible_assets)), " assets (", round(eligibility_proportion * 100, 2), "% of the total) ",
                  "have an exp_ret_score inside the quantile range for pre_eligible_assets: ",
                  paste(pre_eligible_assets, collapse = ", "), "\n")
       )
@@ -419,8 +419,10 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
           if(verbose && length(best_ineligible_asset) > 0){
             if(asset_object == "signals"){
               cat(crayon::yellow("Because of theme representativeness,", best_ineligible_asset, "was promoted as representative of theme", ineligible_groups[j]))
+              cat("\n")
             } else {
               cat(crayon::yellow("Because of group representativeness,", best_ineligible_asset, "was promoted as representative of group", ineligible_groups[j]))
+              cat("\n")
             }
           }
         }

@@ -27,7 +27,8 @@ setMethod("update_sb_backtest",
 
           function(features_m_df, target_m_df, old_results, #SB Backtest
                    updated_ss_backtest_results = NULL, #SS Backtest Results
-                   backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, #Cov Estimation
+                   updated_port_backtest_cohort = NULL, #Port Backtest Cohort
+                   updated_backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, #Cov Estimation
                    custom_signal_weights_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, #Custom objects
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL){
 
@@ -41,12 +42,51 @@ setMethod("update_sb_backtest",
                lubridate::add_with_rollback(old_sb_workflow_last_batch$current_date, months(1))){
               stop("The current_date in the new features_m_df is not equal to the current_date in the old_results + 1 month")
             }
+            ##SS Backtest Results
+            if (!is.null(updated_ss_backtest_results)){
+              ###Check backtest identifier
+              if (!identical(updated_ss_backtest_results@backtest_identifier, old_sb_workflow_last_batch$ss_backtest_identifier)){
+                stop("backtest_identifier in updated_ss_backtest_results does not match the one in old_results.")
+              }
+              if (updated_ss_backtest_results@ss_backtest_workflow[[length(updated_ss_backtest_results@ss_backtest_workflow)]]$current_date !=
+                  lubridate::add_with_rollback(old_sb_workflow_last_batch$current_date, months(1))){
+                stop("current_date in updated_ss_backtest_results does not match the one in old_results + 1 month.")
+              }
+            } else {
+              ###This is the case for no updated_ss_backtest_results
+              if (!is.null(old_sb_workflow_last_batch$ss_backtest_identifier)){
+                stop("ss_backtest_identifier in old_results is not NULL but updated_ss_backtest_results is.")
+              }
+            }
+            ##Port backtest cohort
+            if (!is.null(updated_port_backtest_cohort)){
+              ###Check identifier
+              if (!identical(updated_port_backtest_cohort@cohort_name, old_sb_workflow_last_batch$backtest_returns_object_name)){
+                stop("cohort_name in updated_port_backtest_cohort does not match the one in old_results.")
+              }
+              if (updated_port_backtest_cohort@backtest_workflow_common$current_date !=
+                  lubridate::add_with_rollback(old_sb_workflow_last_batch$current_date, months(1))){
+                stop("current_date in updated_port_backtest_cohort does not match the one in old_results + 1 month.")
+              }
+
+              ###Extract returns_m_xts (this must be done before check_update_backtest_objects to enable backtest and benchmark comparison)
+              extracted_returns_m_xts <- extract_returns_m_xts(
+                port_backtest_cohort = updated_port_backtest_cohort, #Port Backtest Cohort
+                signals_m_df = features_m_df,
+                benchmark_returns_m_xts = benchmark_returns_m_xts, #Objects to check consistency
+                verbose = verbose
+              )
+              ###Assign extracted values
+              updated_backtest_returns_m_xts <- extracted_returns_m_xts$backtest_returns_m_xts
+              benchmark_returns_m_xts <- extracted_returns_m_xts$benchmark_returns_m_xts
+
+            }
 
             ##Gather all arguments into a single named list (only those that have @meta_dataframe_name or meta_xts_name)
             new_objects_list <- list(
               features_m_df = features_m_df,
               target_m_df = target_m_df,
-              backtest_returns_m_xts = backtest_returns_m_xts,
+              backtest_returns_m_xts = updated_backtest_returns_m_xts,
               benchmark_returns_m_xts = benchmark_returns_m_xts,
               signal_themes_m_df = signal_themes_m_df,
               custom_signal_weights_m_df = custom_signal_weights_m_df
@@ -74,22 +114,7 @@ setMethod("update_sb_backtest",
             check_update_backtest_objects(new_objects_list = new_objects_list, old_objects_names_list = old_objects_names_list,
                                           old_objects_dates_covered_list = old_objects_dates_covered_list, n_update = 1)
 
-            ##SS Backtest Results
-            if (!is.null(updated_ss_backtest_results)){
-              ###Check backtest identifier
-              if (!identical(updated_ss_backtest_results@backtest_identifier, old_sb_workflow_last_batch$ss_backtest_identifier)){
-                stop("backtest_identifier in updated_ss_backtest_results does not match the one in old_results.")
-              }
-              if (updated_ss_backtest_results@ss_backtest_workflow[[length(updated_ss_backtest_results@ss_backtest_workflow)]]$current_date !=
-                  lubridate::add_with_rollback(old_sb_workflow_last_batch$current_date, months(1))){
-                stop("current_date in updated_ss_backtest_results does not match the one in old_results + 1 month.")
-              }
-            } else {
-              ###This is the case for no updated_ss_backtest_results
-              if (!is.null(old_sb_workflow_last_batch$ss_backtest_identifier)){
-                stop("ss_backtest_identifier in old_results is not NULL but updated_ss_backtest_results is.")
-              }
-            }
+
 
             #######################
 
@@ -97,7 +122,6 @@ setMethod("update_sb_backtest",
             #######################
               ##Retrive objects from last period
               .old_backtest_covered_dates <- old_objects_dates_covered_list[["features_m_df"]] %>% sort()
-              .old_elected_features_and_positions <- old_sb_workflow_last_batch$last_elected_features_and_positions
               #New update must happen at last date of last backtest - target_fwd, in order to re-use
               #now populated target_returns_m_df at the last date - target_fwd.
               #Suppose last date was 2023-05-15. If target_fwd = 3, this means that the last populated oos_sb_outputs was 2023-02-15.
@@ -143,7 +167,8 @@ setMethod("update_sb_backtest",
               ###SS Backtest Results
               ss_backtest_results = updated_ss_backtest_results,
               ###Covariance
-              backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, signal_themes_m_df = signal_themes_m_df,
+              backtest_returns_m_xts = updated_backtest_returns_m_xts,
+              benchmark_returns_m_xts = benchmark_returns_m_xts, signal_themes_m_df = signal_themes_m_df,
               ###Custom weights and signal universe metrics
               custom_signal_weights_m_df = custom_signal_weights_m_df, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
               ###Other
@@ -157,6 +182,7 @@ setMethod("update_sb_backtest",
 
             #Consolidate results
             #######################
+
             ##results objects
             new_sb_backtest_outputs_list <- list(
               oos_sb_outputs_m_df = updated_sb_backtest_results@oos_sb_outputs_m_df,
@@ -174,7 +200,7 @@ setMethod("update_sb_backtest",
 
               ###Consolidate m_df
               updated_results_list <- consolidate_backtest_results(new_backtest_outputs_list = new_sb_backtest_outputs_list,
-                                                                 old_backtest_results = old_results)
+                                                                   old_backtest_results = old_results)
 
             ###other objs
               ####consolidated_eval_metrics_row
@@ -185,8 +211,8 @@ setMethod("update_sb_backtest",
                                        chosen_eval_metric = old_sb_workflow_last_batch$chosen_eval_metric #chosen_eval_metric that goes into FUN is after translation
                                        )[-1] #-1 to eliminate Score
               ####Transform in df
-              consolidated_eval_metrics_df <- data.frame(metric = names(consolidated_eval_metrics_row), cons_oos = as.numeric(consolidated_eval_metrics_row),
-                                                         row.names = NULL)
+              updated_consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics_row), cons_oos = as.numeric(consolidated_eval_metrics_row),
+                                                              row.names = NULL)
 
               if (!new_config@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")){
                 ####Get validation row
@@ -195,16 +221,25 @@ setMethod("update_sb_backtest",
                              avg_val = colMeans(updated_results_list[["validation_eval_metrics_hyper_choice_m_xts"]]@data),
                              row.names = NULL)
 
-                ####Join with consolidated_eval_metrics_df
-                consolidated_eval_metrics_df <- dplyr::left_join(consolidated_eval_metrics_df, avg_validation_eval_metrics_hyper_choice_df, by = "metric")
+                ####Join with updated_consolidated_eval_metrics
+                updated_consolidated_eval_metrics <- dplyr::left_join(updated_consolidated_eval_metrics, avg_validation_eval_metrics_hyper_choice_df, by = "metric")
 
                 ####chosen_eval_metric_validation
-                updated_sb_backtest_results@chosen_eval_metric_validation <- c(old_results@chosen_eval_metric_validation,
-                                                                               updated_sb_backtest_results@chosen_eval_metric_validation)
+                updated_chosen_eval_metric_validation <- c(old_results@chosen_eval_metric_validation,
+                                                           updated_sb_backtest_results@chosen_eval_metric_validation)
               }
 
-              ###Place consolidated_eval_metrics_df in updated_sb_backtest_results
-              updated_sb_backtest_results@consolidated_eval_metrics <- consolidated_eval_metrics_df
+              ##Reassign the updated objects back into 'updated_sb_backtest_results'
+              updated_sb_backtest_results@oos_sb_outputs_m_df <- updated_results_list[["oos_sb_outputs_m_df"]]
+              updated_sb_backtest_results@oos_testing_eval_metrics_m_xts <- updated_results_list[["oos_testing_eval_metrics_m_xts"]]
+              updated_sb_backtest_results@best_hyperparameters_m_xts <- updated_results_list[["best_hyperparameters_m_xts"]]
+              updated_sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts <- updated_results_list[["validation_eval_metrics_hyper_choice_m_xts"]]
+              updated_sb_backtest_results@feature_importance_m_df <- updated_results_list[["feature_importance_m_df"]]
+              updated_sb_backtest_results@consolidated_eval_metrics <- updated_consolidated_eval_metrics
+              if (!new_config@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")){
+              updated_sb_backtest_results@chosen_eval_metric_validation <- updated_chosen_eval_metric_validation
+              }
+
 
               ###In case of an empty update
               if (is.null(updated_sb_backtest_results@final_sb_model)){
@@ -228,13 +263,6 @@ setMethod("update_sb_backtest",
 
 
           })
-
-
-
-
-
-
-
 
 
 
@@ -494,7 +522,7 @@ setMethod("run_sb_backtest",
                   ###Run extraction
                   extracted_returns_m_xts <- extract_returns_m_xts(
                     port_backtest_cohort = port_backtest_cohort, #Port Backtest Cohort
-                    signals_m_df = create_meta_dataframe(features_m_df, meta_dataframe_name = features_object_name),
+                    signals_m_df = suppressMessages(create_meta_dataframe(features_m_df, meta_dataframe_name = features_object_name)),
                     benchmark_returns_m_xts = benchmark_returns_m_xts, #Objects to check consistency
                     verbose = verbose
                   )
@@ -647,12 +675,13 @@ setMethod("run_sb_backtest",
               sb_backtest_results@final_feature_importance_m_d_ref@workflow <- list(paste0("final_feature_importance_m_d_ref result of ", sb_backtest_results@backtest_identifier))
               sb_backtest_results@feature_importance_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               sb_backtest_results@final_feature_importance_m_d_ref@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              if(sb_algorithm %in% c("ew", "sw", "rp", "mvo", "custom_weights")) sb_backtest_results@final_sb_model@model@port_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               }
               sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
-              if(sb_algorithm %in% c("ew", "sw", "rp", "mvo", "custom_weights")) sb_backtest_results@final_sb_model@model@port_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               if(sb_algorithm == "custom_weights"){
                 sb_backtest_results@sb_backtest_workflow$custom_signal_weights_object_name <- custom_signal_weights_object_name
                 sb_backtest_results@sb_backtest_workflow$custom_signal_weights_workflow <- custom_signal_weights_workflow
+                sb_backtest_results@sb_backtest_workflow$custom_signal_weights_workflow <- custom_signal_weights_current_date
               }
 
               ###Meta xts
@@ -1143,9 +1172,6 @@ run_sb_backtest_internal <- function(
 
   #Measure time to run and run gc
   elapsed_time <- system.time({
-
-    #Visible binding for global variables
-    squared_error <- pseudo_huber_error <- quantile_error <- NULL
 
     ################
     ##Check Parameters: This function will test whether inputs match format and current functionalities
@@ -1732,9 +1758,9 @@ run_sb_backtest_internal <- function(
       feature_importance_m_df <- do.call(rbind, feature_importance_m_d_ref_list) %>% dplyr::arrange(id)
       rownames(feature_importance_m_df) <- NULL
       ###feature_importance_m_df
-      feature_importance_m_df <- suppressWarnings(create_meta_dataframe(feature_importance_m_df))
+      feature_importance_m_df <- suppressMessages(create_meta_dataframe(feature_importance_m_df))
       ###final_feature_importance_m_d_ref
-      final_feature_importance_m_d_ref <- suppressWarnings(create_meta_dataframe(feature_importance_m_d_ref))
+      final_feature_importance_m_d_ref <- suppressMessages(create_meta_dataframe(feature_importance_m_d_ref))
    } else {
       #In case of empty update
       feature_importance_m_df <- NULL
@@ -1761,6 +1787,7 @@ run_sb_backtest_internal <- function(
     first_rebalance_date = first_rebalance_date,
     rebalancing_months = rebalancing_months,
     rebalance_dates = rebalance_dates,
+    last_rebalance_date = last_rebalance_date,
     split_method = split_method,
     #Stocks
     ids = features_m_df %>% dplyr::pull(id),
@@ -1822,7 +1849,7 @@ run_sb_backtest_internal <- function(
 
   #Create meta_dataframes
   ###oos_sb_outputs_m_df
-  oos_sb_outputs_m_df <- suppressWarnings(create_meta_dataframe(oos_sb_outputs_m_df, type = "oos_sb_outputs", sb_backtest_workflow = sb_backtest_workflow))
+  oos_sb_outputs_m_df <- suppressMessages(create_meta_dataframe(oos_sb_outputs_m_df, type = "oos_sb_outputs", sb_backtest_workflow = sb_backtest_workflow))
 
   #Create meta_xts
   ###oos_testing_eval_metrics_m_xts
@@ -1965,7 +1992,7 @@ run_base_sb_backtests <- function(features_m_df, target_m_df, base_sb_backtest_c
   names(base_sb_backtest_results_list) <- sapply(base_sb_backtest_results_list, function(x) x@backtest_identifier)
 
     ##Config names
-    for (i in 1:length(base_sb_backtest_results_list)) {
+    for (i in seq_along(length(base_sb_backtest_results_list))) {
       base_sb_backtest_results_list[[i]]@sb_backtest_workflow$config_name <- base_sb_backtest_configs_names[i]
     }
 

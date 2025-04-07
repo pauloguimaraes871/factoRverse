@@ -18,6 +18,9 @@ setMethod("predict",
           function(object, new_features_m_df,
                    upper_quantile_winsorization, lower_quantile_winsorization) {
 
+  #Assign
+  new_features_m_df_clean <- new_features_m_df
+
   #Check if new_features_m_df does not contain identifiers
   if (any(c("id", "tickers", "dates") %in% colnames(new_features_m_df_clean))) {
     stop("new_features_m_df_clean should not contain identifiers (id, tickers, dates).")

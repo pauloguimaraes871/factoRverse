@@ -149,7 +149,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
   ##Create the s4 obj
   port_obj <- new("port",
-                  universe_m_d_ref = suppressWarnings(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
+                  universe_m_d_ref = suppressMessages(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                   port_construction_method = port_construction_method,
                   eligible_assets = eligible_universe_m_d_ref %>% dplyr::pull(tickers),
                   exp_ret_score = if(port_construction_method %in% c("sw", "cs", "mvo")) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
