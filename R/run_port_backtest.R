@@ -856,17 +856,32 @@ run_port_backtest_internal <- function(
     dates_port_returns <- dates_port_returns[-1]
 
     ###Rebalancing Dates
-    first_rebalance_date <- min(dates_backtest) #Get first rebalancing date
-    rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
-      c(first_rebalance_date, dates_backtest[which(lubridate::month(dates_backtest) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
-    )
-    rebalance_dates <- rebalance_dates[order(rebalance_dates)] #Re-order
+    if (!.update){
+      ####Get first rebalancing date
+      first_rebalance_date <- min(dates_backtest)
+      ####Get all rebalancing dates
+      rebalance_dates <- unique( #Unique is to eliminate repeated dates, in case month of first_rebalance_date is a rebalancing month
+        c(first_rebalance_date, dates_backtest[which(lubridate::month(dates_backtest) %in% rebalancing_months)]) #Dates corresponding to rebalancing_months
+      )
+      ####Re-order ascending just to be sure
+      rebalance_dates <- rebalance_dates[order(rebalance_dates)]
+      ####Last rebalance date
+      last_rebalance_date <- max(rebalance_dates)
+    } else {
+      rebalance_dates <- dates_backtest[which(lubridate::month(dates_backtest) %in% rebalancing_months)]
+      rebalance_dates <- setdiff(rebalance_dates, .old_backtest_covered_dates) %>% as.Date() #Remove dates alredy covered
+      if (length(rebalance_dates) > 0){
+        first_rebalance_date <- min(rebalance_dates) #In an update, first testing date is not a rebalancing month necessarily
+        last_rebalance_date <- max(rebalance_dates)
+        rebalance_dates <- rebalance_dates[order(rebalance_dates)]
+      } else {
+        first_rebalance_date <- NULL
+        last_rebalance_date <- NULL
+      }
+    }
 
     ###Number of rebalancing months
     n_rebalance_months <- length(rebalance_dates)
-
-    ###Last rebalance date
-    last_rebalance_date <- max(rebalance_dates)
 
     ###Port Objects List
     ####Create port_weights list structure to stored merged port weights results
