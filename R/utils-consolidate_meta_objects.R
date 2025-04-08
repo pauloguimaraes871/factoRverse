@@ -234,13 +234,15 @@ consolidate_generic_meta_xts <- function(main_generic_m_xts, supplemental_generi
         stop("There is an intersection between the dates of the two objects. Please check and try again.")
       }
 
-      ###Check that binding the two dates sequence will generate a fully filled sequence
-      beggining_date <- min(min(zoo::index(main_generic_m_xts@data)), min(zoo::index(supplemental_generic_m_xts@data)))
-      end_date <- max(max(zoo::index(main_generic_m_xts@data)), max(zoo::index(supplemental_generic_m_xts@data)))
-      expected_date_sequence <- seq.Date(from = beggining_date, to = end_date, by = "month")
-      actual_date_sequence <- zoo::index(rbind(main_generic_m_xts@data, supplemental_generic_m_xts@data))
-      if (length(expected_date_sequence) != length(actual_date_sequence) || !all(expected_date_sequence == actual_date_sequence)){
-        stop("The two objects do not have a fully filled date sequence. Please check and try again.")
+      ###Check that binding the two dates sequence will generate a fully filled sequence for returns_m_xts
+      if (!inherits(main_generic_m_xts, "metrics_meta_xts")){
+        beggining_date <- min(min(zoo::index(main_generic_m_xts@data)), min(zoo::index(supplemental_generic_m_xts@data)))
+        end_date <- max(max(zoo::index(main_generic_m_xts@data)), max(zoo::index(supplemental_generic_m_xts@data)))
+        expected_date_sequence <- seq.Date(from = beggining_date, to = end_date, by = "month")
+        actual_date_sequence <- zoo::index(rbind(main_generic_m_xts@data, supplemental_generic_m_xts@data))
+        if (length(expected_date_sequence) != length(actual_date_sequence) || !all(expected_date_sequence == actual_date_sequence)){
+          stop("The two objects do not have a fully filled date sequence. Please check and try again.")
+        }
       }
 
       ###Check if colnames match exactly
