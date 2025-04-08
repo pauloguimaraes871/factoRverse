@@ -14584,6 +14584,445 @@ test_that("update_sb_backtest works for RP and 1m horizon, with new month an emp
 
 })
 
+test_that("update_sb_backtest works for NN and 3m horizon, with 2 subsequent updates (rebalacing + empty month)", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  #meta_dataframes at 2023-04-15
+  target_m_df <- toy_preprocessed_targets
+  target_m_df <- create_meta_dataframe(
+    target_m_df %>% dplyr::filter(dates <= as.Date("2023-04-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-04-15", NA_real_, fwd_return_1m),
+                    fwd_premium_1m = dplyr::if_else(dates == "2023-04-15", NA_real_, fwd_premium_1m),
+                    fwd_return_3m = dplyr::if_else(dates >= as.Date("2023-02-15"), NA_real_, fwd_return_3m),
+                    fwd_premium_3m = dplyr::if_else(dates >= as.Date("2023-02-15"), NA_real_, fwd_premium_3m)
+      ),
+    meta_dataframe_name = "target", type = "target"
+  )
+  fwd_return_m_df <- create_meta_dataframe(
+    target_m_df@data %>% dplyr::select(id, tickers, dates, fwd_return_1m) %>%
+      dplyr::mutate(fwd_return_1m = fwd_return_1m * rnorm(nrow(.), 10, 1)),
+    meta_dataframe_name = "fwd_return", type = "target"
+  )
+
+  original_liquidity_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(mean_volfin_3m = rnorm(nrow(.), 200000, 50000)),
+    meta_dataframe_name = "liq"
+  )
+  liquidity_m_df <- original_liquidity_m_df
+  liquidity_m_df@data <- original_liquidity_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-04-15"))
+  liquidity_m_df@current_date <- as.Date("2023-04-15")
+
+  original_volatility_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(daily_vol = rlnorm(nrow(.), 1, 1)),
+    meta_dataframe_name = "vol"
+  )
+  volatility_m_df <- original_volatility_m_df
+  volatility_m_df@data <- original_volatility_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-04-15"))
+  volatility_m_df@current_date <- as.Date("2023-04-15")
+
+  features_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::filter(dates <= "2023-04-15"), type = "features", meta_dataframe_name = "signals")
+
+  benchmark_weights_m_df <- create_meta_dataframe(
+    features_m_df@data %>% dplyr::select(id, tickers, dates) %>% dplyr::group_by(dates) %>%
+      dplyr::mutate(ibov = 1/dplyr::n()) %>%
+      dplyr::ungroup(),
+    meta_dataframe_name = "ibov_weight"
+  )
+  set.seed(123)
+  benchmark_returns_m_xts <- create_meta_xts(
+    xts::xts(data.frame(ibov = rnorm(length(unique(features_m_df@data$dates)), 1, 4)),
+             order.by = sort(unique(features_m_df@data$dates))), type = "returns", asset_type = "benchmarks"
+  )
+
+  port_metrics_m_df <- create_meta_dataframe(features_m_df@data %>%
+                                               dplyr::select(id, tickers, dates, roe_3m), meta_dataframe_name = "metrics")
+
+
+  #Characteristics portfolio
+  characteristics_ports <- c(
+    book_yield = "long",
+    asset_turnover_12m = "long",
+    eps_yield = "long",
+    mom_res_12m = "long",
+    roe_3m = "long",
+    sharpe_6m = "long",
+    idio_vol_mrkt_ewma = "short",
+    sectors_c1Agro = "long"
+  )
+
+  #Create config list
+  port_backtest_config_list <- purrr::imap(characteristics_ports, function(pos, metric_name) {
+    create_port_backtest_config(
+      eligibility_quantile_range = c(0.67, 1),
+      selected_benchmark = "ibov",
+      initial_buffer_period = 1,
+      chosen_score_metric_and_position = stats::setNames(pos, metric_name),
+      rebalancing_months = 4,
+      port_construction_method = "sw",
+      main_liquidity_metric = "mean_volfin_3m",
+      config_name = metric_name
+    ) %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = c("mean_volfin_3m"),
+        metric_cutoffs = list(
+          c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000)
+        )) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+  })
+
+  #Run!
+  future::plan("sequential")
+
+  suppressWarnings(
+    port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+      run_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        volatility_m_df = volatility_m_df,
+        config = port_config,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = TRUE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+
+  #SS Configuration
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", idio_vol_mrkt_ewma = "short",
+                                    sectors_c1Agro = "force")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 11,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.50, p_correction_method = "none",
+                            market_factor_proxy = "ibov", enable_theme_representativeness = TRUE)
+
+
+  signal_themes_m_df <- create_meta_dataframe(
+    expand.grid(c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_idio_vol_mrkt_ewma", "sectors_c1Agro"), unique(features_m_df@data$dates)) %>%
+      dplyr::rename(tickers = Var1, dates = Var2) %>%
+      dplyr::mutate(tickers = as.character(tickers)) %>%
+      dplyr::mutate(theme = dplyr::case_when(tickers %in% c("book_yield", "eps_yield") ~ "value",
+                                             tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "quality",
+                                             tickers %in% c("sharpe_6m") ~ "momentum",
+                                             tickers %in% c("sectors_c1Agro") ~ "sector")) %>%
+      dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>%
+      dplyr::arrange(id),
+    type = "groups", meta_dataframe_name = "themes")
+
+
+  #This is for NA warning of NAs at the end of run_ss_backtest
+  ss_results <-
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df, port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = TRUE)
+
+  #SB Backtest
+  sb_config <- create_sb_backtest_config(sb_algorithm = "nn", target_fwd_name = "fwd_premium_3m",
+                                         training_sample_size = 4, rebalancing_months = 5) %>%
+    add_keras_architecture(nn_optimizer = "Adam", units = 32, activation = "relu", batch_norm_option = TRUE) %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3, early_stop = 10) %>%
+    add_hyperparameter(hyperparameter = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
+                       grid = list(10^-seq(2,5,length=2), 0, c(0.5, 0.75), 10^-seq(4,5,length=2), 512, 100))
+
+
+  expect_warning(
+    expect_warning(
+    sb_results <- run_sb_backtest(config = sb_config, features_m_df = features_m_df, target_m_df = target_m_df,
+                                  ss_backtest_results = ss_results, .test_seed = 123),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+    ),
+  "keras models have some limitations regarding parallel computations. Use with care."
+  )
+
+
+  #################
+  ######Update#####
+  #################
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  #meta_dataframes at 2023-05-15
+  target_m_df <- toy_preprocessed_targets
+  target_m_df <- create_meta_dataframe(
+    target_m_df %>% dplyr::filter(dates <= as.Date("2023-05-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-05-15", NA_real_, fwd_return_1m),
+                    fwd_premium_1m = dplyr::if_else(dates == "2023-05-15", NA_real_, fwd_premium_1m),
+                    fwd_return_3m = dplyr::if_else(dates >= as.Date("2023-03-15"), NA_real_, fwd_return_3m),
+                    fwd_premium_3m = dplyr::if_else(dates >= as.Date("2023-03-15"), NA_real_, fwd_premium_3m)
+      ),
+    meta_dataframe_name = "target", type = "target"
+  )
+  fwd_return_m_df <- create_meta_dataframe(
+    target_m_df@data %>% dplyr::select(id, tickers, dates, fwd_return_1m) %>%
+      dplyr::mutate(fwd_return_1m = fwd_return_1m * rnorm(nrow(.), 10, 1)),
+    meta_dataframe_name = "fwd_return", type = "target"
+  )
+
+  original_liquidity_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(mean_volfin_3m = rnorm(nrow(.), 200000, 50000)),
+    meta_dataframe_name = "liq"
+  )
+  liquidity_m_df <- original_liquidity_m_df
+  liquidity_m_df@data <- original_liquidity_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-05-15"))
+  liquidity_m_df@current_date <- as.Date("2023-05-15")
+
+  original_volatility_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(daily_vol = rlnorm(nrow(.), 1, 1)),
+    meta_dataframe_name = "vol"
+  )
+  volatility_m_df <- original_volatility_m_df
+  volatility_m_df@data <- original_volatility_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-05-15"))
+  volatility_m_df@current_date <- as.Date("2023-05-15")
+
+  features_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::filter(dates <= "2023-05-15"), type = "features", meta_dataframe_name = "signals")
+
+  benchmark_weights_m_df <- create_meta_dataframe(
+    features_m_df@data %>% dplyr::select(id, tickers, dates) %>% dplyr::group_by(dates) %>%
+      dplyr::mutate(ibov = 1/dplyr::n()) %>%
+      dplyr::ungroup(),
+    meta_dataframe_name = "ibov_weight"
+  )
+  set.seed(123)
+  benchmark_returns_m_xts <- create_meta_xts(
+    xts::xts(data.frame(ibov = rnorm(length(unique(features_m_df@data$dates)), 1, 4)),
+             order.by = sort(unique(features_m_df@data$dates))), type = "returns", asset_type = "benchmarks"
+  )
+
+  port_metrics_m_df <- create_meta_dataframe(features_m_df@data %>%
+                                               dplyr::select(id, tickers, dates, roe_3m), meta_dataframe_name = "metrics")
+
+  #Run!
+  future::plan("sequential")
+
+  suppressWarnings(
+    updated_port_backtest_cohort <- purrr::map(port_backtest_cohort@port_backtest_results_list, function(port_results) {
+      update_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        volatility_m_df = volatility_m_df,
+        old_results = port_results,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = TRUE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+  signal_themes_m_df <- create_meta_dataframe(
+    expand.grid(c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_idio_vol_mrkt_ewma", "sectors_c1Agro"), unique(features_m_df@data$dates)) %>%
+      dplyr::rename(tickers = Var1, dates = Var2) %>%
+      dplyr::mutate(tickers = as.character(tickers)) %>%
+      dplyr::mutate(theme = dplyr::case_when(tickers %in% c("book_yield", "eps_yield") ~ "value",
+                                             tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "quality",
+                                             tickers %in% c("sharpe_6m") ~ "momentum",
+                                             tickers %in% c("sectors_c1Agro") ~ "sector")) %>%
+      dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>%
+      dplyr::arrange(id),
+    type = "groups", meta_dataframe_name = "themes")
+
+
+  #This is for NA warning of NAs at the end of run_ss_backtest
+  updated_ss_results <-
+    update_ss_backtest(updated_port_backtest_cohort = updated_port_backtest_cohort,
+                       signals_m_df = features_m_df,
+                       benchmark_returns_m_xts = benchmark_returns_m_xts,
+                       signal_themes_m_df = signal_themes_m_df,
+                       old_results = ss_results,
+                       verbose = TRUE)
+
+  #Update sb backtest
+  expect_warning(
+  expect_warning(
+    updated_sb_results <-
+      update_sb_backtest(features_m_df = features_m_df,
+                         target_m_df = target_m_df,
+                         old_results = sb_results,
+                         updated_ss_backtest_results = updated_ss_results,
+                         .test_seed = 123
+      ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  ),
+  "keras models have some limitations regarding parallel computations. Use with care."
+  )
+
+  #################
+  ######Update#####
+  #################
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  #meta_dataframes at 2023-06-15
+  target_m_df <- toy_preprocessed_targets
+  target_m_df <- create_meta_dataframe(
+    target_m_df %>% dplyr::filter(dates <= as.Date("2023-06-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-06-15", NA_real_, fwd_return_1m),
+                    fwd_premium_1m = dplyr::if_else(dates == "2023-06-15", NA_real_, fwd_premium_1m),
+                    fwd_return_3m = dplyr::if_else(dates >= as.Date("2023-04-15"), NA_real_, fwd_return_3m),
+                    fwd_premium_3m = dplyr::if_else(dates >= as.Date("2023-04-15"), NA_real_, fwd_premium_3m)
+      ),
+    meta_dataframe_name = "target", type = "target"
+  )
+  fwd_return_m_df <- create_meta_dataframe(
+    target_m_df@data %>% dplyr::select(id, tickers, dates, fwd_return_1m) %>%
+      dplyr::mutate(fwd_return_1m = fwd_return_1m * rnorm(nrow(.), 10, 1)),
+    meta_dataframe_name = "fwd_return", type = "target"
+  )
+
+  liquidity_m_df <- original_liquidity_m_df
+  liquidity_m_df@data <- original_liquidity_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-06-15"))
+  liquidity_m_df@current_date <- as.Date("2023-06-15")
+
+
+  volatility_m_df <- original_volatility_m_df
+  volatility_m_df@data <- original_volatility_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-06-15"))
+  volatility_m_df@current_date <- as.Date("2023-06-15")
+
+  features_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::filter(dates <= "2023-06-15"), type = "features", meta_dataframe_name = "signals")
+
+  benchmark_weights_m_df <- create_meta_dataframe(
+    features_m_df@data %>% dplyr::select(id, tickers, dates) %>% dplyr::group_by(dates) %>%
+      dplyr::mutate(ibov = 1/dplyr::n()) %>%
+      dplyr::ungroup(),
+    meta_dataframe_name = "ibov_weight"
+  )
+  set.seed(123)
+  benchmark_returns_m_xts <- create_meta_xts(
+    xts::xts(data.frame(ibov = rnorm(length(unique(features_m_df@data$dates)), 1, 4)),
+             order.by = sort(unique(features_m_df@data$dates))), type = "returns", asset_type = "benchmarks"
+  )
+
+  port_metrics_m_df <- create_meta_dataframe(features_m_df@data %>%
+                                               dplyr::select(id, tickers, dates, roe_3m), meta_dataframe_name = "metrics")
+
+  #Run!
+  future::plan("sequential")
+
+  suppressWarnings(
+    updated_port_backtest_cohort_2 <- purrr::map(updated_port_backtest_cohort@port_backtest_results_list, function(port_results) {
+      update_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        volatility_m_df = volatility_m_df,
+        old_results = port_results,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = TRUE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+  signal_themes_m_df <- create_meta_dataframe(
+    expand.grid(c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_idio_vol_mrkt_ewma", "sectors_c1Agro"), unique(features_m_df@data$dates)) %>%
+      dplyr::rename(tickers = Var1, dates = Var2) %>%
+      dplyr::mutate(tickers = as.character(tickers)) %>%
+      dplyr::mutate(theme = dplyr::case_when(tickers %in% c("book_yield", "eps_yield") ~ "value",
+                                             tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "quality",
+                                             tickers %in% c("sharpe_6m") ~ "momentum",
+                                             tickers %in% c("sectors_c1Agro") ~ "sector")) %>%
+      dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>%
+      dplyr::arrange(id),
+    type = "groups", meta_dataframe_name = "themes")
+
+
+  #This is for NA warning of NAs at the end of run_ss_backtest
+  updated_ss_results_2 <-
+    update_ss_backtest(updated_port_backtest_cohort = updated_port_backtest_cohort_2,
+                       signals_m_df = features_m_df,
+                       benchmark_returns_m_xts = benchmark_returns_m_xts,
+                       signal_themes_m_df = signal_themes_m_df,
+                       old_results = updated_ss_results,
+                       verbose = TRUE)
+
+  #Update sb backtest
+  expect_warning(
+    expect_warning(
+      updated_sb_results_2 <-
+        update_sb_backtest(features_m_df = features_m_df,
+                           target_m_df = target_m_df,
+                           old_results = updated_sb_results,
+                           updated_ss_backtest_results = updated_ss_results_2,
+                           .test_seed = 123
+        ),
+      "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+    ),
+    "keras models have some limitations regarding parallel computations. Use with care."
+  )
+
+  #Run integrated backtest
+  #Expected results
+  suppressWarnings(
+    new_port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+      run_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        volatility_m_df = volatility_m_df,
+        config = port_config,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = TRUE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+  suppressWarnings(
+    new_ss_backtest <-
+      run_ss_backtest(frequentist_ss_config,
+                      signals_m_df = features_m_df, port_backtest_cohort = new_port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                      signal_themes_m_df = signal_themes_m_df,
+                      verbose = FALSE)
+  )
+
+  expect_warning(
+  expect_warning(
+    expected_results <-
+      run_sb_backtest(
+        target_m_df = target_m_df,
+        features_m_df = features_m_df,
+        ss_backtest_results = new_ss_backtest,
+        config = sb_config,
+        verbose = FALSE,
+        .test_seed = 123
+      ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  ), "keras models have some limitations regarding parallel computations. Use with care.")
+
+  #Check objects
+  expect_equal(updated_sb_results_2@consolidated_eval_metrics, expected_results@consolidated_eval_metrics)
+  expect_equal(updated_sb_results_2@oos_sb_outputs_m_df@data, expected_results@oos_sb_outputs_m_df@data)
+  expect_equal(updated_sb_results_2@oos_sb_outputs_m_df@current_date, expected_results@oos_sb_outputs_m_df@current_date)
+  expect_equal(as.data.frame(updated_sb_results_2@oos_testing_eval_metrics_m_xts@data), as.data.frame(expected_results@oos_testing_eval_metrics_m_xts@data))
+  expect_equal(updated_sb_results_2@chosen_eval_metric_validation, expected_results@chosen_eval_metric_validation)
+  expect_equal(coef(updated_sb_results_2@final_gsm), coef(expected_results@final_gsm))
+  expect_equal(updated_sb_results_2@best_hyperparameters_m_xts@data, expected_results@best_hyperparameters_m_xts@data)
+  expect_equal(updated_sb_results_2@validation_eval_metrics_hyper_choice_m_xts@data, expected_results@validation_eval_metrics_hyper_choice_m_xts@data)
+  expect_equal(updated_sb_results_2@feature_importance_m_df@data, expected_results@feature_importance_m_df@data)
+  expect_equal(updated_sb_results_2@final_feature_importance_m_d_ref@data, expected_results@final_feature_importance_m_d_ref@data)
+
+})
 
 
 ###Metabacktesting
