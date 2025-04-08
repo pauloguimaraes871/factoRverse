@@ -1180,11 +1180,11 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("\n")
 
   if (!is.null(object@final_feature_importance_m_d_ref)){
-  cat("Top 5 most important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
+  cat("\nTop 5 most important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
                                                                      dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
                                                                    collapse = ", "), "\n")
 
-  cat("Bottom 5 least important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
+  cat("\nBottom 5 least important features at final rebalancing:", paste(object@final_feature_importance_m_d_ref@data %>%
                                                                          dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
                                                                        collapse = ", "), "\n")
   }
