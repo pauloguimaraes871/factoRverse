@@ -66,9 +66,10 @@ setMethod(
   function(data, meta_dataframe_name = "not_identified",
            workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL, type = "generic", ...) {
     # Check for type argument
-    if (!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target", "weights", "priors", "signals", "features", "raw")) {
+    if (!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups",
+                     "target", "weights", "priors", "signals", "features", "feature_importance", "raw")) {
       stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
-                     'weights', 'priors', 'signals', 'features' or 'raw'.")
+                     'weights', 'priors', 'signals', 'features', 'feature_importance' or 'raw'.")
     }
 
     # Is it coercible
@@ -242,6 +243,21 @@ setMethod(
           n_obs = total_observations_count,
           meta_dataframe_name = meta_dataframe_name,
           current_date = current_date
+        )
+      )
+    }
+
+    if (type == "feature_importance") {
+      return(
+        new("feature_importance_m_df",
+            data = data,
+            workflow = workflow,
+            signals = names(data)[-c(1:3)],
+            unique_dates = unique_dates_count,
+            unique_tickers = unique_tickers_count,
+            n_obs = total_observations_count,
+            meta_dataframe_name = meta_dataframe_name,
+            current_date = current_date
         )
       )
     }

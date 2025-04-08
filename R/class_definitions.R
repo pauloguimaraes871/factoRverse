@@ -93,6 +93,20 @@ setClass(
   }
 )
 
+#' Define the signals_m_df S4 Class
+#'
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a signals meta_dataframe.
+#'
+#' @export
+setClass(
+  "feature_importance_m_df",
+  contains = "meta_dataframe",
+  validity = function(object) {
+    if (!all(c("importance", "normalized_importance") %in% colnames(object@data))) {
+      stop("Data must contain 'importance' and 'normalized_importance' columns")
+    }
+  }
+)
 
 #' Define the groups S4 Class
 #'
