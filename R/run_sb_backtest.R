@@ -669,8 +669,7 @@ setMethod("run_sb_backtest",
             #Workflow and names for feature_importance_m_df, oos_sb_outputs_m_df and final_sb_model
               ##Workflow/Source/Names
               ###Meta Dataframes
-              if (!(.update && #If it is not an update and objects are not missing
-                   (is.null(sb_backtest_results@feature_importance_m_df) || nrow(sb_backtest_results@feature_importance_m_df) == 0))){
+              if (!is.null(sb_backtest_results@feature_importance_m_df) && nrow(sb_backtest_results@feature_importance_m_df@data) > 0){ #If objects are not missing
               sb_backtest_results@feature_importance_m_df@workflow <- list(paste0("feature_importance_m_df result of ", sb_backtest_results@backtest_identifier))
               sb_backtest_results@final_feature_importance_m_d_ref@workflow <- list(paste0("final_feature_importance_m_d_ref result of ", sb_backtest_results@backtest_identifier))
               sb_backtest_results@feature_importance_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
@@ -691,9 +690,8 @@ setMethod("run_sb_backtest",
               }
 
               if (!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
-                if (!.update &&
-                   (is.null(sb_backtest_results@best_hyperparameters_m_xts) || nrow(sb_backtest_results@best_hyperparameters_m_xts@data) == 0) &&
-                   (is.null(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts) || nrow(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data) == 0)){
+                if (!is.null(sb_backtest_results@best_hyperparameters_m_xts) && nrow(sb_backtest_results@best_hyperparameters_m_xts@data) > 0 &&
+                    !is.null(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts) && nrow(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data) > 0){
                 sb_backtest_results@best_hyperparameters_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@best_hyperparameters_m_xts@data))
                 sb_backtest_results@best_hyperparameters_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
                 sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data))
@@ -1248,6 +1246,7 @@ run_sb_backtest_internal <- function(
         last_rebalance_date <- max(rebalance_dates)
       } else {
         rebalance_dates <- dates_testing_sample[which(lubridate::month(dates_testing_sample) %in% rebalancing_months)]
+        rebalance_dates <- setdiff(rebalance_dates, .old_backtest_covered_dates) %>% as.Date() #Remove dates alredy covered
         if (length(rebalance_dates) > 0){
           first_rebalance_date <- min(rebalance_dates) #In an update, first testing date is not a rebalancing month necessarily
           last_rebalance_date <- max(rebalance_dates)
@@ -1324,6 +1323,7 @@ run_sb_backtest_internal <- function(
     ##################
     ##Loop through
     for(d in (training_sample_size + validation_sample_size):(training_sample_size + validation_sample_size + testing_sample_size - 1)){
+
       #Get current date
       current_date <- dates_m_vector[d]
       if (verbose) print(current_date)
@@ -1736,7 +1736,7 @@ run_sb_backtest_internal <- function(
                                              row.names = NULL)
 
   #Validation metrics
-  if (!.update && length(rebalance_dates) > 0){
+  if (!is_update_pickup && length(rebalance_dates) > 0){
     if (!sb_algorithm %in% non_tuning_algos && length(rebalance_dates) > 0){
 
       #Validation eval for all hyperparameters
@@ -1758,9 +1758,9 @@ run_sb_backtest_internal <- function(
       feature_importance_m_df <- do.call(rbind, feature_importance_m_d_ref_list) %>% dplyr::arrange(id)
       rownames(feature_importance_m_df) <- NULL
       ###feature_importance_m_df
-      feature_importance_m_df <- suppressMessages(create_meta_dataframe(feature_importance_m_df))
+      feature_importance_m_df <- suppressMessages(create_meta_dataframe(feature_importance_m_df, type = "feature_importance"))
       ###final_feature_importance_m_d_ref
-      final_feature_importance_m_d_ref <- suppressMessages(create_meta_dataframe(feature_importance_m_d_ref))
+      final_feature_importance_m_d_ref <- suppressMessages(create_meta_dataframe(feature_importance_m_d_ref, type = "feature_importance"))
    } else {
       #In case of empty update
       feature_importance_m_df <- NULL
