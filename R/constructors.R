@@ -3685,87 +3685,6 @@ setMethod(
   }
 )
 
-#' Add one or more sb_backtest_config objects to a sb_metabacktest_config or port_backtest_config
-#'
-#' @param object A `sb_metabacktest_config` or a `port_backtest_config` object.
-#' @param ... One or more `sb_backtest_config` objects to add.
-#'
-#' @return An updated `sb_metabacktest_config` or `port_backtest_config` object with added configurations.
-#' @export
-setGeneric("add_sb_backtest_config", function(object, ...) standardGeneric("add_sb_backtest_config"))
-
-#' @describeIn add_sb_backtest_config Add one or more sb_backtest_config objects to a sb_metabacktest_config
-setMethod("add_sb_backtest_config", "sb_metabacktest_config", function(object, new_configs, ...) {
-  # Check that new_configs is a list os base_sb_backtest_configs
-  # Check that all new_configs are complete sb_backtest_config objects
-  if (!all(sapply(new_configs, function(x) {
-    (!x@sb_algorithm %in% c("ols", "rp", "mvo", "ew", "sw", "custom") && !is.null(x@tuning_strategy))
-  }))) {
-    stop("All elements in 'new_configs' must be complete (with tuning_strategy) 'sb_backtest_config' objects.")
-  }
-
-  # Combine the current base_sb_backtest_configs with the new configurations
-  object@base_sb_backtest_configs <- c(object@base_sb_backtest_configs, new_configs)
-
-  # Validate the object explicitly
-  validObject(object)
-
-  # Return the updated object
-  return(object)
-})
-
-#' @describeIn add_sb_backtest_config Add one or more sb_backtest_config objects to a port_backtest_config
-setMethod("add_sb_backtest_config", "port_backtest_config", function(object, new_config, ...) {
-  # Check that new_config is a complete sb_backtest_config object
-  if (!new_config@sb_algorithm %in% c("ols", "rp", "mvo", "ew", "sw", "custom") &&
-    !is.null(new_config@tuning_strategy)) {
-    stop("'new_config' must be complete (with tuning_strategy) 'sb_backtest_config' object.")
-  }
-
-  # Add obj
-  object@sb_backtest_config <- new_config
-
-  # Validate the object explicitly
-  validObject(object)
-
-  # Return the updated object
-  return(object)
-})
-
-
-
-
-#' Remove an sb_backtest_config by name from an sb_metabacktest_config
-#'
-#' @param object An `sb_metabacktest_config` object.
-#' @param config_name A character string specifying the name of the `sb_backtest_config` to remove.
-#'
-#' @return An updated `sb_metabacktest_config` object with the specified configuration removed.
-#' @export
-setGeneric("remove_sb_backtest_config", function(object, config_name) standardGeneric("remove_sb_backtest_config"))
-
-setMethod("remove_sb_backtest_config", "sb_metabacktest_config", function(object, config_name) {
-  # Check that config_name is provided and is a character string
-  if (missing(config_name) || !is.character(config_name) || length(config_name) != 1) {
-    stop("'config_name' must be a single character string specifying the configuration to remove.")
-  }
-
-  # Check if the specified config_name exists in the list
-  if (!(config_name %in% sapply(object@base_sb_backtest_configs, function(x) x@config_name))) {
-    stop(paste("No configuration found with the name:", config_name))
-  }
-
-  # Remove the specified configuration
-  remove_index <- which(config_name %in% sapply(object@base_sb_backtest_configs, function(x) x@config_name))
-  object@base_sb_backtest_configs <- object@base_sb_backtest_configs[-remove_index]
-
-  # Validate the object explicitly
-  validObject(object)
-
-  # Return the updated object
-  return(object)
-})
-
 
 
 #' @title Create an sb_metabacktest_results Object
@@ -3796,6 +3715,7 @@ setMethod(
     sb_metabacktest_config = "sb_metabacktest_config"
   ),
   definition = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df, sb_metabacktest_config) {
+
     # Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
     if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
       stop("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'")
