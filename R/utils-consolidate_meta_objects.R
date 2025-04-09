@@ -618,7 +618,7 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
 
   ##Get all names
   if (!is.null(meta_sb_name)){
-    all_sb_names <- c(meta_sb_name, base_sb_names)
+    all_sb_names <- c(base_sb_names, meta_sb_name)
   } else {
     all_sb_names <- base_sb_names
   }
@@ -669,7 +669,7 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
     ) %>% as.data.frame()
     all_oos_metrics_long_df <- rbind(all_oos_metrics_long_df, oos_metrics_long)
 
-    ###Consolidated OOS metrics
+    ###Get consolidated OOS metrics
     oos_metrics <- sb_backtest_result@consolidated_eval_metrics %>%
       dplyr::select(metric, cons_oos)
 
@@ -707,7 +707,7 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
       ),
       oos_metrics_common_dates %>%
         dplyr::select(-sb_backtest, -dates) %>%
-        colMeans() %>%
+        colMeans() %>% #Calculate mean of oos testing dates
         as.data.frame() %>%
         t()
     )
