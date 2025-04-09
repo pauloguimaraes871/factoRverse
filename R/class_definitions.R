@@ -2047,7 +2047,6 @@ setClass(
 #' @title sb_metabacktest_config Class
 #' @description The sb_metabacktest_config class is designed to store and manage a collection of sb_backtest_config objects.
 #' @slot meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner
-#' @slot base_sb_backtest_configs A list of `sb_backtest_config` objects whose oos predictions will be fed to the meta learner.
 #' @slot base_sb_backtest_results A list of `sb_backtest_result` objects whose oos predictions will be fed to the meta learner.
 #' @slot normalize_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
 #' @slot features_passthrough A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner.
@@ -2058,7 +2057,6 @@ setClass(
   "sb_metabacktest_config",
   slots = list(
     meta_sb_backtest_config = "sb_backtest_config",
-    base_sb_backtest_configs = "ANY",
     base_sb_backtest_results = "ANY",
     features_passthrough = "character",
     normalize_base_predictions = "logical",
@@ -2068,7 +2066,8 @@ setClass(
   validity = function(object) {
 
     #Check for tuning strat
-    if (!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") && is.null(object@meta_sb_backtest_config@tuning_strategy)){
+    if (!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") &&
+        is.null(object@meta_sb_backtest_config@tuning_strategy)){
       stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for ols and heuristic sb algorithms).")
     }
 
@@ -2077,157 +2076,25 @@ setClass(
       stop("rp and mvo are not supported at meta-level at this time.")
     }
 
-    #Check for ss_backtest_config/results at meta-level
-    if (all(length(object@meta_sb_backtest_config@ss_backtest_config) == 0, length(object@meta_sb_backtest_config@ss_backtest_results) == 0)){
-      if (object@meta_sb_backtest_config@chosen_signals_and_positions != "all"){
-        stop("chosen_signals_and_positions should always be 'all' at meta-level.",
-             "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
-      }
-    }
-    if (length(object@meta_sb_backtest_config@ss_backtest_config) > 0){
-      stop("meta-level signal selection is not supported at this time.")
-      if(object@meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions != "all"){
-        stop("chosen_signals_and_positions should always be 'all' at meta-level.",
-             "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
-      }
-    }
-    if (length(object@meta_sb_backtest_config@ss_backtest_results) > 0){
-      stop("meta-level signal selection is not supported at this time.")
+    #Check for ss_backtest_results at meta-level
+    if (object@meta_sb_backtest_config@chosen_signals_and_positions != "all"){
+      stop("chosen_signals_and_positions should always be 'all' at meta-level.",
+           "This is because features positions are already corrected through features_passthrough, which will replicate base chosen_signal_and_positions.")
     }
 
     #Check for features_passthrough
     if (any(object@features_passthrough %in% c("long", "short", "force"))){
       stop ("features_passthrough should just declare which signals from features_m_df should be added to meta learner features.
-            Postions will be corrected based on chosen_signals_and_positions.")
-    }
-
-    #Check for simultaneous base_sb_backtest_configs and base_sb_backtest_results
-    if (!is.null(object@base_sb_backtest_configs) & !is.null(object@base_sb_backtest_results)){
-      stop("base_sb_backtest_configs and base_sb_backtest_results can't be set at the same time.")
-    }
-
-
-    #Base SB Backtest Configs Check
-    if (!is.null(object@base_sb_backtest_configs)){
-
-      if (length(object@base_sb_backtest_configs) == 1){
-        stop("base_sb_backtest_configs should contain more than one sb_backtest_config objects.")
-      }
-
-      if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-        stop("All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
-      }
-
-      # Initialize an empty character vector to collect error messages
-      errors <- character()
-
-      # Check that all elements are sb_backtest_config objects
-      if (!all(sapply(object@base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-        errors <- c(errors, "All elements in 'base_sb_backtest_configs' must be of class 'sb_backtest_config'.")
-      }
-
-      # Check for identical objects in base_sb_backtest_configs
-      num_configs <- length(object@base_sb_backtest_configs)
-      for (i in 1:(num_configs - 1)) {
-        for (j in (i + 1):num_configs) {
-          if (identical(object@base_sb_backtest_configs[[i]], object@base_sb_backtest_configs[[j]])) {
-            return("Duplicate objects found in 'base_sb_backtest_configs'. Each configuration must be unique.")
-          }
-        }
-      }
-
-      # Check for duplicate names in base_sb_backtest_configs
-      config_names <- names(object@base_sb_backtest_configs)
-      if (any(duplicated(config_names))) {
-        return("Duplicate names found in 'base_sb_backtest_configs'. Each configuration must have a unique name.")
-      }
-
-      # Check that training_sample_size + validation_sample_size matches across all configurations
-      sample_sizes <- sapply(object@base_sb_backtest_configs, function(x){
-        x@training_sample_size + if(!x@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) x@tuning_strategy@validation_sample_size else 0
-      })
-      if (length(unique(sample_sizes)) > 1) {
-        errors <- c(errors, "Training sample size + validation sample size must match across all 'sb_backtest_config' elements.")
-      }
-
-      # Check that rebalancing months match
-      rebalancing_months <- sapply(object@base_sb_backtest_configs, function(x) x@rebalancing_months)
-      if (length(unique(rebalancing_months)) > 1){
-        errors <- c(errors, "Rebalancing months must match across all 'sb_backtest_config' elements.")
-      }
-
-
-      # Loop over each sb_backtest_config in the list and check general params
-      for (i in seq_along(object@base_sb_backtest_configs)) {
-        config <- object@base_sb_backtest_configs[[i]]
-
-        # Get sb_algorithm
-        sb_algorithm <- config@sb_algorithm
-
-        # If ml_algo is ols, skip hyperparameter checks
-        if (sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")) {
-          next
-        }
-        # Get hyperparameters_list names
-        hyperparameters_list <- config@tuning_strategy@hyper_grid_domain@hyperparameter_list
-        hyperparameters_names <- names(hyperparameters_list)
-
-        # Expected hyperparameters for each algorithm
-        expected_hyperparameters <- switch(sb_algorithm,
-                                           "glmnet" = c("alpha", "lambda.min.ratio"),
-                                           "rf" = c("mtry", "num.trees", "max.depth", "min.bucket"),
-                                           "xgb" = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
-                                           "nn" = c("regularizer_l1", "regularizer_l2", "droprate", "lr", "size_of_batch", "number_of_epochs"),
-                                           "ols" = character(0), # OLS does not require hyperparameters
-                                           character(0) # default for unrecognized algorithms
-        )
-
-        # If sb_algorithm is not recognized, record an error
-        if (length(expected_hyperparameters) == 0) {
-          errors <- c(errors, paste0("Unknown sb_algorithm '", sb_algorithm, "' in config ", i, "."))
-          next
-        }
-
-        #If custom_objective is meta_specific, record an error
-        if (stringr::str_remove(stringr::str_remove(config@custom_objective, "min_"), "max_") %in% c("rmse", "rss", "hr", "mb", "cp", "mae", "mape", "mphe", "mpe")){
-          errors <- c(errors, paste0("custom_objective can't be set to ", config@custom_objective, " in config ", i, "as it is exclusive for meta-learners."))
-        }
-
-        # For algorithms other than 'ols', perform hyperparameter checks
-        # Check for missing hyperparameters
-        missing_hyperparameters <- setdiff(expected_hyperparameters, hyperparameters_names)
-        if (length(missing_hyperparameters) > 0) {
-          errors <- c(errors, paste0("In config ", i, ", missing hyperparameters for algorithm '", sb_algorithm, "': ",
-                                     paste(missing_hyperparameters, collapse = ", "), "."))
-        }
-
-        # Check for unexpected hyperparameters
-        extra_hyperparameters <- setdiff(hyperparameters_names, expected_hyperparameters)
-        if (length(extra_hyperparameters) > 0) {
-          errors <- c(errors, paste0("In config ", i, ", unexpected hyperparameters for algorithm '", sb_algorithm, "': ",
-                                     paste(extra_hyperparameters, collapse = ", "), "."))
-        }
-      }
-
-      # If any errors were collected, return them
-      if (length(errors) > 0) {
-        return(paste(errors, collapse = "\n"))
-      }
-
+            Postions will be corrected based on base-level chosen_signals_and_positions.")
     }
 
     #Base SB Backtest Results Check
-    if(!is.null(object@base_sb_backtest_results)){
-      if (!all(sapply(object@base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
-        stop("All elements in 'base_sb_backtest_results' must be of class 'sb_backtest_results'.")
-      }
-
-      if (length(object@base_sb_backtest_results) == 1){
-        stop("base_sb_backtest_results should contain more than one sb_backtest_results objects.")
-      }
-
+    if (is.null(object@base_sb_backtest_results) || length(object@base_sb_backtest_results) <= 1){
+      stop("base_sb_backtest_results should contain more than one sb_backtest_results object.")
     }
-
+    if (!all(sapply(object@base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
+      stop("All elements in 'base_sb_backtest_results' must be of class 'sb_backtest_results'.")
+    }
     return(TRUE)
   }
 )

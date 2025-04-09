@@ -3638,282 +3638,10 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #' @seealso \code{\link{sb_backtest_config}}, \code{\link{ss_backtest_config}}, \code{\link{sb_metabacktest_config}}
 #'
 #' @export
-setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config,
-                                                     base_sb_backtest_configs, base_sb_backtest_results,
-                                                     base_ss_backtest_configs, base_ss_backtest_results, ...) {
+setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, base_sb_backtest_results, ...) {
   standardGeneric("create_sb_metabacktest_config")
 })
 
-
-#' @describeIn create_sb_metabacktest_config Combine ss_backtest_configs and ss_backtest_configs
-#'
-#' This method accepts one or multiple `sb_backtest_config` and one or multiple `ss_backtest_config` objects.
-#' It combines all possible configurations between the configs and strategies by using the `add_ss_backtest` method.
-#'
-#' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
-#' @param base_sb_backtest_configs A list of `sb_backtest_config` objects.
-#' @param config_name Name of the backtest configuration.
-#' @param ss_backtest_configs A list of `ss_backtest_config` objects.
-#' @param ... Additional arguments (not used).
-#'
-#' @return An `sb_metabacktest_config` object containing all combinations of sb_configs and ss_configs
-#'
-#' @examples
-#' # Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
-#' # and tuning_strategy objects strategy1, strategy2
-#' meta_config <- create_sb_metabacktest_config(
-#'   sb_configs = list(sb_config1, sb_config2),
-#'   ss_configs = list(ss_config1, ss_config2)
-#' )
-#'
-#' @export
-setMethod(
-  "create_sb_metabacktest_config",
-  signature(
-    meta_sb_backtest_config = "sb_backtest_config",
-    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-    base_ss_backtest_configs = "list", base_ss_backtest_results = "missing"
-  ),
-  function(meta_sb_backtest_config, base_sb_backtest_configs, base_ss_backtest_configs,
-           features_passthrough = "none", normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
-           config_name = "not_identified", ...) {
-    # Check that all base_sb_backtest_configs are sb_backtest_config objects
-    if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-      stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
-    }
-
-    # Check that all ss_backtest_config are ss_backtest_config objects
-    if (!all(sapply(base_ss_backtest_configs, function(x) is(x, "ss_backtest_config")))) {
-      stop("All elements in 'base_ss_backtest_configs' must be 'ss_backtest_config' objects.")
-    }
-
-    # Get config names
-    sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
-    ss_config_names <- as.character(sapply(base_ss_backtest_configs, function(x) x@config_name))
-
-    combined_configs <- list()
-
-
-    # Iterate through each sb and ss configurations:
-    for (i in seq_along(base_sb_backtest_configs)) {
-      sb_config <- base_sb_backtest_configs[[i]]
-
-      if (!is.null(sb_config@ss_backtest_config) || !is.null(sb_config@ss_backtest_results)) {
-        stop("All elements in 'base_sb_backtest_configs' must have 'ss_backtest_config' and 'ss_backtest_results' set to NULL.")
-      }
-
-      for (j in seq_along(base_ss_backtest_configs)) {
-        ss_config <- base_ss_backtest_configs[[j]]
-
-        # Add the ss_backtest_config
-        new_config <- add_ss_backtest_obj(sb_config, ss_config)
-
-        # Add it to combined_configs
-        combined_name <- paste0(sb_config_names[i], "_", ss_config_names[j])
-        combined_configs[[combined_name]] <- new_config
-      }
-    }
-
-    # Warn about not considering chosen_signals_and_positions at meta-level
-    if (length(meta_sb_backtest_config@ss_backtest_config) > 0) {
-      message(
-        "The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
-        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
-      )
-      meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
-    }
-    if (length(meta_sb_backtest_config@ss_backtest_results) > 0) {
-      message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
-    }
-    if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj") {
-      message(
-        "The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
-        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
-      )
-      meta_sb_backtest_config@chosen_signals_and_positions <- "all"
-    }
-
-
-    # Create the sb_metabacktest_config object
-    meta_config <- new("sb_metabacktest_config",
-      meta_sb_backtest_config = meta_sb_backtest_config,
-      base_sb_backtest_configs = combined_configs,
-      base_sb_backtest_results = NULL,
-      features_passthrough = features_passthrough,
-      normalize_base_predictions = normalize_base_predictions,
-      winsorize_base_predictions = winsorize_base_predictions,
-      config_name = config_name
-    )
-
-    # State the number of valid configurations produced
-    cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
-
-    return(meta_config)
-  }
-)
-
-#' @describeIn create_sb_metabacktest_config Combine ss_backtest_configs and ss_backtest_results
-#'
-#' This method accepts one or multiple `sb_backtest_config` and one or multiple `ss_backtest_config` objects.
-#' It combines all possible configurations between the configs and strategies by using the `add_ss_backtest` method.
-#'
-#' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
-#' @param base_sb_backtest_configs A list of `sb_backtest_config` objects.
-#' @param config_name Name of the backtest configuration.
-#' @param ss_backtest_results A list of `ss_backtest_results` objects.
-#' @param ... Additional arguments (not used).
-#'
-#' @return An `sb_metabacktest_config` object containing all combinations of sb_configs and ss_configs
-#'
-#' @examples
-#' # Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
-#' # and tuning_strategy objects strategy1, strategy2
-#' meta_config <- create_sb_metabacktest_config(
-#'   sb_configs = list(sb_config1, sb_config2),
-#'   ss_configs = list(ss_config1, ss_config2)
-#' )
-#'
-#' @export
-setMethod(
-  "create_sb_metabacktest_config",
-  signature(
-    meta_sb_backtest_config = "sb_backtest_config",
-    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-    base_ss_backtest_configs = "missing", base_ss_backtest_results = "list"
-  ),
-  function(meta_sb_backtest_config, base_sb_backtest_configs, base_ss_backtest_results,
-           features_passthrough = "none", normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
-           config_name = "not_identified", ...) {
-    # Check that all base_sb_backtest_configs are sb_backtest_config objects
-    if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-      stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
-    }
-
-    # Check that all ss_backtest_config are ss_backtest_results objects
-    if (!all(sapply(base_ss_backtest_results, function(x) is(x, "ss_backtest_results")))) {
-      stop("All elements in 'base_ss_backtest_results' must be 'ss_backtest_results' objects.")
-    }
-
-    # Get config names
-    sb_config_names <- as.character(sapply(base_sb_backtest_configs, function(x) x@config_name))
-    ss_results_names <- as.character(sapply(base_ss_backtest_results, function(x) x@backtest_identifier))
-
-    combined_configs <- list()
-
-
-    # Iterate through each sb and ss configurations:
-    for (i in seq_along(base_sb_backtest_configs)) {
-      sb_config <- base_sb_backtest_configs[[i]]
-
-      if (!is.null(sb_config@ss_backtest_config) || !is.null(sb_config@ss_backtest_results)) {
-        stop("All elements in 'base_sb_backtest_configs' must have 'ss_backtest_config' and 'ss_backtest_results' set to NULL.")
-      }
-
-      for (j in seq_along(base_ss_backtest_results)) {
-        ss_results <- base_ss_backtest_results[[j]]
-
-        # Add the ss_backtest_results
-        new_config <- add_ss_backtest_obj(sb_config, ss_results)
-
-        # Add it to combined_configs
-        combined_name <- paste0(sb_config_names[i], "_", ss_results_names[j])
-        combined_configs[[combined_name]] <- new_config
-      }
-    }
-
-    # Warn about not considering chosen_signals_and_positions at meta-level
-    if (length(meta_sb_backtest_config@ss_backtest_config) > 0) {
-      message(
-        "The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
-        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
-      )
-      meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
-    }
-    if (length(meta_sb_backtest_config@ss_backtest_results) > 0) {
-      message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
-    }
-    if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj") {
-      message(
-        "The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
-        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
-      )
-      meta_sb_backtest_config@chosen_signals_and_positions <- "all"
-    }
-
-    # Create the sb_metabacktest_config object
-    meta_config <- new("sb_metabacktest_config",
-      meta_sb_backtest_config = meta_sb_backtest_config,
-      base_sb_backtest_configs = combined_configs,
-      base_sb_backtest_results = NULL,
-      features_passthrough = features_passthrough,
-      normalize_base_predictions = normalize_base_predictions,
-      winsorize_base_predictions = winsorize_base_predictions,
-      config_name = config_name
-    )
-
-    # State the number of valid configurations produced
-    cat(sprintf("Created %d valid configurations.\n", length(combined_configs)))
-
-    return(meta_config)
-  }
-)
-
-
-#' @describeIn create_sb_metabacktest_config Create meta config from sb_backtest_configs
-#'
-#' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
-#' @param base_sb_backtest_configs A list of `sb_backtest_config` objects with `ss_backtest_config` or `ss_backtest_result` not `NULL`.
-#' @param ... Additional arguments (not used).
-#'
-#' @return A `sb_metabacktest_config` object containing the provided `sb_backtest_config` objects.
-#' @export
-setMethod(
-  "create_sb_metabacktest_config",
-  signature(
-    meta_sb_backtest_config = "sb_backtest_config",
-    base_sb_backtest_configs = "list", base_sb_backtest_results = "missing",
-    base_ss_backtest_configs = "missing", base_ss_backtest_results = "missing"
-  ),
-  function(meta_sb_backtest_config, base_sb_backtest_configs, config_name = "not_identified",
-           features_passthrough = "none",
-           normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
-           ...) {
-    # Check that all configs are sb_backtest_config objects
-    if (!all(sapply(base_sb_backtest_configs, function(x) is(x, "sb_backtest_config")))) {
-      stop("All elements in 'base_sb_backtest_configs' must be 'sb_backtest_config' objects.")
-    }
-
-    # Warn about not considering chosen_signals_and_positions at meta-level
-    if (length(meta_sb_backtest_config@ss_backtest_config) > 0) {
-      message(
-        "The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
-        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
-      )
-      meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
-    }
-    if (length(meta_sb_backtest_config@ss_backtest_results) > 0) {
-      message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
-    }
-    if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj") {
-      message(
-        "The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
-        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
-      )
-      meta_sb_backtest_config@chosen_signals_and_positions <- "all"
-    }
-
-    # Create the sb_metabacktest_config object
-    meta_config <- new("sb_metabacktest_config",
-      meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = base_sb_backtest_configs,
-      base_sb_backtest_results = NULL,
-      features_passthrough = features_passthrough,
-      normalize_base_predictions = normalize_base_predictions,
-      winsorize_base_predictions = winsorize_base_predictions,
-      config_name = config_name
-    )
-    return(meta_config)
-  }
-)
 
 #' @describeIn create_sb_metabacktest_config Create meta config from ss_backtest_results
 #'
@@ -3921,15 +3649,11 @@ setMethod(
 #' @param base_sb_backtest_results A list of `sb_backtest_results` objects.
 #' @param ... Additional arguments (not used).
 #'
-#' @return An `sb_metabacktest_config` object containing the provided `sb_backtest_config` objects.
+#' @return An `sb_metabacktest_config` object containing the provided sb_backtest objects.
 #' @export
 setMethod(
   "create_sb_metabacktest_config",
-  signature(
-    meta_sb_backtest_config = "sb_backtest_config",
-    base_sb_backtest_configs = "missing", base_sb_backtest_results = "list",
-    base_ss_backtest_configs = "missing", base_ss_backtest_results = "missing"
-  ),
+  signature(meta_sb_backtest_config = "sb_backtest_config", base_sb_backtest_results = "list"),
   function(meta_sb_backtest_config, base_sb_backtest_results, config_name = "not_identified",
            features_passthrough = "none",
            normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
@@ -3940,28 +3664,17 @@ setMethod(
     }
 
     # Warn about not considering chosen_signals_and_positions at meta-level
-    if (length(meta_sb_backtest_config@ss_backtest_config) > 0) {
+    if (length(meta_sb_backtest_config@chosen_signals_and_positions) > 1 || meta_sb_backtest_config@chosen_signals_and_positions != "all") {
       message(
-        "The chosen_signals_and_positions parameter of the meta-level ss_backtest_config will not be considered.",
-        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
-      )
-      meta_sb_backtest_config@ss_backtest_config@chosen_signals_and_positions <- "all"
-    }
-    if (length(meta_sb_backtest_config@ss_backtest_results) > 0) {
-      message("Please be sure if backtested signals of ss_backtest_results contemplate base-learners backtests + features_passthrough.")
-    }
-    if (length(meta_sb_backtest_config@chosen_signals_and_positions) == 1 && meta_sb_backtest_config@chosen_signals_and_positions != "ss_backtest_obj") {
-      message(
-        "The chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
-        "This is because selection of features for meta-learner are chosen via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
+        "chosen_signals_and_positions parameter of the meta-level sb_backtest_config will not be considered.",
+        "Selection of features for meta-learner are set via features_passthrough, with positions derived by base-level chosen_signal_and_positions to ensure consistency."
       )
       meta_sb_backtest_config@chosen_signals_and_positions <- "all"
     }
 
-
     # Create the sb_metabacktest_config object
     meta_config <- new("sb_metabacktest_config",
-      meta_sb_backtest_config = meta_sb_backtest_config, base_sb_backtest_configs = NULL,
+      meta_sb_backtest_config = meta_sb_backtest_config,
       base_sb_backtest_results = base_sb_backtest_results,
       features_passthrough = features_passthrough,
       normalize_base_predictions = normalize_base_predictions,

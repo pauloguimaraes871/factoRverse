@@ -91,47 +91,25 @@ get_features_positions <- function(base_sb_backtest_results_list, features_passt
 }
 
 
-#' Get chosen_signals_and_positions from base_sb_backtest_results_list or base_sb_backtest_configs_list and check for conformity
-get_and_check_chosen_signals_and_positions <- function(base_sb_backtest_results_list = NULL, base_sb_backtest_configs_list = NULL, features_passthrough, features_m_df){
+#' Get chosen_signals_and_positions from base_sb_backtest_results_list and check for conformity
+get_and_check_chosen_signals_and_positions <- function(base_sb_backtest_results_list, features_passthrough, features_m_df){
 
   ####Get raw chosen_signals_and_positions_list depending on whether ss_backtest_results or ss_backtest_configs are supplied
-  #############################################
-  if (!is.null(base_sb_backtest_results_list)){
-    ####Base SB Backtest Results
-    chosen_signals_and_positions_list <-
-      lapply(base_sb_backtest_results_list, function(x){ #List is already available
-          current_chosen_signals_and_positions_vec <- x@sb_backtest_workflow$chosen_signals_and_positions
-          return(current_chosen_signals_and_positions_vec)
-      })
-  } else {
-    ####Base SB Backtest Configs
-    chosen_signals_and_positions_list <-
-      lapply(base_sb_backtest_configs_list, function(x){
-        #For SS Backtest Configs
-        if (!is.null(x@ss_backtest_config)){
-          current_chosen_signals_and_positions_vec <-x@ss_backtest_config@chosen_signals_and_positions
-          names(current_chosen_signals_and_positions_vec) <- names(x@ss_backtest_config@chosen_signals_and_positions)
-          return(current_chosen_signals_and_positions_vec)
-        }
-        #For SS Backtest Results
-        if (!is.null(x@ss_backtest_results)){
-          current_chosen_signals_and_positions_vec <- x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions
-          names(current_chosen_signals_and_positions_vec) <- names(x@ss_backtest_results@ss_backtest_workflow$chosen_signals_and_positions)
-          return(current_chosen_signals_and_positions_vec)
-        }
-        #For NULLs
-        if (is.null(x@ss_backtest_config) && is.null(x@ss_backtest_results)){
-          #If both SS Config and Results are missing, one can just use sb-level chosen_signals
-          current_chosen_signals_and_positions <- x@chosen_signals_and_positions
-          names(current_chosen_signals_and_positions) <- names(x@chosen_signals_and_positions)
-          return(current_chosen_signals_and_positions)
-        }
-      })
-  }
-  #############################################
+  ##########################
+
+  ####Base SB Backtest Results
+  chosen_signals_and_positions_list <-
+    lapply(base_sb_backtest_results_list, function(x){ #List is already available
+      #####Get last batch
+      sb_backtest_workflow_last_batch <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
+      current_chosen_signals_and_positions_vec <- sb_backtest_workflow_last_batch$chosen_signals_and_positions
+      return(current_chosen_signals_and_positions_vec)
+    })
+
+  ##########################
 
   #Checks
-  #############################################
+  ##########################
 
   ####Verify that objects are the same
   chosen_signals_and_positions_reference <- chosen_signals_and_positions_list[[1]]
@@ -146,8 +124,8 @@ get_and_check_chosen_signals_and_positions <- function(base_sb_backtest_results_
   }
 
   ####Check if features_passthrough is contained
-   ####If chosen_signals_and_positions is a consolidated 'all', what can happen if ss or sb haven't be run yet (during check_meta_inputs)
-   ####reconstruct it base on features_m_df
+  ####If chosen_signals_and_positions is a consolidated 'all', what can happen if ss or sb haven't be run yet (during check_meta_inputs)
+  ####reconstruct it base on features_m_df
   if (length(chosen_signals_and_positions_reference) == 1 && chosen_signals_and_positions_reference == "all") {
     chosen_signals_and_positions_reference <- rep("long", ncol(features_m_df[,-c(1:3)])) #Exclude date, ticker, and id
     names(chosen_signals_and_positions_reference) <- colnames(features_m_df)[-c(1:3)]
@@ -158,7 +136,7 @@ get_and_check_chosen_signals_and_positions <- function(base_sb_backtest_results_
       stop("features_passthrough should be contained in chosen_signals_and_positions of base objects")
     }
   }
-  #############################################
+  ###########################
 
   return(invisible(chosen_signals_and_positions_reference))
 
