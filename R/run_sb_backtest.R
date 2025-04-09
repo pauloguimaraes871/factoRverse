@@ -765,6 +765,7 @@ setMethod("run_sb_backtest",
 
             ## Initial preparation
             #######################
+
               ###Extract base backtest_returns_m_xts
                 ####Check if both backtest_returns_m_xts and base_port_backtest_cohort are provided
                 if (!is.null(base_backtest_returns_m_xts) && !is.null(base_port_backtest_cohort)) {
@@ -854,6 +855,7 @@ setMethod("run_sb_backtest",
                 features_m_df = features_m_df, #Features to be passed
                 parallel = parallel, verbose = verbose #Parallel and verbose
               )
+
               ####Change meta_dataframe name
               oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", config@config_name, "_", "f_mdf:", features_m_df@meta_dataframe_name)
 
@@ -948,8 +950,8 @@ setMethod("run_sb_backtest",
                 config = config@meta_sb_backtest_config, # Meta SB Configuration
                 features_m_df = oos_predictions_m_df, # Features are oos predictions for base models
                 target_m_df = adapted_target_m_df, # Target is the original target
-                backtest_returns_m_xts = consolidated_backtest_returns_m_xts, benchmark_returns_m_xts = consolidated_benchmark_returns_m_xts, signal_themes_m_df = consolidated_signal_themes_m_df, #SS Backtest
-                priors_m_df = consolidated_priors_m_df, #Priors
+                backtest_returns_m_xts = consolidated_backtest_returns_m_xts, benchmark_returns_m_xts = consolidated_benchmark_returns_m_xts,
+                signal_themes_m_df = consolidated_signal_themes_m_df, #RP/MVO
                 custom_signal_weights_m_df = consolidated_custom_signal_weights_m_df, custom_signal_universe_metrics_m_df = consolidated_custom_signal_universe_metrics_m_df, #Custom Weights and Signal Universe Metrics
                 winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel, .test_seed = .test_seed
               )
@@ -959,26 +961,46 @@ setMethod("run_sb_backtest",
 
             #Change SB Metadata
             ### Features Passthrough And Positions
-            meta_learner_backtest_results@sb_backtest_workflow$features_passthrough_and_positions <- features_passthrough_and_positions
-            meta_learner_backtest_results@sb_backtest_workflow$winsorize_base_predictions <- config@winsorize_base_predictions
-            meta_learner_backtest_results@sb_backtest_workflow$normalize_base_predictions <- config@normalize_base_predictions
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$features_passthrough_and_positions <-
+              features_passthrough_and_positions
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$winsorize_base_predictions <-
+              config@winsorize_base_predictions
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$normalize_base_predictions[[length(meta_learner_backtest_results@sb_backtest_workflow)]] <-
+              config@normalize_base_predictions
 
             ### Type
-            meta_learner_backtest_results@sb_backtest_workflow$backtest_type <- "meta_learner"
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$backtest_type <- "meta_learner"
 
             ### Call
-            meta_learner_backtest_results@sb_backtest_workflow$call <- sys.call(-2)
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$call <- sys.call(-2)
 
             ### Add Base Learners Info
-            meta_learner_backtest_results@sb_backtest_workflow$config_name_bl <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$config_name)
-            meta_learner_backtest_results@sb_backtest_workflow$sb_algorithm_bl <- sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$sb_algorithm)
-            meta_learner_backtest_results@sb_backtest_workflow$dates_covered_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_covered))
-            meta_learner_backtest_results@sb_backtest_workflow$n_dates_bl <- length(unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_covered)))
-            meta_learner_backtest_results@sb_backtest_workflow$training_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$training_sample_size))
-            meta_learner_backtest_results@sb_backtest_workflow$validation_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$validation_sample_size))
-            meta_learner_backtest_results@sb_backtest_workflow$testing_sample_size_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$testing_sample_size))
-            meta_learner_backtest_results@sb_backtest_workflow$dates_testing_sample_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$dates_testing_sample))
-            meta_learner_backtest_results@sb_backtest_workflow$rebalance_dates_bl <- unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$rebalance_dates))
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$config_name_bl <-
+              sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$config_name)
+
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$sb_algorithm_bl <-
+              sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$sb_algorithm)
+
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$dates_covered_bl <-
+              unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$dates_covered))
+
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$n_dates_bl <-
+              length(unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$dates_covered)))
+
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$training_sample_size_bl <-
+              unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$training_sample_size))
+
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$validation_sample_size_bl <-
+              unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$validation_sample_size))
+
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$testing_sample_size_bl <-
+              unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$testing_sample_size))
+
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$dates_testing_sample_bl <-
+              unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$dates_testing_sample))
+
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$rebalance_dates_bl <-
+              unique(sapply(base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$rebalance_dates))
 
             # Displays how much time it took
             if (verbose) {
