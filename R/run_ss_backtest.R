@@ -34,7 +34,7 @@ setMethod("update_ss_backtest",
 
           function(signals_m_df, updated_port_backtest_cohort, benchmark_returns_m_xts, signal_themes_m_df, old_results, #Base objects
                    priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, #Auxiliary objects
-                   verbose = TRUE, parallel = TRUE, winsorization_probs = c(0.025, 0.975)){
+                   verbose = TRUE, parallel = TRUE){
 
             #Extract backtest_returns_m_xts from updated_port_backtest_cohort
             #######################
@@ -67,7 +67,7 @@ setMethod("update_ss_backtest",
                 signal_themes_m_df = signal_themes_m_df, #Themes
                 priors_m_df = priors_m_df, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
                 old_results = old_results,
-                verbose = verbose, parallel = parallel, winsorization_probs = winsorization_probs
+                verbose = verbose, parallel = parallel
               )
 
               ###Add cohort name
@@ -94,7 +94,7 @@ setMethod("update_ss_backtest",
 
           function(signals_m_df, updated_backtest_returns_m_xts, benchmark_returns_m_xts, signal_themes_m_df, old_results, #Base objects
                    priors_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, #Auxiliary objects
-                   verbose = TRUE, parallel = TRUE, winsorization_probs = c(0.025, 0.975)){
+                   verbose = TRUE, parallel = TRUE){
 
           #Get old ss workflow
           old_ss_workflow_last_batch <- old_results@ss_backtest_workflow[[length(old_results@ss_backtest_workflow)]]
@@ -157,6 +157,9 @@ setMethod("update_ss_backtest",
             if(new_config@initial_sample_size != length(zoo::index(updated_backtest_returns_m_xts@data))){
               stop("The new initial_sample_size is not equal to amount of unique dates in updated_backtest_returns_m_xts")
             }
+
+            ##Get old winsorization probs
+            winsorization_probs <- sort(c(old_ss_workflow_last_batch$lower_quantile_winsorization, old_ss_workflow_last_batch$upper_quantile_winsorization))
 
           #######################
 

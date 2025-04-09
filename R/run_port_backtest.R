@@ -30,7 +30,6 @@ setMethod("update_port_backtest",
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, #Covariance Estimation
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
-                   winsorization_probs = c(0.025, 0.975), #Winsorization
                    verbose = TRUE, parallel = TRUE, .test_seed = NULL){
 
             #Get old_port_backtest_workflow
@@ -125,10 +124,13 @@ setMethod("update_port_backtest",
             #In new update, we are in 2023-06-15. We take backtest back to 2023-05-15 and use fwd_returns obj, which will be used to roll port forward.
             new_config@initial_buffer_period <- old_port_workflow_last_batch$n_dates
 
-            ##Check if new initial_buffer_period is equal to length(signals_m_df@data$dates)
-            if(new_config@initial_buffer_period != length(unique(signals_m_df@data$dates)) - 1){
-              stop("The new initial_buffer_period is not equal to amount of unique dates in signals_m_df - 1")
-            }
+              ##Check if new initial_buffer_period is equal to length(signals_m_df@data$dates)
+              if(new_config@initial_buffer_period != length(unique(signals_m_df@data$dates)) - 1){
+                stop("The new initial_buffer_period is not equal to amount of unique dates in signals_m_df - 1")
+              }
+
+              ##Get old winsorization probs
+              winsorization_probs <- sort(c(old_port_workflow_last_batch$lower_quantile_winsorization, old_port_workflow_last_batch$upper_quantile_winsorization))
 
 
             #######################
