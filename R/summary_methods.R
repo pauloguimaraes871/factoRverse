@@ -1779,7 +1779,6 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     ## Call Appropriate Method
     if (available_objects[which_backtest_results] == "meta_learner_sb_backtest_results"){
       summary(object@meta_sb_backtest_results)
-      return()
     }
     if (available_objects[which_backtest_results] == "base_learners_sb_backtest_results"){
       cat("Which base learner do you want?\n")
@@ -1793,7 +1792,6 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
         stop("Invalid selection.")
       }
       summary(object@base_sb_backtest_results_list[[chosen_base_learner]])
-      return()
     }
 
 
@@ -1809,10 +1807,10 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
   # Display Main Information always
   cat("Backtest Identifier:", object@backtest_identifier, "\n")
   cat("\nBase Learners Algorithms:\n")
-  base_learner_algorithms <- sapply(object@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$sb_algorithm)
+  base_learner_algorithms <- sapply(object@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$sb_algorithm)
   cat(paste0("- ", base_learner_algorithms), sep = "\n")
   cat("\nMeta Learners Algorithm:\n")
-  meta_learner_algorithm <- object@meta_sb_backtest_results@sb_backtest_workflow$sb_algorithm
+  meta_learner_algorithm <- object@meta_sb_backtest_results@sb_backtest_workflow[[length(object@meta_sb_backtest_results@sb_backtest_workflow)]]$sb_algorithm
   cat(meta_learner_algorithm,"\n")
 
   if (is.null(summary_id)) {
@@ -1946,6 +1944,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 
   # Prepare data based on the selected table
   if (table_name == "Combined_OOS_Testing_Metrics") {
+
     # Extract the data
     consolidated_metrics <- object@combined_oos_testing_metrics
 
