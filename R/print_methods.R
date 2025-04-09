@@ -564,7 +564,7 @@ setMethod("show", "bayesian_opt_strategy", function(object) {
 })
 
 
-# keras_architecture_parameters------------------------------------------------
+#keras_architecture_parameters------------------------------------------------
 #' @title Print keras_architecture_parameters
 #' @description Method to print an object of class `keras_architecture_parameters`.
 #'
@@ -584,7 +584,7 @@ setMethod("show", "keras_architecture_parameters", function(object) {
 })
 
 
-# sb_backtest_config------------------------------------------------
+#sb_backtest_config------------------------------------------------
 #' @title Show SB Backtest Config
 #' @description Prints the contents of an `sb_backtest_config` object, detailing the various parameters and their configurations.
 #'
@@ -758,7 +758,7 @@ setMethod("show", "sb_backtest_config", function(object) {
 })
 
 
-# sb_metabacktest_config------------------------------------------------
+#sb_metabacktest_config------------------------------------------------
 #' Show Method for sb_metabacktest_config Class
 #'
 #' Displays detailed information about each configuration in the `sb_metabacktest_config` object.
@@ -811,107 +811,8 @@ setMethod("show", "sb_metabacktest_config",
             }
             cat("\n")
 
-            if (!is.null(config@ss_backtest_config)) {
-              cat("  Meta Learner SS Backtest Config:\n")
-              cat(sprintf("    ss_config_name: %s\n", config@ss_backtest_config@config_name))
-              cat(sprintf("    model_structure: %s\n", config@alpha_test_strategy@model_structure))
-              cat(sprintf("    p_correction_method: %s\n", config@alpha_test_strategy@p_correction_method))
-            }
-            if (!is.null(config@ss_backtest_results)) {
-              cat("  Meta Learner SS Backtest Results:\n")
-              cat(sprintf("    ss_backtest_identifier: %s\n", config@ss_backtest_results@backtest_identifier))
-              cat(sprintf("    model_structure: %s\n", config@ss_backtest_results@ss_backtest_workflow$model_structure))
-              cat(sprintf("    p_correction_method: %s\n", config@ss_backtest_results@ss_backtest_workflow$p_correction_method))
-            }
-            cat("\n")
-
-            if (is.null(config@ss_backtest_results) && is.null(config@ss_backtest_config)) {
-              cat("  No Meta Learner SS backtest configuration or results available\n")
-            }
-
-            cat("\n")
-
-
 
             cat("------------------------------\n")
-            n_configs <- length(object@base_sb_backtest_configs)
-            if (n_configs > 0) {
-              cat(crayon::yellow("\nBase Backtest Configuration details:\n\n"))
-              cat(sprintf("Number of base SB backtest configurations: %d\n", n_configs))
-
-              # Define a color palette using crayon
-              colors <- list(
-                neon_cyan = crayon::cyan,
-                neon_pink = crayon::magenta,
-                neon_blue = crayon::blue,
-                neon_purple = crayon::make_style("#8A2BE2"),
-                neon_orange = crayon::red,
-                neon_green = crayon::green,
-                neon_yellow = crayon::yellow,
-                neon_red = crayon::make_style("#FF4500"),
-                neon_silver = crayon::make_style("#C0C0C0"),
-                neon_gold = crayon::make_style("#FFD700"),
-                neon_teal = crayon::make_style("#008080")
-              )
-
-              # Loop through configurations
-              for (i in seq_along(object@base_sb_backtest_configs)) {
-                config <- object@base_sb_backtest_configs[[i]]
-
-                # Use a color from the palette
-                color_func <- colors[[ (i - 1) %% length(colors) + 1 ]]
-
-                # Color the backtest configuration header
-                cat(color_func(sprintf("Base SB Backtest Configuration %d:\n", i)))
-                cat(paste("Config name:", config@config_name), "\n")
-                cat(sprintf("  sb_algorithm: %s\n", config@sb_algorithm))
-
-
-                # For neural networks, display number of layers
-                if (config@sb_algorithm == "nn" && !is.null(config@keras_architecture_parameters)) {
-                  n_layers <- length(config@keras_architecture_parameters@units)
-                  cat(sprintf("  n_layers: %s\n", n_layers))
-                }
-
-                cat(sprintf("  training_sample_size: %s\n", config@training_sample_size))
-                cat(sprintf("  rebalancing_months: %s\n", paste(config@rebalancing_months, collapse = " ")))
-                cat(sprintf("  custom_objective: %s\n", config@custom_objective))
-                cat(sprintf("  huber_delta: %s\n", config@huber_delta))
-                cat(sprintf("  quantile_tau: %s\n", config@quantile_tau))
-
-                if (!is.null(config@tuning_strategy)) {
-                  cat("  Tuning strategy:\n")
-                  cat(sprintf("    tuning_method: %s\n", config@tuning_strategy@tuning_method))
-                  cat(sprintf("    validation_sample_size: %s\n", config@tuning_strategy@validation_sample_size))
-                  cat(sprintf("    chosen_eval_metric: %s\n", config@tuning_strategy@chosen_eval_metric))
-                } else {
-                  cat("  No tuning_strategy available\n")
-                }
-                cat("\n")
-
-                if (!is.null(config@ss_backtest_config)) {
-                  cat("  SS Backtest Config:\n")
-                  cat(sprintf("    ss_config_name: %s\n", config@ss_backtest_config@config_name))
-                  cat(sprintf("    model_structure: %s\n", config@alpha_test_strategy@model_structure))
-                  cat(sprintf("    p_correction_method: %s\n", config@alpha_test_strategy@p_correction_method))
-                }
-                if (!is.null(config@ss_backtest_results)) {
-                  cat("  SS Backtest Results:\n")
-                  cat(sprintf("    ss_backtest_identifier: %s\n", config@ss_backtest_results@backtest_identifier))
-                  cat(sprintf("    model_structure: %s\n", config@ss_backtest_results@ss_backtest_workflow$model_structure))
-                  cat(sprintf("    p_correction_method: %s\n", config@ss_backtest_results@ss_backtest_workflow$p_correction_method))
-                }
-                cat("\n")
-
-                if (is.null(config@ss_backtest_results) && is.null(config@ss_backtest_config)) {
-                  cat("  No SS backtest configuration or results available\n")
-                }
-
-                cat("\n")
-
-              }
-            }
-
             n_results <- length(object@base_sb_backtest_results)
             if (n_results > 0) {
               cat(crayon::yellow("\nBase Backtest Results details:\n\n"))
@@ -929,7 +830,7 @@ setMethod("show", "sb_metabacktest_config",
 
               # Loop through results
               for (i in seq_along(object@base_sb_backtest_results)) {
-                result <- object@base_sb_backtest_results[[i]]@sb_backtest_workflow
+                result <- object@base_sb_backtest_results[[i]]@sb_backtest_workflow[[length(object@base_sb_backtest_results[[i]]@sb_backtest_workflow)]]
 
                 # Use a color from the palette
                 color_func <- colors[[ (i - 1) %% length(colors) + 1 ]]
@@ -970,7 +871,7 @@ setMethod("show", "sb_metabacktest_config",
             invisible(NULL)
           })
 
-# sb_model------------------------------------------------
+#sb_model------------------------------------------------
 #' Show Method for sb_model Class
 #'
 #' This method provides a summary of the `sb_model` object, including
@@ -1040,7 +941,7 @@ setMethod("show", "sb_model", function(object) {
 })
 
 
-# sb_backtest_results------------------------------------------------
+#sb_backtest_results------------------------------------------------
 #' Show Method for sb_backtest_results Class
 #'
 #' This method displays a detailed summary of the `sb_backtest_results` object,
@@ -1238,7 +1139,7 @@ setMethod("show", "sb_backtest_results", function(object) {
 })
 
 
-# sb_metabacktest_results------------------------------------------------
+#sb_metabacktest_results------------------------------------------------
 #' @title Show Method for sb_metabacktest_results Class
 #' @description Displays the contents of an `sb_metabacktest_results` object,
 #' including consolidated and time series evaluation metrics.
@@ -1248,7 +1149,7 @@ setMethod("show", "sb_backtest_results", function(object) {
 setMethod("show", "sb_metabacktest_results", function(object) {
 
   # Extract the meta_learner_sb_backtest_workflow from the meta learner object
-  meta_learner_sb_backtest_workflow <- object@meta_sb_backtest_results@sb_backtest_workflow
+  meta_learner_sb_backtest_workflow <- object@meta_sb_backtest_results@sb_backtest_workflow[[length(object@meta_sb_backtest_results@sb_backtest_workflow)]]
 
   # Create a neat display of the meta_learner_sb_backtest_workflow
   cat(crayon::cyan("Meta Learner Workflow Metadata\n"))
@@ -1339,9 +1240,11 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   cat("  Forward Target Name:", meta_learner_sb_backtest_workflow$target_fwd_name, "\n")
   cat("  Target Forward:", meta_learner_sb_backtest_workflow$target_fwd, "\n")
   cat("  Target Object:", meta_learner_sb_backtest_workflow$target_object, "\n")
-  cat("  Target Workflow:\n")
-  print(meta_learner_sb_backtest_workflow$target_workflow)
-  cat("\n")
+  if (length(meta_learner_sb_backtest_workflow$target_workflow) > 0){
+    cat("  Target Workflow:\n")
+    print(meta_learner_sb_backtest_workflow$target_workflow)
+    cat("\n")
+  }
 
 
   cat("=================================\n")
@@ -1419,7 +1322,7 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
 })
 
-# ss_backtest_config------------------------------------------------
+#ss_backtest_config------------------------------------------------
 #' @title Show Signal Selection Backtest Config
 #' @description Prints the contents of an `ss_backtest_config` object, detailing the various parameters and their configurations.
 #'
@@ -1463,7 +1366,7 @@ setMethod("show", "ss_backtest_config", function(object) {
   cat("\n==============================\n")
 })
 
-# alpha_test_strategy------------------------------------------------
+#alpha_test_strategy------------------------------------------------
 #' @title Show Alpha Test Strategy
 #' @description Prints the contents of an `alpha_test_strategy` object, detailing the various parameters and their configurations.
 #' @param object An `alpha_test_strategy` object to be displayed.
@@ -1589,7 +1492,7 @@ setMethod("show", "bayesian_model_parameters", function(object) {
   }
 })
 
-# ss_backtest_results------------------------------------------------
+#ss_backtest_results------------------------------------------------
 #' Show Method for ss_backtest_results Class
 #'
 #' This method displays a detailed summary of the `ss_backtest_results` object,
