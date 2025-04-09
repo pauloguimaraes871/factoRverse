@@ -88,6 +88,15 @@ check_inputs_sb_backtest <- function(
     stop("features_m_df column names should not contain 'low_'.")
   }
 
+  #Check for constant features
+  constant_cols <- names(
+    dplyr::select_if(features_m_df[,-c(1:3)], ~ stats::sd(., na.rm = TRUE) == 0)
+  )
+  if (length(constant_cols) > 0) {
+    #Message if any constant features are found
+    warning("Constant feature(s) detected: ", paste(constant_cols, collapse = ", "))
+  }
+
   #Check structure of rebalancing_months
   if(!is.numeric(rebalancing_months)){
     stop("rebalancing_months should be numeric.")
