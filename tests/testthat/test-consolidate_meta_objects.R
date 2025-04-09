@@ -86,7 +86,8 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
 })
 
-test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with expected format for features_pass = 'all', winsorization and normalization", {
+test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with expected format for features_pass = 'all', winsorization and normalization
+          (including a predictive column without data)", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -156,13 +157,11 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
   ##SB Config
   ols_config <- create_sb_backtest_config(sb_algorithm = "ols", custom_objective = "squared_error", target_fwd_name = "fwd_premium_3m",
-                                          training_sample_size = 9, rebalancing_months = 6, config_name = "ols1") %>%
-    add_ss_backtest_obj(ss_results)
+                                          training_sample_size = 9, rebalancing_months = 6, config_name = "ols1")
 
   glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 6, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m", config_name = "glm1") %>%
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
-    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9))) %>%
-    add_ss_backtest_obj(ss_results)
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
 
   rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 6, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m", config_name = "rf1") %>%
     add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
@@ -170,8 +169,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
                        distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
                        pars = list(c(min=0.1, max = 0.9), c(min = 100L, max = 500L), c(meanlog = 1L, sdlog = 1L),
                                    c(min = 1L, max = 10L))
-    ) %>%
-    add_ss_backtest_obj(ss_results)
+    )
 
   set.seed(123)
   suppressWarnings(
@@ -179,6 +177,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     features_m_df = features_m_df,
     target_m_df = target_m_df,
     config = ols_config,
+    ss_backtest_results = ss_results,
     verbose = TRUE,
     parallel = FALSE
   )
@@ -189,6 +188,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     features_m_df = features_m_df,
     target_m_df = target_m_df,
     config = glmnet_config,
+    ss_backtest_results = ss_results,
     verbose = TRUE,
     parallel = FALSE
   )
@@ -199,6 +199,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     features_m_df = features_m_df,
     target_m_df = target_m_df,
     config = rf_config,
+    ss_backtest_results = ss_results,
     verbose = TRUE,
     parallel = FALSE
   )
@@ -261,26 +262,44 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
   recipe <- recipes::recipe(only_predictions_m_df@data) %>%
     recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
     recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
-    recipes::step_zv(recipes::all_numeric_predictors()) %>%
     step_winsorize(recipes::all_numeric_predictors(), probs = c(0.025,0.975)) %>%
-    recipes::step_range(recipes::all_numeric_predictors(), min = -1, max = 1)
+    recipes::step_range(recipes::all_numeric_predictors(), min = -1, max = 1) %>%
+    recipes::step_mutate(
+      `c:glm1_f:feat123_t:target123-fwd_premium_3m` :=
+        ifelse(is.nan(`c:glm1_f:feat123_t:target123-fwd_premium_3m`),
+               0,
+               `c:glm1_f:feat123_t:target123-fwd_premium_3m`)
+    )
 
-  normalized_predictions_m_df <- map_recipe_timewise(only_predictions_m_df, recipe = recipe, parallel = TRUE)
+  res <- testthat::evaluate_promise(
+    map_recipe_timewise(only_predictions_m_df, recipe = recipe, parallel = TRUE)
+  )
+
+  # Check that there are exactly 5 warnings
+  testthat::expect_length(res$warnings, 5)
+
+  # Check that all warnings contain the expected message
+  testthat::expect_true(all(grepl(
+    "returned\\s+NaN.*step_zv\\(\\)",
+    res$warnings
+  )))
+
+  normalized_predictions_m_df <- res$result
 
   normalized_predictions_m_df <- dplyr::left_join(normalized_predictions_m_df@data,
                                                  features_m_df@data %>% dplyr::select(id, names(features_passthrough_and_positions)),
                                                  by = "id")
 
+    suppressWarnings(
   predictions_m_df <- consolidate_oos_sb_outputs_m_df(sb_backtest_results_list, winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
                                                       features_passthrough_and_positions = features_passthrough_and_positions, features_m_df = features_m_df)
+  )
 
   expect_equal(predictions_m_df@data, normalized_predictions_m_df)
 
   #Check for correct winsorization
   expect_equal(names(predictions_m_df@workflow), "preprocessing_recipe_2023-07-15")
   expect_equal(length(predictions_m_df@workflow$`preprocessing_recipe_2023-07-15`$recipe$steps), 3)
-
-
 
 
 })

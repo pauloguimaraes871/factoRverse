@@ -131,8 +131,7 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_outputs_list,
       ###Define recipe
       oos_preds_recipe <- recipes::recipe(oos_predictions_m_df@data) %>%
         recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
-        recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
-        recipes::step_zv(recipes::all_predictors()) # Remove zero variance predictors
+        recipes::update_role(recipes::all_numeric(), new_role = "predictor")
 
         ####Winsorize Step
         if (winsorize_predictions) {
@@ -143,10 +142,39 @@ consolidate_oos_sb_outputs_m_df <- function(base_sb_backtest_outputs_list,
         if (normalize_predictions) {
           oos_preds_recipe <- oos_preds_recipe %>%
             recipes::step_range(recipes::all_numeric_predictors(), min = -1, max = 1) # Normalize
+
+          #####Insert NaN replacement step using step_mutate (when a prediction is constant for a given date)
+            ######Identify numeric predictors
+            numeric_predictors <- oos_predictions_m_df@data %>%
+              dplyr::select(dplyr::where(is.numeric)) %>%
+              names()
+
+            ######Build mutation expressions
+            nan_replacement_exprs <- purrr::map(numeric_predictors, function(var) {
+              rlang::expr(!!rlang::sym(var) := ifelse(is.nan(!!rlang::sym(var)), 0, !!rlang::sym(var)))
+            })
+
+            #####Append the step_mutate dynamically
+            oos_preds_recipe <- do.call(recipes::step_mutate, c(list(recipe = oos_preds_recipe), nan_replacement_exprs))
         }
+
       ###Apply recipe
-      oos_predictions_m_df <- map_recipe_timewise(oos_predictions_m_df, recipe = oos_preds_recipe,
-                                                  parallel = parallel, verbose = verbose)
+      withCallingHandlers( #Enable control over warning messages
+        {
+          oos_predictions_m_df <- map_recipe_timewise(
+            oos_predictions_m_df,
+            recipe = oos_preds_recipe,
+            parallel = parallel,
+            verbose = FALSE
+          )
+        },
+        warning = function(w) {
+          if (grepl("returned NaN.*step_zv\\(\\)", conditionMessage(w))) {
+            warning("An oos_prediction column has constant values for a given date. It will be replaced by 0 when normalizing.")
+            invokeRestart("muffleWarning")
+          }
+        }
+      )
 
     }
 
@@ -489,7 +517,7 @@ consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest
 #'
 derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, base_sb_backtest_results_list,
                                                        meta_custom_signal_universe_metrics_m_df, base_custom_signal_universe_metrics_m_df
-                                                        ) {
+                                                      ) {
 
   ###Derive consolidated_eval_metrics_m_df
   all_base_consolidated_eval_metrics_m_df <- purrr::reduce(
@@ -500,7 +528,7 @@ derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, ba
       function(x){
         x@oos_testing_eval_metrics_m_xts@data %>% as.data.frame() %>% #First extract all oos_testing eval metrics xts
           tibble::rownames_to_column(var = "dates") %>% #Rename to dates column
-          dplyr::mutate(dates = as.Date(dates) + months(x@sb_backtest_workflow$target_fwd)) %>% #Adjust dates in order to reflect when info was actually available
+          dplyr::mutate(dates = as.Date(dates) + months(x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$target_fwd)) %>% #Adjust dates in order to reflect when info was actually available
           dplyr::mutate(tickers = x@backtest_identifier, .before = dates) %>% #Add tickers
           dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) #Add id
       }
@@ -597,7 +625,7 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
 
   ##Identify which backtests have validation
   sb_names_with_validation <- ifelse(
-    !sapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow$sb_algorithm) %in%
+    !sapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$sb_algorithm) %in%
       c("ols", "ew", "sw", "rp", "mvo"),
     1, 0
   )
@@ -607,7 +635,7 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
   common_testing_dates_range <- as.Date(
     Reduce(
       intersect,
-      lapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow$dates_testing_sample)
+      lapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$dates_testing_sample)
     )
   )
 
@@ -655,9 +683,9 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
       data.frame(
         sb_backtest = sb_name,
         testing_dates_range = paste0(
-          min(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample)),
+          min(as.Date(sb_backtest_result@sb_backtest_workflow[[length(sb_backtest_result@sb_backtest_workflow)]]$dates_testing_sample)),
           "-",
-          max(as.Date(sb_backtest_result@sb_backtest_workflow$dates_testing_sample))
+          max(as.Date(sb_backtest_result@sb_backtest_workflow[[length(sb_backtest_result@sb_backtest_workflow)]]$dates_testing_sample))
         ),
         check.names = FALSE,
         stringsAsFactors = FALSE

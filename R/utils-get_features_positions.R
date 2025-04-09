@@ -63,7 +63,6 @@ get_features_positions <- function(base_sb_backtest_results_list, features_passt
   ############################
   chosen_signals_and_positions <- get_and_check_chosen_signals_and_positions(
     base_sb_backtest_results_list = base_sb_backtest_results_list,
-    base_sb_backtest_configs_list = NULL,
     features_passthrough = features_passthrough,
     features_m_df = features_m_df@data
   )
