@@ -32,7 +32,6 @@ update_port_backtest(
   custom_stock_metrics_m_df = NULL,
   user_defined_OR_rules_m_df = NULL,
   user_defined_AND_rules_m_df = NULL,
-  winsorization_probs = c(0.025, 0.975),
   verbose = TRUE,
   parallel = TRUE,
   .test_seed = NULL

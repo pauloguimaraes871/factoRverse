@@ -27,8 +27,7 @@ update_ss_backtest(
   priors_m_df = NULL,
   custom_signal_universe_metrics_m_df = NULL,
   verbose = TRUE,
-  parallel = TRUE,
-  winsorization_probs = c(0.025, 0.975)
+  parallel = TRUE
 )
 
 \S4method{update_ss_backtest}{meta_dataframe,meta_xts,missing,meta_xts,meta_dataframe,ss_backtest_results}(
@@ -40,8 +39,7 @@ update_ss_backtest(
   priors_m_df = NULL,
   custom_signal_universe_metrics_m_df = NULL,
   verbose = TRUE,
-  parallel = TRUE,
-  winsorization_probs = c(0.025, 0.975)
+  parallel = TRUE
 )
 }
 \arguments{

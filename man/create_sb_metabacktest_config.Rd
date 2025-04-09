@@ -2,54 +2,16 @@
 % Please edit documentation in R/constructors.R
 \name{create_sb_metabacktest_config}
 \alias{create_sb_metabacktest_config}
-\alias{create_sb_metabacktest_config,sb_backtest_config,list,missing,list,missing-method}
-\alias{create_sb_metabacktest_config,sb_backtest_config,list,missing,missing,list-method}
-\alias{create_sb_metabacktest_config,sb_backtest_config,list,missing,missing,missing-method}
-\alias{create_sb_metabacktest_config,sb_backtest_config,missing,list,missing,missing-method}
+\alias{create_sb_metabacktest_config,sb_backtest_config,list-method}
 \title{Create SB Meta Backtest Configuration}
 \usage{
 create_sb_metabacktest_config(
   meta_sb_backtest_config,
-  base_sb_backtest_configs,
   base_sb_backtest_results,
-  base_ss_backtest_configs,
-  base_ss_backtest_results,
   ...
 )
 
-\S4method{create_sb_metabacktest_config}{sb_backtest_config,list,missing,list,missing}(
-  meta_sb_backtest_config,
-  base_sb_backtest_configs,
-  base_ss_backtest_configs,
-  features_passthrough = "none",
-  normalize_base_predictions = TRUE,
-  winsorize_base_predictions = TRUE,
-  config_name = "not_identified",
-  ...
-)
-
-\S4method{create_sb_metabacktest_config}{sb_backtest_config,list,missing,missing,list}(
-  meta_sb_backtest_config,
-  base_sb_backtest_configs,
-  base_ss_backtest_results,
-  features_passthrough = "none",
-  normalize_base_predictions = TRUE,
-  winsorize_base_predictions = TRUE,
-  config_name = "not_identified",
-  ...
-)
-
-\S4method{create_sb_metabacktest_config}{sb_backtest_config,list,missing,missing,missing}(
-  meta_sb_backtest_config,
-  base_sb_backtest_configs,
-  config_name = "not_identified",
-  features_passthrough = "none",
-  normalize_base_predictions = TRUE,
-  winsorize_base_predictions = TRUE,
-  ...
-)
-
-\S4method{create_sb_metabacktest_config}{sb_backtest_config,missing,list,missing,missing}(
+\S4method{create_sb_metabacktest_config}{sb_backtest_config,list}(
   meta_sb_backtest_config,
   base_sb_backtest_results,
   config_name = "not_identified",
@@ -62,32 +24,22 @@ create_sb_metabacktest_config(
 \arguments{
 \item{meta_sb_backtest_config}{A \code{sb_backtest_config} with the configuration for the meta learner.}
 
-\item{base_sb_backtest_configs}{A list of \code{sb_backtest_config} objects with \code{ss_backtest_config} or \code{ss_backtest_result} not \code{NULL}.}
-
 \item{base_sb_backtest_results}{A list of \code{sb_backtest_results} objects.}
-
-\item{base_ss_backtest_configs}{A list of \code{ss_backtest_config} objects (optional).}
-
-\item{base_ss_backtest_results}{A list of \code{ss_backtest_results} objects (optional)}
 
 \item{...}{Additional arguments (not used).}
 
 \item{config_name}{Name of the backtest configuration.}
 
-\item{ss_backtest_configs}{A list of \code{ss_backtest_config} objects.}
+\item{base_sb_backtest_configs}{A list of \code{sb_backtest_config} objects with \code{tuning_strategy} set to \code{NULL}.}
 
-\item{ss_backtest_results}{A list of \code{ss_backtest_results} objects.}
+\item{base_ss_backtest_configs}{A list of \code{ss_backtest_config} objects (optional).}
+
+\item{base_ss_backtest_results}{A list of \code{ss_backtest_results} objects (optional)}
 }
 \value{
 A \code{sb_metabacktest_config} object containing all viable combinations of configs.
 
-An \code{sb_metabacktest_config} object containing all combinations of sb_configs and ss_configs
-
-An \code{sb_metabacktest_config} object containing all combinations of sb_configs and ss_configs
-
-A \code{sb_metabacktest_config} object containing the provided \code{sb_backtest_config} objects.
-
-An \code{sb_metabacktest_config} object containing the provided \code{sb_backtest_config} objects.
+An \code{sb_metabacktest_config} object containing the provided sb_backtest objects.
 }
 \description{
 The \code{create_sb_metabacktest_config} function creates an \code{sb_metabacktest_config} object by combining a \code{sb_backtest_config} for the meta-learner
@@ -101,40 +53,7 @@ Alternatively, the user can provide a list of \code{sb_backtest_results} directl
 \itemize{
 \item \code{create_sb_metabacktest_config(
   meta_sb_backtest_config = sb_backtest_config,
-  base_sb_backtest_configs = list,
-  base_sb_backtest_results = missing,
-  base_ss_backtest_configs = list,
-  base_ss_backtest_results = missing
-)}: Combine ss_backtest_configs and ss_backtest_configs
-
-This method accepts one or multiple \code{sb_backtest_config} and one or multiple \code{ss_backtest_config} objects.
-It combines all possible configurations between the configs and strategies by using the \code{add_ss_backtest} method.
-
-\item \code{create_sb_metabacktest_config(
-  meta_sb_backtest_config = sb_backtest_config,
-  base_sb_backtest_configs = list,
-  base_sb_backtest_results = missing,
-  base_ss_backtest_configs = missing,
-  base_ss_backtest_results = list
-)}: Combine ss_backtest_configs and ss_backtest_results
-
-This method accepts one or multiple \code{sb_backtest_config} and one or multiple \code{ss_backtest_config} objects.
-It combines all possible configurations between the configs and strategies by using the \code{add_ss_backtest} method.
-
-\item \code{create_sb_metabacktest_config(
-  meta_sb_backtest_config = sb_backtest_config,
-  base_sb_backtest_configs = list,
-  base_sb_backtest_results = missing,
-  base_ss_backtest_configs = missing,
-  base_ss_backtest_results = missing
-)}: Create meta config from sb_backtest_configs
-
-\item \code{create_sb_metabacktest_config(
-  meta_sb_backtest_config = sb_backtest_config,
-  base_sb_backtest_configs = missing,
-  base_sb_backtest_results = list,
-  base_ss_backtest_configs = missing,
-  base_ss_backtest_results = missing
+  base_sb_backtest_results = list
 )}: Create meta config from ss_backtest_results
 
 }}
@@ -154,20 +73,6 @@ meta_config <- create_sb_metabacktest_config(
 meta_config <- create_sb_metabacktest_config(
   meta_sb_backtest_config = sb_backtest_config,
   base_sb_backtest_configs = list(config1, config2)
-)
-
-# Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
-# and tuning_strategy objects strategy1, strategy2
-meta_config <- create_sb_metabacktest_config(
-  sb_configs = list(sb_config1, sb_config2),
-  ss_configs = list(ss_config1, ss_config2)
-)
-
-# Assuming you have sb_backtest_config objects config1, config2 (with ss_backtest_config = NULL and ss_backtest_results = NULL)
-# and tuning_strategy objects strategy1, strategy2
-meta_config <- create_sb_metabacktest_config(
-  sb_configs = list(sb_config1, sb_config2),
-  ss_configs = list(ss_config1, ss_config2)
 )
 
 }

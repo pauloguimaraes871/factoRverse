@@ -2,15 +2,14 @@
 % Please edit documentation in R/utils-get_features_positions.R
 \name{get_and_check_chosen_signals_and_positions}
 \alias{get_and_check_chosen_signals_and_positions}
-\title{Get chosen_signals_and_positions from base_sb_backtest_results_list or base_sb_backtest_configs_list and check for conformity}
+\title{Get chosen_signals_and_positions from base_sb_backtest_results_list and check for conformity}
 \usage{
 get_and_check_chosen_signals_and_positions(
-  base_sb_backtest_results_list = NULL,
-  base_sb_backtest_configs_list = NULL,
+  base_sb_backtest_results_list,
   features_passthrough,
   features_m_df
 )
 }
 \description{
-Get chosen_signals_and_positions from base_sb_backtest_results_list or base_sb_backtest_configs_list and check for conformity
+Get chosen_signals_and_positions from base_sb_backtest_results_list and check for conformity
 }
