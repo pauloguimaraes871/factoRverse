@@ -8479,7 +8479,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
                                          mae = c(NA,NA,NA,NA)),
                                        order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in seq_along(prediction_list){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -17690,11 +17690,11 @@ test_that("update_sb_backtest works for SW metabacktest - 2 updates - rebalancin
 
   #This is for NA warning of NAs at the end of run_ss_backtest
   suppressWarnings(
-  ss_results <-
-    run_ss_backtest(frequentist_ss_config,
-                    signals_m_df = features_m_df, port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
-                    signal_themes_m_df = signal_themes_m_df,
-                    verbose = TRUE)
+    ss_results <-
+      run_ss_backtest(frequentist_ss_config,
+                      signals_m_df = features_m_df, port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                      signal_themes_m_df = signal_themes_m_df,
+                      verbose = TRUE)
   )
   #SB Backtest
   rf_config <- create_sb_backtest_config(sb_algorithm = "rf", target_fwd_name = "fwd_premium_1m",
@@ -18011,7 +18011,7 @@ test_that("update_sb_backtest works for SW metabacktest - 2 updates - rebalancin
       verbose = TRUE),
     "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
 
-  #Expected Returns
+  #Expected Results
   #################
   suppressWarnings(
     new_port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {

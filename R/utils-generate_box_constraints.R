@@ -129,12 +129,13 @@ generate_box_constraints <- function(universe_m_d_ref, liquidity_constraint_poli
   #Set max and min consolidated weights
   ######################################
   ##Calculate active weights
-  ###Max
+  ###Max (A stock will never be able to have a maximum weight smaller than benchmark_weight)
   eligible_assets_max_active_weights = (eligible_assets_box_constraints_m_d_ref[grep("_max$", names(eligible_assets_box_constraints_m_d_ref), value = TRUE)] -
                                         eligible_assets_box_constraints_m_d_ref$benchmark_weights) %>%
         apply(1, function(x) max(min(x, na.rm = TRUE), 0, na.rm = TRUE)) #Min max_active_weights must be zero
 
-  ###Min
+
+  ###Min (A stock will never be able to have a minimum weight larger than benchmark_weight)
   eligible_assets_min_active_weights = (eligible_assets_box_constraints_m_d_ref[grep("_min$", names(eligible_assets_box_constraints_m_d_ref), value = TRUE)] -
                                         eligible_assets_box_constraints_m_d_ref$benchmark_weights) %>%
         apply(1, function(x) min(max(x, na.rm = TRUE), 0, na.rm = TRUE)) #Max min_active_weights must be zero

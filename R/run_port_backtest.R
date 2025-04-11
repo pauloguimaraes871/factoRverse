@@ -45,11 +45,22 @@ setMethod("update_port_backtest",
 
             ##SB Backtest Results
             if (!is.null(updated_sb_backtest_results)){
+
+              ###Checks whether it is sb_metabacktest_results and retrive appropriate workflow
+              if (inherits(updated_sb_backtest_results, "sb_metabacktest_results")){
+                updated_sb_workflow_last_batch <-
+                  updated_sb_backtest_results@meta_sb_backtest_results@sb_backtest_workflow[[length(updated_sb_backtest_results@meta_sb_backtest_results@sb_backtest_workflow)]]
+              } else {
+                updated_sb_workflow_last_batch <-
+                  updated_sb_backtest_results@sb_backtest_workflow[[length(updated_sb_backtest_results@sb_backtest_workflow)]]
+              }
+
               ###Check backtest identifier
               if (!identical(updated_sb_backtest_results@backtest_identifier, old_port_workflow_last_batch$sb_backtest_identifier)){
                 stop("backtest_identifier in updated_sb_backtest_results does not match the one in old_results.")
               }
-              if (updated_sb_backtest_results@sb_backtest_workflow$current_date != lubridate::add_with_rollback(old_port_workflow_last_batch$current_date, months(1))){
+              if (updated_sb_workflow_last_batch$current_date !=
+                  lubridate::add_with_rollback(old_port_workflow_last_batch$current_date, months(1))){
                 stop("current_date in updated_sb_backtest_results does not match the one in old_results + 1 month.")
               }
             } else {
@@ -301,15 +312,34 @@ setMethod("run_port_backtest",
             ###########################
             ###Extract oos_predictions_m_df
             if (!is.null(sb_backtest_results)){
-              ####Check for object conformity
-              #####signals_m_df
-              if (sb_backtest_results@sb_backtest_workflow$features_object_name != signals_m_df@meta_dataframe_name){
-                stop("Signals object name does not match the one used in the SB Backtest")
+
+              ####Check if it is a sb_backtest_results or a sb_metabacktest_results
+              if (inherits(sb_backtest_results, "sb_metabacktest_results")){
+                #####Extract meta learner and config name
+                meta_config_name <- sb_backtest_results@sb_metabacktest_config@config_name
+                sb_backtest_results <- sb_backtest_results@meta_sb_backtest_results
               }
-              #####benchmark_returns_m_xts
-              if (sb_backtest_results@sb_backtest_workflow$backtest_type != "base_learner" && #Test is only applicable for base-learners
-                  sb_backtest_results@sb_backtest_workflow$benchmark_returns_object_name != benchmark_returns_m_xts@meta_xts_name){
-                stop("Benchmark Returns object name does not match the one used in the SB Backtest")
+
+              ####Check for object conformity
+              sb_backtest_workflow_last_batch <- sb_backtest_results@sb_backtest_workflow[[length(sb_backtest_results@sb_backtest_workflow)]]
+
+              if (sb_backtest_workflow_last_batch$backtest_type == "base_learner"){
+                #####signals_m_df
+                if (sb_backtest_workflow_last_batch$features_object_name != signals_m_df@meta_dataframe_name){
+                  stop("Signals object name does not match the one used in the SB Backtest")
+                }
+                #####benchmark_returns_m_xts
+                if (sb_backtest_workflow_last_batch$backtest_type != "base_learner" && #Test is only applicable for base-learners
+                    sb_backtest_workflow_last_batch$benchmark_returns_object_name != benchmark_returns_m_xts@meta_xts_name){
+                  stop("Benchmark Returns object name does not match the one used in the SB Backtest")
+                }
+              } else {
+                #####signals_m_df
+                if (stringr::str_remove(sb_backtest_workflow_last_batch$features_object_name,
+                                        pattern = paste0("m_config:", meta_config_name, "_", "f_mdf:")) !=
+                    signals_m_df@meta_dataframe_name){
+                  stop("Signals object name does not match the one used in the SB Backtest")
+                }
               }
 
               ####Get results

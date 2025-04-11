@@ -10,11 +10,9 @@ check_inputs_meta_sb_backtest(
   target_m_df,
   base_sb_backtest_results_list,
   base_signal_themes_m_df,
-  base_priors_m_df,
   base_custom_signal_weights_m_df,
   base_custom_signal_universe_metrics_m_df,
   meta_signal_themes_m_df,
-  meta_priors_m_df,
   meta_custom_signal_weights_m_df,
   meta_custom_signal_universe_metrics_m_df,
   base_backtest_returns_m_xts,
@@ -31,13 +29,9 @@ check_inputs_meta_sb_backtest(
 
 \item{base_signal_themes_m_df}{Optional base signal themes meta dataframe.}
 
-\item{base_priors_m_df}{Optional base priors meta dataframe.}
-
 \item{base_custom_signal_weights_m_df}{Optional base custom signal weights meta dataframe.}
 
 \item{meta_signal_themes_m_df}{Optional meta signal themes meta dataframe.}
-
-\item{meta_priors_m_df}{Optional meta priors meta dataframe.}
 
 \item{meta_custom_signal_weights_m_df}{Optional meta custom signal weights meta dataframe.}
 

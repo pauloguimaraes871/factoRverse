@@ -2,14 +2,20 @@
 % Please edit documentation in R/run_sb_backtest.R
 \name{run_sb_backtest}
 \alias{run_sb_backtest}
-\alias{run_sb_backtest,meta_dataframe,meta_dataframe,sb_backtest_config-method}
-\alias{run_sb_backtest,meta_dataframe,meta_dataframe,sb_metabacktest_config-method}
+\alias{run_sb_backtest,meta_dataframe,meta_dataframe,sb_backtest_config,missing-method}
+\alias{run_sb_backtest,meta_dataframe,meta_dataframe,sb_metabacktest_config,list-method}
 \alias{run_sb_backtest_internal}
 \title{Run Signal Blending Backtest}
 \usage{
-run_sb_backtest(features_m_df, target_m_df, config, ...)
+run_sb_backtest(
+  features_m_df,
+  target_m_df,
+  config,
+  base_sb_backtest_results_list,
+  ...
+)
 
-\S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,sb_backtest_config}(
+\S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,sb_backtest_config,missing}(
   features_m_df,
   target_m_df,
   config,
@@ -31,7 +37,7 @@ run_sb_backtest(features_m_df, target_m_df, config, ...)
   .old_sb_model_fit = NULL
 )
 
-\S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,sb_metabacktest_config}(
+\S4method{run_sb_backtest}{meta_dataframe,meta_dataframe,sb_metabacktest_config,list}(
   features_m_df,
   target_m_df,
   config,
@@ -40,21 +46,21 @@ run_sb_backtest(features_m_df, target_m_df, config, ...)
   base_backtest_returns_m_xts = NULL,
   base_benchmark_returns_m_xts = NULL,
   base_signal_themes_m_df = NULL,
-  base_priors_m_df = NULL,
   base_custom_signal_weights_m_df = NULL,
   base_custom_signal_universe_metrics_m_df = NULL,
   meta_port_backtest_cohort = NULL,
   meta_backtest_returns_m_xts = NULL,
   meta_benchmark_returns_m_xts = NULL,
   meta_signal_themes_m_df = NULL,
-  meta_priors_m_df = NULL,
   meta_custom_signal_weights_m_df = NULL,
   meta_custom_signal_universe_metrics_m_df = NULL,
   winsorization_probs = c(0.025, 0.975),
   gsm_algorithm = "ols",
   verbose = TRUE,
   parallel = TRUE,
-  .test_seed = NULL
+  .test_seed = NULL,
+  .update = FALSE,
+  .old_meta_sb_backtest_results = NULL
 )
 
 run_sb_backtest_internal(
@@ -113,6 +119,8 @@ XXXX is the name of the target variable, number is the amount of forward periods
 
 \item{config}{A \code{sb_metabacktest_config} object containing a meta learner configuration and multiple individual configurations.}
 
+\item{base_sb_backtest_results_list}{A list of \code{sb_backtest_results} objects containing the results of the base learners.}
+
 \item{...}{Additional arguments (not used in this method).}
 
 \item{ss_backtest_results}{An object of class \code{ss_backtest_results} containing the results of a signal selection backtest.}
@@ -129,8 +137,6 @@ XXXX is the name of the target variable, number is the amount of forward periods
 \item{verbose}{Logical, indicating whether to print progress messages (default is TRUE).}
 
 \item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
-
-\item{base_sb_backtest_results_list}{A list of \code{sb_backtest_results} objects containing the results of the base learners.}
 
 \item{training_sample_size}{Number of observations to include in each training sample.}
 
@@ -229,13 +235,15 @@ for elastic net regularization, supporting both Lasso and Ridge regression.
 \item \code{run_sb_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
-  config = sb_backtest_config
+  config = sb_backtest_config,
+  base_sb_backtest_results_list = missing
 )}: Runs a backtest with a single configuration.
 
 \item \code{run_sb_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
-  config = sb_metabacktest_config
+  config = sb_metabacktest_config,
+  base_sb_backtest_results_list = list
 )}: Run Signal Blending Meta-Backtest
 
 }}

@@ -442,7 +442,8 @@ consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest
 
       ##Check if it exists
       if (!slot_name %in% c("oos_testing_eval_metrics_m_xts", "best_hyperparameters_m_xts",
-                            "validation_eval_metrics_hyper_choice_m_xts", "chosen_eval_metric_validation") &&
+                            "validation_eval_metrics_hyper_choice_m_xts", "chosen_eval_metric_validation",
+                            "port_metrics_m_xts") &&
           is.null(old_obj)) {
         stop(sprintf("No old object named '%s' in 'old_backtest_outputs_list'.", slot_name))
       }

@@ -2214,6 +2214,552 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
 
 })
 
+test_that("run_port_backtest works for a META-LEVEL oos_predictions blended strategy and 'mvo' with liquidity, turnover and concentration constraints and selected benchmark", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #meta_dataframes
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  target_m_df <- create_meta_dataframe(fwd_return_m_df@data, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, dy_med_36m, mom_res_12m, roe_3m))
+  stock_groups_m_df <- create_meta_dataframe(stock_groups_m_df, type = "groups")
+  expect_warning(daily_stock_returns_m_xts <- create_meta_xts(daily_stock_returns_m_xts, type = "returns", asset_type = "stocks", meta_xts_name = "B3"),
+                 "There are NA values in the time series.")
+
+  daily_benchmark_returns_m_xts_mocked <- suppressWarnings(
+    create_meta_xts(xts::xts(data.frame(
+      ibov = rnorm(n = nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5),
+      smll = rnorm(n = nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5),
+      idiv = rnorm(n = nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5)
+    ), order.by = zoo::index(daily_stock_returns_m_xts@data)
+    ), type = "returns", asset_type = "benchmark", meta_xts_name = "B3")
+  )
+
+
+  #Create sb_backtest_configs
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", rebalancing_months = 4,
+                                             training_sample_size = 2, target_fwd_name = "fwd_return_1m", config_name = "ronaldo") %>%
+    add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rmse", validation_sample_size = 1) %>%
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
+                       grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
+
+  ols_config <- create_sb_backtest_config(sb_algorithm = "ols", rebalancing_months = 4,
+                                          training_sample_size = 3, target_fwd_name = "fwd_return_1m", config_name = "romario")
+
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "glmnet", rebalancing_months = 4,
+                                                   training_sample_size = 2, target_fwd_name = "fwd_return_1m") %>%
+    add_tuning_strategy(tuning_method = "grid_search", chosen_eval_metric = "rmse", validation_sample_size = 1) %>%
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"),
+                       grid = list(c(0, 0.5, 1), seq(0.1, 0.9, length=10)))
+
+  meta_backtest_config <- create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
+                                                        features_passthrough = "none", config_name = "pele")
+
+  #run_sb_backtest
+  expect_warning(
+    glmnet_results <- run_sb_backtest(
+      features_m_df = signals_m_df,
+      target_m_df = target_m_df,
+      config = glmnet_config,
+      parallel = TRUE
+    ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  expect_warning(
+    ols_results <- run_sb_backtest(
+      features_m_df = signals_m_df,
+      target_m_df = target_m_df,
+      config = ols_config,
+      parallel = TRUE
+    ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  #run meta sb
+  expect_warning(
+  meta_sb_results <- run_sb_backtest(
+    features_m_df = signals_m_df,
+    target_m_df = target_m_df,
+    config = meta_backtest_config,
+    base_sb_backtest_results_list = list(glmnet_results, ols_results),
+    parallel = TRUE),
+  "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+
+  #Create port_backtest_config
+  port_config <- create_port_backtest_config(eligibility_quantile_range = c(0.67, 1.0),
+                                             selected_benchmark = "ibov",
+                                             initial_buffer_period = 5,
+                                             rebalancing_months = 4,
+                                             port_construction_method = "mvo",
+                                             main_liquidity_metric = "mean_volfin_3m",
+                                             config_name = "guara_model"
+  ) %>% add_liquidity_floor_cutoffs(
+    metric_name = c("mean_volfin_3m", "presence"),
+    metric_cutoffs = list(
+      c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+      c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+    )
+  ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "micro_caps", liquidity_cap_rules = c(micro_caps = 0.01, small_caps = 0.02)) %>%
+    add_turnover_constraint_policy(quantile_range_buffer = 0.1, turnover_cap_rules = c(micro_caps = 0.01, small_caps = 0.02)) %>%
+    add_concentration_constraint_policy(max_abs_active_individual_weight = 0.03, max_abs_active_group_weight = c(sectors = 0.10, macro_sector = 0.05)) %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000) %>%
+    add_mvo_parameters(n_random_ports = 500, opt_objective = "sharpe") %>%
+    add_cov_est_method(cov_estimation_method = "shrink_cc", cov_matrix_sample_size = 52, active_returns = TRUE)
+
+
+  #Run port_backtest
+  set.seed(123)
+  expect_warning(
+    results <- run_port_backtest(signals_m_df = signals_m_df,
+                                 fwd_return_m_df = fwd_return_m_df,
+                                 config = port_config,
+                                 sb_backtest_results = meta_sb_results,
+                                 liquidity_m_df = liquidity_m_df,
+                                 volatility_m_df = volatility_m_df,
+                                 stock_groups_m_df = stock_groups_m_df,
+                                 benchmark_weights_m_df = benchmark_weights_m_df,
+                                 benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                 daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+                                 daily_bench_returns_m_xts = daily_benchmark_returns_m_xts_mocked,
+                                 custom_stock_metrics_m_df = port_metrics_m_df,
+                                 verbose = TRUE),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  )
+
+  #Expected results
+  set.seed(123)
+  current_date <- "2023-02-15"
+  signals_m_d_ref <- signals_m_df@data %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df@data %>% dplyr::filter(dates == current_date)
+  volatility_m_d_ref <- volatility_m_df@data %>% dplyr::filter(dates == current_date)
+  fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
+  port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- meta_sb_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
+  daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
+  stock_groups_m_d_ref <- stock_groups_m_df@data %>% dplyr::filter(dates == current_date)
+
+
+
+  #placeholder
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  updated_port_weights_m_lstd_ref <- signals_m_df@data %>% dplyr::filter(dates == "2023-01-15") %>%
+    dplyr::select(id, tickers, dates) %>% dplyr::mutate(bop_port_weights = 0)
+
+  #Derive Universe
+  stock_universe_m_d_ref_1 <- derive_stock_universe_m_d_ref(
+    signals_m_d_ref = signals_m_d_ref,
+    oos_predictions_m_d_ref = oos_predictions_m_d_ref,
+    chosen_score_metric_and_position = NULL,
+    lower_quantile_winsorization = 0.025,
+    upper_quantile_winsorization = 0.975
+  ) %>% classify_investment_universe(
+    eligibility_quantile_range = c(0.67, 1.0),
+    min_eligible_assets_fallback = NULL,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    liquidity_floor_cutoffs = port_config@liquidity_floor_cutoffs,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    liquidity_constraint_policy = as.list(port_config@liquidity_constraint_policy),
+    concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
+    turnover_constraint_policy = as.list(port_config@turnover_constraint_policy)
+  )
+
+  #Set Port Weights
+  mvo_port_1 <- set_portfolio_weights(
+    universe_m_d_ref = stock_universe_m_d_ref_1,
+    port_construction_method = "mvo",
+    liquidity_constraint_policy = as.list(port_config@liquidity_constraint_policy),
+    concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
+    turnover_constraint_policy = as.list(port_config@turnover_constraint_policy),
+    groups_m_d_ref = stock_groups_m_d_ref,
+    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
+    active_returns = port_config@cov_est_method@active_returns,
+    cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
+    cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
+    n_random_ports = port_config@mvo_parameters@n_random_ports
+  )
+
+  #port_allocation
+  port_allocation_1 <- allocate_port(
+    port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    stock_universe_m_d_ref = mvo_port_1@universe_m_d_ref@data,
+    liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref,
+    main_liquidity_metric = "mean_volfin_3m",
+    transaction_cost_parameters <- as.list(port_config@transaction_costs_parameters),
+    selected_benchmark_weights_m_d_ref = benchmark_weights_m_d_ref
+  )
+
+  #Port Metric
+  port_metric_1 <- calculate_port_metrics(
+    port_weights_m_d_ref = port_allocation_1$port_weights_m_d_ref,
+    custom_stock_metrics_m_d_ref = port_metrics_m_d_ref
+  )
+
+  #Roll portfolio
+  port_roll_1 <- roll_port(fwd_return_m_d_ref = fwd_return_m_d_ref,
+                           fwd_selected_benchmark_return = benchmark_returns_m_xts@data["2023-03-15", "ibov"] %>% as.numeric(),
+                           port_weights_m_d_ref = port_allocation_1$port_weights_m_d_ref,
+                           total_cost = port_allocation_1$port_costs_d_ref$total_cost,
+                           verbose = TRUE
+  )
+
+  #2nd date
+  current_date <- "2023-03-15"
+  signals_m_d_ref <- signals_m_df@data %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df@data %>% dplyr::filter(dates == current_date)
+  volatility_m_d_ref <- volatility_m_df@data %>% dplyr::filter(dates == current_date)
+  fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
+  port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- meta_sb_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
+  daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
+  stock_groups_m_d_ref <- stock_groups_m_df@data %>% dplyr::filter(dates == current_date)
+
+  #placeholder
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  updated_port_weights_m_lstd_ref <- port_roll_1$rolled_fwd_port_weights_m_d_ref %>% dplyr::rename(bop_port_weights = updated_port_weights)
+
+  #Roll portfolio
+  port_allocation_2 <- allocate_port(
+    port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    stock_universe_m_d_ref = NULL,
+    liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref,
+    main_liquidity_metric = "mean_volfin_3m",
+    transaction_cost_parameters <- as.list(port_config@transaction_costs_parameters),
+    selected_benchmark_weights_m_d_ref = benchmark_weights_m_d_ref
+  )
+
+  #Port Metric
+  port_metric_2 <- calculate_port_metrics(
+    port_weights_m_d_ref = port_allocation_2$port_weights_m_d_ref,
+    custom_stock_metrics_m_d_ref = port_metrics_m_d_ref
+  )
+
+  port_roll_2 <- roll_port(fwd_return_m_d_ref = fwd_return_m_d_ref,
+                           fwd_selected_benchmark_return = benchmark_returns_m_xts@data["2023-04-15", "ibov"] %>% as.numeric(),
+                           port_weights_m_d_ref = port_allocation_2$port_weights_m_d_ref,
+                           total_cost = port_allocation_2$port_costs_d_ref$total_cost,
+                           verbose = TRUE
+  )
+
+  #3rd date
+  current_date <- "2023-04-15"
+  signals_m_d_ref <- signals_m_df@data %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df@data %>% dplyr::filter(dates == current_date)
+  volatility_m_d_ref <- volatility_m_df@data %>% dplyr::filter(dates == current_date)
+  fwd_return_m_d_ref <- fwd_return_m_df@data %>% dplyr::filter(dates == current_date)
+  port_metrics_m_d_ref <- port_metrics_m_df@data %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
+  oos_predictions_m_d_ref <- meta_sb_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates == current_date)
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts@data[which(zoo::index(daily_stock_returns_m_xts@data) <= current_date),]
+  daily_bench_returns_m_xts_upd_ref <- daily_benchmark_returns_m_xts_mocked@data[which(zoo::index(daily_benchmark_returns_m_xts_mocked@data) <= current_date),]
+  stock_groups_m_d_ref <- stock_groups_m_df@data %>% dplyr::filter(dates == current_date)
+
+
+  #placeholder
+  port_weights_placeholder_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(eop_port_weights = 0)
+  updated_port_weights_m_lstd_ref <- port_roll_2$rolled_fwd_port_weights_m_d_ref %>% dplyr::rename(bop_port_weights = updated_port_weights)
+
+  #Derive Universe
+  stock_universe_m_d_ref_2 <- derive_stock_universe_m_d_ref(
+    signals_m_d_ref = signals_m_d_ref,
+    oos_predictions_m_d_ref = oos_predictions_m_d_ref,
+    chosen_score_metric_and_position = NULL,
+    lower_quantile_winsorization = 0.025,
+    upper_quantile_winsorization = 0.975
+  ) %>% classify_investment_universe(
+    eligibility_quantile_range = c(0.67, 1.0),
+    min_eligible_assets_fallback = NULL,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    liquidity_floor_cutoffs = port_config@liquidity_floor_cutoffs,
+    liquidity_constraint_policy = as.list(port_config@liquidity_constraint_policy),
+    concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
+    turnover_constraint_policy = as.list(port_config@turnover_constraint_policy)
+  )
+
+  #Set Port Weights
+  mvo_port_2 <- set_portfolio_weights(
+    universe_m_d_ref = stock_universe_m_d_ref_2,
+    port_construction_method = "mvo",
+    liquidity_constraint_policy = as.list(port_config@liquidity_constraint_policy),
+    concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
+    turnover_constraint_policy = as.list(port_config@turnover_constraint_policy),
+    groups_m_d_ref = stock_groups_m_d_ref,
+    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
+    active_returns = port_config@cov_est_method@active_returns,
+    cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
+    cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
+    n_random_ports = port_config@mvo_parameters@n_random_ports
+  )
+
+  #port_allocation
+  port_allocation_3 <- allocate_port(
+    port_weights_placeholder_m_d_ref = port_weights_placeholder_m_d_ref,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    stock_universe_m_d_ref = mvo_port_2@universe_m_d_ref@data,
+    liquidity_m_d_ref = liquidity_m_d_ref, volatility_m_d_ref = volatility_m_d_ref,
+    main_liquidity_metric = "mean_volfin_3m",
+    transaction_cost_parameters <- as.list(port_config@transaction_costs_parameters),
+    selected_benchmark_weights_m_d_ref = benchmark_weights_m_d_ref
+  )
+
+  #Port Metric
+  port_metric_3 <- calculate_port_metrics(
+    port_weights_m_d_ref = port_allocation_3$port_weights_m_d_ref,
+    custom_stock_metrics_m_d_ref = port_metrics_m_d_ref
+  )
+
+  #Roll portfolio
+  port_roll_3 <- roll_port(fwd_return_m_d_ref = fwd_return_m_d_ref,
+                           fwd_selected_benchmark_return = benchmark_returns_m_xts@data["2023-05-15", "ibov"] %>% as.numeric(),
+                           port_weights_m_d_ref = port_allocation_3$port_weights_m_d_ref,
+                           total_cost = port_allocation_3$port_costs_d_ref$total_cost,
+                           verbose = TRUE
+  )
+
+
+  #Check if stock universe is as expected
+  expect_equal(results@final_stock_universe_m_d_ref@data, mvo_port_2@universe_m_d_ref@data)
+
+  #Check if there are micro caps in stock universe
+  expect_equal(nrow(results@stock_universe_m_df@data %>%
+                      dplyr::filter(liquidity_classification %in% c("nano_caps")) %>%
+                      dplyr::filter(is_eligible == 1))
+               , 0)
+
+  #Check that all with presence < 97.5 are not eligible
+  expect_equal(nrow(results@stock_universe_m_df@data %>%
+                      dplyr::filter(presence < 97.5) %>%
+                      dplyr::filter(is_eligible == 1))
+               , 0)
+
+  #Check if exp_ret_score is as expected
+  expect_equal(results@final_stock_universe_m_d_ref@data$exp_ret_score,
+               oos_predictions_m_d_ref$pred %>% signal_transform(lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975)
+  )
+
+  #Check for port_returns
+  expect_equal(results@port_returns_m_xts@data[1,] %>% as.numeric(),
+               port_roll_1$fwd_port_returns_d_ref[1,] %>% as.numeric()
+  )
+  expect_equal(results@port_returns_m_xts@data[2,] %>% as.numeric(),
+               port_roll_2$fwd_port_returns_d_ref[1,] %>% as.numeric()
+  )
+
+  #Check for port_weights
+  expect_equal(results@port_weights_m_df@data,
+               rbind(port_allocation_1$port_weights_m_d_ref, port_allocation_2$port_weights_m_d_ref, port_allocation_3$port_weights_m_d_ref) %>%
+                 dplyr::arrange(id)
+
+  )
+
+  #Check for port_weights for stocks
+  expect_equal(results@port_weights_m_df@data %>% dplyr::filter(dates == "2023-02-15") %>% dplyr::pull(eop_port_weights),
+               mvo_port_1@universe_m_d_ref@data %>% dplyr::pull(weights)
+  )
+  expect_equal(results@port_weights_m_df@data %>% dplyr::filter(dates == "2023-03-15") %>% dplyr::pull(eop_port_weights),
+               port_allocation_2$port_weights_m_d_ref$eop_port_weights
+  )
+  expect_equal(results@port_weights_m_df@data %>% dplyr::filter(dates == "2023-04-15") %>% dplyr::pull(eop_port_weights),
+               mvo_port_2@universe_m_d_ref@data %>% dplyr::pull(weights)
+  )
+
+  #Check that weights respect concentration_constraint
+  expect_true(all(
+    results@stock_universe_m_df@data$weights <=
+      results@stock_universe_m_df@data$ibov_bench_weights + port_config@concentration_constraint_policy@max_abs_active_individual_weight
+  ))
+
+  expect_true(all(
+    results@stock_universe_m_df@data$weights >=
+      pmax(0, results@stock_universe_m_df@data$ibov_bench_weights - port_config@concentration_constraint_policy@max_abs_active_individual_weight)
+  ))
+
+
+  #Check that sector weights respect sector_concentration_constraint
+  sectors_benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates %in% c("2023-02-15", "2023-04-15")) %>% dplyr::left_join(stock_groups_m_df@data %>% dplyr::select(-tickers, -dates), by = "id") %>%
+    dplyr::group_by(sectors, dates) %>% dplyr::summarise(bench_total = sum(ibov))
+
+  sectors_port_weights_m_d_ref <-  results@stock_universe_m_df@data %>%
+    dplyr::group_by(sectors,dates) %>% dplyr::summarise(port_total = sum(weights))
+
+  expect_equal(sectors_benchmark_weights_m_d_ref$bench_total %>% sum(), 2) #two periods = 100% + 100%
+  expect_equal(sectors_port_weights_m_d_ref$port_total %>% sum(), 2)
+
+  expect_true(all(
+    sectors_port_weights_m_d_ref$port_total <= sectors_benchmark_weights_m_d_ref$bench_total + port_config@concentration_constraint_policy@max_abs_active_group_weight[1])
+  )
+  expect_true(all(
+    sectors_port_weights_m_d_ref$port_total >= pmax(0, sectors_benchmark_weights_m_d_ref$bench_total - port_config@concentration_constraint_policy@max_abs_active_group_weight[1]))
+  )
+
+  #Check that macro_sector weights respect sector_concentration_constraint
+  macro_sector_benchmark_weights_m_d_ref <- benchmark_weights_m_df@data %>% dplyr::filter(dates %in% c("2023-02-15", "2023-04-15")) %>% dplyr::left_join(stock_groups_m_df@data %>% dplyr::select(-tickers, -dates), by = "id") %>%
+    dplyr::group_by(macro_sector, dates) %>% dplyr::summarise(bench_total = sum(ibov))
+
+  macro_sector_port_weights_m_d_ref <-  results@stock_universe_m_df@data %>%
+    dplyr::group_by(macro_sector, dates) %>% dplyr::summarise(port_total = sum(weights))
+
+  expect_equal(macro_sector_benchmark_weights_m_d_ref$bench_total %>% sum(), 2) #two periods = 100% + 100%
+  expect_equal(macro_sector_port_weights_m_d_ref$port_total %>% sum(), 2)
+
+  expect_true(all(
+    macro_sector_port_weights_m_d_ref$port_total <= macro_sector_benchmark_weights_m_d_ref$bench_total + port_config@concentration_constraint_policy@max_abs_active_group_weight[2])
+  )
+  expect_true(all(
+    macro_sector_port_weights_m_d_ref$port_total >= pmax(0, macro_sector_benchmark_weights_m_d_ref$bench_total - port_config@concentration_constraint_policy@max_abs_active_group_weight[2]))
+  )
+
+  #Check that weights respect liquidity cap
+  expect_true(all(
+    results@stock_universe_m_df@data %>% dplyr::filter(liquidity_classification == "small_caps") %>% dplyr::pull(weights) <=
+      results@stock_universe_m_df@data %>% dplyr::filter(liquidity_classification == "small_caps") %>% dplyr::pull(ibov_bench_weights) + port_config@liquidity_constraint_policy@liquidity_cap_rules[2]
+  ))
+  expect_true(all(
+    results@stock_universe_m_df@data %>% dplyr::filter(liquidity_classification == "micro_caps") %>% dplyr::pull(weights) <=
+      results@stock_universe_m_df@data %>% dplyr::filter(liquidity_classification == "micro_caps") %>% dplyr::pull(ibov_bench_weights) + port_config@liquidity_constraint_policy@liquidity_cap_rules[1]
+  ))
+
+  #Check that weights respect turnover constraint
+  #Inclusion of buffered stocks
+  expect_equal(
+    results@stock_universe_m_df@data %>%
+      dplyr::filter(exp_ret_score >= quantile(exp_ret_score, 0.57), exp_ret_score <= quantile(exp_ret_score, 0.67),
+                    liquidity_classification == "micro_caps", bop_port_weights > 0) %>% dplyr::pull(buffer_zone_1) %>% unique(),
+    1)
+
+  #Weights respect cap
+  expect_true(all(
+    results@stock_universe_m_df@data %>% dplyr::filter(buffer_zone_1 == 1) %>% dplyr::pull(weights) <=
+      results@stock_universe_m_df@data %>% dplyr::filter(buffer_zone_1 == 1) %>% dplyr::pull(bop_port_weights) +
+      port_config@turnover_constraint_policy@turnover_cap_rules[1]
+  ))
+  ##Note: JHSF3 is an interesting case of a stock that would a turnover cap min weight of ~0.2. However, a stock can never have
+  ##a constrained minimum weight that is greater than benchmark weight (this would mean that the constraint is making one have a strictly positive
+  ##active weight)
+  expect_true(all(
+    results@stock_universe_m_df@data %>% dplyr::filter(buffer_zone_1 == 1) %>% dplyr::pull(weights) >=
+      pmin(
+      pmax(results@stock_universe_m_df@data %>% dplyr::filter(buffer_zone_1 == 1) %>%
+             dplyr::pull(bop_port_weights) - port_config@turnover_constraint_policy@turnover_cap_rules[1],
+           0),
+      0
+      )
+  ))
+
+  expect_true(all(
+    results@stock_universe_m_df@data %>% dplyr::filter(buffer_zone_2 == 1) %>% dplyr::pull(weights) <=
+      results@stock_universe_m_df@data %>% dplyr::filter(buffer_zone_2 == 1) %>% dplyr::pull(bop_port_weights) +
+      port_config@turnover_constraint_policy@turnover_cap_rules[2]
+  ))
+  expect_true(all(
+    results@stock_universe_m_df@data %>% dplyr::filter(buffer_zone_2 == 1) %>% dplyr::pull(weights) >=
+      pmax(results@stock_universe_m_df@data %>% dplyr::filter(buffer_zone_2 == 1) %>% dplyr::pull(bop_port_weights) -
+             port_config@turnover_constraint_policy@turnover_cap_rules[2], 0)
+  ))
+
+
+  #Check for port_weights for benchmark
+  expect_equal(results@port_weights_m_df@data %>% dplyr::filter(dates == "2023-02-15") %>% dplyr::pull(bench_weights),
+               benchmark_weights_m_df@data %>% dplyr::filter(dates == "2023-02-15") %>% dplyr::pull(ibov)
+  )
+  expect_equal(results@port_weights_m_df@data %>% dplyr::filter(dates == "2023-02-15") %>% dplyr::pull(bench_weights),
+               benchmark_weights_m_df@data %>% dplyr::filter(dates == "2023-02-15") %>% dplyr::pull(ibov)
+  )
+  expect_equal(results@port_weights_m_df@data %>% dplyr::filter(dates == "2023-02-15") %>% dplyr::pull(bench_weights),
+               benchmark_weights_m_df@data %>% dplyr::filter(dates == "2023-02-15") %>% dplyr::pull(ibov)
+  )
+
+
+  #Check for port_costs
+  expect_equal(results@port_costs_m_xts@data[1,] %>% as.numeric(),
+               port_allocation_1$port_costs_d_ref %>% as.numeric()
+  )
+
+  expect_equal(results@port_costs_m_xts@data[2,] %>% as.numeric(),
+               port_allocation_2$port_costs_d_ref %>% as.numeric()
+  )
+
+  expect_equal(results@port_costs_m_xts@data[3,] %>% as.numeric(),
+               port_allocation_3$port_costs_d_ref %>% as.numeric()
+  )
+
+  #Check for port_metric
+  expect_equal(results@port_metrics_m_xts@data[1,] %>% as.numeric(),
+               port_metric_1 %>% as.numeric()
+  )
+  expect_equal(results@port_metrics_m_xts@data[2,] %>% as.numeric(),
+               port_metric_2 %>% as.numeric()
+  )
+  expect_equal(results@port_metrics_m_xts@data[3,] %>% as.numeric(),
+               port_metric_3 %>% as.numeric()
+  )
+
+  #Check that dy_med_36m (high importance in predictive model) is higher for port than for bench
+  expect_gt(results@port_metrics_m_xts@data$dy_med_36m %>% mean(), results@port_metrics_m_xts@data$bench_dy_med_36m %>% mean())
+  #Check that roe_3m (high importance in predictive model) is higher for port than for bench
+  expect_gt(results@port_metrics_m_xts@data$roe_3m %>% mean(), results@port_metrics_m_xts@data$bench_roe_3m %>% mean())
+  #Check that mom_res_12m (little importance in predictive model) is lower for port than for bench
+  expect_lt(results@port_metrics_m_xts@data$mom_res_12m %>% mean(), results@port_metrics_m_xts@data$bench_mom_res_12m %>% mean())
+
+
+  #Check for stock port
+  expect_equal(results@final_stock_port@type, "signal_blend")
+  expect_equal(results@final_stock_port@main_liquidity_metric, "mean_volfin_3m")
+  expect_equal(results@final_stock_port@universe_m_d_ref@data, mvo_port_2@universe_m_d_ref@data)
+  expect_equal(results@final_stock_port@port_construction_method, "mvo")
+  expect_equal(results@final_stock_port@exp_ret_score, stock_universe_m_d_ref_2 %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(exp_ret_score))
+  expect_equal(results@final_stock_port@eligible_assets, stock_universe_m_d_ref_2 %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
+
+  #Check for transactions_log
+  expect_equal(results@transactions_log@data$`2023-02-15`, port_allocation_1$transactions_log_m_d_ref)
+  expect_equal(results@transactions_log@data$`2023-03-15`, port_allocation_2$transactions_log_m_d_ref)
+  expect_equal(results@transactions_log@data$`2023-04-15`, port_allocation_3$transactions_log_m_d_ref)
+
+  #Check for dates in m_xts
+  #Port Ret
+  expect_equal(as.Date(zoo::index(results@port_returns_m_xts@data)[1]), as.Date(c("2023-03-15")))
+  expect_equal(as.Date(zoo::index(results@port_returns_m_xts@data)[2]), as.Date(c("2023-04-15")))
+  #Port Costs
+  expect_equal(as.Date(zoo::index(results@port_costs_m_xts@data)[1]), as.Date(c("2023-02-16")))
+  expect_equal(as.Date(zoo::index(results@port_costs_m_xts@data)[2]), as.Date(c("2023-03-16")))
+  #Port Metrics
+  expect_equal(as.Date(zoo::index(results@port_metrics_m_xts@data)[1]), as.Date(c("2023-02-15")))
+  expect_equal(as.Date(zoo::index(results@port_metrics_m_xts@data)[2]), as.Date(c("2023-03-15")))
+  expect_equal(as.Date(zoo::index(results@port_metrics_m_xts@data)[3]), as.Date(c("2023-04-15")))
+
+  #backtest identifier
+  expect_equal(results@port_backtest_workflow[[1]]$sb_backtest_identifier, meta_sb_results@backtest_identifier)
+  expect_equal(results@port_backtest_workflow[[1]]$oos_predictions_object_name,
+               meta_sb_results@meta_sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name)
+
+})
+
+
 test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blended strategy and 'mvo' with liquidity, turnover and user_rules, but no selected benchmark", {
 
   #Create signals_m_d_ref
@@ -4065,7 +4611,619 @@ test_that("update_port_backtest works for a simple cs single signal strategy wit
 
 })
 
-####TEST UPDATE PORT BACKTEST IN A SB + SS UPDATE WORKFLOW. CONSIDER LAST MONTH A A REBALANCING MONTH
+test_that("update_port_backtest_works for a meta_sb_backtest AND 2 UPDATES", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  #meta_dataframes at 2023-04-15
+  target_m_df <- toy_preprocessed_targets
+  original_fwd_return_m_df <- target_m_df %>% dplyr::select(id, tickers, dates, fwd_return_1m) %>%
+    dplyr::mutate(fwd_return_1m = fwd_return_1m + rnorm(nrow(.), 10, 1))
+
+  target_m_df <- create_meta_dataframe(
+    target_m_df %>% dplyr::filter(dates <= as.Date("2023-04-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-04-15", NA_real_, fwd_return_1m),
+                    fwd_premium_1m = dplyr::if_else(dates == "2023-04-15", NA_real_, fwd_premium_1m),
+                    fwd_return_3m = dplyr::if_else(dates >= as.Date("2023-02-15"), NA_real_, fwd_return_3m),
+                    fwd_premium_3m = dplyr::if_else(dates >= as.Date("2023-02-15"), NA_real_, fwd_premium_3m)
+      ),
+    meta_dataframe_name = "target", type = "target"
+  )
+
+  fwd_return_m_df <- create_meta_dataframe(
+    original_fwd_return_m_df %>% dplyr::filter(dates <= as.Date("2023-04-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-04-15", NA_real_, fwd_return_1m)),
+    meta_dataframe_name = "fwd_return", type = "target"
+  )
+
+  original_liquidity_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(mean_volfin_3m = rnorm(nrow(.), 200000, 50000)),
+    meta_dataframe_name = "liq"
+  )
+  liquidity_m_df <- original_liquidity_m_df
+  liquidity_m_df@data <- original_liquidity_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-04-15"))
+  liquidity_m_df@current_date <- as.Date("2023-04-15")
+
+  original_volatility_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::select(id, tickers, dates) %>% dplyr::mutate(daily_vol = rlnorm(nrow(.), 1, 1)),
+    meta_dataframe_name = "vol"
+  )
+  volatility_m_df <- original_volatility_m_df
+  volatility_m_df@data <- original_volatility_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-04-15"))
+  volatility_m_df@current_date <- as.Date("2023-04-15")
+
+  set.seed(123)
+  original_benchmark_returns_m_xts <- create_meta_xts(
+    xts::xts(data.frame(ibov = rnorm(length(unique(toy_preprocessed_features$dates)), -10, 1)),
+             order.by = sort(unique(toy_preprocessed_features$dates))), type = "returns", asset_type = "benchmarks"
+  )
+  benchmark_returns_m_xts <- create_meta_xts(
+    original_benchmark_returns_m_xts@data["2022-07-15/2023-04-15"], type = "returns", asset_type = "benchmarks"
+  )
+
+  features_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::filter(dates <= "2023-04-15"), type = "features", meta_dataframe_name = "signals")
+
+  benchmark_weights_m_df <- create_meta_dataframe(
+    features_m_df@data %>% dplyr::select(id, tickers, dates) %>% dplyr::group_by(dates) %>%
+      dplyr::mutate(ibov = 1/dplyr::n()) %>%
+      dplyr::ungroup(),
+    meta_dataframe_name = "ibov_weight"
+  )
+
+  port_metrics_m_df <- create_meta_dataframe(features_m_df@data %>%
+                                               dplyr::select(id, tickers, dates, roe_3m), meta_dataframe_name = "metrics")
+
+
+  #Characteristics portfolio
+  characteristics_ports <- c(
+    book_yield = "long",
+    asset_turnover_12m = "long",
+    eps_yield = "long",
+    mom_res_12m = "long",
+    roe_3m = "long",
+    sharpe_6m = "long",
+    idio_vol_mrkt_ewma = "short",
+    sectors_c1Agro = "long"
+  )
+
+  #Create config list
+  port_backtest_config_list <- purrr::imap(characteristics_ports, function(pos, metric_name) {
+    create_port_backtest_config(
+      eligibility_quantile_range = c(0.67, 1),
+      selected_benchmark = "ibov",
+      initial_buffer_period = 1,
+      chosen_score_metric_and_position = stats::setNames(pos, metric_name),
+      rebalancing_months = 4,
+      port_construction_method = "sw",
+      main_liquidity_metric = "mean_volfin_3m",
+      config_name = metric_name
+    ) %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = c("mean_volfin_3m"),
+        metric_cutoffs = list(
+          c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000)
+        )) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+  })
+
+  #Run!
+  future::plan("sequential")
+
+  suppressWarnings(
+    port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+      run_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        volatility_m_df = volatility_m_df,
+        config = port_config,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = TRUE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+
+  #SS Configuration
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", roe_3m = "long", sharpe_6m = "long", idio_vol_mrkt_ewma = "short")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 11,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.50, p_correction_method = "none",
+                            market_factor_proxy = "ibov", enable_theme_representativeness = TRUE)
+
+
+  signal_themes_m_df <- create_meta_dataframe(
+    expand.grid(c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_idio_vol_mrkt_ewma"), unique(features_m_df@data$dates)) %>%
+      dplyr::rename(tickers = Var1, dates = Var2) %>%
+      dplyr::mutate(tickers = as.character(tickers)) %>%
+      dplyr::mutate(theme = dplyr::case_when(tickers %in% c("book_yield", "eps_yield") ~ "value",
+                                             tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "quality",
+                                             tickers %in% c("sharpe_6m") ~ "momentum")) %>%
+      dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>%
+      dplyr::arrange(id),
+    type = "groups", meta_dataframe_name = "themes")
+
+
+  #This is for NA warning of NAs at the end of run_ss_backtest
+  suppressWarnings(
+    ss_results <-
+      run_ss_backtest(frequentist_ss_config,
+                      signals_m_df = features_m_df, port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                      signal_themes_m_df = signal_themes_m_df,
+                      verbose = TRUE)
+  )
+  #SB Backtest
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", target_fwd_name = "fwd_premium_1m",
+                                         training_sample_size = 4, rebalancing_months = 6, config_name = "rf") %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 2) %>%
+    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"), grid = list(c(0.1, 0.9), c(100, 500), 3, 5))
+
+
+  expect_warning(
+    rf_results <- run_sb_backtest(config = rf_config, features_m_df = features_m_df, target_m_df = target_m_df,
+                                  ss_backtest_results = ss_results, .test_seed = 123),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  mvo_config <- create_sb_backtest_config(sb_algorithm = "mvo", target_fwd_name = "fwd_premium_1m",
+                                          training_sample_size = 6, rebalancing_months = 6, config_name = "mvo",
+                                          custom_objective = "max_info_ratio") %>%
+    add_cov_est_method(cov_estimation_method = "shrink_id", cov_matrix_sample_size = 3, cov_matrix_benchmark = "ibov", active_retuerns = TRUE) %>%
+    add_concentration_constraint_policy(benchmark = "theme_sb", max_abs_active_group_weight = c(theme = 0.2))
+
+  expect_warning(
+    mvo_results <- run_sb_backtest(config = mvo_config, features_m_df = features_m_df, target_m_df = target_m_df,
+                                   port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                   signal_themes_m_df = signal_themes_m_df,
+                                   ss_backtest_results = ss_results, .test_seed = 123),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "sw", training_sample_size = 2, target_fwd_name = "fwd_premium_1m",
+                                                   rebalancing_months = 5, config_name = "meta", custom_objective = "min_rmse")
+
+  meta_config <-
+    create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
+                                  features_passthrough = "none",
+                                  config_name = "meta_rf_ols")
+
+
+  set.seed(123)
+  expect_warning(
+    sb_metabacktest_results <- run_sb_backtest(
+      target_m_df = target_m_df,
+      features_m_df = features_m_df,
+      base_sb_backtest_results_list = list(rf_results, mvo_results),
+      config = meta_config,
+      parallel = FALSE,
+      verbose = TRUE),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  #Build portfolio for meta sb
+  meta_port_config <-  create_port_backtest_config(
+    eligibility_quantile_range = c(0.67, 1),
+    selected_benchmark = "ibov",
+    initial_buffer_period = 7,
+    rebalancing_months = 4,
+    port_construction_method = "sw",
+    main_liquidity_metric = "mean_volfin_3m",
+    config_name = "meta_portfolio",
+  ) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000)
+      )) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+
+
+  #Build portfolio for metaport
+  suppressWarnings(
+  sb_metaport_results <- run_port_backtest(
+    signals_m_df = features_m_df,
+    fwd_return_m_df = fwd_return_m_df,
+    liquidity_m_df = liquidity_m_df,
+    sb_backtest_results = sb_metabacktest_results,
+    benchmark_weights_m_df = benchmark_weights_m_df,
+    volatility_m_df = volatility_m_df,
+    config = meta_port_config,
+    benchmark_returns_m_xts = benchmark_returns_m_xts,
+    verbose = TRUE
+  )
+  )
+
+  ################
+  ####Update 1####
+  ################
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  #meta_dataframes at 2023-05-15
+  target_m_df <- toy_preprocessed_targets
+  target_m_df <- create_meta_dataframe(
+    target_m_df %>% dplyr::filter(dates <= as.Date("2023-05-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-05-15", NA_real_, fwd_return_1m),
+                    fwd_premium_1m = dplyr::if_else(dates == "2023-05-15", NA_real_, fwd_premium_1m),
+                    fwd_return_3m = dplyr::if_else(dates >= as.Date("2023-03-15"), NA_real_, fwd_return_3m),
+                    fwd_premium_3m = dplyr::if_else(dates >= as.Date("2023-03-15"), NA_real_, fwd_premium_3m)
+      ),
+    meta_dataframe_name = "target", type = "target"
+  )
+
+  fwd_return_m_df <- create_meta_dataframe(
+    original_fwd_return_m_df %>% dplyr::filter(dates <= as.Date("2023-05-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-05-15", NA_real_, fwd_return_1m)),
+    meta_dataframe_name = "fwd_return", type = "target"
+  )
+  fwd_return_m_df@current_date <- as.Date("2023-05-15")
+
+  liquidity_m_df <- original_liquidity_m_df
+  liquidity_m_df@data <- original_liquidity_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-05-15"))
+  liquidity_m_df@current_date <- as.Date("2023-05-15")
+
+
+  volatility_m_df <- original_volatility_m_df
+  volatility_m_df@data <- original_volatility_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-05-15"))
+  volatility_m_df@current_date <- as.Date("2023-05-15")
+
+  features_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::filter(dates <= "2023-05-15"), type = "features", meta_dataframe_name = "signals")
+
+  benchmark_weights_m_df <- create_meta_dataframe(
+    features_m_df@data %>% dplyr::select(id, tickers, dates) %>% dplyr::group_by(dates) %>%
+      dplyr::mutate(ibov = 1/dplyr::n()) %>%
+      dplyr::ungroup(),
+    meta_dataframe_name = "ibov_weight"
+  )
+  benchmark_returns_m_xts <- create_meta_xts(
+    original_benchmark_returns_m_xts@data["2022-07-15/2023-05-15"], type = "returns", asset_type = "benchmarks"
+  )
+
+  port_metrics_m_df <- create_meta_dataframe(features_m_df@data %>%
+                                               dplyr::select(id, tickers, dates, roe_3m), meta_dataframe_name = "metrics")
+
+  #Run!
+  future::plan("sequential")
+
+  suppressWarnings(
+    updated_port_backtest_cohort <- purrr::map(port_backtest_cohort@port_backtest_results_list, function(port_results) {
+      update_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        volatility_m_df = volatility_m_df,
+        old_results = port_results,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = TRUE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+  signal_themes_m_df <- create_meta_dataframe(
+    expand.grid(c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_idio_vol_mrkt_ewma"), unique(features_m_df@data$dates)) %>%
+      dplyr::rename(tickers = Var1, dates = Var2) %>%
+      dplyr::mutate(tickers = as.character(tickers)) %>%
+      dplyr::mutate(theme = dplyr::case_when(tickers %in% c("book_yield", "eps_yield") ~ "value",
+                                             tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "quality",
+                                             tickers %in% c("sharpe_6m") ~ "momentum")) %>%
+      dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>%
+      dplyr::arrange(id),
+    type = "groups", meta_dataframe_name = "themes")
+
+
+  #This is for NA warning of NAs at the end of run_ss_backtest
+  suppressWarnings(
+    updated_ss_results <-
+      update_ss_backtest(updated_port_backtest_cohort = updated_port_backtest_cohort,
+                         signals_m_df = features_m_df,
+                         benchmark_returns_m_xts = benchmark_returns_m_xts,
+                         signal_themes_m_df = signal_themes_m_df,
+                         old_results = ss_results,
+                         verbose = TRUE)
+  )
+
+  #Update sb backtest
+  expect_warning(
+    updated_rf_results <-
+      update_sb_backtest(features_m_df = features_m_df,
+                         target_m_df = target_m_df,
+                         old_results = rf_results,
+                         updated_ss_backtest_results = updated_ss_results,
+                         .test_seed = 123
+      ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  expect_warning(
+    updated_mvo_results <-
+      update_sb_backtest(features_m_df = features_m_df,
+                         target_m_df = target_m_df,
+                         old_results = mvo_results,
+                         updated_port_backtest_cohort = updated_port_backtest_cohort,
+                         benchmark_returns_m_xts = benchmark_returns_m_xts,
+                         signal_themes_m_df = signal_themes_m_df,
+                         updated_ss_backtest_results = updated_ss_results,
+                         .test_seed = 123
+      ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  #Update meta
+  set.seed(123)
+  expect_warning(
+    updated_sb_metabacktest_results <- update_sb_backtest(
+      target_m_df = target_m_df,
+      features_m_df = features_m_df,
+      updated_base_sb_backtest_results = list(updated_rf_results, updated_mvo_results),
+      old_results = sb_metabacktest_results,
+      parallel = FALSE,
+      verbose = TRUE),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  #Update meta port
+  expect_warning(
+  updated_sb_meta_port_results <-
+    update_port_backtest(
+      signals_m_df = features_m_df,
+      fwd_return_m_df = fwd_return_m_df,
+      liquidity_m_df = liquidity_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      volatility_m_df = volatility_m_df,
+      old_results = sb_metaport_results,
+      updated_sb_backtest_results = updated_sb_metabacktest_results,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      verbose = TRUE
+    ),
+  "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  )
+
+  ################
+  ####Update 2####
+  ################
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  #meta_dataframes at 2023-06-15
+  target_m_df <- toy_preprocessed_targets
+  target_m_df <- create_meta_dataframe(
+    target_m_df %>% dplyr::filter(dates <= as.Date("2023-06-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-06-15", NA_real_, fwd_return_1m),
+                    fwd_premium_1m = dplyr::if_else(dates == "2023-06-15", NA_real_, fwd_premium_1m),
+                    fwd_return_3m = dplyr::if_else(dates >= as.Date("2023-04-15"), NA_real_, fwd_return_3m),
+                    fwd_premium_3m = dplyr::if_else(dates >= as.Date("2023-04-15"), NA_real_, fwd_premium_3m)
+      ),
+    meta_dataframe_name = "target", type = "target"
+  )
+  fwd_return_m_df <- create_meta_dataframe(
+    original_fwd_return_m_df %>% dplyr::filter(dates <= as.Date("2023-06-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-06-15", NA_real_, fwd_return_1m)),
+    meta_dataframe_name = "fwd_return", type = "target"
+  )
+
+  liquidity_m_df <- original_liquidity_m_df
+  liquidity_m_df@data <- original_liquidity_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-06-15"))
+  liquidity_m_df@current_date <- as.Date("2023-06-15")
+
+
+  volatility_m_df <- original_volatility_m_df
+  volatility_m_df@data <- original_volatility_m_df@data %>%
+    dplyr::filter(!dates > as.Date("2023-06-15"))
+  volatility_m_df@current_date <- as.Date("2023-06-15")
+
+  features_m_df <- create_meta_dataframe(
+    toy_preprocessed_features %>% dplyr::filter(dates <= "2023-06-15"), type = "features", meta_dataframe_name = "signals")
+
+  benchmark_weights_m_df <- create_meta_dataframe(
+    features_m_df@data %>% dplyr::select(id, tickers, dates) %>% dplyr::group_by(dates) %>%
+      dplyr::mutate(ibov = 1/dplyr::n()) %>%
+      dplyr::ungroup(),
+    meta_dataframe_name = "ibov_weight"
+  )
+
+  benchmark_returns_m_xts <- create_meta_xts(
+    original_benchmark_returns_m_xts@data["2022-07-15/2023-06-15"], type = "returns", asset_type = "benchmarks"
+  )
+
+  port_metrics_m_df <- create_meta_dataframe(features_m_df@data %>%
+                                               dplyr::select(id, tickers, dates, roe_3m), meta_dataframe_name = "metrics")
+
+  #Run!
+  future::plan("sequential")
+
+  suppressWarnings(
+    updated_port_backtest_cohort_2 <- purrr::map(updated_port_backtest_cohort@port_backtest_results_list, function(port_results) {
+      update_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        volatility_m_df = volatility_m_df,
+        old_results = port_results,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = FALSE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+  signal_themes_m_df <- create_meta_dataframe(
+    expand.grid(c("book_yield", "eps_yield", "roe_3m", "sharpe_6m", "low_idio_vol_mrkt_ewma"), unique(features_m_df@data$dates)) %>%
+      dplyr::rename(tickers = Var1, dates = Var2) %>%
+      dplyr::mutate(tickers = as.character(tickers)) %>%
+      dplyr::mutate(theme = dplyr::case_when(tickers %in% c("book_yield", "eps_yield") ~ "value",
+                                             tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "quality",
+                                             tickers %in% c("sharpe_6m") ~ "momentum")) %>%
+      dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>%
+      dplyr::arrange(id),
+    type = "groups", meta_dataframe_name = "themes")
+
+
+  #This is for NA warning of NAs at the end of run_ss_backtest
+  suppressWarnings(
+    updated_ss_results_2 <-
+      update_ss_backtest(updated_port_backtest_cohort = updated_port_backtest_cohort_2,
+                         signals_m_df = features_m_df,
+                         benchmark_returns_m_xts = benchmark_returns_m_xts,
+                         signal_themes_m_df = signal_themes_m_df,
+                         old_results = updated_ss_results,
+                         verbose = TRUE)
+  )
+
+  #Update sb backtest
+  expect_warning(
+    updated_rf_results_2 <-
+      update_sb_backtest(features_m_df = features_m_df,
+                         target_m_df = target_m_df,
+                         old_results = updated_rf_results,
+                         updated_ss_backtest_results = updated_ss_results_2,
+                         .test_seed = 123
+      ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  expect_warning(
+    updated_mvo_results_2 <-
+      update_sb_backtest(features_m_df = features_m_df,
+                         target_m_df = target_m_df,
+                         old_results = updated_mvo_results,
+                         benchmark_returns_m_xts = benchmark_returns_m_xts,
+                         signal_themes_m_df = signal_themes_m_df,
+                         updated_port_backtest_cohort = updated_port_backtest_cohort_2,
+                         updated_ss_backtest_results = updated_ss_results_2,
+                         .test_seed = 123
+      ),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  #Update meta
+  set.seed(123)
+  expect_warning(
+    updated_sb_metabacktest_results_2 <- update_sb_backtest(
+      target_m_df = target_m_df,
+      features_m_df = features_m_df,
+      updated_base_sb_backtest_results = list(updated_rf_results_2, updated_mvo_results_2),
+      old_results = updated_sb_metabacktest_results,
+      parallel = FALSE,
+      verbose = TRUE),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+
+
+  #Update meta port
+  expect_warning(
+    updated_sb_meta_port_results_2 <-
+      update_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        volatility_m_df = volatility_m_df,
+        old_results = updated_sb_meta_port_results,
+        updated_sb_backtest_results = updated_sb_metabacktest_results_2,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        verbose = TRUE
+      ),
+    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  )
+
+  #Expected Results
+  #################
+  suppressWarnings(
+    new_port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+      run_port_backtest(
+        signals_m_df = features_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        volatility_m_df = volatility_m_df,
+        config = port_config,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = FALSE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+
+  #SS Configuration
+  suppressWarnings(
+    new_ss_results <-
+      run_ss_backtest(frequentist_ss_config,
+                      signals_m_df = features_m_df, port_backtest_cohort = new_port_backtest_cohort,
+                      benchmark_returns_m_xts = benchmark_returns_m_xts,
+                      signal_themes_m_df = signal_themes_m_df,
+                      verbose = TRUE)
+  )
+
+  #SB Backtest
+  expect_warning(
+    new_rf_results <- run_sb_backtest(config = rf_config, features_m_df = features_m_df, target_m_df = target_m_df,
+                                      ss_backtest_results = new_ss_results, .test_seed = 123),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  expect_warning(
+    new_mvo_results <- run_sb_backtest(config = mvo_config, features_m_df = features_m_df, target_m_df = target_m_df,
+                                       port_backtest_cohort = new_port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                       signal_themes_m_df = signal_themes_m_df,
+                                       ss_backtest_results = new_ss_results, .test_seed = 123),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+  )
+
+  set.seed(123)
+  expect_warning(
+    new_sb_metabacktest_results <- run_sb_backtest(
+      target_m_df = target_m_df,
+      features_m_df = features_m_df,
+      base_sb_backtest_results_list = list(new_rf_results, new_mvo_results),
+      config = meta_config,
+      parallel = FALSE,
+      verbose = FALSE),
+    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+
+
+  #Build portfolio for metaport
+  suppressWarnings(
+    new_sb_metaport_results <- run_port_backtest(
+      signals_m_df = features_m_df,
+      fwd_return_m_df = fwd_return_m_df,
+      liquidity_m_df = liquidity_m_df,
+      sb_backtest_results = new_sb_metabacktest_results,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      volatility_m_df = volatility_m_df,
+      config = meta_port_config,
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      verbose = TRUE
+    )
+  )
+
+
+  expect_equal(updated_sb_meta_port_results_2@port_weights_m_df@data, new_sb_metaport_results@port_weights_m_df@data)
+  expect_equal(updated_sb_meta_port_results_2@transactions_log, new_sb_metaport_results@transactions_log)
+  expect_equal(updated_sb_meta_port_results_2@port_costs_m_xts@data, new_sb_metaport_results@port_costs_m_xts@data)
+  expect_equal(updated_sb_meta_port_results_2@port_returns_m_xts@data, new_sb_metaport_results@port_returns_m_xts@data)
+  expect_equal(updated_sb_meta_port_results_2@stock_universe_m_df@data, new_sb_metaport_results@stock_universe_m_df@data)
+
+
+})
 
 test_that("update_port_backtest throws errors for uncompatible objects", {
 
