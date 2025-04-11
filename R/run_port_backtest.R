@@ -1484,23 +1484,30 @@ run_port_backtest_internal <- function(
 
   ###Port Costs
   if (.update) port_costs_m_xts <- port_costs_m_xts %>% na.omit()
-  port_costs_m_xts <- create_meta_xts(port_costs_m_xts, type = "metrics",
-                                      metric_name = "port_costs",
-                                      meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_costs_m_xts)))
+  port_costs_m_xts <- suppressMessages(
+    create_meta_xts(port_costs_m_xts, type = "metrics",
+                    metric_name = "port_costs",
+                    meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_costs_m_xts)))
+  )
   ###Port Metrics
   if (!is.null(custom_stock_metrics_m_d_ref)){
     metrics <- paste0(custom_stock_metrics_m_d_ref %>% dplyr::select(-id, -tickers, -dates) %>% colnames(), collapse = "_") #Derive metrics names
     if (.update) port_metrics_m_xts <- port_metrics_m_xts %>% na.omit()
-    port_metrics_m_xts <- create_meta_xts(port_metrics_m_xts, type = "metrics",
-                                          metric_name = metrics,
-                                          meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_metrics_m_xts)))
+    port_metrics_m_xts <- suppressMessages(
+      create_meta_xts(port_metrics_m_xts, type = "metrics",
+                      metric_name = metrics,
+                      meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_metrics_m_xts)))
+    )
   } else {
     port_metrics_m_xts <- NULL
   }
   ###Port Returns
   rows_to_keep <- !apply(port_returns_m_xts, 1, function(row) all(is.na(row))) #Exclude rows with all NAs
-  port_returns_m_xts <- create_meta_xts(port_returns_m_xts[rows_to_keep,], type = "returns", asset_type = "ports",
-                                        meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_returns_m_xts)))
+  port_returns_m_xts <- suppressMessages(
+    create_meta_xts(port_returns_m_xts[rows_to_keep,], type = "returns", asset_type = "ports",
+                    meta_xts_name = "not_identified", source = rep("not_identified", ncol(port_returns_m_xts)))
+  )
+
   ###Stock Universe (turn into a signle meta_dataframe)
     if (.update && length(stock_universe_m_d_ref_list) == 0 && !exists("stock_port")){
       #####This refers to an empty update, when there is no rebalancing month in the update
