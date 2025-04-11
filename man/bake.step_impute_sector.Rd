@@ -4,7 +4,7 @@
 \alias{bake.step_impute_sector}
 \title{Apply imputation during baking}
 \usage{
-\method{bake}{step_impute_sector}(object, new_data, ...)
+bake.step_impute_sector(object, new_data, ...)
 }
 \description{
 Apply imputation during baking

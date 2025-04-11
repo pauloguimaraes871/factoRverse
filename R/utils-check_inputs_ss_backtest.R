@@ -51,7 +51,7 @@
 #' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
 #'}
 #'
-#' @param brms_control Other additional parameters to be passed to brms::brm function:
+#' @param brms_control Other additional parameters to be passed to brms::brm function
 #' \itemize{
 #' \item{chains} Integer.
 #' The number of Markov chains to run for the MCMC sampling. Default is `4`.
@@ -80,7 +80,6 @@
 #' @param upper_quantile_winsorization Numeric value for upper winsorization.
 #' @param lower_quantile_winsorization Numeric value for lower winsorization.
 #'
-#' @export
 check_inputs_ss_backtest <- function(
   #Dates
   initial_sample_size, rebalancing_months, split_method,

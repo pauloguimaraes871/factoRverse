@@ -1432,7 +1432,6 @@ setMethod("summary", "sb_metabacktest_config",
 #'   - By number: Provide a number corresponding to the table (as listed when `summary_id` is `NULL`).
 #'   If `NULL` (default), the method lists available tables.
 #' @return Invisibly returns the input `object`.
-#' @importFrom methods setMethod
 #' @export
 setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) {
 
@@ -1753,7 +1752,6 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
 #'   - By number: Provide a number corresponding to the table (as listed when `summary_id` is `NULL`).
 #'   If `NULL` (default), the method lists available tables.
 #' @return Invisibly returns the input `object`.
-#' @importFrom methods setMethod
 #' @export
 setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NULL, which_backtest_results = NULL) {
 

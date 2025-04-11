@@ -12,9 +12,13 @@
 #' @return A numeric vector of the same length as `vector` with transformed values.
 #'
 #' @details
-#' The function first applies winsorization to the `vector` based on the provided quantile thresholds. Values exceeding the upper quantile are replaced with the upper quantile value, and values below the lower quantile are replaced with the lower quantile value.
-#' The function then computes the z-scores of the winsorized values. Finally, it transforms these z-scores: positive z-scores are adjusted to \(1 + Z\), negative z-scores are transformed to \( \frac{1}{1 - Z} \), and a z-score of zero is transformed to 1.
-#'
+#' The function first applies winsorization to the \code{vector} based on the provided quantile thresholds.
+#' Values exceeding the upper quantile are replaced with the upper quantile value, and values below the lower quantile are replaced with the lower quantile value.
+#' The function then computes the z-scores of the winsorized values.
+#' Finally, it transforms these z-scores:
+#' - Positive z-scores are adjusted to \eqn{1 + Z}
+#' - Negative z-scores are transformed to \eqn{\frac{1}{1 - Z}}
+#' - A z-score of zero is transformed to 1#'
 #' @examples
 #' vector <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 #' upper_quantile_winsorization <- 0.9

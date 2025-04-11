@@ -4,10 +4,6 @@
 #' @param returns_xts_upd_ref A dataframe in which columns represent tickers present in universe_m_d_ref and row represent periods
 #' It should include all stocks in current_stock_universe and a dates column with at least cov_matrix_sample_size periods before current_date
 #' @param covariance_matrix The covariance matrix of all eligible stocks in universe_m_d_ref.
-#' @return
-#' @export
-#'
-#' @examples
 create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix, rp_method = "cyclical-spinu", verbose = TRUE){
 
   #Message

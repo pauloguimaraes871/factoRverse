@@ -7,7 +7,7 @@
 \S4method{show}{hyper_grid_domain}(object)
 }
 \arguments{
-\item{object}{An object of class hyper_grid_domain.}
+\item{object}{A \code{hyper_grid_domain} object to be printed.}
 }
 \description{
 This method prints the contents of a \code{hyper_grid_domain} object in a user-friendly format.

@@ -8,10 +8,7 @@
 #' @param fill If TRUE, will fill rows NAs with groups medians. If groups_median are NAs, it will fill with row's median
 #' @param groups_m_d_ref A dataframe with id, tickers and dates with group classifications to be used to fill NAs
 #'
-#' @return
-#' @export
 #'
-#' @examples
 clean_returns_sample <- function(returns_m_xts_sample, groups_m_d_ref = NULL, fill = TRUE, fill_by = NULL, verbose = TRUE){
 
   #Remove holidays

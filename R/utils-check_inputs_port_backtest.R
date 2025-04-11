@@ -38,20 +38,18 @@
 #' @param upper_quantile_winsorization A numeric value specifying the upper winsorization quantile.
 #' @return \code{NULL}. This function is used for its side effects; it stops execution if any input validation fails.
 #'
-#' @details The function performs comprehensive validation of multiple inputs for a portfolio backtest. It verifies:
-#' \itemize{
-#'   \item That data frames (such as \code{signals_m_df}, \code{oos_predictions_m_df}, \code{liquidity_m_df}, etc.) are coercible to a meta_dataframe and meet required formats.
-#'   \item That numeric columns do not contain NAs (except where allowed) and are within expected ranges.
-#'   \item That date columns are of class \code{Date} and follow the required formats (daily or sequential monthly as applicable).
-#'   \item Consistency across data frames (e.g., matching IDs, tickers, and dates).
-#'   \item Specific requirements for various constraints (liquidity, turnover, concentration) and custom weights/metrics.
-#'   \item The transaction cost parameters are valid and that the units between \code{strategy_aum} and \code{main_liquidity_metric} are comparable.
-#' }
+#' @details
+#' This function performs comprehensive validation of multiple inputs for a portfolio backtest. It checks:
+#'
+#' - That data frames (e.g., \code{signals_m_df}, \code{oos_predictions_m_df}, \code{liquidity_m_df}, etc.) are coercible to a \code{meta_dataframe} and meet required formats.
+#' - That numeric columns do not contain NAs (except where allowed) and fall within expected ranges.
+#' - That date columns are of class \code{Date} and follow daily or sequential monthly formats as required.
+#' - That data frames are consistent across IDs, tickers, and dates.
+#' - That all constraints (liquidity, turnover, concentration) and custom weights/metrics satisfy required conditions.
+#' - That transaction cost parameters are valid, and that \code{strategy_aum} and \code{main_liquidity_metric} are in comparable units.
 #' The function uses additional helper functions such as \code{is_coercible_to_meta_dataframe}, \code{validate_turnover_constraint_policy}, \code{validate_liquidity_constraint_policy}, \code{validate_liquidity_floor_cutoffs}, etc., to perform these checks.
 #'
 #' }
-#'
-#' @export
 check_inputs_port_backtest <- function(
   # Base Objects
   signals_m_df, oos_predictions_m_df, chosen_score_metric_and_position,

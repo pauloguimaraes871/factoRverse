@@ -599,7 +599,7 @@ setMethod("run_ss_backtest",
 #' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
 #'}
 #'
-#' @param brms_control Other additional parameters to be passed to brms::brm function:
+#' @param brms_control Other additional parameters to be passed to brms::brm function
 #' \itemize{
 #' \item{chains} Integer.
 #' The number of Markov chains to run for the MCMC sampling. Default is `4`.
@@ -625,7 +625,7 @@ setMethod("run_ss_backtest",
 #' @param verbose A boolean indicating whether to print messages.
 #' @param parallel A boolean indicating whether to use parallel processing.
 #'
-#' @section Bayesian Hierarchical Model
+#' @section Bayesian Hierarchical Model:
 #'
 #' One way of introducing shrinkage to alpha estimates from signal portfolios is by using bayesian statistics, which might be specially useful in the context
 #' of small samples of strategy returns. Bayesian statistics allows for the incorporation of prior information about the parameters of interest (alpha and beta),
@@ -683,7 +683,7 @@ setMethod("run_ss_backtest",
 #'
 #' To speed up computation, Bayesian models are fitted in parallel using the `future` framework.
 #'
-#' @section Signal Engineering Benchmarks
+#' @section Signal Engineering Benchmarks:
 #'
 #' The process of generating a final signal (also known as Signal Engineering) incorporates two steps:
 #' \itemize{

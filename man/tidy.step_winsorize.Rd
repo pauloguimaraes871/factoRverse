@@ -4,7 +4,7 @@
 \alias{tidy.step_winsorize}
 \title{Tidy method for step_winsorize}
 \usage{
-\method{tidy}{step_winsorize}(x, ...)
+tidy.step_winsorize(x, ...)
 }
 \description{
 Tidy method for step_winsorize

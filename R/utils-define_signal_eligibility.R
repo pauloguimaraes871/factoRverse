@@ -53,7 +53,7 @@
 #' \itemize{
 #' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
 #'}
-#' @param brms_control Other additional parameters to be passed to brms::brm function:
+#' @param brms_control Other additional parameters to be passed to brms::brm function
 #' \itemize{
 #' \item{chains} Integer.
 #' The number of Markov chains to run for the MCMC sampling. Default is `4`.
@@ -83,31 +83,6 @@
 #' @param user_priors An object of class `brmsprior` with user-defined priors for the hierarchical bayesian model. It should be set with `model_spec_theme_level` structure in mind.
 #' brms::set_prior() can be used to define the priors. Should not be provided if `priors_m_d_ref` is already being provided.
 #'
-#' @examples
-#' \dontrun{
-#'  Definition of priors for model_spec_theme_level = "random_intercept"
-#'   elected_priors <- c(
-#'   Prior for Intercept
-#'  brms::set_prior("normal(0.0012, 0.0016)", class = "Intercept"),
-#'
-#'  Prior for market_factor_proxy coefficient
-#'  brms::set_prior("normal(0.0003, 0.0003)", class = "b", coef = "market_factor_proxy"),
-#'
-#'  Prior for sd of Intercept at theme:tickers level
-#'  brms::set_prior("student_t(30, 0, 0.0113)", class = "sd", group = "theme:tickers", coef = "Intercept"),
-#'
-#'  Prior for sd of market_factor_proxy at theme:tickers level
-#'  brms::set_prior("student_t(30, 0, 0.0018)", class = "sd", group = "theme:tickers", coef = "market_factor_proxy"),
-#'
-#'  Prior for sd of Intercept at theme level
-#'  brms::set_prior("student_t(30, 0, 0.0011)", class = "sd", group = "theme", coef = "Intercept"),
-#'
-#'  Prior for residual error (sigma)
-#'  brms::set_prior("student_t(30, 0, 0.0256)", class = "sigma"),
-#'
-#'  LKJ prior for correlations
-#'  brms::set_prior("lkj(2)", class = "cor")
-#')
 #'
 #'
 #' @param upper_quantile_winsorization Numeric value for upper winsorization.

@@ -8,7 +8,7 @@ Description: Functions to create features based on individual firm-level charact
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Suggests: 
     foreach,
     insight,
@@ -83,7 +83,6 @@ Collate:
     'utils-check_inputs_port_backtest.R'
     'utils-check_inputs_sb_backtest.R'
     'utils-check_inputs_ss_backtest.R'
-    'utils-choose_prior.R'
     'utils-classify_investment_universe.R'
     'utils-clean_returns_sample.R'
     'utils-consolidate_meta_objects.R'

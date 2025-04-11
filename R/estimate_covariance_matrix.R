@@ -13,10 +13,7 @@
 #' @param active_returns A character string indicating whether covariance matrix should be calculated based on active returns or raw returns. If TRUE,
 #' returns_m_xts_upd_ref will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts.
 #'
-#' @return
-#' @export
 #'
-#' @examples
 estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
                                        cov_matrix_sample_size, cov_estimation_method,
                                        groups_m_d_ref = NULL,

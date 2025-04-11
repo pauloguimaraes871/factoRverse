@@ -27,7 +27,6 @@
 #'
 #' @return A data frame or object (depending on the portfolio construction method) with the updated portfolio weights assigned based on the specified method and constraints.
 #'
-#' @importFrom dplyr %>%
 #' @export
 set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   liquidity_m_d_ref = NULL, cap_weighting_metric = NULL, #Cap-Weight and Cap-Scaled

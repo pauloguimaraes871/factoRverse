@@ -481,9 +481,6 @@ setClass(
 #' @slot source Character. Source of each column (same length as number of columns in \code{data}).
 #' @slot frequency Character. Detected frequency (daily, monthly, yearly, etc.).
 #'
-#' @import methods
-#' @importFrom xts xts
-#' @importFrom zoo index
 #' @export
 setClass(
   Class = "meta_xts",
@@ -536,7 +533,6 @@ setClass(
 #' @slot assets Character. Names of the columns (assets).
 #' @slot n_assets Numeric. Number of asset columns.
 #'
-#' @importFrom methods setClass
 #' @export
 setClass(
   Class = "returns_meta_xts",
@@ -612,7 +608,6 @@ setClass(
 #' @slot series Character. Names of the columns (metrics).
 #' @slot n_series Numeric. Number of metric columns.
 #'
-#' @importFrom methods setClass
 #' @export
 setClass(
   Class = "metrics_meta_xts",

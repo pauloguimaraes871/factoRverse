@@ -6,7 +6,7 @@
 \alias{add_cov_est_method,sb_backtest_config,missing-method}
 \alias{add_cov_est_method,port_backtest_config,cov_est_method-method}
 \alias{add_cov_est_method,port_backtest_config,missing-method}
-\title{Add a cov_est_method to a \code{sb_backtest_config} or \code{port_backtest_config} object.
+\title{Add a cov_est_method to a backtest configuration object
 
 This function allows either directly add a pre-existing \code{cov_est_method} object or create one dynamically by passing additional arguments.
 When \code{cov_est_method} is not provided, a new one will be created using the values for \code{cov_estimation_method}, \code{cov_matrix_sample_size}, \code{active_returns}, passed via the \code{...} argument.}
@@ -55,7 +55,7 @@ to dimensionality curse.
 An updated object of class \code{sb_backtest_config} with the \code{cov_est_method} added.
 }
 \description{
-Add a cov_est_method to a \code{sb_backtest_config} or \code{port_backtest_config} object.
+Add a cov_est_method to a backtest configuration object
 
 This function allows either directly add a pre-existing \code{cov_est_method} object or create one dynamically by passing additional arguments.
 When \code{cov_est_method} is not provided, a new one will be created using the values for \code{cov_estimation_method}, \code{cov_matrix_sample_size}, \code{active_returns}, passed via the \code{...} argument.

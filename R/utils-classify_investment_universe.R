@@ -83,7 +83,6 @@
 #' @param user_defined_OR_rules_m_d_ref Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 #'All tickers in the current stock universe must have a unique correspondence in this data frame.
 #' @param asset_object A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"
-#' @return
 #' @export
 classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          eligibility_quantile_range = NULL, min_eligible_assets_fallback = NULL, signal_significance_threshold = NULL, #Signal classification for only_pre_eligible_assets_rule

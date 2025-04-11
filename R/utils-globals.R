@@ -1,4 +1,7 @@
-#' Global variables
+#' Declare global variables used in NSE to avoid R CMD check notes
+#'
+#' @name globalVariables_nse
+#' @keywords internal
 utils::globalVariables(c("id", "tickers", "untraded", "delisted", "listed", "old",
                          "old_tickers_first_quote", "old_tickers_last_quote", "new_tickers_first_quote", "new_tickers_last_quote",
                          "tickers_first_quote", "tickers_last_quote",

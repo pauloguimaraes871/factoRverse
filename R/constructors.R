@@ -515,7 +515,6 @@ setMethod("create_target_m_df",
 #'   \item Constructs a \code{meta_dataframe} S4 object encapsulating the transformed data and metadata.
 #' }
 #'
-#' @importFrom rlang .data
 #'
 #'
 #' @exportMethod create_meta_dataframe
@@ -3068,7 +3067,7 @@ create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_s
   return(cov_est_method)
 }
 
-#' @title Add a cov_est_method to a `sb_backtest_config` or `port_backtest_config` object.
+#' @title Add a cov_est_method to a backtest configuration object
 #'
 #' This function allows either directly add a pre-existing `cov_est_method` object or create one dynamically by passing additional arguments.
 #' When `cov_est_method` is not provided, a new one will be created using the values for `cov_estimation_method`, `cov_matrix_sample_size`, `active_returns`, passed via the `...` argument.

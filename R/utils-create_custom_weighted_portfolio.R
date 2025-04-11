@@ -4,10 +4,6 @@
 #' This object could either be the result of filter_stock_universe or created in the context of the blend_signals_function
 #' @param custom_weights_m_d_ref A dataframe with identifiers (tickers or signal column) and custom weights.
 #'
-#' @return
-#' @export
-#'
-#' @examples
 create_custom_weighted_portfolio <- function(universe_m_d_ref, custom_weights_m_d_ref, verbose = TRUE){
 
   #Message

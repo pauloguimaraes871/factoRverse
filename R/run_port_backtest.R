@@ -135,13 +135,13 @@ setMethod("update_port_backtest",
             #In new update, we are in 2023-06-15. We take backtest back to 2023-05-15 and use fwd_returns obj, which will be used to roll port forward.
             new_config@initial_buffer_period <- old_port_workflow_last_batch$n_dates
 
-              ##Check if new initial_buffer_period is equal to length(signals_m_df@data$dates)
-              if(new_config@initial_buffer_period != length(unique(signals_m_df@data$dates)) - 1){
-                stop("The new initial_buffer_period is not equal to amount of unique dates in signals_m_df - 1")
-              }
+            ##Check if new initial_buffer_period is equal to length(signals_m_df@data$dates)
+            if(new_config@initial_buffer_period != length(unique(signals_m_df@data$dates)) - 1){
+              stop("The new initial_buffer_period is not equal to amount of unique dates in signals_m_df - 1")
+            }
 
-              ##Get old winsorization probs
-              winsorization_probs <- sort(c(old_port_workflow_last_batch$lower_quantile_winsorization, old_port_workflow_last_batch$upper_quantile_winsorization))
+            ##Get old winsorization probs
+            winsorization_probs <- sort(c(old_port_workflow_last_batch$lower_quantile_winsorization, old_port_workflow_last_batch$upper_quantile_winsorization))
 
 
             #######################
@@ -558,56 +558,56 @@ setMethod("run_port_backtest",
 
             #Run Port Backtest Internal
             ###########################
-              ##Check if all objects current_date match
-              check_consistent_dates(list(
-                if (!is.null(signals_m_df)) signals_current_date else NULL,
-                if (!is.null(fwd_return_m_df)) fwd_returns_current_date else NULL,
-                if (!is.null(volatility_m_df)) volatility_current_date else NULL,
-                if (!is.null(liquidity_m_df)) liquidity_current_date else NULL,
-                if (!is.null(stock_groups_m_df)) stock_groups_current_date else NULL,
-                if (!is.null(benchmark_weights_m_df)) benchmark_weights_current_date else NULL,
-                if (!is.null(benchmark_returns_m_xts)) benchmark_returns_current_date else NULL,
-                if (!is.null(daily_stock_returns_m_xts)) daily_stock_returns_current_date else NULL,
-                if (!is.null(daily_bench_returns_m_xts)) daily_bench_returns_current_date else NULL,
-                if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_current_date else NULL,
-                if (!is.null(custom_stock_metrics_m_df)) custom_stock_metrics_current_date else NULL,
-                if (!is.null(user_defined_OR_rules_m_df)) user_defined_OR_rules_current_date else NULL,
-                if (!is.null(user_defined_AND_rules_m_df)) user_defined_AND_rules_current_date else NULL,
-                if (!is.null(oos_predictions_m_df)) oos_predictions_current_date else NULL
-              ))
+            ##Check if all objects current_date match
+            check_consistent_dates(list(
+              if (!is.null(signals_m_df)) signals_current_date else NULL,
+              if (!is.null(fwd_return_m_df)) fwd_returns_current_date else NULL,
+              if (!is.null(volatility_m_df)) volatility_current_date else NULL,
+              if (!is.null(liquidity_m_df)) liquidity_current_date else NULL,
+              if (!is.null(stock_groups_m_df)) stock_groups_current_date else NULL,
+              if (!is.null(benchmark_weights_m_df)) benchmark_weights_current_date else NULL,
+              if (!is.null(benchmark_returns_m_xts)) benchmark_returns_current_date else NULL,
+              if (!is.null(daily_stock_returns_m_xts)) daily_stock_returns_current_date else NULL,
+              if (!is.null(daily_bench_returns_m_xts)) daily_bench_returns_current_date else NULL,
+              if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_current_date else NULL,
+              if (!is.null(custom_stock_metrics_m_df)) custom_stock_metrics_current_date else NULL,
+              if (!is.null(user_defined_OR_rules_m_df)) user_defined_OR_rules_current_date else NULL,
+              if (!is.null(user_defined_AND_rules_m_df)) user_defined_AND_rules_current_date else NULL,
+              if (!is.null(oos_predictions_m_df)) oos_predictions_current_date else NULL
+            ))
 
-              ##Run internal FUN
-              port_backtest_results <- run_port_backtest_internal(
-                #Base Objects
-                signals_m_df = signals_m_df, oos_predictions_m_df = oos_predictions_m_df, chosen_score_metric_and_position = chosen_score_metric_and_position, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
-                #Backtest Scheme
-                rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
-                #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
-                port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
-                selected_benchmark = selected_benchmark,
-                #RP/MVO Parameters
-                rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
-                #Covariance Estimation
-                cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
-                daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
-                #Constraints
-                liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
-                #Liquidity Information (Constraints and Active Returns Calculation)
-                liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
-                #Group and benchmark constraints (stock groups also used to fill covariance data)
-                stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
-                #Return calculation (needs also liquidity and vol for net returns)
-                volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
-                #Stock Weights
-                custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
-                user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
-                #Misc
-                lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
-                verbose = verbose, parallel = parallel, .test_seed = .test_seed,
-                #Update
-                .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
-                .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref, .old_backtest_covered_dates = .old_backtest_covered_dates
-              )
+            ##Run internal FUN
+            port_backtest_results <- run_port_backtest_internal(
+              #Base Objects
+              signals_m_df = signals_m_df, oos_predictions_m_df = oos_predictions_m_df, chosen_score_metric_and_position = chosen_score_metric_and_position, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
+              #Backtest Scheme
+              rebalancing_months = rebalancing_months, initial_buffer_period = initial_buffer_period,
+              #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
+              port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
+              selected_benchmark = selected_benchmark,
+              #RP/MVO Parameters
+              rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
+              #Covariance Estimation
+              cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
+              daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
+              #Constraints
+              liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy, concentration_constraint_policy = concentration_constraint_policy,
+              #Liquidity Information (Constraints and Active Returns Calculation)
+              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
+              #Group and benchmark constraints (stock groups also used to fill covariance data)
+              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
+              #Return calculation (needs also liquidity and vol for net returns)
+              volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
+              #Stock Weights
+              custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = custom_stock_metrics_m_df,
+              user_defined_OR_rules_m_df = user_defined_OR_rules_m_df, user_defined_AND_rules_m_df = user_defined_AND_rules_m_df,
+              #Misc
+              lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
+              verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+              #Update
+              .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+              .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref, .old_backtest_covered_dates = .old_backtest_covered_dates
+            )
             ###########################
 
             #Adjust Port Backtest Results
@@ -804,7 +804,7 @@ setMethod("run_port_backtest",
 #' }
 #'
 run_port_backtest_internal <- function(
-  #Base Objects
+    #Base Objects
   signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
   #Backtest Scheme
   rebalancing_months, initial_buffer_period,

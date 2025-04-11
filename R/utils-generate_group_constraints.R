@@ -12,8 +12,6 @@
 #' All tickers in the current stock universe must have a unique correspondence in the data frame.
 #' @param benchmark_weights_m_d_ref A data frame containing columns for id, tickers, dates, and current benchmark weights columns.
 #' All tickers in the current stock universe must have a unique correspondence in this data frame.
-#' @return
-#' @export
 #'
 generate_group_constraints <- function(universe_m_d_ref, concentration_constraint_policy, groups_m_d_ref, verbose = TRUE){
 

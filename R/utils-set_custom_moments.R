@@ -6,9 +6,7 @@
 #' @param user_method user-specified method for computing moment matrices. Defaults to calculation used by PortfolioAnalytics "sample" method,
 #' which uses PerformanceAnalytics functions to computer the higher-order moments
 #'
-#' @return
 #'
-#' @examples
 set_custom_moments = function(R, portfolio, user_moments=NULL, user_method=c(returns, input, two_moment)) {
 
   if(!methods::hasArg(user_method) | is.null(user_method)) user_method <- "returns" #If user_method not set, assume returns

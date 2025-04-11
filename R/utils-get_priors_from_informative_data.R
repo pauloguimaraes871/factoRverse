@@ -6,7 +6,7 @@
 #'
 #' @param priors_m_upd_ref A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
 #' and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
-#' @param priors_type A flag indicating which priors should be set. Possible options are:
+#' @param priors_type A flag indicating which priors should be set. Possible options are
 #' \itemize{
 #'    \item {"all"}: Set priors for all parameters, including mean (´mu´), variance (´tau´) and correlation based on `priors_m_df` data.
 #'    \item: {"mean"}: Set priors only for mean ('mu').

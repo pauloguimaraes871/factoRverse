@@ -2,8 +2,8 @@
 #'
 #' @param universe_m_d_ref A dataframe with tickers, is_eligible and exp_ret_score columns
 #' @param covariance_matrix The covariance matrix of all eligible stocks in universe_m_d_ref.
-#' @param random_ports_method
-#' @param n_random_ports
+#' @param random_ports_method A character indicating the method to be used for generating random portfolios. Possible values are "random" or "grid".
+#' @param n_random_ports An integer indicating the number of random portfolios to be generated.
 #' @param liquidity_constraint_policy Optional. A named list containing objects used to apply liquidity constraints. Possible elements of the list are:
 #' - `liquidity_floor_rule`: A character indicating the liquidity classification (e.g., micro_caps, small_caps) used to filter stocks. Stocks with less liquidity than specified in `liquidity_floor_rule` will be considered ineligible.
 #'   In the case of the `generate_box_constraints` function, `liquidity_constraint_policy` can also contain:
@@ -28,8 +28,6 @@
 #' All tickers in the current stock universe must have a unique correspondence in the data frame.
 #' @param opt_objective A character describing the objective to maximize in order to choose the best portfolio. One of "return (max return)",
 #' "risk (min risk)" or "sharpe (max sharpe-ratio)"
-#' @return
-#' @export
 #'
 create_mvo_portfolio <- function(universe_m_d_ref,
                                  covariance_matrix,

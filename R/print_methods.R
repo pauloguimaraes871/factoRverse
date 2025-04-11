@@ -372,13 +372,6 @@ setMethod("show", "metrics_meta_xts", function(object) {
 #' @param object A `hyper_grid_domain` object to be printed.
 #'
 #' @export
-#' Print Method for hyper_grid_domain
-#'
-#' This method provides a well-structured output for hyper_grid_domain objects.
-#'
-#' @param object An object of class hyper_grid_domain.
-#'
-#' @export
 setMethod("show", "hyper_grid_domain", function(object) {
 
   cat("Hyperparameters Grid Domain:\n")
@@ -1671,7 +1664,6 @@ setMethod("show", "port_backtest_config", function(object) {
 #' @return Returns the \code{object} invisibly.
 #'
 #' @seealso \linkS4class{port}
-#' @importFrom methods setMethod show
 #' @export
 setMethod(
   f = "show",

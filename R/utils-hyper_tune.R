@@ -30,13 +30,6 @@
 #' \item{validation_eval_metrics_hyper_choice_current_date}{A named vector of evaluation metrics corresponding to the optimal hyperparameter set.}
 #'
 #'
-#' @importFrom furrr future_pmap furrr_options
-#' @importFrom purrr pmap
-#' @importFrom tictoc tic toc
-#' @importFrom crayon green
-#' @importFrom doFuture withDoRNG
-#' @importFrom ParBayesianOptimization bayesOpt getBestPars
-#' @importFrom dplyr select
 #'
 #' @export
 hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General Parameters
@@ -50,11 +43,11 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
                        parallel, #Parallelization (default is true with future backend)
                        verbose){ #Verbose
 
-    ###Hyperparameter tuning following grid or random search!
-    if(tuning_method %in% c("random_search", "grid_search")){
+  ###Hyperparameter tuning following grid or random search!
+  if(tuning_method %in% c("random_search", "grid_search")){
 
-      #Create expanded_hyper_grid_list
-      expanded_hyper_grid_list <- create_expanded_hyper_grid_list(
+    #Create expanded_hyper_grid_list
+    expanded_hyper_grid_list <- create_expanded_hyper_grid_list(
         hyper_grid_domain_list = hyper_grid_domain_list,
         n_iter = n_iter,
         tuning_method = tuning_method,

@@ -18,10 +18,7 @@
 #' Stocks that are less liquid than `turnover_cap_rule` and that are included in the buffer_zone will be promoted.
 #' Stocks meeting this rule will be included in the `filtered_stock_universe` even if they fail the liquidity floor rule.
 #'
-#' @return
-#' @export
 #'
-#' @examples
 apply_turnover_cap_rule <- function(stock_universe_m_d_ref,
                                     eligibility_quantile_range, quantile_range_buffer,
                                     updated_port_weights_m_lstd_ref,

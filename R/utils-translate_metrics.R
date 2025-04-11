@@ -19,9 +19,6 @@
 #' @examples
 #' translate_metrics("xgb", NULL, "squared_error", early_stop = FALSE, verbose = TRUE)
 #'
-#' @export
-#' @importFrom crayon yellow
-#' @import keras
 translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective, early_stop, huber_delta, verbose){
 
   #Adapt chosen_eval_metric if needed

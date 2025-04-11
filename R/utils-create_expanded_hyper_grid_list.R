@@ -31,8 +31,6 @@
 #' create_expanded_hyper_grid_list(hyper_grid_domain_list, tuning_method = "random_search", n_iter = 100)
 #' }
 #'
-#' @export
-#' @importFrom stats rnorm runif rlnorm
 #'
 #' @seealso
 #' Use with functions that require hyperparameter tuning such as 'train' or 'caret'.
@@ -41,19 +39,19 @@
 #'
 create_expanded_hyper_grid_list <- function(hyper_grid_domain_list, tuning_method, n_iter, ml_algorithm){
 
-#Set Hyperparameters grid
-#Apply Grid Search
-if(tuning_method == c("grid_search")){
+  #Set Hyperparameters grid
+  #Apply Grid Search
+  if(tuning_method == c("grid_search")){
 
-  #Eliminate repeated inputs
-  hyper_grid_domain_list <- lapply(hyper_grid_domain_list, function(x) unique(x))
-  #For glmnet, it is better to provide a sequence of lambdas
-  expanded_hyper_grid_list <- lapply(do.call(expand.grid, hyper_grid_domain_list), as.vector)
-} else {}
+    #Eliminate repeated inputs
+    hyper_grid_domain_list <- lapply(hyper_grid_domain_list, function(x) unique(x))
+    #For glmnet, it is better to provide a sequence of lambdas
+    expanded_hyper_grid_list <- lapply(do.call(expand.grid, hyper_grid_domain_list), as.vector)
+  } else {}
 
 
-#Apply Random Search
-if(tuning_method == c("random_search")){
+  #Apply Random Search
+  if(tuning_method == c("random_search")){
 
   #Creat object
   expanded_hyper_grid_list <- list()

@@ -222,3 +222,81 @@ This function performs iterative signal selection based on frequentist or Bayesi
 To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM), computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
 
 }}
+\section{Bayesian Hierarchical Model}{
+
+
+One way of introducing shrinkage to alpha estimates from signal portfolios is by using bayesian statistics, which might be specially useful in the context
+of small samples of strategy returns. Bayesian statistics allows for the incorporation of prior information about the parameters of interest (alpha and beta),
+which can be particularly useful in multiple testing.
+
+A Bayesian model depends on parameters that are themselves random variables. For instance, one can assume a normal distribution for the CAPM alpha parameter,
+with a mean of 0 (the strategy is not profitable) and a given standard deviation, effectively shrinking posterior estimates towards the prior mean, with an
+intensity that depends on the prior standard deviation and the sample distribution. Alternatively, one can utilize priors derived from signal strategies
+from other countries or asset classes than the ones being studied. Either way, the researcher will incorporate the reasoning process people usually have, as
+we usually have prior beliefs about a subject and then will update our beliefs based on new information. If another research possesses other priors,
+he or she can incorporate those into Bayes rule and derive other posterior distribution for parameters of interest, which is kind of more
+transparent than the frequentist approach, who will inherently give ultimate importance to associational evidence from (possibly overfit) data.
+Most of the time, in a frequentist setting, the researcher usually does not disclose the reasoning process behind the model. Therefore, bayesian statistics
+are being often recommended as a method to deal with multiple testing problems.
+
+Suppose one has return observations for multiple signal portfolios across time and wants to estimate the parameters of a single-factor model (CAPM)
+that describes the relationship between these signals portfolios and the market factor, being interested in the significance of the alpha parameter, while
+accounting for its exposure to systematic market risk. A complete pooled model will treat all observations as being independent and treating as irrelevant any
+information about individual strategies, which might be misleading, because it does not account for the hierarchical structure of the data.
+Observations of a given signal portfolio are possible correlated. On the other hand, a no pooling model will estimate a separate model for each signal portfolio,
+fitting specific parameters for each individual strategy, which might be inefficient, as it does not borrow information across signals. Signals belonging
+to a given theme tend to be similar. Signals in the value theme, for instance, are usually valuation multiples (eg book yield, earnings yield, fcf yield, sales yield etc)
+and so are very similar, thus it would be unfortunate to ignore information from other value strategies when analyzing, for example, book yield alpha.
+By fitting a hierarchical model, alpha estimates are first shrunk towards theme mean and then towards priors. In this setting, there is top layer represented
+by the population of all signal strategies under a theme (eg. the value theme alpha) and a second layer for the backtested strategies that fall under that theme,
+for which he have repeated observations.
+
+By using a hierarchical model, one can study both within-signal variability, examining how consistent the signal is across time, and between-signal variability,
+examining how performance patterns vary across different signals in a theme. Total variance is given by sum of within-signal variance and between-signal variance.
+
+Threfore, there are three layers for R_s,t (t-th observation of return of signal s):
+\itemize{
+\item{Signal-specific layer:}{R_s,t ~ N(alpha_s + beta_s * R_m,t, sigma_s^2). This represents how returns vary within strategy s}
+\item{Theme-specific layer:}{alpha_s ~ N(alpha_theme, sigma_a_theme^2); beta_s ~ N(beta_theme, sigma_b_theme^2).
+This represents how the typical alpha/beta vary across strategies in a theme}
+\item{Priors:}{alpha_theme, sigma_a_theme, beta_theme, sigma_b_theme, sigma_s. Global parameters shared between strategies.}
+}
+More specifically, signal-specific mean parameters are treated as deviations from global parameters (u_1, u_2 and u_sigma for alpha, beta and sigma respectively,
+with corresponding mean and standard deviations mu_u1, tau_u1,  mu_u2, tau_u2, mu_u_sigma and tau_u_sigma).
+If the user provide a \code{priors_m_df}, the function will, for each theme in respective column (that should match possible options in \code{signal_themes_m_df}):
+\itemize{
+\item{For each date, calculate the average and standard deviation of individual signals alphas/betas/sigmas. Based on these average values,
+a prior for overall alpha parameters will be chosen based on maximum likelihood}
+\item{For each date, calculate the differential of individual signals alpha/betas/sigmas from overall counterparts. For alpha, this means
+getting mu_u1 and tau_u1, mean and standard deviation of differentials of individual signals to overall mean.
+In particular, tau_u1 measures alpha variability between signals, the dispersion of differentials of individual signals from theme alpha.}
+\item{Use maximum likelihood to derive priors for each tau and also for correlation, according to \code{priors_type}}
+}
+
+For location parameters, priors are chosen between normal and t distributions, given the option that minimizes BIC. For scale parameters,
+other candidate distributions are cauchy, inverse-gamma and log-normal. For correlation, the LKJ distribution is used.
+
+By considering the hierarchical structure of the data, it is possible to borrow information across signals and, thus, hierarchical models are better at
+balancing bias and variance than estimates from complete pooling (high bias) or no pooling models (high variance).
+
+To speed up computation, Bayesian models are fitted in parallel using the \code{future} framework.
+}
+
+\section{Signal Engineering Benchmarks}{
+
+
+The process of generating a final signal (also known as Signal Engineering) incorporates two steps:
+\itemize{
+\item \strong{Signal Selection}: Selecting signals deemed significant based on a hypothesis testing zero-alpha null-hypothesis rejection criteria applied to associated signal portfolios returns in \code{backtest_returns_m_xts}.
+\item \strong{Signal Blending}: Blending selected signals into a final signal used to generate the final portfolio at the stock level.
+}
+
+The Signal Engineering Benchmarks (SE Benchmarks) evaluate the performance of both steps:
+\itemize{
+\item \strong{Signal Selection Benchmark}: Built using the universe of all signals in \code{chosen_signals}. It evaluates the performance of the signal selection process.
+\item \strong{Signal Blending Benchmark}: Built using only signals derived from the signal selection process. It evaluates the performance of the signal blending process.
+}
+
+Comparing predictive and return performance of the SS and SB Benchmarks provides insights into the effectiveness of the signal selection process. Additionally, comparing performance between the SB Benchmark and the final portfolio evaluates the performance of the signal blending process. SE Benchmarks are built based on themes; weights are first equally distributed among themes and then equally distributed among signals within each theme.
+}
+

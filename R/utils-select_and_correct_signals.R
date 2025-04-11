@@ -25,8 +25,6 @@
 #' }
 #'
 #' @seealso \code{\link{backtest_returns_df}}
-#' @importFrom dplyr select
-#' @importFrom stats setNames
 #' @export
 select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, signal_themes_m_df = NULL, backtest_returns_m_xts = NULL){
 

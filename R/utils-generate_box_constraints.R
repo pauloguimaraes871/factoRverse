@@ -23,8 +23,6 @@
 #' - `max_abs_active_sector_weight`: The maximum absolute sector active weight used for creating group constraints in `generate_sector_constraints`.
 #' If a given sector has no eligible stock, the one with the greatest signal will be automatically promoted.
 #' Note that, in the context of `generate_sector_constraints`, a `benchmark_weights_m_d_ref` data frame must also be supplied.
-#' @return
-#' @export
 #'
 generate_box_constraints <- function(universe_m_d_ref, liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy,
                                      verbose = TRUE){

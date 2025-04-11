@@ -31,13 +31,14 @@ the liquidity or volatility of the market.}
 \describe{
 \item{Numeric value}{If a single numeric value is provided, the exponent \code{lambda} is applied uniformly to all trades.}
 \item{\code{"dynamic"}}{If set to \code{"dynamic"}, then \code{lambda} is determined by \code{relative_order_size}:
-\itemize{
-\item \code{lambda = 1} when \code{relative_order_size} \eqn{\le 0.002}
-\item \code{lambda = 0.5} when \code{0.002 < relative_order_size \le 0.05}
-\item \code{lambda = 0.25} when \code{0.05 < relative_order_size \le 0.1}
-\item \code{lambda = 0.1} when \code{relative_order_size > 0.1}
-}
-}
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{  \eqn{\lambda = 1} when \eqn{\text{relative\_order\_size} \le 0.002} \\cr
+  \eqn{\lambda = 0.5} when \eqn{0.002 < \text{relative\_order\_size} \le 0.05} \\cr
+  \eqn{\lambda = 0.25} when \eqn{0.05 < \text{relative\_order\_size} \le 0.1} \\cr
+  \eqn{\lambda = 0.1} when \eqn{\text{relative\_order\_size} > 0.1}
+\}
+}\if{html}{\out{</div>}}
+
 }}
 
 \item{direct_transaction_cost}{A numeric value representing the direct (e.g., brokerage)

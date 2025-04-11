@@ -51,6 +51,7 @@ hyper_grid_domain_list <- list(
 create_expanded_hyper_grid_list(hyper_grid_domain_list, tuning_method = "random_search", n_iter = 100)
 }
 
+
 }
 \seealso{
 Use with functions that require hyperparameter tuning such as 'train' or 'caret'.

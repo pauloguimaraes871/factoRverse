@@ -4,7 +4,7 @@
 \alias{prep.step_impute_sector}
 \title{Prepare method for step_impute_sector}
 \usage{
-\method{prep}{step_impute_sector}(x, training, info = NULL, ...)
+prep.step_impute_sector(x, training, info = NULL, ...)
 }
 \description{
 Prepare method for step_impute_sector

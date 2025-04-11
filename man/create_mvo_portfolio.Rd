@@ -49,6 +49,10 @@ Stocks that are less liquid than specified for a buffer zone and have a signal h
 \item{groups_m_d_ref}{A data frame containing columns for id, tickers, dates, and group classification columns following a given classification method.
 All tickers in the current stock universe must have a unique correspondence in the data frame.}
 
+\item{n_random_ports}{An integer indicating the number of random portfolios to be generated.}
+
+\item{random_ports_method}{A character indicating the method to be used for generating random portfolios. Possible values are "random" or "grid".}
+
 \item{opt_objective}{A character describing the objective to maximize in order to choose the best portfolio. One of "return (max return)",
 "risk (min risk)" or "sharpe (max sharpe-ratio)"}
 

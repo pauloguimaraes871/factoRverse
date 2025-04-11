@@ -7,10 +7,7 @@
 #' @param lower_quantile_winsorization lower quantile to winsorize cap_weighting_metric
 #' @param upper_quantile_winsorization upper quantile to winsorize cap_weighting_metric
 #'
-#' @return
-#' @export
 #'
-#' @examples
 create_cap_weighted_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, cap_weighting_metric, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
                                           verbose = TRUE){
 

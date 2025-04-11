@@ -4,7 +4,7 @@
 \alias{bake.step_winsorize}
 \title{Apply winsorization during baking}
 \usage{
-\method{bake}{step_winsorize}(object, new_data, ...)
+bake.step_winsorize(object, new_data, ...)
 }
 \description{
 Apply winsorization during baking

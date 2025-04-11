@@ -4,7 +4,7 @@
 \alias{prep.step_winsorize}
 \title{Prepare method for step_winsorize}
 \usage{
-\method{prep}{step_winsorize}(x, training, info = NULL, ...)
+prep.step_winsorize(x, training, info = NULL, ...)
 }
 \description{
 Prepare method for step_winsorize

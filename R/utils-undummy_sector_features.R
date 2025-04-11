@@ -4,9 +4,6 @@
 #'
 #' @param sectors_m_df A dataframe with id, tickers and dates with dummy sectors classifications to be used to fill NAs
 #'
-#' @return
-#'
-#' @examples
 undummy_sector_features <- function(sectors_m_df){
   ##Get original sector_vector
   ###Define sector names (excluding the id, tickers and dates column)

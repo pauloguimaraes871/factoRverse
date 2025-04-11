@@ -22,7 +22,6 @@
 #'
 #' @return A time-wise preprocessed \code{meta_dataframe}.
 #'
-#' @importFrom recipes prep bake tidy
 #' @export
 setGeneric("map_recipe_timewise", function(meta_dataframe, recipe, ...) {
   standardGeneric("map_recipe_timewise")
@@ -34,16 +33,16 @@ setMethod("map_recipe_timewise",
 
             #Initial steps
             #################
-             ##Extract objs
-              meta_dataframe_current_date <- meta_dataframe@current_date
-              meta_dataframe_workflow <- meta_dataframe@workflow
-              meta_dataframe_name <- meta_dataframe@meta_dataframe_name
-              pre_silver_features_m_df <- meta_dataframe@data
+            ##Extract objs
+            meta_dataframe_current_date <- meta_dataframe@current_date
+            meta_dataframe_workflow <- meta_dataframe@workflow
+            meta_dataframe_name <- meta_dataframe@meta_dataframe_name
+            pre_silver_features_m_df <- meta_dataframe@data
 
-             ##Check that id, tickers, and dates are present with role "id_vars"
-             var_info <- recipe$term_info
-             required_id_vars <- c("id", "tickers", "dates")
-             for (var in required_id_vars) {
+            ##Check that id, tickers, and dates are present with role "id_vars"
+            var_info <- recipe$term_info
+            required_id_vars <- c("id", "tickers", "dates")
+            for (var in required_id_vars) {
                if (!(var %in% var_info$variable))
                  stop(paste("Required variable", var, "is not present in the recipe."))
                role <- var_info$role[var_info$variable == var]
