@@ -616,257 +616,274 @@ derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, ba
 #'
 consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb_name, base_sb_names) {
 
-  ##Get all names
-  if (!is.null(meta_sb_name)){
-    all_sb_names <- c(base_sb_names, meta_sb_name)
-  } else {
-    all_sb_names <- base_sb_names
-  }
-
-  ##Identify which backtests have validation
-  sb_names_with_validation <- ifelse(
-    !sapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$sb_algorithm) %in%
-      c("ols", "ew", "sw", "rp", "mvo"),
-    1, 0
-  )
-  sb_names_with_validation <- all_sb_names[sb_names_with_validation == 1]
-
-  ##Determine the common testing dates
-  common_testing_dates_range <- as.Date(
-    Reduce(
-      intersect,
-      lapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$dates_testing_sample)
-    )
-  )
-
-  ##Initialize lists and data frames
-  oos_metrics_list <- list()
-  oos_metrics_common_dates_list <- list()
-  validation_metrics_list <- list()
-  all_oos_metrics_long_df <- data.frame()
-  all_validation_metrics_long_df <- data.frame()
-  oos_metric_names <- NULL
-  validation_metric_names <- NULL
-
-  ##Loop through all sb_backtest_results
-  for (i in seq_along(all_sb_backtest_results)) {
-    sb_backtest_result <- all_sb_backtest_results[[i]]
-    sb_name <- all_sb_names[i]
-
-    ###Out-of-sample testing eval metrics
-    oos_metrics_time_series <- sb_backtest_result@oos_testing_eval_metrics_m_xts@data %>%
-      as.data.frame()
-    oos_metrics_time_series$dates <- zoo::index(sb_backtest_result@oos_testing_eval_metrics_m_xts@data) %>%
-      as.Date()
-    oos_metrics_time_series$sb_backtest <- sb_name
-
-    ###Reshape to long format
-    oos_metrics_long <- tidyr::pivot_longer(
-      data = oos_metrics_time_series,
-      cols = -c(dates, sb_backtest),
-      names_to = "Metric",
-      values_to = "Value"
-    ) %>% as.data.frame()
-    all_oos_metrics_long_df <- rbind(all_oos_metrics_long_df, oos_metrics_long)
-
-    ###Get consolidated OOS metrics
-    oos_metrics <- sb_backtest_result@consolidated_eval_metrics %>%
-      dplyr::select(metric, cons_oos)
-
-    ###Subset for common testing dates
-    oos_metrics_common_dates <- oos_metrics_time_series[
-      which(rownames(oos_metrics_time_series) %in% common_testing_dates_range),
-      , drop = FALSE]
-
-    ###Build full-sample metrics data frame with testing_dates_range
-    oos_metrics_df <- cbind(
-      data.frame(
-        sb_backtest = sb_name,
-        testing_dates_range = paste0(
-          min(as.Date(sb_backtest_result@sb_backtest_workflow[[length(sb_backtest_result@sb_backtest_workflow)]]$dates_testing_sample)),
-          "-",
-          max(as.Date(sb_backtest_result@sb_backtest_workflow[[length(sb_backtest_result@sb_backtest_workflow)]]$dates_testing_sample))
-        ),
-        check.names = FALSE,
-        stringsAsFactors = FALSE
-      ),
-      as.data.frame(oos_metrics)
-    )
-
-    ###Build common-date metrics data frame with testing_dates_range
-    oos_metrics_common_dates_df <- cbind(
-      data.frame(
-        sb_backtest = sb_name,
-        testing_dates_range = paste0(
-          min(as.Date(common_testing_dates_range)),
-          "-",
-          max(as.Date(common_testing_dates_range))
-        ),
-        check.names = FALSE,
-        stringsAsFactors = FALSE
-      ),
-      oos_metrics_common_dates %>%
-        dplyr::select(-sb_backtest, -dates) %>%
-        colMeans() %>% #Calculate mean of oos testing dates
-        as.data.frame() %>%
-        t()
-    )
-
-    ###Eliminate rownames
-    rownames(oos_metrics_df) <- NULL
-    rownames(oos_metrics_common_dates_df) <- NULL
-    oos_metric_names <- unique(c(oos_metric_names, names(oos_metrics_df)))
-
-    oos_metrics_list[[i]] <- oos_metrics_df
-    oos_metrics_common_dates_list[[i]] <- oos_metrics_common_dates_df
-
-    ###Validation metrics (if available)
-    validation_metrics <- if (!is.null(sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts)) {
-      sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data
+  #Initial prep
+  ##################
+    ##Get all names
+    if (!is.null(meta_sb_name)){
+      all_sb_names <- c(base_sb_names, meta_sb_name)
     } else {
-      NULL
+      all_sb_names <- base_sb_names
     }
 
-    ###For those that have validation
-    if (!is.null(validation_metrics) && nrow(validation_metrics) > 0) {
-      validation_metrics_time_series <- validation_metrics %>% as.data.frame()
-      validation_metrics_time_series$dates <- zoo::index(
-        sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data
-      ) %>% as.Date()
-      validation_metrics_time_series$sb_backtest <- sb_name
+    ##Identify which backtests have validation
+    sb_names_with_validation <- ifelse(
+      !sapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$sb_algorithm) %in%
+        c("ols", "ew", "sw", "rp", "mvo"),
+      1, 0
+    )
+    sb_names_with_validation <- all_sb_names[sb_names_with_validation == 1]
 
-      ###Reshape to long format for validation
-      validation_metrics_long <- tidyr::pivot_longer(
-        data = validation_metrics_time_series,
+    ##Determine the common testing dates
+    common_testing_dates_range <- as.Date(
+      Reduce(
+        intersect,
+        lapply(all_sb_backtest_results, function(x) sort(unique(x@oos_sb_outputs_m_df@data$dates)))
+      )
+    )
+
+    ##Initialize lists and data frames
+    oos_metrics_list <- list()
+    oos_metrics_common_dates_list <- list()
+    validation_metrics_list <- list()
+    all_oos_metrics_long_df <- data.frame()
+    all_validation_metrics_long_df <- data.frame()
+    oos_metric_names <- NULL
+    validation_metric_names <- NULL
+
+  ##################
+
+  #Get time series of validation and oos metrics and build: all_dates_oos_testing_metrics, common_dates_oos_testing_metrics and mean_validation_metrics
+  ###################
+    ##Loop through all sb_backtest_results
+    for (i in seq_along(all_sb_backtest_results)) {
+
+      sb_backtest_result <- all_sb_backtest_results[[i]]
+      sb_name <- all_sb_names[i]
+
+      ###Out-of-sample testing eval metrics
+      if (!is.null(sb_backtest_result@oos_testing_eval_metrics_m_xts)){
+      oos_metrics_time_series <- sb_backtest_result@oos_testing_eval_metrics_m_xts@data %>%
+        as.data.frame()
+      oos_metrics_time_series$dates <- zoo::index(sb_backtest_result@oos_testing_eval_metrics_m_xts@data) %>%
+        as.Date()
+      oos_metrics_time_series$sb_backtest <- sb_name
+
+
+      ###Reshape to long format
+      oos_metrics_long <- tidyr::pivot_longer(
+        data = oos_metrics_time_series,
         cols = -c(dates, sb_backtest),
         names_to = "Metric",
         values_to = "Value"
       ) %>% as.data.frame()
-      all_validation_metrics_long_df <- rbind(all_validation_metrics_long_df, validation_metrics_long)
+      all_oos_metrics_long_df <- rbind(all_oos_metrics_long_df, oos_metrics_long)
 
-      ###Average consolidated validation metrics
-      validation_metrics_average <- sb_backtest_result@consolidated_eval_metrics %>%
-        dplyr::select(metric, avg_val)
+      ###Get consolidated OOS metrics
+      oos_metrics <- sb_backtest_result@consolidated_eval_metrics %>%
+        dplyr::select(metric, cons_oos)
 
-      validation_metrics_df <- cbind(
+      ###Subset for common testing dates
+      oos_metrics_common_dates <- oos_metrics_time_series[
+        which(rownames(oos_metrics_time_series) %in% common_testing_dates_range),
+        , drop = FALSE]
+
+      ###Build full-sample metrics data frame with testing_dates_range
+      oos_metrics_df <- cbind(
         data.frame(
           sb_backtest = sb_name,
+          testing_dates_range = paste0(
+            min(as.Date(sb_backtest_result@oos_sb_outputs_m_df@data$dates)),
+            "-",
+            max(as.Date(sb_backtest_result@oos_sb_outputs_m_df@data$dates))
+          ),
           check.names = FALSE,
           stringsAsFactors = FALSE
         ),
-        as.data.frame(validation_metrics_average)
+        as.data.frame(oos_metrics)
       )
 
-      ###Remove rownames and add
-      rownames(validation_metrics_df) <- NULL
-      validation_metric_names <- unique(c(validation_metric_names, names(validation_metrics_df)))
-      validation_metrics_list[[i]] <- validation_metrics_df
+      ###Build common-date metrics data frame with testing_dates_range
+      oos_metrics_common_dates_df <- cbind(
+        data.frame(
+          sb_backtest = sb_name,
+          testing_dates_range = paste0(
+            min(as.Date(common_testing_dates_range)),
+            "-",
+            max(as.Date(common_testing_dates_range))
+          ),
+          check.names = FALSE,
+          stringsAsFactors = FALSE
+        ),
+        oos_metrics_common_dates %>%
+          dplyr::select(-sb_backtest, -dates) %>%
+          colMeans() %>% #Calculate mean of oos testing dates
+          as.data.frame() %>%
+          t()
+      )
+
+      ###Eliminate rownames
+      rownames(oos_metrics_df) <- NULL
+      rownames(oos_metrics_common_dates_df) <- NULL
+      oos_metric_names <- unique(c(oos_metric_names, names(oos_metrics_df)))
+
+      oos_metrics_list[[i]] <- oos_metrics_df
+      oos_metrics_common_dates_list[[i]] <- oos_metrics_common_dates_df
+      }
+
+      ###Validation metrics (if available)
+      validation_metrics <- if (!is.null(sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts)) {
+        sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data
+      } else {
+        NULL
+      }
+
+      ###For those that have validation
+      if (!is.null(validation_metrics) && nrow(validation_metrics) > 0) {
+        validation_metrics_time_series <- validation_metrics %>% as.data.frame()
+        validation_metrics_time_series$dates <- zoo::index(
+          sb_backtest_result@validation_eval_metrics_hyper_choice_m_xts@data
+        ) %>% as.Date()
+        validation_metrics_time_series$sb_backtest <- sb_name
+
+        ###Reshape to long format for validation
+        validation_metrics_long <- tidyr::pivot_longer(
+          data = validation_metrics_time_series,
+          cols = -c(dates, sb_backtest),
+          names_to = "Metric",
+          values_to = "Value"
+        ) %>% as.data.frame()
+        all_validation_metrics_long_df <- rbind(all_validation_metrics_long_df, validation_metrics_long)
+
+        ###Average consolidated validation metrics
+        validation_metrics_average <- sb_backtest_result@consolidated_eval_metrics %>%
+          dplyr::select(metric, avg_val)
+
+        validation_metrics_df <- cbind(
+          data.frame(
+            sb_backtest = sb_name,
+            check.names = FALSE,
+            stringsAsFactors = FALSE
+          ),
+          as.data.frame(validation_metrics_average)
+        )
+
+        ###Remove rownames and add
+        rownames(validation_metrics_df) <- NULL
+        validation_metric_names <- unique(c(validation_metric_names, names(validation_metrics_df)))
+        validation_metrics_list[[i]] <- validation_metrics_df
+      }
     }
-  }
 
-  ##Combine consolidated metrics
-  all_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_list)
-  common_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_common_dates_list)
-  mean_validation_metrics <- do.call(rbind, validation_metrics_list)
+    ##Combine consolidated metrics
+    all_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_list)
+    common_dates_oos_testing_metrics <- do.call(rbind, oos_metrics_common_dates_list)
+    mean_validation_metrics <- do.call(rbind, validation_metrics_list)
 
-  rownames(all_dates_oos_testing_metrics) <- NULL
-  rownames(common_dates_oos_testing_metrics) <- NULL
-  rownames(mean_validation_metrics) <- NULL
+    rownames(all_dates_oos_testing_metrics) <- NULL
+    rownames(common_dates_oos_testing_metrics) <- NULL
+    rownames(mean_validation_metrics) <- NULL
 
-  all_dates_oos_testing_metrics[is.nan(as.matrix(all_dates_oos_testing_metrics))] <- NA
-  common_dates_oos_testing_metrics[is.nan(as.matrix(common_dates_oos_testing_metrics))] <- NA
+    all_dates_oos_testing_metrics[is.nan(as.matrix(all_dates_oos_testing_metrics))] <- NA
+    common_dates_oos_testing_metrics[is.nan(as.matrix(common_dates_oos_testing_metrics))] <- NA
 
-  ##Convert numeric columns
-  num_cols_oos <- sapply(all_dates_oos_testing_metrics, is.numeric)
-  all_dates_oos_testing_metrics[, num_cols_oos] <- sapply(all_dates_oos_testing_metrics[, num_cols_oos], as.numeric)
+    ##Convert numeric columns
+    num_cols_oos <- sapply(all_dates_oos_testing_metrics, is.numeric)
+    all_dates_oos_testing_metrics[, num_cols_oos] <- sapply(all_dates_oos_testing_metrics[, num_cols_oos], as.numeric)
 
-  num_cols_common <- sapply(common_dates_oos_testing_metrics, is.numeric)
-  common_dates_oos_testing_metrics[, num_cols_common] <- sapply(common_dates_oos_testing_metrics[, num_cols_common], as.numeric)
+    num_cols_common <- sapply(common_dates_oos_testing_metrics, is.numeric)
+    common_dates_oos_testing_metrics[, num_cols_common] <- sapply(common_dates_oos_testing_metrics[, num_cols_common], as.numeric)
 
-  #Do the same for validation metrics
-  if (!is.null(mean_validation_metrics)){
-  mean_validation_metrics[is.nan(as.matrix(mean_validation_metrics))] <- NA
-    ##Convert numeric cols
-    num_cols_val <- sapply(mean_validation_metrics, is.numeric)
-    mean_validation_metrics[, num_cols_val] <- sapply(mean_validation_metrics[, num_cols_val], as.numeric)
-  }
-
-  ##Create time series objects for OOS
-  time_series_oos_testing_metrics <- list()
-  time_series_metric_names <- unique(all_oos_metrics_long_df$Metric)
-
-  for (metric in time_series_metric_names) {
-    metric_df <- subset(all_oos_metrics_long_df, Metric == metric)
-    metric_wide_df <- tidyr::pivot_wider(
-      data = metric_df,
-      id_cols = dates,
-      names_from = sb_backtest,
-      values_from = Value
-    ) %>% as.data.frame()
-
-    metric_wide_df <- metric_wide_df[order(as.Date(metric_wide_df$dates)), ]
-    metric_dates <- as.Date(metric_wide_df$dates)
-
-    metric_wide_xts <- xts::xts(
-      x = metric_wide_df %>% dplyr::select(-dates),
-      order.by = metric_dates
-    )
-
-    #Define name depending on meta_sb_name
-    if (!is.null(meta_sb_name)){
-      meta_xts_name <- paste0("testing_", meta_sb_name, "_", metric)
-    } else {
-      meta_xts_name <- paste0("testing_", metric)
+    #Do the same for validation metrics
+    if (!is.null(mean_validation_metrics)){
+    mean_validation_metrics[is.nan(as.matrix(mean_validation_metrics))] <- NA
+      ##Convert numeric cols
+      num_cols_val <- sapply(mean_validation_metrics, is.numeric)
+      mean_validation_metrics[, num_cols_val] <- sapply(mean_validation_metrics[, num_cols_val], as.numeric)
     }
 
-    time_series_oos_testing_metrics[[metric]] <- create_meta_xts(
-      metric_wide_xts,
-      type = "metrics",
-      meta_xts_name = meta_xts_name,
-      metric_name = metric,
-      source = all_sb_names
-    )
-  }
+  ###################
 
-  ##Create time series objects for validation
-  time_series_validation_metrics <- list()
-  if (nrow(all_validation_metrics_long_df) > 0) {
-    validation_time_series_metric_names <- unique(all_validation_metrics_long_df$Metric)
+  #Create time series objects for OOS (all time series of oos testing metrics)
+  ###################
+    ##Init obj
+    time_series_oos_testing_metrics <- list()
+    time_series_metric_names <- unique(all_oos_metrics_long_df$Metric)
 
-    for (metric in validation_time_series_metric_names) {
-      metric_df <- subset(all_validation_metrics_long_df, Metric == metric)
-      val_wide_df <- tidyr::pivot_wider(
+    ##Loop through each metric
+    for (metric in time_series_metric_names) {
+      ###Create time series object for each metric
+      metric_df <- subset(all_oos_metrics_long_df, Metric == metric)
+      metric_wide_df <- tidyr::pivot_wider(
         data = metric_df,
         id_cols = dates,
         names_from = sb_backtest,
         values_from = Value
       ) %>% as.data.frame()
 
-      val_wide_df <- val_wide_df[order(as.Date(val_wide_df$dates)), ]
-      val_dates <- as.Date(val_wide_df$dates)
+      metric_wide_df <- metric_wide_df[order(as.Date(metric_wide_df$dates)), ]
+      metric_dates <- as.Date(metric_wide_df$dates)
 
-      val_wide_xts <- xts::xts(
-        x = val_wide_df %>% dplyr::select(-dates),
-        order.by = val_dates
+      metric_wide_xts <- xts::xts(
+        x = metric_wide_df %>% dplyr::select(-dates),
+        order.by = metric_dates
       )
 
-      #Define name depending on meta_sb_name
+      ###Define name depending on meta_sb_name
       if (!is.null(meta_sb_name)){
-        meta_xts_name <- paste0("val_", meta_sb_name, "_", metric)
+        meta_xts_name <- paste0("testing_", meta_sb_name, "_", metric)
       } else {
-        meta_xts_name <- paste0("val_", metric)
+        meta_xts_name <- paste0("testing_", metric)
       }
 
-
-      time_series_validation_metrics[[metric]] <- create_meta_xts(
-        val_wide_xts,
+      time_series_oos_testing_metrics[[metric]] <- create_meta_xts(
+        metric_wide_xts,
         type = "metrics",
         meta_xts_name = meta_xts_name,
         metric_name = metric,
-        source = sb_names_with_validation
+        source = colnames(metric_wide_xts)
       )
     }
-  }
+
+    ##Create time series objects for validation
+    time_series_validation_metrics <- list()
+    if (nrow(all_validation_metrics_long_df) > 0) {
+      validation_time_series_metric_names <- unique(all_validation_metrics_long_df$Metric)
+
+      for (metric in validation_time_series_metric_names) {
+        metric_df <- subset(all_validation_metrics_long_df, Metric == metric)
+        val_wide_df <- tidyr::pivot_wider(
+          data = metric_df,
+          id_cols = dates,
+          names_from = sb_backtest,
+          values_from = Value
+        ) %>% as.data.frame()
+
+        val_wide_df <- val_wide_df[order(as.Date(val_wide_df$dates)), ]
+        val_dates <- as.Date(val_wide_df$dates)
+
+        val_wide_xts <- xts::xts(
+          x = val_wide_df %>% dplyr::select(-dates),
+          order.by = val_dates
+        )
+
+        #Define name depending on meta_sb_name
+        if (!is.null(meta_sb_name)){
+          meta_xts_name <- paste0("val_", meta_sb_name, "_", metric)
+        } else {
+          meta_xts_name <- paste0("val_", metric)
+        }
+
+
+        time_series_validation_metrics[[metric]] <- create_meta_xts(
+          val_wide_xts,
+          type = "metrics",
+          meta_xts_name = meta_xts_name,
+          metric_name = metric,
+          source = sb_names_with_validation
+        )
+      }
+    }
+  ###################
 
   # Return all objects needed for the final sb_metabacktest_results
   return(list(
