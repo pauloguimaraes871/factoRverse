@@ -89,24 +89,26 @@ setMethod("explain_prediction",
 
             ##Get Objects
             ##############
-            sb_backtest_workflow <- sb_backtest_results@meta_sb_backtest_results@sb_backtest_workflow
+            meta_sb_backtest_workflow <- sb_backtest_results@meta_sb_backtest_results@sb_backtest_workflow
+            meta_sb_backtest_workflow <- meta_sb_backtest_workflow[[length(meta_sb_backtest_workflow)]]
             oos_sb_outputs_m_df <- sb_backtest_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data
-            gsm_algorithm <- sb_backtest_workflow$gsm_algorithm
+            gsm_algorithm <- meta_sb_backtest_workflow$gsm_algorithm
             features_obj_name <- features_m_df@meta_dataframe_name
             features_m_df <- features_m_df@data
             ##Extract identifiers
             base_identifiers <- sapply(sb_backtest_results@base_sb_backtest_results_list, function(x) x@backtest_identifier)
-            base_features <- sapply(sb_backtest_results@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$features) %>% unique()
+            base_features <- sapply(sb_backtest_results@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$features) %>% unique()
 
 
             #Initial Checks
             ##############
-            base_learners_features_object_name <- sapply(sb_backtest_results@base_sb_backtest_results_list, function(x) x@sb_backtest_workflow$features_object_name)
+            base_learners_features_object_name <- sapply(sb_backtest_results@base_sb_backtest_results_list,
+                                                         function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$features_object_name)
             ##Check if features_m_df is the one used in the base backtest
             if(any(base_learners_features_object_name != features_obj_name)){
               stop("The features_m_df object used in base backtests is different from the one provided. Please provide the correct features_m_df object.")
             }
-            if(any(!setdiff(sb_backtest_results@meta_sb_backtest_results@sb_backtest_workflow$features, base_identifiers) %in% colnames(features_m_df))){
+            if(any(!setdiff(meta_sb_backtest_workflow$features, base_identifiers) %in% colnames(features_m_df))){
               stop("The features_m_df object provided does not contain the features used in meta-learner backtest. Please provide the correct features_m_df object.")
             }
             if(any(!base_features %in% colnames(features_m_df))){
@@ -155,7 +157,7 @@ setMethod("explain_prediction",
             )
 
             # Step 4: Call the existing function
-            explain_prediction_inner(sb_backtest_workflow = sb_backtest_workflow, oos_sb_outputs_m_df = oos_sb_outputs_m_df,
+            explain_prediction_inner(sb_backtest_workflow = meta_sb_backtest_workflow, oos_sb_outputs_m_df = oos_sb_outputs_m_df,
                                      feature_importance_m_df = meta_feature_importance_decomposed_consolidated_m_df, gsm_algorithm = gsm_algorithm,
                                      features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
 

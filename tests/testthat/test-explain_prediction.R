@@ -148,7 +148,6 @@ test_that("explain_prediction works for a meta_sb_backtest_results object", {
 
   meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_configs = list(rf_config, glmnet_config),
                                   features_passthrough = c("asset_turnover_12m", "book_yield", "dps_yield"),
                                   config_name = "meta_rf_glmnet")
 
@@ -157,6 +156,7 @@ test_that("explain_prediction works for a meta_sb_backtest_results object", {
     sb_metabacktest_results <- run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
+      base_sb_backtest_results_list = list(rf_results, glmnet_results),
       config = meta_config,
       parallel = FALSE,
       verbose = TRUE
