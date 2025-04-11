@@ -1876,7 +1876,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
 
 
   #First Predictions
-  for(i in 1:length(dates_first_prediction)){
+  for(i in seq_along(dates_first_prediction)){
 
     #Subset for each date
     features_first_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_first_prediction[i]),]
@@ -2247,7 +2247,7 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
 
 
   #First Predictions
-  for(i in 1:length(dates_first_prediction)){
+  for(i in seq_along(dates_first_prediction)){
 
     #Subset for each date
     features_first_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_first_prediction[i]),]
@@ -2342,7 +2342,7 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
 
 
 
-  for(i in 1:length(dates_second_prediction)){
+  for(i in seq_along(dates_second_prediction)){
 
     #Subset for each date
     features_second_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_second_prediction[i]),]
@@ -2529,7 +2529,7 @@ test_that("EW - run_sb_backtest works with toy_preprocessed_features_and_targets
 
 
   #First Predictions
-  for(i in 1:length(dates_first_prediction)){
+  for(i in seq_along(dates_first_prediction)){
 
     #Subset for each date
     features_first_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_first_prediction[i]),]
@@ -2616,7 +2616,7 @@ test_that("EW - run_sb_backtest works with toy_preprocessed_features_and_targets
 
 
 
-  for(i in 1:length(dates_second_prediction)){
+  for(i in seq_along(dates_second_prediction)){
 
     #Subset for each date
     features_second_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_second_prediction[i]),]
@@ -2891,7 +2891,7 @@ test_that("RP - run_sb_backtest works in full integration with run_port_backtest
 
 
   #First Predictions
-  for(i in 1:length(dates_first_prediction)){
+  for(i in seq_along(dates_first_prediction)){
 
     #Subset for each date
     features_first_prediction <-  selected_signals_m_df[which(selected_signals_m_df$dates %in% dates_first_prediction[i]),]
@@ -2982,7 +2982,7 @@ test_that("RP - run_sb_backtest works in full integration with run_port_backtest
   hr_oos_second_prediction <- vector(length = length(dates_second_prediction))
   mb_oos_second_prediction <- vector(length = length(dates_second_prediction))
 
-  for(i in 1:length(dates_second_prediction)){
+  for(i in seq_along(dates_second_prediction)){
 
     #Subset for each date
     features_second_prediction <-  selected_signals_m_df[which(selected_signals_m_df$dates %in% dates_second_prediction[i]),]
@@ -3331,7 +3331,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
 
   #First Predictions
-  for(i in 1:length(dates_first_prediction)){
+  for(i in seq_along(dates_first_prediction)){
 
     #Subset for each date
     features_first_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_first_prediction[i]),]
@@ -3455,7 +3455,7 @@ test_that("MVO - run_sb_backtest works with toy_preprocessed_features_and_target
 
 
 
-  for(i in 1:length(dates_second_prediction)){
+  for(i in seq_along(dates_second_prediction)){
 
     #Subset for each date
     features_second_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_second_prediction[i]),]
@@ -3826,7 +3826,7 @@ test_that("GLMNET - run_sb_backtest works with no rebalancing, 1m target, grid_s
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
   best_lam <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -4204,7 +4204,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
   best_lam1 <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -4341,7 +4341,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 1m target, 
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
   best_lam2 <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -4700,7 +4700,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
   best_lam1 <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -4841,7 +4841,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
   best_lam2 <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -5881,7 +5881,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, grid_sear
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
   best_lam2 <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -6262,7 +6262,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
   best_lam1 <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -6400,7 +6400,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
   best_lam2 <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -6777,7 +6777,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
   best_lam1 <- vector(length =  nrow(hyper_expanded_grid))
 
-  for(s in 1:length(hyper_expanded_grid$alpha)){
+  for(s in seq_along(hyper_expanded_grid$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_training[,-c(1:3)],
@@ -7093,7 +7093,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing at final, 3m target, 
   ),
   order.by = as.Date(c("2001-09-15", "2001-10-15", "2001-11-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -7229,7 +7229,7 @@ test_that("GLMNET - run_sb_backtest works with NAs in last target_fwd periods of
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[1]])
   best_lam1 <- vector(length =  nrow(hyper_expanded_grid1))
 
-  for(s in 1:length(hyper_expanded_grid1$alpha)){
+  for(s in seq_along(hyper_expanded_grid1$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_first_train[,-c(1:3)],
@@ -7357,7 +7357,7 @@ test_that("GLMNET - run_sb_backtest works with NAs in last target_fwd periods of
   colnames(shrinkage.pred_df) <- rownames(chosen_eval_metric_val[[2]])
   best_lam2 <- vector(length =  nrow(hyper_expanded_grid2))
 
-  for(s in 1:length(hyper_expanded_grid2$alpha)){
+  for(s in seq_along(hyper_expanded_grid2$alpha)){
     #Train Model
     glm.mod1 <- glmnet::glmnet(
       x = features_second_train[,-c(1:3)],
@@ -7509,7 +7509,7 @@ test_that("GLMNET - run_sb_backtest works with NAs in last target_fwd periods of
                                                   mae = c(NA,NA,NA,NA)),
                                        order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -7651,7 +7651,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
 
   #Use foreach to simulate result of parallelized hyper tuning
   first_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid)), .options.future = list(seed = TRUE)) %dofuture% {
       #Train Model
       rf.mod1 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_first_train),
                                 mtry = hyper_expanded_grid$mtry[s] * (ncol(full_data_first_train) - 1),
@@ -7794,7 +7794,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
   set.seed(123)
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid)), .options.future = list(seed = TRUE)) %dofuture% {
       #Train Model
       rf.mod2 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_second_train),
                                 mtry = hyper_expanded_grid$mtry[s] * (ncol(full_data_second_train) - 1),
@@ -7977,7 +7977,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, gr
                                          mae = c(NA,NA,NA,NA)),
                                        order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -8110,7 +8110,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
 
   #Use foreach to simulate result of parallelized hyper tuning
   first_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid)), .options.future = list(seed = TRUE)) %dofuture% {
 
       #Create xgb.DMatrix object
       full_data_xgb_first_train <- xgboost::xgb.DMatrix(data = as.matrix(features_first_train[,-c(1:3)]),
@@ -8283,7 +8283,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
   set.seed(123)
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid)), .options.future = list(seed = TRUE)) %dofuture% {
 
       #Create xgb.DMatrix object
       full_data_xgb_second_train <- xgboost::xgb.DMatrix(data = as.matrix(features_second_train[,-c(1:3)]),
@@ -8479,7 +8479,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
                                          mae = c(NA,NA,NA,NA)),
                                        order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -8630,7 +8630,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   #Use foreach to simulate result of parallelized hyper tuning
   suppressWarnings(
   first_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid)), .options.future = list(seed = TRUE)) %dofuture% {
 
       model_nn_1 <- keras::keras_model_sequential()
       model_nn_1 %>%
@@ -8826,7 +8826,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
   tensorflow::set_random_seed(100)
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid)), .options.future = list(seed = TRUE)) %dofuture% {
 
       model_nn_2 <- keras::keras_model_sequential()
       model_nn_2 %>%
@@ -9070,7 +9070,7 @@ test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebal
                                          mae = c(NA,NA,NA,NA)),
                                        order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -9312,7 +9312,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
 
   #Use foreach to simulate result of parallelized hyper tuning
   first_rebal <- suppressWarnings({
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid)), .options.future = list(seed = TRUE)) %dofuture% {
       #Train Model
       rf.mod1 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_first_train),
                                 mtry = hyper_expanded_grid$mtry[s] * (ncol(full_data_first_train) - 1),
@@ -9446,7 +9446,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
   set.seed(123)
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <- suppressWarnings({
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid)), .options.future = list(seed = TRUE)) %dofuture% {
       #Train Model
       rf.mod2 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_second_train),
                                 mtry = hyper_expanded_grid$mtry[s] * (ncol(full_data_second_train) - 1),
@@ -9622,7 +9622,7 @@ test_that("RF (Sequential - Parallel = TRUE) - run_sb_backtest works with rebala
                                          rmse = c(NA,NA,NA,NA),
                                          mae = c(NA,NA,NA,NA)), order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -9763,7 +9763,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
 
   #Use foreach to simulate result of parallelized hyper tuning
   first_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid1), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid1)), .options.future = list(seed = TRUE)) %dofuture% {
       #Train Model
       rf.mod1 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_first_train),
                                 mtry = hyper_expanded_grid1$mtry[s] * (ncol(full_data_first_train) - 1),
@@ -9934,7 +9934,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
 
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid2), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid2)), .options.future = list(seed = TRUE)) %dofuture% {
       #Train Model
       rf.mod2 <- ranger::ranger(fwd_premium_3m~., data = janitor::clean_names(full_data_second_train),
                                 mtry = hyper_expanded_grid2$mtry[s] * (ncol(full_data_second_train) - 1),
@@ -10096,7 +10096,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ra
                                          mpe = c(NA,NA,NA,NA)),
                                          order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -10244,7 +10244,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 
   #Use foreach to simulate result of parallelized hyper tuning
   first_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid1), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid1)), .options.future = list(seed = TRUE)) %dofuture% {
 
       #Create xgb.DMatrix object
       full_data_xgb_first_train <- xgboost::xgb.DMatrix(data = as.matrix(features_first_train[,-c(1:3)]),
@@ -10437,7 +10437,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 
   #Use foreach to simulate result of parallelized hyper tuning
   second_rebal <-
-    foreach::foreach(s = 1:nrow(hyper_expanded_grid2), .options.future = list(seed = TRUE)) %dofuture% {
+    foreach::foreach(s = seq_len(nrow(hyper_expanded_grid2)), .options.future = list(seed = TRUE)) %dofuture% {
 
       #Create xgb.DMatrix object
       full_data_xgb_second_train <- xgboost::xgb.DMatrix(data = as.matrix(features_second_train[,-c(1:3)]),
@@ -10637,7 +10637,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
                                         rmse = c(NA,NA,NA,NA),
                                         mae = c(NA,NA,NA,NA)), order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -11139,7 +11139,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
     rmse = c(NA,NA,NA,NA),
     mae = c(NA,NA,NA,NA)), order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -11736,7 +11736,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
                                        order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
   )
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -12301,7 +12301,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
                                          rmse = c(NA,NA,NA,NA),
                                          mae = c(NA,NA,NA,NA)), order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -12912,7 +12912,7 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
                                          mae = c(NA,NA,NA,NA)),
                                        order.by = as.Date(c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15")))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -13527,7 +13527,7 @@ test_that("Skipped: NN (Parallel = TRUE) - run_sb_backtest works with rebalancin
                                          rmse = c(NA,NA,NA,NA),
                                          mae = c(NA,NA,NA,NA), row.names =   c("2023-04-15","2023-05-15", "2023-06-15","2023-07-15"))
 
-  for(l in 1:length(prediction_list)){
+  for(l in seq_along(prediction_list)){
     oos_testing_eval_metrics$rss[l] <- 1 - ((sum((y_list[[l]] - prediction_list[[l]])^2))/sum(y_list[[l]]^2))
     oos_testing_eval_metrics$rmse[l] <- sqrt(mean((y_list[[l]] - prediction_list[[l]])^2))
     oos_testing_eval_metrics$cp[l] <- mean(y_list[[l]]*prediction_list[[l]])
@@ -15700,7 +15700,7 @@ test_that("GLMNET - Metabacktesting works for glmnet in meta learning (rf + glmn
                meta_results@oos_testing_eval_metrics_m_xts@data["2023-07-15"] %>% as.data.frame() %>% tibble::remove_rownames()
   )
   #OOS Eval Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_oos_testing_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_oos_testing_metrics)){
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,1] %>% as.numeric(),rf_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,2] %>% as.numeric(),glmnet_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
@@ -15709,7 +15709,7 @@ test_that("GLMNET - Metabacktesting works for glmnet in meta learning (rf + glmn
   }
 
   #Val Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_validation_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_validation_metrics)){
     expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data[,1] %>% na.omit() %>% as.numeric(),
                  rf_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
 
@@ -15952,7 +15952,7 @@ test_that("EW - Metabacktesting works for EW in meta learning (rf + glmnet with 
                  as.data.frame() %>% tibble::remove_rownames()
   )
   #OOS Eval Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_oos_testing_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_oos_testing_metrics)){
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,1] %>% as.numeric(),
                  rf_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
@@ -15964,7 +15964,7 @@ test_that("EW - Metabacktesting works for EW in meta learning (rf + glmnet with 
   }
 
   #Val Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_validation_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_validation_metrics)){
     expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data[,1] %>% na.omit() %>% as.numeric(),
                  rf_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
 
@@ -16212,7 +16212,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with min_rmse (rf 
                meta_results@oos_testing_eval_metrics_m_xts@data["2023-04-15/2023-07-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
   )
   #OOS Eval Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_oos_testing_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_oos_testing_metrics)){
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,1] %>% as.numeric(),rf_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,2] %>% as.numeric(),glmnet_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
@@ -16221,7 +16221,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with min_rmse (rf 
   }
 
   #Val Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_validation_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_validation_metrics)){
     expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data[,1] %>% na.omit() %>% as.numeric(),
                  rf_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
 
@@ -16473,7 +16473,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with max_hr (risk-
                meta_results@oos_testing_eval_metrics_m_xts@data["2023-04-15/2023-07-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
   )
   #OOS Eval Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_oos_testing_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_oos_testing_metrics)){
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,1] %>% as.numeric(),rp_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,2] %>% as.numeric(),glmnet_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
@@ -16482,7 +16482,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with max_hr (risk-
   }
 
   #Val Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_validation_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_validation_metrics)){
     expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data[,1] %>% na.omit() %>% as.numeric(),
                  glmnet_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
   }
@@ -16734,7 +16734,7 @@ test_that("OLS - Metabacktesting works in integration with run_port_backtest and
                meta_results@oos_testing_eval_metrics_m_xts@data["2023-03-15/2023-04-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
   )
   #OOS Eval Metrics
-  for (j in 1:length(sb_metabacktest_results@time_series_oos_testing_metrics)){
+  for (j in seq_along(sb_metabacktest_results@time_series_oos_testing_metrics)){
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,1] %>% as.numeric(),rp_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
     expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,2] %>% as.numeric(),ols_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())

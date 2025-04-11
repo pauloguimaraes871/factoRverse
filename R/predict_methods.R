@@ -98,13 +98,16 @@ setMethod("predict",
     )$selected_signals_corrected_positions_m_df
   }
 
-  ##Remove ids
-  new_data <- new_features_m_df[,-c(1:3)]
+   ##Check if ALL eligible signals are in colnames of new_data
+   if (!all(object@eligible_signals %in% colnames(new_features_m_df[,-c(1:3)]))) {
+      stop("Not all eligible signals are present in new_features_m_df")
+   }
 
-  ##Check if eligible signals perfectly match colnames of new_data
-  if (!identical(object@eligible_signals, colnames(new_data))) {
-    stop("Not all eligible signals are present in new_features_m_df")
-  }
+  ##Remove ids and re-order
+  new_data <- new_features_m_df[,-c(1:3)] %>%
+    dplyr::select(dplyr::all_of(object@eligible_signals)) #Remove ids and keep only eligible signals
+
+
   ################
 
   #Get parameters
