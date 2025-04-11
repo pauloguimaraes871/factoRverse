@@ -2043,21 +2043,20 @@ setClass(
   }
 )
 
-
+#sb_metabacktest_config-----------------------------------------------------
 #' @title sb_metabacktest_config Class
 #' @description The sb_metabacktest_config class is designed to store and manage a collection of sb_backtest_config objects.
 #' @slot meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner
-#' @slot base_sb_backtest_results A list of `sb_backtest_result` objects whose oos predictions will be fed to the meta learner.
-#' @slot normalize_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
 #' @slot features_passthrough A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner.
 #'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
+#' @slot normalize_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
+#' @slot winsorize_predictions Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{FALSE}.
 #' @slot config_name A character string with the name of the configuration
 #' @export
 setClass(
   "sb_metabacktest_config",
   slots = list(
     meta_sb_backtest_config = "sb_backtest_config",
-    base_sb_backtest_results = "ANY",
     features_passthrough = "character",
     normalize_base_predictions = "logical",
     winsorize_base_predictions = "logical",
@@ -2088,13 +2087,6 @@ setClass(
             Postions will be corrected based on base-level chosen_signals_and_positions.")
     }
 
-    #Base SB Backtest Results Check
-    if (is.null(object@base_sb_backtest_results) || length(object@base_sb_backtest_results) <= 1){
-      stop("base_sb_backtest_results should contain more than one sb_backtest_results object.")
-    }
-    if (!all(sapply(object@base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
-      stop("All elements in 'base_sb_backtest_results' must be of class 'sb_backtest_results'.")
-    }
     return(TRUE)
   }
 )
@@ -2660,7 +2652,7 @@ setClass(
 )
 
 
-# port_backtest_results------------------------------------------------
+#port_backtest_results------------------------------------------------
 #' S4 Class for Portfolio Backtest Results
 #'
 #' This S4 class encapsulates the results and parameters from running a portfolio backtest based on
@@ -2727,7 +2719,7 @@ setClass(
 
 
 
-# port_backtest_cohort------------------------------------------------
+#port_backtest_cohort------------------------------------------------
 #' S4 Class for Portfolio Backtest Cohort
 #'
 #' This S4 class encapsulates the merged results of multiple portfolio backtests.
@@ -2759,6 +2751,7 @@ setClass("port_backtest_cohort",
            TRUE
          }
 )
+
 
 
 

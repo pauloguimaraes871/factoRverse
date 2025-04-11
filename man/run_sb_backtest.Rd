@@ -35,6 +35,7 @@ run_sb_backtest(features_m_df, target_m_df, config, ...)
   features_m_df,
   target_m_df,
   config,
+  base_sb_backtest_results_list,
   base_port_backtest_cohort = NULL,
   base_backtest_returns_m_xts = NULL,
   base_benchmark_returns_m_xts = NULL,
@@ -128,6 +129,8 @@ XXXX is the name of the target variable, number is the amount of forward periods
 \item{verbose}{Logical, indicating whether to print progress messages (default is TRUE).}
 
 \item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
+
+\item{base_sb_backtest_results_list}{A list of \code{sb_backtest_results} objects containing the results of the base learners.}
 
 \item{training_sample_size}{Number of observations to include in each training sample.}
 

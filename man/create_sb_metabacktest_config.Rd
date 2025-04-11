@@ -2,20 +2,19 @@
 % Please edit documentation in R/constructors.R
 \name{create_sb_metabacktest_config}
 \alias{create_sb_metabacktest_config}
-\alias{create_sb_metabacktest_config,sb_backtest_config,list-method}
+\alias{create_sb_metabacktest_config,sb_backtest_config,character-method}
 \title{Create SB Meta Backtest Configuration}
 \usage{
 create_sb_metabacktest_config(
   meta_sb_backtest_config,
-  base_sb_backtest_results,
+  features_passthrough,
   ...
 )
 
-\S4method{create_sb_metabacktest_config}{sb_backtest_config,list}(
+\S4method{create_sb_metabacktest_config}{sb_backtest_config,character}(
   meta_sb_backtest_config,
-  base_sb_backtest_results,
-  config_name = "not_identified",
   features_passthrough = "none",
+  config_name = "not_identified",
   normalize_base_predictions = TRUE,
   winsorize_base_predictions = TRUE,
   ...
@@ -24,13 +23,15 @@ create_sb_metabacktest_config(
 \arguments{
 \item{meta_sb_backtest_config}{A \code{sb_backtest_config} with the configuration for the meta learner.}
 
-\item{base_sb_backtest_results}{A list of \code{sb_backtest_results} objects.}
+\item{features_passthrough}{A character vector of features to pass through to the meta-learner.}
 
 \item{...}{Additional arguments (not used).}
 
 \item{config_name}{Name of the backtest configuration.}
 
 \item{base_sb_backtest_configs}{A list of \code{sb_backtest_config} objects with \code{tuning_strategy} set to \code{NULL}.}
+
+\item{base_sb_backtest_results}{A list of \code{sb_backtest_results} objects.}
 
 \item{base_ss_backtest_configs}{A list of \code{ss_backtest_config} objects (optional).}
 
@@ -53,7 +54,7 @@ Alternatively, the user can provide a list of \code{sb_backtest_results} directl
 \itemize{
 \item \code{create_sb_metabacktest_config(
   meta_sb_backtest_config = sb_backtest_config,
-  base_sb_backtest_results = list
+  features_passthrough = character
 )}: Create meta config from ss_backtest_results
 
 }}

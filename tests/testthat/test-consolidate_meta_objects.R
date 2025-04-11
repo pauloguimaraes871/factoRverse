@@ -287,12 +287,12 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
   normalized_predictions_m_df <- res$result
 
   normalized_predictions_m_df <- dplyr::left_join(normalized_predictions_m_df@data,
-                                                 features_m_df@data %>% dplyr::select(id, names(features_passthrough_and_positions)),
-                                                 by = "id")
+                                                  features_m_df@data %>% dplyr::select(id, names(features_passthrough_and_positions)),
+                                                  by = "id")
 
-    suppressWarnings(
-  predictions_m_df <- consolidate_oos_sb_outputs_m_df(sb_backtest_results_list, winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
-                                                      features_passthrough_and_positions = features_passthrough_and_positions, features_m_df = features_m_df)
+  suppressWarnings(
+    predictions_m_df <- consolidate_oos_sb_outputs_m_df(sb_backtest_results_list, winsorize_predictions = TRUE, normalize_predictions = TRUE, winsorization_probs = c(0.025,0.975),
+                                                        features_passthrough_and_positions = features_passthrough_and_positions, features_m_df = features_m_df)
   )
 
   expect_equal(predictions_m_df@data, normalized_predictions_m_df)
@@ -302,7 +302,7 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
   expect_equal(length(predictions_m_df@workflow$`preprocessing_recipe_2023-07-15`$recipe$steps), 3)
 
 
-})
+          })
 
 test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with expected format for features_pass = none", {
 
@@ -329,33 +329,33 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
   set.seed(123)
   suppressWarnings(
-  ols_results <- run_sb_backtest(
-    features_m_df = features_m_df,
-    target_m_df = target_m_df,
-    config = ols_config,
-    verbose = TRUE,
-    parallel = FALSE
-  )
-  )
-
-  suppressWarnings(
-  glmnet_results <- run_sb_backtest(
-    features_m_df = features_m_df,
-    target_m_df = target_m_df,
-    config = glmnet_config,
-    verbose = TRUE,
-    parallel = FALSE
-  )
+    ols_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = ols_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
   )
 
   suppressWarnings(
-  rf_results <- run_sb_backtest(
-    features_m_df = features_m_df,
-    target_m_df = target_m_df,
-    config = rf_config,
-    verbose = TRUE,
-    parallel = FALSE
+    glmnet_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = glmnet_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
   )
+
+  suppressWarnings(
+    rf_results <- run_sb_backtest(
+      features_m_df = features_m_df,
+      target_m_df = target_m_df,
+      config = rf_config,
+      verbose = TRUE,
+      parallel = FALSE
+    )
   )
 
   #Get sb_backtest_results
@@ -395,8 +395,8 @@ test_that("consolidate_generic_meta_xts adequately combines base and meta backte
     rf_results = rnorm(5, mean = 5, sd = 3.5),
     ols_results = rnorm(5, mean = 1, sd = 5),
     ew_results = rnorm(5, mean = 15, sd = 0.4),
-   order.by = seq.Date(from = as.Date("2001-07-01"), by = "month", length.out = 5))),
-  type = "returns", meta_xts_name = "meta_xts", asset_type = "ports")
+    order.by = seq.Date(from = as.Date("2001-07-01"), by = "month", length.out = 5))),
+    type = "returns", meta_xts_name = "meta_xts", asset_type = "ports")
 
   base_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     asset_turnover_12m = rnorm(25, mean = 5, sd = 3.5),
@@ -439,7 +439,7 @@ test_that("consolidate_generic_meta_xts adequately combines base and meta benchm
     theme_ss = rnorm(5, mean = 5, sd = 3.5),
     theme_sb = rnorm(5, mean = 1, sd = 5)
   ), order.by = seq.Date(from = as.Date("2000-06-01"), by = "month", length.out = 5)),
-    type = "returns", meta_xts_name = "meta_xts", asset_type = "benchmarks")
+  type = "returns", meta_xts_name = "meta_xts", asset_type = "benchmarks")
 
   base_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
     IBOV = rnorm(10, mean = 5, sd = 3.5),
@@ -507,11 +507,11 @@ test_that("consolidate_generic_meta_xts adequately combines base and meta backte
   type = "returns", meta_xts_name = "old_xts", asset_type = "benchmarks")
 
   suppressWarnings(
-  new_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
-    raw_returns = rnorm(1, mean = 5, sd = 3.5),
-    net_returns = rnorm(1, mean = 1, sd = 5)
-  ), order.by = seq.Date(from = as.Date("2000-11-15"), by = "month", length.out = 1)),
-  type = "returns", meta_xts_name = "new_xts", asset_type = "benchmarks")
+    new_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+      raw_returns = rnorm(1, mean = 5, sd = 3.5),
+      net_returns = rnorm(1, mean = 1, sd = 5)
+    ), order.by = seq.Date(from = as.Date("2000-11-15"), by = "month", length.out = 1)),
+    type = "returns", meta_xts_name = "new_xts", asset_type = "benchmarks")
   )
 
   #Merge them according to meta_backtest_returns_xts

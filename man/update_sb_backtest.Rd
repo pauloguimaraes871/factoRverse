@@ -3,6 +3,7 @@
 \name{update_sb_backtest}
 \alias{update_sb_backtest}
 \alias{update_sb_backtest,meta_dataframe,meta_dataframe,sb_backtest_results-method}
+\alias{update_sb_backtest,meta_dataframe,meta_dataframe,sb_metabacktest_results-method}
 \title{Update Signal Blending Backtest}
 \usage{
 update_sb_backtest(features_m_df, target_m_df, old_results, ...)
@@ -18,6 +19,32 @@ update_sb_backtest(features_m_df, target_m_df, old_results, ...)
   signal_themes_m_df = NULL,
   custom_signal_weights_m_df = NULL,
   custom_signal_universe_metrics_m_df = NULL,
+  verbose = TRUE,
+  parallel = TRUE,
+  .test_seed = NULL
+)
+
+\S4method{update_sb_backtest}{meta_dataframe,meta_dataframe,sb_metabacktest_results}(
+  features_m_df,
+  target_m_df,
+  old_results,
+  updated_base_sb_backtest_results,
+  base_port_backtest_cohort = NULL,
+  base_backtest_returns_m_xts = NULL,
+  base_benchmark_returns_m_xts = NULL,
+  base_signal_themes_m_df = NULL,
+  base_priors_m_df = NULL,
+  base_custom_signal_weights_m_df = NULL,
+  base_custom_signal_universe_metrics_m_df = NULL,
+  meta_port_backtest_cohort = NULL,
+  meta_backtest_returns_m_xts = NULL,
+  meta_benchmark_returns_m_xts = NULL,
+  meta_signal_themes_m_df = NULL,
+  meta_priors_m_df = NULL,
+  meta_custom_signal_weights_m_df = NULL,
+  meta_custom_signal_universe_metrics_m_df = NULL,
+  winsorization_probs = c(0.025, 0.975),
+  gsm_algorithm = "ols",
   verbose = TRUE,
   parallel = TRUE,
   .test_seed = NULL
@@ -51,6 +78,15 @@ new dates. This function is useful when you want to add new dates to an existing
 )}: Updates a sb backtest using based on a \code{sb_backtest_results} object.
 
 This method extracts the parameters from the \code{results} object (of class \code{sb_backtest_results}), modifies training_sample_size, performs the
+new backtest and then binds results
+
+\item \code{update_sb_backtest(
+  features_m_df = meta_dataframe,
+  target_m_df = meta_dataframe,
+  old_results = sb_metabacktest_results
+)}: Updates a sb backtest using based on a \code{sb_metabacktest_results} object.
+
+This method extracts the parameters from the \code{results} object (of class \code{sb_metabacktest_results}), modifies training_sample_size, performs the
 new backtest and then binds results
 
 }}

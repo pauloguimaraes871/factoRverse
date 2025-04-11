@@ -812,61 +812,6 @@ setMethod("show", "sb_metabacktest_config",
             cat("\n")
 
 
-            cat("------------------------------\n")
-            n_results <- length(object@base_sb_backtest_results)
-            if (n_results > 0) {
-              cat(crayon::yellow("\nBase Backtest Results details:\n\n"))
-              cat(sprintf("Number of base SB backtest results: %d\n", n_results))
-
-              # Define a color palette using crayon
-              colors <- list(
-                neon_cyan = crayon::cyan,
-                neon_pink = crayon::magenta,
-                neon_blue = crayon::blue,
-                neon_purple = crayon::make_style("#8A2BE2"),
-                neon_orange = crayon::red,
-                neon_green = crayon::green
-              )
-
-              # Loop through results
-              for (i in seq_along(object@base_sb_backtest_results)) {
-                result <- object@base_sb_backtest_results[[i]]@sb_backtest_workflow[[length(object@base_sb_backtest_results[[i]]@sb_backtest_workflow)]]
-
-                # Use a color from the palette
-                color_func <- colors[[ (i - 1) %% length(colors) + 1 ]]
-
-                # Color the backtest configuration header
-                cat(color_func(sprintf("Base SB Backtest Results %d:\n", i)))
-                cat(paste("Config name:", result$config_name), "\n")
-                cat(paste("Backtest identifier:", result$backtest_identifier), "\n")
-                cat(sprintf("  sb_algorithm: %s\n", result$sb_algorithm))
-
-
-                # For neural networks, display number of layers
-                if (result$sb_algorithm == "nn" && !is.null(result$keras_architecture_parameters)) {
-                  n_layers <- length(result$keras_architecture_parameters$units)
-                  cat(sprintf("  n_layers: %s\n", n_layers))
-                }
-
-                cat(sprintf("  training_sample_size: %s\n", result$training_sample_size))
-                cat(sprintf("  rebalancing_months: %s\n", paste(result$rebalancing_months, collapse = " ")))
-                cat(sprintf("  custom_objective: %s\n", result$custom_objective))
-                cat(sprintf("  huber_delta: %s\n", result$huber_delta))
-                cat(sprintf("  quantile_tau: %s\n", result$quantile_tau))
-
-                if (!is.null(result$tuning_method)) {
-                  cat("  Tuning_strategy:\n")
-                  cat(sprintf("    tuning_method: %s\n", result$tuning_method))
-                  cat(sprintf("    validation_sample_size: %s\n", result$validation_sample_size))
-                  cat(sprintf("    chosen_eval_metric: %s\n", result$chosen_eval_metric))
-                } else {
-                  cat("  No tuning_strategy available\n")
-                }
-                cat("\n")
-              }
-
-            }
-
 
             invisible(NULL)
           })
@@ -1006,8 +951,8 @@ setMethod("show", "sb_backtest_results", function(object) {
   if(sb_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
     cat("  Base Learners Date Information:\n")
-    cat("    Range of Dates Covered:", paste(c(as.Date(min(sb_backtest_workflow$dates_covered_bl)),
-                                               as.Date(max(sb_backtest_workflow$dates_covered_bl))), sep ="-"), "\n")
+    cat("    Range of Dates Covered:", paste(c(as.Date(min(unlist(sb_backtest_workflow$dates_covered_bl))),
+                                               as.Date(max(unlist(sb_backtest_workflow$dates_covered_bl))), sep ="-"), "\n"))
     cat("    Number of Dates:", sb_backtest_workflow$n_dates_bl, "\n")
     cat("-------------------------------\n")
   }
@@ -1189,8 +1134,8 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   if(meta_learner_sb_backtest_workflow$backtest_type == "meta_learner"){
     cat("-------------------------------\n")
     cat("  Base Learners Date Information:\n")
-    cat("    Range of Dates Covered:", paste(c(as.Date(min(meta_learner_sb_backtest_workflow$dates_covered_bl)),
-                                               as.Date(max(meta_learner_sb_backtest_workflow$dates_covered_bl))), sep ="-"), "\n")
+    cat("    Range of Dates Covered:", paste(c(as.Date(min(unlist(meta_learner_sb_backtest_workflow$dates_covered_bl))),
+                                               as.Date(max(unlist(meta_learner_sb_backtest_workflow$dates_covered_bl)))), sep ="-"), "\n")
     cat("    Number of Dates:", meta_learner_sb_backtest_workflow$n_dates_bl, "\n")
     cat("-------------------------------\n")
   }
@@ -1199,6 +1144,7 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
   # Display Sample Sizes
   cat("Sample Sizes:\n")
+
   cat("  Training Sample Size:", meta_learner_sb_backtest_workflow$training_sample_size, "\n")
   if(!meta_learner_sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
     cat("  Validation Sample Size:", meta_learner_sb_backtest_workflow$validation_sample_size, "\n")
@@ -1218,9 +1164,9 @@ setMethod("show", "sb_metabacktest_results", function(object) {
     cat("    Training Sample Size:", meta_learner_sb_backtest_workflow$training_sample_size_bl, "\n")
     cat("    Validation Sample Size:", meta_learner_sb_backtest_workflow$validation_sample_size_bl, "\n")
     cat("    Testing Sample Size:", meta_learner_sb_backtest_workflow$testing_sample_size_bl, "\n")
-    cat("    Range of Dates in Testing Sample:", paste(c(as.Date(min(meta_learner_sb_backtest_workflow$dates_testing_sample_bl)),
-                                                         as.Date(max(meta_learner_sb_backtest_workflow$dates_testing_sample_bl))), sep="-"), "\n")
-    cat("    Rebalance Dates:", paste(as.Date(meta_learner_sb_backtest_workflow$rebalance_dates_bl), collapse = ", "), "\n")
+    cat("    Range of Dates in Testing Sample:", paste(c(as.Date(min(unlist(meta_learner_sb_backtest_workflow$dates_testing_sample_bl))),
+                                                         as.Date(max(unlist(meta_learner_sb_backtest_workflow$dates_testing_sample_bl)))), sep="-"), "\n")
+    cat("    Rebalance Dates:", paste(as.Date(unlist(meta_learner_sb_backtest_workflow$rebalance_dates_bl)), collapse = ", "), "\n")
 
     cat("-------------------------------\n")
   }
@@ -1240,11 +1186,6 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   cat("  Forward Target Name:", meta_learner_sb_backtest_workflow$target_fwd_name, "\n")
   cat("  Target Forward:", meta_learner_sb_backtest_workflow$target_fwd, "\n")
   cat("  Target Object:", meta_learner_sb_backtest_workflow$target_object, "\n")
-  if (length(meta_learner_sb_backtest_workflow$target_workflow) > 0){
-    cat("  Target Workflow:\n")
-    print(meta_learner_sb_backtest_workflow$target_workflow)
-    cat("\n")
-  }
 
 
   cat("=================================\n")
@@ -1255,23 +1196,15 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   print(meta_learner_sb_backtest_workflow$chosen_signals_and_positions)
   cat("\n")
   cat("Features:", paste(meta_learner_sb_backtest_workflow$features, collapse = ", "), "\n")
-  cat("Features Workflow:\n")
-  cat("  Features Workflow:\n")
-  if(is.null(meta_learner_sb_backtest_workflow$features_workflow)){
-    cat("    No Features Workflow\n")
-  } else {
-    print(meta_learner_sb_backtest_workflow$features_workflow)
-    cat("\n")
-  }
-  cat("Features Object:", meta_learner_sb_backtest_workflow$features_object_name, "\n")
+  cat("Features Object:", meta_learner_sb_backtest_workflow$features_object_name, "\n\n")
 
   cat("Top 5 most important features at final rebalancing:", paste(object@meta_sb_backtest_results@final_feature_importance_m_d_ref@data %>%
                                                                      dplyr::slice_max(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
-                                                                   collapse = ", "), "\n")
+                                                                   collapse = ", "), "\n\n")
 
   cat("Bottom 5 least important features at final rebalancing:", paste(object@meta_sb_backtest_results@final_feature_importance_m_d_ref@data %>%
                                                                          dplyr::slice_min(order_by = normalized_importance, n = 5, with_ties = FALSE) %>% dplyr::pull(tickers),
-                                                                       collapse = ", "), "\n")
+                                                                       collapse = ", "), "\n\n")
 
 
   cat("=================================\n")

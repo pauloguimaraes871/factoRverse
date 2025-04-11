@@ -111,7 +111,6 @@ test_that("checks related to features_passthrough", {
 
   meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rf_results, glmnet_results),
                                   features_passthrough = c("roe_3m", "sharpe_6m", "not_contained"),
                                   config_name = "meta_rf_glmnet")
 
@@ -121,9 +120,10 @@ test_that("checks related to features_passthrough", {
   expect_error(
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -140,16 +140,16 @@ test_that("checks related to features_passthrough", {
 
   meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rf_results, glmnet_results),
                                   features_passthrough = c("roe_3m", "sharpe_6m"),
                                   config_name = "meta_rf_glmnet")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -290,16 +290,16 @@ test_that("checks related to base_backtest_results work", {
   #####################
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, rp_results, mvo_results),
                                   features_passthrough = c("roe_3m", "sharpe_6m"),
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rp_results, rp_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -317,16 +317,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, wrong_ew_results, mvo_results),
                                   features_passthrough = "all",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rp_results, wrong_ew_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -340,16 +340,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, wrong_ew_results, mvo_results),
                                   features_passthrough = "all",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rp_results, wrong_ew_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -364,16 +364,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(wrong_rp_results, ew_results, mvo_results),
                                   features_passthrough = "all",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(wrong_rp_results, ew_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -384,16 +384,16 @@ test_that("checks related to base_backtest_results work", {
   ##Expect no error for EW, which does not require a backtest_returns object
   right_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(ew_results, mvo_results),
                                   features_passthrough = c("all"),
                                   config_name = "meta_rf_ew")
 
   expect_no_error(
     check_inputs_meta_sb_backtest(config = right_meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(ew_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -407,16 +407,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(wrong_rp_results, ew_results, mvo_results),
                                   features_passthrough = "all",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(wrong_rp_results, ew_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -443,16 +443,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, wrong_glmnet_results, mvo_results),
                                   features_passthrough = "all",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rp_results, wrong_glmnet_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -478,16 +478,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, wrong_ew_results, mvo_results),
                                   features_passthrough = "all",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rp_results, wrong_ew_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -512,16 +512,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, wrong_ew_results, mvo_results),
                                   features_passthrough = "all",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
+                                  base_sb_backtest_results_list = list(rp_results, wrong_ew_results, mvo_results),
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -536,16 +536,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = wrong_meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, ew_results, mvo_results),
                                   features_passthrough = "none",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
+                                  base_sb_backtest_results_list = list(rp_results, ew_results, mvo_results),
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = features_m_df,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = features_m_df,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -563,16 +563,16 @@ test_that("checks related to base_backtest_results work", {
 
   wrong_meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = wrong_meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, ew_results, mvo_results),
                                   features_passthrough = "none",
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = wrong_meta_config,
+                                  base_sb_backtest_results_list = list(rp_results, ew_results, mvo_results),
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = features_m_df,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = features_m_df,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -584,27 +584,49 @@ test_that("checks related to base_backtest_results work", {
 
   #only one sb_backtest_result provided
   expect_error(
-  wrong_meta_sb_config <-
-    create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results),
-                                  features_passthrough = "none",
-                                  config_name = "meta_rf_ew"),
-  "base_sb_backtest_results should contain more than one sb_backtest_results object.")
+    check_inputs_meta_sb_backtest(config = wrong_meta_config,
+                                  base_sb_backtest_results_list = list(rp_results),
+                                  features_m_df = features_m_df, target_m_df = target_m_df,
+                                  base_signal_themes_m_df = signal_themes_m_df,
+                                  base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                                  meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
+                                  verbose = TRUE
+    ), "More than one base_sb_backtest_results_list must be supplied."
+  )
+
+  #base_sb results contains objs that are no sb results
+  expect_error(
+    check_inputs_meta_sb_backtest(config = wrong_meta_config,
+                                  base_sb_backtest_results_list = list(rp_results, mvo_config),
+                                  features_m_df = features_m_df, target_m_df = target_m_df,
+                                  base_signal_themes_m_df = signal_themes_m_df,
+                                  base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                                  meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
+                                  verbose = TRUE
+    ), "All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'."
+  )
+
+
+
 
 
   #object provided is no mdf/mxts
   meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, mvo_results),
                                   features_passthrough = c("roe_3m", "sharpe_6m"),
                                   config_name = "meta_rf_ew")
 
   expect_error(
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df@data, base_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rp_results, mvo_results),
+                                  base_signal_themes_m_df = signal_themes_m_df@data,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -613,10 +635,11 @@ test_that("checks related to base_backtest_results work", {
 
   expect_error(
     check_inputs_meta_sb_backtest(config = meta_config,
+                                  base_sb_backtest_results_list = list(rp_results, mvo_results),
                                   features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_signal_themes_m_df = signal_themes_m_df, base_priors_m_df = NULL,
+                                  base_signal_themes_m_df = signal_themes_m_df,
                                   base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_priors_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
                                   base_backtest_returns_m_xts = mocked_backtest_returns_m_xts@data, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
                                   meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
                                   verbose = TRUE
@@ -624,14 +647,6 @@ test_that("checks related to base_backtest_results work", {
   )
 
 
-  #base_sb results contains objs that are no sb results
-  expect_error(
-  wrong_meta_config <-
-    create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rp_results, mvo_config),
-                                  features_passthrough = c("roe_3m", "sharpe_6m"),
-                                  config_name = "meta_rf_ew"),
-  "All elements in 'base_sb_backtest_results' must be 'sb_backtest_results' objects.")
 })
 
 test_that("check_inputs_meta_sb_backtest works with wrong combination of base and meta objs", {
@@ -727,7 +742,6 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
 
   meta_config <-
     create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  base_sb_backtest_results = list(rf_results, glmnet_results),
                                   features_passthrough = c("roe_3m", "sharpe_6m"),
                                   config_name = "meta_rf_glmnet")
 
@@ -737,8 +751,7 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     check_inputs_meta_sb_backtest(config = meta_config,
                                    features_m_df = features_m_df,
                                    target_m_df = target_m_df,
-                                   base_priors_m_df = NULL,
-                                   meta_priors_m_df = NULL,
+                                   base_sb_backtest_results_list = list(rf_results, glmnet_results),
                                    base_custom_signal_weights_m_df = NULL,
                                    meta_custom_signal_weights_m_df = NULL,
                                    base_custom_signal_universe_metrics_m_df = NULL,
@@ -762,8 +775,7 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df,
                                   target_m_df = target_m_df,
-                                  base_priors_m_df = NULL,
-                                  meta_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
                                   base_custom_signal_weights_m_df = NULL,
                                   meta_custom_signal_weights_m_df = NULL,
                                   base_custom_signal_universe_metrics_m_df = NULL,
@@ -784,8 +796,7 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df,
                                   target_m_df = target_m_df,
-                                  base_priors_m_df = NULL,
-                                  meta_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
                                   base_custom_signal_weights_m_df = NULL,
                                   meta_custom_signal_weights_m_df = NULL,
                                   base_custom_signal_universe_metrics_m_df = NULL,
@@ -806,8 +817,7 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df,
                                   target_m_df = target_m_df,
-                                  base_priors_m_df = NULL,
-                                  meta_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
                                   base_custom_signal_weights_m_df = NULL,
                                   meta_custom_signal_weights_m_df = NULL,
                                   base_custom_signal_universe_metrics_m_df = NULL,
@@ -828,8 +838,7 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df,
                                   target_m_df = target_m_df,
-                                  base_priors_m_df = NULL,
-                                  meta_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
                                   base_custom_signal_weights_m_df = NULL,
                                   meta_custom_signal_weights_m_df = NULL,
                                   base_custom_signal_universe_metrics_m_df = NULL,
@@ -849,8 +858,7 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df,
                                   target_m_df = target_m_df,
-                                  base_priors_m_df = NULL,
-                                  meta_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
                                   base_custom_signal_weights_m_df = NULL,
                                   meta_custom_signal_weights_m_df = NULL,
                                   base_custom_signal_universe_metrics_m_df = NULL,
@@ -867,8 +875,7 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     check_inputs_meta_sb_backtest(config = meta_config,
                                   features_m_df = features_m_df,
                                   target_m_df = target_m_df,
-                                  base_priors_m_df = NULL,
-                                  meta_priors_m_df = NULL,
+                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
                                   base_custom_signal_weights_m_df = NULL,
                                   meta_custom_signal_weights_m_df = NULL,
                                   base_custom_signal_universe_metrics_m_df = NULL,
@@ -882,165 +889,6 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     "base_signal_themes_m_df should be provided when features_passthrough is different from 'none'.")
 
   ##############
-
-  #Meta Priors
-  ################
-  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
-
-  base_priors_m_df <- priors_m_df %>% create_meta_dataframe(meta_dataframe_name = "base_priors", type = "priors")
-
-  expect_error(
-    check_inputs_meta_sb_backtest(config = meta_config,
-                                  features_m_df = features_m_df,
-                                  target_m_df = target_m_df %>% create_meta_dataframe(),
-                                  base_priors_m_df = base_priors_m_df,
-                                  meta_priors_m_df = base_priors_m_df,
-                                  base_custom_signal_weights_m_df = NULL,
-                                  meta_custom_signal_weights_m_df = NULL,
-                                  base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = NULL,
-                                  meta_backtest_returns_m_xts = NULL,
-                                  base_benchmark_returns_m_xts = NULL,
-                                  meta_benchmark_returns_m_xts = NULL,
-                                  base_signal_themes_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL),
-    "base_priors_m_df and meta_priors_m_df should be different objects.")
-
-
-  meta_priors_m_df <- expand.grid(tickers = c("c:rf_101_f:feats_123_t:tg_123-fwd_premium_3m", "c:glmnet_123_f:feats_123_t:tg_123-fwd_premium_3m"),
-                                         dates = base_priors_m_df@data$dates %>% unique()) %>%
-    dplyr::mutate(id = paste0(tickers, "-", dates), .before = tickers) %>%
-    dplyr::mutate(tickers = as.character(tickers), return = rnorm(nrow(.)), market_factor_proxy = rnorm(nrow(.)), theme = "ml") %>%
-    dplyr::arrange(id) %>%
-    create_meta_dataframe()
-
-  expect_error(
-    check_inputs_meta_sb_backtest(config = meta_config,
-                                  features_m_df = features_m_df,
-                                  target_m_df = target_m_df,
-                                  base_priors_m_df = base_priors_m_df,
-                                  meta_priors_m_df = meta_priors_m_df,
-                                  base_custom_signal_weights_m_df = NULL,
-                                  meta_custom_signal_weights_m_df = NULL,
-                                  base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = NULL,
-                                  meta_backtest_returns_m_xts = NULL,
-                                  base_benchmark_returns_m_xts = NULL,
-                                  meta_benchmark_returns_m_xts = NULL,
-                                  base_signal_themes_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL),
-    "meta-level objects are not supported at this time.")
-
-
-  wrong_meta_priors_m_df <- meta_priors_m_df
-  wrong_meta_priors_m_df@data$id[1] <- base_priors_m_df@data$id[1]
-
-  expect_error(
-    check_inputs_meta_sb_backtest(config = meta_config,
-                                  features_m_df = features_m_df,
-                                  target_m_df = target_m_df,
-                                  base_priors_m_df = base_priors_m_df,
-                                  meta_priors_m_df = wrong_meta_priors_m_df,
-                                  base_custom_signal_weights_m_df = NULL,
-                                  meta_custom_signal_weights_m_df = NULL,
-                                  base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = NULL,
-                                  meta_backtest_returns_m_xts = NULL,
-                                  base_benchmark_returns_m_xts = NULL,
-                                  meta_benchmark_returns_m_xts = NULL,
-                                  base_signal_themes_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL),
-    "base_priors_m_df and meta_priors_m_df should not share any ids.")
-
-
-  wrong_meta_priors_m_df <- meta_priors_m_df
-  wrong_meta_priors_m_df@data$tickers[1] <- base_priors_m_df@data$tickers[1]
-
-  expect_error(
-    check_inputs_meta_sb_backtest(config = meta_config,
-                                  features_m_df = features_m_df,
-                                  target_m_df = target_m_df,
-                                  base_priors_m_df = base_priors_m_df,
-                                  meta_priors_m_df = wrong_meta_priors_m_df,
-                                  base_custom_signal_weights_m_df = NULL,
-                                  meta_custom_signal_weights_m_df = NULL,
-                                  base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = NULL,
-                                  meta_backtest_returns_m_xts = NULL,
-                                  base_benchmark_returns_m_xts = NULL,
-                                  meta_benchmark_returns_m_xts = NULL,
-                                  base_signal_themes_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL),
-    "base_priors_m_df and meta_priors_m_df should not share any tickers.")
-
-
-  wrong_meta_priors_m_df <- meta_priors_m_df
-  colnames(wrong_meta_priors_m_df@data)[4] <- "returns"
-
-  expect_error(
-    check_inputs_meta_sb_backtest(config = meta_config,
-                                  features_m_df = features_m_df,
-                                  target_m_df = target_m_df,
-                                  base_priors_m_df = base_priors_m_df,
-                                  meta_priors_m_df = wrong_meta_priors_m_df,
-                                  base_custom_signal_weights_m_df = NULL,
-                                  meta_custom_signal_weights_m_df = NULL,
-                                  base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = NULL,
-                                  meta_backtest_returns_m_xts = NULL,
-                                  base_benchmark_returns_m_xts = NULL,
-                                  meta_benchmark_returns_m_xts = NULL,
-                                  base_signal_themes_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL),
-    "base_priors_m_df and meta_priors_m_df should have the same columns.")
-
-  wrong_meta_priors_m_df <- meta_priors_m_df
-  wrong_meta_priors_m_df@data$dates[1] <- as.Date("2023-07-16")
-
-  expect_error(
-    check_inputs_meta_sb_backtest(config = meta_config,
-                                  features_m_df = features_m_df,
-                                  target_m_df = target_m_df,
-                                  base_priors_m_df = base_priors_m_df,
-                                  meta_priors_m_df = wrong_meta_priors_m_df,
-                                  base_custom_signal_weights_m_df = NULL,
-                                  meta_custom_signal_weights_m_df = NULL,
-                                  base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = NULL,
-                                  meta_backtest_returns_m_xts = NULL,
-                                  base_benchmark_returns_m_xts = NULL,
-                                  meta_benchmark_returns_m_xts = NULL,
-                                  base_signal_themes_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL),
-    "All dates in meta_priors_m_df should be present in base_priors_m_df.")
-
-  expect_error(
-    check_inputs_meta_sb_backtest(config = meta_config,
-                                  features_m_df = features_m_df,
-                                  target_m_df = target_m_df,
-                                  base_priors_m_df = NULL,
-                                  meta_priors_m_df = meta_priors_m_df,
-                                  base_custom_signal_weights_m_df = NULL,
-                                  meta_custom_signal_weights_m_df = NULL,
-                                  base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = NULL,
-                                  meta_backtest_returns_m_xts = NULL,
-                                  base_benchmark_returns_m_xts = NULL,
-                                  meta_benchmark_returns_m_xts = NULL,
-                                  base_signal_themes_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL),
-    "base_priors_m_df should be provided when features_passthrough is different from 'none'.")
-
-
-
-
 
 
 })

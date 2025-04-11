@@ -3638,7 +3638,7 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #' @seealso \code{\link{sb_backtest_config}}, \code{\link{ss_backtest_config}}, \code{\link{sb_metabacktest_config}}
 #'
 #' @export
-setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, base_sb_backtest_results, ...) {
+setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, features_passthrough, ...) {
   standardGeneric("create_sb_metabacktest_config")
 })
 
@@ -3646,22 +3646,18 @@ setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, ba
 #' @describeIn create_sb_metabacktest_config Create meta config from ss_backtest_results
 #'
 #' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
-#' @param base_sb_backtest_results A list of `sb_backtest_results` objects.
+#' @param features_passthrough A character vector of features to pass through to the meta-learner.
 #' @param ... Additional arguments (not used).
 #'
 #' @return An `sb_metabacktest_config` object containing the provided sb_backtest objects.
 #' @export
 setMethod(
   "create_sb_metabacktest_config",
-  signature(meta_sb_backtest_config = "sb_backtest_config", base_sb_backtest_results = "list"),
-  function(meta_sb_backtest_config, base_sb_backtest_results, config_name = "not_identified",
-           features_passthrough = "none",
+  signature(meta_sb_backtest_config = "sb_backtest_config", features_passthrough = "character"),
+  function(meta_sb_backtest_config, features_passthrough = "none", config_name = "not_identified",
            normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
            ...) {
-    # Check that all configs are sb_backtest_config objects
-    if (!all(sapply(base_sb_backtest_results, function(x) is(x, "sb_backtest_results")))) {
-      stop("All elements in 'base_sb_backtest_results' must be 'sb_backtest_results' objects.")
-    }
+
 
     # Warn about not considering chosen_signals_and_positions at meta-level
     if (length(meta_sb_backtest_config@chosen_signals_and_positions) > 1 || meta_sb_backtest_config@chosen_signals_and_positions != "all") {
@@ -3675,7 +3671,6 @@ setMethod(
     # Create the sb_metabacktest_config object
     meta_config <- new("sb_metabacktest_config",
       meta_sb_backtest_config = meta_sb_backtest_config,
-      base_sb_backtest_results = base_sb_backtest_results,
       features_passthrough = features_passthrough,
       normalize_base_predictions = normalize_base_predictions,
       winsorize_base_predictions = winsorize_base_predictions,
