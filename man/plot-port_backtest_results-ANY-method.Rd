@@ -9,7 +9,9 @@
 \arguments{
 \item{x}{An object of class \code{port_backtest_results}.}
 
-\item{plot_id}{A character string or numeric value specifying which plot to display.}
+\item{plot_id}{A character string or numeric value specifying which plot to display. If \code{NULL}, the user will be prompted.}
+
+\item{vertical_lines}{Optional. A vector of \code{Date} objects indicating vertical lines to display in time-series plots (e.g., rebalance dates). If \code{NULL}, the user will be prompted.}
 }
 \value{
 Invisibly returns the input object.

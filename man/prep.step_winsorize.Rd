@@ -2,10 +2,22 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{prep.step_winsorize}
 \alias{prep.step_winsorize}
-\title{Prepare method for step_winsorize}
+\title{Prepare Method for step_winsorize}
 \usage{
 prep.step_winsorize(x, training, info = NULL, ...)
 }
+\arguments{
+\item{x}{A \code{step_winsorize} object.}
+
+\item{training}{A data frame of training data used to estimate winsorization thresholds.}
+
+\item{info}{An optional \code{term_info} object (not used here).}
+
+\item{...}{Additional arguments passed to methods (currently not used).}
+}
+\value{
+An updated \code{step_winsorize} object with estimated bounds stored in \code{winsor_limits} and \code{trained = TRUE}.
+}
 \description{
-Prepare method for step_winsorize
+Estimates lower and upper bounds for winsorization based on quantiles for each selected column.
 }

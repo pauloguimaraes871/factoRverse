@@ -41,30 +41,135 @@ run_port_backtest(
 )
 }
 \arguments{
-\item{signals_m_df}{A meta_dataframe containing the signal features. It must include at least the columns \code{id}, \code{tickers}, and \code{dates}.}
+\item{signals_m_df}{A \code{meta_dataframe} containing alpha signals. Must include columns \code{id}, \code{tickers}, and \code{dates}.}
 
-\item{fwd_return_m_df}{A meta_dataframe containing forward returns.}
+\item{fwd_return_m_df}{A \code{meta_dataframe} of forward returns (e.g., 1M-ahead).}
 
-\item{liquidity_m_df}{A meta_dataframe containing liquidity metrics.}
+\item{liquidity_m_df}{A \code{meta_dataframe} with liquidity metrics.}
 
-\item{volatility_m_df}{A meta_dataframe containing volatility metrics.}
+\item{volatility_m_df}{A \code{meta_dataframe} with volatility metrics (e.g., 1M historical vol).}
 
-\item{config}{An object of class \code{port_backtest_config} specifying the portfolio backtest configuration.}
+\item{config}{A \code{port_backtest_config} object defining portfolio construction logic and constraints.}
 
-\item{...}{Additional arguments (if needed).}
+\item{...}{Additional arguments passed to class-specific methods (e.g., cohort or single backtests).}
 
-\item{sb_backtest_results}{An object of class \code{sb_backtest_results} containing the results of a signal blending backtest.}
+\item{sb_backtest_results}{(Optional) An \code{sb_backtest_results} or \code{sb_metabacktest_results} object. If provided, its predictions are used in place of signals.}
 
-\item{parallel}{Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).}
+\item{stock_groups_m_df}{(Optional) Sector or group data for use in group constraints.}
+
+\item{benchmark_weights_m_df}{(Optional) Benchmark stock weights.}
+
+\item{daily_stock_returns_m_xts}{(Optional) Daily stock returns for covariance estimation.}
+
+\item{daily_bench_returns_m_xts}{(Optional) Daily benchmark returns (only if active returns are used).}
+
+\item{benchmark_returns_m_xts}{(Optional) Monthly benchmark returns, used to compute active returns and benchmark-relative metrics.}
+
+\item{custom_stock_weights_m_df}{(Optional) User-defined portfolio weights (used only with \code{port_construction_method = "custom_weights"}).}
+
+\item{custom_stock_metrics_m_df}{(Optional) Additional metrics to be aggregated in the portfolio.}
+
+\item{user_defined_OR_rules_m_df}{(Optional) Rules that override stock eligibility if any OR condition is met.}
+
+\item{user_defined_AND_rules_m_df}{(Optional) Rules that override stock eligibility only if all conditions are met.}
+
+\item{winsorization_probs}{Numeric vector of length 2 (default = c(0.025, 0.975)). Determines quantiles used to winsorize signals.}
+
+\item{verbose}{Logical. If \code{TRUE}, prints progress logs and diagnostic information. Default is \code{TRUE}.}
+
+\item{parallel}{Logical. If \code{TRUE}, runs computation in parallel. Default is \code{TRUE}.}
+
+\item{.test_seed}{(Internal) Seed used during testing to ensure reproducibility. Default is \code{NULL}.}
+
+\item{.update}{(Internal) Logical; whether this is an update to an existing backtest. Default is \code{FALSE}.}
+
+\item{.old_backtest_port_weights_m_d_ref}{(Internal) Previously computed portfolio weights (used when \code{.update = TRUE}).}
+
+\item{.old_backtest_port_costs_d_ref}{(Internal) Previously computed cost series (used when \code{.update = TRUE}).}
+
+\item{.old_backtest_covered_dates}{(Internal) Dates already covered in the previous backtest (used when \code{.update = TRUE}).}
 }
 \value{
-An object of class \code{port_backtest_results} containing the portfolio backtest results.
+An object of class \code{port_backtest_results}, containing:
+\itemize{
+\item \code{port_weights_m_df}: Portfolio weights by stock and date.
+\item \code{transactions_log}: Transaction log with costs and weights.
+\item \code{port_costs_m_xts}: Time series of cost metrics (turnover, market impact, etc.).
+\item \code{port_returns_m_xts}: Net and raw portfolio returns (and benchmark-relative returns if applicable).
+\item \code{port_metrics_m_xts}: Aggregated portfolio metrics (if \code{custom_stock_metrics_m_df} is supplied).
+\item \code{stock_universe_m_df}: Data frame with signal scores, eligibility flags, and classification for each stock.
+\item \code{port_backtest_workflow}: A list tracking workflow metadata, inputs, and date coverage.
+}
 }
 \description{
-The \code{run_port_backtest} function serves as a wrapper for the internal function
-\code{run_port_backtest_internal}. It extracts the required parameters from a
-\code{port_backtest_config} object, applies any additional pre‐processing to the inputs,
-and then calls the internal function to perform the portfolio backtest.
+Run Portfolio Backtest
+}
+\details{
+Main entry point for portfolio simulations in the \code{factoRverse} ecosystem.
+This generic function defines the interface and documentation for \code{run_port_backtest()}.
+
+The function integrates multiple components:
+\subsection{1. \strong{Stock Classification}}{
+\itemize{
+\item If \code{asset_object = "stocks"}:
+Each asset is scored based on an \code{exp_ret_score}, and only those inside a defined quantile range (e.g., top 20\%) are considered "pre-eligible". If too few assets are selected, a fallback expands the quantile range iteratively until a minimum number of assets is included or a maximum range width is reached.
+}
+}
+
+\subsection{2. \strong{Eligibility Filtering}}{
+
+A stock is promoted to the final investment universe (\code{filtered_universe}) if it satisfies at least one of several eligibility criteria:
+\subsection{Regular Eligibility:}{
+\itemize{
+\item \strong{Quantile Rule}: The asset is within the top quantile of \code{exp_ret_score}.
+\item \strong{Liquidity Floor Rule}: The asset meets a minimum liquidity threshold based on predefined liquidity classifications (e.g., micro_caps).
+}
+}
+
+\subsection{Policy-Based Eligibility:}{
+\itemize{
+\item \strong{Turnover Policy}: Assets in buffer zones from the previous portfolio can be retained even if they fall outside the quantile rule.
+\item \strong{Active Weights Constraint}: Assets with benchmark weights above the active weight threshold are automatically included.
+\item \strong{Group Representativeness}: If no asset from a required group (e.g., sector, theme) is eligible, the top-scoring asset from that group is forcibly promoted to preserve group balance.
+}
+}
+
+\subsection{Custom Rules:}{
+\itemize{
+\item \strong{user_defined_OR_rules}: Stocks matching \emph{any} custom inclusion rule are always promoted.
+\item \strong{user_defined_AND_rules}: Stocks that fail \emph{any} custom exclusion rule are removed regardless of other criteria.
+}
+}
+
+\subsection{Rule Hierarchy:}{
+\itemize{
+\item \strong{Active Weights Constraint} overrides all other filters.
+\item \strong{Turnover Policy} takes precedence over liquidity rules.
+\item \strong{OR rules} force inclusion, \strong{AND rules} force exclusion.
+\item \strong{Group representativeness} is a fallback to ensure all relevant themes or sectors are represented.
+}
+}
+
+}
+
+\subsection{3. \strong{Benchmark Construction}}{
+
+The user may supply benchmark weights explicitly.
+}
+
+\subsection{4. \strong{Portfolio Construction}}{
+
+After defining the filtered investment universe:
+\itemize{
+\item The portfolio is constructed based on signal strength (via \code{exp_ret_score}), user-specified optimization policies, or equal weighting.
+\item Constraints (e.g., turnover, group weight limits) are applied at this stage, potentially using box or group constraints via \code{generate_box_constraints()} and \code{generate_group_constraints()}.
+}
+}
+
+\subsection{5. \strong{Parallel and Verbose Execution}}{
+
+The function supports verbose output and parallel execution to improve transparency and computational efficiency when backtesting over long time windows or using Bayesian inference.
+}
 }
 \section{Methods (by class)}{
 \itemize{
@@ -74,9 +179,8 @@ and then calls the internal function to perform the portfolio backtest.
   liquidity_m_df = meta_dataframe,
   volatility_m_df = meta_dataframe,
   config = port_backtest_config
-)}: Runs a portfolio backtest using a \code{port_backtest_config} object.
+)}: Run Portfolio Backtest with Signal Filtering and Eligibility Rules
 
-This method extracts the parameters from the \code{config} object (of class \code{port_backtest_config}) and then calls
-the internal function \code{run_port_backtest_internal} to perform the backtest.
+Executes a full pipeline portfolio backtest, from asset/signal classification and eligibility filtering to benchmark construction and weight optimization, based on expected return scores (\code{exp_ret_score}) or signal performance. This function is designed to incorporate realistic portfolio constraints and rules—such as turnover, liquidity, group representativeness, and user-defined filters—while also supporting fallback logic to ensure a viable investment universe is selected in each rebalance date.
 
 }}

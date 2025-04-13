@@ -2,10 +2,22 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{prep.step_impute_sector}
 \alias{prep.step_impute_sector}
-\title{Prepare method for step_impute_sector}
+\title{Prepare Method for step_impute_sector}
 \usage{
 prep.step_impute_sector(x, training, info = NULL, ...)
 }
+\arguments{
+\item{x}{A \code{step_impute_sector} object.}
+
+\item{training}{A data frame of training data used to compute imputation values.}
+
+\item{info}{A \code{term_info} object passed by \code{prep()}, not used here.}
+
+\item{...}{Additional arguments passed to methods (not used).}
+}
+\value{
+An updated \code{step_impute_sector} object with \code{trained = TRUE} and imputation values stored.
+}
 \description{
-Prepare method for step_impute_sector
+Computes sector-wise means or medians for selected columns, storing them in the step object.
 }

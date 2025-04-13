@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_methods.R
 \name{plot,sb_backtest_results,ANY-method}
 \alias{plot,sb_backtest_results,ANY-method}
-\title{Plot Machine Learning Walk-Forward Validation Results}
+\title{Plot Signal Blending Walk-Forward Validation Results}
 \usage{
 \S4method{plot}{sb_backtest_results,ANY}(x, plot_id = NULL, features_m_df = NULL)
 }
@@ -25,6 +25,8 @@
 \item By number: Provide a number corresponding to the plot (as listed when \code{plot_id} is \code{NULL}).
 If \code{NULL} (default), the method lists available plots.
 }}
+
+\item{features_m_df}{A \code{meta_dataframe} containing features used in the backtest. Required for plots like \code{"Explain Prediction"}.}
 }
 \value{
 Invisibly returns the input \code{x}.

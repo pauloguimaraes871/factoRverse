@@ -7,23 +7,42 @@
 get_priors_from_informative_data(priors_m_upd_ref, priors_type)
 }
 \arguments{
-\item{priors_m_upd_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
-and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.}
+\item{priors_m_upd_ref}{A meta-dataframe containing the latest data to inform the priors. It must include the following columns:
+\describe{
+\item{\code{id}}{Signal or characteristic identifier.}
+\item{\code{characteristic}}{Name of the characteristic or signal.}
+\item{\code{dates}}{A \code{Date} vector corresponding to observations.}
+\item{\code{theme}}{Theme or group identifier used for hierarchical modeling.}
+\item{\code{alpha}, \code{beta}}{Point estimates of intercept and slope coefficients.}
+\item{\code{sigma}}{Estimate of the residual standard deviation.}
+}
+The data should include only values for the most recent date.}
+
+\item{priors_type}{A string specifying the type of priors to generate. Options include:
+\describe{
+\item{\code{"all"}}{Estimate priors for intercept, beta, group-level variability (standard deviations), and residual sigma.}
+\item{\code{"mean"}}{Estimate only priors for intercept and beta.}
+\item{\code{"uninformative"}}{Use default non-informative priors (not implemented here, reserved for future use).}
+\item{\code{"user"}}{Use user-defined priors (not implemented here, reserved for future use).}
+}}
 }
 \value{
-A list, where each component contains \code{brms::set_prior} objects for each theme.
+A named list of \code{brms::set_prior} objects, one per theme, each specifying priors for intercept, beta coefficients, and optionally variance and correlation parameters depending on \code{priors_type}.
 }
 \description{
-This function sets prior distributions for model parameters based on historical data, choosing appropriate priors for the intercept, beta coefficient, and optionally for variance components and correlations.
-Hierarchical bayesian models can be built based on such priors. Signals are groups and are defined theme-wise.
-The priors are determined using a Bayesian Information Criterion (BIC) approach to select the best-fitting distribution to reference historical data
+This function constructs prior distributions for model parameters based on historical data. It is tailored for use in hierarchical Bayesian models where signals (predictors) are grouped thematically. The priors for the intercept, beta coefficient, variance, and intra-group variability are selected using a BIC-based procedure via \code{choose_prior()}.
 }
 \details{
-The function performs the following steps:
+The function performs the following:
 \itemize{
-\item Extracts the most recent dates and the unique themes from the data.
-\item Computes summary statistics for \code{alpha}, \code{beta}, and \code{sigma} for each theme.
-\item Chooses appropriate priors for \code{alpha}, \code{beta}, and optionally for \code{sigma} and variance components based on the chosen distributions.
-\item Returns a list of \code{brms::set_prior} objects for each theme.
+\item Extracts the current date and filters the data accordingly.
+\item Groups signals by \code{theme}, treating each theme as a hierarchical group.
+\item Computes summary statistics for \code{alpha}, \code{beta}, and \code{sigma}.
+\item Calculates signal-specific deviations from theme-level means to model intra-group variability.
+\item Fits appropriate prior distributions using the \code{choose_prior()} function.
+\item Constructs \code{brms::set_prior} calls, including correlation priors when \code{priors_type = "all"}.
 }
+}
+\seealso{
+\code{\link[brms]{set_prior}}, \code{\link{choose_prior}}
 }

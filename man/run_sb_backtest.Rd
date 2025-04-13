@@ -117,19 +117,25 @@ run_sb_backtest_internal(
 \item{target_m_df}{A meta dataframe or data frame containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
 XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.}
 
-\item{config}{A \code{sb_metabacktest_config} object containing a meta learner configuration and multiple individual configurations.}
+\item{config}{An object of class \code{sb_metabacktest_config}, which contains the configuration for all base learners and the meta learner.}
 
-\item{base_sb_backtest_results_list}{A list of \code{sb_backtest_results} objects containing the results of the base learners.}
+\item{base_sb_backtest_results_list}{A named list of \code{sb_backtest_results} objects. These are the results of base learners whose predictions will be used as input for the meta learner.}
 
-\item{...}{Additional arguments (not used in this method).}
+\item{ss_backtest_results}{(Optional) An \code{ss_backtest_results} object that stores the output of a signal selection backtest. If provided, this is used to select eligible signals for blending based on statistical or Bayesian filtering.}
 
-\item{ss_backtest_results}{An object of class \code{ss_backtest_results} containing the results of a signal selection backtest.}
+\item{port_backtest_cohort}{(Optional) A \code{port_backtest_cohort} object used to extract backtest and benchmark returns in case \code{backtest_returns_m_xts} or \code{benchmark_returns_m_xts} are not explicitly provided. Should be used when the user wants the signal blending backtest to be tied to an existing portfolio backtest setup.}
 
 \item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_universe_m_df},}
 
 \item{benchmark_returns_m_xts}{A xts with benchmark returns, named accordingly.}
 
-\item{winsorization_probs}{Numeric vector of length 2 specifying the lower and upper quantiles for winsorization. Default is \code{c(0.025, 0.975)}.}
+\item{signal_themes_m_df}{(Optional) A \code{meta_dataframe} mapping signals to groups (e.g., themes, sectors). Required for applying group constraints in signal-based portfolio optimization (e.g., in \code{mvo} with \code{max_abs_active_group_weight}).}
+
+\item{custom_signal_weights_m_df}{(Optional) A \code{meta_dataframe} containing user-defined signal weights to be used in place of model-generated weights. Required when \code{sb_algorithm = "custom_weights"}. Weights must be positive and consistent with eligible signals.}
+
+\item{custom_signal_universe_metrics_m_df}{(Optional) A \code{meta_dataframe} with additional metrics (e.g., signal volatilities, costs, or liquidity) associated with each signal. These are passed through and can be used for custom diagnostics or constraints.}
+
+\item{winsorization_probs}{A numeric vector of length 2 specifying the lower and upper quantiles for winsorizing predictions before training the meta learner. Default is \code{c(0.025, 0.975)}.}
 
 \item{gsm_algorithm}{The type of interpretable model to be used as a global surrogate model, which will help interpretate both signal selection and signal belnding. Can be one of
 'ols' or 'tree'.}
@@ -137,6 +143,42 @@ XXXX is the name of the target variable, number is the amount of forward periods
 \item{verbose}{Logical, indicating whether to print progress messages (default is TRUE).}
 
 \item{parallel}{Logical, indicating whether to run hyperparameter tuning in parallel (default is TRUE).}
+
+\item{.test_seed}{(Internal) A numeric seed used to control randomness for reproducible testing. Default is \code{NULL}.}
+
+\item{.update}{(Internal) Logical flag. If \code{TRUE}, updates a previously computed meta learner backtest instead of running from scratch. Default is \code{FALSE}.}
+
+\item{.old_backtest_covered_dates}{(Internal) A vector of \code{Date} objects indicating the periods already covered by a previous backtest. Used in conjunction with \code{.update = TRUE} to determine which new periods to run.}
+
+\item{.old_oos_sb_outputs_m_df}{(Internal) A data frame with out-of-sample model predictions from a previous run. Used during update to retrieve past predictions without refitting the model.}
+
+\item{.old_sb_model_fit}{(Internal) A previously fitted SB model object (e.g., trained glmnet, xgboost, or RP/MVO optimizer). Used when updating the backtest without retraining the model for the same configuration.}
+
+\item{base_port_backtest_cohort}{(Optional) A \code{port_backtest_cohort} object containing results of portfolio backtests associated with the base learners. Used to extract return series when needed.}
+
+\item{base_backtest_returns_m_xts}{(Optional) A \code{meta_xts} object with historical returns for the base learner signal portfolios. Used in RP/MVO for covariance estimation.}
+
+\item{base_benchmark_returns_m_xts}{(Optional) A \code{meta_xts} object with benchmark returns used alongside base learner portfolios.}
+
+\item{base_signal_themes_m_df}{(Optional) A \code{meta_dataframe} mapping base learner signals to groups or themes, needed for group constraints in RP/MVO.}
+
+\item{base_custom_signal_weights_m_df}{(Optional) A \code{meta_dataframe} specifying weights for base learner signals. Only used when \code{sb_algorithm = "custom_weights"} for base learners.}
+
+\item{base_custom_signal_universe_metrics_m_df}{(Optional) A \code{meta_dataframe} of evaluation metrics for base learner signals. Can be used as additional features in the meta learner.}
+
+\item{meta_port_backtest_cohort}{(Optional) A \code{port_backtest_cohort} object for the meta learner signal portfolio. Used to extract return series when needed.}
+
+\item{meta_backtest_returns_m_xts}{(Optional) A \code{meta_xts} object with historical returns for the meta learner’s constructed signals or predictions. Used in RP/MVO.}
+
+\item{meta_benchmark_returns_m_xts}{(Optional) A \code{meta_xts} object with benchmark returns for the meta learner.}
+
+\item{meta_signal_themes_m_df}{(Optional) A \code{meta_dataframe} with signal group classification for the meta learner. Required if using group constraints.}
+
+\item{meta_custom_signal_weights_m_df}{(Optional) A \code{meta_dataframe} with weights for the meta learner signals. Used when \code{sb_algorithm = "custom_weights"}.}
+
+\item{meta_custom_signal_universe_metrics_m_df}{(Optional) A \code{meta_dataframe} of evaluation metrics to be used as custom signal-level features by the meta learner.}
+
+\item{.old_meta_sb_backtest_results}{(Internal) A previously computed \code{sb_backtest_results} object for the meta learner, used only if \code{.update = TRUE}.}
 
 \item{training_sample_size}{Number of observations to include in each training sample.}
 
@@ -185,13 +227,6 @@ If running in parallel, set iters.k to a multiple of the number of cores. Must b
 \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
 }}
 
-\item{winsorize_predictions}{Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.}
-
-\item{normalize_predictions}{Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.}
-
-\item{features_passthrough}{A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner. Should correspond to column names in \code{features_m_df}.
-Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.}
-
 \item{hyper_grid_domain}{A named list containing hyperparameter definitions. The structure of this list depends on the specified tuning method:
 \itemize{
 \item \strong{For grid search:} Must be a list of named vectors:
@@ -207,24 +242,86 @@ Alternatively, if \code{'all'}, all features are passed through. If \code{'none'
 \item{signal_universe_m_d_ref}{A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.}
 }
 \value{
-An object of class \code{sb_backtest_results} or \code{sb_metabacktest_results} with various outputs including model predictions, errors, and validation metrics.
+An S4 object of class:
+\describe{
+\item{\strong{sb_backtest_results}}{For a base learner, containing:}
+\itemize{
+\item \code{oos_sb_outputs_m_df}: Data frame of predictions, targets, and errors.
+\item \code{oos_testing_eval_metrics_m_xts}: Time series of out-of-sample performance metrics.
+\item \code{feature_importance_m_df}: Feature importances from surrogate models.
+\item \code{final_sb_model}: Final fitted model for last rebalance date.
+\item \code{final_gsm}: Final global surrogate model (OLS or tree).
+\item \code{validation_eval_metrics_hyper_choice_m_xts}: If tuned, metrics on validation sample.
+\item \code{best_hyperparameters_m_xts}: Selected hyperparameters for each rebalancing.
+\item \code{consolidated_eval_metrics}: Summary table of performance.
+\item \code{sb_backtest_workflow}: Metadata about splits, config, algorithms, and dates.
+}
 
-An \code{sb_metabacktest_results} object containing the results of the meta-backtest.
+\item{\strong{sb_metabacktest_results}}{For a meta learner, additionally containing:}
+\itemize{
+\item \code{meta_sb_backtest_results}: A \code{sb_backtest_results} object fitted to meta features.
+\item \code{base_sb_backtest_results_list}: The original list of base learner backtests.
+\item \code{oos_predictions_m_df}: The meta features constructed from base learners' predictions.
+\item \code{sb_metabacktest_config}: Original configuration object.
+}
+}
+
+An object of class \code{sb_backtest_results}.
+
+An object of class \code{sb_metabacktest_results}, containing:
+\itemize{
+\item \strong{meta_sb_backtest_results}: The results from the meta learner.
+\item \strong{base_sb_backtest_results_list}: List of base learner results.
+\item \strong{oos_predictions_m_df}: Out-of-sample predictions used to train the meta learner.
+\item \strong{sb_metabacktest_config}: The input configuration object.
+}
+
+An object of class \code{sb_metabacktest_results}.
 
 An object of class sb_backtest_results with various outputs including model predictions, errors, and validation metrics.
 }
 \description{
-The \code{run_sb_backtest} function performs out-of-sample testing for a range of signal-blending algorithms (including machine-learning),
-using walk-forward time series validation.
-It supports many algorithms and can handle different configurations for objective functions, tuning strategies and also signal selection backtests results through S4 objects.
-The function divides the data into training, validation, and testing samples, and iteratively refits the model at specified rebalancing dates.
-
-Runs signal blending backtests for base learners and a meta learner using the provided configurations.
-Users can provide their own base learner results or have the function compute them internally.
+Executes a signal blending backtest, supporting both base learners and meta learners in a walk-forward setting. It is capable of handling advanced ML configurations, hyperparameter tuning strategies, custom optimization objectives, and interpretability tools (e.g., global surrogate models). Designed to run flexibly with either \code{sb_backtest_config} or \code{sb_metabacktest_config} objects.
 }
 \details{
-The function ensures all inputs are correctly formatted and performs checks to validate the integrity of input data and parameters. It employs the glmnet package
-for elastic net regularization, supporting both Lasso and Ridge regression.
+The function has two main methods:
+\subsection{1. \strong{Base Learner Backtest (\code{sb_backtest_config})}}{
+
+Executes a time-series cross-validation procedure, with refitting at specified rebalancing months. The data is divided into:
+\itemize{
+\item \strong{Training window} (fixed size, expanding or rolling)
+\item \strong{Optional validation window} (for tuning)
+\item \strong{Testing window} (evaluated sequentially for each rebalancing date)
+}
+
+Key steps:
+\itemize{
+\item Signal selection based on \code{is_eligible} flags from \code{signal_universe_m_df}.
+\item Correction of signal orientation (e.g., multiply by -1 if \code{low_} prefixed).
+\item Optionally override signal selection via custom weights.
+\item Hyperparameter tuning via:
+\itemize{
+\item \code{grid_search}
+\item \code{random_search} (with distribution sampling)
+\item \code{bayesian_opt} (with \code{ParBayesianOptimization})
+}
+\item Refit and predict using ML algorithm (OLS, glmnet, xgboost, rf, nn, etc.).
+\item Global Surrogate Model (\code{gsm_algorithm}) fitted post-hoc for interpretability.
+\item Walk-forward out-of-sample testing and metric computation.
+}
+}
+
+\subsection{2. \strong{Meta Learner Backtest (\code{sb_metabacktest_config})}}{
+
+Iterates over base learners (each with a \code{sb_backtest_config}), consolidates their predictions into a unified meta feature set, and then:
+\itemize{
+\item Winsorizes and/or normalizes predictions (optional)
+\item Adds user-selected pass-through features
+\item Fits a meta learner using a new \code{sb_backtest_config}
+}
+
+The meta learner backtest can be updated via \code{.update = TRUE} to extend its horizon without re-running all base learners.
+}
 
 The function ensures all inputs are correctly formatted and performs checks to
 validate the integrity of input data and parameters. It employs the glmnet package
@@ -237,14 +334,21 @@ for elastic net regularization, supporting both Lasso and Ridge regression.
   target_m_df = meta_dataframe,
   config = sb_backtest_config,
   base_sb_backtest_results_list = missing
-)}: Runs a backtest with a single configuration.
+)}: Runs a signal blending backtest for a single configuration.
+
+This method handles a single model configuration defined by an \code{sb_backtest_config} object.
+It supports walk-forward validation, optionally with hyperparameter tuning using grid search, random search, or Bayesian optimization.
+It can also fallback to heuristic models like EW, RP, or MVO.
 
 \item \code{run_sb_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
   config = sb_metabacktest_config,
   base_sb_backtest_results_list = list
-)}: Run Signal Blending Meta-Backtest
+)}: Runs a signal blending meta-backtest using multiple base learners and a meta learner.
+
+This method iteratively evaluates several base learners defined in an \code{sb_metabacktest_config}, then fits a meta learner on top of their predictions.
+It allows winsorization, normalization, and feature passthrough control when aggregating base learner outputs.
 
 }}
 \section{Functions}{
@@ -258,21 +362,16 @@ or Bayesian optimization. The function divides the data into training, validatio
 and testing samples, and iteratively refits the model at specified rebalancing dates.
 
 }}
-\section{Running in Parallel}{
+\section{Parallel Execution}{
 
-The function supports parallel execution for runing multiple ml backtests and for hyperparameter tuning, both using the future package.
-
-The method for \code{sb_metabacktest_config} is basically a wrapper for \code{sb_backtest_config} method, which is called iteratively for each configuration,
-and possibly run in parallel.
-
-By default, the method for \code{sb_metabacktest_config} and, individually, the method for \code{sb_backtest_config} when tuning_method \%in\% c("random_search", "grid_search"),
-utilizes furrr::future_pmap, which means they can run according to the built-in backends from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
+By default, tuning_method \%in\% c("random_search", "grid_search") utilizes furrr::future_pmap, which means they can run according to the built-in backends
+from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
 tuning will be done sequentially by default (equivalent to future::plan(sequential)). In this case, however,
 random number generator will be set to RNGkind("L'Ecuyer-CMRG"), instead of R default (RNGkind("Mersenne-Twister")), making results
 not reproducible regarding using purrr:pmap(). In order to run using R's default random number generator, set parallel = FALSE.
 Using a different evaluation strategy (e.g., future::plan(multisession)) will tune hyperparameters asynchronously (in parallel).
 
-For tuning_method = "bayesian_opt", under the application in \code{sb_backtest_config} method, the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the \%dopar\% operator.
+For tuning_method = "bayesian_opt", the ParBayesianOptimization::bayesOpt function runs in parallel by using foreach::foreach with the \%dopar\% operator.
 Therefore, in this case, the user can either: (i) use doFuture::registerDoFuture(), in order to use the \%dofuture\% foreach adapter
 (actually, in this case, doFuture::withDoRNG is used to turn \%dopar\% into \%dorng\% in order to use parallel-safe RNG), which allows
 usage of backends from the future package or (ii) use parallel::makeCluster(), doParallel::registerDoParallel(), doParallel::clusterExport() and
@@ -281,7 +380,18 @@ code will result in error. Therefore, to run bayesian_opt synchronously, either 
 or set parallel = FALSE.
 
 Keras has some limitations when working in parallel, especially when using bayesian optimization as tuning method.
+}
 
+\section{Update Workflow}{
+
+\itemize{
+\item When \code{.update = TRUE}, previously computed predictions are reused for existing dates.
+\item Models are only refitted for new rebalancing dates not in \code{.old_backtest_covered_dates}.
+\item The final object will append results while keeping the full history intact.
+}
+}
+
+\section{Running in Parallel}{
 
 By default, tuning_method \%in\% c("random_search", "grid_search") utilizes furrr::future_pmap, which means they can run according to the built-in backends
 from the future package. Therefore, if the user does not specify a different evaluation strategy with future::plan(),
@@ -302,9 +412,6 @@ Keras has some limitations when working in parallel, especially when using bayes
 }
 
 \examples{
-# Assuming features_m_df and target_m_df are meta_dataframe objects
-# and meta_config is an sb_metabacktest_config object
-results_list <- run_sb_backtest(features_m_df, target_m_df, training_sample_size = 30, rebalacing_months = c(6,12), meta_config)
 # Example of creating hyper_grid_domain_list for grid search
 hyper_grid <- list(
    alpha = c(0.2, 0.5),
@@ -329,8 +436,8 @@ keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activatio
 )
 }
 \seealso{
-\code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split},
-\code{\link{sb_backtest_config}}, \code{\link{sb_metabacktest_config}}
+\code{\link{sb_backtest_config}}, \code{\link{sb_metabacktest_config}}, \code{\link{time_series_split}}, \code{\link{run_port_backtest}},
+\code{\link{create_meta_dataframe}}, \code{\link{ParBayesianOptimization::bayesOpt}}, \code{\link{furrr::future_pmap}}
 
 \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 }

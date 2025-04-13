@@ -4,7 +4,11 @@
 \alias{lookup_catalog}
 \title{Lookup method for tickers_catalog}
 \usage{
-lookup_catalog(tickers_catalog, ...)
+lookup_catalog(
+  tickers_catalog,
+  tickers_to_lookup = NULL,
+  perm_id_to_lookup = NULL
+)
 }
 \arguments{
 \item{tickers_catalog}{A tickers_catalog object.}

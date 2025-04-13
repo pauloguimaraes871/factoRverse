@@ -29,158 +29,94 @@ define_signal_eligibility(
 )
 }
 \arguments{
+\item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{A \code{xts} object containing backtest returns for various signals.}
+
+\item{selected_market_factor_proxy_m_xts_upd_ref}{A \code{xts} object containing benchmark returns data. The first column should be dates, and the subsequent columns should contain returns.}
+
+\item{custom_signal_universe_metrics_m_upd_ref}{Optional meta-dataframe with custom metrics for signals, such as precomputed alpha, IR, etc.}
+
 \item{p_correction_method}{The method for p-value correction. Possible options are:
 \itemize{
-\item{"none"}: No correction.
-\item{"bayesian"}: When bayesian is set, a hierarchical mixed-effects bayesian linear model is fitted to the data, using the \code{brms} package,
-which is an interface to the \code{Stan} probabilistic programming language.
-The user can also choose one of the following frequentist methods, which will control Family-Wise Error Rate (FWER) or the False Discovery Rate (FDR).
-FDR is less stringent than FWER.
-For FWER, possible options are:
-\item{"bonferroni"}: Bonferroni correction, which is dominated by Holm's method.
-\item{"holm"}: Holm's (1979) method.
-\item{"hochberg"}: Hochberg's (1988) method, valid when hypothesis tests are independent or non-negatively associated. Less powerful than Hommel's (1988) method, but
-faster to compute.
-\item{"hommel"}: Hommel's (1988) method, also valid when hypothesis tests are independent or non-negatively associated, but is more powerful than Hochberg (1988).
-For FDR, possible options are:
-\item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
-\item{"BY"}: Benjamini-Yekutieli (2001) procedure.
+\item \code{"none"}: No correction.
+\item \code{"bayesian"}: Bayesian hierarchical model (via \code{brms}) is used for adjustment.
+\item \code{"bonferroni"}, \code{"holm"}, \code{"hochberg"}, \code{"hommel"}: FWER-controlling methods.
+\item \code{"BH"}, \code{"fdr"}, \code{"BY"}: FDR-controlling methods.
 }}
 
-\item{signal_significance_threshold}{A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
-provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
+\item{signal_significance_threshold}{A numeric value for the alpha significance level. If set to 1, all signals with valid alphas are selected. Signals are retained only if their CAPM alpha is statistically significant.}
 
-\item{enable_theme_representativeness}{If TRUE, in case a given theme in \code{selected_signal_themes_m_d_ref} does not have any eligible signal, the signal
-with highest alpha t-stat will be elected.}
+\item{enable_theme_representativeness}{Logical. If \code{TRUE}, ensures at least one signal per theme is selected, even if no signal passes the significance threshold, by choosing the signal with the highest alpha t-stat.}
 
-\item{model_structure}{A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.}
+\item{model_structure}{A character string, either \code{"partial_pooled"} or \code{"no_pooled"}, indicating the type of model structure to use for mixed-effects estimation.}
 
-\item{theme_level_intercept}{A character specifying the specification of effects of the intercept at the theme level.}
+\item{theme_level_intercept}{A string specifying intercept structure at the theme level. Only relevant when \code{model_structure == "partial_pooled"}.}
 
-\item{theme_level_slope}{A character specifying the specification of effects of the slope at the theme level.}
+\item{theme_level_slope}{A string specifying slope structure at the theme level. Only relevant when \code{model_structure == "partial_pooled"}.}
 
-\item{lmer_control}{Other additional parameters to be passed to \code{lme4::lmer} function.
+\item{lmer_control}{A list of arguments passed to \code{lme4::lmer}. Expected components:
 \itemize{
-#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
-It will be passed to lme4::lmerControl, which will be used in the \code{lme4::lmer} function.
-Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
-
-\item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
-
-\item{hierarchical_p_value_method}
+\item \code{lmer_optimizer}: Optimization algorithm used (e.g., \code{"nloptwrap"}, \code{"bobyqa"}, \code{"Nelder_Mead"}, \code{"nlminbwrap"}).
+\item \code{lmer_optimization_objective}: Either \code{"REML"} or \code{"ML"}.
+\item \code{hierarchical_p_value_method}: p-value calculation method (e.g., \code{"Satterthwaite"}).
 }}
 
-\item{active_returns}{A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
-backtest_returns_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_xts. This does not
-impact calculation of the CAPM model, whether it is frequentist or bayesian, pooled or partial pooled.}
+\item{active_returns}{Logical. If \code{TRUE}, returns are adjusted by subtracting benchmark returns before computing performance metrics.}
 
-\item{user_priors}{An object of class \code{brmsprior} with user-defined priors for the hierarchical bayesian model. It should be set with \code{model_spec_theme_level} structure in mind.
-brms::set_prior() can be used to define the priors. Should not be provided if \code{priors_m_d_ref} is already being provided.}
+\item{priors_m_upd_ref}{A meta-dataframe used to derive informative priors. Must include columns: \code{id}, \code{characteristic}, \code{dates}, \code{theme}, \code{alpha}, \code{beta}, \code{sigma}. Should not be provided if \code{user_priors} is set.}
 
-\item{prior_derivation_control}{A list of additional parameters to be passed to the \code{lme4::lmer} function:
+\item{user_priors}{A list of \code{brms::set_prior()} objects manually defined by the user. Only used when \code{priors_m_upd_ref} is \code{NULL}.}
+
+\item{brms_control}{A list of parameters to control the Bayesian model fitting with \code{brms::brm}:
 \itemize{
-\item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
+\item \code{chains}: Number of MCMC chains (default 4).
+\item \code{iter}: Total iterations per chain (default 2000).
+\item \code{warmup}: Warmup iterations per chain (default = \code{floor(iter / 2)}).
+\item \code{thin}: Thinning interval (default 1).
+\item \code{seed}: Random seed (default \code{NA}).
+\item \code{adapt_delta}: Target acceptance rate for HMC sampler (default 0.99).
 }}
 
-\item{selected_signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
-for defining clusters in bayesian hierarchical model. It should contain data only for current date.}
+\item{prior_derivation_control}{A list of additional parameters for prior generation:
+\itemize{
+\item \code{half_t_df}: Degrees of freedom in half-t distribution for scale parameters (default 30).
+}}
 
-\item{lower_quantile_winsorization}{Numeric value for lower winsorization.}
+\item{selected_signal_themes_m_d_ref}{A meta-dataframe with columns \code{id}, \code{dates}, and \code{theme}. Specifies group membership for each signal. Should include data for the current date only.}
 
-\item{upper_quantile_winsorization}{Numeric value for upper winsorization.}
+\item{lower_quantile_winsorization}{Numeric between 0 and 1. Lower quantile threshold for winsorization of signal metrics (e.g., alpha t-stats).}
 
-\item{verbose}{A boolean indicating whether to print messages to the console.}
+\item{upper_quantile_winsorization}{Numeric between 0 and 1. Upper quantile threshold for winsorization of signal metrics.}
 
-\item{parallel}{Logical.
-Indicates whether to enable parallel computation using the \code{future} package. Only avaialable for bayesian model. Default is \code{TRUE}.}
+\item{verbose}{Logical. If \code{TRUE}, prints messages to the console.}
 
-\item{selected_backtest_returns_corrected_positions_xts_upd_ref}{A xts containing backtest returns for various signals.}
-
-\item{selected_market_factor_proxy_xts_upd_ref}{A xts containing benchmark returns data. The first column should be identifiers for dates, and the subsequent columns should contain the returns data.}
-
-\item{priors_m_df_upd_ref}{A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
-and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors. It should contain data only for current date.
-Should not be provided if \code{user_priors_list} is already being provided.
-When \code{priors_m_df_upd_ref} is provided, a lme4 model is fit to the data using the \code{lme4} package, and the priors are then estimated from the model.
-In such case, ther user can control some aspects of the prior definition process with params: \code{model_spec_theme_level}, \code{v} and \code{lmer_optimizer}}
+\item{parallel}{Logical. Enables parallel execution (only for Bayesian models).}
 }
 \value{
-A data frame containing the updated signal universe with computed performance metrics, adjusted p-values, and final signal classifications. The columns include:
+A list with the following components:
 \describe{
-\item{\code{tickers}}{The identifiers for the signals.}
-\item{\code{mean_active_return}}{The mean active return of each signal.}
-\item{\code{tracking_error}}{The tracking error of each signal.}
-\item{\code{IR}}{The information ratio of each signal.}
-\item{\code{alpha}}{The OLS CAPM alpha of each signal.}
-\item{\code{AP}}{The t-statistic of the alpha.}
-\item{\code{beta}}{The beta of each signal.}
-\item{\code{treynor}}{The Treynor ratio of each signal.}
-\item{\code{p_value}}{The p-value of the alpha.}
-\item{\code{adjusted_p_value}}{The p-value adjusted for multiple comparisons, if applicable.}
-\item{\code{exp_ret_score}}{The final signal classification after applying transformations and adjustments.}
-}
-
-#' @details
-
-When providing \code{priors_m_df_upd_ref} to set informative priors, the function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
-
-\itemize{
-\item Priors for location parameters (e.g., intercepts, slopes) follow a normal distribution.
-\item Priors for scale parameters (e.g., random effect standard deviations) follow a half-t distribution.
-\item Correlation priors for random effects are modeled using the LKJ (Lewandowski-Kurowicka-Joe) distribution.
-}
-\subsection{Model Specifications at Theme Level}{
-\subsection{\code{random_intercept}}{
-
-This model includes:
-\itemize{
-\item Fixed intercept and slope for the market factor proxy.
-\item Random intercepts at the \code{theme} level.
-\item Random intercepts and slopes for each theme-signal combination.
-}
-The model equation is:
-\deqn{y_i = \beta_0 + \beta_1 \cdot x_i + b_{0,t_i} + b_{0,g_i} + b_{1,g_i} \cdot x_i + \epsilon_i}
-See the detailed breakdown in the example section.
-}
-
-\subsection{\code{fixed_intercepts}}{
-
-This model includes:
-\itemize{
-\item Fixed intercepts for each \code{theme}, expressed as a summation over all themes.
-\item A global fixed slope for the market factor proxy.
-\item Random intercepts and slopes for theme-signal combinations.
-}
-The model equation is:
-\deqn{y_{i} = \sum_{k} \beta_{k} \cdot \text{theme}_{k,i} + \beta_{m} \cdot x_{i} + b_{0,g_{i}} + b_{1,g_{i}} \cdot x_{i} + \epsilon_{i}}
-}
-
-\subsection{\code{fixed_intercepts_and_slopes}}{
-
-This model includes:
-\itemize{
-\item Fixed intercepts and slopes for each \code{theme}.
-\item Interaction terms between themes and the market factor proxy.
-\item Random intercepts for tickers.
-}
-The model equation is:
-\deqn{y_{it} = \sum_k \beta_k \cdot \text{theme}_{k,i} + \sum_k \gamma_k \cdot \text{theme}_{k,i} \cdot x_{it} + \beta_m \cdot X_{it} + b_{0,i} + \epsilon_{it}}
-}
-
-}
-
-A list with two components:
-\itemize{
-\item \code{priors}: A list of \code{brms::set_prior} objects specifying the derived priors.
-\item \code{model}: The fitted linear mixed-effects model (\code{lme4::lmer} object).
-}
-\subsection{\code{none}}{
-
-This model includes no parameter at the theme level and just models random intercepts and slopes for each signal.
-The model equation is:
-\deqn{y_i = \beta_0 + \beta_1 \cdot x_i + b_{0,g_i} + b_{1,g_i} \cdot x_i + \epsilon_i}
+\item{\code{signal_universe_m_d_ref}}{A dataframe with computed performance metrics, adjusted p-values, and classification flags.}
+\item{\code{frequentist_results}}{Results from the frequentist mixed-effects model (if applicable).}
+\item{\code{bayesian_results}}{Results from the Bayesian model (if applicable).}
 }
 }
 \description{
 This function evaluates the eligibility of signals for inclusion in the investment universe based on various performance metrics and statistical adjustments. It performs initial data checks, computes performance metrics, applies statistical adjustments (both frequentist and Bayesian), and classifies signals according to the specified selection policy.
 }
+\details{
+When \code{priors_m_upd_ref} is provided, the function uses a frequentist mixed-effects model to derive priors, later used in a Bayesian model:
+\itemize{
+\item Priors for location parameters (e.g., alpha, beta) follow normal distributions.
+\item Priors for scale parameters (e.g., random effect std. devs) follow half-t distributions.
+\item Correlation priors follow an LKJ distribution.
+}
+}
+\section{Model Specifications at Theme Level}{
+
+\describe{
+\item{\code{random_intercept}}{Includes a global intercept and random intercepts at the theme and signal level.}
+\item{\code{fixed_intercepts}}{Uses fixed effects for themes and random effects for signals.}
+\item{\code{fixed_intercepts_and_slopes}}{Includes fixed theme-wise intercepts and slopes, and random signal intercepts.}
+\item{\code{none}}{Only signal-level random effects are modeled.}
+}
+}
+

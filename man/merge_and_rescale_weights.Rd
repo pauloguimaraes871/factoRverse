@@ -19,6 +19,8 @@ merge_and_rescale_weights(
 \item{updated_port_weights_m_lstd_ref}{A data frame containing the updated or lagged portfolio weights,
 (typically with columns \code{tickers} and \code{bop_port_weights}) referring to weights carried over from the last period.}
 
+\item{selected_benchmark_weights_m_d_ref}{(Optional) A data frame with benchmark weights to merge into the final output. It should contain columns \code{id} and the benchmark weight. If provided, it will be joined to the final portfolio using \code{id}.}
+
 \item{stock_universe_m_d_ref}{A data frame (default \code{NULL}) representing a rebalanced set of stocks
 (typically with columns \code{id}, \code{weights}), which, if provided, is used directly to assign \code{eop_port_weights}.
 If \code{NULL}, the function uses the \code{bop_port_weights} from \code{updated_port_weights_m_lstd_ref}

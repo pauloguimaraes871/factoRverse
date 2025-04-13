@@ -2,10 +2,20 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{print.step_winsorize}
 \alias{print.step_winsorize}
-\title{Print method for step_winsorize}
+\title{Print Method for step_winsorize}
 \usage{
 \method{print}{step_winsorize}(x, width = max(20, options()$width - 30), ...)
 }
+\arguments{
+\item{x}{A \code{step_winsorize} object.}
+
+\item{width}{Width of the output. Default adjusts to console width.}
+
+\item{...}{Additional arguments (not used).}
+}
+\value{
+The original \code{step_winsorize} object, invisibly.
+}
 \description{
-Print method for step_winsorize
+Print method for a \code{step_winsorize} object.
 }

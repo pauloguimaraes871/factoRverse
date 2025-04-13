@@ -11,6 +11,9 @@
 
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
 
+\item{plot_id}{A character string or numeric value specifying which plot to display.
+If \code{NULL}, the user is prompted to select one from an interactive menu.}
+
 \item{...}{Additional arguments (currently unused).}
 }
 \value{

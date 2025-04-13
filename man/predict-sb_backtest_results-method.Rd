@@ -19,6 +19,10 @@ validated model, metadata, and best hyperparameters.}
 containing new feature data for which predictions are to be made. The
 data frame must be structured correctly and should not include the first
 three columns, which are reserved for identifiers.}
+
+\item{lower_quantile_winsorization}{Numeric value for lower winsorization}
+
+\item{upper_quantile_winsorization}{Numeric value for upper winsorization}
 }
 \value{
 A numeric vector of predictions for the new feature data.

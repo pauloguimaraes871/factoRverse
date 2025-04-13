@@ -10,13 +10,15 @@
 \item{x}{A \code{port_backtest_config} object containing liquidity floor cutoffs data in the
 \code{liquidity_floor_cutoffs} slot.}
 
+\item{y}{Not used. Required for S4 method consistency.}
+
 \item{...}{Additional arguments (currently not used).}
 }
 \value{
 A \code{ggplot} object representing the faceted liquidity floor cutoffs plot.
 }
 \description{
-This method generates a faceted bar plot displaying liquidity floor cutoff metrics
+Generates a faceted bar plot displaying liquidity floor cutoff metrics
 from a \code{port_backtest_config} object. The liquidity floor cutoffs data is expected to
 contain one grouping column (automatically identified as the first non-numeric column)
 and one or more numeric columns. The data is pivoted into a long format and, within each metric facet,

@@ -6,6 +6,13 @@
 \usage{
 \S4method{plot}{sb_model,missing}(x, type = NULL, ...)
 }
+\arguments{
+\item{x}{An object of class \code{sb_model}.}
+
+\item{type}{Currently unused. Included for compatibility with other plot methods.}
+
+\item{...}{Additional arguments passed to the plot method of the underlying model.}
+}
 \description{
-This method generates plots for a \code{sb_model} object, depending on the \code{model} slot.
+This method dispatches plotting to the underlying model stored in the \code{model} slot of a \code{sb_model} object.
 }

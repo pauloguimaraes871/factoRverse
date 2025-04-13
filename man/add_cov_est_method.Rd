@@ -6,10 +6,7 @@
 \alias{add_cov_est_method,sb_backtest_config,missing-method}
 \alias{add_cov_est_method,port_backtest_config,cov_est_method-method}
 \alias{add_cov_est_method,port_backtest_config,missing-method}
-\title{Add a cov_est_method to a backtest configuration object
-
-This function allows either directly add a pre-existing \code{cov_est_method} object or create one dynamically by passing additional arguments.
-When \code{cov_est_method} is not provided, a new one will be created using the values for \code{cov_estimation_method}, \code{cov_matrix_sample_size}, \code{active_returns}, passed via the \code{...} argument.}
+\title{Add covariance estimation method to a backtest configuration}
 \usage{
 add_cov_est_method(object, cov_est_method, ...)
 
@@ -44,21 +41,18 @@ add_cov_est_method(object, cov_est_method, ...)
 
 \item{...}{Additional arguments used to create a new \code{cov_est_method} when \code{cov_est_method} is missing. These arguments must include:
 \itemize{
-\item \strong{cov_estimation_method}: A character string representing the covariance estimation method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.
-\item \strong{cov_matrix_sample_size}: Number of periods to subset return sample when estimating the covariance matrix. A high number will provide
-higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
-to dimensionality curse.
-\item \strong{active_returns}: logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
+\item \strong{cov_estimation_method}: A character string representing the covariance estimation method. Must be one of \code{"sample"}, \code{"ewma"}, \code{"cc"}, \code{"pca1"}, \code{"pca2"}, \code{"shrink_id"} or \code{"shrink_cc"}.
+\item \strong{cov_matrix_sample_size}: Number of periods to subset return sample when estimating the covariance matrix. A high number provides
+higher degrees of freedom, but old returns might not reflect current risk due to parameter shifts. A low number increases estimation variance due to the curse of dimensionality.
+\item \strong{active_returns}: Logical. If \code{TRUE}, the covariance matrix is estimated using active returns. If \code{FALSE}, raw returns are used.
 }}
 }
 \value{
-An updated object of class \code{sb_backtest_config} with the \code{cov_est_method} added.
+An updated object of class \code{sb_backtest_config} or \code{port_backtest_config} with the \code{cov_est_method} added.
 }
 \description{
-Add a cov_est_method to a backtest configuration object
-
-This function allows either directly add a pre-existing \code{cov_est_method} object or create one dynamically by passing additional arguments.
-When \code{cov_est_method} is not provided, a new one will be created using the values for \code{cov_estimation_method}, \code{cov_matrix_sample_size}, \code{active_returns}, passed via the \code{...} argument.
+This function allows either directly adding a pre-existing \code{cov_est_method} object or creating one dynamically by passing additional arguments.
+When \code{cov_est_method} is not provided, a new one will be created using the values for \code{cov_estimation_method}, \code{cov_matrix_sample_size}, and \code{active_returns}, passed via the \code{...} argument.
 }
 \section{Functions}{
 \itemize{

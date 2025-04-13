@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_methods.R
 \name{plot,meta_dataframe,missing-method}
 \alias{plot,meta_dataframe,missing-method}
-\title{Plot Method for Meta Dataframe with Custom Statistics and Filtering}
+\title{Plot Method for \code{meta_dataframe} Objects}
 \usage{
 \S4method{plot}{meta_dataframe,missing}(
   x,
@@ -19,30 +19,56 @@
 )
 }
 \arguments{
-\item{x}{A \code{meta_dataframe} object containing the data to be plotted.}
+\item{x}{A \code{meta_dataframe} object to be plotted.}
 
-\item{type}{A character string specifying the type of plot. Options are "cross_sectional" and "time_series".}
+\item{type}{A character string specifying the plot type. Valid options include:
+\code{"cross_sectional"}, \code{"time_series"}, \code{"histogram"}, \code{"boxplot"}, \code{"composition"}, \code{"regression"},
+\code{"density2d"}, \code{"correlogram"}, \code{"radar"}, \code{"waterfall"}, \code{"tile_heatmap"}, \code{"frequency"}.}
 
-\item{clustering_variables}{Character vector. Variables used for grouping in cross-sectional or time series plot.}
+\item{clustering_variables}{A character vector specifying one or more columns to group by (e.g., \code{"dates"}, \code{"tickers"}).
+Used to produce faceted plots or grouping within plots.}
 
-\item{variable}{Character. The numeric variable for calculating the specified statistic in the plot.}
+\item{variable}{A character vector specifying the main numeric variable(s) to analyze or visualize.}
 
-\item{tickers}{Character or vector of characters. Specific tickers to include; defaults to "all" for no filtering.}
+\item{tickers}{Character vector of tickers to include. Use \code{"all"} (default) to include all tickers.}
 
-\item{dates}{Date, single date, or date range. Specific date range to include; defaults to "all" for no filtering.}
+\item{dates}{Either a single date, a vector of dates, or \code{"all"} to include all.}
 
-\item{calc_stat}{Character. Specifies the statistic to calculate. Supported values: "mean", "sd", "median", "min", "max", "sum", "n",
-"q05", "q10", "q25", "q75", "q90", "q95", "cor", "beta", "beta_tstat", "alpha", "alpha_tstat".}
+\item{calc_stat}{Character string specifying the calculation to apply. Supported options include:
+\code{"mean"}, \code{"sd"}, \code{"median"}, \code{"min"}, \code{"max"}, \code{"sum"}, \code{"n"}, \code{"q05"}, \code{"q10"}, \code{"q25"}, \code{"q75"}, \code{"q90"}, \code{"q95"},
+and bivariate metrics such as \code{"cor"}, \code{"beta"}, \code{"beta_tstat"}, \code{"alpha"}, \code{"alpha_tstat"}.}
 
-\item{custom_filter}{Character or vector of characters. Additional columns to filter by, present in \code{data}.}
+\item{custom_filter}{A character or character vector specifying the column(s) to filter on (e.g., \code{sector}, \code{theme}).}
 
-\item{filter_values}{List or vector of values to filter by for \code{custom_filter}.}
+\item{filter_values}{A list or vector of values corresponding to \code{custom_filter} columns.}
 
-\item{y}{Optional numeric variable, only required for bivariate statistics like "cor", "beta", "beta_tstat", "alpha", "alpha_tstat".}
+\item{dep_y}{Optional. A character string indicating the dependent variable to be used in bivariate statistics
+(e.g., \code{"cor"}, \code{"beta"}, \code{"alpha"}). Required when \code{calc_stat} involves regression or correlation.}
+
+\item{numeric_aggregation}{A character string defining how to discretize numeric \code{clustering_variables}.
+Options include: \code{"decile"}, \code{"quartile"}, \code{"tercile"}, \code{"median"}. Default is \code{"decile"}.}
+
+\item{...}{Currently unused. Included for method consistency.}
 }
 \value{
-A ggplot object representing the requested plot.
+A \code{ggplot} object or base R plot (in the case of radar plots), visualizing the requested output.
+The plot is printed as a side effect.
 }
 \description{
-This method generates enhanced plots for a \code{meta_dataframe} object based on the specified plot type and chosen calculation statistic.
+This method creates a variety of diagnostic and summary plots from a \code{meta_dataframe} object,
+including time series plots, cross-sectional plots, histograms, boxplots, composition plots,
+regression plots, density plots, tile heatmaps, correlograms, and radar charts.
+
+It supports both univariate and bivariate statistics (e.g., correlation, regression),
+faceting by clustering variables, and interactive filtering by tickers, dates, or other custom criteria.
+}
+\details{
+This method performs internal filtering and summarization before rendering visual output.
+\itemize{
+\item \strong{Univariate plots} (e.g., histogram, boxplot, time series) are based on the \code{variable} argument.
+\item \strong{Bivariate plots} (e.g., regression, correlation) require both \code{variable} and \code{dep_y}.
+\item \strong{Tile heatmaps} classify values across time and grouping dimensions using quantiles (e.g., deciles).
+}
+
+The plot aesthetics and background colors follow a customized neon/blue theme consistent with the \code{factoRverse} package style.
 }

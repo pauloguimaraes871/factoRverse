@@ -12,22 +12,25 @@
 \item{type}{A character string specifying the type of plot to generate. If \code{NULL}, the user will be prompted.}
 
 \item{...}{Additional arguments for future extensions (currently unused).}
-
-\item{y}{Missing. (Not used.)}
 }
 \value{
-A \code{ggplot} object (invisibly). The function will also print the plot to the graphics device.
+A \code{ggplot} object (invisibly). The function also prints the plot.
 }
 \description{
 This method generates plots for a \code{port} object, depending on the specified \code{type}.
+}
+\details{
 The currently supported plot types are:
 \enumerate{
-\item \code{"weights"} - A basic pie chart of the portfolio weights.
+\item \code{"weights"} - A bar chart of the portfolio weights (or active weights).
 \item \code{"exp_ret_score"} - A bar chart of the portfolio's expected return scores.
-\item \code{"risk_return"} - Scatterplot of expected return score (y) vs. risk (x) (the main diagonal of covariance matrix).
-\item \code{"correlation"} - A heatmap of the correlation (or covariance) matrix.
-\item \code{"relative_risk_contribution"} - A bar chart showing each asset's weight and relative risk contribution side by side.
-\item \code{"efficient_frontier"} - Plots a scatterplot of random portfolios' risk and return, plus an optimal portfolio point.
-\item \code{"group_composition"} - Compares portfolio group weights (e.g., sectors, themes) with benchmark group weights (if available).
+\item \code{"risk_return"} - A scatterplot of expected return score (y) vs. risk (x).
+\item \code{"correlation"} - A heatmap of the asset correlation matrix.
+\item \code{"relative_risk_contribution"} - A bar chart comparing weights and risk contributions.
+\item \code{"efficient_frontier"} - A scatterplot of random portfolios with Sharpe ratio coloring and the optimal portfolio highlighted.
+\item \code{"random_weights_distribution"} - A jitter plot of random portfolio weights with constraints.
+\item \code{"group_composition"} - A grouped bar chart comparing portfolio and benchmark weights across classification variables (e.g., sectors).
 }
+
+This method is dispatched on signature \code{plot(x = "port", y = "missing")} and does not use the \code{y} argument.
 }

@@ -53,18 +53,18 @@ update_ss_backtest(
 
 \item{signal_themes_m_df}{A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in \code{signals_m_df}, and a "theme" column providing group membership for each signal.}
 
+\item{old_results}{An object of class \code{ss_backtest_results} to be updated with new results.}
+
 \item{...}{Additional arguments (not used in this method).}
 
 \item{priors_m_df}{A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
 and values for active_return, bench_return, alpha (mean and se), beta (mean and se), and sigma. Data should be exogenous, as it will be used to set priors for the hierarchical Bayesian model.}
 
+\item{custom_signal_universe_metrics_m_df}{A \code{meta_dataframe} containing user-defined metrics for the signal universe, used for custom filtering or classification.}
+
 \item{verbose}{A boolean indicating whether to print messages.}
 
 \item{parallel}{A boolean indicating whether to run the backtest in parallel.}
-
-\item{upper_quantile_winsorization}{Numeric value for upper winsorization.}
-
-\item{lower_quantile_winsorization}{Numeric value for lower winsorization.}
 }
 \value{
 An object of class \code{ss_backtest_results} containing the portfolio backtest results.

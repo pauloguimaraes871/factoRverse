@@ -2,14 +2,29 @@
 % Please edit documentation in R/utils-create_signal_weighted_portfolio.R
 \name{create_signal_weighted_portfolio}
 \alias{create_signal_weighted_portfolio}
-\title{Create a signal_weighted portfolio for signals or stocks}
+\title{Create a Signal-Weighted Portfolio for Signals or Stocks}
 \usage{
 create_signal_weighted_portfolio(universe_m_d_ref, verbose = TRUE)
 }
 \arguments{
-\item{universe_m_d_ref}{A dataframe with identifiers (tickers or signal column), is_eligible and a weighting column as defined by signal_weighting metric.
-This object could either be the result of filter_stock_universe or created in the context of the blend_signals_function}
+\item{universe_m_d_ref}{A data.frame containing the investment universe with the following columns:
+\describe{
+\item{\code{tickers}}{Asset or signal identifier.}
+\item{\code{is_eligible}}{Binary flag (0/1) indicating if the asset is eligible for inclusion.}
+\item{\code{exp_ret_score}}{Expected return score or signal strength, used to derive portfolio weights.}
+}
+This object can be the result of \code{filter_stock_universe()} or constructed inside a custom signal blending function.}
+
+\item{verbose}{Logical. If \code{TRUE}, prints timing and status messages to the console using \code{tictoc} and \code{crayon}.}
+}
+\value{
+A list with the following elements:
+\describe{
+\item{\code{universe_m_d_ref}}{The original data frame augmented with the computed weights.}
+\item{\code{weights}}{A numeric vector of portfolio weights summing to 1 (within tolerance).}
+\item{\code{exp_ret_score}}{The original expected return score vector used to define the weights.}
+}
 }
 \description{
-Create a signal_weighted portfolio for signals or stocks
+This function calculates portfolio weights based on signal scores (e.g., expected return scores) for eligible assets. It is typically used after applying selection filters to the investment universe.
 }

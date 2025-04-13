@@ -4,7 +4,13 @@
 \alias{map_recipe_timewise}
 \title{Map a Recipe to Sequential Dates}
 \usage{
-map_recipe_timewise(meta_dataframe, recipe, ...)
+map_recipe_timewise(
+  meta_dataframe,
+  recipe,
+  verbose = TRUE,
+  parallel = TRUE,
+  type = "signals"
+)
 }
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object.}

@@ -10,11 +10,13 @@
 \item{x}{An object of class \code{port_backtest_cohort}.}
 
 \item{plot_id}{A character string or numeric value specifying which plot to display.}
+
+\item{vertical_lines}{Optional. A named list or vector specifying vertical lines to add to time-series plots. Used for highlighting events.}
 }
 \value{
 Invisibly returns the input object.
 }
 \description{
-Generates various plots to visualize metrics from the \code{port_backtest_cohort} object.
+Generates various plots to visualize metrics from a \code{port_backtest_cohort} object.
 Users can select which plot to display by specifying the \code{plot_id} parameter.
 }

@@ -2,10 +2,20 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{print.step_impute_sector}
 \alias{print.step_impute_sector}
-\title{Print method for step_impute_sector}
+\title{Print Method for step_impute_sector}
 \usage{
 \method{print}{step_impute_sector}(x, width = max(20, options()$width - 30), ...)
 }
+\arguments{
+\item{x}{A \code{step_impute_sector} object.}
+
+\item{width}{An integer specifying the desired display width. Defaults to a dynamic value based on console width.}
+
+\item{...}{Additional arguments (not used).}
+}
+\value{
+The original \code{step_impute_sector} object, invisibly.
+}
 \description{
-Print method for step_impute_sector
+Prints a concise summary of the \code{step_impute_sector} step, including selected columns, the sector column, and the imputation method.
 }

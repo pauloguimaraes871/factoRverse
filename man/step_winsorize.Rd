@@ -2,7 +2,7 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{step_winsorize}
 \alias{step_winsorize}
-\title{Step Winsorize}
+\title{Prepare Step: step_winsorize}
 \usage{
 step_winsorize(
   recipe,
@@ -15,25 +15,18 @@ step_winsorize(
 )
 }
 \arguments{
-\item{recipe}{A \code{recipe} object.}
+\item{...}{Additional arguments passed to methods (not used).}
 
-\item{...}{One or more selector functions to choose variables.}
+\item{x}{A \code{step_winsorize} object.}
 
-\item{role}{Not used for this step.}
+\item{training}{A data frame used to estimate the quantile thresholds.}
 
-\item{trained}{A logical indicating if the step has been trained.}
-
-\item{probs}{A numeric vector of length two, specifying the lower and upper quantiles.}
-
-\item{skip}{A logical indicating if the step should be skipped when baking.}
-
-\item{id}{A character string for step identification.}
+\item{info}{An optional \code{term_info} object, passed by the recipe infrastructure (not used here).}
 }
 \value{
-An updated recipe object with the step added.
+A trained \code{step_winsorize} object with calculated winsorization limits stored.
 }
 \description{
-This step applies winsorization to numeric variables, replacing extreme values
-with the values at specified quantiles. It ensures that all selected variables
-remain within the given percentile range.
+Computes the lower and upper winsorization limits based on specified quantiles.
+Called internally by \code{prep()} on a recipe with \code{step_winsorize()}.
 }

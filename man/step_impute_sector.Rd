@@ -2,7 +2,7 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{step_impute_sector}
 \alias{step_impute_sector}
-\title{Step Impute Sector}
+\title{Prepare Step: step_impute_sector}
 \usage{
 step_impute_sector(
   recipe,
@@ -17,28 +17,18 @@ step_impute_sector(
 )
 }
 \arguments{
-\item{recipe}{A \code{recipe} object.}
+\item{...}{Additional arguments passed to methods (not used).}
 
-\item{...}{One or more selector functions to choose numeric variables to impute.}
+\item{x}{A \code{step_impute_sector} object.}
 
-\item{sector}{A character string specifying the sector column used for imputation.}
+\item{training}{A data frame of training data that will be used to estimate the imputation values.}
 
-\item{method}{The imputation method, either \code{"mean"} or \code{"median"}. Default is \code{"mean"}.}
-
-\item{role}{Not used for this step.}
-
-\item{trained}{A logical indicating if the step has been trained.}
-
-\item{impute_values}{A list containing the computed imputation values (after training).}
-
-\item{skip}{A logical indicating if the step should be skipped when baking.}
-
-\item{id}{A character string for step identification.}
+\item{info}{An optional \code{term_info} object. Not used here but required by the S3 method signature.}
 }
 \value{
-An updated recipe object with the step added.
+A \code{step_impute_sector} object with computed \code{impute_values}.
 }
 \description{
-This step imputes missing values in numeric variables using the mean or median
-calculated within groups defined by a sector column.
+Prepares the \code{step_impute_sector} by computing mean or median values by sector for imputation.
+This function is called automatically during \code{prep()} on a recipe.
 }

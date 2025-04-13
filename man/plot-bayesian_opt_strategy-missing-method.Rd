@@ -10,6 +10,8 @@
 \item{x}{An object of class \code{bayesian_opt_strategy}.}
 
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
+
+\item{...}{Additional arguments passed to the plotting method (currently unused).}
 }
 \value{
 A \code{ggplot} object visualizing the bounds.

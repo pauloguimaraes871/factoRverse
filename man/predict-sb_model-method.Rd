@@ -17,6 +17,10 @@ refitted model and its parameters.}
 
 \item{new_features_m_df}{A  \code{meta_dataframe} or a coercible data.frame
 containing new feature data for which predictions are to be made.}
+
+\item{lower_quantile_winsorization}{Numeric value for lower winsorization}
+
+\item{upper_quantile_winsorization}{Numeric value for upper winsorization}
 }
 \value{
 A numeric vector of predictions for the new feature data.

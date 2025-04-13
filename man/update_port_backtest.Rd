@@ -50,7 +50,31 @@ update_port_backtest(
 
 \item{...}{Additional arguments (if needed).}
 
+\item{updated_sb_backtest_results}{An optional object of class \code{sb_backtest_results} or \code{sb_metabacktest_results} used to update the backtest using style-based results.}
+
+\item{stock_groups_m_df}{A \code{meta_dataframe} containing stock group classifications, if applicable.}
+
+\item{benchmark_weights_m_df}{A \code{meta_dataframe} with benchmark weights.}
+
+\item{daily_stock_returns_m_xts}{An object of class \code{meta_xts} with daily stock returns, used in covariance estimation.}
+
+\item{daily_bench_returns_m_xts}{An object of class \code{meta_xts} with daily benchmark returns, used in covariance estimation.}
+
+\item{benchmark_returns_m_xts}{An object of class \code{meta_xts} containing benchmark returns over the rebalancing periods.}
+
+\item{custom_stock_weights_m_df}{A \code{meta_dataframe} with user-defined stock weights for portfolio construction.}
+
+\item{custom_stock_metrics_m_df}{A \code{meta_dataframe} with user-defined metrics to be used in portfolio rules.}
+
+\item{user_defined_OR_rules_m_df}{A \code{meta_dataframe} specifying OR-based portfolio inclusion rules.}
+
+\item{user_defined_AND_rules_m_df}{A \code{meta_dataframe} specifying AND-based portfolio inclusion rules.}
+
+\item{verbose}{Logical; if \code{TRUE}, prints progress messages (default is \code{TRUE}).}
+
 \item{parallel}{Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).}
+
+\item{.test_seed}{Optional seed for reproducibility when testing.}
 }
 \value{
 An object of class \code{port_backtest_results} containing the portfolio backtest results.

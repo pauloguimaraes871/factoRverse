@@ -9,6 +9,8 @@
 \arguments{
 \item{x}{A \code{bayesian_alpha_test_strategy} object.}
 
+\item{y}{Ignored. Included for S3 compatibility.}
+
 \item{...}{Additional arguments (currently unused).}
 }
 \description{

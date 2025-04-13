@@ -2,10 +2,18 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{required_pkgs.step_winsorize}
 \alias{required_pkgs.step_winsorize}
-\title{Declare required packages}
+\title{Required Packages for step_winsorize}
 \usage{
 required_pkgs.step_winsorize(x, ...)
 }
+\arguments{
+\item{x}{A \code{step_winsorize} object.}
+
+\item{...}{Additional arguments (not used).}
+}
+\value{
+A character vector of package names required for the step.
+}
 \description{
-Declare required packages
+Declares the required packages for using the \code{step_winsorize} step inside a recipe.
 }
