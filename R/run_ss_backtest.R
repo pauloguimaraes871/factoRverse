@@ -7,10 +7,10 @@
 #' @param updated_port_backtest_cohort An up-to-date `port_backtest_cohort` object containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
 #' @param signal_themes_m_df A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in `signals_m_df`, and a "theme" column providing group membership for each signal.
+#' @param old_results An object of class \code{ss_backtest_results} to be updated with new results.
 #' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
 #' and values for active_return, bench_return, alpha (mean and se), beta (mean and se), and sigma. Data should be exogenous, as it will be used to set priors for the hierarchical Bayesian model.
-#' @param upper_quantile_winsorization Numeric value for upper winsorization.
-#' @param lower_quantile_winsorization Numeric value for lower winsorization.
+#' @param custom_signal_universe_metrics_m_df A \code{meta_dataframe} containing user-defined metrics for the signal universe, used for custom filtering or classification.
 #' @param verbose A boolean indicating whether to print messages.
 #' @param parallel A boolean indicating whether to run the backtest in parallel.
 #' @param ... Additional arguments (not used in this method).
@@ -213,33 +213,99 @@ setMethod("update_ss_backtest",
           })
 
 
-#' Run a Signal Selection Backtest
+#' Run Signal Selection Backtest
+#'
+#' Performs out-of-sample testing of alpha signal selection across time using statistical methods (frequentist or Bayesian).
+#' It filters and ranks signals based on their predictive power, typically using regression-based techniques.
+#'
+#' @param config An object of class `ss_backtest_config`, specifying the parameters of the signal selection backtest, including methodology and thresholds.
+#' @param signals_m_df A `meta_dataframe` containing alpha signals (columns), identified by `tickers`, with `id` and `dates` columns.
+#' @param backtest_returns_m_xts A `meta_xts` containing signal backtest returns (xts format). Must align with `signals_m_df` and include one column per signal.
+#' @param port_backtest_cohort A `port_backtest_cohort` object. Used to extract backtest returns via `extract_returns_m_xts()` (only for the wrapper method).
+#' @param benchmark_returns_m_xts A `meta_xts` object with benchmark returns. Used to compute active returns for each signal.
+#' @param signal_themes_m_df A `meta_dataframe` that maps each signal to a theme. Includes columns: `id`, `tickers`, `dates`, and `theme`.
+#' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model), and values for active_return, bench_return, alpha (mean and se), beta (mean and se), and sigma. Data should be exogenous, as it will be used to set priors for the hierarchical Bayesian model.
+#' @param custom_signal_universe_metrics_m_df Optional. A `meta_dataframe` with custom signal-level metrics to guide eligibility filtering.
+#' @param verbose A boolean indicating whether to print messages.
+#' @param parallel A boolean indicating whether to use parallel processing.
+#' @param winsorization_probs Numeric vector of length 2. Defines lower and upper quantiles for winsorizing signal values. Default is `c(0.025, 0.975)`.
+#' @param .test_seed (Internal) Integer or `NULL`. Used in unit tests to set random seed for reproducibility.
+#' @param .update (Internal) Logical. If `TRUE`, updates a previous backtest incrementally. Default is `FALSE`.
+#' @param .old_backtest_covered_dates (Internal) Vector of dates already covered in a previous backtest. Used only if `.update = TRUE`.
+#' @param .old_oos_ss_outputs_m_df (Internal) A `meta_dataframe` of previously computed signal scores for reuse. Used only in update mode.
+#'
+#' @details
 #'
 #' This function performs iterative signal selection based on frequentist or Bayesian methods, which are applied to portfolio returns backtests to identify which signals can be considered significant in stock-level return prediction.
 #'
-#' To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM),
-#' computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
+#' To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM), computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
 #'
-#' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
-#' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
-#' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
-#' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
-#' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
-#' and values for active_return, bench_return, alpha (mean and se), beta (mean and se), and sigma. Data should be exogenous, as it will be used to set priors for the hierarchical Bayesian model.
-#' @param signal_themes_m_df A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in `signals_m_df`, and a "theme" column providing group membership for each signal.
-#' @param upper_quantile_winsorization Numeric value for upper winsorization.
-#' @param lower_quantile_winsorization Numeric value for lower winsorization.
-#' @param verbose A boolean indicating whether to print messages.
-#' @param parallel A boolean indicating whether to run the backtest in parallel.
-#' @param ... Additional arguments (not used in this method).
+#' @section Bayesian Hierarchical Model:
+#'
+#' One way of introducing shrinkage to alpha estimates from signal portfolios is by using bayesian statistics, which might be specially useful in the context of small samples of strategy returns. Bayesian statistics allows for the incorporation of prior information about the parameters of interest (alpha and beta), which can be particularly useful in multiple testing.
+#'
+#' A Bayesian model depends on parameters that are themselves random variables. For instance, one can assume a normal distribution for the CAPM alpha parameter, with a mean of 0 (the strategy is not profitable) and a given standard deviation, effectively shrinking posterior estimates towards the prior mean, with an intensity that depends on the prior standard deviation and the sample distribution. Alternatively, one can utilize priors derived from signal strategies from other countries or asset classes than the ones being studied. Either way, the researcher will incorporate the reasoning process people usually have, as we usually have prior beliefs about a subject and then will update our beliefs based on new information. If another research possesses other priors, he or she can incorporate those into Bayes rule and derive other posterior distribution for parameters of interest, which is kind of more transparent than the frequentist approach, who will inherently give ultimate importance to associational evidence from (possibly overfit) data. Most of the time, in a frequentist setting, the researcher usually does not disclose the reasoning process behind the model. Therefore, bayesian statistics are being often recommended as a method to deal with multiple testing problems.
+#'
+#' Suppose one has return observations for multiple signal portfolios across time and wants to estimate the parameters of a single-factor model (CAPM) that describes the relationship between these signals portfolios and the market factor, being interested in the significance of the alpha parameter, while accounting for its exposure to systematic market risk. A complete pooled model will treat all observations as being independent and treating as irrelevant any information about individual strategies, which might be misleading, because it does not account for the hierarchical structure of the data. Observations of a given signal portfolio are possible correlated. On the other hand, a no pooling model will estimate a separate model for each signal portfolio, fitting specific parameters for each individual strategy, which might be inefficient, as it does not borrow information across signals. Signals belonging to a given theme tend to be similar. Signals in the value theme, for instance, are usually valuation multiples (eg book yield, earnings yield, fcf yield, sales yield etc) and so are very similar, thus it would be unfortunate to ignore information from other value strategies when analyzing, for example, book yield alpha. By fitting a hierarchical model, alpha estimates are first shrunk towards theme mean and then towards priors. In this setting, there is top layer represented by the population of all signal strategies under a theme (eg. the value theme alpha) and a second layer for the backtested strategies that fall under that theme, for which he have repeated observations.
+#'
+#' By using a hierarchical model, one can study both within-signal variability, examining how consistent the signal is across time, and between-signal variability, examining how performance patterns vary across different signals in a theme. Total variance is given by sum of within-signal variance and between-signal variance.
+#'
+#' Threfore, there are three layers for R_s,t (t-th observation of return of signal s):
+#' \itemize{
+#'  \item{Signal-specific layer:}{R_s,t ~ N(alpha_s + beta_s * R_m,t, sigma_s^2). This represents how returns vary within strategy s}
+#'  \item{Theme-specific layer:}{alpha_s ~ N(alpha_theme, sigma_a_theme^2); beta_s ~ N(beta_theme, sigma_b_theme^2). This represents how the typical alpha/beta vary across strategies in a theme}
+#'  \item{Priors:}{alpha_theme, sigma_a_theme, beta_theme, sigma_b_theme, sigma_s. Global parameters shared between strategies.}
+#' }
+#' More specifically, signal-specific mean parameters are treated as deviations from global parameters (u_1, u_2 and u_sigma for alpha, beta and sigma respectively, with corresponding mean and standard deviations mu_u1, tau_u1,  mu_u2, tau_u2, mu_u_sigma and tau_u_sigma). If the user provide a `priors_m_df`, the function will, for each theme in respective column (that should match possible options in `signal_themes_m_df`):
+#' \itemize{
+#'    \item{For each date, calculate the average and standard deviation of individual signals alphas/betas/sigmas. Based on these average values, a prior for overall alpha parameters will be chosen based on maximum likelihood}
+#'    \item{For each date, calculate the differential of individual signals alpha/betas/sigmas from overall counterparts. For alpha, this means getting mu_u1 and tau_u1, mean and standard deviation of differentials of individual signals to overall mean. In particular, tau_u1 measures alpha variability between signals, the dispersion of differentials of individual signals from theme alpha.}
+#'    \item{Use maximum likelihood to derive priors for each tau and also for correlation, according to `priors_type`}
+#' }
+#'
+#' For location parameters, priors are chosen between normal and t distributions, given the option that minimizes BIC. For scale parameters, other candidate distributions are cauchy, inverse-gamma and log-normal. For correlation, the LKJ distribution is used.
+#'
+#' By considering the hierarchical structure of the data, it is possible to borrow information across signals and, thus, hierarchical models are better at balancing bias and variance than estimates from complete pooling (high bias) or no pooling models (high variance).
+#'
+#' To speed up computation, Bayesian models are fitted in parallel using the `future` framework.
+#'
+#' @section Signal Engineering Benchmarks:
+#'
+#' The process of generating a final signal (also known as Signal Engineering) incorporates two steps:
+#' \itemize{
+#'   \item{\strong{Signal Selection}: Selecting signals deemed significant based on a hypothesis testing zero-alpha null-hypothesis rejection criteria applied to associated signal portfolios returns in `backtest_returns_m_xts`.}
+#'   \item{\strong{Signal Blending}: Blending selected signals into a final signal used to generate the final portfolio at the stock level.}
+#' }
+#'
+#' The Signal Engineering Benchmarks (SE Benchmarks) evaluate the performance of both steps:
+#' \itemize{
+#'   \item{\strong{Signal Selection Benchmark}: Built using the universe of all signals in `chosen_signals`. It evaluates the performance of the signal selection process.}
+#'   \item{\strong{Signal Blending Benchmark}: Built using only signals derived from the signal selection process. It evaluates the performance of the signal blending process.}
+#' }
+#'
+#' Comparing predictive and return performance of the SS and SB Benchmarks provides insights into the effectiveness of the signal selection process. Additionally, comparing performance between the SB Benchmark and the final portfolio evaluates the performance of the signal blending process. SE Benchmarks are built based on themes; weights are first equally distributed among themes and then equally distributed among signals within each theme.
+#'
+#' @return An object of class `ss_backtest_results`, including:
+#' \itemize{
+#'   \item `signal_universe_m_df`: a meta_dataframe containing signal eligibility results across time.
+#'   \item `final_signal_universe_m_d_ref`: final snapshot of selected signals.
+#'   \item `selected_market_factor_proxy_m_xts`: benchmark series used in backtests.
+#'   \item `frequentist_results`, `bayesian_results`: detailed testing outcomes.
+#'   \item `ss_backtest_workflow`: metadata about execution, timestamps, and config.
+#' }
+#'
+#' @seealso \code{\link{run_sb_backtest}}, \code{\link{meta_dataframe}}, \code{\link{meta_xts}}, \code{\link{ss_backtest_config}}
 #' @export
 setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_m_xts, port_backtest_cohort, benchmark_returns_m_xts, signal_themes_m_df, ...) {
   standardGeneric("run_ss_backtest")
 })
 
-#' @describeIn run_ss_backtest Run Signal Selection Backtest
-#' @description Runs signal selection backtest given bayesian or frequentist approaches for p-value correction. This acts as a wrapper for backtest_returns_m_xts
-#' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
+#' @describeIn run_ss_backtest Wrapper method that internally derives `backtest_returns_m_xts` from a `port_backtest_cohort` object.
+#'
+#' @param port_backtest_cohort A `port_backtest_cohort` object. Used to extract historical return data via `extract_returns_m_xts()`.
+#' @param priors_m_df Optional. A `meta_dataframe` of priors used for Bayesian signal testing.
+#' @param custom_signal_universe_metrics_m_df Optional. A `meta_dataframe` with user-defined metrics to influence signal selection.
+#'
 #' @export
 setMethod("run_ss_backtest",
           signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_m_xts = "missing", port_backtest_cohort = "port_backtest_cohort",
@@ -286,9 +352,12 @@ setMethod("run_ss_backtest",
 
 
 
-#' @describeIn run_ss_backtest Run Signal Selection Backtest
-#' @description Runs signal selection backtest given bayesian or frequentist approaches for p-value correction. This acts as a wrapper for run_ss_backtest_internal
-#' @param config An object of class `ss_backtest_config` specifying the backtest configuration.
+#' @describeIn run_ss_backtest Main method. Runs a full signal selection backtest using either Bayesian or frequentist statistical methods.
+#'
+#' @param priors_m_df Optional. A `meta_dataframe` of priors used for Bayesian model specification. Required if `p_correction_method = "bayesian"` and
+#' `user_priors` are not supplied.
+#' @param custom_signal_universe_metrics_m_df Optional. A `meta_dataframe` with additional signal-level metrics, used to influence eligibility.
+#'
 #' @export
 setMethod("run_ss_backtest",
           signature(config = "ss_backtest_config", signals_m_df = "meta_dataframe", backtest_returns_m_xts = "meta_xts", port_backtest_cohort = "missing",
@@ -529,192 +598,44 @@ setMethod("run_ss_backtest",
           }
 )
 
-#' @describeIn run_ss_backtest Run Signal Selection Backtest
-#' Run a Signal Selection Backtest
+#' Run Signal Selection Backtest (Internal)
 #'
-#' This function performs iterative signal selection based on frequentist or Bayesian methods, which are applied to portfolio returns backtests to identify which signals can be considered significant in stock-level return prediction.
+#' Internal engine for signal selection backtest. Called by \code{run_ss_backtest()}.
+#' This function handles the logic for selecting eligible alpha signals based on cross-sectional regression statistics.
 #'
-#' To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM), computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
+#' It supports both frequentist and Bayesian methods for p-value adjustment and shrinkage, and handles all internal steps of the signal selection workflow.
 #'
-#' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
-#' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
-#' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
-#' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
-#' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
-#' @param  The minimum number of non-NA observations required for a backtest to be considered.
-#' @param split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
-#' @param rebalancing_months Numeric months when signal selection should be implemented.
-#' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
-#' @param p_correction_method The method for p-value correction. Possible options are:
-#' \itemize{
-#'   \item \strong{"none"}: No correction.
-#'   \item \strong{"bayesian"}: A hierarchical mixed-effects Bayesian linear model is fitted to the data using the `brms` package.
+#' Not intended for direct use by package users.
 #'
-#'   The user can also choose one of the following frequentist methods, which control the Family-Wise Error Rate (FWER) or the False Discovery Rate (FDR). FDR is less stringent than FWER.
+#' @param initial_sample_size Integer. Number of periods required before initiating the backtest.
+#' @param rebalancing_months Integer vector. Specifies which months (e.g., c(1, 4, 7, 10)) trigger signal selection.
+#' @param split_method Character. Either "expanding" or "rolling". Determines training sample construction.
+#' @param signals_m_df A `meta_dataframe` with columns `id`, `tickers`, `dates`, and signal columns.
+#' @param chosen_signals_and_positions Named character vector of signals and their positions ("long", "short", or "force").
+#' @param custom_signal_universe_metrics_m_df Optional `meta_dataframe` used to refine signal eligibility.
+#' @param backtest_returns_m_xts A `meta_xts` of signal portfolio returns.
+#' @param benchmark_returns_m_xts A `meta_xts` with benchmark factor returns.
+#' @param market_factor_proxy Character. Name of the column in `benchmark_returns_m_xts` used as the market factor.
+#' @param p_correction_method Character. Method for p-value adjustment. See `run_ss_backtest()` for full list of options.
+#' @param signal_significance_threshold Numeric between 0 and 1. Threshold for rejecting null alpha = 0.
+#' @param enable_theme_representativeness Logical. If TRUE, retains one signal per theme even if none meet the threshold.
+#' @param model_structure Character. "partial_pooled" or "no_pooled". Determines the model structure.
+#' @param theme_level_intercept,theme_level_slope Optional characters. Control how intercept and slope vary across themes.
+#' @param lmer_control List of arguments passed to `lme4::lmerControl`, including optimizer and p-value method.
+#' @param active_returns Logical. Whether to compute active returns (vs raw).
+#' @param priors_m_df Optional `meta_dataframe` with prior estimates for each signal.
+#' @param user_priors Optional list of priors created with `brms::set_prior()`.
+#' @param brms_control List of settings for `brms::brm()`, including MCMC controls.
+#' @param prior_derivation_control List of control parameters for prior distribution derivation.
+#' @param signal_themes_m_df A `meta_dataframe` mapping each signal to a theme.
+#' @param lower_quantile_winsorization,upper_quantile_winsorization Numeric. Quantiles used for winsorizing signal data.
+#' @param verbose Logical. Whether to print progress messages.
+#' @param parallel Logical. Whether to use parallel computation with `future`.
+#' @param .update Logical. If TRUE, executes incremental update mode.
 #'
-#'   For FWER, possible options are:
-#'   \itemize{
-#'     \item \strong{"bonferroni"}: Bonferroni correction.
-#'     \item \strong{"holm"}: Holm's (1979) method.
-#'     \item \strong{"hochberg"}: Hochberg's (1988) method.
-#'     \item \strong{"hommel"}: Hommel's (1988) method.
-#'   }
-#'
-#'   For FDR, possible options are:
-#'   \itemize{
-#'     \item \strong{"BH"} or \strong{"fdr"}: Benjamini-Hochberg (1995) procedure.
-#'     \item \strong{"BY"}: Benjamini-Yekutieli (2001) procedure.
-#'   }
-#' }
-#' @param signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If you want to select all `chosen_signals`, provide 1.
-#' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
-#' with highest alpha t-stat will be elected.
-#' @param priors_m_df A (meta) data frame with columns including "id", "ticker", "dates", "theme" (used for clustering in the Bayesian hierarchical model),
-#' and values for active_return, bench_return, alpha (mean and se), beta (mean and se), and sigma. Data should be exogenous, as it will be used to set priors for the hierarchical Bayesian model.
-#' @param signal_themes_m_df A (meta) data frame with "id", "tickers" ("signals"), and "dates" columns, including all signals in `signals_m_df`, and a "theme" column providing group membership for each signal.
-#' @param user_priors An object with user-defined priors for the hierarchical Bayesian model, used when `priors_type = "user"`.
-#' Each element of the list represents a theme and should contain priors set with brms::set_prior (class `brmsprior`). For instance, setting priors only for
-#' alpha and beta global parameters can be done with:
-#' c(brms::set_prior("normal(0,1)", class = "Intercept"), brms::set_prior("normal(0,1)", class = "b", coef = "bench_return"))
-#' @param model_structure A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.
-#' @param theme_level_intercept A character specifying the specification of effects of the intercept at the theme level.
-#' @param theme_level_slope A character specifying the specification of effects of the slope at the theme level.
-#' @param lmer_control Other additional parameters to be passed to `lme4::lmer` function.
-#' \itemize{
-#' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
-#' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
-#' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
-#'
-#' \item{lmer_optimization_objective}: A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
-#'
-#' \item{hierarchical_p_value_method}: One of "Satterthwaite", "Kenward-Roger" and "lme4". Default is "Satterthwaite".
-#' }
-#'
-#' @param active_returns A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
-#' backtest_returns_m_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts. This does not
-#' impact calculation of the CAPM model, whether it is frequentist or bayesian, pooled or partial pooled.
-#'
-#' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
-#' \itemize{
-#' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
-#'}
-#'
-#' @param brms_control Other additional parameters to be passed to brms::brm function
-#' \itemize{
-#' \item{chains} Integer.
-#' The number of Markov chains to run for the MCMC sampling. Default is `4`.
-#'
-#' \item{iter} Integer.
-#' The total number of iterations per chain for the MCMC sampling. Default is `2000`.
-#'
-#' \item{warmup} Integer.
-#' The number of warmup (burn-in) iterations per chain for the MCMC sampling. Default is `floor(iter / 2)`.
-#'
-#' \item{thin} Integer.
-#' The thinning interval for MCMC sampling. Default is `1`.
-#'
-#' \item{seed} Integer or `NA`.
-#' The seed for random number generation to ensure reproducibility. Set to a specific integer for reproducible results or `NA` for random seeding. Default is `NA`.
-#'
-#' \item{adapt_delta] Numeric.
-#' The target acceptance probability for the Hamiltonian Monte Carlo sampler. Higher values can lead to better convergence at the cost of slower sampling. Must be between `0` and `1`. Default is `0.99`.
-#' }
-#'
-#' @param upper_quantile_winsorization Numeric value for upper winsorization.
-#' @param lower_quantile_winsorization Numeric value for lower winsorization.
-#' @param verbose A boolean indicating whether to print messages.
-#' @param parallel A boolean indicating whether to use parallel processing.
-#'
-#' @section Bayesian Hierarchical Model:
-#'
-#' One way of introducing shrinkage to alpha estimates from signal portfolios is by using bayesian statistics, which might be specially useful in the context
-#' of small samples of strategy returns. Bayesian statistics allows for the incorporation of prior information about the parameters of interest (alpha and beta),
-#' which can be particularly useful in multiple testing.
-#'
-#' A Bayesian model depends on parameters that are themselves random variables. For instance, one can assume a normal distribution for the CAPM alpha parameter,
-#' with a mean of 0 (the strategy is not profitable) and a given standard deviation, effectively shrinking posterior estimates towards the prior mean, with an
-#' intensity that depends on the prior standard deviation and the sample distribution. Alternatively, one can utilize priors derived from signal strategies
-#' from other countries or asset classes than the ones being studied. Either way, the researcher will incorporate the reasoning process people usually have, as
-#' we usually have prior beliefs about a subject and then will update our beliefs based on new information. If another research possesses other priors,
-#' he or she can incorporate those into Bayes rule and derive other posterior distribution for parameters of interest, which is kind of more
-#' transparent than the frequentist approach, who will inherently give ultimate importance to associational evidence from (possibly overfit) data.
-#' Most of the time, in a frequentist setting, the researcher usually does not disclose the reasoning process behind the model. Therefore, bayesian statistics
-#' are being often recommended as a method to deal with multiple testing problems.
-#'
-#' Suppose one has return observations for multiple signal portfolios across time and wants to estimate the parameters of a single-factor model (CAPM)
-#' that describes the relationship between these signals portfolios and the market factor, being interested in the significance of the alpha parameter, while
-#' accounting for its exposure to systematic market risk. A complete pooled model will treat all observations as being independent and treating as irrelevant any
-#' information about individual strategies, which might be misleading, because it does not account for the hierarchical structure of the data.
-#' Observations of a given signal portfolio are possible correlated. On the other hand, a no pooling model will estimate a separate model for each signal portfolio,
-#' fitting specific parameters for each individual strategy, which might be inefficient, as it does not borrow information across signals. Signals belonging
-#' to a given theme tend to be similar. Signals in the value theme, for instance, are usually valuation multiples (eg book yield, earnings yield, fcf yield, sales yield etc)
-#' and so are very similar, thus it would be unfortunate to ignore information from other value strategies when analyzing, for example, book yield alpha.
-#' By fitting a hierarchical model, alpha estimates are first shrunk towards theme mean and then towards priors. In this setting, there is top layer represented
-#' by the population of all signal strategies under a theme (eg. the value theme alpha) and a second layer for the backtested strategies that fall under that theme,
-#' for which he have repeated observations.
-#'
-#' By using a hierarchical model, one can study both within-signal variability, examining how consistent the signal is across time, and between-signal variability,
-#' examining how performance patterns vary across different signals in a theme. Total variance is given by sum of within-signal variance and between-signal variance.
-#'
-#' Threfore, there are three layers for R_s,t (t-th observation of return of signal s):
-#' \itemize{
-#'  \item{Signal-specific layer:}{R_s,t ~ N(alpha_s + beta_s * R_m,t, sigma_s^2). This represents how returns vary within strategy s}
-#'  \item{Theme-specific layer:}{alpha_s ~ N(alpha_theme, sigma_a_theme^2); beta_s ~ N(beta_theme, sigma_b_theme^2).
-#'   This represents how the typical alpha/beta vary across strategies in a theme}
-#'  \item{Priors:}{alpha_theme, sigma_a_theme, beta_theme, sigma_b_theme, sigma_s. Global parameters shared between strategies.}
-#'  }
-#' More specifically, signal-specific mean parameters are treated as deviations from global parameters (u_1, u_2 and u_sigma for alpha, beta and sigma respectively,
-#' with corresponding mean and standard deviations mu_u1, tau_u1,  mu_u2, tau_u2, mu_u_sigma and tau_u_sigma).
-#' If the user provide a `priors_m_df`, the function will, for each theme in respective column (that should match possible options in `signal_themes_m_df`):
-#' \itemize{
-#'    \item{For each date, calculate the average and standard deviation of individual signals alphas/betas/sigmas. Based on these average values,
-#'    a prior for overall alpha parameters will be chosen based on maximum likelihood}
-#'    \item{For each date, calculate the differential of individual signals alpha/betas/sigmas from overall counterparts. For alpha, this means
-#'     getting mu_u1 and tau_u1, mean and standard deviation of differentials of individual signals to overall mean.
-#'     In particular, tau_u1 measures alpha variability between signals, the dispersion of differentials of individual signals from theme alpha.}
-#'     \item{Use maximum likelihood to derive priors for each tau and also for correlation, according to `priors_type`}
-#'  }
-#'
-#' For location parameters, priors are chosen between normal and t distributions, given the option that minimizes BIC. For scale parameters,
-#' other candidate distributions are cauchy, inverse-gamma and log-normal. For correlation, the LKJ distribution is used.
-#'
-#' By considering the hierarchical structure of the data, it is possible to borrow information across signals and, thus, hierarchical models are better at
-#' balancing bias and variance than estimates from complete pooling (high bias) or no pooling models (high variance).
-#'
-#' To speed up computation, Bayesian models are fitted in parallel using the `future` framework.
-#'
-#' @section Signal Engineering Benchmarks:
-#'
-#' The process of generating a final signal (also known as Signal Engineering) incorporates two steps:
-#' \itemize{
-#'   \item \strong{Signal Selection}: Selecting signals deemed significant based on a hypothesis testing zero-alpha null-hypothesis rejection criteria applied to associated signal portfolios returns in `backtest_returns_m_xts`.
-#'   \item \strong{Signal Blending}: Blending selected signals into a final signal used to generate the final portfolio at the stock level.
-#' }
-#'
-#' The Signal Engineering Benchmarks (SE Benchmarks) evaluate the performance of both steps:
-#' \itemize{
-#'   \item \strong{Signal Selection Benchmark}: Built using the universe of all signals in `chosen_signals`. It evaluates the performance of the signal selection process.
-#'   \item \strong{Signal Blending Benchmark}: Built using only signals derived from the signal selection process. It evaluates the performance of the signal blending process.
-#' }
-#'
-#' Comparing predictive and return performance of the SS and SB Benchmarks provides insights into the effectiveness of the signal selection process. Additionally, comparing performance between the SB Benchmark and the final portfolio evaluates the performance of the signal blending process. SE Benchmarks are built based on themes; weights are first equally distributed among themes and then equally distributed among signals within each theme.
-#'
-#'
-#' @details
-#' The function performs the following operations:
-#' \itemize{
-#'   \item Extracts the user-defined chosen signals from `signals_m_df` and subsets the data frame to include only these signals.
-#'   \item Checks for consistency in `chosen_signals_and_positions`.
-#'   \item Adjusts the signal positions based on whether they are "short" by multiplying their values by -1.
-#'   \item Updates column names in the data frame to reflect the corrected positions of the signals.
-#'   \item Validates that all adjusted signals have corresponding columns in `backtest_returns_m_xts`.
-#'   \item Calculates time-series metrics from backtested returns, including mean active return, IR, alpha, t-stat, beta, Treynor ratio, and p-value. Signals without adequate data (less than `` periods) are removed.
-#'   \item Adjusts p-values based on the method selected by the user.
-#'   \item Defines which signals are eligible for blending.
-#' }
-#'
-#' @return A list containing eligible signals and signal universes throughout time.
-#' @export
+#' @return An object of class `ss_backtest_results`.
+#' @noRd
+#' @keywords internal
 run_ss_backtest_internal <- function(
   #Dates
   initial_sample_size, rebalancing_months, split_method = "expanding",

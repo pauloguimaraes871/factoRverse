@@ -16,6 +16,12 @@
 #' @export
 setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 
+  #Check for required packages
+  if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+  }
+
+
   # Define colors based on the provided code
   deep_navy <- "#000033"                  # Deep Navy for data rows
   black <- "#000000"                      # Black for headers and 'Average' row
@@ -351,6 +357,12 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 #' @export
 setMethod("summary", "tickers_catalog", function(object, summary_id = NULL) {
 
+  #Check for required packages
+  if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+  }
+
+
   # Define colors
   deep_navy <- "#000033"
   black <- "#000000"
@@ -537,6 +549,13 @@ setMethod("summary", "tickers_catalog", function(object, summary_id = NULL) {
 #'
 #' @export
 setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
+
+  #Check for required packages
+  if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+  }
+
+
 
   # Colors
   deep_navy <- "#000033"        # Deep Navy for data rows
@@ -987,6 +1006,13 @@ setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_r
 setMethod("summary", "sb_metabacktest_config",
           function(object, ...) {
 
+            #Check for required packages
+            if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+              stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+            }
+
+
+
             cat("Summary of 'sb_metabacktest_config' object\n")
             cat("------------------------------\n")
 
@@ -1435,6 +1461,13 @@ setMethod("summary", "sb_metabacktest_config",
 #' @export
 setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) {
 
+  #Check for required packages
+  if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+  }
+
+
+
   # Define colors for styling
   deep_navy <- "#000033"   # Deep Navy for data rows
   black <- "#000000"       # Black for headers
@@ -1755,6 +1788,13 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
 #' @export
 setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NULL, which_backtest_results = NULL) {
 
+  #Check for required packages
+  if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+  }
+
+
+
   # Define colors for styling
   deep_navy <- "#000033"   # Deep Navy for data rows
   black <- "#000000"       # Black for headers
@@ -2062,6 +2102,13 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 #' @return Invisibly returns the input `object`.
 #' @export
 setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) {
+
+  #Check for required packages
+  if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+  }
+
+
   # Define colors
   deep_navy <- "#000033"
   black <- "#000000"
@@ -2507,6 +2554,13 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
 #' @return Invisibly returns the input `object`.
 #' @export
 setMethod("summary", "port_backtest_results", function(object, summary_id = NULL) {
+
+  #Check for required packages
+  if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+  }
+
+
   # Define colors
   deep_navy <- "#000033"
   black <- "#000000"
@@ -2712,6 +2766,13 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
 #' @return Invisibly returns the input `object`.
 #' @export
 setMethod("summary", "port_backtest_cohort", function(object, summary_id = NULL) {
+
+  #Check for required packages
+  if (!requireNamespace("DT", quietly = TRUE) || !requireNamespace("htmltools", quietly = TRUE) || !requireNamespace("htmlwidgets", quietly = TRUE)) {
+    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required to display the numeric summary. Please install them with install.packages().")
+  }
+
+
   # Define colors
   deep_navy <- "#000033"
   black <- "#000000"

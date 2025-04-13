@@ -971,10 +971,30 @@ setMethod("create_tickers_catalog",
             return(tickers_catalog_obj)
           })
 
-#' Prepare tickers_catalog slots
+#' @title Prepare Slots for tickers_catalog Object
+#' @description
+#' Internal helper that extracts and prepares structured components from a `tickers_catalog` object.
+#' Used by constructors like `create_tickers_catalog()` and `update_tickers_catalog()`.
 #'
-#' Inner helper to construct slots based on tickers_catalog. This allows for reusability between
-#' create_tickers_catalog and update_tickers_catalog
+#' @param tickers_catalog A `tickers_catalog` S4 object containing ticker classification columns
+#' such as `tickers`, `perm_id`, `tickers_first_quote`, `tickers_last_quote`,
+#' and classification flags like `untraded`, `delisted`, `listed`, and `old`.
+#'
+#' @return A named list with the following elements:
+#' \itemize{
+#'   \item `tickers_catalog`: The original input.
+#'   \item `tickers`: Vector of ticker symbols.
+#'   \item `perm_id`: Named vector of permanent IDs.
+#'   \item `tickers_first_quote`: First quote dates.
+#'   \item `tickers_last_quote`: Last quote dates.
+#'   \item `untraded`: Tickrs classified as untraded.
+#'   \item `delisted`: Tickers classified as delisted.
+#'   \item `listed`: Tickers currently listed.
+#'   \item `old`: Tickers marked as old due to ticker changes.
+#' }
+#'
+#' @keywords internal
+#' @noRd
 prepare_tickers_catalog_slots <- function(tickers_catalog){
 
   ##Create subsets for slots
@@ -3067,23 +3087,23 @@ create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_s
   return(cov_est_method)
 }
 
-#' @title Add a cov_est_method to a backtest configuration object
+#' @title Add covariance estimation method to a backtest configuration
 #'
-#' This function allows either directly add a pre-existing `cov_est_method` object or create one dynamically by passing additional arguments.
-#' When `cov_est_method` is not provided, a new one will be created using the values for `cov_estimation_method`, `cov_matrix_sample_size`, `active_returns`, passed via the `...` argument.
+#' @description
+#' This function allows either directly adding a pre-existing `cov_est_method` object or creating one dynamically by passing additional arguments.
+#' When `cov_est_method` is not provided, a new one will be created using the values for `cov_estimation_method`, `cov_matrix_sample_size`, and `active_returns`, passed via the `...` argument.
 #'
 #' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
 #' @param cov_est_method An object of class `cov_est_method`, or missing if a new object is to be created.
 #' @param ... Additional arguments used to create a new `cov_est_method` when `cov_est_method` is missing. These arguments must include:
-#'   \itemize{
-#'     \item \strong{cov_estimation_method}: A character string representing the covariance estimation method. Must be one of 'sample', 'ewma', 'cc', 'pca1', 'pca2', 'shrink_id' or 'shrink_cc'.
-#'     \item \strong{cov_matrix_sample_size}: Number of periods to subset return sample when estimating the covariance matrix. A high number will provide
-#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
-#' to dimensionality curse.
-#'     \item \strong{active_returns}: logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
-#'   }
+#' \itemize{
+#'   \item \strong{cov_estimation_method}: A character string representing the covariance estimation method. Must be one of `"sample"`, `"ewma"`, `"cc"`, `"pca1"`, `"pca2"`, `"shrink_id"` or `"shrink_cc"`.
+#'   \item \strong{cov_matrix_sample_size}: Number of periods to subset return sample when estimating the covariance matrix. A high number provides
+#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shifts. A low number increases estimation variance due to the curse of dimensionality.
+#'   \item \strong{active_returns}: Logical. If `TRUE`, the covariance matrix is estimated using active returns. If `FALSE`, raw returns are used.
+#' }
 #'
-#' @return An updated object of class `sb_backtest_config` with the `cov_est_method` added.
+#' @return An updated object of class `sb_backtest_config` or `port_backtest_config` with the `cov_est_method` added.
 #' @export
 setGeneric("add_cov_est_method", function(object, cov_est_method, ...) {
   standardGeneric("add_cov_est_method")

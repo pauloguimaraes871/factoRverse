@@ -9,6 +9,19 @@
 #' @param old_results An object of class \code{port_backtest_results} specifying the portfolio backtest results to be updated.
 #' @param parallel Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).
 #' @param ... Additional arguments (if needed).
+#' @param updated_sb_backtest_results An optional object of class \code{sb_backtest_results} or \code{sb_metabacktest_results} used to update the backtest using style-based results.
+#' @param stock_groups_m_df A \code{meta_dataframe} containing stock group classifications, if applicable.
+#' @param benchmark_weights_m_df A \code{meta_dataframe} with benchmark weights.
+#' @param daily_stock_returns_m_xts An object of class \code{meta_xts} with daily stock returns, used in covariance estimation.
+#' @param daily_bench_returns_m_xts An object of class \code{meta_xts} with daily benchmark returns, used in covariance estimation.
+#' @param benchmark_returns_m_xts An object of class \code{meta_xts} containing benchmark returns over the rebalancing periods.
+#' @param custom_stock_weights_m_df A \code{meta_dataframe} with user-defined stock weights for portfolio construction.
+#' @param custom_stock_metrics_m_df A \code{meta_dataframe} with user-defined metrics to be used in portfolio rules.
+#' @param user_defined_OR_rules_m_df A \code{meta_dataframe} specifying OR-based portfolio inclusion rules.
+#' @param user_defined_AND_rules_m_df A \code{meta_dataframe} specifying AND-based portfolio inclusion rules.
+#' @param verbose Logical; if \code{TRUE}, prints progress messages (default is \code{TRUE}).
+#' @param .test_seed Optional seed for reproducibility when testing.
+
 #'
 #' @return An object of class \code{port_backtest_results} containing the portfolio backtest results.
 #'
@@ -224,35 +237,96 @@ setMethod("update_port_backtest",
           })
 
 
-
-
-
+#run_port_backtest--------------------------------------
 #' Run Portfolio Backtest
 #'
-#' The `run_port_backtest` function serves as a wrapper for the internal function
-#' `run_port_backtest_internal`. It extracts the required parameters from a
-#' `port_backtest_config` object, applies any additional pre‐processing to the inputs,
-#' and then calls the internal function to perform the portfolio backtest.
+#' Main entry point for portfolio simulations in the `factoRverse` ecosystem.
+#' This generic function defines the interface and documentation for `run_port_backtest()`.
 #'
-#' @param signals_m_df A meta_dataframe containing the signal features. It must include at least the columns \code{id}, \code{tickers}, and \code{dates}.
-#' @param fwd_return_m_df A meta_dataframe containing forward returns.
-#' @param liquidity_m_df A meta_dataframe containing liquidity metrics.
-#' @param volatility_m_df A meta_dataframe containing volatility metrics.
-#' @param config An object of class \code{port_backtest_config} specifying the portfolio backtest configuration.
-#' @param parallel Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).
-#' @param ... Additional arguments (if needed).
-#'
-#' @return An object of class \code{port_backtest_results} containing the portfolio backtest results.
-#'
+#' @name run_port_backtest
+#' @title Run Portfolio Backtest
 #' @export
 setGeneric("run_port_backtest", function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, config, ...) standardGeneric("run_port_backtest"))
 
-#' @describeIn run_port_backtest Runs a portfolio backtest using a \code{port_backtest_config} object.
+#' @describeIn run_port_backtest Run Portfolio Backtest with Signal Filtering and Eligibility Rules
 #'
-#' This method extracts the parameters from the \code{config} object (of class \code{port_backtest_config}) and then calls
-#' the internal function \code{run_port_backtest_internal} to perform the backtest.
-#' @param sb_backtest_results An object of class \code{sb_backtest_results} containing the results of a signal blending backtest.
+#' Executes a full pipeline portfolio backtest, from asset/signal classification and eligibility filtering to benchmark construction and weight optimization, based on expected return scores (`exp_ret_score`) or signal performance. This function is designed to incorporate realistic portfolio constraints and rules—such as turnover, liquidity, group representativeness, and user-defined filters—while also supporting fallback logic to ensure a viable investment universe is selected in each rebalance date.
 #'
+#' @details
+#' The function integrates multiple components:
+#'
+#' ## 1. **Stock Classification**
+#' - If `asset_object = "stocks"`:
+#'   Each asset is scored based on an `exp_ret_score`, and only those inside a defined quantile range (e.g., top 20%) are considered "pre-eligible". If too few assets are selected, a fallback expands the quantile range iteratively until a minimum number of assets is included or a maximum range width is reached.
+#'
+#' ## 2. **Eligibility Filtering**
+#' A stock is promoted to the final investment universe (`filtered_universe`) if it satisfies at least one of several eligibility criteria:
+#'
+#' ### Regular Eligibility:
+#' - **Quantile Rule**: The asset is within the top quantile of `exp_ret_score`.
+#' - **Liquidity Floor Rule**: The asset meets a minimum liquidity threshold based on predefined liquidity classifications (e.g., micro_caps).
+#'
+#' ### Policy-Based Eligibility:
+#' - **Turnover Policy**: Assets in buffer zones from the previous portfolio can be retained even if they fall outside the quantile rule.
+#' - **Active Weights Constraint**: Assets with benchmark weights above the active weight threshold are automatically included.
+#' - **Group Representativeness**: If no asset from a required group (e.g., sector, theme) is eligible, the top-scoring asset from that group is forcibly promoted to preserve group balance.
+#'
+#' ### Custom Rules:
+#' - **user_defined_OR_rules**: Stocks matching *any* custom inclusion rule are always promoted.
+#' - **user_defined_AND_rules**: Stocks that fail *any* custom exclusion rule are removed regardless of other criteria.
+#'
+#' ### Rule Hierarchy:
+#' - **Active Weights Constraint** overrides all other filters.
+#' - **Turnover Policy** takes precedence over liquidity rules.
+#' - **OR rules** force inclusion, **AND rules** force exclusion.
+#' - **Group representativeness** is a fallback to ensure all relevant themes or sectors are represented.
+#'
+#' ## 3. **Benchmark Construction**
+#' The user may supply benchmark weights explicitly.
+#'
+#' ## 4. **Portfolio Construction**
+#' After defining the filtered investment universe:
+#' - The portfolio is constructed based on signal strength (via `exp_ret_score`), user-specified optimization policies, or equal weighting.
+#' - Constraints (e.g., turnover, group weight limits) are applied at this stage, potentially using box or group constraints via `generate_box_constraints()` and `generate_group_constraints()`.
+#'
+#' ## 5. **Parallel and Verbose Execution**
+#' The function supports verbose output and parallel execution to improve transparency and computational efficiency when backtesting over long time windows or using Bayesian inference.
+#'
+#' @param signals_m_df A `meta_dataframe` containing alpha signals. Must include columns `id`, `tickers`, and `dates`.
+#' @param fwd_return_m_df A `meta_dataframe` of forward returns (e.g., 1M-ahead).
+#' @param liquidity_m_df A `meta_dataframe` with liquidity metrics.
+#' @param volatility_m_df A `meta_dataframe` with volatility metrics (e.g., 1M historical vol).
+#' @param config A `port_backtest_config` object defining portfolio construction logic and constraints.
+#' @param sb_backtest_results (Optional) An `sb_backtest_results` or `sb_metabacktest_results` object. If provided, its predictions are used in place of signals.
+#' @param stock_groups_m_df (Optional) Sector or group data for use in group constraints.
+#' @param benchmark_weights_m_df (Optional) Benchmark stock weights.
+#' @param daily_stock_returns_m_xts (Optional) Daily stock returns for covariance estimation.
+#' @param daily_bench_returns_m_xts (Optional) Daily benchmark returns (only if active returns are used).
+#' @param benchmark_returns_m_xts (Optional) Monthly benchmark returns, used to compute active returns and benchmark-relative metrics.
+#' @param custom_stock_weights_m_df (Optional) User-defined portfolio weights (used only with `port_construction_method = "custom_weights"`).
+#' @param custom_stock_metrics_m_df (Optional) Additional metrics to be aggregated in the portfolio.
+#' @param user_defined_OR_rules_m_df (Optional) Rules that override stock eligibility if any OR condition is met.
+#' @param user_defined_AND_rules_m_df (Optional) Rules that override stock eligibility only if all conditions are met.
+#' @param winsorization_probs Numeric vector of length 2 (default = c(0.025, 0.975)). Determines quantiles used to winsorize signals.
+#' @param verbose Logical. If `TRUE`, prints progress logs and diagnostic information. Default is `TRUE`.
+#' @param parallel Logical. If `TRUE`, runs computation in parallel. Default is `TRUE`.
+#' @param .test_seed (Internal) Seed used during testing to ensure reproducibility. Default is `NULL`.
+#' @param .update (Internal) Logical; whether this is an update to an existing backtest. Default is `FALSE`.
+#' @param .old_backtest_port_weights_m_d_ref (Internal) Previously computed portfolio weights (used when `.update = TRUE`).
+#' @param .old_backtest_port_costs_d_ref (Internal) Previously computed cost series (used when `.update = TRUE`).
+#' @param .old_backtest_covered_dates (Internal) Dates already covered in the previous backtest (used when `.update = TRUE`).
+#' @param ... Additional arguments passed to class-specific methods (e.g., cohort or single backtests).
+#'
+#' @return An object of class \code{port_backtest_results}, containing:
+#' \itemize{
+#'   \item \code{port_weights_m_df}: Portfolio weights by stock and date.
+#'   \item \code{transactions_log}: Transaction log with costs and weights.
+#'   \item \code{port_costs_m_xts}: Time series of cost metrics (turnover, market impact, etc.).
+#'   \item \code{port_returns_m_xts}: Net and raw portfolio returns (and benchmark-relative returns if applicable).
+#'   \item \code{port_metrics_m_xts}: Aggregated portfolio metrics (if `custom_stock_metrics_m_df` is supplied).
+#'   \item \code{stock_universe_m_df}: Data frame with signal scores, eligibility flags, and classification for each stock.
+#'   \item \code{port_backtest_workflow}: A list tracking workflow metadata, inputs, and date coverage.
+#' }
 #' @export
 setMethod("run_port_backtest",
           signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe", liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe",
@@ -733,76 +807,63 @@ setMethod("run_port_backtest",
 
 
 
-#' Run Port Backtest
+#' Run Portfolio Backtest (Internal)
 #'
-#' The `run_port_backtest_internal` function backtests a portfolio based on signals derived from simple stock characteristics (simple factors) or expected returns obtained from sb model predictions.
-#' It supports a myriad of portfolio construction methods, including equal-weighted (EW), cap-weighted (CW), custom-weighted, signal-weighted (SW), cap-scaled (CS), mean-variance optimization (MVO) and risk-parity (RP).
-#' In the case of mean-variance optimization, various constraints (turnover, concentration, and liquidity) can be introduced to reduce transaction costs and tracking error.
-#' Furthermore, the function accommodates multiple covariance estimation methods (e.g., sample, EWMA, constant correlation, PCA, shrinkage) and supports both agnostic and benchmark-relative backtests.
+#' Internal engine for portfolio backtesting. Called by \code{run_port_backtest()}.
+#' This function performs the core logic for portfolio filtering, constraint enforcement,
+#' optimization, and return calculation.
 #'
-#' @param signals_m_df A matrix or data frame containing simple features with at least the columns: \code{id}, \code{tickers}, and \code{dates}. These are used for constructing the expected return score.
-#' @param oos_predictions_m_df A meta_dataframe object containing out-of-sample predictions from sb models (result of a \code{run_sb_backtest} call). Can be \code{NULL} if not provided.
-#' @param chosen_score_metric_and_position An object or list specifying the expected return score metric and its associated position. This is required when \code{oos_predictions_m_df} is not provided.
-#' @param rebalancing_months A numeric vector indicating the months (1-12) when the portfolio should be rebalanced.
-#' @param initial_buffer_period An integer specifying the number of initial dates (from the ordered dates vector) to skip before starting the backtest.
-#' @param port_construction_method A character string indicating the portfolio construction method. Possibilities include \code{"ew"}, \code{"sw"}, \code{"cw"}, \code{"cs"}, \code{"rp"}, or \code{"mvo"}.
-#' @param eligibility_quantile_range A numeric vector (of length 2) specifying the quantile range to determine eligible assets.
-#' @param selected_benchmark (Optional) A character string indicating the benchmark to use for a benchmark-relative backtest.
+#' Not intended for direct use by package users.
 #'
-#' @param rp_method A character string specifying the risk parity method (e.g., \code{"cyclical-spinu"}).
-#' @param n_random_ports An integer specifying the number of random portfolios to generate for optimization (applicable for MVO/RP).
-#' @param random_ports_method A character string specifying the method for generating random portfolios (e.g., \code{"sample"}).
-#' @param opt_objective A character string indicating the optimization objective (e.g., \code{"sharpe"}).
-#' @param opt_method A character string specifying the optimization method (e.g., \code{"random"}).
+#' @param signals_m_df A `meta_dataframe` with signal scores. Required columns: `id`, `tickers`, `dates`, plus score columns.
+#' @param oos_predictions_m_df Optional `meta_dataframe` with out-of-sample signal predictions.
+#' @param chosen_score_metric_and_position Named character vector indicating which score to use and its direction ("long" or "short").
+#' @param rebalancing_months Integer vector. Months (e.g., 1:12) during which rebalancing occurs.
+#' @param initial_buffer_period Integer. Number of months to wait before beginning the backtest.
+#' @param port_construction_method Character. Method to construct portfolio: "ew", "rp", "mvo", etc.
+#' @param eligibility_quantile_range Numeric vector of length 2. Percentile cutoffs for eligible assets.
+#' @param selected_benchmark Optional character. Name of benchmark index column in `benchmark_returns_m_xts`.
+#' @param min_eligible_assets_fallback Optional integer. Minimum number of eligible assets to construct portfolio.
+#' @param rp_method Character. Risk parity allocation method. Used if `port_construction_method = "rp"`.
+#' @param n_random_ports Integer. Number of random portfolios to simulate (for `opt_method = "random"`).
+#' @param random_ports_method Character. Method to sample random portfolios.
+#' @param opt_objective Character. Optimization target (e.g., "sharpe"). Used in `mvo`.
+#' @param opt_method Character. Optimization method: "random", "deterministic", etc.
+#' @param cov_estimation_method Character. Method to estimate covariance matrix: "sample", "shrinkage", etc.
+#' @param cov_matrix_sample_size Integer. Sample size for covariance estimation.
+#' @param active_returns Logical. If TRUE, uses benchmark-adjusted returns.
+#' @param cov_matrix_benchmark Character. Name of benchmark used in covariance estimation.
+#' @param daily_stock_returns_m_xts An `xts` object with daily stock-level returns.
+#' @param daily_bench_returns_m_xts An `xts` object with daily benchmark returns.
+#' @param benchmark_returns_m_xts An `xts` object with monthly benchmark returns.
+#' @param liquidity_constraint_policy A `list` defining liquidity constraints.
+#' @param turnover_constraint_policy A `list` defining turnover constraints.
+#' @param concentration_constraint_policy A `list` defining concentration constraints.
+#' @param liquidity_m_df A `meta_dataframe` containing liquidity metrics.
+#' @param liquidity_floor_cutoffs Optional numeric vector defining liquidity-based eligibility thresholds.
+#' @param main_liquidity_metric Character. Column name in `liquidity_m_df` used as main liquidity measure.
+#' @param stock_groups_m_df Optional `meta_dataframe` mapping stocks to groups (e.g., sectors).
+#' @param benchmark_weights_m_df Optional `meta_dataframe` of historical benchmark weights.
+#' @param volatility_m_df A `meta_dataframe` with volatility estimates for each stock.
+#' @param fwd_return_m_df A `meta_dataframe` with forward return targets.
+#' @param transaction_costs_parameters A list of transaction cost model parameters.
+#' @param custom_stock_weights_m_df Optional `meta_dataframe` with user-specified portfolio weights.
+#' @param custom_stock_metrics_m_df Optional `meta_dataframe` with custom metrics to compute.
+#' @param user_defined_OR_rules_m_df Optional `meta_dataframe` defining additional OR rules.
+#' @param user_defined_AND_rules_m_df Optional `meta_dataframe` defining additional AND rules.
+#' @param lower_quantile_winsorization Numeric. Lower percentile for winsorizing input data.
+#' @param upper_quantile_winsorization Numeric. Upper percentile for winsorizing input data.
+#' @param verbose Logical. If TRUE, prints progress messages.
+#' @param parallel Logical. If TRUE, enables parallel computation.
+#' @param .test_seed Optional integer. Used to fix the seed for reproducibility.
+#' @param .update Logical. If TRUE, activates update mode for extending existing backtests.
+#' @param .old_backtest_port_weights_m_d_ref Optional. Previous period's portfolio weights.
+#' @param .old_backtest_port_costs_d_ref Optional. Previous period's portfolio costs.
+#' @param .old_backtest_covered_dates Optional. Vector of dates already covered by a prior backtest.
 #'
-#' @param cov_estimation_method A character string specifying the covariance estimation method. Options include \code{"sample"}, \code{"ewma"}, \code{"cc"} (constant correlation),
-#' \code{"pca1"}, \code{"pca2"}, \code{"shrink_id"} (shrinkage to identity), or \code{"shrink_cc"} (shrinkage to constant correlation).
-#' @param cov_matrix_sample_size An integer specifying the sample size to use when estimating the covariance matrix.
-#' @param active_returns A logical indicating whether to compute active returns.
-#' @param cov_matrix_benchmark (Optional) An object specifying the benchmark for covariance estimation.
-#' @param daily_stock_returns_m_xts A meta_xts object containing daily stock returns.
-#' @param daily_bench_returns_m_xts A meta_xts object containing daily benchmark returns.
-#' @param benchmark_returns_m_xts A meta_xts object containing benchmark returns.
-#'
-#' @param liquidity_constraint_policy An object (or list) specifying the liquidity constraint policy.
-#' @param turnover_constraint_policy An object (or list) specifying the turnover constraint policy.
-#' @param concentration_constraint_policy An object (or list) specifying the concentration constraint policy.
-#'
-#' @param liquidity_m_df A data frame containing liquidity measures for stocks, with columns such as \code{id}, \code{tickers}, and \code{dates}.
-#' @param liquidity_floor_cutoffs A data frame defining cutoff thresholds for liquidity classification.
-#' @param main_liquidity_metric A character string indicating the primary liquidity metric to be used.
-#'
-#' @param stock_groups_m_df (Optional) A data frame providing stock group or sector information.
-#' @param benchmark_weights_m_df (Optional) A data frame containing benchmark weights for stocks.
-#'
-#' @param volatility_m_df A data frame containing volatility measures for return calculations.
-#' @param fwd_return_m_df A data frame with forward returns.
-#' @param transaction_costs_parameters (Optional) An object specifying parameters for transaction cost calculations.
-#'
-#' @param custom_stock_weights_m_df (Optional) A data frame containing custom stock weights.
-#' @param custom_stock_metrics_m_df (Optional) A data frame containing custom metrics for stocks.
-#' @param user_defined_OR_rules_m_df (Optional) A data frame containing user-defined OR rules.
-#' @param user_defined_AND_rules_m_df (Optional) A data frame containing user-defined AND rules.
-#'
-#' @param lower_quantile_winsorization A numeric value specifying the lower quantile cutoff for winsorization (default is 0.025).
-#' @param upper_quantile_winsorization A numeric value specifying the upper quantile cutoff for winsorization (default is 0.975).
-#'
-#' @param verbose A logical indicating whether to print detailed progress messages (default is \code{TRUE}).
-#' @param parallel A logical indicating whether to execute portions of the backtest in parallel (default is \code{TRUE}).
-#'
-#' @return An S4 object of class \code{port_backtest_results} containing:
-#' \itemize{
-#'   \item \code{port_weights_m_df}: A meta_dataframe with the portfolio weights.
-#'   \item \code{transactions_log_m_df}: A meta_dataframe logging the portfolio transactions.
-#'   \item \code{port_costs_m_xts}: A meta_xts object with portfolio cost metrics.
-#'   \item \code{port_metrics_m_xts}: (Optional) A meta_xts object with portfolio performance metrics.
-#'   \item \code{port_returns_m_xts}: A meta_xts object with portfolio return series.
-#'   \item \code{final_stock_port}: The final stock portfolio object used in the backtest.
-#'   \item \code{stock_universe_m_df} and \code{final_stock_universe_m_d_ref}: Meta dataframes representing the stock universe during the backtest.
-#'   \item \code{port_backtest_workflow}: A list detailing the backtest workflow, including dates, parameters, and configuration settings.
-#'   \item \code{backtest_identifier}: A character string identifier for the backtest.
-#' }
-#'
+#' @return An object of class `port_backtest_results`.
+#' @noRd
+#' @keywords internal
 run_port_backtest_internal <- function(
     #Base Objects
   signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided

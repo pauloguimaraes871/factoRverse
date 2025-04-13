@@ -1,25 +1,16 @@
-#' Apply tickers_catalog Transformations
+#' @title Apply tickers_catalog Transformations
 #'
-#' This function takes a data object (either a \code{raw_features_m_df} or a \code{returns_meta_xts} object)
-#' along with a \code{tickers_catalog} object, and applies transformations that include:
-#' \itemize{
-#'   \item Mapping tickers (found in the \code{tickers} column or as xts column names) to their corresponding
-#'         \code{perm_id} from the \code{tickers_catalog}.
-#'   \item Removing rows (or columns, in the case of a \code{returns_meta_xts} object) with dates outside the valid
-#'         trading range, based on \code{tickers_first_quote} and \code{tickers_last_quote}.
-#'   \item Excluding tickers flagged as \code{untraded} (and, if applicable, \code{old}).
-#' }
+#' @description
+#' Applies ticker ID mapping and filtering based on a `tickers_catalog` object. Can handle either
+#' a `raw_features_m_df` or a `returns_meta_xts` object. This ensures consistency in ticker
+#' identifiers and filters out data outside trading ranges or for untraded tickers.
 #'
-#' @param object A data object of class \code{raw_features_m_df} or \code{returns_meta_xts}.
-#' @param tickers_catalog A \code{tickers_catalog} object containing the catalog information, including
-#'   \code{perm_id}, \code{tickers_first_quote}, \code{tickers_last_quote}, and flags for \code{untraded}
-#'   (and \code{old}).
-#' @param verbose Logical; if \code{TRUE}, prints a summary of the tickers or rows that were removed.
+#' @param data An object of class `raw_features_m_df` or `returns_meta_xts`.
+#' @param tickers_catalog A `tickers_catalog` object containing reference data including
+#' ticker status, trading range, and permanent IDs.
+#' @param ... Additional arguments passed to methods. Supports `verbose = TRUE/FALSE`.
 #'
-#' @return A modified data object (of the same class as \code{object}) with tickers transformed to
-#'   \code{perm_id} and with invalid or unwanted data removed or set to \code{NA} according to the rules
-#'   defined in \code{tickers_catalog}.
-#'
+#' @return An object of the same class as `data`, modified according to the catalog rules.
 #' @export
 setGeneric("read_tickers_catalog", function(data, tickers_catalog, ...) {
   standardGeneric("read_tickers_catalog")

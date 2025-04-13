@@ -59,7 +59,9 @@ setMethod("predict",
 #'   refitted model and its parameters.
 #' @param new_features_m_df A  `meta_dataframe` or a coercible data.frame
 #'  containing new feature data for which predictions are to be made.
-#'
+#' @param upper_quantile_winsorization Numeric value for upper winsorization
+#' @param lower_quantile_winsorization Numeric value for lower winsorization
+
 #' @return A numeric vector of predictions for the new feature data.
 #'
 #' @details The function first validates that `new_features_m_df` is coercible
@@ -159,7 +161,8 @@ setMethod("predict",
 #'   containing new feature data for which predictions are to be made. The
 #'   data frame must be structured correctly and should not include the first
 #'   three columns, which are reserved for identifiers.
-#'
+#' @param upper_quantile_winsorization Numeric value for upper winsorization
+#' @param lower_quantile_winsorization Numeric value for lower winsorization
 #' @return A numeric vector of predictions for the new feature data.
 #'
 #' @details The function validates that `new_features_m_df` is coercible to a

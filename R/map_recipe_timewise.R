@@ -23,9 +23,10 @@
 #' @return A time-wise preprocessed \code{meta_dataframe}.
 #'
 #' @export
-setGeneric("map_recipe_timewise", function(meta_dataframe, recipe, ...) {
+setGeneric("map_recipe_timewise", function(meta_dataframe, recipe, verbose = TRUE, parallel = TRUE, type = "signals") {
   standardGeneric("map_recipe_timewise")
 })
+
 
 setMethod("map_recipe_timewise",
           signature(meta_dataframe = "meta_dataframe", recipe = "recipe"),
@@ -166,21 +167,17 @@ setMethod("map_recipe_timewise",
 
 
 # step_winsorize------------------------------------
-#' Step Winsorize
+#' @title Prepare Step: step_winsorize
+#' @description
+#' Computes the lower and upper winsorization limits based on specified quantiles.
+#' Called internally by `prep()` on a recipe with `step_winsorize()`.
 #'
-#' This step applies winsorization to numeric variables, replacing extreme values
-#' with the values at specified quantiles. It ensures that all selected variables
-#' remain within the given percentile range.
+#' @param x A `step_winsorize` object.
+#' @param training A data frame used to estimate the quantile thresholds.
+#' @param info An optional `term_info` object, passed by the recipe infrastructure (not used here).
+#' @param ... Additional arguments passed to methods (not used).
 #'
-#' @param recipe A `recipe` object.
-#' @param ... One or more selector functions to choose variables.
-#' @param role Not used for this step.
-#' @param trained A logical indicating if the step has been trained.
-#' @param probs A numeric vector of length two, specifying the lower and upper quantiles.
-#' @param skip A logical indicating if the step should be skipped when baking.
-#' @param id A character string for step identification.
-#'
-#' @return An updated recipe object with the step added.
+#' @return A trained `step_winsorize` object with calculated winsorization limits stored.
 #' @export
 step_winsorize <- function(recipe, ..., role = NA, trained = FALSE,
                            probs = c(0.05, 0.95), skip = FALSE,
@@ -221,7 +218,15 @@ step_winsorize_new <- function(terms, role, trained, probs, winsor_limits, skip,
     )
 }
 
-#' Prepare method for step_winsorize
+#' @title Prepare Method for step_winsorize
+#' @description Estimates lower and upper bounds for winsorization based on quantiles for each selected column.
+#'
+#' @param x A `step_winsorize` object.
+#' @param training A data frame of training data used to estimate winsorization thresholds.
+#' @param info An optional `term_info` object (not used here).
+#' @param ... Additional arguments passed to methods (currently not used).
+#'
+#' @return An updated `step_winsorize` object with estimated bounds stored in `winsor_limits` and `trained = TRUE`.
 #' @export
 prep.step_winsorize <- function(x, training, info = NULL, ...) {
 
@@ -315,7 +320,12 @@ bake.step_winsorize <- function(object, new_data, ...) {
 }
 
 
-#' Print method for step_winsorize
+#' @title Print Method for step_winsorize
+#' @description Print method for a `step_winsorize` object.
+#' @param x A `step_winsorize` object.
+#' @param width Width of the output. Default adjusts to console width.
+#' @param ... Additional arguments (not used).
+#' @return The original `step_winsorize` object, invisibly.
 #' @export
 print.step_winsorize <- function(x, width = max(20, options()$width - 30), ...) {
   selected_columns <- if (x$trained) {
@@ -345,8 +355,15 @@ tidy.step_winsorize <- function(x, ...) {
   return(res)
 }
 
-#' Declare required packages
+#' @title Required Packages for step_winsorize
+#' @description Declares the required packages for using the `step_winsorize` step inside a recipe.
+#'
+#' @param x A `step_winsorize` object.
+#' @param ... Additional arguments (not used).
+#'
+#' @return A character vector of package names required for the step.
 #' @export
+
 required_pkgs.step_winsorize <- function(x, ...) {
   c("dplyr", "tidyr", "recipes")
 }
@@ -355,22 +372,16 @@ required_pkgs.step_winsorize <- function(x, ...) {
 
 
 # step_impute_sector-----------------------------------
-#' Step Impute Sector
+#' @title Prepare Step: step_impute_sector
+#' @description Prepares the `step_impute_sector` by computing mean or median values by sector for imputation.
+#' This function is called automatically during `prep()` on a recipe.
 #'
-#' This step imputes missing values in numeric variables using the mean or median
-#' calculated within groups defined by a sector column.
+#' @param x A `step_impute_sector` object.
+#' @param training A data frame of training data that will be used to estimate the imputation values.
+#' @param info An optional `term_info` object. Not used here but required by the S3 method signature.
+#' @param ... Additional arguments passed to methods (not used).
 #'
-#' @param recipe A `recipe` object.
-#' @param ... One or more selector functions to choose numeric variables to impute.
-#' @param sector A character string specifying the sector column used for imputation.
-#' @param method The imputation method, either `"mean"` or `"median"`. Default is `"mean"`.
-#' @param role Not used for this step.
-#' @param trained A logical indicating if the step has been trained.
-#' @param impute_values A list containing the computed imputation values (after training).
-#' @param skip A logical indicating if the step should be skipped when baking.
-#' @param id A character string for step identification.
-#'
-#' @return An updated recipe object with the step added.
+#' @return A `step_impute_sector` object with computed `impute_values`.
 #' @export
 step_impute_sector <- function(recipe, ..., sector, method = "mean",
                                role = NA, trained = FALSE,
@@ -414,7 +425,15 @@ step_impute_sector_new <- function(terms, sector, method, role, trained, impute_
   )
 }
 
-#' Prepare method for step_impute_sector
+#' @title Prepare Method for step_impute_sector
+#' @description Computes sector-wise means or medians for selected columns, storing them in the step object.
+#'
+#' @param x A `step_impute_sector` object.
+#' @param training A data frame of training data used to compute imputation values.
+#' @param info A `term_info` object passed by `prep()`, not used here.
+#' @param ... Additional arguments passed to methods (not used).
+#'
+#' @return An updated `step_impute_sector` object with `trained = TRUE` and imputation values stored.
 #' @export
 prep.step_impute_sector <- function(x, training, info = NULL, ...) {
 
@@ -512,7 +531,15 @@ tidy.step_impute_sector <- function(x, ...) {
   return(res)
 }
 
-#' Print method for step_impute_sector
+#' @title Print Method for step_impute_sector
+#' @description
+#' Prints a concise summary of the `step_impute_sector` step, including selected columns, the sector column, and the imputation method.
+#'
+#' @param x A `step_impute_sector` object.
+#' @param width An integer specifying the desired display width. Defaults to a dynamic value based on console width.
+#' @param ... Additional arguments (not used).
+#'
+#' @return The original `step_impute_sector` object, invisibly.
 #' @export
 print.step_impute_sector <- function(x, width = max(20, options()$width - 30), ...) {
   selected_columns <- if (x$trained) {
@@ -530,7 +557,13 @@ print.step_impute_sector <- function(x, width = max(20, options()$width - 30), .
   invisible(x)
 }
 
-#' Declare required packages
+#' @title Required Packages for step_impute_sector
+#' @description Declares the required packages for using the `step_impute_sector` step inside a recipe.
+#'
+#' @param x A `step_impute_sector` object.
+#' @param ... Additional arguments (not used).
+#'
+#' @return A character vector of package names required for the step.
 #' @export
 required_pkgs.step_impute_sector <- function(x, ...) {
   c("dplyr", "tidyr", "recipes")

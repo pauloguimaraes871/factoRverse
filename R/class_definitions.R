@@ -2774,11 +2774,17 @@ setClass("port_backtest_cohort",
 #' @param object An object of class `meta_dataframe`.
 #' @return The respective slot of the `meta_dataframe` object.
 #' @name meta_dataframe_accessors
+#' @alias get_data
 #' @export
 setGeneric("get_data", function(object) standardGeneric("get_data"))
 
 #' @export
 setMethod("get_data", "meta_dataframe", function(object) {
+  return(object@data)
+})
+
+#' @export
+setMethod("get_data", "meta_xts", function(object) {
   return(object@data)
 })
 
@@ -2791,12 +2797,24 @@ setMethod("get_workflow", "meta_dataframe", function(object) {
 })
 
 #' @export
+setMethod("get_workflow", "meta_xts", function(object) {
+  return(object@workflow)
+})
+
+
+#' @export
 setGeneric("get_tickers", function(object) standardGeneric("get_tickers"))
 
 #' @export
 setMethod("get_tickers", "meta_dataframe", function(object) {
-  stocks <- unique(object@data$stocks)
-  return(stocks)
+  tickers <- unique(object@data$tickers)
+  return(tickers)
+})
+
+#' @export
+setMethod("get_tickers", "meta_xts", function(object) {
+  stocks <- colnames(object@data)
+  tickers(tickers)
 })
 
 #' @export
@@ -2808,10 +2826,23 @@ setMethod("get_dates", "meta_dataframe", function(object) {
   return(dates)
 })
 
+#' @export
+setMethod("get_dates", "meta_xts", function(object) {
+  dates <- sort(unique(zoo::index(object@data)))
+  return(dates)
+})
+
 
 #' @export
 setMethod(
   "as.data.frame", "meta_dataframe", function(x) {
+    as.data.frame(x@data)
+  }
+)
+
+#' @export
+setMethod(
+  "as.data.frame", "meta_xts", function(x) {
     as.data.frame(x@data)
   }
 )
@@ -2826,7 +2857,13 @@ setMethod(
 #' @param perm_id_to_lookup A character vector of perm_ids to filter.
 #' @return A filtered data.frame.
 #' @export
-setGeneric("lookup_catalog", function(tickers_catalog, ...) standardGeneric("lookup_catalog"))
+setGeneric(
+  "lookup_catalog",
+  function(tickers_catalog, tickers_to_lookup = NULL, perm_id_to_lookup = NULL) {
+    standardGeneric("lookup_catalog")
+  }
+)
+
 
 setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog"),
           function(tickers_catalog, tickers_to_lookup = NULL, perm_id_to_lookup = NULL) {
@@ -2901,6 +2938,7 @@ setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog"),
 #' @param object An object of class `sb_model`.
 #' @return The respective slot of the `sb_model` object.
 #' @name sb_model_accessors
+#' @alias get_sb_algorithm
 #' @export
 setGeneric("get_sb_algorithm", function(object) standardGeneric("get_sb_algorithm"))
 
@@ -2926,300 +2964,7 @@ setMethod("get_model", "sb_model", function(object) {
 })
 
 
-# sb_backtest_results and ss_backtest_results acessors --------------------------------------------
 
-#' Accessor Methods for sb_backtest_results
-#'
-#' These methods are used to access various components of an `sb_backtest_results` object.
-#'
-#' @param object An object of class `sb_backtest_results`.
-#' @return The respective slot of the `sb_backtest_results` object.
-#' @name sb_backtest_results_accessors
-#' @export
-setGeneric("get_oos_prediction_list", function(object) standardGeneric("get_oos_prediction_list"))
-
-#' @export
-setMethod("get_oos_prediction_list", "sb_backtest_results", function(object) {
-  return(object@oos_prediction_list)
-})
-
-#' @export
-setGeneric("get_oos_error_list", function(object) standardGeneric("get_oos_error_list"))
-
-#' @export
-setMethod("get_oos_error_list", "sb_backtest_results", function(object) {
-  return(object@oos_error_list)
-})
-
-#' @export
-setGeneric("get_oos_y_list", function(object) standardGeneric("get_oos_y_list"))
-
-#' @export
-setMethod("get_oos_y_list", "sb_backtest_results", function(object) {
-  return(object@oos_y_list)
-})
-
-#' @export
-setGeneric("get_oos_testing_eval_metrics", function(object) standardGeneric("get_oos_testing_eval_metrics"))
-
-#' @export
-setMethod("get_oos_testing_eval_metrics", "sb_backtest_results", function(object) {
-  return(object@oos_testing_eval_metrics)
-})
-
-#' @export
-setGeneric("get_final_model", function(object) standardGeneric("get_final_model"))
-
-#' @export
-setMethod("get_final_model", "sb_backtest_results", function(object) {
-  return(object@final_model)
-})
-
-#' @export
-setMethod("get_tickers", "sb_backtest_results", function(object) {
-  return(object@sb_backtest_workflow$tickers)
-})
-
-
-#' @export
-setMethod("get_dates", "sb_backtest_results", function(object, type = "complete") {
-
-  if(!type %in% c("complete", "testing", "rebalance")) stop("sample_type must be one of `complete`, `testing` or `rebalance`")
-
-  if(type == "complete") return(object@sb_backtest_workflow$dates_covered)
-  if(type == "testing") return(object@sb_backtest_workflow$dates_testing_sample)
-  if(type == "rebalance") return(object@sb_backtest_workflow$rebalance_dates)
-
-})
-
-#' @export
-setGeneric("get_chosen_eval_metric_validation", function(object) standardGeneric("get_chosen_eval_metric_validation"))
-
-#' @export
-setMethod("get_chosen_eval_metric_validation", "sb_backtest_results", function(object) {
-  return(object@chosen_eval_metric_validation)
-})
-
-#' @export
-setMethod("get_best_hyperparameters", "sb_backtest_results", function(object) {
-  return(object@best_hyperparameters_xts)
-})
-
-#' @export
-setGeneric("get_validation_eval_metrics_hyper_choice", function(object) standardGeneric("get_validation_eval_metrics_hyper_choice"))
-
-#' @export
-setMethod("get_validation_eval_metrics_hyper_choice", "sb_backtest_results", function(object) {
-  return(object@validation_eval_metrics_hyper_choice)
-})
-
-#' @export
-setMethod("get_workflow", "sb_backtest_results", function(object) {
-  return(object@sb_backtest_workflow)
-})
-
-#' @export
-setMethod("as.list", "sb_backtest_results", function(x) {
-  # Get the names of all slots
-  slot_names <- slotNames(x)
-
-  # Create a list to hold the extracted slots, ignoring NULL slots
-  slot_list <- lapply(slot_names, function(slot) {
-    value <- slot(x, slot)  # Extract the slot using the slot name
-    if (!is.null(value)) {
-      return(value)  # Return the value only if it's not NULL
-    }
-    return(NULL)  # Return NULL if the slot is NULL
-  })
-
-  # Filter out NULL entries
-  non_null_indices <- which(!sapply(slot_list, is.null))
-  slot_list <- slot_list[non_null_indices]
-
-  # Set names for the list elements based on non-NULL slots
-  names(slot_list) <- slot_names[non_null_indices]
-
-  return(slot_list)
-})
-
-#' Accessor Methods for ss_backtest_results
-#'
-#' These methods are used to access various components of an `ss_backtest_results` object.
-#'
-#' @param object An object of class `ss_backtest_results`.
-#' @return The respective slot of the `ss_backtest_results` object.
-#' @name ss_backtest_results_accessors
-#' @export
-setMethod("get_final_model", "ss_backtest_results", function(object) {
-  models_list <- list(frequentist = object@frequentist_results,
-                      bayesian = object@bayesian_results)
-  return(models_list)
-})
-
-
-#' @export
-setGeneric("get_eligible_signals", function(object){
-  standardGeneric("get_eligible_signals")
-})
-
-#' @export
-setMethod("get_eligible_signals", "ss_backtest_results", function(object){
-  eligible_signals_df <- object@signal_universe_m_df %>% dplyr::filter(is_eligible == 1) %>%
-    dplyr::group_by(dates) %>% dplyr::summarise(ticker_list = list(tickers), .groups = "drop")
-
-  eligible_signals_list <- stats::setNames(eligible_signals_df$ticker_list, as.character(eligible_signals_df$dates))
-
-  return(eligible_signals_list)
-})
-
-#' @export
-setGeneric("get_signal_universe", function(object){
-  standardGeneric("get_signal_universe")
-})
-
-#' @export
-setMethod("get_signal_universe", "ss_backtest_results", function(object){
-  return(object@signal_universe_m_df)
-})
-
-
-#' @export
-setGeneric("get_bayesian_fit", function(object){
-  standardGeneric("get_bayesian_fit")
-})
-
-#' @export
-setMethod("get_bayesian_fit", "ss_backtest_results", function(object){
-  if(object@p_correction_method == "bayesian"){
-    return(object@bayesian_results)
-  } else {
-    stop("bayesian_results not available for non-bayesian models.")
-  }
-})
-
-#' @export
-setMethod("get_dates", "ss_backtest_results", function(object, type = "complete") {
-
-  if(!type %in% c("complete", "backtest", "rebalance")) stop("sample_type must be one of `complete`, `backtest` or `rebalance`")
-
-  if(type == "complete") return(object@sb_backtest_workflow$dates_covered)
-  if(type == "backtest") return(object@sb_backtest_workflow$dates_backtest)
-  if(type == "rebalance") return(object@sb_backtest_workflow$rebalance_dates)
-
-})
-
-#' @export
-setGeneric("get_selected_market_factor_proxy", function(object){
-  standardGeneric("get_selected_market_factor_proxy")
-})
-
-#' @export
-setMethod("get_selected_market_factor_proxy", "ss_backtest_results", function(object) {
-  return(object@selected_market_factor_proxy_xts)
-})
-
-#' @export
-setMethod("get_workflow", "ss_backtest_results", function(object) {
-  return(object@ss_backtest_workflow)
-})
-
-
-
-#' @export
-setMethod("as.list", "ss_backtest_results", function(x) {
-  # Get the names of all slots
-  slot_names <- slotNames(x)
-
-  # Create a list to hold the extracted slots, ignoring NULL slots
-  slot_list <- lapply(slot_names, function(slot) {
-    value <- slot(x, slot)  # Extract the slot using the slot name
-    if (!is.null(value)) {
-      return(value)  # Return the value only if it's not NULL
-    }
-    return(NULL)  # Return NULL if the slot is NULL
-  })
-
-  # Filter out NULL entries
-  non_null_indices <- which(!sapply(slot_list, is.null))
-  slot_list <- slot_list[non_null_indices]
-
-  # Set names for the list elements based on non-NULL slots
-  names(slot_list) <- slot_names[non_null_indices]
-
-  return(slot_list)
-})
-
-
-# configs acessors -------------------------------------------------
-
-# get sb_backtest_config
-#' @title Get SB Backtest Config Object
-#' @description Accessor function to retrieve the sb_backtest_config object from a sb_metabacktest_config object or a sb_backtest_results object
-#'
-#' @param object A `sb_metabacktest_config` or a `sb_backtest_results` object.
-#'
-#' @return The `sb_backtest_configs` slot of the `sb_metabacktest_config` object or a `sb_backtest_config` derived from a `sb_backtest_results` object.
-#' @export
-setGeneric("get_sb_backtest_config", function(object) standardGeneric("get_sb_backtest_config"))
-
-#' @rdname get_sb_backtest_config
-#' @export
-setMethod("get_sb_backtest_config", "sb_metabacktest_config", function(object) {
-  return(object@sb_backtest_configs)
-})
-
-#' @rdname get_sb_backtest_config
-#' @export
-setMethod("get_sb_backtest_config", "sb_backtest_results", function(object) {
-
-  sb_backtest_workflow <- object@sb_backtest_workflow
-
-  #Fabricate tuning strategy
-  tuning_strategy <- get_tuning_strategy(object)
-
-  #Create Backtest Config
-  sb_backtest_config <- create_sb_backtest_config(
-    sb_algorithm = sb_backtest_workflow$sb_algorithm,
-    target_fwd_name = sb_backtest_workflow$target_fwd_name,
-    training_sample_size = sb_backtest_workflow$training_sample_size,
-    rebalancing_months = sb_backtest_workflow$rebalancing_months,
-    split_method = sb_backtest_workflow$split_method,
-    tuning_strategy = tuning_strategy,
-    custom_objective = sb_backtest_workflow$custom_objective,
-    quantile_tau = sb_backtest_workflow$quantile_tau,
-    huber_delta = sb_backtest_workflow$huber_delta
-  )
-
-  #Add keras_architecture_parameters if ml algo is nn
-  if(sb_backtest_workflow$sb_algorithm == "nn") {
-    keras_architecture_parameters <- sb_backtest_workflow$keras_architecture_parameters
-    sb_backtest_config <- add_keras_architecture(sb_backtest_config,
-                                                 nn_optimizer = keras_architecture_parameters$nn_optimizer,
-                                                 units = keras_architecture_parameters$units,
-                                                 activation = keras_architecture_parameters$activation,
-                                                 batch_norm_option = keras_architecture_parameters$batch_norm_option
-    )
-  }
-
-  return(sb_backtest_config)
-
-})
-
-# get ss_backtest_config
-#' @title Get SS Backtest Config Object
-#' @description Accessor function to retrieve the ss_backtest_config object from a ss_backtest_results object or a sb_backtest_results object
-#'
-#' @param object A `ss_backtest_results` or a `sb_backtest_results` object.
-#'
-#' @return A `ss_backtest_config` derived from a `sb_backtest_config` `ss_backtest_results` or object.
-#' @export
-setGeneric("get_ss_backtest_config", function(object) standardGeneric("get_ss_backtest_config"))
-
-#' @rdname get_ss_backtest_config
-#' @export
-setMethod("get_ss_backtest_config", "sb_backtest_config", function(object) {
-  return(object@ss_backtest_config)
-})
 
 
 # get tuning strategy -----------------------------------------------------

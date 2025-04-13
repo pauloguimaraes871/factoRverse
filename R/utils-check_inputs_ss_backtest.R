@@ -1,85 +1,55 @@
-#' Perform validation checks on inputs for Signal Selection (SS) Workflow
+#' Perform Validation Checks on Inputs for Signal Selection (SS) Workflow
 #'
-#' This function validates and checks various inputs required for signal selection in the context of run_ss_backtest function.
-#' @param signals_m_df A (meta) data frame with columns including "id", "tickers", "dates", and the selected signals.
-#' @param chosen_signals_and_positions A named vector indicating signals and their corresponding positions (long or short).
-#' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
-#' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
-#' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
-#' @param rebalancing_months Months (numeric) when signal selection should be implemented.
-#' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
-#' @param p_correction_method The method for p-value correction. Possible options are:
-#'\itemize{
-#'  \item{"none"}: No correction.
-#'  \item{"bayesian"}: When bayesian is set, a hierarchical mixed-effects bayesian linear model is fitted to the data, using the `brms` package,
-#'  which is an interface to the `Stan` probabilistic programming language.
-#'  The user can also choose one of the following frequentist methods, which will control Family-Wise Error Rate (FWER) or the False Discovery Rate (FDR).
-#'  FDR is less stringent than FWER.
-#'  For FWER, possible options are:
-#'  \item{"bonferroni"}: Bonferroni correction, which is dominated by Holm's method.
-#'  \item{"holm"}: Holm's (1979) method.
-#'  \item{"hochberg"}: Hochberg's (1988) method, valid when hypothesis tests are independent or non-negatively associated. Less powerful than Hommel's (1988) method, but
-#'  faster to compute.
-#'  \item{"hommel"}: Hommel's (1988) method, also valid when hypothesis tests are independent or non-negatively associated, but is more powerful than Hochberg (1988).
-#'  For FDR, possible options are:
-#'  \item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
-#'  \item{"BY"}: Benjamini-Yekutieli (2001) procedure.
-#'  }
-#' @param signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all signals,
-#' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
-#' @param enable_theme_representativeness If TRUE, in case a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
-#' with highest alpha t-stat will be elected.
-#' @param priors_m_df A (meta) data frame with columns including "id", "characteristic/signal", "dates", "theme" (used for clustering in hierarchical bayesian model)
-#' and values for alpha (mean and se), beta (mean and se) and sigma, which are used to build priors.
-#' @param model_structure A character indicating whether the model should be estimated using a ´partial_pooled´ or ´no_pooled´ approach.
-#' @param theme_level_intercept A character specifying the specification of effects of the intercept at the theme level.
-#' @param theme_level_slope A character specifying the specification of effects of the slope at the theme level.
-#' @param lmer_control Other additional parameters to be passed to `lme4::lmer` function.
+#' This function validates and checks all inputs required for running the `run_ss_backtest()` function, ensuring structural consistency, completeness, and proper formatting for backtest returns, benchmark data, signal metadata, and model configuration.
+#'
+#' @param initial_sample_size Numeric. The minimum number of observations required before the first backtest rebalancing can be executed.
+#' @param rebalancing_months Numeric. Vector of months (1–12) when signal selection should be implemented.
+#' @param split_method Character. Method used to split sample data in the backtest (e.g., expanding or rolling).
+#' @param signals_m_df A (meta) data frame with columns \code{id}, \code{tickers}, \code{dates}, and additional numeric columns representing signals. Should not contain NAs or columns prefixed with \code{"low_"}.
+#' @param chosen_signals_and_positions A named character vector specifying selected signals and their positions. Example: \code{c(book_to_market = "long", vol_12m = "short")}.
+#' @param forced_signals A named character vector of signals to be forcibly included. Values must be \code{"force"}.
+#' @param custom_signal_universe_metrics_m_df A meta-data frame of custom metrics (optional). Must contain rows equal to the number of signals times number of dates, and should not include columns from the default performance metric output.
+#' @param backtest_returns_m_xts An \code{xts} object with signal-specific backtested returns. Column names must correspond to the signals used.
+#' @param benchmark_returns_m_xts An \code{xts} object containing benchmark returns, aligned with the dates of \code{backtest_returns_m_xts}.
+#' @param market_factor_proxy Character string. Name of the column in \code{benchmark_returns_m_xts} to be used as the market factor.
+#' @param active_returns Logical. If \code{TRUE}, returns are adjusted by subtracting benchmark returns before performance evaluation.
+#' @param p_correction_method Character. Specifies the method for p-value correction. Options include:
 #' \itemize{
-#' #' \item{lmer_optimizer} A character string specifying the optimizer to be used in the
-#' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
-#' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
-#'
-#' \item{lmer_optimization_objective} A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+#'   \item \code{"none"}
+#'   \item \code{"bayesian"}
+#'   \item Frequentist FWER: \code{"bonferroni"}, \code{"holm"}, \code{"hochberg"}, \code{"hommel"}
+#'   \item Frequentist FDR: \code{"BH"}, \code{"fdr"}, \code{"BY"}
 #' }
-#'
-#' @param active_returns A character string indicating whether performance metrics should be calculated based on active returns or raw returns. If TRUE,
-#' backtest_returns_m_xts will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts.
-#'
-#' @param prior_derivation_control A list of additional parameters to be passed to the `lme4::lmer` function:
+#' @param signal_significance_threshold Numeric. Threshold for selecting signals based on CAPM alpha significance (e.g., 0.05). Use 1 to bypass selection threshold.
+#' @param enable_theme_representativeness Logical. If \code{TRUE}, ensures at least one signal per theme is selected, based on the highest t-statistic.
+#' @param model_structure Character. Either \code{"partial_pooled"} or \code{"no_pooled"} to control hierarchical modeling strategy.
+#' @param theme_level_intercept Character. Specifies how intercepts are modeled at the theme level (used if \code{model_structure == "partial_pooled"}).
+#' @param theme_level_slope Character. Specifies how slopes are modeled at the theme level (used if \code{model_structure == "partial_pooled"}).
+#' @param lmer_control A list with options passed to \code{lme4::lmer}. Accepted elements:
 #' \itemize{
-#' \item{half_t_df} A numeric indicating the degrees of freedom in the half-t distribution to be applied in sd parameters.
-#'}
-#'
-#' @param brms_control Other additional parameters to be passed to brms::brm function
-#' \itemize{
-#' \item{chains} Integer.
-#' The number of Markov chains to run for the MCMC sampling. Default is `4`.
-#'
-#' \item{iter} Integer.
-#' The total number of iterations per chain for the MCMC sampling. Default is `2000`.
-#'
-#' \item{warmup} Integer.
-#' The number of warmup (burn-in) iterations per chain for the MCMC sampling. Default is `floor(iter / 2)`.
-#'
-#' \item{thin} Integer.
-#' The thinning interval for MCMC sampling. Default is `1`.
-#'
-#' \item{seed} Integer or `NA`.
-#' The seed for random number generation to ensure reproducibility. Set to a specific integer for reproducible results or `NA` for random seeding. Default is `NA`.
-#'
-#' \item{adapt_delta] Numeric.
-#' The target acceptance probability for the Hamiltonian Monte Carlo sampler. Higher values can lead to better convergence at the cost of slower sampling. Must be between `0` and `1`. Default is `0.99`.
+#'   \item \code{lmer_optimizer}: Optimization method. One of \code{"nloptwrap"}, \code{"bobyqa"}, \code{"Nelder_Mead"}, \code{"nlminbwrap"}.
+#'   \item \code{lmer_optimization_objective}: Either \code{"REML"} or \code{"likelihood"}.
+#'   \item \code{hierarchical_p_value_method}: P-value method. One of \code{"Satterthwaite"}, \code{"Kenward-Roger"}, \code{"lme4"}.
 #' }
-#'
-#' @param parallel Logical.
-#'   Indicates whether to enable parallel computation using the `future` package. Only avaialable for bayesian model. Default is `TRUE`.
-#' @param signal_themes_m_df A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
-#' for defining clusters in bayesian hierarchical model.
-#'
-#' @param upper_quantile_winsorization Numeric value for upper winsorization.
-#' @param lower_quantile_winsorization Numeric value for lower winsorization.
-#'
+#' @param priors_m_df A (meta) data frame with columns \code{id}, \code{tickers}, \code{dates}, \code{return}, \code{market_factor_proxy}, and \code{theme}. Used to derive informative priors.
+#' @param user_priors A \code{data.frame} of \code{brmsprior} objects. Must match expected structure according to \code{model_spec_theme_level}.
+#' @param brms_control A list of parameters passed to \code{brms::brm}:
+#' \itemize{
+#'   \item \code{chains}: Integer, number of MCMC chains (default 4).
+#'   \item \code{iter}: Integer, iterations per chain (default 2000).
+#'   \item \code{warmup}: Integer, warm-up iterations (default \code{floor(iter / 2)}).
+#'   \item \code{thin}: Integer, thinning interval (default 1).
+#'   \item \code{seed}: Integer or \code{NA}, for reproducibility (default \code{NA}).
+#'   \item \code{adapt_delta}: Numeric between 0 and 1 (default 0.99).
+#' }
+#' @param prior_derivation_control A list of controls for frequentist prior derivation:
+#' \itemize{
+#'   \item \code{half_t_df}: Degrees of freedom for half-t priors on scale parameters.
+#' }
+#' @param parallel Logical. If \code{TRUE}, uses \code{future} backend to parallelize Bayesian model fitting.
+#' @param signal_themes_m_df A (meta) data frame with columns \code{id}, \code{tickers}, \code{dates}, and \code{theme}. Defines signal group structure for hierarchical modeling.
+#' @param lower_quantile_winsorization Numeric between 0 and 1. Lower winsorization threshold for signal metrics.
+#' @param upper_quantile_winsorization Numeric between 0 and 1. Upper winsorization threshold for signal metrics.
 check_inputs_ss_backtest <- function(
   #Dates
   initial_sample_size, rebalancing_months, split_method,

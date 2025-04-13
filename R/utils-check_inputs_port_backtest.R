@@ -3,19 +3,21 @@
 #' This function validates all input parameters required for running a portfolio backtest. It ensures that data frames are coercible to a meta_dataframe, that required columns are present and correctly formatted, and that the values fall within acceptable ranges. In addition, it performs cross-checks between inputs (e.g., matching dates, tickers, and IDs) and issues warnings for minor issues and errors for critical mismatches.
 #'
 #' @param signals_m_df A data frame containing signal data that must be coercible to a meta_dataframe. It must have at least the columns for IDs, tickers, and dates (columns 1:3) and subsequent columns should be numeric and free of NAs. Dates must be of class \code{Date} and follow the \%Y-\%m-\%d format.
-#' @param oos_predictions_m_df (Optional) A data frame with out-of-sample predictions that must be coercible to a meta_dataframe. It is expected to contain the columns: \code{"id"}, \code{"tickers"}, \code{"dates"}, \code{"target"}, \code{"pred"}, and \code{"error"}. The IDs in this data frame must correspond to the IDs in \code{signals_m_df} after the initial buffer period.
+#' @param oos_predictions_m_df (Optional) A data frame with out-of-sample predictions that must be coercible to a meta_dataframe. It is expected to contain the columns: \code{"id"}, \code{"tickers"}, \code{"dates"}, and \code{"pred"}. The IDs in this data frame must correspond to the IDs in \code{signals_m_df} after the initial buffer period.
 #' @param chosen_score_metric_and_position (Optional) A single-element list specifying the chosen score metric and position. Its name(s) must not include the substring \code{"low_"} and the chosen metric must be present as a column name in \code{signals_m_df}.
 #' @param rebalancing_months A numeric value indicating the rebalancing frequency in months. Must be numeric and between 1 and 12.
 #' @param initial_buffer_period A numeric value specifying the number of initial periods to exclude from the backtest.
 #' @param port_construction_method A character string indicating the portfolio construction method. Allowed values are \code{"ew"}, \code{"sw"}, \code{"cw"}, \code{"cs"}, \code{"rp"}, \code{"mvo"}, or \code{"custom_weights"}.
-#' @param eligibility_quantile_range A numeric vector specifying the eligibility quantile range used in portfolio construction.
+#' @param eligibility_quantile_range A numeric vector of length 2 specifying the eligibility quantile range used in portfolio construction.
+#' @param min_eligible_assets_fallback A positive integer indicating the fallback minimum number of eligible assets (optional).
+#' @param selected_benchmark A character string naming the benchmark to be used for active return calculation or constraints.
 #' @param rp_method A parameter specifying the risk parity method to be applied (when applicable).
 #' @param n_random_ports A numeric value indicating the number of random portfolios to generate.
 #' @param random_ports_method A parameter specifying the method for generating random portfolios.
 #' @param opt_objective A parameter defining the optimization objective.
 #' @param opt_method A parameter specifying the optimization method.
-#' @param cov_estimation_method A character string specifying the covariance estimation method. This parameter is required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.
-#' @param cov_matrix_sample_size A numeric value indicating the sample size used for covariance matrix estimation. This is required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.
+#' @param cov_estimation_method A character string specifying the covariance estimation method. Required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.
+#' @param cov_matrix_sample_size A numeric value indicating the sample size used for covariance matrix estimation. Required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.
 #' @param active_returns A logical value indicating whether active returns are used. If \code{TRUE}, \code{daily_bench_returns_m_xts} must be provided.
 #' @param cov_matrix_benchmark A character string specifying the benchmark for covariance matrix estimation. The specified benchmark must be present as a column in \code{daily_bench_returns_m_xts}.
 #' @param daily_stock_returns_m_xts An \code{xts} object containing daily stock returns. The dates (i.e., the index) must be of class \code{Date}, consecutive, and should cover all tickers present in \code{signals_m_df}.
@@ -31,24 +33,27 @@
 #' @param benchmark_weights_m_df (Optional) A data frame with benchmark weights. It must be coercible to a meta_dataframe, have numeric columns with values between 0 and 1 (summing to 1 per date), and cover all stocks in \code{signals_m_df}.
 #' @param volatility_m_df A data frame containing volatility data, coercible to a meta_dataframe. Numeric columns must have no NAs, include a \code{"daily_vol"} column, and cover all stocks in \code{signals_m_df}.
 #' @param fwd_return_m_df A data frame containing forward returns, coercible to a meta_dataframe. It must contain a column named \code{"fwd_return_1m"}; the data should be numeric (with NAs allowed only at the final dates) and must match the structure of \code{signals_m_df} (IDs, tickers, dates).
-#' @param transaction_costs_parameters An object (or list) containing transaction cost parameters. It must have the names \code{"direct_transaction_cost"}, \code{"strategy_aum"}, \code{"alpha"}, and \code{"lambda"}, and is validated via \code{validate_transaction_cost_parameters}.
+#' @param transaction_costs_parameters An object (or list) containing transaction cost parameters. It must have the names \code{"direct_transaction_cost"}, \code{"strategy_aum"}, \code{"alpha"}, and \code{"lambda"}, and is validated via \code{validate_transaction_costs_parameters}.
 #' @param custom_stock_weights_m_df (Optional) A data frame containing custom stock universe weights that is coercible to a meta_dataframe.
 #' @param custom_stock_metrics_m_df (Optional) A data frame containing custom stock metrics that is coercible to a meta_dataframe.
+#' @param user_defined_OR_rules_m_df (Optional) A meta_dataframe with 5 columns defining OR-based eligibility filters. The 5th column must be binary (0 or 1).
+#' @param user_defined_AND_rules_m_df (Optional) A meta_dataframe with 5 columns defining AND-based eligibility filters. The 5th column must be binary (0 or 1).
 #' @param lower_quantile_winsorization A numeric value specifying the lower winsorization quantile.
 #' @param upper_quantile_winsorization A numeric value specifying the upper winsorization quantile.
+#' @param verbose Logical. Whether to print warnings and informational messages.
+#'
 #' @return \code{NULL}. This function is used for its side effects; it stops execution if any input validation fails.
 #'
 #' @details
 #' This function performs comprehensive validation of multiple inputs for a portfolio backtest. It checks:
-#'
-#' - That data frames (e.g., \code{signals_m_df}, \code{oos_predictions_m_df}, \code{liquidity_m_df}, etc.) are coercible to a \code{meta_dataframe} and meet required formats.
-#' - That numeric columns do not contain NAs (except where allowed) and fall within expected ranges.
-#' - That date columns are of class \code{Date} and follow daily or sequential monthly formats as required.
-#' - That data frames are consistent across IDs, tickers, and dates.
-#' - That all constraints (liquidity, turnover, concentration) and custom weights/metrics satisfy required conditions.
-#' - That transaction cost parameters are valid, and that \code{strategy_aum} and \code{main_liquidity_metric} are in comparable units.
-#' The function uses additional helper functions such as \code{is_coercible_to_meta_dataframe}, \code{validate_turnover_constraint_policy}, \code{validate_liquidity_constraint_policy}, \code{validate_liquidity_floor_cutoffs}, etc., to perform these checks.
-#'
+#' \itemize{
+#'   \item Data coercion to \code{meta_dataframe} and column format correctness.
+#'   \item Presence and consistency of ID, ticker, and date information.
+#'   \item Validity of signal metrics, forward returns, and optional prediction scores.
+#'   \item Time series structure of all xts objects (daily and monthly).
+#'   \item Format and feasibility of constraints and custom inputs.
+#'   \item Structural alignment between volatility, liquidity, weights, and benchmark inputs.
+#'   \item Applicability and completeness of transaction cost parameters and units.
 #' }
 check_inputs_port_backtest <- function(
   # Base Objects

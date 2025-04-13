@@ -1,25 +1,56 @@
-#' Plot Method for Meta Dataframe with Custom Statistics and Filtering
+#' @title Plot Method for `meta_dataframe` Objects
 #'
-#' This method generates enhanced plots for a `meta_dataframe` object based on the specified plot type and chosen calculation statistic.
+#' @description
+#' This method creates a variety of diagnostic and summary plots from a `meta_dataframe` object,
+#' including time series plots, cross-sectional plots, histograms, boxplots, composition plots,
+#' regression plots, density plots, tile heatmaps, correlograms, and radar charts.
 #'
-#' @param x A `meta_dataframe` object containing the data to be plotted.
-#' @param type A character string specifying the type of plot. Options are "cross_sectional" and "time_series".
-#' @param clustering_variables Character vector. Variables used for grouping in cross-sectional or time series plot.
-#' @param variable Character. The numeric variable for calculating the specified statistic in the plot.
-#' @param tickers Character or vector of characters. Specific tickers to include; defaults to "all" for no filtering.
-#' @param dates Date, single date, or date range. Specific date range to include; defaults to "all" for no filtering.
-#' @param calc_stat Character. Specifies the statistic to calculate. Supported values: "mean", "sd", "median", "min", "max", "sum", "n",
-#'   "q05", "q10", "q25", "q75", "q90", "q95", "cor", "beta", "beta_tstat", "alpha", "alpha_tstat".
-#' @param custom_filter Character or vector of characters. Additional columns to filter by, present in `data`.
-#' @param filter_values List or vector of values to filter by for `custom_filter`.
-#' @param y Optional numeric variable, only required for bivariate statistics like "cor", "beta", "beta_tstat", "alpha", "alpha_tstat".
-#' @return A ggplot object representing the requested plot.
+#' It supports both univariate and bivariate statistics (e.g., correlation, regression),
+#' faceting by clustering variables, and interactive filtering by tickers, dates, or other custom criteria.
+#'
+#' @param x A `meta_dataframe` object to be plotted.
+#' @param type A character string specifying the plot type. Valid options include:
+#'   `"cross_sectional"`, `"time_series"`, `"histogram"`, `"boxplot"`, `"composition"`, `"regression"`,
+#'   `"density2d"`, `"correlogram"`, `"radar"`, `"waterfall"`, `"tile_heatmap"`, `"frequency"`.
+#' @param clustering_variables A character vector specifying one or more columns to group by (e.g., `"dates"`, `"tickers"`).
+#'   Used to produce faceted plots or grouping within plots.
+#' @param variable A character vector specifying the main numeric variable(s) to analyze or visualize.
+#' @param tickers Character vector of tickers to include. Use `"all"` (default) to include all tickers.
+#' @param dates Either a single date, a vector of dates, or `"all"` to include all.
+#' @param calc_stat Character string specifying the calculation to apply. Supported options include:
+#'   `"mean"`, `"sd"`, `"median"`, `"min"`, `"max"`, `"sum"`, `"n"`, `"q05"`, `"q10"`, `"q25"`, `"q75"`, `"q90"`, `"q95"`,
+#'   and bivariate metrics such as `"cor"`, `"beta"`, `"beta_tstat"`, `"alpha"`, `"alpha_tstat"`.
+#' @param custom_filter A character or character vector specifying the column(s) to filter on (e.g., `sector`, `theme`).
+#' @param filter_values A list or vector of values corresponding to `custom_filter` columns.
+#' @param dep_y Optional. A character string indicating the dependent variable to be used in bivariate statistics
+#'   (e.g., `"cor"`, `"beta"`, `"alpha"`). Required when `calc_stat` involves regression or correlation.
+#' @param numeric_aggregation A character string defining how to discretize numeric `clustering_variables`.
+#'   Options include: `"decile"`, `"quartile"`, `"tercile"`, `"median"`. Default is `"decile"`.
+#' @param ... Currently unused. Included for method consistency.
+#'
+#' @return A `ggplot` object or base R plot (in the case of radar plots), visualizing the requested output.
+#'         The plot is printed as a side effect.
+#'
+#' @details
+#' This method performs internal filtering and summarization before rendering visual output.
+#' - **Univariate plots** (e.g., histogram, boxplot, time series) are based on the `variable` argument.
+#' - **Bivariate plots** (e.g., regression, correlation) require both `variable` and `dep_y`.
+#' - **Tile heatmaps** classify values across time and grouping dimensions using quantiles (e.g., deciles).
+#'
+#' The plot aesthetics and background colors follow a customized neon/blue theme consistent with the `factoRverse` package style.
+#'
 #' @export
+
 setMethod(
   "plot",
   signature(x = "meta_dataframe", y = "missing"),
   function(x, type = NULL, clustering_variables = NULL, variable = NULL, tickers = "all", dates = "all", calc_stat = NULL,
            custom_filter = NULL, filter_values = NULL, dep_y = NULL, numeric_aggregation = "decile") {
+
+    #Check for packages
+    if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+      stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+    }
 
 
     # Prompt for 'type' if not specified
@@ -1366,66 +1397,50 @@ setMethod(
 
 #' @title Plot Method for meta_xts
 #' @description
-#' Plots data from a meta_xts (or subclass) object using ggplot2, labeling each
-#' distinct series by its column name. Optionally allows grouping of series by
-#' a \code{clustering_list}.
+#' Plots time series or performance summaries from a `meta_xts` (or subclass) object using `ggplot2`.
+#' Offers interactive prompts for series selection, cumulative return computation, faceting, and more.
 #'
 #' @details
-#' 1) Converts the \code{xts} data to a data frame, then melts it into long format,
-#' 2) Assigns each series (column) a numeric color label,
-#' 3) Optionally groups series by a provided \code{clustering_list} to vary line type,
-#' 4) Specifies \code{group = series} (or \code{group = interaction(series, group)}) so ggplot2
-#'    knows which observations to connect by line,
-#' 5) Plots the data on a dark background with neon color palette.
-#'
-#' @param x A \code{meta_xts} (or subclass) object.
-#' @param y Not used (for consistency with base \code{plot} generic).
-#' @param clustering_list A named list, where each name (e.g. "Base") is mapped to
-#' a character vector of column names. If \code{NULL}, no grouping is performed.
-#' @param ... Further arguments passed to or from other methods (currently not used).
-#'
-#' @return Invisibly returns the ggplot object. It also prints a legend mapping
-#' numeric labels to the original column names.
-#'
-#' @examples
-#' \dontrun{
-#' library(xts)
-#'
-#' # Create example data
-#' test_dates <- seq(as.Date("2023-01-15"), by="month", length.out=7)
-#' test_data <- xts(matrix(c(0.086, -0.014, -0.026, -0.040, -0.073, 0.115, 0.101,
-#'                           0.080,  0.053,  0.087,  0.079,  0.060, 0.095, 0.070,
-#'                           NA,      NA,      NA,      NA,      NA,   NA, -0.063),
-#'                         nrow=7, ncol=3, byrow=FALSE,
-#'                         dimnames=list(NULL, c("series_1", "series_2", "series_3"))),
-#'                  order.by = test_dates)
-#'
-#' # Build a dummy meta_xts
-#' my_meta <- new("metrics_meta_xts",
-#'                data = test_data,
-#'                meta_xts_name = "Example",
-#'                metric_name = "rss",
-#'                workflow = list(),
-#'                n_dates = nrow(test_data),
-#'                source = rep("MockSource", 3),
-#'                frequency = "monthly",
-#'                series = colnames(test_data),
-#'                n_metrics = ncol(test_data))
-#'
-#' # Optional clustering
-#' my_clusters <- list("Group1" = "series_1", "Group2" = "series_2")
-#'
-#' # Plot (with or without clustering_list)
-#' plot(my_meta)
-#' plot(my_meta, clustering_list = my_clusters)
+#' The function behaves differently depending on whether the object is a subclass like `returns_meta_xts`.
+#' It includes:
+#' \enumerate{
+#'   \item Interactive column selection.
+#'   \item Optional performance metric visualization for returns objects.
+#'   \item Optional cumulative return computation.
+#'   \item Option to facet plots by year.
+#'   \item Option to overlay horizontal mean lines.
+#'   \item Option to add vertical reference lines.
+#'   \item Neon color palette and dark theme styling.
 #' }
 #'
-#' @rdname plot
+#' @param x A `meta_xts` or subclass object to be plotted.
+#' @param y Not used. Included for S4 method compatibility.
+#' @param clustering_list Optional named list assigning column names to cluster groups. Used to vary linetype by group.
+#' @param facet_by_year Logical. Whether to facet plots by calendar year. If `NULL`, user is prompted interactively.
+#' @param add_overall_means Logical. Whether to add dashed horizontal lines representing series-wide means.
+#' Only applies if `cumulative = FALSE`. If `NULL`, user is prompted.
+#' @param vertical_lines Optional vector of Dates or POSIXct timestamps at which to draw vertical dashed lines.
+#' @param cumulative Logical. If `TRUE` and object is of class `returns_meta_xts`, plots cumulative returns (in %). If `NULL`, prompts the user.
+#' @param plot_perf_metric Logical. For `returns_meta_xts` only. If `TRUE`, plots bar chart of selected performance metric instead of time series. If `NULL`, user is prompted.
+#' @param benchmark_returns_m_xts Optional `meta_xts` object (single-column) with benchmark returns. Required if `active_returns = TRUE`.
+#' @param active_returns Logical or `"yes"/"no"` string. Whether to compute active returns relative to the benchmark when `plot_perf_metric = TRUE`.
+#' @param ... Currently unused.
+#'
+#' @return Invisibly returns the generated `ggplot` object.
+#'
+#' @seealso [create_performance_m_df()]
+#'
+#' @rdname plot_meta_xts
 #' @export
 setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
           function(x, y, clustering_list = NULL, facet_by_year = NULL,
                    add_overall_means = NULL, vertical_lines = NULL, cumulative = NULL,
                    plot_perf_metric = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
+
+            #Check for packages
+            if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+              stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+            }
 
 
             #Prompt for column selection
@@ -1857,6 +1872,11 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 #' @export
 setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function(x, y) {
 
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
+
   # Define colors for plotting
   deep_navy <- "#000033"
   black <- "#000000"
@@ -1989,6 +2009,11 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 #' @return A `ggplot` object visualizing the hyperparameter histograms with possible limits.
 #' @export
 setMethod("plot", signature(x = "random_search_strategy", y = "missing"), function(x, y) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
 
   # Define colors for plotting
   deep_navy <- "#000033"
@@ -2150,9 +2175,15 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 #' @description Plot the bounds for each hyperparameter in `bayesian_opt_strategy`.
 #' @param x An object of class `bayesian_opt_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
+#' @param ... Additional arguments passed to the plotting method (currently unused).
 #' @return A `ggplot` object visualizing the bounds.
 #' @export
 setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), function(x, y, ...) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
 
 
   # Define neon colors for plotting
@@ -2299,6 +2330,11 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @export
 setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y){
 
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
+
   if(!x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")){
     plot(x@tuning_strategy)
   } else {
@@ -2311,12 +2347,21 @@ setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x
 #' @title Plot Method for `sb_metabacktest_config`
 #' @description Allows the user to plot either the base learners or the meta learner configurations.
 #' If `base_sb_backtest_results` is provided, it extracts the configurations using `get_sb_backtest_config`.
+#'
 #' @param x An object of class `sb_metabacktest_config`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
+#' @param plot_id A character string or numeric value specifying which plot to display.
+#'   If `NULL`, the user is prompted to select one from an interactive menu.
 #' @param ... Additional arguments (currently unused).
+#'
 #' @return A combined `ggplot` object visualizing the hyperparameter histograms for the selected configurations.
 #' @export
 setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), function(x, y, plot_id = NULL, ...) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
 
   # List of available plots
   available_plots <- c(
@@ -2520,9 +2565,13 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
 
 
 
-#' Plot Method for 'sb_model' Objects
+#' @title Plot Method for 'sb_model' Objects
+#' @description This method dispatches plotting to the underlying model stored in the \code{model} slot of a \code{sb_model} object.
 #'
-#' This method generates plots for a \code{sb_model} object, depending on the \code{model} slot.
+#' @param x An object of class \code{sb_model}.
+#' @param type Currently unused. Included for compatibility with other plot methods.
+#' @param ... Additional arguments passed to the plot method of the underlying model.
+#'
 #' @export
 setMethod(
   "plot",
@@ -2537,7 +2586,7 @@ setMethod(
 
 # Define the plot method for sb_backtest_results
 ################################
-#' Plot Machine Learning Walk-Forward Validation Results
+#' Plot Signal Blending Walk-Forward Validation Results
 #'
 #' This method generates various plots to visualize the performance of machine learning models using walk-forward validation metrics.
 #' Users can select which plot to display by specifying the `plot_id` parameter,
@@ -2556,10 +2605,17 @@ setMethod(
 #'     - `"Signal Portfolio"`
 #'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
 #'   If `NULL` (default), the method lists available plots.
+#' @param features_m_df A \code{meta_dataframe} containing features used in the backtest. Required for plots like `"Explain Prediction"`.
 #'
 #' @return Invisibly returns the input \code{x}.
 #' @export
+
 setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_df = NULL) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
 
   # List of available plots
   sb_backtest_workflow <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
@@ -3604,6 +3660,11 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 #' @export
 setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
+
   # List of available plots
   available_plots <- c(
     "Combined and Consolidated OOS Testing Metrics - All Dates",
@@ -3906,13 +3967,20 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 })
 
 
-#' @title Plot Bayesian Model Parameters Priors
-#' @description Plots the distribution curves for each prior in a `bayesian_model_parameters` object, with a cyberpunk theme.
-#' @param x A `bayesian_model_parameters` object.
+#' @title Plot Priors from ss_backtest_config
+#' @description Plots the distribution curves for each prior in the `bayesian_model_parameters` inside a `ss_backtest_config` object.
+#' @param x An object of class `ss_backtest_config` with a `bayesian_alpha_test_strategy` alpha test strategy.
+#' @param y Not used. Included for S4 method compatibility.
 #' @param ... Additional arguments (currently unused).
-#' @method plot bayesian_model_parameters
+#' @rdname plot_ss_backtest_config
 #' @export
 setMethod("plot", "ss_backtest_config", function(x, ...) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
+
   # Validate input object
   if (!inherits(x@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
     stop("This plot method is only applicable to 'bayesian_alpha_test_strategy' subclass.")
@@ -4057,10 +4125,17 @@ setMethod("plot", "ss_backtest_config", function(x, ...) {
 #' @title Plot Bayesian Alpha Test Strategy Priors
 #' @description Plots the prior distributions defined in a `bayesian_alpha_test_strategy` object.
 #' @param x A `bayesian_alpha_test_strategy` object.
+#' @param y Ignored. Included for S3 compatibility.
 #' @param ... Additional arguments (currently unused).
 #' @method plot bayesian_alpha_test_strategy
 #' @export
 setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
+
   if (is.null(x@bayesian_model_parameters)) {
     cat("No Bayesian model parameters to plot.\n")
     return(invisible(NULL))
@@ -4079,6 +4154,11 @@ setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
 #' @return Invisibly returns the input object.
 #' @export
 setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
 
   # Define colors for plotting
   deep_navy <- "#000033"
@@ -5305,9 +5385,9 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
 
 
-#' Plot Method for port_backtest_config: Faceted Liquidity Floor Cutoffs (Ordered Within Facets)
+#' @title Plot Method for port_backtest_config: Faceted Liquidity Floor Cutoffs (Ordered Within Facets)
 #'
-#' This method generates a faceted bar plot displaying liquidity floor cutoff metrics
+#' @description Generates a faceted bar plot displaying liquidity floor cutoff metrics
 #' from a \code{port_backtest_config} object. The liquidity floor cutoffs data is expected to
 #' contain one grouping column (automatically identified as the first non-numeric column)
 #' and one or more numeric columns. The data is pivoted into a long format and, within each metric facet,
@@ -5316,13 +5396,22 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 #'
 #' @param x A \code{port_backtest_config} object containing liquidity floor cutoffs data in the
 #'   \code{liquidity_floor_cutoffs} slot.
+#' @param y Not used. Required for S4 method consistency.
 #' @param ... Additional arguments (currently not used).
+#'
 #' @return A \code{ggplot} object representing the faceted liquidity floor cutoffs plot.
 #' @export
+
 setMethod(
   "plot",
   signature(x = "port_backtest_config", y = "missing"),
   function(x, ...) {
+
+    #Check for packages
+    if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+      stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+    }
+
     # Check if liquidity_floor_cutoffs data is available
     if (is.null(x@liquidity_floor_cutoffs)) {
       stop("No liquidity floor cutoffs data available in this port_backtest_config object.")
@@ -5403,28 +5492,36 @@ setMethod(
 #' Plot Method for 'port' Objects
 #'
 #' This method generates plots for a \code{port} object, depending on the specified \code{type}.
+#'
 #' The currently supported plot types are:
 #' \enumerate{
-#'  \item \code{"weights"} - A basic pie chart of the portfolio weights.
+#'  \item \code{"weights"} - A bar chart of the portfolio weights (or active weights).
 #'  \item \code{"exp_ret_score"} - A bar chart of the portfolio's expected return scores.
-#'  \item \code{"risk_return"} - Scatterplot of expected return score (y) vs. risk (x) (the main diagonal of covariance matrix).
-#'  \item \code{"correlation"} - A heatmap of the correlation (or covariance) matrix.
-#'  \item \code{"relative_risk_contribution"} - A bar chart showing each asset's weight and relative risk contribution side by side.
-#'  \item \code{"efficient_frontier"} - Plots a scatterplot of random portfolios' risk and return, plus an optimal portfolio point.
-#'  \item \code{"group_composition"} - Compares portfolio group weights (e.g., sectors, themes) with benchmark group weights (if available).
+#'  \item \code{"risk_return"} - A scatterplot of expected return score (y) vs. risk (x).
+#'  \item \code{"correlation"} - A heatmap of the asset correlation matrix.
+#'  \item \code{"relative_risk_contribution"} - A bar chart comparing weights and risk contributions.
+#'  \item \code{"efficient_frontier"} - A scatterplot of random portfolios with Sharpe ratio coloring and the optimal portfolio highlighted.
+#'  \item \code{"random_weights_distribution"} - A jitter plot of random portfolio weights with constraints.
+#'  \item \code{"group_composition"} - A grouped bar chart comparing portfolio and benchmark weights across classification variables (e.g., sectors).
 #' }
 #'
+#' This method is dispatched on signature \code{plot(x = "port", y = "missing")} and does not use the \code{y} argument.
+#'
 #' @param x An object of class \code{"port"}.
-#' @param y Missing. (Not used.)
 #' @param type A character string specifying the type of plot to generate. If \code{NULL}, the user will be prompted.
 #' @param ... Additional arguments for future extensions (currently unused).
 #'
-#' @return A \code{ggplot} object (invisibly). The function will also print the plot to the graphics device.
+#' @return A \code{ggplot} object (invisibly). The function also prints the plot.
 #' @export
 setMethod(
   "plot",
   signature(x = "port", y = "missing"),
   function(x, type = NULL, ...) {
+
+    #Check for packages
+    if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+      stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+    }
 
     #------------------------------------------------------------------------------------------------
     # 0) Prompt for 'type' if not specified
@@ -6469,11 +6566,19 @@ setMethod(
 #' @title Plot Method for port_backtest_results Class
 #' @description Generates various plots to visualize metrics from the `port_backtest_results` object.
 #' Users can select which plot to display by specifying the `plot_id` parameter.
+#'
 #' @param x An object of class `port_backtest_results`.
-#' @param plot_id A character string or numeric value specifying which plot to display.
+#' @param plot_id A character string or numeric value specifying which plot to display. If `NULL`, the user will be prompted.
+#' @param vertical_lines Optional. A vector of `Date` objects indicating vertical lines to display in time-series plots (e.g., rebalance dates). If `NULL`, the user will be prompted.
+#'
 #' @return Invisibly returns the input object.
 #' @export
 setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_lines = NULL) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
 
   # Define colors for plotting
   deep_navy <- "#000033"
@@ -6791,13 +6896,21 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
 
 
 #' @title Plot Method for port_backtest_cohort Class
-#' @description Generates various plots to visualize metrics from the `port_backtest_cohort` object.
-#' Users can select which plot to display by specifying the `plot_id` parameter.
-#' @param x An object of class `port_backtest_cohort`.
+#' @description Generates various plots to visualize metrics from a \code{port_backtest_cohort} object.
+#' Users can select which plot to display by specifying the \code{plot_id} parameter.
+#'
+#' @param x An object of class \code{port_backtest_cohort}.
 #' @param plot_id A character string or numeric value specifying which plot to display.
+#' @param vertical_lines Optional. A named list or vector specifying vertical lines to add to time-series plots. Used for highlighting events.
+#'
 #' @return Invisibly returns the input object.
 #' @export
 setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_lines = NULL) {
+
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
 
   # Define colors for plotting
   deep_navy <- "#000033"
