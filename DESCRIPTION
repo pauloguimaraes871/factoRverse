@@ -14,12 +14,20 @@ Suggests:
     insight,
     future,
     readxl,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    yardstick,
+    DT,
+    gridExtra,
+    htmltools,
+    htmlwidgets,
+    scales
 Config/testthat/edition: 3
 Config/testthat/parallel: true
 Config/testthat/start-first: ml_walk_forward_validation
 Imports: 
+    brms,
     crayon,
+    digest,
     doFuture,
     dplyr,
     furrr,
@@ -27,6 +35,7 @@ Imports:
     glmnet,
     janitor,
     keras,
+    lme4,
     lmerTest,
     lubridate,
     magrittr,
@@ -34,14 +43,24 @@ Imports:
     moments,
     ParBayesianOptimization,
     PerformanceAnalytics,
+    PortfolioAnalytics,
     purrr,
     ranger,
     rBayesianOptimization,
+    recipes,
     reshape2,
+    riskParityPortfolio,
+    rlang,
+    rpart,
     stats,
     stringr,
+    tensorflow,
+    tibble,
     tictoc,
-    xts
+    tidyr,
+    xgboost,
+    xts,
+    zoo
 Collate: 
     'calculate_eval_metrics.R'
     'class_definitions.R'
