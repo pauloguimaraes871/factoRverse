@@ -977,6 +977,11 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
                                                   base_learners,
                                                   plot_name) {
 
+  #Check for packages
+  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
+    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  }
+
   # Define color palette
   neon_blue <- "#00BFFF"
   neon_pink <- "#FF1493"
@@ -1129,12 +1134,20 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
 
     for (metric_name in metric_names) {
       metric_df <- metrics_list[[metric_name]]@data %>% as.data.frame()
-      metric_long <- reshape2::melt(
-        as.data.frame(metric_df),
-        id.vars = NULL,
-        variable.name = "backtest",
-        value.name = "value"
-      )
+      metric_long <- tidyr::pivot_longer(
+        data = as.data.frame(metric_df),
+        cols = dplyr::everything(),
+        names_to = "backtest",
+        values_to = "value"
+      ) %>% as.data.frame()
+
+      ###Reorder according to original colnames
+      ordered_backtests <- colnames(metric_df)
+      metric_long <- metric_long %>% dplyr::mutate(order = match(backtest, ordered_backtests)) %>%
+        dplyr::arrange(order) %>%
+        dplyr::select(-order)
+
+     ###Add dates and metrics
       metric_long$dates <- as.Date(zoo::index(metrics_list[[metric_name]]@data))
       metric_long$metric <- metric_name
       plot_data <- rbind(plot_data, metric_long)
@@ -1183,7 +1196,7 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
       cat(paste(labels[i], ":", all_backtests[i], "\n"))
     }
 
-    print(p)
+    suppressWarnings(print(p))
     return(invisible(p))
 
   } else if (plot_name == "Mean Validation Metrics Comparison") {
@@ -1213,11 +1226,13 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
     }
 
     # Melt data for plotting
-    plot_data <- reshape2::melt(
-      data_df,
-      id.vars = c("sb_backtest", "backtest_label", "metric"),
-      value.name = "avg_val"
+    plot_data <- tidyr::pivot_longer(
+      data = data_df,
+      cols = -c(sb_backtest, backtest_label, metric),
+      names_to = "variable",
+      values_to = "avg_val"
     )
+
 
     # Create the plot
     p <- ggplot2::ggplot(
@@ -1280,16 +1295,26 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
     plot_data <- data.frame()
 
     for (metric_name in metric_names) {
-      metric_df <- metrics_list[[metric_name]]@data
-      metric_long <- reshape2::melt(
-        as.data.frame(metric_df),
-        id.vars = NULL,
-        variable.name = "sb_backtest",
-        value.name = "value"
-      )
+      ##Manipulate metric data.frame to long format
+      metric_df <- metrics_list[[metric_name]]@data %>% as.data.frame()
+      metric_long <- tidyr::pivot_longer(
+        data = as.data.frame(metric_df),
+        cols = dplyr::everything(),
+        names_to = "sb_backtest",
+        values_to = "value"
+      ) %>% as.data.frame()
+
+      ###Reorder according to original colnames
+      ordered_backtests <- colnames(metric_df)
+      metric_long <- metric_long %>% dplyr::mutate(order = match(sb_backtest, ordered_backtests)) %>%
+        dplyr::arrange(order) %>%
+        dplyr::select(-order)
+
+      ###Add dates and metrics
       metric_long$dates <- as.Date(zoo::index(metrics_list[[metric_name]]@data))
       metric_long$metric <- metric_name
       plot_data <- rbind(plot_data, metric_long)
+
     }
 
     # Replace long Backtest identifiers with labels
@@ -1329,13 +1354,14 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
         panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
       )
 
+
     # Print the legend mapping Backtest labels to identifiers
     cat("\nLegend:\n")
     for (i in seq_along(labels)) {
       cat(paste(labels[i], ":", all_backtests[i], "\n"))
     }
 
-    print(p)
+    suppressWarnings(print(p))
     return(invisible(p))
 
   } else if (plot_name == "Prediction Error Correlation") {

@@ -1686,13 +1686,6 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
               df_data$dates <- as.Date(zoo::index(main_xts))
               df_data$year <- lubridate::year(df_data$dates)
 
-              long_data <- reshape2::melt(
-                df_data,
-                id.vars = c("dates", "year"),
-                variable.name = "series",
-                value.name = "value"
-              )
-
               # Sort by date to ensure correct plotting order
               long_data <- long_data[order(long_data$dates), ]
 
@@ -2761,7 +2754,13 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     if (!is.null(oos_testing_eval_metrics)){
       oos_testing_and_validation <- dplyr::left_join(oos_testing_eval_metrics, validation_eval_metrics_hyper_choice, by = 'dates')
       # Melt
-      oos_testing_and_validation <- oos_testing_and_validation %>% reshape::melt(id.vars = "dates")
+      oos_testing_and_validation <- oos_testing_and_validation %>%
+        tidyr::pivot_longer(
+          cols = -dates,
+          names_to = "variable",
+          values_to = "value"
+        )
+
       oos_testing_and_validation$dates <- as.Date(oos_testing_and_validation$dates, format = "%Y-%m-%d")
 
       # OOS test data
@@ -2906,7 +2905,11 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     plots_list$best_hyper_over_time <- ggplot2::ggplot(
       hyper_choice_df %>%
         dplyr::mutate(dates = as.Date(rownames(hyper_choice_df), format = "%Y-%m-%d")) %>%
-        reshape::melt(id.vars = "dates"),
+        tidyr::pivot_longer(
+          cols = -dates,
+          names_to = "variable",
+          values_to = "value"
+        ),
       ggplot2::aes(x = dates, y = value, color = variable)
     ) +
       ggplot2::geom_line(alpha = 0.5) +
@@ -3269,7 +3272,11 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     # PLOT 5: All Evaluation Metrics Over Time
     plots_list$all_eval_metrics_over_time <- ggplot2::ggplot(
       oos_testing_eval_metrics %>%
-        reshape::melt(id.vars = "dates") %>%
+        tidyr::pivot_longer(
+          cols = -dates,
+          names_to = "variable",
+          values_to = "value"
+        ) %>%
         dplyr::mutate(variable = gsub("^oos_testing_", "", variable)) %>%  # Remove prefix
         dplyr::filter(!is.na(value)),
       ggplot2::aes(x = dates, y = value, color = variable)
@@ -3303,7 +3310,11 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     # Add horizontal lines for variable means
     # Create a summary data frame for variable means
     summary_data <- oos_testing_eval_metrics %>%
-      reshape::melt(id.vars = "dates") %>%
+      tidyr::pivot_longer(
+        cols = -dates,
+        names_to = "variable",
+        values_to = "value"
+      ) %>%
       dplyr::mutate(variable = gsub("^oos_testing_", "", variable)) %>%
       dplyr::group_by(variable) %>%
       dplyr::summarise(variable_mean = mean(value, na.rm = TRUE))
@@ -3337,11 +3348,11 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     consolidated_oos_testing_metrics$id <- "Consolidated OOS"
 
     # Melt the consolidated data
-    consolidated_data <- reshape2::melt(
-      consolidated_oos_testing_metrics,
-      id.vars = c("metric", "id"),
-      variable.name = "Discard_Column",
-      value.name = "Value"
+    consolidated_data <- tidyr::pivot_longer(
+      data = consolidated_oos_testing_metrics,
+      cols = -c(metric, id),
+      names_to = "Discard_Column",
+      values_to = "Value"
     )
     # Remove the unneeded column
     consolidated_data$Discard_Column <- NULL
@@ -3427,18 +3438,20 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
 
       # Melt both data frames to long format with specified id.vars
-      consolidated_data <- reshape2::melt(
-        consolidated_oos_testing_metrics,
-        id.vars = c("metric", "id"),
-        variable.name = "Discard_Column",
-        value.name = "Value"
+      consolidated_data <- tidyr::pivot_longer(
+        data = consolidated_oos_testing_metrics,
+        cols = -c(metric, id),
+        names_to = "Discard_Column",
+        values_to = "Value"
       )
-      average_data <- reshape2::melt(
-        average_validation_metrics,
-        id.vars = c("metric", "id"),
-        variable.name = "Discard_Column",
-        value.name = "Value"
+
+      average_data <- tidyr::pivot_longer(
+        data = average_validation_metrics,
+        cols = -c(metric, id),
+        names_to = "Discard_Column",
+        values_to = "Value"
       )
+
 
       consolidated_data$Discard_Column <- NULL
       average_data$Discard_Column <- NULL
