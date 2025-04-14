@@ -1,15 +1,27 @@
-#' Compute Formula-Based Signal Calculation
+#' @title Compute Formula-Based Signal Calculation
 #'
-#' This method computes a transformation between multiple signals for each ticker and date in a `meta_dataframe`.
-#' Unlike `compute_window`, this function does not apply any rolling or seasonal windowing; instead, the calculation
-#' is applied directly to each observation based on a user-defined formula.
+#' @description
+#' Applies a user-defined arithmetic formula to variables in a `meta_dataframe` object.
+#' The function computes the formula for each row (ticker-date pair), without any rolling
+#' or seasonal windowing (unlike `compute_window`).
 #'
 #' @param features_m_df A `meta_dataframe` object.
-#' @param formula A `formula` specifying the arithmetic formula to apply.
-#'   The formula should reference column names in `features_m_df` and can include `+`, `-`, `*`, `/`, and parentheses.
-#'   Example: "price / earnings", "revenue - expenses", "log(market_cap)".
-#' @param ignore_NA A `character vector` specifying which variables should be ignored in case of NA. The user can specify:
-#'   - A list of column names to replace NA values in those columns only.
+#' @param formula A `formula` specifying the transformation to apply. The formula should use
+#'   column names from `features_m_df` and may include arithmetic operations such as
+#'   \code{+}, \code{-}, \code{*}, \code{/}, and common functions like \code{log()}, \code{exp()}, \code{sqrt()}.
+#'   The left-hand side of the formula defines the new feature name.
+#'   For example: \code{log_mktcap ~ log(market_cap)}, \code{pe_ratio ~ price / earnings}.
+#' @param ignore_NA A `character` vector specifying which variables (among those in the formula) should be imputed
+#'   in case of missing values. If the formula uses \code{+} or \code{-}, NAs are replaced with 0.
+#'   If the formula uses \code{*} or \code{/}, NAs are replaced with 1.
+#'
+#' @return A modified `meta_dataframe` object with a new column computed based on the formula.
+#'
+#' @details
+#' If `ignore_NA` is specified, the computation avoids propagation of missing values by replacing
+#' them according to the arithmetic structure. Mixing addition/subtraction with multiplication/division
+#' in the same formula is not allowed when `ignore_NA` is used. The function appends the result to
+#' the `meta_dataframe`, preserving its workflow log.
 #'
 #' @return A `meta_dataframe` object with an added column containing the computed values based on the formula.
 #'

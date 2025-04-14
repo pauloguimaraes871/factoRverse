@@ -76,7 +76,5 @@ meta_config <- create_sb_metabacktest_config(
   base_sb_backtest_configs = list(config1, config2)
 )
 
-}
-\seealso{
-\code{\link{sb_backtest_config}}, \code{\link{ss_backtest_config}}, \code{\link{sb_metabacktest_config}}
+
 }

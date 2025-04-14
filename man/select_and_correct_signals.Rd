@@ -41,6 +41,3 @@ The function performs the following operations:
 \item Validates that all adjusted signals have corresponding columns in \code{backtest_returns_df}.
 }
 }
-\seealso{
-\code{\link{backtest_returns_df}}
-}

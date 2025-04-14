@@ -411,15 +411,6 @@ or set parallel = FALSE.
 Keras has some limitations when working in parallel, especially when using bayesian optimization as tuning method.
 }
 
-\examples{
-# Example of creating a 3 layers keras_architecture_parameters for neural networks.
-keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"),
-                                     nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)
-)
-}
 \seealso{
-\code{\link{sb_backtest_config}}, \code{\link{sb_metabacktest_config}}, \code{\link{time_series_split}}, \code{\link{run_port_backtest}},
-\code{\link{create_meta_dataframe}}, \code{\link{ParBayesianOptimization::bayesOpt}}, \code{\link{furrr::future_pmap}}
-
 \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 }

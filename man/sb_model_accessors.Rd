@@ -2,16 +2,38 @@
 % Please edit documentation in R/class_definitions.R
 \name{sb_model_accessors}
 \alias{sb_model_accessors}
+\alias{get_sb_algorithm}
+\alias{get_best_hyperparameters}
+\alias{get_model}
+\alias{get_sb_algorithm,sb_model-method}
+\alias{get_best_hyperparameters,sb_model-method}
+\alias{get_model,sb_model-method}
 \title{Accessor Methods for sb_model}
 \usage{
 get_sb_algorithm(object)
+
+\S4method{get_sb_algorithm}{sb_model}(object)
+
+get_best_hyperparameters(object)
+
+\S4method{get_best_hyperparameters}{sb_model}(object)
+
+get_model(object)
+
+\S4method{get_model}{sb_model}(object)
 }
 \arguments{
 \item{object}{An object of class \code{sb_model}.}
 }
 \value{
-The respective slot of the \code{sb_model} object.
+The respective slot from the \code{sb_model} object:
+\describe{
+\item{\code{get_sb_algorithm}}{Returns the algorithm used (character).}
+\item{\code{get_best_hyperparameters}}{Returns the list of best hyperparameters, or \code{NULL} if not applicable.}
+\item{\code{get_model}}{Returns the fitted model object.}
+}
 }
 \description{
-These methods are used to access components of a \code{sb_model} object.
+These methods retrieve slots from an object of class \code{sb_model}, including its algorithm,
+fitted model, and hyperparameters.
 }

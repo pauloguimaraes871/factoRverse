@@ -2767,65 +2767,96 @@ setClass("port_backtest_cohort",
 
 # meta_dataframe acessors -------------------------------------------------
 
-#' Accessor Methods for meta_dataframe
+#' Accessor for Data Slot
 #'
-#' These methods are used to access components of a `meta_dataframe` object.
+#' Retrieves the `data` slot from a `meta_dataframe` or `meta_xts` object.
 #'
-#' @param object An object of class `meta_dataframe`.
-#' @return The respective slot of the `meta_dataframe` object.
-#' @name meta_dataframe_accessors
-#' @rdname meta_dataframe_accessors
+#' @param object An object of class `meta_dataframe` or `meta_xts`.
+#'
+#' @return A `data.frame` (for `meta_dataframe`) or `xts` object (for `meta_xts`) containing the data.
+#' @rdname get_data
 #' @export
 setGeneric("get_data", function(object) standardGeneric("get_data"))
 
+#' @rdname get_data
 #' @export
 setMethod("get_data", "meta_dataframe", function(object) {
   return(object@data)
 })
 
+#' @rdname get_data
 #' @export
 setMethod("get_data", "meta_xts", function(object) {
   return(object@data)
 })
 
+#' Accessor for Workflow Slot
+#'
+#' Retrieves the `workflow` slot from a `meta_dataframe` or `meta_xts` object.
+#'
+#' @param object An object of class `meta_dataframe` or `meta_xts`.
+#'
+#' @return A named list representing the workflow steps applied to the object.
+#' @rdname get_workflow
 #' @export
 setGeneric("get_workflow", function(object) standardGeneric("get_workflow"))
 
+#' @rdname get_workflow
 #' @export
 setMethod("get_workflow", "meta_dataframe", function(object) {
   return(object@workflow)
 })
 
+#' @rdname get_workflow
 #' @export
 setMethod("get_workflow", "meta_xts", function(object) {
   return(object@workflow)
 })
 
 
+#' Accessor for Tickers
+#'
+#' Retrieves the unique tickers from a `meta_dataframe` or `meta_xts` object.
+#'
+#' @param object An object of class `meta_dataframe` or `meta_xts`.
+#'
+#' @return A character vector of unique tickers (column names in the case of `meta_xts`).
+#' @rdname get_tickers
 #' @export
 setGeneric("get_tickers", function(object) standardGeneric("get_tickers"))
 
+#' @rdname get_tickers
 #' @export
 setMethod("get_tickers", "meta_dataframe", function(object) {
   tickers <- unique(object@data$tickers)
   return(tickers)
 })
 
+#' @rdname get_tickers
 #' @export
 setMethod("get_tickers", "meta_xts", function(object) {
   stocks <- colnames(object@data)
   tickers(tickers)
 })
 
+#' Accessor for Dates
+#'
+#' Retrieves the unique dates from a `meta_dataframe` or `meta_xts` object.
+#'
+#' @param object An object of class `meta_dataframe` or `meta_xts`.
+#' @return A sorted vector of dates.
+#' @rdname get_dates
 #' @export
 setGeneric("get_dates", function(object, ...) standardGeneric("get_dates"))
 
+#' @rdname get_dates
 #' @export
 setMethod("get_dates", "meta_dataframe", function(object) {
   dates <- unique(object@data$dates)[order(unique(object@data$dates))]
   return(dates)
 })
 
+#' @rdname get_dates
 #' @export
 setMethod("get_dates", "meta_xts", function(object) {
   dates <- sort(unique(zoo::index(object@data)))
@@ -2833,6 +2864,15 @@ setMethod("get_dates", "meta_xts", function(object) {
 })
 
 
+#' Coerce a meta_dataframe Object to Data Frame
+#'
+#' This method extracts the `data` slot from a `meta_dataframe` object and returns it as a standard `data.frame`.
+#'
+#' @param x An object of class `meta_dataframe`.
+#' @param ... Additional arguments (ignored).
+#'
+#' @return A `data.frame` containing the contents of the `data` slot.
+#' @method as.data.frame meta_dataframe
 #' @export
 setMethod(
   "as.data.frame", "meta_dataframe", function(x) {
@@ -2840,6 +2880,15 @@ setMethod(
   }
 )
 
+#' Coerce a meta_xts Object to Data Frame
+#'
+#' This method extracts the `data` slot from a `meta_xts` object and returns it as a standard `data.frame`.
+#'
+#' @param x An object of class `meta_xts`.
+#' @param ... Additional arguments (ignored).
+#'
+#' @return A `data.frame` containing the contents of the `data` slot.
+#' @method as.data.frame meta_xts
 #' @export
 setMethod(
   "as.data.frame", "meta_xts", function(x) {
@@ -2933,31 +2982,45 @@ setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog"),
 
 #' Accessor Methods for sb_model
 #'
-#' These methods are used to access components of a `sb_model` object.
+#' These methods retrieve slots from an object of class `sb_model`, including its algorithm,
+#' fitted model, and hyperparameters.
 #'
 #' @param object An object of class `sb_model`.
-#' @return The respective slot of the `sb_model` object.
-#' @name sb_model_accessors
+#'
+#' @return The respective slot from the `sb_model` object:
+#' \describe{
+#'   \item{\code{get_sb_algorithm}}{Returns the algorithm used (character).}
+#'   \item{\code{get_best_hyperparameters}}{Returns the list of best hyperparameters, or \code{NULL} if not applicable.}
+#'   \item{\code{get_model}}{Returns the fitted model object.}
+#' }
+#'
 #' @rdname sb_model_accessors
+#' @name sb_model_accessors
+#' @aliases get_sb_algorithm get_best_hyperparameters get_model
 #' @export
 setGeneric("get_sb_algorithm", function(object) standardGeneric("get_sb_algorithm"))
 
+#' @rdname sb_model_accessors
 #' @export
 setMethod("get_sb_algorithm", "sb_model", function(object) {
   return(object@sb_algorithm)
 })
 
+#' @rdname sb_model_accessors
 #' @export
 setGeneric("get_best_hyperparameters", function(object) standardGeneric("get_best_hyperparameters"))
 
+#' @rdname sb_model_accessors
 #' @export
 setMethod("get_best_hyperparameters", "sb_model", function(object) {
   return(object@best_hyperparameters)
 })
 
+#' @rdname sb_model_accessors
 #' @export
 setGeneric("get_model", function(object) standardGeneric("get_model"))
 
+#' @rdname sb_model_accessors
 #' @export
 setMethod("get_model", "sb_model", function(object) {
   return(object@model)

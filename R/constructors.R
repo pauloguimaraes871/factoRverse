@@ -3509,7 +3509,6 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #'   base_sb_backtest_configs = list(config1, config2)
 #' )
 #'
-#' @seealso \code{\link{sb_backtest_config}}, \code{\link{ss_backtest_config}}, \code{\link{sb_metabacktest_config}}
 #'
 #' @export
 setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, features_passthrough, ...) {

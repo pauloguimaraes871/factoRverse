@@ -24,7 +24,6 @@
 #'   \item \code{selected_backtest_returns_corrected_positions_df}: The data frame from \code{backtest_returns_df} with columns matching the corrected signal positions.
 #' }
 #'
-#' @seealso \code{\link{backtest_returns_df}}
 #' @export
 select_and_correct_signals <- function(signals_m_df, chosen_signals_and_positions, signal_themes_m_df = NULL, backtest_returns_m_xts = NULL){
 

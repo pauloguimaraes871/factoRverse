@@ -294,7 +294,6 @@ setMethod("update_ss_backtest",
 #'   \item `ss_backtest_workflow`: metadata about execution, timestamps, and config.
 #' }
 #'
-#' @seealso \code{\link{run_sb_backtest}}, \code{\link{meta_dataframe}}, \code{\link{meta_xts}}, \code{\link{ss_backtest_config}}
 #' @export
 setGeneric("run_ss_backtest", function(config, signals_m_df, backtest_returns_m_xts, port_backtest_cohort, benchmark_returns_m_xts, signal_themes_m_df, ...) {
   standardGeneric("run_ss_backtest")

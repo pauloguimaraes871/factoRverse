@@ -111,7 +111,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                      ##Keras
                      nn = fit_keras_model(features_matrix_train_clean = selected_features_corrected_positions_m_refit[,-c(1:3)], #Feature
                                           target_vector_train = target_m_refit, #Target
-                                          custom_objective = custom_objective_translated, #No need for switch
+                                          custom_objective_translated = custom_objective_translated, #No need for switch
                                           huber_slope = huber_delta, #Huber loss
                                           chosen_eval_metric_translated = chosen_eval_metric_translated, #Is this really necessary?
 
@@ -216,15 +216,15 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
   }
 
 
-  sb_model_fit <- new("sb_model",
-                      model = sb_model,
-                      eligible_signals = eligible_signals,
-                      model_class = class(sb_model),
-                      sb_algorithm = sb_algorithm,
-                      best_hyperparameters = if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")) NULL else optimal_hyper,
-                      custom_objective = custom_objective_translated,
-                      huber_delta = huber_delta,
-                      keras_architecture_parameters = keras_architecture_parameters
+  sb_model_fit <- methods::new("sb_model",
+                                model = sb_model,
+                                eligible_signals = eligible_signals,
+                                model_class = class(sb_model),
+                                sb_algorithm = sb_algorithm,
+                                best_hyperparameters = if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")) NULL else optimal_hyper,
+                                custom_objective = custom_objective_translated,
+                                huber_delta = huber_delta,
+                                keras_architecture_parameters = keras_architecture_parameters
   )
 
   return(sb_model_fit)

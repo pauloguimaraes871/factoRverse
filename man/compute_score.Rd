@@ -9,17 +9,28 @@ compute_score(features_m_df, conditions, feature_name, ...)
 \arguments{
 \item{features_m_df}{A \code{meta_dataframe} object.}
 
-\item{conditions}{A named list of functions, where each function takes a column vector and returns \code{TRUE} or \code{FALSE}.}
+\item{conditions}{A named list of functions. Each name must correspond to a column
+in the data, and each function should return a logical vector indicating whether
+the condition is met.}
 
-\item{feature_name}{The name of the feature to be created.}
+\item{feature_name}{A \code{character} string specifying the name of the new score column.}
 
-\item{min_non_na}{The minimum number of non-NA values required to compute the score.}
+\item{min_non_na}{A numeric value indicating the minimum number of non-NA values required
+to compute the score for a given row. Defaults to \code{0}.}
 }
 \value{
-A \code{meta_dataframe} object with an additional \code{score} column indicating how many conditions are met per row.
+A \code{meta_dataframe} object with an additional column (named \code{feature_name})
+containing the number of conditions met for each row (or \code{NA} if insufficient data).
 }
 \description{
-This method computes a score by evaluating multiple user-defined conditions on a \code{meta_dataframe}.
-Each condition corresponds to a column in the data and applies a function row-wise. If all conditions
-for a row are met, it contributes \code{1}, otherwise \code{0}.
+Computes a custom score by evaluating multiple user-defined conditions on columns
+of a \code{meta_dataframe}. Each condition corresponds to a variable and is applied
+row-wise. For each row, the number of satisfied conditions is counted.
+
+If the number of non-NA inputs for that row is below \code{min_non_na}, the score is set to \code{NA}.
+}
+\details{
+This function is useful for constructing composite scores based on multiple thresholds
+or logical criteria. Each condition is applied to its corresponding column using \code{purrr::map2()}.
+The total score per row reflects how many of the defined conditions are satisfied.
 }

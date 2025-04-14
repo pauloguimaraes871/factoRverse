@@ -1,37 +1,33 @@
-#' Compute Across: Apply a Calculation Between meta_dataframe and meta_xts
+#' @title Compute Across: Apply a Calculation Between meta_dataframe and meta_xts
 #'
-#' This function applies a predefined mathematical operation between a signal column
-#' in a \code{meta_dataframe} and a metric column in a \code{meta_xts}. The operation is
-#' performed for each row in the \code{meta_dataframe} that matches the same date in the
-#' \code{meta_xts}.
+#' @description
+#' Applies a predefined mathematical operation between a signal column in a `meta_dataframe`
+#' and a metric column in a `meta_xts`. The operation is performed for each row in the
+#' `meta_dataframe` that matches the same date in the `meta_xts`.
 #'
-#' @param meta_dataframe A \code{meta_dataframe} object containing financial or factor data.
-#' @param meta_xts A \code{meta_xts} object containing time series data (e.g., market metrics).
-#' @param signal A \code{character} specifying the column name in \code{meta_dataframe} to be used in the calculation.
-#' @param metric A \code{character} specifying the column name in \code{meta_xts} to be used in the calculation.
-#' @param FUN A \code{character} specifying the operation to perform. Must be one of:
-#'   \itemize{
-#'     \item \strong{"product"}: multiplies the \code{signal} values by the corresponding \code{metric} value.
-#'     \item \strong{"ratio"}: divides the \code{signal} values by the corresponding \code{metric} value.
-#'     \item \strong{"subtract"}: subtracts the \code{metric} value from the \code{signal} value.
-#'     \item \strong{"sum"}: adds the \code{metric} value to the \code{signal} value.
-#'     \item \strong{"just_append"}: appends the \code{metric} value to time-correspondent row.
-#'   }
-#' @param feature_name (Optional) A \code{character} specifying the name of the new feature to be added to \code{meta_dataframe}.
-#' If \code{NULL}, the feature name will be generated as "<signal>_<metric>_<FUN>_across".
-#' @param ... Additional arguments (currently not used).
+#' @param meta_dataframe A `meta_dataframe` object containing financial or factor data.
+#' @param meta_xts A `meta_xts` object containing time series data (e.g., market metrics).
+#' @param FUN A `character` string indicating the operation to apply. Must be one of:
+#'   `"product"`, `"ratio"`, `"subtract"`, `"sum"`, `"just_append"`.
+#' @param feature_name Optional `character` string giving the name for the new feature column.
+#'   If `NULL`, a default name is constructed.
+#' @param signal A `character` string specifying the column name in `meta_dataframe` to be used
+#'   in the calculation (required unless `FUN = "just_append"`).
+#' @param metric A `character` string specifying the column name in `meta_xts` to be used.
+#' @param ... Additional arguments (not used currently).
 #'
-#' @return A modified \code{meta_dataframe} object with a new column containing the computed values.
+#' @return A modified `meta_dataframe` object with a new computed column.
 #'
 #' @details
-#' This function first ensures that the \code{signal} column exists in \code{meta_dataframe}
-#' and that the \code{metric} column exists in \code{meta_xts}. It then finds common dates
-#' between the two objects and applies the selected function to all matching rows.
-#' If no common dates exist, the function returns an error.
+#' The function checks consistency of column names and dates, performs the operation row-wise
+#' for matching dates, and appends the result to the `meta_dataframe`.
+#'
 #' @export
-setGeneric("compute_across", function(meta_dataframe, meta_xts, FUN, feature_name = NULL, ...) {
-  standardGeneric("compute_across")
-})
+setGeneric("compute_across",
+           function(meta_dataframe, meta_xts, FUN, feature_name = NULL, signal = NULL, metric, ...) {
+             standardGeneric("compute_across")
+           }
+)
 
 # Method for meta_dataframe and meta_xts
 setMethod("compute_across",

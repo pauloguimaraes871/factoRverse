@@ -164,6 +164,3 @@ The Signal Engineering Benchmarks (SE Benchmarks) evaluate the performance of bo
 Comparing predictive and return performance of the SS and SB Benchmarks provides insights into the effectiveness of the signal selection process. Additionally, comparing performance between the SB Benchmark and the final portfolio evaluates the performance of the signal blending process. SE Benchmarks are built based on themes; weights are first equally distributed among themes and then equally distributed among signals within each theme.
 }
 
-\seealso{
-\code{\link{run_sb_backtest}}, \code{\link{meta_dataframe}}, \code{\link{meta_xts}}, \code{\link{ss_backtest_config}}
-}

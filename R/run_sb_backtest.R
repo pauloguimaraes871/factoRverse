@@ -475,10 +475,6 @@ setMethod("update_sb_backtest",
 #'   }
 #' }
 #'
-#' @seealso
-#' \code{\link{sb_backtest_config}}, \code{\link{sb_metabacktest_config}}, \code{\link{time_series_split}}, \code{\link{run_port_backtest}},
-#' \code{\link{create_meta_dataframe}}, \code{\link{ParBayesianOptimization::bayesOpt}}, \code{\link{furrr::future_pmap}}
-#'
 #' @export
 
 setGeneric("run_sb_backtest", function(features_m_df, target_m_df, config, base_sb_backtest_results_list, ...) standardGeneric("run_sb_backtest"))
@@ -1307,11 +1303,6 @@ setMethod("run_sb_backtest",
 #'   \item \strong{nn_optimizer}: A character string specifying the optimizer used for training the model (options: "Adam" or "RMSProp").
 #'   \item \strong{batch_norm_option}: A logical vector indicating whether batch normalization should be applied after each respective layer (TRUE or FALSE).
 #' }
-#' @examples
-#' # Example of creating a 3 layers keras_architecture_parameters for neural networks.
-#' keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"),
-#'                                      nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)
-#' )
 #' @param signal_universe_m_d_ref A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.
 #' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_universe_m_df`,
 #' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.

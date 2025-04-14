@@ -4,43 +4,43 @@
 \alias{compute_across}
 \title{Compute Across: Apply a Calculation Between meta_dataframe and meta_xts}
 \usage{
-compute_across(meta_dataframe, meta_xts, FUN, feature_name = NULL, ...)
+compute_across(
+  meta_dataframe,
+  meta_xts,
+  FUN,
+  feature_name = NULL,
+  signal = NULL,
+  metric,
+  ...
+)
 }
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object containing financial or factor data.}
 
 \item{meta_xts}{A \code{meta_xts} object containing time series data (e.g., market metrics).}
 
-\item{FUN}{A \code{character} specifying the operation to perform. Must be one of:
-\itemize{
-\item \strong{"product"}: multiplies the \code{signal} values by the corresponding \code{metric} value.
-\item \strong{"ratio"}: divides the \code{signal} values by the corresponding \code{metric} value.
-\item \strong{"subtract"}: subtracts the \code{metric} value from the \code{signal} value.
-\item \strong{"sum"}: adds the \code{metric} value to the \code{signal} value.
-\item \strong{"just_append"}: appends the \code{metric} value to time-correspondent row.
-}}
+\item{FUN}{A \code{character} string indicating the operation to apply. Must be one of:
+\code{"product"}, \code{"ratio"}, \code{"subtract"}, \code{"sum"}, \code{"just_append"}.}
 
-\item{feature_name}{(Optional) A \code{character} specifying the name of the new feature to be added to \code{meta_dataframe}.
-If \code{NULL}, the feature name will be generated as "\if{html}{\out{<signal>}}\emph{\if{html}{\out{<metric>}}}\if{html}{\out{<FUN>}}_across".}
+\item{feature_name}{Optional \code{character} string giving the name for the new feature column.
+If \code{NULL}, a default name is constructed.}
 
-\item{...}{Additional arguments (currently not used).}
+\item{signal}{A \code{character} string specifying the column name in \code{meta_dataframe} to be used
+in the calculation (required unless \code{FUN = "just_append"}).}
 
-\item{signal}{A \code{character} specifying the column name in \code{meta_dataframe} to be used in the calculation.}
+\item{metric}{A \code{character} string specifying the column name in \code{meta_xts} to be used.}
 
-\item{metric}{A \code{character} specifying the column name in \code{meta_xts} to be used in the calculation.}
+\item{...}{Additional arguments (not used currently).}
 }
 \value{
-A modified \code{meta_dataframe} object with a new column containing the computed values.
+A modified \code{meta_dataframe} object with a new computed column.
 }
 \description{
-This function applies a predefined mathematical operation between a signal column
-in a \code{meta_dataframe} and a metric column in a \code{meta_xts}. The operation is
-performed for each row in the \code{meta_dataframe} that matches the same date in the
-\code{meta_xts}.
+Applies a predefined mathematical operation between a signal column in a \code{meta_dataframe}
+and a metric column in a \code{meta_xts}. The operation is performed for each row in the
+\code{meta_dataframe} that matches the same date in the \code{meta_xts}.
 }
 \details{
-This function first ensures that the \code{signal} column exists in \code{meta_dataframe}
-and that the \code{metric} column exists in \code{meta_xts}. It then finds common dates
-between the two objects and applies the selected function to all matching rows.
-If no common dates exist, the function returns an error.
+The function checks consistency of column names and dates, performs the operation row-wise
+for matching dates, and appends the result to the \code{meta_dataframe}.
 }
