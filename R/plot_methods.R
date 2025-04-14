@@ -1914,16 +1914,16 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 
   # Define labels for each transformation
   transformation_labels <- list(
-    "num.trees" = "/10²",
+    "num.trees" = "/10\u00b2",           # ²
     "max.depth" = "/10",
     "min.bucket" = "/10",
     "min_child_weight" = "/10",
     "gamma" = "/10",
-    "nrounds" = "/10²",
+    "nrounds" = "/10\u00b2",             # ²
     "regularizer_l1" = "/10",
     "regularizer_l2" = "/10",
-    "size_of_batch" = "(log₂)",
-    "number_of_epochs" = "/10²"
+    "size_of_batch" = "(log\u2082)",     # ₂
+    "number_of_epochs" = "/10\u00b2"     # ²
   )
 
   # Apply transformations to hyperparameters if applicable
@@ -2059,16 +2059,16 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 
   # Define labels for each transformation
   transformation_labels <- list(
-    "num.trees" = "/10²",
+    "num.trees" = "/10\\u00b2",
     "max.depth" = "/10",
     "min.bucket" = "/10",
     "min_child_weight" = "/10",
     "gamma" = "/10",
-    "nrounds" = "/10²",
+    "nrounds" = "/10\\u00b2",
     "regularizer_l1" = "/10",
     "regularizer_l2" = "/10",
-    "size_of_batch" = "(log₂)",
-    "number_of_epochs" = "/10²"
+    "size_of_batch" = "(log\\u2082)",
+    "number_of_epochs" = "/10\\u00b2"
   )
 
   # Apply transformations to hyperparameters if applicable
@@ -2104,13 +2104,13 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
     dist_choice <- transformed_hyper_list[[hp_name]]$distribution_choice
     if (dist_choice == "uniform") {
       pars <- transformed_hyper_list[[hp_name]]$pars
-      samples <- runif(n_iter, min = pars["min"], max = pars["max"])
+      samples <- stats::runif(n_iter, min = pars["min"], max = pars["max"])
     } else if (dist_choice == "normal") {
       pars <- transformed_hyper_list[[hp_name]]$pars
-      samples <- rnorm(n_iter, mean = pars["mean"], sd = pars["sd"])
+      samples <- stats::rnorm(n_iter, mean = pars["mean"], sd = pars["sd"])
     } else if (dist_choice == "lognormal") {
       pars <- transformed_hyper_list[[hp_name]]$pars
-      samples <- rlnorm(n_iter, meanlog = pars["meanlog"], sdlog = pars["sdlog"])
+      samples <- stats::rlnorm(n_iter, meanlog = pars["meanlog"], sdlog = pars["sdlog"])
     } else if (dist_choice == "constant") {
       samples <- rep(transformed_hyper_list[[hp_name]]$value, n_iter)  # Constant value
     } else {
@@ -2228,17 +2228,18 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 
   # Define labels for each transformation
   transformation_labels <- list(
-    "num.trees" = "/10²",
+    "num.trees" = "/10\u00b2",           # ² → \u00b2
     "max.depth" = "/10",
     "min.bucket" = "/10",
     "min_child_weight" = "/10",
     "gamma" = "/10",
-    "nrounds" = "/10²",
+    "nrounds" = "/10\u00b2",             # ² → \u00b2
     "regularizer_l1" = "/10",
     "regularizer_l2" = "/10",
-    "size_of_batch" = "(log₂)",
-    "number_of_epochs" = "/10²"
+    "size_of_batch" = "(log\u2082)",     # ₂ → \u2082
+    "number_of_epochs" = "/10\u00b2"     # ² → \u00b2
   )
+
 
   # Apply transformations to hyperparameters if applicable
   transformed_hyper_list <- list()
@@ -3819,7 +3820,7 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
       names(base_learners_feature_imp_list) <- base_model_ids
     }
 
-    # **NEW: Filter Each Base Learner’s Feature Importance**
+    # Filter Each Base Learner's Feature Importance
     base_learners_feature_imp <- lapply(base_learners_feature_imp_list, function(bl) {
       bl@final_feature_importance_m_d_ref@data %>%
         dplyr::slice_max(order_by = abs(importance), n = num_features)
@@ -4037,12 +4038,12 @@ setMethod("plot", "ss_backtest_config", function(x, ...) {
     x_seq <- seq(-3, 3, length.out = 1000)
     density <- switch(
       dist_name,
-      "normal" = dnorm(x_seq, mean = params[1], sd = params[2]),
-      "student_t" = dt((x_seq - params[2]) / params[3], df = params[1]) / params[3],
-      "cauchy" = dcauchy(x_seq, location = params[1], scale = params[2]),
-      "lognormal" = dlnorm(x_seq, meanlog = params[1], sdlog = params[2]),
-      "beta" = dbeta(x_seq, shape1 = params[1], shape2 = params[2]),
-      "exponential" = dexp(x_seq, rate = params[1]),
+      "normal" = stats::dnorm(x_seq, mean = params[1], sd = params[2]),
+      "student_t" = stats::dt((x_seq - params[2]) / params[3], df = params[1]) / params[3],
+      "cauchy" = stats::dcauchy(x_seq, location = params[1], scale = params[2]),
+      "lognormal" = stats::dlnorm(x_seq, meanlog = params[1], sdlog = params[2]),
+      "beta" = stats::dbeta(x_seq, shape1 = params[1], shape2 = params[2]),
+      "exponential" = stats::dexp(x_seq, rate = params[1]),
       NULL
     )
     if (is.null(density)) return(NULL)
@@ -4476,7 +4477,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Generate draws for each theme and convert to long format
     long_draws_data <- prior_data %>%
       dplyr::mutate(
-        draws = purrr::map2(mean, sd, ~ rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
+        draws = purrr::map2(mean, stats::sd, ~ stats::rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
       ) %>%
       tidyr::unnest(draws) %>%                # Expand the list column into long format
       dplyr::group_by(theme) %>%              # Group by theme
@@ -4613,7 +4614,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Generate draws for each theme and convert to long format
     long_draws_data <- prior_data %>%
       dplyr::mutate(
-        draws = purrr::map2(mean, sd, ~ rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
+        draws = purrr::map2(mean, stats::sd, ~ stats::rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
       ) %>%
       tidyr::unnest(draws) %>%                # Expand the list column into long format
       dplyr::group_by(theme) %>%              # Group by theme
@@ -5642,7 +5643,7 @@ setMethod(
           message("Benchmark is: ", bench_col)
         } else {
           message("Multiple benchmarks found:")
-          chosen <- menu(bench_cols, title = "Select a benchmark to use for active weights:")
+          chosen <- utils::menu(bench_cols, title = "Select a benchmark to use for active weights:")
           if (chosen == 0) {
             stop("No benchmark selected. Aborting.")
           }

@@ -32,5 +32,14 @@ utils::globalVariables(c("id", "tickers", "untraded", "delisted", "listed", "old
                          "error", "testing_dates_range", "times_eligible", "total_periods", "total_eligible", "max_possible",
                          "eligible_tickers", "total_tickers", "info_ratio", "alpha_t_stat", "posterior_alpha_t_stat",
                          "avg_ir", "alpha", "sharpe_ratio", "avg_sharpe", "year_first", "year_last", "to", "from",
-                         "Category", "Frequency", "year", "Non_NA_Count", "hyperparameters_combination"
+                         "Category", "Frequency", "year", "Non_NA_Count", "hyperparameters_combination", "Correlation",
+                         "Component", "Cumulative_Start", "Cumulative_End", "Sign", "Cluster", "bin_label", "ticker",
+                         "val", "series", "non_na_count", "overall_mean", "label", "AssetRow", "new_group", "Hyperparameter",
+                         "MinAllowed", "MaxAllowed", "y", "Type", "get_sb_backtest_config", "name", "density", "mean_market_factor_proxy",
+                         "specific_risk", "individual_beta", "prior", "sd", "coef", "draws", "variable", ".chain", ".iteration",
+                         ".draw", "posterior_cor_r_alpha_beta", "posterior_sigma", "parameter", "sd_value",
+                         "posterior_r_theme_alpha", "posterior_r_tickers_alpha", "posterior_r_tickers_beta", "var_theme_intercept",
+                         "var_tickers_intercept", "var_tickers_slope", "var_sigma", "cov_tickers_intercept_slope",
+                         "total_variance", "Variance", "Cumulative", "Start", "End", "Contribution_Type", "adjusted_importance",
+                         "feature_value"
 ))

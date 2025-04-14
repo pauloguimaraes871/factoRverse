@@ -146,7 +146,7 @@ define_signal_eligibility <- function(
 
       ##Frequentist adjustment
       p_value_df <- data.frame(p_value = unique(signal_universe_m_d_ref$p_value)) #First get all unique p_values. This will avoid too much strictness when using hierarchical methods
-      p_value_df$adjusted_p_value <- p.adjust(p_value_df$p_value, method = p_correction_method) #Adjust them
+      p_value_df$adjusted_p_value <- stats::p.adjust(p_value_df$p_value, method = p_correction_method) #Adjust them
       ##Join
       signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(p_value_df, by = "p_value") #Join p-value adjust
 

@@ -2427,81 +2427,6 @@ setMethod(
 #' }
 #'
 #' @return A `hyper_grid_domain` object with the updated hyperparameters.
-#'
-#' @examples
-#' # Create an initial tuning_strategy object for grid-search
-#' grid_search_obj <- create_tuning_strategy(
-#'   tuning_method = "grid_search",
-#'   validation_sample_size = 1000,
-#'   split_method = "expanding",
-#'   chosen_eval_metric = "rmse"
-#' )
-#'
-#' # Add hyperparameter for grid_search
-#' grid_search_obj <- add_hyperparameter(
-#'   grid_search_obj,
-#'   hyperparameter = c("alpha", "lambda.min.ratio"),
-#'   grid = list(c(0.2, 0.5), c(0.5, 0.2, 0.3))
-#' )
-#'
-#' # Create an initial tuning_strategy object for random_search
-#' random_search_obj <- create_tuning_strategy(
-#'   tuning_method = "random_search",
-#'   validation_sample_size = 1000,
-#'   split_method = "rolling",
-#'   chosen_eval_metric = "mae",
-#'   n_iter = 20
-#' )
-#'
-#' # Add hyperparameters for random_search
-#' random_search_obj <- add_hyperparameter(
-#'   random_search_obj,
-#'   hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
-#'   distribution_choice = c("constant", "uniform", "uniform", "uniform", "uniform", "uniform", "constant", "uniform"),
-#'   pars = list(3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50), c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2), c(min = 2, max = 5), 0, c(min = 200L, max = 500L))
-#' )
-#'
-#' # Create an initial tuning_strategy object for bayesian_opt
-#' bayesian_opt_obj <- create_tuning_strategy(
-#'   tuning_method = "bayesian_opt",
-#'   validation_sample_size = 1000,
-#'   split_method = "expanding",
-#'   chosen_eval_metric = "mape",
-#'   n_iter = 50,
-#'   acq = "ei",
-#'   init_points = 5,
-#'   k_iter = 3
-#' )
-#'
-#' # Add hyperparameters for bayesian_opt
-#' bayesian_opt_obj <- add_hyperparameter(
-#'   bayesian_opt_obj,
-#'   hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
-#'   bounds = list(c(0, 1), c(100L, 1000L), c(2L, 8L), c(1, 5))
-#' )
-#'
-#' # Creating a hyper_grid_domain object for a xgb model
-#' hyper_grid_xgb_random <- create_hyper_grid_domain(
-#'   tuning_method = "random_search",
-#'   sb_algorithm = "xgb"
-#' )
-#'
-#' hyper_grid_xgb_random <- add_hyperparameter(
-#'   hyperparameter = c(
-#'     "min_child_weight", "max_depth", "subsample", "colsample_bytree",
-#'     "eta", "alpha", "gamma", "nrounds"
-#'   ),
-#'   distribution_choice = c(
-#'     "constant", "uniform", "uniform", "uniform",
-#'     "uniform", "uniform", "constant", "uniform"
-#'   ),
-#'   pars = list(
-#'     3, c(min = 1L, max = 2L), c(min = 0.25, max = 0.50),
-#'     c(min = 0.25, max = 0.50), c(min = 0.1, max = 0.2),
-#'     c(min = 2, max = 5), 0, c(min = 200L, max = 500L)
-#'   )
-#' )
-#'
 #' @export
 setGeneric("add_hyperparameter", function(object, hyperparameter, ...) {
   standardGeneric("add_hyperparameter")
@@ -2551,7 +2476,7 @@ setMethod(
     object@hyperparameter_list <- new_hyperparameter_list
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
     return(object)
   }
@@ -2596,7 +2521,7 @@ setMethod(
     object@hyper_grid_domain <- updated_hyper_grid_domain
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
     return(object)
   }
@@ -2672,7 +2597,7 @@ setMethod(
     object@hyper_grid_domain <- updated_hyper_grid_domain
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
     return(object)
   }
@@ -2720,7 +2645,7 @@ setMethod(
     object@hyper_grid_domain <- updated_hyper_grid_domain
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
     return(object)
   }
@@ -2751,7 +2676,7 @@ setMethod(
     object@tuning_strategy <- updated_tuning_strategy
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
 
     return(object)
@@ -2787,7 +2712,7 @@ setMethod(
     object@hyper_grid_domain <- hyper_grid_domain
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
     return(object)
   }
@@ -2806,7 +2731,7 @@ setMethod(
     object@tuning_strategy@hyper_grid_domain <- hyper_grid_domain
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
     return(object)
   }
@@ -3850,7 +3775,7 @@ create_concentration_constraint_policy <- function(
     max_abs_active_individual_weight = max_abs_active_individual_weight,
     max_abs_active_group_weight = max_abs_active_group_weight
   )
-  validObject(obj)
+  methods::validObject(obj)
   obj
 }
 

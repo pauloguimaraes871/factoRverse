@@ -58,7 +58,7 @@ create_se_benchmarks <- function(signal_universe_m_d_ref, selected_signal_themes
 
       ##Theme weights
       theme_weight <- 1/num_themes #weight to groups
-      benchmark_weights_m_d_ref$theme <- ave(benchmark_weights_m_d_ref$theme, benchmark_weights_m_d_ref$theme, FUN = function(x) {
+      benchmark_weights_m_d_ref$theme <- stats::ave(benchmark_weights_m_d_ref$theme, benchmark_weights_m_d_ref$theme, FUN = function(x) {
         # For each theme, assign the weight divided by the number of stocks in that classification
         num_stocks <- length(x)
         theme_weight / num_stocks

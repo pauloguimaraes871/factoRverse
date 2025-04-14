@@ -46,9 +46,7 @@ Imports:
     PortfolioAnalytics,
     purrr,
     ranger,
-    rBayesianOptimization,
     recipes,
-    reshape2,
     riskParityPortfolio,
     rlang,
     rpart,
@@ -56,6 +54,7 @@ Imports:
     stringr,
     tensorflow,
     tibble,
+    tidybayes,
     tidyr,
     xgboost,
     xts,
@@ -137,7 +136,6 @@ Collate:
     'utils-roll_fwd_port_weights.R'
     'utils-roll_port.R'
     'utils-select_and_correct_signals.R'
-    'utils-set_custom_moments.R'
     'utils-set_eval_function.R'
     'utils-set_portfolio_weights.R'
     'utils-signal_transform.R'

@@ -241,7 +241,7 @@ consolidate_generic_meta_xts <- function(main_generic_m_xts, supplemental_generi
     }
 
     ###Merge main and new generic meta XTS objects using a left join
-    consolidate_meta_xts <- create_meta_xts(merge(main_generic_m_xts@data, supplemental_generic_m_xts@data, join = "left") %>% na.omit(), #Join
+    consolidate_meta_xts <- create_meta_xts(merge(main_generic_m_xts@data, supplemental_generic_m_xts@data, join = "left") %>% stats::na.omit(), #Join
                                             meta_xts_name =
                                               #Dynamically build the object name
                                               if (consolidate_name){

@@ -204,7 +204,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
       # Residual Standard Deviation Prior
       brms::set_prior(paste0("student_t(",half_t_df,",0,",
-               round(sigma(lmer_model), 4), ")"),
+               round(stats::sigma(lmer_model), 4), ")"),
         class = "sigma"
       )
     )
@@ -332,7 +332,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     priors <- rbind(
       priors,
       data.frame(
-        prior = paste0("student_t(",half_t_df,",0,", round(sigma(lmer_model), 4), ")"),
+        prior = paste0("student_t(",half_t_df,",0,", round(stats::sigma(lmer_model), 4), ")"),
         class = "sigma",
         coef = "",
         group = "",
@@ -462,7 +462,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
     priors <- rbind(
       priors,
       data.frame(
-        prior = paste0("student_t(",half_t_df,",0,", round(sigma(lmer_model), 4), ")"),
+        prior = paste0("student_t(",half_t_df,",0,", round(stats::sigma(lmer_model), 4), ")"),
         class = "sigma",
         coef = "",
         group = "",
@@ -548,7 +548,7 @@ derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_the
 
       # Residual Standard Deviation Prior
       brms::set_prior(paste0("student_t(",half_t_df,",0,",
-                             round(sigma(lmer_model), 4), ")"),
+                             round(stats::sigma(lmer_model), 4), ")"),
                       class = "sigma"
       )
     )

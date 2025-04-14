@@ -108,7 +108,7 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
   covariance_estimator <- switch(cov_estimation_method,
                                  #Sample Estimator
                                  sample = function(R){
-                                   out <- list(sigma = cov(R))
+                                   out <- list(sigma = stats::cov(R))
                                    out
                                  },
                                  #EWMA Estimator
@@ -128,7 +128,7 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
                                                                                   #Number of factors = number that explains 90% of total variance
                                                                                   k = which(
                                                                                     #Get the cumulative proportion of variance explanation
-                                                                                    cumsum(stats::prcomp(cov(R))$sdev/sum(stats::prcomp(cov(R))$sdev))
+                                                                                    cumsum(stats::prcomp(stats::cov(R))$sdev/sum(stats::prcomp(stats::cov(R))$sdev))
                                                                                     #Which number equates 90% explained
                                                                                     >= 0.90)[1])))
                                    out
