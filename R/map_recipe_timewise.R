@@ -509,7 +509,7 @@ bake.step_impute_sector <- function(object, new_data, ...) {
     dplyr::left_join(object$impute_values, by = sector_column, suffix = c("", "_impute")) %>%
     dplyr::mutate(
       dplyr::across(
-        all_of(col_names),
+        dplyr::all_of(col_names),
         ~ ifelse(is.na(.), get(paste0(dplyr::cur_column(), "_impute")), .)
       )
     ) %>%

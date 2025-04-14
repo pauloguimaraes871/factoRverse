@@ -33,7 +33,7 @@ check_inputs_meta_sb_backtest <- function(
     stop("More than one base_sb_backtest_results_list must be supplied.")
   }
   ##Class
-  if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
+  if (!all(sapply(base_sb_backtest_results_list, function(x) inherits(x, "sb_backtest_results")))) {
     stop("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'.")
   }
   ##Check for meta_dataframe objects

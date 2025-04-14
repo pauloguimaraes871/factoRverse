@@ -19,7 +19,7 @@ create_cap_weighted_portfolio <- function(universe_m_d_ref, liquidity_m_d_ref, c
   }
 
   #Create cw_weights object
-  cw_weights <- universe_m_d_ref %>% select(tickers, is_eligible) %>%
+  cw_weights <- universe_m_d_ref %>% dplyr::select(tickers, is_eligible) %>%
     dplyr::left_join(liquidity_m_d_ref %>% dplyr::select(tickers, !!rlang::sym(cap_weighting_metric)), by = "tickers")
 
   #Create cap score (cw_weighting_metric signal_transformed)

@@ -52,7 +52,7 @@ clean_returns_sample <- function(returns_m_xts_sample, groups_m_d_ref = NULL, fi
     ##Compute group medians by period
     returns_df_clean_long <- returns_df_clean_long %>%
       dplyr::group_by(row_id, !!rlang::sym(group)) %>%
-      dplyr::mutate(group_median_period_return = median(period_return, na.rm= TRUE)) %>% #calculate median by groups
+      dplyr::mutate(group_median_period_return = stats::median(period_return, na.rm= TRUE)) %>% #calculate median by groups
       dplyr::ungroup() %>%
       as.data.frame()
 

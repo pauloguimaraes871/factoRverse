@@ -118,10 +118,10 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
         Variable = names(numeric_data),
         NAs = sapply(numeric_data, function(col) sum(is.na(col))),
         Min = sapply(numeric_data, function(col) min(col, na.rm = TRUE)),
-        `1st Quartile` = sapply(numeric_data, function(col) quantile(col, 0.25, na.rm = TRUE)),
-        Median = sapply(numeric_data, function(col) median(col, na.rm = TRUE)),
+        `1st Quartile` = sapply(numeric_data, function(col) stats::quantile(col, 0.25, na.rm = TRUE)),
+        Median = sapply(numeric_data, function(col) stats::median(col, na.rm = TRUE)),
         Mean = sapply(numeric_data, function(col) mean(col, na.rm = TRUE)),
-        `3rd Quartile` = sapply(numeric_data, function(col) quantile(col, 0.75, na.rm = TRUE)),
+        `3rd Quartile` = sapply(numeric_data, function(col) stats::quantile(col, 0.75, na.rm = TRUE)),
         Max = sapply(numeric_data, function(col) max(col, na.rm = TRUE)),
         stringsAsFactors = FALSE,
         check.names = FALSE
@@ -297,7 +297,7 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
         names(freq_table) <- c("Category", "Frequency")
 
         # Create a bar plot using the specified colors
-        plot <- ggplot2::ggplot(freq_table, ggplot2::aes(x = reorder(Category, -Frequency), y = Frequency)) +
+        plot <- ggplot2::ggplot(freq_table, ggplot2::aes(x = stats::reorder(Category, -Frequency), y = Frequency)) +
           ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = white, size = 0.5) +
           ggplot2::geom_text(ggplot2::aes(label = Frequency), vjust = -0.5, color = white, size = 4) +
           ggplot2::theme_minimal() +
@@ -464,7 +464,7 @@ setMethod("summary", "tickers_catalog", function(object, summary_id = NULL) {
     summary_table <- dplyr::full_join(first_quotes_summary, last_quotes_summary,
                                       by = c("year_first" = "year_last")) %>%
       dplyr::rename(year = year_first) %>%
-      dplyr::mutate(across(everything(), ~ tidyr::replace_na(.x, 0))) %>%
+      dplyr::mutate(dplyr::across(dplyr::everything(), ~ tidyr::replace_na(.x, 0))) %>%
       dplyr::arrange(year)
 
     # Convert 'year' to character before adding total row
@@ -657,10 +657,10 @@ setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_r
       Variable = names(numeric_data),
       NAs = sapply(numeric_data, function(col) sum(is.na(col))),
       Min = sapply(numeric_data, function(col) round(min(col, na.rm = TRUE), 4)),
-      `1st Quartile` = sapply(numeric_data, function(col) round(quantile(col, 0.25, na.rm = TRUE), 4)),
-      Median = sapply(numeric_data, function(col) round(median(col, na.rm = TRUE), 4)),
+      `1st Quartile` = sapply(numeric_data, function(col) round(stats::quantile(col, 0.25, na.rm = TRUE), 4)),
+      Median = sapply(numeric_data, function(col) round(stats::median(col, na.rm = TRUE), 4)),
       Mean = sapply(numeric_data, function(col) round(mean(col, na.rm = TRUE), 4)),
-      `3rd Quartile` = sapply(numeric_data, function(col) round(quantile(col, 0.75, na.rm = TRUE), 4)),
+      `3rd Quartile` = sapply(numeric_data, function(col) round(stats::quantile(col, 0.75, na.rm = TRUE), 4)),
       Max = sapply(numeric_data, function(col) round(max(col, na.rm = TRUE), 4)),
       stringsAsFactors = FALSE,
       check.names = FALSE
@@ -898,7 +898,7 @@ setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_r
         names_from = tickers,
         values_from = value
       ) %>%
-      dplyr::mutate(dplyr::across(where(is.numeric), ~ round(.x, 4)))
+      dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 4)))
 
     # Build a DT exactly like the other tables (no finalize_table):
     table_title <- if (active_returns) {
@@ -1054,11 +1054,11 @@ setMethod("summary", "sb_metabacktest_config",
                   NA
                 }
               })))
-              tuning_methods <- na.omit(tuning_methods)
+              tuning_methods <- stats::na.omit(tuning_methods)
 
               # 2b) Custom Objectives
               custom_objectives <- unique(sapply(object@base_sb_backtest_configs, function(x) x@custom_objective))
-              custom_objectives <- na.omit(custom_objectives)
+              custom_objectives <- stats::na.omit(custom_objectives)
 
               # 2c) Chosen Eval Metrics
               chosen_eval_metrics <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
@@ -1068,7 +1068,7 @@ setMethod("summary", "sb_metabacktest_config",
                   NA
                 }
               })))
-              chosen_eval_metrics <- na.omit(chosen_eval_metrics)
+              chosen_eval_metrics <- stats::na.omit(chosen_eval_metrics)
 
               ###################################################################
               # 3) Summarize info from any embedded ss_backtest_config or
@@ -1093,7 +1093,7 @@ setMethod("summary", "sb_metabacktest_config",
                   NA
                 }
               })))
-              model_structures <- na.omit(model_structures)
+              model_structures <- stats::na.omit(model_structures)
 
               # 3b) p_correction_methods
               p_correction_methods <- unique(unlist(sapply(object@base_sb_backtest_configs, function(x) {
@@ -1106,7 +1106,7 @@ setMethod("summary", "sb_metabacktest_config",
                   NA
                 }
               })))
-              p_correction_methods <- na.omit(p_correction_methods)
+              p_correction_methods <- stats::na.omit(p_correction_methods)
 
               ###################################################################
               # 4) Define final columns to summarize, ordering them so that
@@ -1141,7 +1141,7 @@ setMethod("summary", "sb_metabacktest_config",
 
               # Helper to unify numeric ranges or single values
               get_range_or_value <- function(values) {
-                values <- unique(na.omit(values))
+                values <- unique(stats::na.omit(values))
                 if (length(values) == 1) {
                   as.character(values)
                 } else if (length(values) > 1) {
@@ -1625,7 +1625,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
         dplyr::group_by(Metric) %>%
         dplyr::summarise(
           Mean = mean(value, na.rm = TRUE),
-          Median = median(value, na.rm = TRUE),
+          Median = stats::median(value, na.rm = TRUE),
           SD = sd(value, na.rm = TRUE),
           Min = min(value, na.rm = TRUE),
           Max = max(value, na.rm = TRUE),
@@ -1716,7 +1716,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
         dplyr::group_by(hyperparameters_combination) %>%
         dplyr::summarise(
           Mean_Chosen_Eval_Metric = mean(chosen_eval_metric, na.rm = TRUE),
-          Median_Chosen_Eval_Metric = median(chosen_eval_metric, na.rm = TRUE),
+          Median_Chosen_Eval_Metric = stats::median(chosen_eval_metric, na.rm = TRUE),
           Q25 = stats::quantile(chosen_eval_metric, 0.25, na.rm = TRUE),
           Q75 = stats::quantile(chosen_eval_metric, 0.75, na.rm = TRUE),
           Max = max(chosen_eval_metric, na.rm = TRUE),
@@ -1739,7 +1739,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
       feature_importance_summary <- object@feature_importance_m_df@data %>% dplyr::group_by(tickers) %>%
         dplyr::summarise(
           Mean_Feature_Imp = mean(normalized_importance, na.rm = TRUE),
-          Median_Feature_Imp = median(normalized_importance, na.rm = TRUE),
+          Median_Feature_Imp = stats::median(normalized_importance, na.rm = TRUE),
           Q25 = stats::quantile(normalized_importance, 0.25, na.rm = TRUE),
           Q75 = stats::quantile(normalized_importance, 0.75, na.rm = TRUE),
           Max = max(normalized_importance, na.rm = TRUE),
@@ -1991,7 +1991,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     labels <- seq_along(all_backtests)
     legend <- list(
       backtest_ids = all_backtests,
-      labels = setNames(labels, all_backtests),
+      labels = stats::setNames(labels, all_backtests),
       printed = FALSE  # Track if legend has been printed
     )
 
@@ -2014,7 +2014,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
       labels <- seq_along(all_backtests)
       legend <- list(
         backtest_ids = all_backtests,
-        labels = setNames(labels, all_backtests),
+        labels = stats::setNames(labels, all_backtests),
         printed = FALSE
       )
       data_df$sb_backtest <- legend$labels[data_df$sb_backtest]
@@ -2033,7 +2033,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     labels <- seq_along(all_backtests)
     legend <- list(
       backtest_ids = all_backtests,
-      labels = setNames(labels, all_backtests),
+      labels = stats::setNames(labels, all_backtests),
       printed = FALSE
     )
 
@@ -2062,7 +2062,7 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     labels <- seq_along(all_backtests)
     legend <- list(
       backtest_ids = all_backtests,
-      labels = setNames(labels, all_backtests),
+      labels = stats::setNames(labels, all_backtests),
       printed = FALSE
     )
 
@@ -2683,7 +2683,7 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
       dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(., 3))) %>%
       # Keep only rows where relative_order_size is greater than 0
       dplyr::filter(relative_order_size > 0) %>%
-      dplyr::arrange(desc(total_cost))
+      dplyr::arrange(dplyr::desc(total_cost))
 
     if (length(df) == 0) {
       stop("No transactions found for the selected date.")

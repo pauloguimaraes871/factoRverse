@@ -26,5 +26,11 @@ utils::globalVariables(c("id", "tickers", "untraded", "delisted", "listed", "old
                          "theme_tickers", "posterior_geom_mean_ret", "posterior_specific_risk", "sum_w",
                          "squared_error", "pseudo_huber_error", "quantile_error", "early_stopping_rounds",
                          "objective", "Var1", "Var2", "target", "priors_m_df", "squared_error", "pseudo_huber_error",
-                         "quantile_error", "Estimate", "importance", "value", "relevant_indices_signal"
+                         "quantile_error", "Estimate", "importance", "value", "relevant_indices_signal",
+                         "column", "quantile", "median", "weights", "sb_backtest", "cons_oos", "avg_val", "Metric",
+                         "Value", "x", "xmin", "xmax", "ymin", "ymax", "fill_type", "backtest_label", "metric", ".data",
+                         "error", "testing_dates_range", "times_eligible", "total_periods", "total_eligible", "max_possible",
+                         "eligible_tickers", "total_tickers", "info_ratio", "alpha_t_stat", "posterior_alpha_t_stat",
+                         "avg_ir", "alpha", "sharpe_ratio", "avg_sharpe", "year_first", "year_last", "to", "from",
+                         "Category", "Frequency", "year", "Non_NA_Count", "hyperparameters_combination"
 ))

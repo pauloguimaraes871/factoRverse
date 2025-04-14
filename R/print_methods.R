@@ -45,7 +45,7 @@ setMethod("show", "meta_dataframe", function(object) {
 
   # Print the first few rows of the data
   cat("\nFirst few rows of the data:\n")
-  print(head(object@data))
+  print(utils::head(object@data))
 
   # Return the object invisibly
   invisible(object)
@@ -94,7 +94,7 @@ setMethod("show", "groups_m_df", function(object) {
 
   # Print the first few rows of the data
   cat("\nFirst few rows of the data:\n")
-  print(head(object@data))
+  print(utils::head(object@data))
 
   # Return the object invisibly
   invisible(object)
@@ -184,7 +184,7 @@ setMethod("show", "signal_universe_m_df", function(object) {
 
   # Print the first few rows of the data
   cat("\nFirst few rows of the data:\n")
-  print(head(object@data))
+  print(utils::head(object@data))
 
   # Return invisibly
   invisible(object)
@@ -216,7 +216,7 @@ setMethod("show", "tickers_catalog", function(object) {
 
   #Short first few rows of the catalog
   cat("\nFirst few rows of the catalog:\n")
-  print(head(object@catalog))
+  print(utils::head(object@catalog))
 })
 
 
@@ -230,11 +230,6 @@ setMethod("show", "tickers_catalog", function(object) {
 #'
 #' @return Returns the object invisibly after printing its summary.
 #'
-#' @examples
-#' \dontrun{
-#' # Assuming `my_meta_xts` is a valid meta_xts object:
-#' show(my_meta_xts)
-#' }
 #'
 #' @export
 setMethod("show", "meta_xts", function(object) {
@@ -258,7 +253,7 @@ setMethod("show", "meta_xts", function(object) {
 
   # Print the first few rows of the data slot
   cat("\nFirst few rows of 'data' (xts):\n")
-  print(head(object@data))
+  print(utils::head(object@data))
 
   # Return the object invisibly
   invisible(object)
@@ -273,11 +268,6 @@ setMethod("show", "meta_xts", function(object) {
 #'
 #' @return Returns the object invisibly after printing its summary.
 #'
-#' @examples
-#' \dontrun{
-#' # Assuming `my_returns_meta_xts` is a valid returns_meta_xts object:
-#' show(my_returns_meta_xts)
-#' }
 #'
 #' @export
 setMethod("show", "returns_meta_xts", function(object) {
@@ -306,7 +296,7 @@ setMethod("show", "returns_meta_xts", function(object) {
 
   # Print the first few rows of the data slot
   cat("\nFirst few rows of 'data' (xts):\n")
-  print(head(object@data))
+  print(utils::head(object@data))
 
   # Return the object invisibly
   invisible(object)
@@ -321,11 +311,6 @@ setMethod("show", "returns_meta_xts", function(object) {
 #'
 #' @return Returns the object invisibly after printing its summary.
 #'
-#' @examples
-#' \dontrun{
-#' # Assuming `my_metrics_meta_xts` is a valid metrics_meta_xts object:
-#' show(my_metrics_meta_xts)
-#' }
 #'
 #' @export
 setMethod("show", "metrics_meta_xts", function(object) {
@@ -354,7 +339,7 @@ setMethod("show", "metrics_meta_xts", function(object) {
 
   # Print the first few rows of the data slot
   cat("\nFirst few rows of 'data' (xts):\n")
-  print(head(object@data))
+  print(utils::head(object@data))
 
   # Return the object invisibly
   invisible(object)
@@ -411,15 +396,6 @@ setMethod("show", "hyper_grid_domain", function(object) {
 #' early stopping criteria, and the hyperparameter grid domain.
 #' @param object An object of class `tuning_strategy` or its subclasses (`grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`).
 #' @return Printed information about the base properties of the object.
-#' @examples
-#' # Create a base tuning_strategy object
-#' base_obj <- create_tuning_strategy(
-#'   tuning_method = "grid_search",
-#'   sb_algorithm = "rf",
-#'   validation_sample_size = 1000,
-#'   split_method = "expanding"
-#' )
-#' show(base_obj)
 #' @export
 setMethod("show", "tuning_strategy", function(object) {
 
@@ -445,19 +421,10 @@ setMethod("show", "tuning_strategy", function(object) {
 #' and details about the hyperparameter grid.
 #' @param object An object of class `grid_search_strategy`.
 #' @return Printed information about the object.
-#' @examples
-#' # Create a grid_search_strategy object
-#' grid_search_obj <- create_tuning_strategy(
-#'   tuning_method = "grid_search",
-#'   validation_sample_size = 1000,
-#'   split_method = "expanding",
-#'   chosen_eval_metric = "rmse"
-#' )
-#' show(grid_search_obj)
 #' @export
 setMethod("show", "grid_search_strategy", function(object) {
   cat("Grid Search Tuning Strategy\n")
-  callNextMethod()  # Calls the base show method for common slots
+  methods::callNextMethod()  # Calls the base show method for common slots
   cat("Grid Search Specific Information:\n")
   cat("- Hyperparameter Grid:\n")
   if (length(object@hyper_grid_domain@hyperparameter_list) == 0) {
@@ -478,20 +445,11 @@ setMethod("show", "grid_search_strategy", function(object) {
 #' and the number of iterations (`n_iter`) along with hyperparameter distributions.
 #' @param object An object of class `random_search_strategy`.
 #' @return Printed information about the object.
-#' @examples
-#' # Create a random_search_strategy object
-#' random_search_obj <- create_tuning_strategy(
-#'   tuning_method = "random_search",
-#'   sb_algorithm = "rf",
-#'   validation_sample_size = 1000,
-#'   n_iter = 20
-#' )
-#' show(random_search_obj)
 #' @export
 setMethod("show", "random_search_strategy", function(object) {
 
   cat("Random Search Tuning Strategy\n")
-  callNextMethod()  # Calls the base show method for common slots
+  methods::callNextMethod()  # Calls the base show method for common slots
   cat("Random Search Specific Information:\n")
   cat("- Number of Iterations (n_iter): ", object@n_iter, "\n")
   cat("- Hyperparameter Distribution:\n")
@@ -521,22 +479,10 @@ setMethod("show", "random_search_strategy", function(object) {
 #' initial points, and hyperparameter bounds.
 #' @param object An object of class `bayesian_opt_strategy`.
 #' @return Printed information about the object.
-#' @examples
-#' # Create a bayesian_opt_strategy object
-#' bayesian_opt_obj <- create_tuning_strategy(
-#'   tuning_method = "bayesian_opt",
-#'   sb_algorithm = "xgb",
-#'   validation_sample_size = 1000,
-#'   n_iter = 50,
-#'   acq = "ei",
-#'   init_points = 5,
-#'   k_iter = 3
-#' )
-#' show(bayesian_opt_obj)
 #' @export
 setMethod("show", "bayesian_opt_strategy", function(object) {
   cat("Bayesian Optimization Tuning Strategy\n")
-  callNextMethod()  # Calls the base show method for common slots
+  methods::callNextMethod()  # Calls the base show method for common slots
   cat("Bayesian Optimization Specific Information:\n")
   cat("- Number of Iterations (n_iter): ", object@n_iter, "\n")
   cat("- Acquisition Function (acq): ", object@acq, "\n")
@@ -622,7 +568,7 @@ setMethod("show", "sb_backtest_config", function(object) {
         cat("  No Keras architecture parameters set.\n\n")
       } else {
         cat("\n")
-        show(object@keras_architecture_parameters)
+        methods::show(object@keras_architecture_parameters)
       }
     }
 
@@ -632,7 +578,7 @@ setMethod("show", "sb_backtest_config", function(object) {
     if(is.null(object@tuning_strategy)){
       cat("  No tuning strategy set.\n")
     } else {
-      show(object@tuning_strategy)
+      methods::show(object@tuning_strategy)
 
       ## Check hyperparameters validity based on sb_algorithm
       hyperparameters_names <- names(object@tuning_strategy@hyper_grid_domain@hyperparameter_list)
@@ -758,10 +704,6 @@ setMethod("show", "sb_backtest_config", function(object) {
 #'
 #' @param object An `sb_metabacktest_config` object.
 #' @return Invisibly returns `NULL`. This function is called for its side effect of displaying information.
-#' @examples
-#' # Assuming you have an sb_metabacktest_config object named meta_config
-#' show(meta_config)
-#'
 #' @export
 setMethod("show", "sb_metabacktest_config",
           function(object) {
@@ -922,7 +864,7 @@ setMethod("show", "sb_backtest_results", function(object) {
   }
   if(sb_backtest_workflow$sb_algorithm == "nn"){
     # Display Keras Information
-    show(create_keras_architecture(
+    methods::show(create_keras_architecture(
       nn_optimizer = sb_backtest_workflow$keras_architecture_parameters$nn_optimizer,
       units = sb_backtest_workflow$keras_architecture_parameters$units,
       activation = sb_backtest_workflow$keras_architecture_parameters$activation,
@@ -1105,7 +1047,7 @@ setMethod("show", "sb_metabacktest_results", function(object) {
   }
   if(meta_learner_sb_backtest_workflow$sb_algorithm == "nn"){
     # Display Keras Information
-    show(create_keras_architecture(
+    methods::show(create_keras_architecture(
       nn_optimizer = meta_learner_sb_backtest_workflow$keras_architecture_parameters$nn_optimizer,
       units = meta_learner_sb_backtest_workflow$keras_architecture_parameters$units,
       activation = meta_learner_sb_backtest_workflow$keras_architecture_parameters$activation,
@@ -1284,7 +1226,7 @@ setMethod("show", "ss_backtest_config", function(object) {
   cat("------------------------------\n")
 
   if (!is.null(object@alpha_test_strategy)) {
-    show(object@alpha_test_strategy)
+    methods::show(object@alpha_test_strategy)
   } else {
     cat("  No Alpha Test Strategy set.\n")
   }
@@ -1347,7 +1289,7 @@ setMethod("show", "frequentist_alpha_test_strategy", function(object) {
   cat("==============================\n")
 
   # Call the parent class show method to display common information
-  callNextMethod()
+  methods::callNextMethod()
 
 })
 
@@ -1363,7 +1305,7 @@ setMethod("show", "bayesian_alpha_test_strategy", function(object) {
   cat("==============================\n")
 
   # Call the parent class show method to display common information
-  callNextMethod()
+  methods::callNextMethod()
 
   # Display Bayesian Model Parameters
   cat("\n------------------------------\n")
@@ -1372,7 +1314,7 @@ setMethod("show", "bayesian_alpha_test_strategy", function(object) {
 
   bayesian_params <- object@bayesian_model_parameters
   if (!is.null(bayesian_params)) {
-    show(bayesian_params)
+    methods::show(bayesian_params)
   } else {
     cat("No Bayesian Model Parameters set.\n")
   }
@@ -1601,49 +1543,49 @@ setMethod("show", "port_backtest_config", function(object) {
 
   # Covariance Estimation
   cat("------------------------------\n")
-  show(object@cov_est_method)
+  methods::show(object@cov_est_method)
   cat("\n")
 
   # Portfolio-specific parameters
   if(object@port_construction_method == "mvo"){
     cat("------------------------------\n")
-    show(object@mvo_parameters)
+    methods::show(object@mvo_parameters)
     cat("\n")
   }
   if(object@port_construction_method == "rp"){
     cat("------------------------------\n")
-    show(object@rp_parameters)
+    methods::show(object@rp_parameters)
     cat("\n")
   }
 
   # Constraint Policies
   if(!is.null(object@liquidity_constraint_policy)){
     cat("------------------------------\n")
-    show(object@liquidity_constraint_policy)
+    methods::show(object@liquidity_constraint_policy)
     cat("\n")
   }
   if(!is.null(object@turnover_constraint_policy)){
     cat("------------------------------\n")
-    show(object@turnover_constraint_policy)
+    methods::show(object@turnover_constraint_policy)
     cat("\n")
   }
   if(!is.null(object@concentration_constraint_policy)){
     cat("------------------------------\n")
-    show(object@concentration_constraint_policy)
+    methods::show(object@concentration_constraint_policy)
     cat("\n")
   }
 
   # Transaction Costs
   if(!is.null(object@transaction_costs_parameters)){
     cat("------------------------------\n")
-    show(object@transaction_costs_parameters)
+    methods::show(object@transaction_costs_parameters)
     cat("\n")
   }
 
   # Liquidity Floor Cutoffs
   if(!is.null(object@liquidity_floor_cutoffs)){
     cat("------------------------------\n")
-    show(object@liquidity_floor_cutoffs)
+    methods::show(object@liquidity_floor_cutoffs)
     cat("\n")
   }
 
@@ -1965,7 +1907,7 @@ setMethod("show", "port_backtest_results", function(object) {
 
   # Display final stock portfolio information
   cat("\nFinal Stock Portfolio:\n")
-  show(object@final_stock_port)
+  methods::show(object@final_stock_port)
   cat("\n")
 
   # Display workflow information (call)
@@ -2070,30 +2012,30 @@ setMethod("show", "port_backtest_cohort", function(object) {
 
     # Covariance Estimation
 
-    show(port_backtest_config@cov_est_method)
+    methods::show(port_backtest_config@cov_est_method)
     cat("\n")
 
     # Portfolio-specific parameters
     if(port_backtest_config@port_construction_method == "mvo"){
-      show(port_backtest_config@mvo_parameters)
+      methods::show(port_backtest_config@mvo_parameters)
       cat("\n")
     }
     if(port_backtest_config@port_construction_method == "rp"){
-      show(port_backtest_config@rp_parameters)
+      methods::show(port_backtest_config@rp_parameters)
       cat("\n")
     }
 
     # Constraint Policies
     if(!is.null(port_backtest_config@liquidity_constraint_policy)){
-      show(port_backtest_config@liquidity_constraint_policy)
+      methods::show(port_backtest_config@liquidity_constraint_policy)
       cat("\n")
     }
     if(!is.null(port_backtest_config@turnover_constraint_policy)){
-      show(port_backtest_config@turnover_constraint_policy)
+      methods::show(port_backtest_config@turnover_constraint_policy)
       cat("\n")
     }
     if(!is.null(port_backtest_config@concentration_constraint_policy)){
-      show(port_backtest_config@concentration_constraint_policy)
+      methods::show(port_backtest_config@concentration_constraint_policy)
       cat("\n")
     }
 

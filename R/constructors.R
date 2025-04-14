@@ -97,7 +97,7 @@ setMethod(
     if (type == "generic") {
       # Store metadata and column names
       return(
-        new("meta_dataframe",
+        methods::new("meta_dataframe",
           data = data,
           workflow = workflow,
           signals = names(data)[-c(1:3)],
@@ -112,7 +112,7 @@ setMethod(
 
     if (type %in% c("signals", "features")) {
       return(
-        new("signals_m_df",
+        methods::new("signals_m_df",
           data = data,
           workflow = workflow,
           signals = names(data)[-c(1:3)],
@@ -132,7 +132,7 @@ setMethod(
 
       # Store metadata and column names
       return(
-        new("signal_universe_m_df",
+        methods::new("signal_universe_m_df",
           data = data,
           workflow = NULL,
           signals = names(data)[-c(1:3)],
@@ -152,7 +152,7 @@ setMethod(
       }
 
       return(
-        new("oos_sb_outputs_m_df",
+        methods::new("oos_sb_outputs_m_df",
           data = data,
           workflow = NULL,
           signals = names(data)[-c(1:3)],
@@ -174,7 +174,7 @@ setMethod(
 
       # Store metadata and column names
       return(
-        new("stock_universe_m_df",
+        methods::new("stock_universe_m_df",
           data = data,
           workflow = NULL,
           signals = names(data)[-c(1:3)],
@@ -189,7 +189,7 @@ setMethod(
     }
     if (type == "groups") {
       return(
-        new("groups_m_df",
+         methods::new("groups_m_df",
           data = data,
           workflow = workflow,
           signals = names(data)[-c(1:3)],
@@ -204,7 +204,7 @@ setMethod(
 
     if (type == "priors") {
       return(
-        new("priors_m_df",
+         methods::new("priors_m_df",
           data = data,
           workflow = workflow,
           signals = names(data)[-c(1:3)],
@@ -219,7 +219,7 @@ setMethod(
 
     if (type == "target") {
       return(
-        new("target_m_df",
+         methods::new("target_m_df",
           data = data,
           workflow = workflow,
           signals = names(data)[-c(1:3)],
@@ -234,7 +234,7 @@ setMethod(
 
     if (type == "weights") {
       return(
-        new("weights_m_df",
+         methods::new("weights_m_df",
           data = data,
           workflow = workflow,
           signals = names(data)[-c(1:3)],
@@ -249,7 +249,7 @@ setMethod(
 
     if (type == "feature_importance") {
       return(
-        new("feature_importance_m_df",
+         methods::new("feature_importance_m_df",
             data = data,
             workflow = workflow,
             signals = names(data)[-c(1:3)],
@@ -264,7 +264,7 @@ setMethod(
 
     if (type == "raw") {
       return(
-        new("raw_features_m_df",
+         methods::new("raw_features_m_df",
             data = data,
             workflow = NULL,
             signals = names(data)[-c(1:3)],
@@ -650,7 +650,7 @@ setMethod(
     current_date <- unique(raw_features_m_df$dates)[which.max(unique(raw_features_m_df$dates))]
 
     # Create meta_dataframe object
-    raw_features_m_df <- new("raw_features_m_df",
+    raw_features_m_df <-  methods::new("raw_features_m_df",
       data = raw_features_m_df,
       workflow = list(),
       signals = features_names,
@@ -951,7 +951,7 @@ setMethod("create_tickers_catalog",
             ################
 
             ## Create tickers_catalog object
-            tickers_catalog_obj <- new(
+            tickers_catalog_obj <-  methods::new(
               "tickers_catalog",
               catalog = tickers_catalog,
               tickers = tickers_catalog_slots$tickers,
@@ -1415,7 +1415,7 @@ setMethod(
     #Prepare tickers_catalog_slots
     tickers_catalog_slots <- prepare_tickers_catalog_slots(new_tickers_catalog)
 
-    updated_catalog <- new("tickers_catalog",
+    updated_catalog <-  methods::new("tickers_catalog",
                            catalog = tickers_catalog_slots$tickers_catalog,
                            tickers = tickers_catalog_slots$tickers,
                            perm_id = tickers_catalog_slots$perm_id,
@@ -1787,7 +1787,7 @@ create_ss_backtest_config <- function(
   }
 
   # Create and return the object
-  new("ss_backtest_config",
+   methods::new("ss_backtest_config",
     chosen_signals_and_positions = chosen_signals_and_positions,
     initial_sample_size = initial_sample_size,
     rebalancing_months = rebalancing_months,
@@ -1871,14 +1871,14 @@ create_alpha_test_strategy <- function(
     # Check if a bayesian_model_parametesr is being provided
     if (is.null(bayesian_model_parameters)) {
       # If not create a generic one
-      bayesian_model_parameters <- new("bayesian_model_parameters",
+      bayesian_model_parameters <-  methods::new("bayesian_model_parameters",
         user_priors = NULL,
         prior_derivation_control = NULL,
         brms_control = NULL
       )
     }
 
-    return(new("bayesian_alpha_test_strategy",
+    return( methods::new("bayesian_alpha_test_strategy",
       signal_significance_threshold = signal_significance_threshold,
       p_correction_method = p_correction_method,
       model_structure = model_structure,
@@ -1893,7 +1893,7 @@ create_alpha_test_strategy <- function(
 
   # Handle Frequentist subclass creation
   if (p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY")) {
-    return(new("frequentist_alpha_test_strategy",
+    return(methods::new("frequentist_alpha_test_strategy",
       signal_significance_threshold = signal_significance_threshold,
       model_structure = model_structure,
       theme_level_intercept = theme_level_intercept,
@@ -2004,15 +2004,6 @@ setMethod(
 #'
 #' @return An S4 object of class \code{bayesian_model_parameters}.
 #' @export
-#'
-#' @examples
-#' # Create a minimal bayesian_model_parameters object with defaults:
-#' bayes_params <- create_bayesian_model_parameters()
-#'
-#' # Create one with custom brms_control:
-#' bayes_params_custom <- create_bayesian_model_parameters(
-#'   brms_control = list(chains = 2, iter = 1500, adapt_delta = 0.9)
-#' )
 create_bayesian_model_parameters <- function(
     user_priors = NULL,
     prior_derivation_control = NULL,
@@ -2068,7 +2059,7 @@ setMethod(
     }
 
     # Create `bayesian_model_parameters` object
-    bayesian_params <- new("bayesian_model_parameters",
+    bayesian_params <-  methods::new("bayesian_model_parameters",
       user_priors = user_priors,
       prior_derivation_control = prior_derivation_control,
       brms_control = brms_control
@@ -2128,46 +2119,6 @@ setMethod(
 #' - `"normal"`: Requires `pars` with `mean` and `sd`.
 #' - `"student_t"`: Requires `pars` with `df`, `mean`, and `sd`.
 #' - `"lkj"`: Requires `pars` with `eta` (only for `type = "cor"`).
-#'
-#' @examples
-#' # Example 1: Adding fixed effect priors for theme-specific intercepts
-#' obj <- new("bayesian_alpha_test_strategy")
-#' obj <- add_brms_prior(
-#'   object = obj,
-#'   effect = "fixed",
-#'   type = "intercept",
-#'   theme = c("value", "momentum"),
-#'   distribution_choice = c("normal", "normal"),
-#'   pars = list(c(mean = 0.0012, sd = 0.0016), c(mean = 0.0025, sd = 0.0016))
-#' )
-#'
-#' # Example 2: Adding a random effect prior for intercept at the signals level
-#' obj <- add_brms_prior(
-#'   object = obj,
-#'   effect = "random",
-#'   type = "intercept",
-#'   level = "signals",
-#'   distribution_choice = "student_t",
-#'   pars = list(c(df = 30, mean = 0, sd = 0.0113))
-#' )
-#'
-#' # Example 3: Adding a prior for residual error (sigma)
-#' obj <- add_brms_prior(
-#'   object = obj,
-#'   effect = "random",
-#'   type = "sigma",
-#'   distribution_choice = "student_t",
-#'   pars = list(c(df = 30, mean = 0, sd = 0.0256))
-#' )
-#'
-#' # Example 4: Adding a prior for correlation (cor)
-#' obj <- add_brms_prior(
-#'   object = obj,
-#'   effect = "random",
-#'   type = "cor",
-#'   distribution_choice = "lkj",
-#'   pars = list(c(eta = 2))
-#' )
 #'
 #' @export
 setGeneric("add_brms_prior", function(object, ...) standardGeneric("add_brms_prior"))
@@ -2301,13 +2252,13 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
     stop("tuning_method must be one of grid_search, random_search or bayesian_opt")
   }
   if (is.null(hyper_grid_domain)) {
-    hyper_grid_domain <- new("hyper_grid_domain", hyperparameter_list = list())
+    hyper_grid_domain <-  methods::new("hyper_grid_domain", hyperparameter_list = list())
   }
 
   # Check the value of tuning_method and create the appropriate subclass
   if (tuning_method == "grid_search") {
     # Create a grid_search_strategy object
-    return(new("grid_search_strategy",
+    return( methods::new("grid_search_strategy",
       tuning_method = "grid_search",
       validation_sample_size = validation_sample_size,
       chosen_eval_metric = chosen_eval_metric,
@@ -2319,7 +2270,7 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
     if (is.null(n_iter)) {
       stop("n_iter must be provided for random_search.")
     }
-    return(new("random_search_strategy",
+    return( methods::new("random_search_strategy",
       tuning_method = "random_search",
       validation_sample_size = validation_sample_size,
       chosen_eval_metric = chosen_eval_metric,
@@ -2332,7 +2283,7 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
     if (is.null(n_iter) || is.null(acq) || is.null(init_points) || is.null(k_iter)) {
       stop("n_iter, acq, init_points, and k_iter must be provided for bayesian_opt.")
     }
-    return(new("bayesian_opt_strategy",
+    return( methods::new("bayesian_opt_strategy",
       tuning_method = "bayesian_opt",
       validation_sample_size = validation_sample_size,
       chosen_eval_metric = chosen_eval_metric,
@@ -2897,7 +2848,7 @@ create_keras_architecture <- function(nn_optimizer, units = NULL, activation = N
 
   # Create new_keras_architecture
   new_keras_architecture_parameters <-
-    new("keras_architecture_parameters",
+     methods::new("keras_architecture_parameters",
       units = units,
       n_layers = length(units),
       activation = activation,
@@ -3077,7 +3028,7 @@ setMethod(
 #' to dimensionality curse.
 #' @param active_returns logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
 create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE, cov_matrix_benchmark = NULL) {
-  cov_est_method <- new("cov_est_method",
+  cov_est_method <-  methods::new("cov_est_method",
     cov_estimation_method = cov_estimation_method,
     cov_matrix_sample_size = cov_matrix_sample_size,
     active_returns = active_returns,
@@ -3585,7 +3536,7 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
     rp_parameters <- if (sb_algorithm == "rp") create_rp_parameters(rp_method = "cyclical-spinu") else NULL
 
 
-    signal_port_parameters <- new("signal_port_parameters",
+    signal_port_parameters <- methods::new("signal_port_parameters",
       cov_est_method = cov_est_method,
       mvo_parameters = mvo_parameters,
       rp_parameters = rp_parameters,
@@ -3594,7 +3545,7 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   }
 
   # Create the sb_backtest_config object
-  new("sb_backtest_config",
+  methods::new("sb_backtest_config",
     sb_algorithm = sb_algorithm,
     target_fwd_name = target_fwd_name,
     training_sample_size = training_sample_size,
@@ -3688,7 +3639,7 @@ setMethod(
     }
 
     # Create the sb_metabacktest_config object
-    meta_config <- new("sb_metabacktest_config",
+    meta_config <- methods::new("sb_metabacktest_config",
       meta_sb_backtest_config = meta_sb_backtest_config,
       features_passthrough = features_passthrough,
       normalize_base_predictions = normalize_base_predictions,
@@ -3750,7 +3701,7 @@ setMethod(
     )
 
     # Create the sb_metabacktest_results object
-    new_object <- new(
+    new_object <- methods::new(
       "sb_metabacktest_results",
       sb_metabacktest_config = sb_metabacktest_config,
       meta_sb_backtest_results = meta_sb_backtest_results,
@@ -3854,7 +3805,7 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
   }
 
   # Create and return the new port_backtest_config object
-  new("port_backtest_config",
+  methods::new("port_backtest_config",
     chosen_score_metric_and_position = chosen_score_metric_and_position,
     min_eligible_assets_fallback = min_eligible_assets_fallback,
     eligibility_quantile_range = eligibility_quantile_range,
@@ -3893,7 +3844,7 @@ create_concentration_constraint_policy <- function(
     benchmark = character(0),
     max_abs_active_individual_weight = NA_real_,
     max_abs_active_group_weight = numeric(0)) {
-  obj <- new(
+  obj <- methods::new(
     "concentration_constraint_policy",
     benchmark = benchmark,
     max_abs_active_individual_weight = max_abs_active_individual_weight,
@@ -4049,7 +4000,7 @@ setMethod(
 #' @export
 create_liquidity_constraint_policy <- function(liquidity_floor_rule = NULL,
                                                liquidity_cap_rules = NULL) {
-  obj <- new("liquidity_constraint_policy",
+  obj <- methods::new("liquidity_constraint_policy",
     liquidity_floor_rule = liquidity_floor_rule,
     liquidity_cap_rules = liquidity_cap_rules
   )
@@ -4856,7 +4807,7 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
   }
 
   # Step 6: Create and Return the port_backtest_cohort Object
-  cohort_obj <- new("port_backtest_cohort",
+  cohort_obj <- methods::new("port_backtest_cohort",
     cohort_name = cohort_name,
     port_backtest_results_list = port_backtest_results_list,
     port_weights_m_df = merged_port_weights_m_df,

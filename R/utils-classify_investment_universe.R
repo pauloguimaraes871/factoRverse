@@ -209,7 +209,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
     }
     #Check if there are eligible signals
-    if (all(na.omit(universe_m_d_ref$pre_eligible_assets) == 0)) stop("No signal was deemed significant.")
+    if (all(stats::na.omit(universe_m_d_ref$pre_eligible_assets) == 0)) stop("No signal was deemed significant.")
 
     #Print
     if (verbose){
@@ -624,8 +624,8 @@ classify_stocks_pre_eligibility <- function(stock_universe_m_d_ref, eligibility_
     ##Non-categorical case
 
     ###Calculate quantiles
-    lower_range <- quantile(exp_ret_score, probs = min(eligibility_quantile_range), na.rm = TRUE)
-    upper_range <- quantile(exp_ret_score, probs = max(eligibility_quantile_range), na.rm = TRUE)
+    lower_range <- stats::quantile(exp_ret_score, probs = min(eligibility_quantile_range), na.rm = TRUE)
+    upper_range <- stats::quantile(exp_ret_score, probs = max(eligibility_quantile_range), na.rm = TRUE)
 
     ###Update stock universe
     updated_stock_universe_m_d_ref <- stock_universe_m_d_ref %>%

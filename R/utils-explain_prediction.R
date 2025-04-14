@@ -374,7 +374,7 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
     ) +
     # Add a dashed horizontal line at the final cumulative value:
     ggplot2::geom_hline(
-      yintercept = tail(plot_data_df$Cumulative, 1),
+      yintercept = utils::tail(plot_data_df$Cumulative, 1),
       linetype = "dashed",
       color = "cyan",
       linewidth = 0.3
@@ -383,8 +383,8 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
     ggplot2::annotate(
       "text",
       x = max(plot_data_df$x) + 0.5,
-      y = tail(plot_data_df$Cumulative, 1) - 0.001,
-      label = base::sprintf("%.4f", tail(plot_data_df$Cumulative, 1)),
+      y = utils::tail(plot_data_df$Cumulative, 1) - 0.001,
+      label = base::sprintf("%.4f", utils::tail(plot_data_df$Cumulative, 1)),
       color = "cyan",
       fontface = "bold",
       hjust = 0

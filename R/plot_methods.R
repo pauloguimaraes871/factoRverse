@@ -934,7 +934,7 @@ setMethod(
               subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
               x = NULL, y = NULL
             ) +
-            ggplot2::facet_wrap(~ Cluster, scales = "free", labeller = ggplot2::labeller(Cluster = setNames(unique_clusters, unique_clusters)))  # Custom labels for each cluster
+            ggplot2::facet_wrap(~ Cluster, scales = "free", labeller = ggplot2::labeller(Cluster = stats::setNames(unique_clusters, unique_clusters)))  # Custom labels for each cluster
 
           print(p)
         } else {
@@ -1278,7 +1278,7 @@ setMethod(
         p <- ggplot2::ggplot(df_summary, ggplot2::aes(x = dates, y = Cluster, fill = bin_label)) +
           ggplot2::geom_tile(color = white) +
           ggplot2::scale_fill_manual(
-            values = setNames(color_palette[1:bins], label_list),
+            values = stats::setNames(color_palette[1:bins], label_list),
             na.value = "grey50"
           ) +
           ggplot2::theme_minimal() +
@@ -1308,7 +1308,7 @@ setMethod(
         # Color palette for bins
         color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
         unique_labels <- unique(df_summary$bin_label)
-        theme_colors <- setNames(color_palette[seq_along(unique_labels)], unique_labels)
+        theme_colors <- stats::setNames(color_palette[seq_along(unique_labels)], unique_labels)
 
         # Create the plot
         p <-
@@ -1536,7 +1536,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
               # Identify the unique tickers
               unique_tickers <- unique(performance_df$tickers)
               # Create a map from ticker -> integer
-              ticker_map <- setNames(seq_along(unique_tickers), unique_tickers)
+              ticker_map <- stats::setNames(seq_along(unique_tickers), unique_tickers)
               # Replace each ticker in performance_df with its numeric code
               performance_df$tickers <- ticker_map[performance_df$tickers]
 
@@ -1752,10 +1752,10 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 
               # Assign colors to series
               unique_series <- unique(plot_data_multi$series)
-              color_mapping <- setNames(rep(neon_colors, length.out = length(unique_series)), unique_series)
+              color_mapping <- stats::setNames(rep(neon_colors, length.out = length(unique_series)), unique_series)
 
               # Create a mapping from unique series to numbers
-              series_mapping <- setNames(seq_along(unique(plot_data_multi$series)), unique(plot_data_multi$series))
+              series_mapping <- stats::setNames(seq_along(unique(plot_data_multi$series)), unique(plot_data_multi$series))
               plot_data_multi$series <- factor(series_mapping[plot_data_multi$series])
               color_mapping <- color_mapping[names(series_mapping)]
               names(color_mapping) <- series_mapping
@@ -3905,7 +3905,7 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     base_model_ids <- unique(igraph::V(graph)$name[grepl("^c:", igraph::V(graph)$name)])
 
     # Create a mapping (model_1, model_2, ...)
-    base_model_mapping <- setNames(paste0("model_", seq_along(base_model_ids)), base_model_ids)
+    base_model_mapping <- stats::setNames(paste0("model_", seq_along(base_model_ids)), base_model_ids)
 
     # Rename the nodes in the graph
     igraph::V(graph)$name <- ifelse(igraph::V(graph)$name %in% names(base_model_mapping),
@@ -5340,7 +5340,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Automatically generate distinct colors for tickers
     num_tickers <- length(unique(plot_data$tickers))
     palette <- suppressWarnings(RColorBrewer::brewer.pal(min(max(num_tickers, 3), 12), "Set3"))  # Adjust palette as needed
-    ticker_colors <- setNames(palette, unique(plot_data$tickers))
+    ticker_colors <- stats::setNames(palette, unique(plot_data$tickers))
 
     # Create the boxplot with consistent aesthetics
     p <- ggplot2::ggplot(plot_data, ggplot2::aes(
