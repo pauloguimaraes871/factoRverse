@@ -17,13 +17,3 @@ Custom show method for displaying information about objects of class \code{grid_
 This method will display the tuning method, machine learning algorithm, validation sample size,
 and details about the hyperparameter grid.
 }
-\examples{
-# Create a grid_search_strategy object
-grid_search_obj <- create_tuning_strategy(
-  tuning_method = "grid_search",
-  validation_sample_size = 1000,
-  split_method = "expanding",
-  chosen_eval_metric = "rmse"
-)
-show(grid_search_obj)
-}

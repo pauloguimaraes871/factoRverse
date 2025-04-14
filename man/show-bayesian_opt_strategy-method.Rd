@@ -18,16 +18,3 @@ This method will display the tuning method, machine learning algorithm, validati
 and details specific to Bayesian optimization such as \code{n_iter}, acquisition function (\code{acq}),
 initial points, and hyperparameter bounds.
 }
-\examples{
-# Create a bayesian_opt_strategy object
-bayesian_opt_obj <- create_tuning_strategy(
-  tuning_method = "bayesian_opt",
-  sb_algorithm = "xgb",
-  validation_sample_size = 1000,
-  n_iter = 50,
-  acq = "ei",
-  init_points = 5,
-  k_iter = 3
-)
-show(bayesian_opt_obj)
-}

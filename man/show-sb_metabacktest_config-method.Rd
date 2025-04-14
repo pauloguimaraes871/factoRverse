@@ -15,8 +15,3 @@ Invisibly returns \code{NULL}. This function is called for its side effect of di
 \description{
 Displays detailed information about each configuration in the \code{sb_metabacktest_config} object.
 }
-\examples{
-# Assuming you have an sb_metabacktest_config object named meta_config
-show(meta_config)
-
-}

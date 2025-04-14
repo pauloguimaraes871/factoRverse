@@ -40,12 +40,3 @@ An S4 object of class \code{bayesian_model_parameters}.
 \description{
 Constructor for an S4 object of class \code{bayesian_model_parameters}.
 }
-\examples{
-# Create a minimal bayesian_model_parameters object with defaults:
-bayes_params <- create_bayesian_model_parameters()
-
-# Create one with custom brms_control:
-bayes_params_custom <- create_bayesian_model_parameters(
-  brms_control = list(chains = 2, iter = 1500, adapt_delta = 0.9)
-)
-}

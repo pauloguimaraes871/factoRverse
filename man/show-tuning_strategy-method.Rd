@@ -17,13 +17,3 @@ Custom show method for displaying the general information of objects that extend
 This method prints the tuning method, machine learning algorithm, validation sample size, split method, evaluation metric,
 early stopping criteria, and the hyperparameter grid domain.
 }
-\examples{
-# Create a base tuning_strategy object
-base_obj <- create_tuning_strategy(
-  tuning_method = "grid_search",
-  sb_algorithm = "rf",
-  validation_sample_size = 1000,
-  split_method = "expanding"
-)
-show(base_obj)
-}

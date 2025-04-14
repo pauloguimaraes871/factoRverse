@@ -17,13 +17,3 @@ Custom show method for displaying information about objects of class \code{rando
 This method will display the tuning method, machine learning algorithm, validation sample size,
 and the number of iterations (\code{n_iter}) along with hyperparameter distributions.
 }
-\examples{
-# Create a random_search_strategy object
-random_search_obj <- create_tuning_strategy(
-  tuning_method = "random_search",
-  sb_algorithm = "rf",
-  validation_sample_size = 1000,
-  n_iter = 20
-)
-show(random_search_obj)
-}

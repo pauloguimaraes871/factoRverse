@@ -16,10 +16,3 @@ Returns the object invisibly after printing its summary.
 Shows a summary of the \code{metrics_meta_xts} object, including metadata
 and the first few rows of the underlying \code{xts} data.
 }
-\examples{
-\dontrun{
-# Assuming `my_metrics_meta_xts` is a valid metrics_meta_xts object:
-show(my_metrics_meta_xts)
-}
-
-}
