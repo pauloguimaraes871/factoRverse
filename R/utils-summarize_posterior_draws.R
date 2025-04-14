@@ -282,7 +282,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
       rownames(signal_universe_m_d_ref) <- NULL
 
         ###Check for any resulting NAs
-        if (any(is.na(select(signal_universe_m_d_ref, dplyr::all_of(bayesian_metrics))))) {
+        if (any(is.na(dplyr::select(signal_universe_m_d_ref, dplyr::all_of(bayesian_metrics))))) {
           stop("NA values detected in the bayesian_metrics columns.")
         }
 

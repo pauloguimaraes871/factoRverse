@@ -121,7 +121,7 @@ is_hyper_grid_domain <- function(x) {
 #'
 #' @export
 is_tuning_strategy <- function(x) {
-  is(x, "tuning_strategy")
+  methods::is(x, "tuning_strategy")
 }
 
 #' Define the is keras_architecture_parameters function
@@ -133,7 +133,7 @@ is_tuning_strategy <- function(x) {
 #'
 #' @export
 is_keras_architecture_parameters <- function(x) {
-  is(x, "keras_architecture_parameters")
+  methods::is(x, "keras_architecture_parameters")
 }
 
 
@@ -146,7 +146,7 @@ is_keras_architecture_parameters <- function(x) {
 #'
 #' @export
 is_portfolio_policies <- function(x) {
-  is(x, "portfolio_policies")
+  methods::is(x, "portfolio_policies")
 }
 
 #' Get Expected Hyperparameters for a Machine Learning Algorithm or Configuration

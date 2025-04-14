@@ -1458,29 +1458,6 @@ setMethod(
 #' @return An S4 object of class \code{assets_meta_xts} or \code{metrics_meta_xts},
 #'   depending on \code{type}.
 #'
-#' @examples
-#' \dontrun{
-#' library(xts)
-#' # Simple example data
-#' dates <- seq(as.Date("2020-01-01"), as.Date("2020-01-05"), by = "day")
-#' x <- matrix(rnorm(5 * 2), ncol = 2)
-#' colnames(x) <- c("AssetA", "AssetB")
-#' my_xts <- xts::xts(x, order.by = dates)
-#'
-#' # Create an assets_meta_xts
-#' obj_assets <- create_meta_xts(
-#'   data = my_xts, type = "port",
-#'   meta_xts_name = "My Assets Data"
-#' )
-#' validObject(obj_assets)
-#'
-#' # Create a metrics_meta_xts
-#' obj_metrics <- create_meta_xts(
-#'   data = my_xts, type = "metrics",
-#'   meta_xts_name = "My Metrics Data"
-#' )
-#' validObject(obj_metrics)
-#' }
 #'
 #' @export
 setGeneric(
@@ -2084,7 +2061,7 @@ setMethod(
     }
 
     # Ensure the `alpha_test_strategy` is of class `bayesian_alpha_test_strategy`
-    if (!is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
+    if (!methods::is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
       stop("The 'alpha_test_strategy' in the ss_backtest_config object is not of class 'bayesian_alpha_test_strategy'.")
     }
 
@@ -2189,7 +2166,7 @@ setMethod(
     }
 
     # Validate the object and return it
-    validObject(object)
+    methods::validObject(object)
     return(object)
   }
 )
@@ -2207,7 +2184,7 @@ setMethod(
     }
 
     # Ensure the `alpha_test_strategy` is of class `bayesian_alpha_test_strategy`
-    if (!is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
+    if (!methods::is(object@alpha_test_strategy, "bayesian_alpha_test_strategy")) {
       stop("The 'alpha_test_strategy' in the ss_backtest_config object is not of class 'bayesian_alpha_test_strategy'.")
     }
 
@@ -2342,7 +2319,7 @@ setMethod(
     }
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
     return(object)
   }
@@ -2404,7 +2381,7 @@ setMethod(
 
 
     # Validate the object explicitly
-    validObject(object)
+    methods::validObject(object)
 
     return(object)
   }
@@ -3607,7 +3584,7 @@ setMethod(
   definition = function(meta_sb_backtest_results, base_sb_backtest_results_list, oos_predictions_m_df, sb_metabacktest_config) {
 
     # Check that the base_sb_backtest_results input is a list of 'sb_backtest_results' objects
-    if (!all(sapply(base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
+    if (!all(sapply(base_sb_backtest_results_list, function(x) methods::is(x, "sb_backtest_results")))) {
       stop("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'")
     }
 
@@ -3929,7 +3906,7 @@ create_liquidity_constraint_policy <- function(liquidity_floor_rule = NULL,
     liquidity_floor_rule = liquidity_floor_rule,
     liquidity_cap_rules = liquidity_cap_rules
   )
-  validObject(obj)
+  methods::validObject(obj)
   obj
 }
 
@@ -3958,7 +3935,7 @@ setMethod(
   function(object, policy, ...) {
     object@liquidity_constraint_policy <- policy
 
-    validObject(object)
+    methods::validObject(object)
     return(object)
   }
 )
@@ -3976,7 +3953,7 @@ setMethod(
     )
     object@liquidity_constraint_policy <- new_policy
 
-    validObject(object)
+    methods::validObject(object)
     return(object)
   }
 )

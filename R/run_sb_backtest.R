@@ -1819,7 +1819,7 @@ run_sb_backtest_internal <- function(
 
         ##Fit Global Surrogate Model
         global_surrogate_model <- switch(gsm_algorithm,
-                                         ols = lm(preds ~ ., selected_features_corrected_positions_and_predictions_m_refit %>% dplyr::select(-1:-3)), #Fit OLS Global Surrogate Model
+                                         ols = stats::lm(preds ~ ., selected_features_corrected_positions_and_predictions_m_refit %>% dplyr::select(-1:-3)), #Fit OLS Global Surrogate Model
                                          tree = rpart::rpart(preds ~ ., data = selected_features_corrected_positions_and_predictions_m_refit %>% dplyr::select(-1:-3)) #Fit Tree Global Surrogate Model
         )
 
@@ -2092,10 +2092,10 @@ run_sb_backtest_internal <- function(
 
   #Create meta_xts
   ###oos_testing_eval_metrics_m_xts
-  if (nrow(na.omit(oos_testing_eval_metrics_m_xts)) == 0){
+  if (nrow(stats::na.omit(oos_testing_eval_metrics_m_xts)) == 0){
     oos_testing_eval_metrics_m_xts <- NULL
   } else {
-    oos_testing_eval_metrics_m_xts <- create_meta_xts(oos_testing_eval_metrics_m_xts %>% na.omit(), type = "metrics",
+    oos_testing_eval_metrics_m_xts <- create_meta_xts(oos_testing_eval_metrics_m_xts %>% stats::na.omit(), type = "metrics",
                                                       source = rep(sb_backtest_workflow$backtest_identifier, ncol(oos_testing_eval_metrics_m_xts)))
   }
 
@@ -2118,7 +2118,7 @@ run_sb_backtest_internal <- function(
 
   #Get S4 object
   sb_backtest_results_object <-
-    new("sb_backtest_results",
+    methods::new("sb_backtest_results",
         sb_backtest_config = NULL,
         oos_sb_outputs_m_df = oos_sb_outputs_m_df,
         oos_testing_eval_metrics_m_xts = oos_testing_eval_metrics_m_xts,

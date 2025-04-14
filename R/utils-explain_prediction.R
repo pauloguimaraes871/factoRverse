@@ -234,14 +234,14 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
   ##Get partial contribution
   partial_contribution <- selected_features %>%
     dplyr::mutate(partial_contribution = importance * feature_value) %>% #Calculate feature importance times feature value
-    dplyr::arrange(desc(partial_contribution))
+    dplyr::arrange(dplyr::desc(partial_contribution))
 
   ##Most important partial contributions
   ###Positive
   n_positive_partial_contributions <- partial_contribution %>% dplyr::filter(partial_contribution > 0) %>% nrow() #Get n of positive
   ####Most important positive partial contributions
   most_important_positive_partial_contributions <- partial_contribution %>%
-    dplyr::slice_head(n = min(5, n_positive_partial_contributions)) %>% dplyr::arrange(desc(partial_contribution)) #Extract n_positive contrib or 10
+    dplyr::slice_head(n = min(5, n_positive_partial_contributions)) %>% dplyr::arrange(dplyr::desc(partial_contribution)) #Extract n_positive contrib or 10
   most_important_positive_partial_contributions_sum <- sum(most_important_positive_partial_contributions %>% dplyr::pull(partial_contribution))
   ####Less important positive partial contributions
   less_important_positive_partial_contributions <- partial_contribution %>% dplyr::filter(partial_contribution > 0) %>%

@@ -265,23 +265,23 @@ setMethod(
                   q95 = function(x) quantile(x, 0.95, na.rm = TRUE),
                   cor = function(x, dep_y) {
                     if (missing(dep_y)) stop("dep_y is required for correlation calculation")
-                    cor(x, dep_y, use = "complete.obs")
+                    stats::cor(x, dep_y, use = "complete.obs")
                   },
                   beta = function(x, dep_y) {
                     if (missing(dep_y)) stop("dep_y is required for beta calculation")
-                    lm(dep_y ~ x)$coefficients[2]
+                    stats::lm(dep_y ~ x)$coefficients[2]
                   },
                   beta_tstat = function(x, dep_y) {
                     if (missing(dep_y)) stop("dep_y is required for beta t-stat calculation")
-                    summary(lm(dep_y ~ x))$coefficients[2, 3]
+                    summary(stats::lm(dep_y ~ x))$coefficients[2, 3]
                   },
                   alpha = function(x, dep_y) {
                     if (missing(dep_y)) stop("dep_y is required for alpha calculation")
-                    lm(y ~ x)$coefficients[1]
+                    stats::lm(y ~ x)$coefficients[1]
                   },
                   alpha_tstat = function(x, dep_y) {
                     if (missing(dep_y)) stop("dep_y is required for alpha t-stat calculation")
-                    summary(lm(dep_y ~ x))$coefficients[1, 3]
+                    summary(stats::lm(dep_y ~ x))$coefficients[1, 3]
                   },
                   stop("Invalid function")
     )
@@ -1007,7 +1007,7 @@ setMethod(
       df_radar <- df %>%
         dplyr::select(!!rlang::sym(clustering_variables), !!!rlang::syms(variable)) %>%
         dplyr::group_by(!!rlang::sym(clustering_variables)) %>%
-        dplyr::summarize(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")  # Calculate mean, ignoring NAs
+        dplyr::summarize(dplyr::across(dplyr::where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")  # Calculate mean, ignoring NAs
 
       # Dynamically filter out rows with NA or NaN values for specified variables
       na_filter <- purrr::reduce(variable, function(acc, var) {
@@ -1023,7 +1023,7 @@ setMethod(
 
       # Normalize the data
       df_radar <- df_radar %>%
-        dplyr::mutate(across(where(is.numeric), ~ ( . - min(., na.rm = TRUE)) / ( max(., na.rm = TRUE) - min(., na.rm = TRUE))))  # Normalization
+        dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ ( . - min(., na.rm = TRUE)) / ( max(., na.rm = TRUE) - min(., na.rm = TRUE))))  # Normalization
 
       # Ensure the first column is treated as a factor for the radar chart
       df_radar[[clustering_variables]] <- as.character(df_radar[[clustering_variables]])
@@ -1048,6 +1048,10 @@ setMethod(
       par(bg = "#001f3f")  # Set background color to blue_bg
 
       # Create the radar plot using fmsb
+      if (!requireNamespace("fmsb", quietly = TRUE)) {
+        stop("The 'fmsb' package is required for radar plots. Please install it.")
+      }
+
       fmsb::radarchart(df_radar_chart, axistype = 1,
                        pcol = colors, pfcol = scales::alpha(colors, 0.5), plwd = 2, plty = 1,
                        axislabcol = "white"

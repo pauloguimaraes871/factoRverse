@@ -1317,7 +1317,7 @@ run_port_backtest_internal <- function(
 
 
           #####Transform port_obj into stock_port obj
-          stock_port <- new(
+          stock_port <- methods::new(
             "stock_port",
             universe_m_d_ref = stock_port@universe_m_d_ref,
             port_construction_method = stock_port@port_construction_method,
@@ -1577,7 +1577,7 @@ run_port_backtest_internal <- function(
   ###Port Allocationg Log
   names(transactions_log_m_d_ref_list) <- dates_backtest
   if (.update) transactions_log_m_d_ref_list <- transactions_log_m_d_ref_list[sapply(transactions_log_m_d_ref_list, function(x) !is.null(x))]
-  transactions_log <- new("transactions_log", data = transactions_log_m_d_ref_list, workflow = port_backtest_workflow)
+  transactions_log <- methods::new("transactions_log", data = transactions_log_m_d_ref_list, workflow = port_backtest_workflow)
 
   ###Port Costs
   if (.update) port_costs_m_xts <- port_costs_m_xts %>% na.omit()
@@ -1630,7 +1630,7 @@ run_port_backtest_internal <- function(
     }
 
   ###Get final object
-    port_backtest_results <- new(
+    port_backtest_results <- methods::new(
       "port_backtest_results",
       port_weights_m_df = port_weights_m_df,
       transactions_log = transactions_log,

@@ -79,7 +79,7 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
     ###Get CAPM Models
     #################
     capm_model_list <- selected_backtest_returns_corrected_positions_m_xts_upd_ref %>% apply(2, function(x){
-      lm(x ~ selected_market_factor_proxy_m_xts_upd_ref)
+      stats::lm(x ~ selected_market_factor_proxy_m_xts_upd_ref)
     })
     #################
 

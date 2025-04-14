@@ -313,8 +313,6 @@ consolidate_generic_meta_xts <- function(main_generic_m_xts, supplemental_generi
 #'
 #' @return A consolidated dataframe combining main and new data or the appropriate object depending on require_main
 #'
-#' @examples
-#' consolidated_df <- consolidate_generic_meta_dataframes(meta_df, base_df, "groups")
 #'
 consolidate_generic_meta_dataframes <- function(main_generic_m_df, supplemental_generic_m_df, type, consolidate_name = TRUE, require_main = TRUE) {
 

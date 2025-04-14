@@ -2233,16 +2233,16 @@ setClass(
       }
     }
 
-    if (!all(sapply(object@base_sb_backtest_results_list, function(x) is(x, "sb_backtest_results")))) {
+    if (!all(sapply(object@base_sb_backtest_results_list, function(x) methods::is(x, "sb_backtest_results")))) {
       return("All elements in 'base_sb_backtest_results_list' must be of class 'sb_backtest_results'.")
     }
 
-    if (!all(sapply(object@combined_oos_testing_metrics, function(x) is(x, "data.frame")))){
+    if (!all(sapply(object@combined_oos_testing_metrics, function(x) methods::is(x, "data.frame")))){
       return("All elements in 'combined_oos_testing_metrics' must be of class 'data.frame'.")
     }
 
     if (!is.null(object@mean_validation_metrics)){
-      if (!is(object@mean_validation_metrics, "data.frame")){
+      if (!methods::is(object@mean_validation_metrics, "data.frame")){
         return("mean_validation_metrics must be a 'data.frame' object")
       }
     }
@@ -3064,7 +3064,7 @@ setMethod("get_hyper_grid_domain", "sb_metabacktest_config", function(object) {
 #' @export
 setMethod("get_hyper_grid_domain", "sb_backtest_results", function(object){
 
-  hyper_grid_domain <- new("hyper_grid_domain", hyperparameter_list = object@sb_backtest_workflow$hyper_grid_domain_list)
+  hyper_grid_domain <- methods::new("hyper_grid_domain", hyperparameter_list = object@sb_backtest_workflow$hyper_grid_domain_list)
   return(hyper_grid_domain)
 })
 
@@ -3098,7 +3098,7 @@ setMethod("get_keras_architecture_parameters", "sb_backtest_config", function(ob
 #' @rdname get_keras_architecture_parameters
 setMethod("get_keras_architecture_parameters", "sb_metabacktest_config", function(object) {
   return(lapply(object@sb_metabacktest_configs[sapply(object@sb_metabacktest_configs, function(config) config@sb_algorithm == "nn")],
-                function(nn_config) get_keras_architeture_parameters(nn_config)
+                function(nn_config) get_keras_architecture_parameters(nn_config)
   ))
 })
 
@@ -3205,7 +3205,7 @@ setMethod("get_alpha_test_strategy", "ss_backtest_results", function(object){
 
   #Fabricate bayesian results
   if(ss_backtest_workflow$p_correction_method == "bayesian"){
-    bayesian_model_parameters <- new("bayesian_model_parameters",
+    bayesian_model_parameters <- methods::new("bayesian_model_parameters",
                                      user_priors = ss_backtest_workflow$user_priors,
                                      prior_derivation_control = ss_backtest_workflow$prior_derivation_control,
                                      brms_control = ss_backtest_workflow$brms_control
@@ -3307,7 +3307,7 @@ setMethod("get_bayesian_model_parameters", "ss_backtest_config",
             alpha_strat <- object@alpha_test_strategy
 
             # Check if we actually have a bayesian_alpha_test_strategy
-            if (!is(alpha_strat, "bayesian_alpha_test_strategy")) {
+            if (!methods::is(alpha_strat, "bayesian_alpha_test_strategy")) {
               # Option 1: Return NULL
               # return(NULL)
 

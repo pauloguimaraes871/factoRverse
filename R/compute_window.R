@@ -156,8 +156,8 @@ setMethod("compute_window",
               ##Get the filtered values for the signal
               values <- selected_pre_silver_features_m_df %>% dplyr::pull(!!rlang::sym(signal))
               ###Get begin and final (useful for cagr and sur)
-              begin_value <- head(values, 1)
-              final_value <- tail(values, 1)
+              begin_value <- utils::head(values, 1)
+              final_value <- utils::tail(values, 1)
 
               ###Get only unique
               if (only_unique) {
@@ -338,8 +338,8 @@ setMethod("compute_window",
 
                 ###Adjust values
                 values <- as.numeric(selected_xts)
-                begin_value <- head(values, 1)
-                final_value <- tail(values, 1)
+                begin_value <- utils::head(values, 1)
+                final_value <- utils::tail(values, 1)
                 if (only_unique) {
                   values <- unique(values)
                 }
