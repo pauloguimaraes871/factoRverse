@@ -30,7 +30,3 @@ A consolidated dataframe combining main and new data or the appropriate object d
 Merges meta and base dataframes, handling cases where either dataframe is NULL.
 If both are present, they are combined using a full join and sorted by ID.
 }
-\examples{
-consolidated_df <- consolidate_generic_meta_dataframes(meta_df, base_df, "groups")
-
-}
