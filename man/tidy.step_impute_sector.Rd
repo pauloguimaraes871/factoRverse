@@ -4,7 +4,7 @@
 \alias{tidy.step_impute_sector}
 \title{Tidy method for step_impute_sector}
 \usage{
-tidy.step_impute_sector(x, ...)
+\method{tidy}{step_impute_sector}(x, ...)
 }
 \description{
 Tidy method for step_impute_sector
