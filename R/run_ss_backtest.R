@@ -681,27 +681,35 @@ run_ss_backtest_internal <- function(
 
     ##Check Parameters
     #########################
-    check_inputs_ss_backtest(
-      #Dates
-      initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
-      #Signals
-      signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = forced_signals, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
-      #Backtest and benchmarks
-      backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, market_factor_proxy = market_factor_proxy,
-      #P-value
-      p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold,
-      #Theme Representativeness Eligiblity
-      enable_theme_representativeness = enable_theme_representativeness,
-      #Model Structure
-      model_structure = model_structure, theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope, lmer_control = lmer_control, active_returns = active_returns,
-      #Priors
-      priors_m_df = priors_m_df, user_priors = user_priors,
-      brms_control = brms_control, prior_derivation_control = prior_derivation_control,
-      #Signal Themes
-      signal_themes_m_df = signal_themes_m_df,
-      #Winsorization
-      lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization
-    )
+      ###Check installed packages
+      if (verbose){
+        if (!requireNamespace("crayon", quietly = TRUE) || !requireNamespace("tictoc", quietly = TRUE)) {
+          stop("Packages 'crayon' and 'tictoc' are required to generate logs. Please install them using install.packages() or set verbose as FALSE")
+        }
+      }
+
+      ###Check args
+      check_inputs_ss_backtest(
+        #Dates
+        initial_sample_size = initial_sample_size, rebalancing_months = rebalancing_months, split_method = split_method,
+        #Signals
+        signals_m_df = signals_m_df, chosen_signals_and_positions = chosen_signals_and_positions, forced_signals = forced_signals, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
+        #Backtest and benchmarks
+        backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, market_factor_proxy = market_factor_proxy,
+        #P-value
+        p_correction_method = p_correction_method, signal_significance_threshold = signal_significance_threshold,
+        #Theme Representativeness Eligiblity
+        enable_theme_representativeness = enable_theme_representativeness,
+        #Model Structure
+        model_structure = model_structure, theme_level_intercept = theme_level_intercept, theme_level_slope = theme_level_slope, lmer_control = lmer_control, active_returns = active_returns,
+        #Priors
+        priors_m_df = priors_m_df, user_priors = user_priors,
+        brms_control = brms_control, prior_derivation_control = prior_derivation_control,
+        #Signal Themes
+        signal_themes_m_df = signal_themes_m_df,
+        #Winsorization
+        lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization
+      )
 
     #########################
 

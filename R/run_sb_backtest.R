@@ -981,6 +981,13 @@ setMethod("run_sb_backtest",
             ## Initial preparation
             #######################
 
+              ###Check installed packages
+              if (verbose){
+              if (!requireNamespace("crayon", quietly = TRUE) || !requireNamespace("tictoc", quietly = TRUE)) {
+                stop("Packages 'crayon' and 'tictoc' are required to generate logs. Please install them using install.packages() or set verbose as FALSE")
+                }
+              }
+
               ###Extract base backtest_returns_m_xts
                 ####Check if both backtest_returns_m_xts and base_port_backtest_cohort are provided
                 if (!is.null(base_backtest_returns_m_xts) && !is.null(base_port_backtest_cohort)) {
@@ -1392,6 +1399,13 @@ run_sb_backtest_internal <- function(
   elapsed_time <- system.time({
 
     ################
+    ##Check installed packages
+    if (verbose){
+      if (!requireNamespace("crayon", quietly = TRUE) || !requireNamespace("tictoc", quietly = TRUE)) {
+        stop("Packages 'crayon' and 'tictoc' are required to generate logs. Please install them using install.packages() or set verbose as FALSE")
+      }
+    }
+
     ##Check Parameters: This function will test whether inputs match format and current functionalities
     check_inputs_sb_backtest(
       features_m_df = features_m_df, target_m_df = target_m_df, training_sample_size = training_sample_size, target_fwd_name = target_fwd_name,

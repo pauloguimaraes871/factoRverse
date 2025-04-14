@@ -898,6 +898,12 @@ run_port_backtest_internal <- function(
   elapsed_time <- system.time({
 
     #####################
+    ##Check installed packages
+    if (verbose){
+    if (!requireNamespace("crayon", quietly = TRUE) || !requireNamespace("tictoc", quietly = TRUE)) {
+      stop("Packages 'crayon' and 'tictoc' are required to generate logs. Please install them using install.packages() or set verbose as FALSE.")
+      }
+    }
     ##Check Parameters: This function will test whether inputs match format and current functionalities
     check_inputs_port_backtest(
       #Base Objects
