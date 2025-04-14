@@ -31,6 +31,8 @@ tickers, and total observations respectively.
 
 \item{\code{n_obs}}{A \code{numeric} value representing the total number of observations in the data.}
 
+\item{\code{current_date}}{A \code{Date} object representing the current date.}
+
 \item{\code{meta_dataframe_name}}{A \code{character} value representing the name of the meta_dataframe.}
 }}
 

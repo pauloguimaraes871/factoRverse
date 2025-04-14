@@ -11,14 +11,22 @@ along with consolidated and time series evaluation metrics for machine learning 
 \section{Slots}{
 
 \describe{
-\item{\code{sb_backtest_results}}{A list of \code{sb_backtest_results} objects.}
+\item{\code{sb_metabacktest_config}}{An object of class \code{sb_metabacktest_config} containing the configuration for the meta backtest.}
 
-\item{\code{consolidated_oos_testing_metrics}}{A data frame containing consolidated out-of-sample testing evaluation metrics for each algorithm.}
+\item{\code{meta_sb_backtest_results}}{An object of class \code{sb_backtest_results} containing the results of the meta-learner.}
+
+\item{\code{base_sb_backtest_results_list}}{A list of \code{sb_backtest_results} objects for each base algorithm.}
+
+\item{\code{base_learners_oos_predictions_m_df}}{A meta dataframe containing out-of-sample predictions, target and errors for each base algorithm.}
+
+\item{\code{combined_oos_testing_metrics}}{A list containing data frames with consolidated out-of-sample testing evaluation metrics for each algorithm.}
 
 \item{\code{mean_validation_metrics}}{A data frame containing the mean validation metrics for each algorithm.}
 
 \item{\code{time_series_oos_testing_metrics}}{A list of data frames for each evaluation metric over time (out-of-sample testing).}
 
 \item{\code{time_series_validation_metrics}}{A list of data frames for each evaluation metric over time (validation).}
+
+\item{\code{backtest_identifier}}{A character string used to identify the backtest.}
 }}
 

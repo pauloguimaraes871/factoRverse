@@ -19,13 +19,13 @@ ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXt
 
 \item{\code{tuning_strategy}}{An object of class \code{tuning_strategy}, specifying the strategy for tuning hyperparameters.}
 
-\item{\code{port_backtest_config}}{An object of class \code{port_backtest_config}, containing instructions to create SB portfolios for heuristic algorithms.}
+\item{\code{chosen_signals_and_positions}}{A character vector indicating which signals to include in the backtest and their positions (long and short).}
+
+\item{\code{split_method}}{Character string indicating the data splitting method ('expanding' or 'rolling').}
 
 \item{\code{training_sample_size}}{Number of observations to include in each training sample.}
 
 \item{\code{rebalancing_months}}{Months (numeric) when model should be rebalanced (refit).}
-
-\item{\code{split_method}}{Character string indicating the data splitting method ('expanding' or 'rolling').}
 
 \item{\code{custom_objective}}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
 Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.}

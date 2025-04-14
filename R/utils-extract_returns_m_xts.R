@@ -11,9 +11,6 @@
 #'
 #' @return An `xts` object containing the extracted backtest returns.
 #'
-#' @examples
-#' # Assume `cohort` is an existing port_backtest_cohort object
-#' returns_xts <- extract_backtest_returns_m_xts(cohort)
 #'
 extract_returns_m_xts <- function(port_backtest_cohort, signals_m_df, benchmark_returns_m_xts, simplify_name = TRUE, verbose = TRUE){
 

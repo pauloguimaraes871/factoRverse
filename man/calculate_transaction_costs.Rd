@@ -14,49 +14,26 @@ calculate_transaction_costs(
 )
 }
 \arguments{
-\item{transactions_m_d_ref}{A data frame containing transaction information.
-It must include (at least) the following columns:
-\itemize{
-\item \code{order}: The number of shares (or units) traded in each transaction.
-\item \code{strategy_aum}: The total Assets Under Management (AUM) for the strategy (used for scaling).
-\item \code{relative_order_size}: Relative size of the order (e.g., \code{order / shares_outstanding}, or some
-other standard measure that captures the trade size relative to liquidity).
-\item \code{daily_vol}: Some measure of daily volatility or impact factor for each stock.
-}}
+\item{transactions_m_d_ref}{A data frame containing transaction data. Must include the columns: \code{order}, \code{strategy_aum}, \code{relative_order_size}, and \code{daily_vol}.}
 
-\item{alpha}{A numeric value that scales the market impact cost. Typically, \code{alpha} is determined by
-the liquidity or volatility of the market.}
+\item{alpha}{Numeric. Scaling factor for market impact cost.}
 
-\item{lambda}{A numeric value or the string \code{"dynamic"}. If set to \code{"dynamic"}, \code{lambda} is set
-based on \code{relative_order_size}:
-\itemize{
-\item lambda = 1 when relative_order_size ≤ 0.002
-\item lambda = 0.5 when 0.002 < relative_order_size ≤ 0.05
-\item lambda = 0.25 when 0.05 < relative_order_size ≤ 0.1
-\item lambda = 0.1 when relative_order_size > 0.1
-}}
+\item{lambda}{Either a numeric value or the string \code{"dynamic"}. When \code{"dynamic"}, the lambda value varies based on the relative order size.}
 
-\item{direct_transaction_cost}{A numeric value representing the direct (e.g., brokerage)
-transaction cost percentage to be applied per trade (e.g., if \code{direct_transaction_cost = 0.0005}, this corresponds to 0.05\\%).}
+\item{direct_transaction_cost}{Numeric. Direct transaction cost applied per trade (e.g., 0.0005 for 0.05\%).}
+
+\item{strategy_aum}{Numeric. The total assets under management for the strategy.}
+
+\item{verbose}{Logical. If \code{TRUE}, prints detailed transaction cost information.}
 }
 \value{
-A named list with three components:total_direct_cost, total_market_impact_cost and total_cost
+A named list with components: \code{total_direct_cost}, \code{total_market_impact_cost}, and \code{total_cost}.
 }
 \description{
-Estimates total transaction costs, including direct and market impact costs.
-
-This function estimates the total transaction costs for a set of trades,
-incorporating both direct transaction costs and market impact costs.
-The market impact cost follows a \emph{Barra}-style functional form,
-controlled by the parameters \code{alpha} and \code{lambda}, where
-\code{relative_order_size} is raised to the power of \code{lambda}.
+Estimates total transaction costs for a set of trades, incorporating both direct and market impact costs.
 }
 \details{
-The function computes two cost components:
-\enumerate{
-\item \strong{Direct Cost}:
-\deqn{\text{direct\_cost} = \bigl(\text{direct\_transaction\_cost} \times |\,\text{order}\,|\bigr) \,/\,\text{strategy\_aum}}
-\item \strong{Market Impact Cost}:
-\deqn{\text{market\_impact\_cost} = \alpha \times \bigl(\text{relative\_order\_size}\bigr)^\lambda \times \text{daily\_vol}}
-}
+The function computes two cost components: a direct cost based on the trade size and a market impact cost based on the relative order size and volatility.
+
+When \code{lambda = "dynamic"}, lambda is set according to the relative order size, using predefined thresholds.
 }

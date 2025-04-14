@@ -184,7 +184,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
   ###Transform port_obj into signal_port
   ######################
   if(sb_algorithm %in% c("ew", "sw", "rp", "mvo","custom_weights")){
-    sb_model <- new( # Convert port_obj to signal_port
+    sb_model <- methods::new( # Convert port_obj to signal_port
       "signal_port",
       universe_m_d_ref = sb_model@universe_m_d_ref,
       port_construction_method = sb_model@port_construction_method,

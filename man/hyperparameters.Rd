@@ -34,13 +34,3 @@ The \code{hyperparameters} function returns a character vector of expected hyper
 \item \code{hyperparameters(sb_backtest_config)}: Get expected hyperparameters from an \code{sb_backtest_config} object.
 
 }}
-\examples{
-# Get hyperparameters for glmnet
-hyperparameters("glmnet")
-# Get hyperparameters for random forest
-hyperparameters("rf")
-
-# Assuming you have an sb_backtest_config object named config
-hyperparameters(config)
-
-}

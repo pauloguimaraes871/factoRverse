@@ -30,8 +30,3 @@ An \code{xts} object containing the extracted backtest returns.
 This method extracts the \code{net_returns_m_xts} slot from the \code{port_backtest_cohort} object,
 optionally simplifying the column names based on the configuration names of the cohort.
 }
-\examples{
-# Assume `cohort` is an existing port_backtest_cohort object
-returns_xts <- extract_backtest_returns_m_xts(cohort)
-
-}

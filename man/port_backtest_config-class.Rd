@@ -10,28 +10,37 @@ An S4 class specifying parameters for backtesting stock-level portfolios.
 \section{Slots}{
 
 \describe{
-\item{\code{port_construction_method}}{A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'. For signal portfolios,
-'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.}
+\item{\code{chosen_score_metric_and_position}}{A character string representing the chosen score metric and position.}
+
+\item{\code{eligibility_quantile_range}}{A numeric vector of length 2 representing the quantile range for stock selection.}
+
+\item{\code{min_eligible_assets_fallback}}{A numeric value representing the minimum number of eligible assets.}
+
+\item{\code{selected_benchmark}}{A character string representing the selected benchmark.}
+
+\item{\code{initial_buffer_period}}{A numeric value representing the initial buffer period.}
+
+\item{\code{rebalancing_months}}{A numeric value representing the number of months for rebalancing.}
 
 \item{\code{cov_est_method}}{An object of class \code{cov_est_method} representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for 'rp' and 'mvo'.}
+
+\item{\code{port_construction_method}}{A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'. For signal portfolios,
+'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.}
 
 \item{\code{mvo_parameters}}{An object of class \code{mvo_parameters} representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.}
 
 \item{\code{rp_parameters}}{An object of class \code{rp_parameters} representing the parameters for risk parity. This is only relevant for 'rp'.}
 
-\item{\code{concentration_constraint_policy}}{The policy to handle concentration constraints. This is the only constraint that is applicable to either signal or stock portfolios.
-It contains up to to four elements:
-\itemize{
-\item \code{benchmark}: A character vector describing the benchmark to be used to apply constraint.
-For signal portfolios, possible options are theme_ss or theme_sb.
-For stock portfolios, there must be a correspondence in \code{benchmark_weights_m_df}
-\item \code{max_abs_active_individual_weight}: The maximum absolute individual active weights.
-\item \code{max_abs_active_group_weight}: The maximum absolute sector/theme active weight used for creating group constraints in \code{generate_sector_constraints}.
-If a given sector has no eligible stock, the one with the greatest signal will be automatically promoted. In case of signal portfolios, during ss_backtest, signals with highest alpha_t_values are promoted if
-enable_theme_representativeness is TRUE.
-Note that, in the context of stocks, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
-}}
+\item{\code{main_liquidity_metric}}{A character string indicating which of the variables in \code{liquidity_m_df} should be ultimately used.}
+
+\item{\code{liquidity_floor_cutoffs}}{Mandatory if \code{turnover_constraint_policy} and/or \code{liquidity_constraint_policy} are provided.
+A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
+Each liquidity_classification must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
+and numeric column indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
+Classification should be in ascending order (from least liquid to most liquid) for all metrics.
+If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
+Stocks with liquidity lower than micro_caps will receive nano_caps classification.}
 
 \item{\code{liquidity_constraint_policy}}{The policy to handle liquidity constraints. It is only relevant for stocks. Possible elements are:
 \itemize{
@@ -58,15 +67,20 @@ Many turnover caps might be created.
 Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the \code{liquidity_floor_rule}.
 }}
 
-\item{\code{liquidity_floor_cutoffs}}{Mandatory if \code{turnover_constraint_policy} and/or \code{liquidity_constraint_policy} are provided.
-A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
-Each liquidity_classification must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
-and numeric column indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
-Classification should be in ascending order (from least liquid to most liquid) for all metrics.
-If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
-Stocks with liquidity lower than micro_caps will receive nano_caps classification.}
+\item{\code{concentration_constraint_policy}}{The policy to handle concentration constraints. This is the only constraint that is applicable to either signal or stock portfolios.
+It contains up to to four elements:
+\itemize{
+\item \code{benchmark}: A character vector describing the benchmark to be used to apply constraint.
+For signal portfolios, possible options are theme_ss or theme_sb.
+For stock portfolios, there must be a correspondence in \code{benchmark_weights_m_df}
+\item \code{max_abs_active_individual_weight}: The maximum absolute individual active weights.
+\item \code{max_abs_active_group_weight}: The maximum absolute sector/theme active weight used for creating group constraints in \code{generate_sector_constraints}.
+If a given sector has no eligible stock, the one with the greatest signal will be automatically promoted. In case of signal portfolios, during ss_backtest, signals with highest alpha_t_values are promoted if
+enable_theme_representativeness is TRUE.
+Note that, in the context of stocks, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
+}}
 
-\item{\code{main_liquidity_metric}}{A character string indicating which of the variables in \code{liquidity_m_df} should be ultimately used.}
+\item{\code{transaction_costs_parameters}}{An object of class \code{transaction_costs_parameters} containing the parameters for calculating direct and indirect costs.}
 
 \item{\code{config_name}}{A character string representing the name of the configuration.}
 }}

@@ -8,8 +8,6 @@
 }
 \arguments{
 \item{x}{An object of class \code{meta_xts}.}
-
-\item{...}{Additional arguments (ignored).}
 }
 \value{
 A \code{data.frame} containing the contents of the \code{data} slot.

@@ -15,6 +15,8 @@ the common backtest workflow parameters.
 \describe{
 \item{\code{cohort_name}}{A character string representing the cohort name.}
 
+\item{\code{port_backtest_results_list}}{A list of \code{port_backtest_results} objects, each representing a portfolio backtest.}
+
 \item{\code{port_weights_m_df}}{A meta_dataframe containing merged portfolio weights.}
 
 \item{\code{port_costs_m_xts_list}}{A list of meta_xts objects for portfolio costs (direct_cost, market_impact_cost, total_cost, turnover).}

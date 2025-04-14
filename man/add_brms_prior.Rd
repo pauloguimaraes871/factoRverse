@@ -31,6 +31,8 @@ add_brms_prior(object, ...)
 \arguments{
 \item{object}{An object of class \code{bayesian_alpha_test_strategy}.}
 
+\item{...}{Additional arguments.}
+
 \item{effect}{A character string specifying the effect of the prior. Must be one of "fixed" or "random".}
 
 \item{type}{A character string specifying the type of prior. Options: "intercept", "slope", "sigma", or "cor".}

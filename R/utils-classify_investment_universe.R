@@ -469,8 +469,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 #' or the difference between the upper and lower quantile reaches 0.50 (in which case the function stops
 #' with an error).
 #'
-#' @param signals_m_d_ref A data frame that contains at least the column \code{exp_ret_score}.
-#' @param universe_m_d_ref A data frame that contains at least the column \code{tickers}.
+#' @param stock_universe_m_d_ref A data frame that contains at least the column \code{exp_ret_score}.
 #' @param eligibility_quantile_range A numeric vector of length 2 with values in \[0,1\] indicating the initial
 #'        quantile range to select eligible assets.
 #' @param min_eligible_assets_fallback A numeric value indicating the minimum number of eligible assets desired.
@@ -481,16 +480,6 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 #' \describe{
 #'   \item{universe_m_d_ref}{The updated universe data frame with a new column \code{pre_eligible_assets} (1/0).}
 #'   \item{eligibility_quantile_range}{The final quantile range used.}
-#' }
-#' @examples
-#' \dontrun{
-#'   result <- apply_pre_eligibility(
-#'     signals_m_d_ref = signals_df,
-#'     universe_m_d_ref = universe_df,
-#'     eligibility_quantile_range = c(0.45, 0.55),
-#'     min_eligible_assets_fallback = 10,
-#'     verbose = TRUE
-#'   )
 #' }
 apply_stocks_pre_eligibility <- function(stock_universe_m_d_ref,
                                          eligibility_quantile_range,

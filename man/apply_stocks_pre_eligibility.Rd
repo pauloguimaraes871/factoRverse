@@ -12,6 +12,8 @@ apply_stocks_pre_eligibility(
 )
 }
 \arguments{
+\item{stock_universe_m_d_ref}{A data frame that contains at least the column \code{exp_ret_score}.}
+
 \item{eligibility_quantile_range}{A numeric vector of length 2 with values in [0,1] indicating the initial
 quantile range to select eligible assets.}
 
@@ -19,10 +21,6 @@ quantile range to select eligible assets.}
 If \code{NULL}, no fallback logic is applied.}
 
 \item{verbose}{Logical; if \code{TRUE} prints additional information.}
-
-\item{signals_m_d_ref}{A data frame that contains at least the column \code{exp_ret_score}.}
-
-\item{universe_m_d_ref}{A data frame that contains at least the column \code{tickers}.}
 }
 \value{
 A list with two elements:
@@ -40,15 +38,4 @@ number. If not, the function iteratively expands the quantile range (decreasing 
 by 0.05 and increasing the upper quantile by 0.05) until either the fallback number is reached
 or the difference between the upper and lower quantile reaches 0.50 (in which case the function stops
 with an error).
-}
-\examples{
-\dontrun{
-  result <- apply_pre_eligibility(
-    signals_m_d_ref = signals_df,
-    universe_m_d_ref = universe_df,
-    eligibility_quantile_range = c(0.45, 0.55),
-    min_eligible_assets_fallback = 10,
-    verbose = TRUE
-  )
-}
 }

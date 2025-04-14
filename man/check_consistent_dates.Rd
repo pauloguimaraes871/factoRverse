@@ -16,10 +16,3 @@ otherwise, throws an error listing the differing dates.
 \description{
 Checks whether all non-NULL date values in a given vector or list are equal.
 }
-\examples{
-\dontrun{
-dates <- list(as.Date("2023-01-15"), as.Date("2023-01-15"), NULL)
-check_consistent_dates(dates)
-}
-
-}

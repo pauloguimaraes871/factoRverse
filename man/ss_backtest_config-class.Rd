@@ -14,13 +14,19 @@ default uninformative priors.
 \section{Slots}{
 
 \describe{
+\item{\code{chosen_signals_and_positions}}{A character indicating to which signals ss_backtest should be applied and their positions (long and short).
+For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").}
+
 \item{\code{initial_sample_size}}{A numeric indicating the minimum number of observations required to begin the backtest.}
+
+\item{\code{rebalancing_months}}{A numeric indicating the number of months between rebalancing periods.}
+
+\item{\code{active_returns}}{A logical indicating whether to use active returns (TRUE) or total returns (FALSE) for the backtest.}
 
 \item{\code{split_method}}{The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").}
 
 \item{\code{alpha_test_strategy}}{An \code{alpha_test_strategy} object with the configuration for the alpha test.}
 
-\item{\code{chosen_signals_and_positions}}{A character indicating to which signals ss_backtest should be applied and their positions (long and short).
-For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").}
+\item{\code{config_name}}{A character string representing the name of the configuration.}
 }}
 

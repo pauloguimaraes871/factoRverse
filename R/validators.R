@@ -167,11 +167,6 @@ setGeneric("hyperparameters", function(object) standardGeneric("hyperparameters"
 #' @return A character vector of expected hyperparameters.
 #' If the algorithm is "ols" or not recognized, it returns an empty character vector.
 #'
-#' @examples
-#' # Get hyperparameters for glmnet
-#' hyperparameters("glmnet")
-#' # Get hyperparameters for random forest
-#' hyperparameters("rf")
 #'
 #' @export
 setMethod("hyperparameters", signature(object = "character"),
@@ -197,9 +192,6 @@ setMethod("hyperparameters", signature(object = "character"),
 #' @return A character vector of expected hyperparameters for the algorithm specified in the configuration.
 #' If the algorithm is "ols" or not recognized, it returns an empty character vector.
 #'
-#' @examples
-#' # Assuming you have an sb_backtest_config object named config
-#' hyperparameters(config)
 #'
 #' @export
 setMethod("hyperparameters", signature(object = "sb_backtest_config"),
@@ -505,14 +497,6 @@ validate_turnover_constraint_policy <- function(turnover_constraint_policy) {
 #'
 #' @return TRUE if all validations pass; otherwise, the function stops with an error.
 #'
-#' @examples
-#' params <- list(
-#'   direct_transaction_cost = 0.01,
-#'   strategy_aum = 1000000,
-#'   alpha = 0.05,
-#'   lambda = 0.5
-#' )
-#' validate_transaction_cost_parameters(params)
 #'
 #' @export
 validate_transaction_costs_parameters <- function(transaction_costs_parameters) {
@@ -670,11 +654,6 @@ validate_liquidity_floor_cutoffs <- function(liquidity_floor_cutoffs, main_liqui
 #' @return Invisibly returns `TRUE` if all non-NULL, non-NA dates are identical;
 #' otherwise, throws an error listing the differing dates.
 #'
-#' @examples
-#' \dontrun{
-#' dates <- list(as.Date("2023-01-15"), as.Date("2023-01-15"), NULL)
-#' check_consistent_dates(dates)
-#' }
 #'
 #' @export
 check_consistent_dates <- function(current_dates) {

@@ -300,6 +300,10 @@ prep.step_winsorize <- function(x, training, info = NULL, ...) {
 
 #' Apply winsorization during baking
 #' @importFrom recipes bake
+#'
+#' @param object A trained `step_winsorize` object.
+#' @param new_data A data frame to which the winsorization will be applied.
+#'
 #' @export
 bake.step_winsorize <- function(object, new_data, ...) {
   if (!object$trained) {
@@ -492,6 +496,10 @@ prep.step_impute_sector <- function(x, training, info = NULL, ...) {
 
 #' Apply imputation during baking
 #' @importFrom recipes bake
+#'
+#' @param object A `step_impute_sector` object.
+#' @param new_data A data frame of new data to which the imputation will be applied.
+#'
 #' @export
 bake.step_impute_sector <- function(object, new_data, ...) {
   if (!object$trained) {

@@ -43,6 +43,12 @@ if \code{policy} is missing. These typically include:
 \item \strong{max_abs_active_individual_weight} (numeric)
 \item \strong{max_abs_active_group_weight} (named numeric)
 }}
+
+\item{max_abs_active_individual_weight}{A numeric indicating the max absolute active weight for individual assets.}
+
+\item{max_abs_active_group_weight}{A named numeric vector for group constraints.}
+
+\item{benchmark}{A character vector indicating the benchmark to be used.}
 }
 \value{
 The updated \code{object} with the concentration policy added.

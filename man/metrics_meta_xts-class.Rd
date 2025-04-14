@@ -5,15 +5,27 @@
 \alias{metrics_meta_xts-class}
 \title{An S4 subclass of meta_xts for metric time series (holes allowed).}
 \description{
-In addition to the parent slots, it has:
-\itemize{
-\item \code{metrics}: a character vector with names of metric columns.
-\item \code{n_metrics}: a numeric value equal to the number of metric columns.
-}
+An S4 subclass of meta_xts for metric time series (holes allowed).
 }
 \section{Slots}{
 
 \describe{
+\item{\code{data}}{An xts object containing the time series.}
+
+\item{\code{meta_xts_name}}{Character. A label or ID for the series.}
+
+\item{\code{metric_name}}{Character. The name of the metric being stored for metrics_m_xts.}
+
+\item{\code{workflow}}{ANY. A placeholder for user-defined workflow/pipeline objects.}
+
+\item{\code{n_dates}}{Numeric. Number of rows in \code{data}.}
+
+\item{\code{source}}{Character. Source of each column (same length as number of columns in \code{data}).}
+
+\item{\code{frequency}}{Character. Detected frequency (daily, monthly, yearly, etc.).}
+
+\item{\code{current_date}}{Date. The most recent date in the dataset.}
+
 \item{\code{series}}{Character. Names of the columns (metrics).}
 
 \item{\code{n_series}}{Numeric. Number of metric columns.}

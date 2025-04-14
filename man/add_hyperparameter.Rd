@@ -33,6 +33,14 @@ add_hyperparameter(object, hyperparameter, ...)
 
 \item{hyperparameter}{A vector of characters indicating the name of the hyperparameter to be added.}
 
+\item{...}{Additional arguments for the hyperparameter.
+\itemize{
+\item \strong{glmnet}: alpha, lambda.min.ratio
+\item \strong{rf}: mtry, num.trees, max.depth, min.bucket
+\item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
+\item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
+}}
+
 \item{new_hyperparameter_list}{Used to pass new_hyperparameters_list after specific method at tuning_strategy level.}
 
 \item{grid}{A numeric vector or list of numeric vectors for grid search values (only used for grid_search).}

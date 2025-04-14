@@ -24,6 +24,8 @@ The meta_xts class is designed to hold:
 
 \item{\code{meta_xts_name}}{Character. A label or ID for the series.}
 
+\item{\code{metric_name}}{Character. The name of the metric being stored for metrics_m_xts.}
+
 \item{\code{workflow}}{ANY. A placeholder for user-defined workflow/pipeline objects.}
 
 \item{\code{n_dates}}{Numeric. Number of rows in \code{data}.}
@@ -31,5 +33,7 @@ The meta_xts class is designed to hold:
 \item{\code{source}}{Character. Source of each column (same length as number of columns in \code{data}).}
 
 \item{\code{frequency}}{Character. Detected frequency (daily, monthly, yearly, etc.).}
+
+\item{\code{current_date}}{Date. The most recent date in the dataset.}
 }}
 

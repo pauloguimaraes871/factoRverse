@@ -9,7 +9,7 @@ An S4 object of class \code{sb_backtest_results} containing all the specified re
 }
 \description{
 This S4 class encapsulates the results and parameters from performing walk-forward
-validation on time series data using machine learning algorithms. It includes
+validation on time series data using signal-blending algorithms. It includes
 information about the model, data, tuning process, and performance metrics.
 }
 \section{Slots}{
@@ -17,16 +17,28 @@ information about the model, data, tuning process, and performance metrics.
 \describe{
 \item{\code{oos_sb_outputs_m_df}}{A meta dataframe containing out-of-sample predictions, target and errors, all indexed by testing dates.}
 
-\item{\code{oos_testing_eval_metrics}}{A list of evaluation metrics for the out-of-sample testing samples.}
+\item{\code{sb_backtest_config}}{An object of class \code{sb_backtest_config} containing the configuration parameters for the backtest.}
 
-\item{\code{final_model}}{The final refitted machine learning model with best hyperparameters found after tuning. Possibly a object of sb_model S4 class.}
+\item{\code{oos_testing_eval_metrics_m_xts}}{A meta_xts of evaluation metrics for the out-of-sample testing samples.}
+
+\item{\code{consolidated_eval_metrics}}{A data frame containing the consolidated evaluation metrics for the out-of-sample testing samples.}
+
+\item{\code{final_sb_model}}{The final (re)fitted signal blending model with best hyperparameters found after tuning. Possibly a object of sb_model S4 class.}
+
+\item{\code{final_gsm}}{The final (re)fitted global surrogate model.}
 
 \item{\code{chosen_eval_metric_validation}}{A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.}
 
-\item{\code{best_hyperparameters_xts}}{A data frame containing the best hyperparameters selected during tuning for each rebalancing period.}
+\item{\code{best_hyperparameters_m_xts}}{A meta_xts containing the best hyperparameters selected during tuning for each rebalancing period.}
 
-\item{\code{validation_eval_metrics_hyper_choice}}{All evaluation metrics calculated for the set of best hyperparameters.}
+\item{\code{validation_eval_metrics_hyper_choice_m_xts}}{A meta_xts with all evaluation metrics calculated for the set of best hyperparameters.}
+
+\item{\code{feature_importance_m_df}}{A meta_dataframe containing the feature importance scores for each feature.}
+
+\item{\code{final_feature_importance_m_d_ref}}{A meta_dataframe containing the final feature importance scores for the chosen model.}
 
 \item{\code{sb_backtest_workflow}}{A list containing sb_backtest_workflow about the walk-forward validation process.}
+
+\item{\code{backtest_identifier}}{A character string that identifies the backtest.}
 }}
 

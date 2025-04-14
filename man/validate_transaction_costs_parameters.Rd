@@ -23,13 +23,3 @@ It checks that the list contains the names: "direct_transaction_cost", "strategy
 \item \code{lambda} is a single value that is either numeric or exactly the string "dynamic".
 }
 }
-\examples{
-params <- list(
-  direct_transaction_cost = 0.01,
-  strategy_aum = 1000000,
-  alpha = 0.05,
-  lambda = 0.5
-)
-validate_transaction_cost_parameters(params)
-
-}

@@ -37,6 +37,9 @@ add_tuning_strategy(object, tuning_strategy, ...)
 
 \item{chosen_eval_metric}{Character or \code{NULL}, specifying the evaluation metric to be optimized.}
 
+\item{hyper_grid_domain}{An object of class \code{hyper_grid_domain}, or \code{NULL}.
+If \code{NULL}, additional parameters must be provided to create a new \code{tuning_strategy}.}
+
 \item{early_stop}{Optional, stopping criteria for early termination. Can be of any type.}
 
 \item{n_iter}{Numeric, number of iterations for 'random_search' or 'bayesian_opt'.}

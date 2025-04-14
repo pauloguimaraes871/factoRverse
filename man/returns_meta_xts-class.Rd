@@ -5,15 +5,29 @@
 \alias{returns_meta_xts-class}
 \title{An S4 subclass of meta_xts for asset returns with no holes.}
 \description{
-In addition to the parent slots, it has:
-\itemize{
-\item \code{assets}: a character vector with names of asset columns.
-\item \code{n_assets}: a numeric value equal to the number of asset columns.
-}
+An S4 subclass of meta_xts for asset returns with no holes.
 }
 \section{Slots}{
 
 \describe{
+\item{\code{data}}{An xts object containing the time series.}
+
+\item{\code{meta_xts_name}}{Character. A label or ID for the series.}
+
+\item{\code{metric_name}}{Character. The name of the metric being stored for metrics_m_xts.}
+
+\item{\code{workflow}}{ANY. A placeholder for user-defined workflow/pipeline objects.}
+
+\item{\code{n_dates}}{Numeric. Number of rows in \code{data}.}
+
+\item{\code{source}}{Character. Source of each column (same length as number of columns in \code{data}).}
+
+\item{\code{frequency}}{Character. Detected frequency (daily, monthly, yearly, etc.).}
+
+\item{\code{current_date}}{Date. The most recent date in the dataset.}
+
+\item{\code{asset_type}}{Character. Type of asset (e.g., "stock", "bond", etc.).}
+
 \item{\code{assets}}{Character. Names of the columns (assets).}
 
 \item{\code{n_assets}}{Numeric. Number of asset columns.}

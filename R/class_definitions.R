@@ -21,6 +21,7 @@ setOldClass("recipe")
 #' @slot unique_dates A \code{numeric} value representing the count of unique dates in the data.
 #' @slot unique_tickers A \code{numeric} value representing the count of unique tickers in the data.
 #' @slot n_obs A \code{numeric} value representing the total number of observations in the data.
+#' @slot current_date A \code{Date} object representing the current date.
 #' @slot meta_dataframe_name A \code{character} value representing the name of the meta_dataframe.
 #'
 #' @details
@@ -174,13 +175,19 @@ setClass(
   }
 )
 
-#' Define the signal_universe_meta_dataframe S4 Class
+#' Define the signal_universe_m_df S4 Class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
+#' This class inherits from \code{meta_dataframe} and enforces that the underlying data adheres to the output of a signal selection backtest workflow.
 #'
-#' @slot universe_name A \code{character} string describing the universe name.
-#' @slot ss_backtest_workflow A \code{list} storing the ss_backtest_workflow that generated the signal_universe_meta_dataframe object.
-#'
+#' @slot ss_backtest_workflow An \code{ANY} object storing the signal selection backtest workflow.
+#' @slot data A \code{data.frame} storing signal metrics and metadata.
+#' @slot workflow A \code{list} capturing preprocessing or backtesting steps.
+#' @slot signals A \code{character} vector of signal column names.
+#' @slot unique_dates A \code{numeric} count of unique dates in the data.
+#' @slot unique_tickers A \code{numeric} count of unique tickers in the data.
+#' @slot n_obs A \code{numeric} value for total number of observations.
+#' @slot current_date A \code{Date} representing the latest available date.
+#' @slot meta_dataframe_name A \code{character} name label for the object.
 #'
 #' @export
 setClass(
@@ -272,8 +279,16 @@ setClass(
 #'
 #' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
 #'
-#' @slot universe_name A \code{character} string describing the universe name.
+#'
 #' @slot port_backtest_workflow A \code{list} storing the ss_backtest_workflow that generated the signal_universe_meta_dataframe object.
+#' @slot data A \code{data.frame} storing signal metrics and metadata.
+#' @slot workflow A \code{list} capturing preprocessing or backtesting steps.
+#' @slot signals A \code{character} vector of signal column names.
+#' @slot unique_dates A \code{numeric} count of unique dates in the data.
+#' @slot unique_tickers A \code{numeric} count of unique tickers in the data.
+#' @slot n_obs A \code{numeric} value for total number of observations.
+#' @slot current_date A \code{Date} representing the latest available date.
+#' @slot meta_dataframe_name A \code{character} name label for the object.
 #'
 #'
 #' @export
@@ -348,15 +363,19 @@ setClass(
 #' An S4 class to store stock metadata, including listing and delisting dates,
 #' a unique identifier (`perm_id`), and classification flags for private and delisted stocks.
 #'
+#' @slot catalog A data frame containing stock metadata
 #' @slot tickers A character vector of stock tickers.
 #' @slot perm_id A character vector of unique stock identifiers, combining tickers and inception date.
-#' @slot date_first_quote A Date vector representing the first trading date for each stock.
-#' @slot date_last_quote A Date vector representing the last trading date for each stock.
+#' @slot tickers_first_quote A Date vector representing the first trading date for each stock.
+#' @slot tickers_last_quote A Date vector representing the last trading date for each stock.
 #' @slot untraded A character vector of untraded stocks (both dates are NA).
-#' @slot delisted A character vector of delisted stocks (date_last_quote < current_date and public).
-#' @slot listed A character vector of listed stocks (date_last_quote >= current_date).
+#' @slot delisted A character vector of delisted stocks.
+#' @slot listed A character vector of listed stocks.
+#' @slot old A character vector of tickers that have been changed.
 #' @slot current_date A Date object representing the most recent available date in the dataset.
+#' @slot meta_dataframe_name The name of the `meta_dataframe` used
 #' @slot n_days_tolerance A numeric value representing the number of days to consider a stock as delisted.
+#' @slot ticker_change_history The history of ticker changes.
 #'
 #' @export
 setClass(
@@ -459,10 +478,12 @@ setClass(
 #'
 #' @slot data An xts object containing the time series.
 #' @slot meta_xts_name Character. A label or ID for the series.
+#' @slot metric_name Character. The name of the metric being stored for metrics_m_xts.
 #' @slot workflow ANY. A placeholder for user-defined workflow/pipeline objects.
 #' @slot n_dates Numeric. Number of rows in \code{data}.
 #' @slot source Character. Source of each column (same length as number of columns in \code{data}).
 #' @slot frequency Character. Detected frequency (daily, monthly, yearly, etc.).
+#' @slot current_date Date. The most recent date in the dataset.
 #'
 #' @export
 setClass(
@@ -507,12 +528,15 @@ setClass(
 
 #' An S4 subclass of meta_xts for asset returns with no holes.
 #'
-#' In addition to the parent slots, it has:
-#' \itemize{
-#'   \item \code{assets}: a character vector with names of asset columns.
-#'   \item \code{n_assets}: a numeric value equal to the number of asset columns.
-#' }
-#'
+#' @slot data An xts object containing the time series.
+#' @slot meta_xts_name Character. A label or ID for the series.
+#' @slot metric_name Character. The name of the metric being stored for metrics_m_xts.
+#' @slot workflow ANY. A placeholder for user-defined workflow/pipeline objects.
+#' @slot n_dates Numeric. Number of rows in \code{data}.
+#' @slot source Character. Source of each column (same length as number of columns in \code{data}).
+#' @slot frequency Character. Detected frequency (daily, monthly, yearly, etc.).
+#' @slot current_date Date. The most recent date in the dataset.
+#' @slot asset_type Character. Type of asset (e.g., "stock", "bond", etc.).
 #' @slot assets Character. Names of the columns (assets).
 #' @slot n_assets Numeric. Number of asset columns.
 #'
@@ -582,12 +606,14 @@ setClass(
 
 #' An S4 subclass of meta_xts for metric time series (holes allowed).
 #'
-#' In addition to the parent slots, it has:
-#' \itemize{
-#'   \item \code{metrics}: a character vector with names of metric columns.
-#'   \item \code{n_metrics}: a numeric value equal to the number of metric columns.
-#' }
-#'
+#' @slot data An xts object containing the time series.
+#' @slot meta_xts_name Character. A label or ID for the series.
+#' @slot metric_name Character. The name of the metric being stored for metrics_m_xts.
+#' @slot workflow ANY. A placeholder for user-defined workflow/pipeline objects.
+#' @slot n_dates Numeric. Number of rows in \code{data}.
+#' @slot source Character. Source of each column (same length as number of columns in \code{data}).
+#' @slot frequency Character. Detected frequency (daily, monthly, yearly, etc.).
+#' @slot current_date Date. The most recent date in the dataset.
 #' @slot series Character. Names of the columns (metrics).
 #' @slot n_series Numeric. Number of metric columns.
 #'
@@ -807,7 +833,23 @@ setClass(
 
 #' @title Grid Search Tuning Strategy
 #' @description A subclass of `tuning_strategy` that implements grid search.
-#' @slot tuning_method The tuning method is set to 'grid_search'.
+#' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
+#' @slot validation_sample_size Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.
+#' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
+#' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
+#' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
+#' The structure of this list depends on the specified tuning method:
+#' \itemize{
+#'   \item \strong{For grid search:} Must be a list of named vectors:
+#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
+#'     \itemize{
+#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
+#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
+#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+#'     }
+#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+#' }
+#' @slot early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
 #' @export
 setClass(
   "grid_search_strategy",
@@ -818,7 +860,23 @@ setClass(
 
 #' @title Random Search Tuning Strategy
 #' @description A subclass of `tuning_strategy` that implements random search.
-#' @slot tuning_method The tuning method is set to 'random_search'.
+#' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
+#' @slot validation_sample_size Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.
+#' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
+#' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
+#' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
+#' The structure of this list depends on the specified tuning method:
+#' \itemize{
+#'   \item \strong{For grid search:} Must be a list of named vectors:
+#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
+#'     \itemize{
+#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
+#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
+#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+#'     }
+#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+#' }
+#' @slot early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
 #' @slot n_iter For random_search, it should be the number of random draws for each hyperparameter to which a distribution has been assigned.
 #' Random samples of n_iter size will be generated for each hyperparameter and their unique values will be exhaustively combined.
 #' Therefore, for n_iter = 5 and 2 hyperparameters, the ml algorithm validation error should be generally evaluated 5² = 25 times.
@@ -836,11 +894,27 @@ setClass(
 
 #' @title Bayesian Opt Tuning Strategy
 #' @description A subclass of `tuning_strategy` that implements bayesian optimization.
-#' @slot tuning_method The tuning method is set to 'bayesian_opt'.
+#' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
+#' @slot validation_sample_size Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.
+#' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
+#' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
+#' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
+#' The structure of this list depends on the specified tuning method:
+#' \itemize{
+#'   \item \strong{For grid search:} Must be a list of named vectors:
+#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
+#'     \itemize{
+#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
+#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
+#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+#'     }
+#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+#' }
+#' @slot early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
 #' @slot n_iter For bayesian_opt, it should be the number of times the ml algorithm will be evaluated after initialization.
 #' @slot acq Acquisition function for Bayesian optimization: "ucb", "ei", or "poi".
-#' @param init_points Number of initial random points for Bayesian optimization.
-#' @param k_iter Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
+#' @slot init_points Number of initial random points for Bayesian optimization.
+#' @slot k_iter Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
 #' If the intention is running in parallel, set k_iter to a multiple of the number of cores. Must be lower and preferably a multiple of n_iter.
 
 #' @export
@@ -1462,11 +1536,14 @@ setClass("bayesian_alpha_test_strategy",
 #' conducting hypothesis tests regarding CAPM alpha under a multiple testing framework, with frequentist and bayesian approaches. In the
 #' latter, a hierarhical model is fit, with informative priors set according to an exogeneous dataset or by the user, or
 #' default uninformative priors.
-#' @slot initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
-#' @slot split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
-#' @slot alpha_test_strategy An `alpha_test_strategy` object with the configuration for the alpha test.
 #' @slot chosen_signals_and_positions A character indicating to which signals ss_backtest should be applied and their positions (long and short).
 #' For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "short").
+#' @slot initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
+#' @slot rebalancing_months A numeric indicating the number of months between rebalancing periods.
+#' @slot active_returns A logical indicating whether to use active returns (TRUE) or total returns (FALSE) for the backtest.
+#' @slot split_method The method used for splitting the data, either "expanding" or "rolling" (default is "expanding").
+#' @slot alpha_test_strategy An `alpha_test_strategy` object with the configuration for the alpha test.
+#' @slot config_name A character string representing the name of the configuration.
 #' @export
 setClass("ss_backtest_config",
          slots = list(
@@ -1511,12 +1588,16 @@ setClass("ss_backtest_config",
 #' This S4 class encapsulates the results and parameters from performing a signal selection backtest.
 #' It includes information about eligible signals, signal universes, Bayesian fits, and the backtest workflow.
 #'
+#' @slot ss_backtest_config An object of class `ss_backtest_config` containing the configuration for the backtest.
 #' @slot signal_universe_m_df A meta dataframe containing the signal universes at each rebalancing period.
 #' @slot final_signal_universe_m_d_ref A meta dataframe containing the last signal universe.
-#' @slot final_bayesian_fit_list A list of Bayesian model fit results for each rebalancing period.
+#' @slot selected_market_factor_proxy_m_xts A meta_xts object containing the selected market factor proxy.
+#' @slot frequentist_results A list of frequentist model fit results
+#' @slot bayesian_results A list of Bayesian model fit results
 #' @slot p_correction_method A character string indicating the p-value correction method used.
 #' @slot ss_backtest_workflow A list describing the signal selection backtest workflow, including parameters and metadata.
 #' @slot backtest_identifier A character string representing the backtest identifier.
+#' @slot update A logical indicating whether the backtest results should be updated.
 #'
 #' @return An S4 object of class `ss_backtest_results`.
 #'
@@ -1562,10 +1643,10 @@ setClass(
 #' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
 #' @slot target_fwd_name Name of the target variable in `target_m_df`.
 #' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
-#' @slot port_backtest_config An object of class `port_backtest_config`, containing instructions to create SB portfolios for heuristic algorithms.
+#' @slot chosen_signals_and_positions A character vector indicating which signals to include in the backtest and their positions (long and short).
+#' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @slot training_sample_size Number of observations to include in each training sample.
 #' @slot rebalancing_months Months (numeric) when model should be rebalanced (refit).
-#' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @slot custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
 #' Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.
 #' @slot keras_architecture_parameters An object of class `keras_architecture_parameters` or NULL, providing parameters specific to keras-based neural networks.
@@ -2027,8 +2108,8 @@ setClass(
 #' @slot meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner
 #' @slot features_passthrough A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner.
 #'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
-#' @slot normalize_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
-#' @slot winsorize_predictions Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{FALSE}.
+#' @slot normalize_base_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
+#' @slot winsorize_base_predictions Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{FALSE}.
 #' @slot config_name A character string with the name of the configuration
 #' @export
 setClass(
@@ -2112,16 +2193,22 @@ setClass(
 #' S4 Class for Time Series Walk-Forward Validation Results of Machine-Learning Models
 #'
 #' This S4 class encapsulates the results and parameters from performing walk-forward
-#' validation on time series data using machine learning algorithms. It includes
+#' validation on time series data using signal-blending algorithms. It includes
 #' information about the model, data, tuning process, and performance metrics.
 #'
 #' @slot oos_sb_outputs_m_df A meta dataframe containing out-of-sample predictions, target and errors, all indexed by testing dates.
-#' @slot oos_testing_eval_metrics A list of evaluation metrics for the out-of-sample testing samples.
-#' @slot final_model The final refitted machine learning model with best hyperparameters found after tuning. Possibly a object of sb_model S4 class.
+#' @slot sb_backtest_config An object of class `sb_backtest_config` containing the configuration parameters for the backtest.
+#' @slot oos_testing_eval_metrics_m_xts A meta_xts of evaluation metrics for the out-of-sample testing samples.
+#' @slot consolidated_eval_metrics A data frame containing the consolidated evaluation metrics for the out-of-sample testing samples.
+#' @slot final_sb_model The final (re)fitted signal blending model with best hyperparameters found after tuning. Possibly a object of sb_model S4 class.
+#' @slot final_gsm The final (re)fitted global surrogate model.
 #' @slot chosen_eval_metric_validation A list of data.frames with the chosen evaluation metric calculated for the hyperparameter grid.
-#' @slot best_hyperparameters_xts A data frame containing the best hyperparameters selected during tuning for each rebalancing period.
-#' @slot validation_eval_metrics_hyper_choice All evaluation metrics calculated for the set of best hyperparameters.
+#' @slot best_hyperparameters_m_xts A meta_xts containing the best hyperparameters selected during tuning for each rebalancing period.
+#' @slot validation_eval_metrics_hyper_choice_m_xts A meta_xts with all evaluation metrics calculated for the set of best hyperparameters.
+#' @slot feature_importance_m_df A meta_dataframe containing the feature importance scores for each feature.
+#' @slot final_feature_importance_m_d_ref A meta_dataframe containing the final feature importance scores for the chosen model.
 #' @slot sb_backtest_workflow A list containing sb_backtest_workflow about the walk-forward validation process.
+#' @slot backtest_identifier A character string that identifies the backtest.
 #'
 #'
 #' @return An S4 object of class `sb_backtest_results` containing all the specified results and sb_backtest_workflow.
@@ -2188,11 +2275,15 @@ setClass(
 #' @description An S4 class designed to store and manage a collection of `sb_backtest_results` objects,
 #' along with consolidated and time series evaluation metrics for machine learning models.
 #'
-#' @slot sb_backtest_results A list of `sb_backtest_results` objects.
-#' @slot consolidated_oos_testing_metrics A data frame containing consolidated out-of-sample testing evaluation metrics for each algorithm.
+#' @slot sb_metabacktest_config An object of class `sb_metabacktest_config` containing the configuration for the meta backtest.
+#' @slot meta_sb_backtest_results An object of class `sb_backtest_results` containing the results of the meta-learner.
+#' @slot base_sb_backtest_results_list A list of `sb_backtest_results` objects for each base algorithm.
+#' @slot base_learners_oos_predictions_m_df A meta dataframe containing out-of-sample predictions, target and errors for each base algorithm.
+#' @slot combined_oos_testing_metrics A list containing data frames with consolidated out-of-sample testing evaluation metrics for each algorithm.
 #' @slot mean_validation_metrics A data frame containing the mean validation metrics for each algorithm.
 #' @slot time_series_oos_testing_metrics A list of data frames for each evaluation metric over time (out-of-sample testing).
 #' @slot time_series_validation_metrics A list of data frames for each evaluation metric over time (validation).
+#' @slot backtest_identifier A character string used to identify the backtest.
 #'
 #' @export
 setClass(
@@ -2240,22 +2331,26 @@ setClass(
 #'
 #' An S4 class specifying parameters for backtesting stock-level portfolios.
 #'
-#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'. For signal portfolios,
-#' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
+#' @slot chosen_score_metric_and_position A character string representing the chosen score metric and position.
+#' @slot eligibility_quantile_range A numeric vector of length 2 representing the quantile range for stock selection.
+#' @slot min_eligible_assets_fallback A numeric value representing the minimum number of eligible assets.
+#' @slot selected_benchmark A character string representing the selected benchmark.
+#' @slot initial_buffer_period A numeric value representing the initial buffer period.
+#' @slot rebalancing_months A numeric value representing the number of months for rebalancing.
 #' @slot cov_est_method An object of class `cov_est_method` representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
 #' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for 'rp' and 'mvo'.
+#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'. For signal portfolios,
+#' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
-#' @slot concentration_constraint_policy The policy to handle concentration constraints. This is the only constraint that is applicable to either signal or stock portfolios.
-#'  It contains up to to four elements:
-#' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
-#' For signal portfolios, possible options are theme_ss or theme_sb.
-#' For stock portfolios, there must be a correspondence in `benchmark_weights_m_df`
-#' - `max_abs_active_individual_weight`: The maximum absolute individual active weights.
-#' - `max_abs_active_group_weight`: The maximum absolute sector/theme active weight used for creating group constraints in `generate_sector_constraints`.
-#' If a given sector has no eligible stock, the one with the greatest signal will be automatically promoted. In case of signal portfolios, during ss_backtest, signals with highest alpha_t_values are promoted if
-#' enable_theme_representativeness is TRUE.
-#' Note that, in the context of stocks, a `benchmark_weights_m_d_ref` data frame must also be supplied.
+#' @slot main_liquidity_metric A character string indicating which of the variables in `liquidity_m_df` should be ultimately used.
+#' @slot liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
+#' A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
+#' Each liquidity_classification must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
+#' and numeric column indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
+#' Classification should be in ascending order (from least liquid to most liquid) for all metrics.
+#' If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
+#' Stocks with liquidity lower than micro_caps will receive nano_caps classification.
 #' @slot liquidity_constraint_policy The policy to handle liquidity constraints. It is only relevant for stocks. Possible elements are:
 #' - `liquidity_floor_rule`: A character indicating the liquidity classification (e.g., micro_caps, small_caps) used to filter stocks. Stocks with less liquidity than specified in `liquidity_floor_rule` will be considered ineligible.
 #'   In the case of the `generate_box_constraints` function, `liquidity_constraint_policy` can also contain:
@@ -2273,14 +2368,17 @@ setClass(
 #'   - `turnover_cap`: A numeric value indicating the cap (lower and upper bounds) for stocks with that liquidity classification.
 #'   Many turnover caps might be created.
 #'   Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the `liquidity_floor_rule`.
-#' @slot liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
-#' A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
-#' Each liquidity_classification must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
-#' and numeric column indicate the minimum acceptable values (adjusted for inflation) for stocks to have that classification.
-#' Classification should be in ascending order (from least liquid to most liquid) for all metrics.
-#' If set in decimals, values will be interpreted as quantiles and classification will be set accordingly.
-#' Stocks with liquidity lower than micro_caps will receive nano_caps classification.
-#' @slot main_liquidity_metric A character string indicating which of the variables in `liquidity_m_df` should be ultimately used.
+#' @slot concentration_constraint_policy The policy to handle concentration constraints. This is the only constraint that is applicable to either signal or stock portfolios.
+#'  It contains up to to four elements:
+#' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
+#' For signal portfolios, possible options are theme_ss or theme_sb.
+#' For stock portfolios, there must be a correspondence in `benchmark_weights_m_df`
+#' - `max_abs_active_individual_weight`: The maximum absolute individual active weights.
+#' - `max_abs_active_group_weight`: The maximum absolute sector/theme active weight used for creating group constraints in `generate_sector_constraints`.
+#' If a given sector has no eligible stock, the one with the greatest signal will be automatically promoted. In case of signal portfolios, during ss_backtest, signals with highest alpha_t_values are promoted if
+#' enable_theme_representativeness is TRUE.
+#' Note that, in the context of stocks, a `benchmark_weights_m_d_ref` data frame must also be supplied.
+#' @slot transaction_costs_parameters An object of class `transaction_costs_parameters` containing the parameters for calculating direct and indirect costs.
 #' @slot config_name A character string representing the name of the configuration.
 #'
 #' @export
@@ -2636,11 +2734,16 @@ setClass(
 #' This S4 class encapsulates the results and parameters from running a portfolio backtest based on
 #' signals derived from simple stock characteristics or expected returns from machine learning model predictions.
 #'
+#' @slot port_backtest_config An object of class `port_backtest_config` containing the configuration parameters for the backtest.
 #' @slot port_weights_m_df A meta dataframe containing the portfolio weights across different dates.
-#' @slot transactions_log_m_df A meta dataframe containing the transaction logs from portfolio allocations.
+#' @slot transactions_log An object of class `transactions_log` containing the transaction for the portfolio.
 #' @slot port_costs_m_xts A meta xts object containing portfolio costs (e.g., direct cost, market impact cost, total cost, turnover) indexed by dates.
 #' @slot port_metrics_m_xts A meta xts object containing portfolio performance metrics (if provided) indexed by dates.
 #' @slot port_returns_m_xts A meta xts object containing portfolio returns (raw and net returns) indexed by dates.
+#' @slot final_stock_port An object of class `stock_port` representing the final stock portfolio.
+#' @slot port_construction_method A character string indicating the portfolio construction method used (e.g., "ew", "sw", "rp", "mvo", "custom_weights").
+#' @slot stock_universe_m_df A meta dataframe containing the stock universe derived from the backtest.
+#' @slot final_stock_universe_m_d_ref A meta dataframe containing the last stock universe.
 #' @slot port_backtest_workflow A list detailing the portfolio backtest workflow, including parameters, rebalancing dates, and other metadata.
 #' @slot backtest_identifier A character string representing the backtest identifier.
 #' @slot update A logical indicating whether the backtest results are an update or an original backtest.
@@ -2706,6 +2809,7 @@ setClass(
 #' the common backtest workflow parameters.
 #'
 #' @slot cohort_name A character string representing the cohort name.
+#' @slot port_backtest_results_list A list of `port_backtest_results` objects, each representing a portfolio backtest.
 #' @slot port_weights_m_df A meta_dataframe containing merged portfolio weights.
 #' @slot port_costs_m_xts_list A list of meta_xts objects for portfolio costs (direct_cost, market_impact_cost, total_cost, turnover).
 #' @slot port_returns_m_xts_list A list of meta_xts objects for portfolio returns (raw_return, net_return, raw_active_return, net_active_return).
@@ -2852,7 +2956,6 @@ setMethod("get_dates", "meta_xts", function(object) {
 #' This method extracts the `data` slot from a `meta_dataframe` object and returns it as a standard `data.frame`.
 #'
 #' @param x An object of class `meta_dataframe`.
-#' @param ... Additional arguments (ignored).
 #'
 #' @return A `data.frame` containing the contents of the `data` slot.
 #' @method as.data.frame meta_dataframe
@@ -2868,7 +2971,6 @@ setMethod(
 #' This method extracts the `data` slot from a `meta_xts` object and returns it as a standard `data.frame`.
 #'
 #' @param x An object of class `meta_xts`.
-#' @param ... Additional arguments (ignored).
 #'
 #' @return A `data.frame` containing the contents of the `data` slot.
 #' @method as.data.frame meta_xts

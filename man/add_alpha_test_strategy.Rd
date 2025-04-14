@@ -27,6 +27,46 @@ add_alpha_test_strategy(object, alpha_test_strategy, ...)
 \item{object}{An \code{ss_backtest_config} object.}
 
 \item{alpha_test_strategy}{An \code{alpha_test_strategy} object to be added.}
+
+\item{...}{Additional arguments to be passed to the method.}
+
+\item{signal_significance_threshold}{A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+provide 1. In any case, a signal being selected demands a significant CAPM alpha.}
+
+\item{p_correction_method}{The method for p-value correction. Possible options are:
+\itemize{
+\item{"none"}: No correction.
+\item{"bayesian"}: When bayesian is set, a hierarchical mixed-effects bayesian linear model is fitted to the data, using the \code{brms} package,
+which is an interface to the \code{Stan} probabilistic programming language.
+The user can also choose one of the following frequentist methods, which will control Family-Wise Error Rate (FWER) or the False Discovery Rate (FDR).
+FDR is less stringent than FWER.
+For FWER, possible options are:
+\item{"bonferroni"}: Bonferroni correction, which is dominated by Holm's method.
+\item{"holm"}: Holm's (1979) method.
+\item{"hochberg"}: Hochberg's (1988) method, valid when hypothesis tests are independent or non-negatively associated. Less powerful than Hommel's (1988) method, but
+faster to compute.
+\item{"hommel"}: Hommel's (1988) method, also valid when hypothesis tests are independent or non-negatively associated, but is more powerful than Hochberg (1988).
+For FDR, possible options are:
+\item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
+\item{"BY"}: Benjamini-Yekutieli (2001) procedure.
+}}
+
+\item{market_factor_proxy}{A character string indicating the market factor proxy to be used in the CAPM model.
+Should correspond to one of the columns in \code{benchmark_returns_df}.}
+
+\item{model_structure}{A character describing the model structure.}
+
+\item{theme_level_intercept}{A character indicating the specification for theme level intercept}
+
+\item{theme_level_slope}{A character indicating the specification for theme level slope}
+
+\item{enable_theme_representativeness}{A logical indicating whether, if a given theme in \code{signal_themes_m_df} does not have any eligible signal, the signal
+with highest alpha t-stat should be elected.}
+
+\item{bayesian_model_parameters}{An object of class \code{bayesian_model_parameters}, containing the
+parameters needed to build the hierarhicical bayesian model and specify its priors.}
+
+\item{lmer_control}{A list containing control parameters for the \code{lmer} function.}
 }
 \value{
 The updated \code{ss_backtest_config} object with the specified \code{alpha_test_strategy} added.

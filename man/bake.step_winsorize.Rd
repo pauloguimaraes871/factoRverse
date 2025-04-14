@@ -6,6 +6,11 @@
 \usage{
 \method{bake}{step_winsorize}(object, new_data, ...)
 }
+\arguments{
+\item{object}{A trained \code{step_winsorize} object.}
+
+\item{new_data}{A data frame to which the winsorization will be applied.}
+}
 \description{
 Apply winsorization during baking
 }

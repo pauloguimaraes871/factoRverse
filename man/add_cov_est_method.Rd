@@ -39,13 +39,15 @@ add_cov_est_method(object, cov_est_method, ...)
 
 \item{cov_est_method}{An existing object of class \code{cov_est_method}.}
 
-\item{...}{Additional arguments used to create a new \code{cov_est_method} when \code{cov_est_method} is missing. These arguments must include:
-\itemize{
-\item \strong{cov_estimation_method}: A character string representing the covariance estimation method. Must be one of \code{"sample"}, \code{"ewma"}, \code{"cc"}, \code{"pca1"}, \code{"pca2"}, \code{"shrink_id"} or \code{"shrink_cc"}.
-\item \strong{cov_matrix_sample_size}: Number of periods to subset return sample when estimating the covariance matrix. A high number provides
-higher degrees of freedom, but old returns might not reflect current risk due to parameter shifts. A low number increases estimation variance due to the curse of dimensionality.
-\item \strong{active_returns}: Logical. If \code{TRUE}, the covariance matrix is estimated using active returns. If \code{FALSE}, raw returns are used.
-}}
+\item{...}{Additional arguments.}
+
+\item{cov_estimation_method}{A character string representing the covariance estimation method. Must be one of \code{"sample"}, \code{"ewma"}, \code{"cc"}, \code{"pca1"}, \code{"pca2"}, \code{"shrink_id"} or \code{"shrink_cc"}.}
+
+\item{cov_matrix_sample_size}{Number of periods to subset return sample when estimating the covariance matrix. A high number provides}
+
+\item{active_returns}{logical. If \code{TRUE}, the covariance matrix is estimated using active returns. If \code{FALSE}, raw returns are used.}
+
+\item{cov_matrix_benchmark}{A character string representing the benchmark for covariance matrix estimation. This is used when \code{cov_estimation_method} is \code{"shrink_id"} or \code{"shrink_cc"}.}
 }
 \value{
 An updated object of class \code{sb_backtest_config} or \code{port_backtest_config} with the \code{cov_est_method} added.

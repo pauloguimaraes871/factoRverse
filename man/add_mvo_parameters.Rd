@@ -51,6 +51,14 @@ Only needed when \code{opt_method} is 'random'.
 \item \strong{opt_objective}: A character indicating the optimization objective.
 Possible options are 'return', 'risk' or 'sharpe'.
 }}
+
+\item{opt_method}{A character indicating the optimization method.}
+
+\item{random_ports_method}{A character string representing the method to generate random portfolios.}
+
+\item{n_random_ports}{Number of random portfolios to generate.}
+
+\item{opt_objective}{A character indicating the optimization objective.}
 }
 \value{
 An updated object of class \code{sb_backtest_config} or \code{port_backtest_config} with

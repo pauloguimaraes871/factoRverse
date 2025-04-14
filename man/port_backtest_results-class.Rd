@@ -11,15 +11,25 @@ signals derived from simple stock characteristics or expected returns from machi
 \section{Slots}{
 
 \describe{
+\item{\code{port_backtest_config}}{An object of class \code{port_backtest_config} containing the configuration parameters for the backtest.}
+
 \item{\code{port_weights_m_df}}{A meta dataframe containing the portfolio weights across different dates.}
 
-\item{\code{transactions_log_m_df}}{A meta dataframe containing the transaction logs from portfolio allocations.}
+\item{\code{transactions_log}}{An object of class \code{transactions_log} containing the transaction for the portfolio.}
 
 \item{\code{port_costs_m_xts}}{A meta xts object containing portfolio costs (e.g., direct cost, market impact cost, total cost, turnover) indexed by dates.}
 
 \item{\code{port_metrics_m_xts}}{A meta xts object containing portfolio performance metrics (if provided) indexed by dates.}
 
 \item{\code{port_returns_m_xts}}{A meta xts object containing portfolio returns (raw and net returns) indexed by dates.}
+
+\item{\code{final_stock_port}}{An object of class \code{stock_port} representing the final stock portfolio.}
+
+\item{\code{port_construction_method}}{A character string indicating the portfolio construction method used (e.g., "ew", "sw", "rp", "mvo", "custom_weights").}
+
+\item{\code{stock_universe_m_df}}{A meta dataframe containing the stock universe derived from the backtest.}
+
+\item{\code{final_stock_universe_m_d_ref}}{A meta dataframe containing the last stock universe.}
 
 \item{\code{port_backtest_workflow}}{A list detailing the portfolio backtest workflow, including parameters, rebalancing dates, and other metadata.}
 

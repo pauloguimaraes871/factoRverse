@@ -28,6 +28,8 @@ These arguments must include:
 \itemize{
 \item \strong{rp_method}: A character indicating the method to compute the risk-parity solution.
 }}
+
+\item{rp_method}{A character indicating the method to compute the risk-parity solution.}
 }
 \value{
 An updated object of class \code{sb_backtest_config} or \code{port_backtest_config} with

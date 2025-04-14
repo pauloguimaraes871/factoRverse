@@ -14,16 +14,24 @@ It includes information about eligible signals, signal universes, Bayesian fits,
 \section{Slots}{
 
 \describe{
+\item{\code{ss_backtest_config}}{An object of class \code{ss_backtest_config} containing the configuration for the backtest.}
+
 \item{\code{signal_universe_m_df}}{A meta dataframe containing the signal universes at each rebalancing period.}
 
 \item{\code{final_signal_universe_m_d_ref}}{A meta dataframe containing the last signal universe.}
 
-\item{\code{final_bayesian_fit_list}}{A list of Bayesian model fit results for each rebalancing period.}
+\item{\code{selected_market_factor_proxy_m_xts}}{A meta_xts object containing the selected market factor proxy.}
+
+\item{\code{frequentist_results}}{A list of frequentist model fit results}
+
+\item{\code{bayesian_results}}{A list of Bayesian model fit results}
 
 \item{\code{p_correction_method}}{A character string indicating the p-value correction method used.}
 
 \item{\code{ss_backtest_workflow}}{A list describing the signal selection backtest workflow, including parameters and metadata.}
 
 \item{\code{backtest_identifier}}{A character string representing the backtest identifier.}
+
+\item{\code{update}}{A logical indicating whether the backtest results should be updated.}
 }}
 

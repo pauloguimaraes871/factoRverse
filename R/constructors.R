@@ -1878,6 +1878,36 @@ create_alpha_test_strategy <- function(
 #' @description This method allows you to add an `alpha_test_strategy` object to an `ss_backtest_config` object.
 #' @param object An `ss_backtest_config` object.
 #' @param alpha_test_strategy An `alpha_test_strategy` object to be added.
+#' @param model_structure A character describing the model structure.
+#' @param signal_significance_threshold A decimal indicating the hypothesis testing negative-alpha null-hypothesis rejection criteria. If one wants to select all chosen_signals,
+#' provide 1. In any case, a signal being selected demands a significant CAPM alpha.
+#' @param p_correction_method The method for p-value correction. Possible options are:
+#'\itemize{
+#'  \item{"none"}: No correction.
+#'  \item{"bayesian"}: When bayesian is set, a hierarchical mixed-effects bayesian linear model is fitted to the data, using the `brms` package,
+#'  which is an interface to the `Stan` probabilistic programming language.
+#'  The user can also choose one of the following frequentist methods, which will control Family-Wise Error Rate (FWER) or the False Discovery Rate (FDR).
+#'  FDR is less stringent than FWER.
+#'  For FWER, possible options are:
+#'  \item{"bonferroni"}: Bonferroni correction, which is dominated by Holm's method.
+#'  \item{"holm"}: Holm's (1979) method.
+#'  \item{"hochberg"}: Hochberg's (1988) method, valid when hypothesis tests are independent or non-negatively associated. Less powerful than Hommel's (1988) method, but
+#'  faster to compute.
+#'  \item{"hommel"}: Hommel's (1988) method, also valid when hypothesis tests are independent or non-negatively associated, but is more powerful than Hochberg (1988).
+#'  For FDR, possible options are:
+#'  \item{"BH" or "fdr"}: Benjamini-Hochberg (1995) procedure.
+#'  \item{"BY"}: Benjamini-Yekutieli (2001) procedure.
+#'  }
+#' @param market_factor_proxy A character string indicating the market factor proxy to be used in the CAPM model.
+#' Should correspond to one of the columns in `benchmark_returns_df`.
+#' @param bayesian_model_parameters An object of class `bayesian_model_parameters`, containing the
+#' parameters needed to build the hierarhicical bayesian model and specify its priors.
+#' @param enable_theme_representativeness A logical indicating whether, if a given theme in `signal_themes_m_df` does not have any eligible signal, the signal
+#' with highest alpha t-stat should be elected.
+#' @param lmer_control A list containing control parameters for the `lmer` function.
+#' @param theme_level_intercept A character indicating the specification for theme level intercept
+#' @param theme_level_slope A character indicating the specification for theme level slope
+#' @param ... Additional arguments to be passed to the method.
 #' @return The updated `ss_backtest_config` object with the specified `alpha_test_strategy` added.
 #' @export
 setGeneric("add_alpha_test_strategy", function(object, alpha_test_strategy, ...) {
@@ -2060,6 +2090,7 @@ setMethod(
 #' @param distribution_choice A character vector specifying the distribution of the prior (e.g., "normal", "student_t").
 #' @param pars A list of named numeric vectors specifying parameters for the chosen distribution.
 #' @param level A character string specifying the hierarchical level for random effects. Options: "signals" (default), "tickers", or "theme".
+#' @param ... Additional arguments.
 #' @return An updated `bayesian_alpha_test_strategy` object with the added prior.
 #' @details
 #' - For `effect = "fixed"`, you can specify global intercepts or slopes, or theme-specific priors using the `theme` argument.
@@ -2256,6 +2287,7 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
 #'
 #' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
 #' @param tuning_strategy An object of class `tuning_strategy`, or `NULL`.
+#' @param hyper_grid_domain An object of class `hyper_grid_domain`, or `NULL`.
 #' If `NULL`, additional parameters must be provided to create a new `tuning_strategy`.
 #' @param ... Additional arguments required to create a new `tuning_strategy`, only needed when tuning_strategy is `NULL`.
 #' @return An updated `sb_backtest_config` object with the specified or newly created `tuning_strategy`.
@@ -2369,6 +2401,7 @@ setMethod(
 #'
 #' @param object A `tuning_strategy` or a `hyper_grid_domain` object.
 #' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
+#' @param ... Additional arguments for the hyperparameter.
 #' \itemize{
 #'  \item \strong{glmnet}: alpha, lambda.min.ratio
 #'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
@@ -2921,13 +2954,11 @@ create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_s
 #'
 #' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
 #' @param cov_est_method An object of class `cov_est_method`, or missing if a new object is to be created.
-#' @param ... Additional arguments used to create a new `cov_est_method` when `cov_est_method` is missing. These arguments must include:
-#' \itemize{
-#'   \item \strong{cov_estimation_method}: A character string representing the covariance estimation method. Must be one of `"sample"`, `"ewma"`, `"cc"`, `"pca1"`, `"pca2"`, `"shrink_id"` or `"shrink_cc"`.
-#'   \item \strong{cov_matrix_sample_size}: Number of periods to subset return sample when estimating the covariance matrix. A high number provides
-#' higher degrees of freedom, but old returns might not reflect current risk due to parameter shifts. A low number increases estimation variance due to the curse of dimensionality.
-#'   \item \strong{active_returns}: Logical. If `TRUE`, the covariance matrix is estimated using active returns. If `FALSE`, raw returns are used.
-#' }
+#' @param cov_estimation_method A character string representing the covariance estimation method. Must be one of `"sample"`, `"ewma"`, `"cc"`, `"pca1"`, `"pca2"`, `"shrink_id"` or `"shrink_cc"`.
+#' @param cov_matrix_sample_size Number of periods to subset return sample when estimating the covariance matrix. A high number provides
+#' @param active_returns logical. If `TRUE`, the covariance matrix is estimated using active returns. If `FALSE`, raw returns are used.
+#' @param cov_matrix_benchmark A character string representing the benchmark for covariance matrix estimation. This is used when `cov_estimation_method` is `"shrink_id"` or `"shrink_cc"`.
+#' @param ... Additional arguments.
 #'
 #' @return An updated object of class `sb_backtest_config` or `port_backtest_config` with the `cov_est_method` added.
 #' @export
@@ -3087,6 +3118,10 @@ create_mvo_parameters <- function(opt_method = "random",
 #'
 #' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
 #' @param mvo_params An object of class `mvo_parameters`, or missing if a new object is to be created.
+#' @param opt_method A character indicating the optimization method.
+#' @param random_ports_method A character string representing the method to generate random portfolios.
+#' @param n_random_ports Number of random portfolios to generate.
+#' @param opt_objective A character indicating the optimization objective.
 #' @param ... Additional arguments used to create a new `mvo_parameters` object when `mvo_params` is missing.
 #'   These arguments must include:
 #'   \itemize{
@@ -3229,6 +3264,7 @@ create_rp_parameters <- function(rp_method = "cyclical-spinu") {
 #'
 #' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
 #' @param rp_params An object of class `rp_parameters`, or missing if a new object is to be created.
+#' @param rp_method A character indicating the method to compute the risk-parity solution.
 #' @param ... Additional arguments used to create a new `rp_parameters` object when `rp_params` is missing.
 #'   These arguments must include:
 #'   \itemize{
@@ -3701,6 +3737,9 @@ create_concentration_constraint_policy <- function(
 #'
 #' @param object An object of class \code{port_backtest_config} or \code{sb_backtest_config}.
 #' @param policy A \code{concentration_constraint_policy} object, or missing if a new one is to be created.
+#' @param benchmark A character vector indicating the benchmark to be used.
+#' @param max_abs_active_individual_weight A numeric indicating the max absolute active weight for individual assets.
+#' @param max_abs_active_group_weight A named numeric vector for group constraints.
 #' @param ... Additional arguments used to create a new \code{concentration_constraint_policy}
 #'   if \code{policy} is missing. These typically include:
 #'   \itemize{

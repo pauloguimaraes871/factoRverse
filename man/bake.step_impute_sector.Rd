@@ -6,6 +6,11 @@
 \usage{
 \method{bake}{step_impute_sector}(object, new_data, ...)
 }
+\arguments{
+\item{object}{A \code{step_impute_sector} object.}
+
+\item{new_data}{A data frame of new data to which the imputation will be applied.}
+}
 \description{
 Apply imputation during baking
 }

@@ -3,15 +3,29 @@
 \docType{class}
 \name{signal_universe_m_df-class}
 \alias{signal_universe_m_df-class}
-\title{Define the signal_universe_meta_dataframe S4 Class}
+\title{Define the signal_universe_m_df S4 Class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
+This class inherits from \code{meta_dataframe} and enforces that the underlying data adheres to the output of a signal selection backtest workflow.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{universe_name}}{A \code{character} string describing the universe name.}
+\item{\code{ss_backtest_workflow}}{An \code{ANY} object storing the signal selection backtest workflow.}
 
-\item{\code{ss_backtest_workflow}}{A \code{list} storing the ss_backtest_workflow that generated the signal_universe_meta_dataframe object.}
+\item{\code{data}}{A \code{data.frame} storing signal metrics and metadata.}
+
+\item{\code{workflow}}{A \code{list} capturing preprocessing or backtesting steps.}
+
+\item{\code{signals}}{A \code{character} vector of signal column names.}
+
+\item{\code{unique_dates}}{A \code{numeric} count of unique dates in the data.}
+
+\item{\code{unique_tickers}}{A \code{numeric} count of unique tickers in the data.}
+
+\item{\code{n_obs}}{A \code{numeric} value for total number of observations.}
+
+\item{\code{current_date}}{A \code{Date} representing the latest available date.}
+
+\item{\code{meta_dataframe_name}}{A \code{character} name label for the object.}
 }}
 

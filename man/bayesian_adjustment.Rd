@@ -34,6 +34,10 @@ A dataframe containing information about signals with the following columns:
 \item{final_signal}{Finalized signals to be used in the Bayesian adjustment.}
 }}
 
+\item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{Meta xts containing backtest returns for selected signals}
+
+\item{selected_market_factor_proxy_m_xts_upd_ref}{Meta xts containing backtest returns for selected markte factor proxy}
+
 \item{priors_m_upd_ref}{Data frame.
 A (meta)data frame with the following columns:
 \describe{
@@ -48,12 +52,12 @@ A (meta)data frame with the following columns:
 \strong{Note:} This dataframe should contain data only for the current date.}
 
 \item{model_spec_theme_level}{Character string.
-Specifies the structure of the hierarchical Bayesian model at the theme level. Options include:
+Specifies the structure of the hierarchical Bayesian model. Options include:
 \describe{
-\item{\code{"random_intercept"}}{Random effects on the theme-level intercept. Includes random intercepts for themes and both random intercepts and slopes for each theme-signal combination.}
-\item{\code{"fixed_intercepts"}}{Fixed intercepts for each theme, with a global slope for the market factor proxy. Nested variability within themes is modeled using random intercepts and slopes for theme-signal combinations.}
-\item{\code{"fixed_intercepts_and_slopes"}}{Fixed intercepts and slopes for each theme. Includes interaction terms between themes and the market factor proxy, with random intercepts for tickers.}
-\item{\code{"none"}}{No theme-level effects; only random intercepts and slopes for theme-signal combinations.}
+\item{\code{"random_intercept_fixed_slope"}}{Random intercepts for signals, fixed slope across all themes.}
+\item{\code{"theme_specific_intercept_fixed_slope"}}{Fixed intercepts per theme, fixed slope across themes.}
+\item{\code{"theme_specific_intercept_theme_specific_slope"}}{Fixed intercepts and slopes per theme.}
+\item{\code{"fixed_intercept_fixed_slope"}}{One fixed intercept and slope across all observations.}
 }}
 
 \item{user_priors}{List.
@@ -107,16 +111,6 @@ Indicates whether to enable parallel computation using the \code{future} package
 
 \item{verbose}{Logical.
 Indicates whether to print progress messages during the Bayesian model fitting process. If \code{TRUE}, progress messages are printed; otherwise, they are suppressed. Default is \code{TRUE}.}
-
-\item{selected_backtest_returns_corrected_positions_upd_ref}{Data frame.
-Contains backtest returns data for various signals. The structure should be:
-\describe{
-\item{First column}{Identifiers for the signals (e.g., \code{tickers}).}
-\item{Subsequent columns}{Returns data corresponding to each signal.}
-}}
-
-\item{selected_market_factor_proxy_vector_upd_ref}{Numeric vector.
-A vector containing benchmark returns data. This vector will be recycled to match the length of the backtest returns data.}
 }
 \value{
 A named list with the following components:
@@ -132,6 +126,9 @@ The priors used in the Bayesian model, either derived from data or provided by t
 }
 \item{\code{frequentist_model}}{\code{lme4::lmer} object.
 The fitted frequentist linear mixed-effects model used to derive informative priors.
+}
+#'   \item{\code{posterior_draws_summaries}}{Data frame.
+Summary statistics of posterior distributions for each signal including mean, standard deviation, and confidence intervals for model parameters.
 }
 }
 }
@@ -155,36 +152,4 @@ Extracts posterior draws from the fitted models and summarizes them using the \c
 }
 
 The Bayesian hierarchical model accounts for both theme-level and signal-level variations, allowing for nuanced adjustments based on the hierarchical structure of the data. Informative priors can be derived from existing data or specified by the user, providing flexibility in modeling approaches.
-}
-\examples{
-\dontrun{
-# Example usage of bayesian_adjustment function
-results <- bayesian_adjustment(
-  signal_universe_m_d_ref = signal_universe_df,
-  selected_backtest_returns_corrected_positions_upd_ref = backtest_returns_df,
-  selected_market_factor_proxy_vector_upd_ref = market_factor_vector,
-  priors_m_upd_ref = priors_df,
-  priors_type = "all",
-  model_spec_theme_level = "random_intercept",
-  v = 30,
-  lmer_optimizer = "nloptwrap",
-  selected_signal_themes_m_d_ref = signal_themes_df,
-  user_priors_list = NULL,
-  chains = 4,
-  iter = 2000,
-  warmup = 1000,
-  thin = 1,
-  seed = 123,
-  adapt_delta = 0.99,
-  parallel = TRUE,
-  verbose = TRUE
-)
-
-# Access the updated signal universe with posterior metrics
-updated_signal_universe <- results$posterior_signal_universe_m_d_ref
-
-# Access the fitted Bayesian model
-bayesian_model <- results$bayesian_model
-}
-
 }
