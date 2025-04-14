@@ -75,6 +75,7 @@ setMethod("map_recipe_timewise",
 
               ###Define a function to process time-wise
               process_date <- function(current_date) {
+
                 pre_silver_features_m_d_ref <- pre_silver_features_m_df %>% dplyr::filter(dates == current_date)
 
                 if (nrow(pre_silver_features_m_d_ref) < 2) {
@@ -226,6 +227,7 @@ step_winsorize_new <- function(terms, role, trained, probs, winsor_limits, skip,
 #' @param info An optional `term_info` object (not used here).
 #' @param ... Additional arguments passed to methods (currently not used).
 #'
+#' @importFrom recipes prep
 #' @return An updated `step_winsorize` object with estimated bounds stored in `winsor_limits` and `trained = TRUE`.
 #' @export
 prep.step_winsorize <- function(x, training, info = NULL, ...) {
@@ -297,6 +299,7 @@ prep.step_winsorize <- function(x, training, info = NULL, ...) {
 }
 
 #' Apply winsorization during baking
+#' @importFrom recipes bake
 #' @export
 bake.step_winsorize <- function(object, new_data, ...) {
   if (!object$trained) {
@@ -340,6 +343,7 @@ print.step_winsorize <- function(x, width = max(20, options()$width - 30), ...) 
 
 
 #' Tidy method for step_winsorize
+#' @importFrom recipes tidy
 #' @export
 tidy.step_winsorize <- function(x, ...) {
   if (recipes::is_trained(x)) {
@@ -433,6 +437,7 @@ step_impute_sector_new <- function(terms, sector, method, role, trained, impute_
 #' @param info A `term_info` object passed by `prep()`, not used here.
 #' @param ... Additional arguments passed to methods (not used).
 #'
+#' @importFrom recipes prep
 #' @return An updated `step_impute_sector` object with `trained = TRUE` and imputation values stored.
 #' @export
 prep.step_impute_sector <- function(x, training, info = NULL, ...) {
@@ -486,6 +491,7 @@ prep.step_impute_sector <- function(x, training, info = NULL, ...) {
 }
 
 #' Apply imputation during baking
+#' @importFrom recipes bake
 #' @export
 bake.step_impute_sector <- function(object, new_data, ...) {
   if (!object$trained) {
@@ -513,6 +519,7 @@ bake.step_impute_sector <- function(object, new_data, ...) {
 }
 
 #' Tidy method for step_impute_sector
+#' @importFrom recipes tidy
 #' @export
 tidy.step_impute_sector <- function(x, ...) {
   if (recipes::is_trained(x)) {
