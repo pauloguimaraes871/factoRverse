@@ -17,9 +17,11 @@ Suggests:
     testthat (>= 3.0.0),
     yardstick,
     DT,
+    fmsb,
     gridExtra,
     htmltools,
     htmlwidgets,
+    reshape2,
     scales,
     crayon,
     tictoc
@@ -127,7 +129,6 @@ Collate:
     'utils-generate_box_constraints.R'
     'utils-generate_group_constraints.R'
     'utils-get_features_positions.R'
-    'utils-get_priors_from_informative_data.R'
     'utils-globals.R'
     'utils-hyper_tune.R'
     'utils-merge_and_rescale_weights.R'
