@@ -34,19 +34,3 @@ tickers, and total observations respectively.
 \item{\code{meta_dataframe_name}}{A \code{character} value representing the name of the meta_dataframe.}
 }}
 
-\examples{
-# Define a sample data frame
-df <- data.frame(
-  id = c("A-2024-01-01", "B-2024-02-01"),
-  tickers = c("A", "B"),
-  dates = as.Date(c("2024-01-01", "2024-02-01")),
-  value = c(10, 20)
-)
-
-# Create a meta_dataframe object
-meta_df <- create_meta_dataframe(df)
-
-# Print the meta_dataframe object
-print(meta_df)
-
-}

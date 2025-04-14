@@ -17,10 +17,3 @@ An S4 object of class \code{rp_parameters}.
 \description{
 Constructor function for creating an instance of \code{rp_parameters}.
 }
-\examples{
-# Create an `rp_parameters` object with default values:
-rp_params_default <- create_rp_parameters()
-
-# Create an `rp_parameters` object with custom values:
-rp_params_custom <- create_rp_parameters(rp_method = "gauss-seidel")
-}

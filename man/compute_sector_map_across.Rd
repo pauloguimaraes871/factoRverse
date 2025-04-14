@@ -2,9 +2,19 @@
 % Please edit documentation in R/compute_sector_map_across.R
 \name{compute_sector_map_across}
 \alias{compute_sector_map_across}
+\alias{compute_sector_map_across,meta_dataframe,meta_xts,character,list-method}
 \title{Compute Sector-Based Mapped Values Across a Meta XTS}
 \usage{
 compute_sector_map_across(meta_dataframe, meta_xts, sector_column, mapper, ...)
+
+\S4method{compute_sector_map_across}{meta_dataframe,meta_xts,character,list}(
+  meta_dataframe,
+  meta_xts,
+  sector_column,
+  mapper,
+  feature_name = NULL,
+  ...
+)
 }
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object containing the target data.}
@@ -13,9 +23,9 @@ compute_sector_map_across(meta_dataframe, meta_xts, sector_column, mapper, ...)
 
 \item{mapper}{A named \code{list} in which names represent sector names and elements are formulas defining how to compute values (e.g., \code{~-A}, \code{~A + B}).}
 
-\item{sector_columnumn}{A \code{character} specifying the column in \code{meta_dataframe} that contains sector classifications.}
-
 \item{feature_name}{A \code{character} specifying the name of the new computed column. Default is \verb{<sector_column>_sector_value}.}
+
+\item{sector_columnumn}{A \code{character} specifying the column in \code{meta_dataframe} that contains sector classifications.}
 }
 \value{
 A modified \code{meta_dataframe} with the new column containing computed values.

@@ -2,9 +2,12 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_transaction_costs_parameters}
 \alias{get_transaction_costs_parameters}
+\alias{get_transaction_costs_parameters,port_backtest_config-method}
 \title{Accessor for Transaction Cost Parameters}
 \usage{
 get_transaction_costs_parameters(port_backtest_config_obj)
+
+\S4method{get_transaction_costs_parameters}{port_backtest_config}(port_backtest_config_obj)
 }
 \arguments{
 \item{port_backtest_config_obj}{A \code{port_backtest_config} object.}

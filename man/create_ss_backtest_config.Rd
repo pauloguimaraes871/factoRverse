@@ -36,12 +36,3 @@ An object of class \code{ss_backtest_config}.
 This function constructs an object of class \code{ss_backtest_config}, ensuring the proper initialization
 and validation of its slots.
 }
-\examples{
-# Example usage:
-config <- create_ss_backtest_config(
-  initial_sample_size = 200,
-  rebalancing_months = 6,
-  alpha_test_strategy = alpha_test_strategy_obj,
-  config_name = "ExampleConfig"
-)
-}

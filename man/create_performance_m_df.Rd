@@ -33,12 +33,3 @@ A data frame containing performance metrics for the specified signals. The metri
 This function calculates a wide range of performance and risk metrics for financial signals based on backtest returns and a benchmark.
 The results are returned as a structured data frame.
 }
-\examples{
-# Example usage:
-performance_m_df <- create_performance_m_df(
-  selected_signals = c("Signal_A", "Signal_B"),
-  current_date = "2024-12-12",
-  selected_backtest_returns_corrected_positions_m_xts_upd_ref = backtest_m_xts,
-  baseline_benchmark_m_xts_upd_ref = benchmark_m_xts
-)
-}

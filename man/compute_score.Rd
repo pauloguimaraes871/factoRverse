@@ -2,9 +2,17 @@
 % Please edit documentation in R/compute_score.R
 \name{compute_score}
 \alias{compute_score}
+\alias{compute_score,meta_dataframe,list,character-method}
 \title{Compute Score Based on Conditions}
 \usage{
 compute_score(features_m_df, conditions, feature_name, ...)
+
+\S4method{compute_score}{meta_dataframe,list,character}(
+  features_m_df,
+  conditions,
+  feature_name = "score",
+  min_non_na = 0
+)
 }
 \arguments{
 \item{features_m_df}{A \code{meta_dataframe} object.}

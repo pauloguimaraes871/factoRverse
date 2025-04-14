@@ -2,9 +2,12 @@
 % Please edit documentation in R/compute_formula.R
 \name{compute_formula}
 \alias{compute_formula}
+\alias{compute_formula,meta_dataframe,formula-method}
 \title{Compute Formula-Based Signal Calculation}
 \usage{
 compute_formula(features_m_df, formula, ignore_NA = NULL)
+
+\S4method{compute_formula}{meta_dataframe,formula}(features_m_df, formula, ignore_NA = NULL)
 }
 \arguments{
 \item{features_m_df}{A \code{meta_dataframe} object.}

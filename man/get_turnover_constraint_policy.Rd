@@ -2,9 +2,12 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_turnover_constraint_policy}
 \alias{get_turnover_constraint_policy}
+\alias{get_turnover_constraint_policy,port_backtest_config-method}
 \title{Accessor for Turnover Constraint Policy}
 \usage{
 get_turnover_constraint_policy(port_backtest_config_obj)
+
+\S4method{get_turnover_constraint_policy}{port_backtest_config}(port_backtest_config_obj)
 }
 \arguments{
 \item{port_backtest_config_obj}{A \code{port_backtest_config} object.}

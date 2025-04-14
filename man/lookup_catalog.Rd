@@ -2,9 +2,16 @@
 % Please edit documentation in R/class_definitions.R
 \name{lookup_catalog}
 \alias{lookup_catalog}
+\alias{lookup_catalog,tickers_catalog-method}
 \title{Lookup method for tickers_catalog}
 \usage{
 lookup_catalog(
+  tickers_catalog,
+  tickers_to_lookup = NULL,
+  perm_id_to_lookup = NULL
+)
+
+\S4method{lookup_catalog}{tickers_catalog}(
   tickers_catalog,
   tickers_to_lookup = NULL,
   perm_id_to_lookup = NULL

@@ -2,9 +2,15 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_brms_prior}
 \alias{get_brms_prior}
+\alias{get_brms_prior,ss_backtest_results-method}
+\alias{get_brms_prior,ss_backtest_config-method}
 \title{Get brms priors}
 \usage{
 get_brms_prior(object)
+
+\S4method{get_brms_prior}{ss_backtest_results}(object)
+
+\S4method{get_brms_prior}{ss_backtest_config}(object)
 }
 \arguments{
 \item{object}{A \code{ss_backtest_config} or a \code{ss_backtest_results} object.}

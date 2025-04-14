@@ -47,7 +47,7 @@ check_inputs_port_backtest(
 )
 }
 \arguments{
-\item{signals_m_df}{A data frame containing signal data that must be coercible to a meta_dataframe. It must have at least the columns for IDs, tickers, and dates (columns 1:3) and subsequent columns should be numeric and free of NAs. Dates must be of class \code{Date} and follow the \\%Y-\\%m-\\%d format.}
+\item{signals_m_df}{A data frame containing signal data that must be coercible to a meta_dataframe. It must have at least the columns for IDs, tickers, and dates (columns 1:3) and subsequent columns should be numeric and free of NAs. Dates must be of class \code{Date}.}
 
 \item{oos_predictions_m_df}{(Optional) A data frame with out-of-sample predictions that must be coercible to a meta_dataframe. It is expected to contain the columns: \code{"id"}, \code{"tickers"}, \code{"dates"}, and \code{"pred"}. The IDs in this data frame must correspond to the IDs in \code{signals_m_df} after the initial buffer period.}
 
@@ -132,15 +132,5 @@ check_inputs_port_backtest(
 Validates all inputs required to run a portfolio backtest, including structure, consistency, and ranges.
 }
 \details{
-This function performs comprehensive validation of multiple inputs for a portfolio backtest. It checks:
-
-\itemize{
-\item Data coercion to \code{meta_dataframe} and column format correctness.
-\item Presence and consistency of ID, ticker, and date information.
-\item Validity of signal metrics, forward returns, and optional prediction scores.
-\item Time series structure of all xts objects (daily and monthly).
-\item Format and feasibility of constraints and custom inputs.
-\item Structural alignment between volatility, liquidity, weights, and benchmark inputs.
-\item Applicability and completeness of transaction cost parameters and units.
-}
+This function performs comprehensive validation of multiple inputs for a portfolio backtest.
 }

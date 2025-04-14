@@ -33,15 +33,3 @@ An S4 object of class \code{mvo_parameters}.
 \description{
 Constructor function for creating an instance of \code{mvo_parameters}.
 }
-\examples{
-# Create an `mvo_parameters` object with default values:
-mvo_params_default <- create_mvo_parameters()
-
-# Create an `mvo_parameters` object with custom values:
-mvo_params_custom <- create_mvo_parameters(
-  opt_method = "random",
-  random_ports_method = "grid",
-  n_random_ports = 500,
-  opt_objective = "risk"
-)
-}

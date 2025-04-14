@@ -2,6 +2,7 @@
 % Please edit documentation in R/constructors.R
 \name{create_target_m_df}
 \alias{create_target_m_df}
+\alias{create_target_m_df,meta_dataframe,meta_xts,meta_dataframe-method}
 \title{Create a target_m_df from a meta_dataframe}
 \usage{
 create_target_m_df(
@@ -9,6 +10,17 @@ create_target_m_df(
   daily_bench_returns_m_xts,
   features_m_df,
   ...
+)
+
+\S4method{create_target_m_df}{meta_dataframe,meta_xts,meta_dataframe}(
+  daily_returns_m_df,
+  daily_bench_returns_m_xts,
+  features_m_df,
+  past_ret_column,
+  selected_bench,
+  fwd_horizon,
+  active_returns,
+  parallel = TRUE
 )
 }
 \arguments{

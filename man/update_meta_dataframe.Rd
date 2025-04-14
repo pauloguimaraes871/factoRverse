@@ -2,9 +2,16 @@
 % Please edit documentation in R/constructors.R
 \name{update_meta_dataframe}
 \alias{update_meta_dataframe}
+\alias{update_meta_dataframe,meta_dataframe,meta_dataframe-method}
 \title{Update Meta Dataframe}
 \usage{
 update_meta_dataframe(old_features_m_df, new_features_m_df, ...)
+
+\S4method{update_meta_dataframe}{meta_dataframe,meta_dataframe}(
+  old_features_m_df,
+  new_features_m_df,
+  batch_type = "monthly"
+)
 }
 \arguments{
 \item{old_features_m_df}{A features meta_dataframe object with previous data}

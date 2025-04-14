@@ -30,7 +30,3 @@ a unique identifier (\code{perm_id}), and classification flags for private and d
 \item{\code{n_days_tolerance}}{A numeric value representing the number of days to consider a stock as delisted.}
 }}
 
-\examples{
-showClass("tickers_catalog")
-
-}

@@ -2,9 +2,20 @@
 % Please edit documentation in R/compute_across.R
 \name{compute_across}
 \alias{compute_across}
+\alias{compute_across,meta_dataframe,meta_xts,character-method}
 \title{Compute Across: Apply a Calculation Between meta_dataframe and meta_xts}
 \usage{
 compute_across(
+  meta_dataframe,
+  meta_xts,
+  FUN,
+  feature_name = NULL,
+  signal = NULL,
+  metric,
+  ...
+)
+
+\S4method{compute_across}{meta_dataframe,meta_xts,character}(
   meta_dataframe,
   meta_xts,
   FUN,

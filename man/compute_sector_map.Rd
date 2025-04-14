@@ -2,9 +2,18 @@
 % Please edit documentation in R/compute_sector_map.R
 \name{compute_sector_map}
 \alias{compute_sector_map}
+\alias{compute_sector_map,meta_dataframe,character,list-method}
 \title{Compute Sector-Based Column Transformations}
 \usage{
 compute_sector_map(meta_dataframe, sector_column, mapper, ...)
+
+\S4method{compute_sector_map}{meta_dataframe,character,list}(
+  meta_dataframe,
+  sector_column,
+  mapper,
+  feature_name = NULL,
+  ...
+)
 }
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object containing the target data.}

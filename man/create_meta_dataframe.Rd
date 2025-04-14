@@ -95,17 +95,3 @@ This method converts a structured \code{list} of matrices, \code{data.frames}, o
 The input list must contain specific components required to build the panel data structure.
 
 }}
-\examples{
-# Create a sample data frame
-df <- data.frame(
-  id = c("A-2024-01-01", "B-2024-02-01"),
-  tickers = c("A", "B"),
-  dates = as.Date(c("2024-01-01", "2024-02-01")),
-  value = c(10, 20),
-  stringsAsFactors = FALSE
-)
-
-# Create a meta_dataframe object
-meta_df <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
-
-}

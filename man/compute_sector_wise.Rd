@@ -2,9 +2,20 @@
 % Please edit documentation in R/compute_sector_wise.R
 \name{compute_sector_wise}
 \alias{compute_sector_wise}
+\alias{compute_sector_wise,meta_dataframe,character,character,character-method}
 \title{Compute Sector-Wise Calculation for a Given Signal in a meta_dataframe}
 \usage{
 compute_sector_wise(
+  features_m_df,
+  sector_column,
+  signal,
+  FUN,
+  na.rm = TRUE,
+  feature_name = NULL,
+  min_non_na = 0
+)
+
+\S4method{compute_sector_wise}{meta_dataframe,character,character,character}(
   features_m_df,
   sector_column,
   signal,

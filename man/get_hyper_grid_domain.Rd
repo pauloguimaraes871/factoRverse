@@ -3,6 +3,7 @@
 \name{get_hyper_grid_domain}
 \alias{get_hyper_grid_domain}
 \alias{get_hyper_grid_domain,sb_backtest_config-method}
+\alias{get_hyper_grid_domain,tuning_strategy-method}
 \alias{get_hyper_grid_domain,sb_metabacktest_config-method}
 \alias{get_hyper_grid_domain,sb_backtest_results-method}
 \title{Get Hyperparameter Grid Domain}
@@ -10,6 +11,8 @@
 get_hyper_grid_domain(object)
 
 \S4method{get_hyper_grid_domain}{sb_backtest_config}(object)
+
+\S4method{get_hyper_grid_domain}{tuning_strategy}(object)
 
 \S4method{get_hyper_grid_domain}{sb_metabacktest_config}(object)
 

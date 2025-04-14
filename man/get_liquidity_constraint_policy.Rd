@@ -2,9 +2,12 @@
 % Please edit documentation in R/class_definitions.R
 \name{get_liquidity_constraint_policy}
 \alias{get_liquidity_constraint_policy}
+\alias{get_liquidity_constraint_policy,port_backtest_config-method}
 \title{Accessor for Liquidity Constraint Policy}
 \usage{
 get_liquidity_constraint_policy(port_backtest_config_obj)
+
+\S4method{get_liquidity_constraint_policy}{port_backtest_config}(port_backtest_config_obj)
 }
 \arguments{
 \item{port_backtest_config_obj}{A \code{port_backtest_config} object.}

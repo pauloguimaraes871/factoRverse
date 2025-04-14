@@ -2,9 +2,18 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{map_recipe_timewise}
 \alias{map_recipe_timewise}
+\alias{map_recipe_timewise,meta_dataframe,recipe-method}
 \title{Map a Recipe to Sequential Dates}
 \usage{
 map_recipe_timewise(
+  meta_dataframe,
+  recipe,
+  verbose = TRUE,
+  parallel = TRUE,
+  type = "signals"
+)
+
+\S4method{map_recipe_timewise}{meta_dataframe,recipe}(
   meta_dataframe,
   recipe,
   verbose = TRUE,

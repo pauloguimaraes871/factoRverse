@@ -58,23 +58,3 @@ Alternatively, the user can provide a list of \code{sb_backtest_results} directl
 )}: Create meta config from ss_backtest_results
 
 }}
-\examples{
-# Example usage:
-# Assuming you have sb_backtest_config objects sb_config1, sb_config2
-# and ss_backtest_config objects ss_config1, ss_config2
-
-# First method: Combine sb_configs and ss_configs
-meta_config <- create_sb_metabacktest_config(
-  meta_sb_backtest_config = sb_backtest_config,
-  base_sb_backtest_configs = list(sb_config1, sb_config2),
-  ss_backtest_configs = list(ss_config1, ss_config2)
-)
-
-# Second method: Configs already have ss_backtest_config set
-meta_config <- create_sb_metabacktest_config(
-  meta_sb_backtest_config = sb_backtest_config,
-  base_sb_backtest_configs = list(config1, config2)
-)
-
-
-}

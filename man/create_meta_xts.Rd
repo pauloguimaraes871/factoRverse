@@ -2,6 +2,9 @@
 % Please edit documentation in R/constructors.R
 \name{create_meta_xts}
 \alias{create_meta_xts}
+\alias{create_meta_xts,xts-method}
+\alias{create_meta_xts,data.frame-method}
+\alias{create_meta_xts,meta_dataframe-method}
 \title{Create a meta_xts, assets_meta_xts or metrics_meta_xts object.}
 \usage{
 create_meta_xts(
@@ -13,6 +16,37 @@ create_meta_xts(
   workflow = NULL,
   source = NULL,
   ...
+)
+
+\S4method{create_meta_xts}{xts}(
+  data,
+  type = c("returns", "metrics"),
+  asset_type = "not_identified",
+  meta_xts_name = "not_identified",
+  metric_name = NULL,
+  workflow = NULL,
+  source = NULL
+)
+
+\S4method{create_meta_xts}{data.frame}(
+  data,
+  type = c("returns", "metrics"),
+  asset_type = "not_identified",
+  meta_xts_name = "not_identified",
+  metric_name = NULL,
+  workflow = NULL,
+  source = NULL,
+  data_format = c("wide", "long"),
+  dates = NULL
+)
+
+\S4method{create_meta_xts}{meta_dataframe}(
+  data,
+  type = c("returns", "metrics"),
+  asset_type = "not_identified",
+  meta_xts_name = "not_identified",
+  metric_name = NULL,
+  source = NULL
 )
 }
 \arguments{

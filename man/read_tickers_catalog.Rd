@@ -2,9 +2,15 @@
 % Please edit documentation in R/read_tickers_catalog.R
 \name{read_tickers_catalog}
 \alias{read_tickers_catalog}
+\alias{read_tickers_catalog,raw_features_m_df,tickers_catalog-method}
+\alias{read_tickers_catalog,returns_meta_xts,tickers_catalog-method}
 \title{Apply tickers_catalog Transformations}
 \usage{
 read_tickers_catalog(data, tickers_catalog, ...)
+
+\S4method{read_tickers_catalog}{raw_features_m_df,tickers_catalog}(data, tickers_catalog, verbose = TRUE)
+
+\S4method{read_tickers_catalog}{returns_meta_xts,tickers_catalog}(data, tickers_catalog, verbose = TRUE)
 }
 \arguments{
 \item{data}{An object of class \code{raw_features_m_df} or \code{returns_meta_xts}.}

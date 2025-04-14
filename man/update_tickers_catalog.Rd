@@ -2,9 +2,16 @@
 % Please edit documentation in R/constructors.R
 \name{update_tickers_catalog}
 \alias{update_tickers_catalog}
+\alias{update_tickers_catalog,tickers_catalog,tickers_catalog-method}
 \title{Update a \code{tickers_catalog} Object}
 \usage{
 update_tickers_catalog(old_tickers_catalog, new_tickers_catalog, ...)
+
+\S4method{update_tickers_catalog}{tickers_catalog,tickers_catalog}(
+  old_tickers_catalog,
+  new_tickers_catalog,
+  ticker_changes = NULL
+)
 }
 \arguments{
 \item{old_tickers_catalog}{A \code{tickers_catalog} object representing the previously stored catalog.}

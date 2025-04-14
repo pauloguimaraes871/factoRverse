@@ -34,18 +34,3 @@ The updated \code{ss_backtest_config} object with the specified \code{alpha_test
 \description{
 This method allows you to add an \code{alpha_test_strategy} object to an \code{ss_backtest_config} object.
 }
-\examples{
-# Example usage
-alpha_strategy <- new("frequentist_alpha_test_strategy",
-  signal_significance_threshold = 0.05,
-  p_correction_method = "holm",
-  market_factor_proxy = "S&P500"
-)
-config <- create_ss_backtest_config(
-  initial_sample_size = 200,
-  rebalancing_months = 6,
-  alpha_test_strategy = NULL,
-  config_name = "ExampleConfig"
-)
-config <- add_alpha_test_strategy(config, alpha_strategy)
-}
