@@ -29,7 +29,8 @@ setGeneric("compute_across",
            }
 )
 
-# Method for meta_dataframe and meta_xts
+#' @rdname compute_across
+#' @export
 setMethod("compute_across",
           signature(meta_dataframe = "meta_dataframe", meta_xts = "meta_xts", FUN = "character"),
           function(meta_dataframe, meta_xts, FUN, feature_name = NULL, signal = NULL, metric, ...) {

@@ -20,6 +20,8 @@ setGeneric("compute_sector_map", function(meta_dataframe, sector_column, mapper,
   standardGeneric("compute_sector_map")
 })
 
+#' @rdname compute_sector_map
+#' @export
 setMethod("compute_sector_map",
           signature(meta_dataframe = "meta_dataframe", sector_column = "character", mapper = "list"),
           function(meta_dataframe, sector_column, mapper, feature_name = NULL, ...) {

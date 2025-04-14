@@ -19,15 +19,12 @@
 #'   }
 #' @param alpha A numeric value that scales the market impact cost. Typically, \code{alpha} is determined by
 #'   the liquidity or volatility of the market.
-#' @param lambda A numeric value or the string \code{"dynamic"}. If set to \code{"dynamic"}, then \code{lambda} is determined
-#'   by \code{relative_order_size}:
-#'
-#'   \itemize{
-#'     \item \eqn{\lambda = 1}, when \eqn{\text{relative\_order\_size} \le 0.002}
-#'     \item \eqn{\lambda = 0.5}, when \eqn{0.002 < \text{relative\_order\_size} \le 0.05}
-#'     \item \eqn{\lambda = 0.25}, when \eqn{0.05 < \text{relative\_order\_size} \le 0.1}
-#'     \item \eqn{\lambda = 0.1}, when \eqn{\text{relative\_order\_size} > 0.1}
-#'   }
+#' @param lambda A numeric value or the string \code{"dynamic"}. If set to \code{"dynamic"}, \code{lambda} is set
+#'   based on \code{relative_order_size}:
+#'   - lambda = 1 when relative_order_size ≤ 0.002
+#'   - lambda = 0.5 when 0.002 < relative_order_size ≤ 0.05
+#'   - lambda = 0.25 when 0.05 < relative_order_size ≤ 0.1
+#'   - lambda = 0.1 when relative_order_size > 0.1
 #'
 #' @param direct_transaction_cost A numeric value representing the direct (e.g., brokerage)
 #'   transaction cost percentage to be applied per trade (e.g., if \code{direct_transaction_cost = 0.0005}, this corresponds to 0.05\%).
@@ -41,13 +38,7 @@
 #'     \deqn{\text{market\_impact\_cost} = \alpha \times \bigl(\text{relative\_order\_size}\bigr)^\lambda \times \text{daily\_vol}}
 #' }
 #'
-#' @return A named list with three components:
-#' \itemize{
-#'   \item \code{total_direct_cost}: Sum of direct transaction costs over all rows.
-#'   \item \code{total_market_impact_cost}: Sum of market impact costs over all rows.
-#'   \item \code{total_cost}: Total transaction cost, i.e. direct + market impact.
-#' }
-
+#' @return A named list with three components:total_direct_cost, total_market_impact_cost and total_cost
 calculate_transaction_costs <- function(transactions_m_d_ref,
                                         alpha, lambda,
                                         direct_transaction_cost,

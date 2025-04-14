@@ -16,8 +16,7 @@ setGeneric("read_tickers_catalog", function(data, tickers_catalog, ...) {
   standardGeneric("read_tickers_catalog")
 })
 
-#' @include read_tickers_catalog.R
-#' Method for raw_features_m_df signature
+#' @rdname read_tickers_catalog
 setMethod("read_tickers_catalog",
           signature(data = "raw_features_m_df", tickers_catalog = "tickers_catalog"),
           function(data, tickers_catalog, verbose = TRUE) {
@@ -207,8 +206,7 @@ setMethod("read_tickers_catalog",
             return(pre_silver_features_m_df)
           })
 
-#' @include read_tickers_catalog.R
-#' Method for returns_meta_xts signature
+#' @rdname read_tickers_catalog
 setMethod(
   "read_tickers_catalog",
   signature(data = "returns_meta_xts", tickers_catalog = "tickers_catalog"),

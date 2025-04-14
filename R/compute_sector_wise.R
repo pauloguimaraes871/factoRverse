@@ -32,6 +32,8 @@ setGeneric("compute_sector_wise", function(features_m_df, sector_column, signal,
   standardGeneric("compute_sector_wise")
 })
 
+#' @rdname compute_sector_wise
+#' @export
 setMethod("compute_sector_wise",
           signature(features_m_df = "meta_dataframe", sector_column = "character", signal = "character", FUN = "character"),
           function(features_m_df, sector_column, signal, FUN, na.rm = TRUE, feature_name = NULL, min_non_na = 0) {

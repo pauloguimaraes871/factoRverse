@@ -28,6 +28,8 @@ setGeneric("compute_score", function(features_m_df, conditions, feature_name, ..
   standardGeneric("compute_score")
 })
 
+#' @rdname compute_score
+#' @export
 setMethod("compute_score",
           signature(features_m_df = "meta_dataframe", conditions = "list", feature_name = "character"),
           function(features_m_df, conditions, feature_name = "score", min_non_na = 0) {

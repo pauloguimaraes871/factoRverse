@@ -29,20 +29,6 @@ setOldClass("recipe")
 #' The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the sb_backtest_workflow related to the number of unique dates,
 #' tickers, and total observations respectively.
 #'
-#' @examples
-#' # Define a sample data frame
-#' df <- data.frame(
-#'   id = c("A-2024-01-01", "B-2024-02-01"),
-#'   tickers = c("A", "B"),
-#'   dates = as.Date(c("2024-01-01", "2024-02-01")),
-#'   value = c(10, 20)
-#' )
-#'
-#' # Create a meta_dataframe object
-#' meta_df <- create_meta_dataframe(df)
-#'
-#' # Print the meta_dataframe object
-#' print(meta_df)
 #'
 #' @export
 setClass("meta_dataframe",
@@ -371,9 +357,6 @@ setClass(
 #' @slot listed A character vector of listed stocks (date_last_quote >= current_date).
 #' @slot current_date A Date object representing the most recent available date in the dataset.
 #' @slot n_days_tolerance A numeric value representing the number of days to consider a stock as delisted.
-#'
-#' @examples
-#' showClass("tickers_catalog")
 #'
 #' @export
 setClass(
@@ -2913,7 +2896,7 @@ setGeneric(
   }
 )
 
-
+#' @rdname lookup_catalog
 setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog"),
           function(tickers_catalog, tickers_to_lookup = NULL, perm_id_to_lookup = NULL) {
 
@@ -3107,6 +3090,7 @@ setMethod("get_hyper_grid_domain", "sb_backtest_config", function(object) {
   }
 })
 
+#' @rdname get_hyper_grid_domain
 setMethod("get_hyper_grid_domain", "tuning_strategy", function(object) {
   return(object@hyper_grid_domain)
 })
@@ -3318,6 +3302,7 @@ setGeneric("get_brms_prior", function(object){
   standardGeneric("get_brms_prior")
 })
 
+#' @rdname get_brms_prior
 #' @export
 setMethod("get_brms_prior", "ss_backtest_results", function(object){
   if(!object@p_correction_method == "bayesian"){
@@ -3327,6 +3312,7 @@ setMethod("get_brms_prior", "ss_backtest_results", function(object){
 
 })
 
+#' @rdname get_brms_prior
 #' @export
 setMethod("get_brms_prior", "ss_backtest_config", function(object){
 
@@ -3451,6 +3437,7 @@ setGeneric("get_liquidity_constraint_policy", function(port_backtest_config_obj)
   standardGeneric("get_liquidity_constraint_policy")
 })
 
+#' @rdname get_liquidity_constraint_policy
 #' @export
 setMethod("get_liquidity_constraint_policy", "port_backtest_config", function(port_backtest_config_obj) {
   return(port_backtest_config_obj@liquidity_constraint_policy)
@@ -3491,6 +3478,7 @@ setGeneric("get_turnover_constraint_policy", function(port_backtest_config_obj) 
   standardGeneric("get_turnover_constraint_policy")
 })
 
+#' @rdname get_turnover_constraint_policy
 #' @export
 setMethod("get_turnover_constraint_policy", "port_backtest_config", function(port_backtest_config_obj) {
   return(port_backtest_config_obj@turnover_constraint_policy)
@@ -3526,6 +3514,7 @@ setGeneric("get_transaction_costs_parameters", function(port_backtest_config_obj
   standardGeneric("get_transaction_costs_parameters")
 })
 
+#' @rdname get_transaction_costs_parameters
 #' @export
 setMethod("get_transaction_costs_parameters", "port_backtest_config", function(port_backtest_config_obj) {
   return(port_backtest_config_obj@transaction_costs_parameters)
@@ -3564,6 +3553,7 @@ setGeneric("get_liquidity_floor_cutoffs", function(port_backtest_config_obj) {
   standardGeneric("get_liquidity_floor_cutoffs")
 })
 
+#' @rdname get_liquidity_floor_cutoffs
 #' @export
 setMethod("get_liquidity_floor_cutoffs", "port_backtest_config", function(port_backtest_config_obj) {
   return(port_backtest_config_obj@liquidity_floor_cutoffs)

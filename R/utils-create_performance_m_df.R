@@ -17,14 +17,6 @@
 #' - **Performance Ratios**: Sharpe ratio, Sortino ratio, Calmar ratio, Omega ratio, Rachev ratio, and others.
 #' - **Additional Metrics**: Average recovery, Hurst index, probabilistic Sharpe ratio, and minimum track record.
 #'
-#' @examples
-#' # Example usage:
-#' performance_m_df <- create_performance_m_df(
-#'   selected_signals = c("Signal_A", "Signal_B"),
-#'   current_date = "2024-12-12",
-#'   selected_backtest_returns_corrected_positions_m_xts_upd_ref = backtest_m_xts,
-#'   baseline_benchmark_m_xts_upd_ref = benchmark_m_xts
-#' )
 #' @export
 create_performance_m_df <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, active_returns, verbose = TRUE){
 

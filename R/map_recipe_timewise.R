@@ -27,7 +27,7 @@ setGeneric("map_recipe_timewise", function(meta_dataframe, recipe, verbose = TRU
   standardGeneric("map_recipe_timewise")
 })
 
-
+#' @rdname map_recipe_timewise
 setMethod("map_recipe_timewise",
           signature(meta_dataframe = "meta_dataframe", recipe = "recipe"),
           function(meta_dataframe, recipe, verbose = TRUE, parallel = TRUE, type = "signals") {

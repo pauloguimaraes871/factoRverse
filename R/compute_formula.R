@@ -30,6 +30,8 @@ setGeneric("compute_formula", function(features_m_df, formula, ignore_NA = NULL)
   standardGeneric("compute_formula")
 })
 
+#' @rdname compute_formula
+#' @export
 setMethod("compute_formula",
           signature(features_m_df = "meta_dataframe", formula = "formula"),
           function(features_m_df, formula, ignore_NA = NULL) {

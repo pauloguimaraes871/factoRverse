@@ -25,6 +25,8 @@ setGeneric("compute_sector_map_across", function(meta_dataframe, meta_xts, secto
   standardGeneric("compute_sector_map_across")
 })
 
+#' @rdname compute_sector_map_across
+#' @export
 setMethod("compute_sector_map_across",
           signature(meta_dataframe = "meta_dataframe", meta_xts = "meta_xts", sector_column = "character", mapper = "list"),
           function(meta_dataframe, meta_xts, sector_column, mapper, feature_name = NULL, ...) {

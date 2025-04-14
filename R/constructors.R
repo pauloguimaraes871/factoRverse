@@ -47,18 +47,6 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 #'   \item The metadata includes the number of unique dates, unique tickers, and total observations.
 #' }
 #'
-#' @examples
-#' # Create a sample data frame
-#' df <- data.frame(
-#'   id = c("A-2024-01-01", "B-2024-02-01"),
-#'   tickers = c("A", "B"),
-#'   dates = as.Date(c("2024-01-01", "2024-02-01")),
-#'   value = c(10, 20),
-#'   stringsAsFactors = FALSE
-#' )
-#'
-#' # Create a meta_dataframe object
-#' meta_df <- create_meta_dataframe(data = df, meta_dataframe_name = "SingleDataFrame")
 #'
 #' @exportMethod create_meta_dataframe
 setMethod(
@@ -302,6 +290,7 @@ setGeneric("create_target_m_df", function(daily_returns_m_df, daily_bench_return
 })
 
 
+#' @rdname create_target_m_df
 setMethod("create_target_m_df",
           signature(daily_returns_m_df = "meta_dataframe", daily_bench_returns_m_xts = "meta_xts", features_m_df = "meta_dataframe"),
           function(daily_returns_m_df, daily_bench_returns_m_xts, features_m_df, past_ret_column, selected_bench, fwd_horizon, active_returns, parallel = TRUE) {
@@ -677,7 +666,8 @@ setGeneric("update_meta_dataframe", function(old_features_m_df, new_features_m_d
   standardGeneric("update_meta_dataframe")
 })
 
-#' @exportMethod update_meta_dataframe
+
+#' @rdname update_meta_dataframe
 setMethod(
   "update_meta_dataframe", signature(old_features_m_df = "meta_dataframe", new_features_m_df = "meta_dataframe"),
   function(old_features_m_df, new_features_m_df, batch_type = "monthly"){
@@ -1072,6 +1062,7 @@ setGeneric("update_tickers_catalog", function(old_tickers_catalog, new_tickers_c
   standardGeneric("update_tickers_catalog")
 })
 
+#' @rdname update_tickers_catalog
 setMethod(
   "update_tickers_catalog",
   signature(
@@ -1471,7 +1462,7 @@ setGeneric(
 )
 
 
-
+#' @rdname create_meta_xts
 # Define the method for when 'data' is an 'xts' object
 setMethod(
   "create_meta_xts",
@@ -1551,6 +1542,7 @@ setMethod(
   return(obj)
 })
 
+#' @rdname create_meta_xts
 # Define the method for when 'data' is a data.frame
 setMethod(
   "create_meta_xts",
@@ -1680,6 +1672,7 @@ setMethod(
   }
 )
 
+#' @rdname create_meta_xts
 # Define the method for when 'data' is a meta_dataframe
 setMethod(
   "create_meta_xts",
@@ -1735,14 +1728,6 @@ setMethod(
 #' @param alpha_test_strategy An `alpha_test_strategy` object defining the alpha test configuration.
 #' @param config_name A character string naming the configuration.
 #' @return An object of class `ss_backtest_config`.
-#' @examples
-#' # Example usage:
-#' config <- create_ss_backtest_config(
-#'   initial_sample_size = 200,
-#'   rebalancing_months = 6,
-#'   alpha_test_strategy = alpha_test_strategy_obj,
-#'   config_name = "ExampleConfig"
-#' )
 #' @export
 create_ss_backtest_config <- function(
     initial_sample_size,
@@ -1894,20 +1879,6 @@ create_alpha_test_strategy <- function(
 #' @param object An `ss_backtest_config` object.
 #' @param alpha_test_strategy An `alpha_test_strategy` object to be added.
 #' @return The updated `ss_backtest_config` object with the specified `alpha_test_strategy` added.
-#' @examples
-#' # Example usage
-#' alpha_strategy <- new("frequentist_alpha_test_strategy",
-#'   signal_significance_threshold = 0.05,
-#'   p_correction_method = "holm",
-#'   market_factor_proxy = "S&P500"
-#' )
-#' config <- create_ss_backtest_config(
-#'   initial_sample_size = 200,
-#'   rebalancing_months = 6,
-#'   alpha_test_strategy = NULL,
-#'   config_name = "ExampleConfig"
-#' )
-#' config <- add_alpha_test_strategy(config, alpha_strategy)
 #' @export
 setGeneric("add_alpha_test_strategy", function(object, alpha_test_strategy, ...) {
   standardGeneric("add_alpha_test_strategy")
@@ -3094,17 +3065,6 @@ setMethod(
 #' @return An S4 object of class `mvo_parameters`.
 #' @export
 #'
-#' @examples
-#' # Create an `mvo_parameters` object with default values:
-#' mvo_params_default <- create_mvo_parameters()
-#'
-#' # Create an `mvo_parameters` object with custom values:
-#' mvo_params_custom <- create_mvo_parameters(
-#'   opt_method = "random",
-#'   random_ports_method = "grid",
-#'   n_random_ports = 500,
-#'   opt_objective = "risk"
-#' )
 create_mvo_parameters <- function(opt_method = "random",
                                   random_ports_method = "sample",
                                   n_random_ports = 1000,
@@ -3254,13 +3214,6 @@ setMethod(
 #'
 #' @return An S4 object of class `rp_parameters`.
 #' @export
-#'
-#' @examples
-#' # Create an `rp_parameters` object with default values:
-#' rp_params_default <- create_rp_parameters()
-#'
-#' # Create an `rp_parameters` object with custom values:
-#' rp_params_custom <- create_rp_parameters(rp_method = "gauss-seidel")
 create_rp_parameters <- function(rp_method = "cyclical-spinu") {
   rp_params <- methods::new("rp_parameters",
     rp_method = rp_method
@@ -3491,23 +3444,6 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #'
 #' @return A `sb_metabacktest_config` object containing all viable combinations of configs.
 #'
-#' @examples
-#' # Example usage:
-#' # Assuming you have sb_backtest_config objects sb_config1, sb_config2
-#' # and ss_backtest_config objects ss_config1, ss_config2
-#'
-#' # First method: Combine sb_configs and ss_configs
-#' meta_config <- create_sb_metabacktest_config(
-#'   meta_sb_backtest_config = sb_backtest_config,
-#'   base_sb_backtest_configs = list(sb_config1, sb_config2),
-#'   ss_backtest_configs = list(ss_config1, ss_config2)
-#' )
-#'
-#' # Second method: Configs already have ss_backtest_config set
-#' meta_config <- create_sb_metabacktest_config(
-#'   meta_sb_backtest_config = sb_backtest_config,
-#'   base_sb_backtest_configs = list(config1, config2)
-#' )
 #'
 #'
 #' @export

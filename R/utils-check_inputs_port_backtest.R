@@ -2,7 +2,7 @@
 #'
 #' @description Validates all inputs required to run a portfolio backtest, including structure, consistency, and ranges.
 #'
-#' @param signals_m_df A data frame containing signal data that must be coercible to a meta_dataframe. It must have at least the columns for IDs, tickers, and dates (columns 1:3) and subsequent columns should be numeric and free of NAs. Dates must be of class \code{Date} and follow the \%Y-\%m-\%d format.
+#' @param signals_m_df A data frame containing signal data that must be coercible to a meta_dataframe. It must have at least the columns for IDs, tickers, and dates (columns 1:3) and subsequent columns should be numeric and free of NAs. Dates must be of class \code{Date}.
 #' @param oos_predictions_m_df (Optional) A data frame with out-of-sample predictions that must be coercible to a meta_dataframe. It is expected to contain the columns: \code{"id"}, \code{"tickers"}, \code{"dates"}, and \code{"pred"}. The IDs in this data frame must correspond to the IDs in \code{signals_m_df} after the initial buffer period.
 #' @param chosen_score_metric_and_position (Optional) A single-element list specifying the chosen score metric and position. Its name(s) must not include the substring \code{"low_"} and the chosen metric must be present as a column name in \code{signals_m_df}.
 #' @param rebalancing_months A numeric value indicating the rebalancing frequency in months. Must be numeric and between 1 and 12.
@@ -45,17 +45,7 @@
 #' @return \code{NULL}. This function is used for its side effects; it stops execution if any input validation fails.
 #'
 #' @details
-#' This function performs comprehensive validation of multiple inputs for a portfolio backtest. It checks:
-#'
-#' \itemize{
-#'   \item Data coercion to \code{meta_dataframe} and column format correctness.
-#'   \item Presence and consistency of ID, ticker, and date information.
-#'   \item Validity of signal metrics, forward returns, and optional prediction scores.
-#'   \item Time series structure of all xts objects (daily and monthly).
-#'   \item Format and feasibility of constraints and custom inputs.
-#'   \item Structural alignment between volatility, liquidity, weights, and benchmark inputs.
-#'   \item Applicability and completeness of transaction cost parameters and units.
-#' }
+#' This function performs comprehensive validation of multiple inputs for a portfolio backtest.
 check_inputs_port_backtest <- function(
   # Base Objects
   signals_m_df, oos_predictions_m_df, chosen_score_metric_and_position,
