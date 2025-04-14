@@ -86,7 +86,7 @@ setMethod("predict",
   }
 
   ##Check if it is a meta_dataframe
-  if (is(new_features_m_df, "meta_dataframe")) {
+  if (methods::is(new_features_m_df, "meta_dataframe")) {
     ##Correct signals and positions
     ###Get eligible signals and positions
     eligible_signals <- object@eligible_signals

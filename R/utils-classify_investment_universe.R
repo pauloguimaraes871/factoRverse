@@ -596,12 +596,6 @@ apply_stocks_pre_eligibility <- function(stock_universe_m_d_ref,
 #'   \code{pre_eligible_assets}. This column is \code{1L} if the stock's expected return score falls between the
 #'   calculated lower and upper quantile boundaries (inclusive), and \code{0L} otherwise.
 #'
-#' @examples
-#' \dontrun{
-#' # Assume stock_universe_m_d_ref is a data frame with an "exp_ret_score" column
-#' eligibility_quantile_range <- c(0.25, 0.75)
-#' updated_universe <- classify_stocks_pre_eligibility(eligibility_quantile_range, stock_universe_m_d_ref)
-#' }
 #'
 classify_stocks_pre_eligibility <- function(stock_universe_m_d_ref, eligibility_quantile_range, categorical_variable = FALSE) {
 

@@ -1580,7 +1580,7 @@ run_port_backtest_internal <- function(
   transactions_log <- methods::new("transactions_log", data = transactions_log_m_d_ref_list, workflow = port_backtest_workflow)
 
   ###Port Costs
-  if (.update) port_costs_m_xts <- port_costs_m_xts %>% na.omit()
+  if (.update) port_costs_m_xts <- port_costs_m_xts %>% stats::na.omit()
   port_costs_m_xts <- suppressMessages(
     create_meta_xts(port_costs_m_xts, type = "metrics",
                     metric_name = "port_costs",
@@ -1589,7 +1589,7 @@ run_port_backtest_internal <- function(
   ###Port Metrics
   if (!is.null(custom_stock_metrics_m_d_ref)){
     metrics <- paste0(custom_stock_metrics_m_d_ref %>% dplyr::select(-id, -tickers, -dates) %>% colnames(), collapse = "_") #Derive metrics names
-    if (.update) port_metrics_m_xts <- port_metrics_m_xts %>% na.omit()
+    if (.update) port_metrics_m_xts <- port_metrics_m_xts %>% stats::na.omit()
     port_metrics_m_xts <- suppressMessages(
       create_meta_xts(port_metrics_m_xts, type = "metrics",
                       metric_name = metrics,

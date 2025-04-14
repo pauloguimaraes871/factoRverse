@@ -65,6 +65,8 @@ utils::globalVariables(c(
   "min_weight", "testing_dates_range", "df", "t_value", "theme_term", "theme_fixed_effect",
   "fixed_effect_value", "posterior_theme_alpha", "posterior_theme_alpha.lower", "posterior_theme_alpha.upper",
   "posterior_theme_beta", "posterior_theme_beta.lower", "posterior_theme_beta.upper", ".width", "posterior_specific_risk",
-  "hyperparameter", "lower", "Correlation", "bin_label"
+  "hyperparameter", "lower", "Correlation", "bin_label", "metric", "t value", "non_na_count", "AssetRow", "sd_value",
+  "out_trd_rg_not_only_NA_TRUE", "out_trd_rg_not_only_NA_FALSE", "hyperparameters_combination", "max_possible",
+  "alpha_t_stat"
 ))
 

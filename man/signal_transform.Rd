@@ -39,11 +39,3 @@ Finally, it transforms these z-scores:
 \item A z-score of zero is transformed to 1#'
 }
 }
-\examples{
-vector <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-upper_quantile_winsorization <- 0.9
-lower_quantile_winsorization <- 0.1
-transformed_vector <- signal_transform(vector, upper_quantile_winsorization, lower_quantile_winsorization)
-print(transformed_vector)
-
-}

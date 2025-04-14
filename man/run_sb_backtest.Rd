@@ -412,24 +412,6 @@ Keras has some limitations when working in parallel, especially when using bayes
 }
 
 \examples{
-# Example of creating hyper_grid_domain_list for grid search
-hyper_grid <- list(
-   alpha = c(0.2, 0.5),
-   lambda.min.ratio = c(0.1, 0.5, 0.9)
-   )
-
-# Example of creating hyper_grid_domain_list for random search
-hyper_grid <- list(
-  alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1), value = NULL),
-  lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9), value = NULL)
-)
-
-# Example of creating hyper_grid_domain_list for bayesian optimization
-hyper_grid <- list(
-   alpha = c(0.2, 0.9),
-   lambda.min.ratio = c(0.1, 0.9)
-   )
-
 # Example of creating a 3 layers keras_architecture_parameters for neural networks.
 keras_architecture_parameters = list(units = c(32,16,8), n_layers = 3, activation = c("relu", "relu", "relu"),
                                      nn_optimizer = "Adam", batch_norm_option = c(TRUE,TRUE,TRUE)

@@ -2774,7 +2774,7 @@ setClass("port_backtest_cohort",
 #' @param object An object of class `meta_dataframe`.
 #' @return The respective slot of the `meta_dataframe` object.
 #' @name meta_dataframe_accessors
-#' @alias get_data
+#' @rdname meta_dataframe_accessors
 #' @export
 setGeneric("get_data", function(object) standardGeneric("get_data"))
 
@@ -2938,7 +2938,7 @@ setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog"),
 #' @param object An object of class `sb_model`.
 #' @return The respective slot of the `sb_model` object.
 #' @name sb_model_accessors
-#' @alias get_sb_algorithm
+#' @rdname sb_model_accessors
 #' @export
 setGeneric("get_sb_algorithm", function(object) standardGeneric("get_sb_algorithm"))
 

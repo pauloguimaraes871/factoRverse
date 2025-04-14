@@ -1284,24 +1284,6 @@ setMethod("run_sb_backtest",
 #'     }
 #'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
 #' }
-#' @examples
-#' # Example of creating hyper_grid_domain_list for grid search
-#' hyper_grid <- list(
-#'    alpha = c(0.2, 0.5),
-#'    lambda.min.ratio = c(0.1, 0.5, 0.9)
-#'    )
-#'
-#' # Example of creating hyper_grid_domain_list for random search
-#' hyper_grid <- list(
-#'   alpha = list(distribution_choice = "uniform", pars = c(min = 0, max = 1), value = NULL),
-#'   lambda.min.ratio = list(distribution_choice = "uniform", pars = c(min = 0, max = 0.9), value = NULL)
-#' )
-#'
-#' # Example of creating hyper_grid_domain_list for bayesian optimization
-#' hyper_grid <- list(
-#'    alpha = c(0.2, 0.9),
-#'    lambda.min.ratio = c(0.1, 0.9)
-#'    )
 #'
 #' @param tuning_method Method for hyperparameter tuning: "random_search", "grid_search", or "bayesian_opt".
 #' @param n_iter Number of iterations.

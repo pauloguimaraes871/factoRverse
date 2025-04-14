@@ -85,18 +85,6 @@
 #' See the detailed breakdown in the example section.
 #'
 #'
-#' @examples
-#' # Random intercept at theme level
-#' derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "random_intercept")
-#'
-#' # Fixed intercepts for each theme
-#' derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "fixed_intercepts")
-#'
-#' # Fixed interceps and slopes for each theme
-#' derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "fixed_intercepts_and_slopes")
-#'
-#' # Just random intercepts and slopes for each signal
-#' derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "none")
 #'
 #'
 derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_theme_level,

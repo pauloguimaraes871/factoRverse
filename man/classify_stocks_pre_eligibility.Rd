@@ -29,11 +29,3 @@ It calculates the lower and upper quantile boundaries based on the provided quan
 then assigns a flag of \code{1L} to stocks with an expected return score within these boundaries,
 and \code{0L} otherwise.
 }
-\examples{
-\dontrun{
-# Assume stock_universe_m_d_ref is a data frame with an "exp_ret_score" column
-eligibility_quantile_range <- c(0.25, 0.75)
-updated_universe <- classify_stocks_pre_eligibility(eligibility_quantile_range, stock_universe_m_d_ref)
-}
-
-}

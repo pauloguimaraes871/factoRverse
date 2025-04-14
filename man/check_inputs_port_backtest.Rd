@@ -129,10 +129,11 @@ check_inputs_port_backtest(
 \code{NULL}. This function is used for its side effects; it stops execution if any input validation fails.
 }
 \description{
-This function validates all input parameters required for running a portfolio backtest. It ensures that data frames are coercible to a meta_dataframe, that required columns are present and correctly formatted, and that the values fall within acceptable ranges. In addition, it performs cross-checks between inputs (e.g., matching dates, tickers, and IDs) and issues warnings for minor issues and errors for critical mismatches.
+Validates all inputs required to run a portfolio backtest, including structure, consistency, and ranges.
 }
 \details{
 This function performs comprehensive validation of multiple inputs for a portfolio backtest. It checks:
+
 \itemize{
 \item Data coercion to \code{meta_dataframe} and column format correctness.
 \item Presence and consistency of ID, ticker, and date information.

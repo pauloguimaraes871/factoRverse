@@ -827,6 +827,8 @@ setMethod(
 #' 7. Flags stocks as `delisted` if `date_last_quote` is before `current_date`.
 #'
 #'
+#'
+#' @importFrom digest digest
 #' @export
 #'
 setGeneric("create_tickers_catalog", function(raw_features_m_df, date_first_quote, date_last_quote, ...) {

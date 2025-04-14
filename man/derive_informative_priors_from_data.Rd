@@ -104,18 +104,3 @@ See the detailed breakdown in the example section.
 \description{
 This function fits a frequentist hierarchical linear mixed-effects model using the \code{lme4} package, based on the input data and the specified model structure. The resulting parameter estimates are used to derive informative priors for Bayesian modeling using the \code{brms} package.
 }
-\examples{
-# Random intercept at theme level
-derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "random_intercept")
-
-# Fixed intercepts for each theme
-derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "fixed_intercepts")
-
-# Fixed interceps and slopes for each theme
-derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "fixed_intercepts_and_slopes")
-
-# Just random intercepts and slopes for each signal
-derive_informative_priors_from_data(priors_m_upd_ref, model_spec_theme_level = "none")
-
-
-}

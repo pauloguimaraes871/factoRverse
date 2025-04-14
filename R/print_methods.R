@@ -1614,9 +1614,9 @@ setMethod(
 
     # 1) Class Identification
     # Check if object is one of the subclasses
-    subclass <- if (is(object, "signal_port")) {
+    subclass <- if (methods::is(object, "signal_port")) {
       "signal_port"
-    } else if (is(object, "stock_port")) {
+    } else if (methods::is(object, "stock_port")) {
       "stock_port"
     }  else {
       "port"

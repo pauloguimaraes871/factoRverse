@@ -21,9 +21,3 @@ An integer representing the count of values satisfying the condition.
 The \code{count_if} function counts the number of elements in \code{values}
 that satisfy the condition specified in \code{count_condition_fun}.
 }
-\examples{
-count_if(c(1, 0, 3, 0, 5), function(x) x == 0)  # Counts zeros -> returns 2
-count_if(c(1, 2, 3, 4, 5), function(x) x > 2)   # Counts values greater than 2 -> returns 3
-count_if(c(1, NA, 3, 0, 5), function(x) x == 0, na.rm = TRUE)  # Ignores NA, counts 0s -> returns 1
-count_if(c(1, NA, 3, 0, 5), function(x) x == 0, na.rm = FALSE) # Includes NA, counts 0s -> returns NA
-}

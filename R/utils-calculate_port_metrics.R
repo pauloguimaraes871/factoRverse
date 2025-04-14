@@ -15,38 +15,6 @@
 #' @return A data frame with consolidated portfolio metrics. If benchmark metrics are calculated,
 #'   the data frame will also include columns with a \code{"bench_"} prefix.
 #'
-#' @examples
-#' \dontrun{
-#'   # Example data frames
-#'   port_allocation_log <- data.frame(
-#'     id = 1:3,
-#'     tickers = c("A", "B", "C"),
-#'     dates = as.Date('2025-01-01') + 0:2,
-#'     eop_port_weights = c(0.3, 0.4, 0.3),
-#'     bench_weights = c(0.5, 0.3, 0.2),
-#'     metric1 = c(10, 20, 30),
-#'     metric2 = c(100, 200, 300)
-#'   )
-#'
-#'   custom_stock_metrics <- data.frame(
-#'     id = 1:3,
-#'     tickers = c("A", "B", "C"),
-#'     dates = as.Date('2025-01-01') + 0:2,
-#'     metric1 = c(1, 2, 3),
-#'     metric2 = c(10, 20, 30)
-#'   )
-#'
-#'   # Calculate metrics without benchmark metrics
-#'   metrics <- calculate_portfolio_benchmark_metrics(port_allocation_log, custom_stock_metrics)
-#'
-#'   # Calculate metrics with benchmark metrics (selected_benchmark not NULL)
-#'   metrics_with_bench <- calculate_portfolio_benchmark_metrics(port_allocation_log, custom_stock_metrics,
-#'     selected_benchmark = TRUE
-#'   )
-#'
-#'   # Print the final consolidated metrics using cat and paste:
-#'   cat(paste(capture.output(print(metrics_with_bench)), collapse = "\n"))
-#' }
 #'
 calculate_port_metrics <- function(port_weights_m_d_ref, #Base object with weight information
                                    custom_stock_metrics_m_d_ref #Metrics

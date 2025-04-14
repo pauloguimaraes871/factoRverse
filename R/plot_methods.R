@@ -55,7 +55,7 @@ setMethod(
 
     # Prompt for 'type' if not specified
     if (is.null(type)) {
-      if(class(x) == "groups_m_df"){
+      if(inherits(x, "groups_m_df")){
       available_types <- c("frequency", "composition", "tile_heatmap")
       } else {
       available_types <- c("cross_sectional", "time_series", "histogram", "boxplot", "composition",
@@ -73,7 +73,7 @@ setMethod(
       type <- available_types[selection]
     }
 
-    if(class(x) == "groups_m_df" && !type %in% c("frequency", "composition", "tile_heatmap")){
+    if(inherits(x, "groups_m_df") && !type %in% c("frequency", "composition", "tile_heatmap")){
       stop("Only composition and tile_heatmaps are avaiable for groups_m_df objects.")
     }
 
@@ -1045,7 +1045,7 @@ setMethod(
       colors <- scales::hue_pal()(num_rows)  # Generate distinct colors for each row
 
       # Set background color
-      par(bg = "#001f3f")  # Set background color to blue_bg
+      graphics::par(bg = "#001f3f")  # Set background color to blue_bg
 
       # Create the radar plot using fmsb
       if (!requireNamespace("fmsb", quietly = TRUE)) {
@@ -1059,18 +1059,18 @@ setMethod(
       )
 
       # Title
-      mtext(side = 3, line = 2.5, adj = 0, cex = 1.25,  # Align to the left
-            paste("Radar Plot of", paste(variable, collapse = ", "), "by", clustering_variables),
-            font = 2, col = "white")
+      graphics::mtext(side = 3, line = 2.5, adj = 0, cex = 1.25,  # Align to the left
+                      paste("Radar Plot of", paste(variable, collapse = ", "), "by", clustering_variables),
+                      font = 2, col = "white")
 
       # Subtitle
-      mtext(side = 3, line = 1, adj = 0, cex = 0.75,  # Align to the left
-            paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
-            font = 2, col = "white")
+      graphics::mtext(side = 3, line = 1, adj = 0, cex = 0.75,  # Align to the left
+                      paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
+                      font = 2, col = "white")
 
 
       # Add legend with white text color at the bottom
-      legend("bottomleft", legend = df_radar[[clustering_variables]], col = colors, pch = 16, bty = "n", text.col = "white")
+      graphics::legend("bottomleft", legend = df_radar[[clustering_variables]], col = colors, pch = 16, bty = "n", text.col = "white")
 
       # Restore the original graphical parameters
       graphics::par(old_par)
@@ -1362,7 +1362,7 @@ setMethod(
           names(freq_table) <- c("Category", "Frequency")
 
           # Create a bar plot using the specified colors
-          plot <- ggplot2::ggplot(freq_table, ggplot2::aes(x = reorder(Category, -Frequency), y = Frequency)) +
+          plot <- ggplot2::ggplot(freq_table, ggplot2::aes(x = stats::reorder(Category, -Frequency), y = Frequency)) +
             ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = white, size = 0.5) +
             ggplot2::geom_text(ggplot2::aes(label = Frequency), vjust = -0.5, color = white, size = 4) +
             ggplot2::theme_minimal() +
@@ -1634,7 +1634,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             } else {
 
               # If x is returns_meta_xts, ask about cumulative if not specified
-              if (is(x, "returns_meta_xts")) {
+              if (methods::is(x, "returns_meta_xts")) {
                 # If user didn't specify 'cumulative', prompt them
                 if (is.null(cumulative)) {
                   response_cum <- readline(prompt = "Do you want to plot cumulative returns? (yes/no): ")
@@ -5763,7 +5763,7 @@ setMethod(
       p <- ggplot2::ggplot(
         df_pie,
         ggplot2::aes(
-          x = reorder(.data$Asset, -abs(.data$Weight)),  # order by abs
+          x = stats::reorder(.data$Asset, -abs(.data$Weight)),  # order by abs
           y = .data$Weight,
           fill = .data$Asset
         )

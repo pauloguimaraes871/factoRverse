@@ -49,9 +49,3 @@ A data frame containing the calculated evaluation metrics:
 \description{
 Calculate various evaluation metrics for model prediction performance.
 }
-\examples{
-pred <- c(1.1, 2.2, 1.05)
-target <- c(1.0, 2.0, 1.0)
-calculate_eval_metrics(pred, target, chosen_eval_metric = "mphe", huber_delta = 1, quantile_tau = 0.5)
-
-}

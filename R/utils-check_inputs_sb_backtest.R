@@ -265,7 +265,7 @@ check_inputs_sb_backtest <- function(
     #get dates
     backtest_returns_dates <- zoo::index(backtest_returns_m_xts)
 
-    if(class(backtest_returns_dates) != "Date"){
+    if(!inherits(backtest_returns_dates, "Date")){
       stop("dates in backtest_returns_m_xts must be of class Date")
     }
 
@@ -314,7 +314,7 @@ check_inputs_sb_backtest <- function(
     }
     #get dates
     benchmark_returns_dates <- zoo::index(benchmark_returns_m_xts)
-    if(class(benchmark_returns_dates) != "Date"){
+    if(!inherits(benchmark_returns_dates, "Date")){
       stop("dates in benchmark_returns_m_xts must be of class Date")
     }
 

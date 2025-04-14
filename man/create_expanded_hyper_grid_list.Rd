@@ -42,17 +42,6 @@ Duplicates are removed to prevent repeated inputs.
 }
 }
 }
-\examples{
-\dontrun{
-hyper_grid_domain_list <- list(
-  list(distribution_choice = "uniform", pars = c(min = 0, max = 1)),
-  list(distribution_choice = "normal", pars = c(mean = 0, sd = 1))
-)
-create_expanded_hyper_grid_list(hyper_grid_domain_list, tuning_method = "random_search", n_iter = 100)
-}
-
-
-}
 \seealso{
 Use with functions that require hyperparameter tuning such as 'train' or 'caret'.
 }

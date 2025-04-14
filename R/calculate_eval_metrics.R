@@ -22,10 +22,6 @@
 #'   - `hr`: Hit Rate (percentage of predictions with correct sign).
 #'   - `mb`: Mean Bias (mean of prediction errors).
 #'
-#' @examples
-#' pred <- c(1.1, 2.2, 1.05)
-#' target <- c(1.0, 2.0, 1.0)
-#' calculate_eval_metrics(pred, target, chosen_eval_metric = "mphe", huber_delta = 1, quantile_tau = 0.5)
 #'
 #' @export
 calculate_eval_metrics <- function(pred, target, huber_delta = 1, quantile_tau = 0.5, chosen_eval_metric = "rmse",

@@ -681,12 +681,6 @@ idio_vol <- function(ret_values, bench_ret_values, na.rm = TRUE) {
 #'
 #' @return An integer representing the count of values satisfying the condition.
 #' @export
-#'
-#' @examples
-#' count_if(c(1, 0, 3, 0, 5), function(x) x == 0)  # Counts zeros -> returns 2
-#' count_if(c(1, 2, 3, 4, 5), function(x) x > 2)   # Counts values greater than 2 -> returns 3
-#' count_if(c(1, NA, 3, 0, 5), function(x) x == 0, na.rm = TRUE)  # Ignores NA, counts 0s -> returns 1
-#' count_if(c(1, NA, 3, 0, 5), function(x) x == 0, na.rm = FALSE) # Includes NA, counts 0s -> returns NA
 count_if <- function(values, count_condition_fun, na.rm = TRUE) {
 
   #Initial checks

@@ -28,40 +28,6 @@
 #'   \item{`dates`}{The current date.}
 #'   \item{`exp_ret_score`}{The expected return score after transformation.}
 #'
-#' @examples
-#' \dontrun{
-#' # Define your own signal_transform function (here a dummy identity function is used)
-#' dummy_signal_transform <- function(x, lower_quantile_winsorization, upper_quantile_winsorization) { x }
-#'
-#' current_tickers <- c("AAPL", "GOOG")
-#' current_date <- "2025-02-03"
-#'
-#' signals_m_d_ref <- data.frame(
-#'   id = paste0(current_tickers, "-", current_date),
-#'   tickers = current_tickers,
-#'   signal = c(0.1, 0.2),
-#'   stringsAsFactors = FALSE
-#' )
-#'
-#' # Example with predictions:
-#' oos_predictions_m_df <- data.frame(
-#'   id = paste0(current_tickers, "-", current_date),
-#'   pred = c(0.15, 0.25),
-#'   stringsAsFactors = FALSE
-#' )
-#'
-#' result <- build_stock_universe(
-#'   current_tickers = current_tickers,
-#'   current_date = current_date,
-#'   signals_m_d_ref = signals_m_d_ref,
-#'   oos_predictions_m_df = oos_predictions_m_df,
-#'   chosen_score_metric_and_position = c("signal" = "long"),
-#'   lower_quantile_winsorization = 0.05,
-#'   upper_quantile_winsorization = 0.95,
-#'   signal_transform = dummy_signal_transform
-#' )
-#' }
-#'
 #' @export
 derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_ref = NULL, chosen_score_metric_and_position = NULL,
                                           lower_quantile_winsorization, upper_quantile_winsorization) {

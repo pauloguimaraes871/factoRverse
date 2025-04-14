@@ -1031,16 +1031,16 @@ run_ss_backtest_internal <- function(
   })
 
   #Get final object
-  ss_backtest_results <- new("ss_backtest_results",
-                             ss_backtest_config = NULL,
-                             signal_universe_m_df = if (exists("signal_universe_m_df")) signal_universe_m_df else NULL,
-                             final_signal_universe_m_d_ref = if (exists("final_signal_universe_m_d_ref")) final_signal_universe_m_d_ref else NULL ,
-                             selected_market_factor_proxy_m_xts = selected_market_factor_proxy_m_xts,
-                             frequentist_results = if (exists("signal_eligibility_results_list")) signal_eligibility_results_list$frequentist_results else NULL,
-                             bayesian_results = if (exists("signal_eligibility_results_list")) signal_eligibility_results_list$bayesian_results else NULL,
-                             p_correction_method = p_correction_method,
-                             ss_backtest_workflow = ss_backtest_workflow,
-                             backtest_identifier = "not_identified"
+  ss_backtest_results <- methods::new("ss_backtest_results",
+                                       ss_backtest_config = NULL,
+                                       signal_universe_m_df = if (exists("signal_universe_m_df")) signal_universe_m_df else NULL,
+                                       final_signal_universe_m_d_ref = if (exists("final_signal_universe_m_d_ref")) final_signal_universe_m_d_ref else NULL ,
+                                       selected_market_factor_proxy_m_xts = selected_market_factor_proxy_m_xts,
+                                       frequentist_results = if (exists("signal_eligibility_results_list")) signal_eligibility_results_list$frequentist_results else NULL,
+                                       bayesian_results = if (exists("signal_eligibility_results_list")) signal_eligibility_results_list$bayesian_results else NULL,
+                                       p_correction_method = p_correction_method,
+                                       ss_backtest_workflow = ss_backtest_workflow,
+                                       backtest_identifier = "not_identified"
   )
 
   #Return
