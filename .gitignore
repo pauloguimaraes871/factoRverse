@@ -10,8 +10,6 @@ src/
 
 
 # Ignore package installation files
-NAMESPACE
-NAMESPACE.lock
 .Rbuildignore
 
 # Ignore CRAN submission files
