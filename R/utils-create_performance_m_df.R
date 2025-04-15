@@ -19,6 +19,8 @@
 #'
 #' @param verbose If TRUE, will print messages to the console.
 #'
+#' @import PerformanceAnalytics
+#' @importFrom PerformanceAnalytics StdDev SharpeRatio ES
 #' @export
 create_performance_m_df <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, active_returns, verbose = TRUE){
 
