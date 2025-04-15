@@ -65,6 +65,9 @@ prepare_hierarchical_model_inputs <- function(selected_backtest_returns_correcte
     selected_backtest_returns_corrected_positions_m_upd_ref <- dplyr::left_join(
       selected_backtest_returns_corrected_positions_m_upd_ref,
       selected_signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
+
+  } else {
+    selected_backtest_returns_corrected_positions_m_upd_ref <- selected_backtest_returns_corrected_positions_m_upd_ref
   }
 
   ###Create formula
