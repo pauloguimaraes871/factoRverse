@@ -360,6 +360,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
   expect_gt(mean(comparison_size$posterior_alpha_t_stat), mean(comparison_size$alpha_t_stat))
   expect_gt(mean(comparison_size$posterior_individual_alpha), mean(comparison_size$individual_alpha))
 
+  future::plan("sequential")
 
 })
 
