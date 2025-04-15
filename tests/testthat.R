@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(mlfactors)
+library(factoRverse)
 
-test_check("mlfactors")
+test_check("factoRverse")
