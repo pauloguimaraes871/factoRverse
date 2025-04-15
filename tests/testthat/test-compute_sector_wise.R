@@ -587,6 +587,9 @@ test_that("compute_sector_wise correctly computes median - real data", {
                                  dates  = results$inputs$dates,
                                  features_names = results$inputs$features_names)
 
+  #Adjust NAs in sector
+  panel@data$sector_c1[which(is.na(panel@data$sector_c1))] <- "Unknown"
+
 
   #Compute sur
   features_m_df <- compute_sector_wise(panel, signal = "ir_3m", FUN = "mean", feature_name = "ir_3m_sector",

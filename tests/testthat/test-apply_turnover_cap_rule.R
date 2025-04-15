@@ -273,7 +273,7 @@ test_that("apply_turnover_cap_rule adequately classifies stocks based on buffer_
     bop_port_weights = c(0.02, 0.25, 0)
   )
 
-  expected_results <- stock_universe_m_d_ref %>% select(id, tickers, dates)
+  expected_results <- stock_universe_m_d_ref %>% dplyr::select(id, tickers, dates)
   eligibility_quantile_range <- c(0.75, 1)
   quantile_range_buffer <- 0.09
   lower_bound_quantile_buffer <- quantile(stock_universe_m_d_ref$exp_ret_score, 0.66)

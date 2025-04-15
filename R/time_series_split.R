@@ -53,14 +53,14 @@ time_series_split <- function(current_date, features_m_df, target_m_df, dates_m_
   }
 
   #Check structure of dates_m_vector and features_m_df$dates
-  if(!all(as.character(dates_m_vector) %in% unique(as.character(features_m_df$dates))) ||
-     !all(unique(as.character(features_m_df$dates)) %in% as.character(dates_m_vector))){
+  if(!all(as.Date(dates_m_vector) %in% unique(as.Date(features_m_df$dates))) ||
+     !all(unique(as.Date(features_m_df$dates)) %in% as.Date(dates_m_vector))){
     stop("all dates in dates_m_vector must have a correspondence in features_m_df")
   }
 
   #Check structure of dates_m_vector and target_m_df$dates
-  if(!all(as.character(dates_m_vector) %in% unique(as.character(target_m_df$dates))) ||
-     !all(unique(as.character(target_m_df$dates)) %in% as.character(dates_m_vector))){
+  if(!all(as.Date(dates_m_vector) %in% unique(as.Date(target_m_df$dates))) ||
+     !all(unique(as.Date(target_m_df$dates)) %in% as.Date(dates_m_vector))){
     stop("all dates in dates_m_vector must have a correspondence in target_m_df")
   }
   if(length(dates_m_vector) <= target_fwd){

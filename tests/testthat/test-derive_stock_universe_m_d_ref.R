@@ -82,7 +82,7 @@ test_that("derive_stock_universe_m_d_ref works for oos_predictions_m_df", {
                              daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
-                             stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, volatility_m_df = volatility_m_df,
+                             stock_groups_m_df = NULL, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
                              fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
