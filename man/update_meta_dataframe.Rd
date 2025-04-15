@@ -18,6 +18,8 @@ update_meta_dataframe(old_features_m_df, new_features_m_df, ...)
 
 \item{new_features_m_df}{A features meta dataframe object with new data}
 
+\item{...}{Additional arguments}
+
 \item{batch_type}{A character string indicating the batch type. Default is 'monthly'}
 }
 \value{

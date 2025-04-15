@@ -16,8 +16,6 @@
 #' - Provides commentary if the selected evaluation metric is not supported for early stopping.
 #' - Adjusts \code{custom_objective} based on the specified \code{sb_algorithm}.
 #'
-#' @examples
-#' translate_metrics("xgb", NULL, "squared_error", early_stop = FALSE, verbose = TRUE)
 #'
 translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective, early_stop, huber_delta, verbose){
 

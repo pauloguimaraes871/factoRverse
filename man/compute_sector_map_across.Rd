@@ -21,11 +21,13 @@ compute_sector_map_across(meta_dataframe, meta_xts, sector_column, mapper, ...)
 
 \item{meta_xts}{A \code{meta_xts} object containing the reference values.}
 
+\item{sector_column}{A \code{character} specifying the column in \code{meta_dataframe} that contains sector classifications.}
+
 \item{mapper}{A named \code{list} in which names represent sector names and elements are formulas defining how to compute values (e.g., \code{~-A}, \code{~A + B}).}
 
-\item{feature_name}{A \code{character} specifying the name of the new computed column. Default is \verb{<sector_column>_sector_value}.}
+\item{...}{Additional arguments passed to the formulas in \code{mapper}.}
 
-\item{sector_columnumn}{A \code{character} specifying the column in \code{meta_dataframe} that contains sector classifications.}
+\item{feature_name}{A \code{character} specifying the name of the new computed column. Default is \verb{<sector_column>_sector_value}.}
 }
 \value{
 A modified \code{meta_dataframe} with the new column containing computed values.

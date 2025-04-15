@@ -29,13 +29,9 @@ create_sb_metabacktest_config(
 
 \item{config_name}{Name of the backtest configuration.}
 
-\item{base_sb_backtest_configs}{A list of \code{sb_backtest_config} objects with \code{tuning_strategy} set to \code{NULL}.}
+\item{normalize_base_predictions}{A logical value indicating whether to normalize the base predictions.}
 
-\item{base_sb_backtest_results}{A list of \code{sb_backtest_results} objects.}
-
-\item{base_ss_backtest_configs}{A list of \code{ss_backtest_config} objects (optional).}
-
-\item{base_ss_backtest_results}{A list of \code{ss_backtest_results} objects (optional)}
+\item{winsorize_base_predictions}{A logical value indicating whether to winsorize the base predictions.}
 }
 \value{
 A \code{sb_metabacktest_config} object containing all viable combinations of configs.

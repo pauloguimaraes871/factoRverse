@@ -26,7 +26,6 @@
 #'   (e.g., `"cor"`, `"beta"`, `"alpha"`). Required when `calc_stat` involves regression or correlation.
 #' @param numeric_aggregation A character string defining how to discretize numeric `clustering_variables`.
 #'   Options include: `"decile"`, `"quartile"`, `"tercile"`, `"median"`. Default is `"decile"`.
-#' @param ... Currently unused. Included for method consistency.
 #'
 #' @return A `ggplot` object or base R plot (in the case of radar plots), visualizing the requested output.
 #'         The plot is printed as a side effect.

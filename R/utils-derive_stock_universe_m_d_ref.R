@@ -7,7 +7,7 @@
 #'
 #' @param signals_m_d_ref A data frame containing at least the columns `id`, `tickers`,
 #'   and one or more signal metrics.
-#' @param oos_predictions_m_df Optional. A data frame with out-of-sample predictions.
+#' @param oos_predictions_m_d_ref Optional. A data frame with out-of-sample predictions.
 #'   It must contain columns `id` and `pred`. If not provided (i.e. `NULL`), the signal
 #'   from `signals_m_d_ref` is used.
 #' @param chosen_score_metric_and_position A named character vector indicating the chosen
@@ -18,9 +18,6 @@
 #'   in \code{signal_transform}.
 #' @param upper_quantile_winsorization Numeric. Upper quantile value for winsorization
 #'   in \code{signal_transform}.
-#' @param signal_transform A function that transforms the score. It should accept at least
-#'   three arguments: the score vector, \code{lower_quantile_winsorization}, and
-#'   \code{upper_quantile_winsorization}.
 #'
 #' @return A data frame with columns:
 #'   \item{`id`}{A unique identifier combining the ticker and date.}

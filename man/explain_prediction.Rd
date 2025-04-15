@@ -2,9 +2,25 @@
 % Please edit documentation in R/utils-explain_prediction.R
 \name{explain_prediction}
 \alias{explain_prediction}
+\alias{explain_prediction,sb_backtest_results,meta_dataframe,character,Date-method}
+\alias{explain_prediction,sb_metabacktest_results,meta_dataframe,character,Date-method}
 \title{Explain Prediction}
 \usage{
 explain_prediction(
+  sb_backtest_results,
+  features_m_df,
+  selected_ticker,
+  selected_date
+)
+
+\S4method{explain_prediction}{sb_backtest_results,meta_dataframe,character,Date}(
+  sb_backtest_results,
+  features_m_df,
+  selected_ticker,
+  selected_date
+)
+
+\S4method{explain_prediction}{sb_metabacktest_results,meta_dataframe,character,Date}(
   sb_backtest_results,
   features_m_df,
   selected_ticker,

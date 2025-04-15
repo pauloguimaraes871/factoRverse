@@ -104,8 +104,6 @@ check_inputs_ss_backtest(
 \item{lower_quantile_winsorization}{Numeric between 0 and 1. Lower winsorization threshold for signal metrics.}
 
 \item{upper_quantile_winsorization}{Numeric between 0 and 1. Upper winsorization threshold for signal metrics.}
-
-\item{parallel}{Logical. If \code{TRUE}, uses \code{future} backend to parallelize Bayesian model fitting.}
 }
 \description{
 This function validates and checks all inputs required for running the \code{run_ss_backtest()} function, ensuring structural consistency, completeness, and proper formatting for backtest returns, benchmark data, signal metadata, and model configuration.

@@ -14,6 +14,7 @@
 #' @param feature_name A `character` string specifying the name of the new score column.
 #' @param min_non_na A numeric value indicating the minimum number of non-NA values required
 #'   to compute the score for a given row. Defaults to `0`.
+#' @param ... Additional arguments passed to the conditions.
 #'
 #' @return A `meta_dataframe` object with an additional column (named `feature_name`)
 #'   containing the number of conditions met for each row (or `NA` if insufficient data).

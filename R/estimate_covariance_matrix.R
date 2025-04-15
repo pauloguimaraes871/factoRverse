@@ -1,6 +1,6 @@
 #' Estimate a covariance matrix based on stock returns
 #'
-#' @param assets A dataframe with a tickers column to specifiy to which stocks/signal portfolios covariance is to be calculated.
+#' @param tickers A character vector with tickers to be used to estimate the covariance matrix
 #' @param returns_m_xts_upd_ref A dataframe in which columns represent tickers present in current_universe_df and row represent days
 #' It should include all stocks in assets and a dates column with at least cov_matrix_sample_size days before current_date
 #' @param cov_matrix_sample_size Number of periods to subset returns_d_ref sample when estimating the covariance_matrix. A high number will provide
@@ -8,11 +8,11 @@
 #' to dimensionality curse.
 #' @param cov_estimation_method One of SAM (Sample), EWMA, CC (Constant Correlation), PCA1, PCA2, Shrink_ID or Shrink_CC.
 #' If NULL, blending_method can only be EW or IR
-#' @param fill If TRUE, will fill rows NAs with group medians. If group median are NAs, it will fill with row's median
 #' @param groups_m_d_ref A dataframe with id, tickers and dates with dummy group classifications to be used to fill NAs
 #' @param active_returns A character string indicating whether covariance matrix should be calculated based on active returns or raw returns. If TRUE,
 #' returns_m_xts_upd_ref will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts.
-#'
+#' @param selected_benchmark_m_xts_upd_ref A dataframe in which columns represent benchmarks returns and row represent days
+#' @param verbose If TRUE, will print messages to the console
 #'
 estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
                                        cov_matrix_sample_size, cov_estimation_method,

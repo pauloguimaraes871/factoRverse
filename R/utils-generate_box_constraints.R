@@ -14,14 +14,13 @@
 #'   - `top_stock_quantile_buffer`: A numeric value indicating a buffer value that relaxes `top_stocks_quantile` for stocks with the specified liquidity classification.
 #'   - `turnover_cap`: A numeric value specifying the turnover cap.
 #'   Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the `liquidity_floor_rule`.
-#' @param concentration_constraints_policy A named list containing up to four elements:
+#' @param concentration_constraint_policy A named list containing up to four elements:
 #' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
 #' Must have a correspondence in `benchmark_weights_m_d_ref`
 #' - `max_abs_active_individual_weight`: The maximum absolute individual active weights.
-#' - `group_classification`: A character vector describing the sector classification to be used to apply sector constraints.
-#' Must have a correspondence in `sector_m_d_ref`
 #' - `max_abs_active_sector_weight`: The maximum absolute sector active weight used for creating group constraints in `generate_sector_constraints`.
 #' If a given sector has no eligible stock, the one with the greatest signal will be automatically promoted.
+#' @param verbose Logical. If TRUE, the function will print messages indicating the progress of the process.
 #' Note that, in the context of `generate_sector_constraints`, a `benchmark_weights_m_d_ref` data frame must also be supplied.
 #'
 generate_box_constraints <- function(universe_m_d_ref, liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy,

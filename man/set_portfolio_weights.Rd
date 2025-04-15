@@ -48,11 +48,21 @@ set_portfolio_weights(
 
 \item{groups_m_d_ref}{An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.}
 
+\item{returns_m_xts_upd_ref}{An optional \code{xts} object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.}
+
+\item{selected_benchmark_m_xts_upd_ref}{An optional \code{xts} object containing benchmark returns used to compute active returns (only if \code{active_returns = TRUE}).}
+
+\item{active_returns}{Logical. If \code{TRUE}, covariance estimation will use active returns (asset returns minus benchmark). Defaults to \code{FALSE} if \code{selected_benchmark_m_xts_upd_ref} is \code{NULL}, otherwise \code{TRUE}.}
+
 \item{cov_estimation_method}{An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.}
+
+\item{cov_matrix_sample_size}{Integer. Number of time periods (rows in \code{returns_m_xts_upd_ref}) used to estimate the covariance matrix. If \code{NULL}, uses all available observations.}
 
 \item{liquidity_constraint_policy}{An optional list specifying the policy for liquidity constraints. Defaults to \code{NULL}.}
 
 \item{turnover_constraint_policy}{An optional list specifying the policy for turnover constraints. Defaults to \code{NULL}.}
+
+\item{concentration_constraint_policy}{Optional list specifying concentration constraints for MVO optimization. Typically includes \code{max_abs_active_individual_weight} or other individual/sector limits.}
 
 \item{n_random_ports}{An optional numeric value indicating the number of random portfolios to generate for optimization methods. Defaults to \code{NULL}.}
 
@@ -60,11 +70,15 @@ set_portfolio_weights(
 
 \item{opt_objective}{Objective of mean-tracking error optimization. Defaults to \code{NULL}.}
 
+\item{opt_method}{Character. Optimization method for MVO. Defaults to \code{"random"} and can include methods like \code{"grid"}, \code{"bayesian"}, or \code{"differential_evolution"}.}
+
+\item{rp_method}{Character. Method to compute the Risk Parity portfolio. Defaults to \code{"cyclical-spinu"}. Other methods may include \code{"inverse-vol"} or \code{"erc"} (equal risk contribution).}
+
+\item{custom_weights_m_d_ref}{A meta dataframe containing custom user-defined weights. Required when \code{port_construction_method = "custom_weights"}. Must contain columns \code{tickers}, \code{dates}, and \code{weights}.}
+
 \item{lower_quantile_winsorization}{An optional numeric value for lower quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.}
 
 \item{upper_quantile_winsorization}{An optional numeric value for upper quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.}
-
-\item{benchmark_weights_m_d_ref}{An optional data frame or matrix specifying the benchmark weights for setting sector constraints. Defaults to \code{NULL}.}
 }
 \value{
 A data frame or object (depending on the portfolio construction method) with the updated portfolio weights assigned based on the specified method and constraints.

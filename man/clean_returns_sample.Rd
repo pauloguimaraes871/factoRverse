@@ -13,17 +13,16 @@ clean_returns_sample(
 )
 }
 \arguments{
+\item{returns_m_xts_sample}{A xts in which columns represent tickers present in current_universe_df and row represent days
+It should include all stocks in assets and a dates column with at least covariance_matrix_sample_size days before current_date}
+
 \item{groups_m_d_ref}{A dataframe with id, tickers and dates with group classifications to be used to fill NAs}
 
 \item{fill}{If TRUE, will fill rows NAs with groups medians. If groups_median are NAs, it will fill with row's median}
 
-\item{assets}{A dataframe with tickers column}
+\item{fill_by}{If fill is TRUE, it will fill NAs with the median of the group defined by this column. If NULL, it will use the last column of groups_m_d_ref}
 
-\item{returns_d_ref}{A dataframe in which columns represent tickers present in current_universe_df and row represent days
-It should include all stocks in assets and a dates column with at least covariance_matrix_sample_size days before current_date}
-
-\item{covariance_matrix_sample_size}{Number of periods to subset returns_d_ref sample when estimating the covariance_matrix. A high number will provide
-higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to}
+\item{verbose}{If TRUE, will print messages to the console}
 }
 \description{
 Generate a sample of returns to estimate covariance matrix

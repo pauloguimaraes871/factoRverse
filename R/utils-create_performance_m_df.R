@@ -17,6 +17,8 @@
 #' - **Performance Ratios**: Sharpe ratio, Sortino ratio, Calmar ratio, Omega ratio, Rachev ratio, and others.
 #' - **Additional Metrics**: Average recovery, Hurst index, probabilistic Sharpe ratio, and minimum track record.
 #'
+#' @param verbose If TRUE, will print messages to the console.
+#'
 #' @export
 create_performance_m_df <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, active_returns, verbose = TRUE){
 

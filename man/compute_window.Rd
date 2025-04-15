@@ -2,9 +2,38 @@
 % Please edit documentation in R/compute_window.R
 \name{compute_window}
 \alias{compute_window}
+\alias{compute_window,meta_dataframe,numeric,character-method}
+\alias{compute_window,metrics_meta_xts,numeric,character-method}
 \title{Compute Rolling or Fwd Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts}
 \usage{
 compute_window(data, period, FUN, ...)
+
+\S4method{compute_window}{meta_dataframe,numeric,character}(
+  data,
+  period,
+  FUN,
+  window = "rolling",
+  signal,
+  benchmark_returns_m_xts = NULL,
+  selected_bench = NULL,
+  na.rm = TRUE,
+  only_unique = FALSE,
+  feature_name = NULL,
+  min_non_na = 0,
+  count_condition_fun = NULL
+)
+
+\S4method{compute_window}{metrics_meta_xts,numeric,character}(
+  data,
+  period,
+  FUN,
+  window = "rolling",
+  metric,
+  na.rm = TRUE,
+  only_unique = FALSE,
+  feature_name = NULL,
+  min_non_na = 0
+)
 }
 \arguments{
 \item{data}{A \code{meta_dataframe} or \code{meta_xts} object.}
@@ -20,11 +49,11 @@ compute_window(data, period, FUN, ...)
 \item "median", "sd", "cagr", "skew", "sur", "mean_std", "res_mom", "idio_vol".
 }}
 
+\item{...}{Additional arguments passed to the function.}
+
 \item{window}{A \code{character} specifying the window type: either "rolling" (default) or "fwd_seasonal".}
 
 \item{signal}{(For \code{meta_dataframe}) A \code{character} specifying the column name on which the rolling function is computed.}
-
-\item{metric}{(For \code{meta_xts}) A \code{character} specifying the metric column name.}
 
 \item{benchmark_returns_m_xts}{A \code{meta_xts} object. Required for \code{FUN} "res_mom" and "idio_vol".}
 
@@ -43,6 +72,8 @@ compute_window(data, period, FUN, ...)
 
 \item{count_condition_fun}{A function that takes a numeric vector and returns a logical vector.
 The function should return \code{TRUE} for elements that should be counted. Only used for FUN = "count_if".}
+
+\item{metric}{(For \code{meta_xts}) A \code{character} specifying the metric column name.}
 }
 \value{
 A modified \code{meta_dataframe} or \code{meta_xts} object with an additional column named \code{"<metric>_<window>_<period>_<FUN>"},

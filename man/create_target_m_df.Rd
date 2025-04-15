@@ -30,6 +30,8 @@ create_target_m_df(
 
 \item{features_m_df}{A \code{meta_dataframe} object containing features data.}
 
+\item{...}{Additional arguments to be passed to the method.}
+
 \item{past_ret_column}{Character, indicating the column in \code{daily_returns_m_df} that contains returns.}
 
 \item{selected_bench}{Character, indicating the column in \code{benchmark_returns_m_xts} to use as the benchmark.}
@@ -37,6 +39,8 @@ create_target_m_df(
 \item{fwd_horizon}{Integer, the number of months to compute forward returns}
 
 \item{active_returns}{Logical, indicating whether to calculate active returns.}
+
+\item{parallel}{Logical, indicating whether to use parallel processing.}
 }
 \value{
 A \code{target_m_df} object containing future return metrics.

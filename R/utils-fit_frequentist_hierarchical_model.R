@@ -6,21 +6,21 @@
 #'
 #' @param signal_universe_m_d_ref A data frame containing the signal universe. If provided, data in this object will be updated with hierarchical model metrics.
 #'
-#' @param selected_backtest_returns_corrected_positions_upd_ref A data frame containing the backtest returns data for various signals.
+#' @param selected_backtest_returns_corrected_positions_m_xts_upd_ref A data frame containing the backtest returns data for various signals.
 #'   - The first column should include dates.
 #'   - Remaining columns represent signals (e.g., tickers) and their respective active returns.
 #'
-#' @param selected_market_factor_proxy_vector_upd_ref A numeric vector containing benchmark returns data. The vector will be recycled
+#' @param selected_market_factor_proxy_m_xts_upd_ref A numeric vector containing benchmark returns data. The vector will be recycled
 #'   to match the length of the backtest returns data.
 #'
 #' @param selected_signal_themes_m_d_ref A data frame containing metadata about signals. This data frame should include:
-#'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_upd_ref`.
+#'   - `tickers`: Signal identifiers matching those in `selected_backtest_returns_corrected_positions_m_xts_upd_ref`.
 #'   - `theme`: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
 #'   - `dates`: Dates corresponding to the backtest data.
 #'   This input ensures proper alignment between signals and their associated themes.
 #'
-#' @param selected_backtest_returns_corrected_positions_m_upd_ref An already processed `selected_backtest_returns_corrected_positions_upd_ref`.
-#' This data.frame is already in long format and contemplates both the `selected_market_factor_proxy_vector_upd_ref` and the
+#' @param selected_backtest_returns_corrected_positions_m_upd_ref An already processed `selected_backtest_returns_corrected_positions_m_xts_upd_ref`.
+#' This data.frame is already in long format and contemplates both the `selected_market_factor_proxy_m_xts_upd_ref` and the
 #' `selected_signal_themes_m_d_ref` theme data.
 #'
 #' @param model_spec_theme_level A character string specifying the desired model structure.
@@ -30,7 +30,9 @@
 #'   - `"theme_specific_intercept_theme_specific_slope"`: Includes fixed intercepts and slopes for each theme.
 #'   - `"fixed_intercept_fixed_slope"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
 #'
-#' @param verbose A logical indicating whether to display progress messages during the model fitting process. Defaults to `TRUE`.
+#' @param lmer_optimizer A character string specifying the optimizer to be used in the `lmer` function.
+#' @param lmer_optimization_objective A logical indicating whether to optimize the model using the `lmer` function. If `TRUE`, the model will be optimized.
+#' @param hierarchical_p_value_method A character string specifying the method for calculating p-values.
 #'
 #' @return A named list containing:
 #'   - `frequentist_model`: A `lmermod` object containing the fitted frequentist model.

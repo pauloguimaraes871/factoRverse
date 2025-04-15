@@ -24,6 +24,14 @@ classify_investment_universe(
 )
 }
 \arguments{
+\item{universe_m_d_ref}{A data frame of stocks or signals.}
+
+\item{eligibility_quantile_range}{A numeric vector of length 2 indicating the range of quantiles to be used for filtering stocks.}
+
+\item{min_eligible_assets_fallback}{A numeric value indicating the minimum number of eligible assets to be selected.}
+
+\item{signal_significance_threshold}{A numeric value indicating the threshold for signal significance.}
+
 \item{liquidity_floor_cutoffs}{Mandatory if \code{turnover_constraint_policy} and/or \code{liquidity_constraint_policy} are provided.
 A list of named vectors containing cutoff values to classify stocks according to liquidity.
 Each element must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
@@ -67,6 +75,16 @@ All tickers in the current universe must have a unique correspondence in this da
 \item{groups_m_d_ref}{A data frame containing columns for id, tickers, dates, and group classification columns following a given classification method.
 All tickers in the current universe must have a unique correspondence in the data frame.}
 
+\item{concentration_constraint_policy}{A named list containing up to four elements:
+\itemize{
+\item \code{benchmark}: A character vector describing the benchmark to be used to apply constraint.
+Must have a correspondence in \code{benchmark_weights_m_d_ref}
+\item \code{max_abs_active_individual_weight}: The maximum absolute individual active weights.
+\item \code{max_abs_active_group_weight}: The maximum absolute group active weight used for creating group constraints in \code{generate_group_constraints}.
+If a given group has no eligible asset, the one with the greatest signal will be automatically promoted.
+Note that, in the context of \code{generate_group_constraints}, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
+}}
+
 \item{user_defined_AND_rules_m_d_ref}{Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 For example, to apply a filter with stocks that begin with A, \code{user_defined_AND_rules_m_d_ref} can contain a data frame element named "starts_with_A_rule".
 This data frame can contain a metric column (e.g., the name of the stock), and the descriptive filter column must be named "starts_with_A_rule". In this case, the "starts_with_A_rule" column should be an integer, and its values must be either 1L (stock passes rule) or 0L (stock fails to pass rule).
@@ -77,22 +95,7 @@ All tickers in the current stock universe must have a unique correspondence in t
 
 \item{asset_object}{A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"}
 
-\item{signals_m_d_ref}{A data frame of stocks with signals columns.}
-
-\item{pre_eligible_assets_quantile}{Optional. Numeric value to apply the \strong{Only Top Assets Rule}, indicating the top quantile for filtering assets based on signal.
-Only assets in this quantile will be considered for the \code{filtered_universe}.}
-
-\item{concentration_constraints_policy}{A named list containing up to four elements:
-\itemize{
-\item \code{benchmark}: A character vector describing the benchmark to be used to apply constraint.
-Must have a correspondence in \code{benchmark_weights_m_d_ref}
-\item \code{max_abs_active_individual_weight}: The maximum absolute individual active weights.
-\item \code{group_classification}: A character vector describing the group classification to be used to apply group constraints.
-Must have a correspondence in \code{group_m_d_ref}
-\item \code{max_abs_active_group_weight}: The maximum absolute group active weight used for creating group constraints in \code{generate_group_constraints}.
-If a given group has no eligible asset, the one with the greatest signal will be automatically promoted.
-Note that, in the context of \code{generate_group_constraints}, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
-}}
+\item{verbose}{A logical indicating whether to print messages during the function execution.}
 }
 \description{
 The eligibility of a stock/signal portfolio depends on a series of criteria, as explained in Details. Default behavior is to apply only

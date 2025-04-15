@@ -25,15 +25,23 @@ check_inputs_meta_sb_backtest(
 \arguments{
 \item{config}{An object containing the meta backtest configuration.}
 
-\item{features_m_df}{A dataframe containing feature names.}
+\item{features_m_df}{A dataframe containing features}
+
+\item{target_m_df}{A dataframe containing targets}
+
+\item{base_sb_backtest_results_list}{A list of base signal blend backtest results.}
 
 \item{base_signal_themes_m_df}{Optional base signal themes meta dataframe.}
 
 \item{base_custom_signal_weights_m_df}{Optional base custom signal weights meta dataframe.}
 
+\item{base_custom_signal_universe_metrics_m_df}{Optional base custom signal universe metrics meta dataframe.}
+
 \item{meta_signal_themes_m_df}{Optional meta signal themes meta dataframe.}
 
 \item{meta_custom_signal_weights_m_df}{Optional meta custom signal weights meta dataframe.}
+
+\item{meta_custom_signal_universe_metrics_m_df}{Optional meta custom signal universe metrics meta dataframe.}
 
 \item{base_backtest_returns_m_xts}{Optional xts object for base backtest returns.}
 
@@ -42,6 +50,8 @@ check_inputs_meta_sb_backtest(
 \item{meta_backtest_returns_m_xts}{Optional xts object for meta backtest returns.}
 
 \item{meta_benchmark_returns_m_xts}{Optional xts object for meta benchmark returns.}
+
+\item{verbose}{A boolean indicating whether to print detailed messages.}
 }
 \value{
 None. Stops execution if validation checks fail.

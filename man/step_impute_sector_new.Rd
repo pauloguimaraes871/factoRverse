@@ -15,6 +15,29 @@ step_impute_sector_new(
   id
 )
 }
-\description{
-Constructor for step_impute_sector
+\arguments{
+\item{terms}{A \code{quosure} with the columns to be imputed, as selected via \code{recipes::terms_select()}.}
+
+\item{sector}{A \code{character} string specifying the name of the column in the data used to group observations (e.g., "sector").}
+
+\item{method}{A \code{character} string specifying the imputation method to use within each group. Typically "mean" or "median".}
+
+\item{role}{A character string describing the role of the created variable (usually \code{"predictor"}). This is required by the \code{recipes} API.}
+
+\item{trained}{A logical indicating whether the preprocessing step has been trained.}
+
+\item{impute_values}{A list of named vectors storing the imputed values computed during training (one vector per group).}
+
+\item{skip}{A logical. Should the step be skipped when the recipe is baked by \code{recipes::bake()}? Default is \code{FALSE}.}
+
+\item{id}{A character string used to uniquely identify the step. Automatically generated if \code{NULL}.}
 }
+\value{
+A \code{step} object of class \code{step_impute_sector}.
+}
+\description{
+Low-level constructor function for creating a new \code{step_impute_sector} step in a recipe.
+This step is designed to impute missing values by group (e.g., sectors), using group-specific means or medians.
+The constructor is typically used internally and should not be called directly by users.
+}
+\keyword{internal}

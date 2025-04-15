@@ -2932,6 +2932,7 @@ setMethod("get_tickers", "meta_xts", function(object) {
 #'
 #' @param object An object of class `meta_dataframe` or `meta_xts`.
 #' @return A sorted vector of dates.
+#' @param ... Additional arguments (not used).
 #' @rdname get_dates
 #' @export
 setGeneric("get_dates", function(object, ...) standardGeneric("get_dates"))

@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils-explain_prediction.R
 \name{decompose_feature_importance}
 \alias{decompose_feature_importance}
-\title{inner helper function to decompose feature importance}
+\title{Decompose Feature Importance from Meta-Learner to Base Features}
 \usage{
 decompose_feature_importance(
   most_recent_meta_date,
@@ -11,6 +11,50 @@ decompose_feature_importance(
   base_feature_importance_filtered
 )
 }
-\description{
-inner helper function to decompose feature importance
+\arguments{
+\item{most_recent_meta_date}{Date. A single date used to tag all decomposed importance values.
+This is typically the date of the most recent meta-model estimation.}
+
+\item{meta_feature_importance}{A \code{data.frame} containing feature importance values from the meta-learner.
+Must include at least:
+\itemize{
+\item \code{tickers}: Identifiers for the base learners used in the meta-model.
+\item \code{importance}: The estimated importance of each base learner.
+}}
+
+\item{base_identifiers}{A character vector of base learner identifiers.
+These should match the \code{tickers} in \code{meta_feature_importance}.}
+
+\item{base_feature_importance_filtered}{A list of \code{data.frame}s, each containing feature importance
+values for a base learner. Each element must correspond in order to \code{base_identifiers}, and each
+\code{data.frame} must include:
+\itemize{
+\item \code{tickers}: Feature identifiers used in the base learner.
+\item \code{importance}: Their respective importance values.
+}}
 }
+\value{
+A \code{data.frame} (in \code{meta_dataframe} format) with the decomposed feature importance.
+Columns include:
+\itemize{
+\item \code{id}: Unique identifier combining feature and date.
+\item \code{dates}: Set to \code{most_recent_meta_date}.
+\item \code{tickers}: Feature names (or base learner features).
+\item \code{importance}: Decomposed and consolidated importance value.
+}
+}
+\description{
+Internal utility to propagate feature importance values from a meta-model to its constituent base learners.
+The function adjusts and redistributes meta-level feature importance into the features used by each base learner,
+weighting them proportionally by their within-learner relative importance.
+}
+\details{
+For each base learner:
+\enumerate{
+\item The meta importance is multiplied by each feature’s relative importance (within the base model).
+\item The adjusted importance is assigned to the respective feature.
+\item The base learner row is removed from the meta table and replaced by its decomposed features.
+}
+After looping through all base learners, duplicated features (from different learners) are consolidated by summing their importances.
+}
+\keyword{internal}

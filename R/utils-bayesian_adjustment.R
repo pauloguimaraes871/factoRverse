@@ -49,7 +49,7 @@
 #'   }
 #'   Default is `"nloptwrap"`.
 #'
-#'  @param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
+#' @param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 #'
 #' @param selected_signal_themes_m_d_ref Data frame.
 #'   A (meta)data frame containing metadata about signals with the following columns:

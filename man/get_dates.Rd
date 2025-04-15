@@ -14,6 +14,8 @@ get_dates(object, ...)
 }
 \arguments{
 \item{object}{An object of class \code{meta_dataframe} or \code{meta_xts}.}
+
+\item{...}{Additional arguments (not used).}
 }
 \value{
 A sorted vector of dates.

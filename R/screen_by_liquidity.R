@@ -14,16 +14,15 @@
 #' The first column is named "liquidity_classification"
 #' It has at most 5 rows and no duplicates or NAs.
 #' @param liquidity_floor_rule Optional. Character string specifying the liquidity classification to apply the liquidity floor rule (eg. "nano_caps", "micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps").
-#' @param verbose Logical. If TRUE, prints processing messages.
+#' @param verbose Logical. If TRUE, prints additional information during processing.
+#' @param ... Additional arguments to be passed to the method.
+#'
 #' @export
 setGeneric("screen_by_liquidity", function(meta_dataframe, liquidity_m_df, liquidity_floor_cutoffs, liquidity_floor_rule, ...) {
   standardGeneric("screen_by_liquidity")
 })
 
-#' Method for screening a meta_dataframe based on liquidity
-#'
-#' @inheritParams screen_by_liquidity
-#' @return A new `meta_dataframe` object with screened data.
+#' @rdname screen_by_liquidity
 #' @export
 setMethod("screen_by_liquidity",
           signature(meta_dataframe = "meta_dataframe",

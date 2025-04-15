@@ -23,6 +23,8 @@ create_tuning_strategy(
 
 \item{chosen_eval_metric}{Character or NULL, specifying the evaluation metric to be optimized.}
 
+\item{hyper_grid_domain}{An object of class \code{hyper_grid_domain}, representing the hyperparameter search space. If NULL, an empty hyper_grid_domain is created.}
+
 \item{early_stop}{ANY, optional argument for halting criteria.}
 
 \item{n_iter}{Numeric, number of iterations for 'random_search' or 'bayesian_opt'.}

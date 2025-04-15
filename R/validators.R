@@ -703,7 +703,7 @@ check_consistent_dates <- function(current_dates) {
 #' @param old_objects_names_list A named list or vector that maps each \code{arg_name}
 #'   in \code{new_objects_list} to the “official” or expected name. For example:
 #'   \code{old_objects_names_list[["signals_m_df"]]} might be \code{"my_signals"}.
-#' @param dates_covered A vector of dates that have already been covered by previous
+#' @param old_objects_dates_covered_list A named list of dates that have already been covered by previous
 #'   backtest data. The function checks that the new objects contain dates strictly
 #'   after these.
 #' @param n_update The number of new dates that should be present in the updated objects.

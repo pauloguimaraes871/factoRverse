@@ -19,6 +19,8 @@ read_tickers_catalog(data, tickers_catalog, ...)
 ticker status, trading range, and permanent IDs.}
 
 \item{...}{Additional arguments passed to methods. Supports \code{verbose = TRUE/FALSE}.}
+
+\item{verbose}{A logical indicating whether to print progress messages. Defaults to \code{TRUE}.}
 }
 \value{
 An object of the same class as \code{data}, modified according to the catalog rules.

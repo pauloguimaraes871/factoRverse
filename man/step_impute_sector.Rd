@@ -17,13 +17,23 @@ step_impute_sector(
 )
 }
 \arguments{
+\item{recipe}{A recipe object.}
+
 \item{...}{Additional arguments passed to methods (not used).}
 
-\item{x}{A \code{step_impute_sector} object.}
+\item{sector}{A character string specifying the name of the sector variable.}
 
-\item{training}{A data frame of training data that will be used to estimate the imputation values.}
+\item{method}{A character string specifying the imputation method. Either "mean" or "median".}
 
-\item{info}{An optional \code{term_info} object. Not used here but required by the S3 method signature.}
+\item{role}{The role to assign to the new variables created by this step. Default is \code{NA}.}
+
+\item{trained}{A logical indicating if the step has been trained. Default is \code{FALSE}.}
+
+\item{impute_values}{A list of computed imputation values for each variable.}
+
+\item{skip}{A logical indicating if the step should be skipped during baking. Default is \code{FALSE}.}
+
+\item{id}{A character string for the step ID. Default is a random ID.}
 }
 \value{
 A \code{step_impute_sector} object with computed \code{impute_values}.

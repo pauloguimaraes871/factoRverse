@@ -39,7 +39,3 @@ This function adapts the chosen evaluation metric based on the provided paramete
 \item Adjusts \code{custom_objective} based on the specified \code{sb_algorithm}.
 }
 }
-\examples{
-translate_metrics("xgb", NULL, "squared_error", early_stop = FALSE, verbose = TRUE)
-
-}

@@ -1,46 +1,33 @@
-#' Update Signal Blending Backtest
+#' @title Update Signal Blending Backtest
 #'
-#' The `update_sb_backtest` function will take an existing `sb_backtest_results` object and update it with
-#' new dates. This function is useful when you want to add new dates to an existing backtest without having to re-run the entire backtest.
+#' @description
+#' Updates an existing signal blending (SB) backtest by extending it one month forward. This avoids re-running the entire backtest while preserving prior results.
 #'
-#' @param features_m_df A meta_dataframe containing features.
-#' @param target_m_df A meta_dataframe containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
-#' XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.
-#' @param old_results An object of class \code{sb_backtest_results} specifying the sb backtest results to be updated.
-#' @param parallel Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).
-#' @param ... Additional arguments (if needed).
-#' @param updated_ss_backtest_results An optional object of class \code{ss_backtest_results}, used when the SB model depends on updated SS results.
-#' @param updated_port_backtest_cohort An optional object of class \code{port_backtest_cohort} used to derive updated return and benchmark data.
-#' @param updated_backtest_returns_m_xts A \code{meta_xts} object containing updated signal-based backtest returns.
-#' @param benchmark_returns_m_xts A \code{meta_xts} object with benchmark returns over the backtest period.
-#' @param signal_themes_m_df A \code{meta_dataframe} class object containing signal theme information for risk parity and MVO algorithms.
-#' @param custom_signal_weights_m_df A \code{meta_dataframe} with user-defined signal weights.
-#' @param custom_signal_universe_metrics_m_df A \code{meta_dataframe} with custom signal-level metrics for filtering or selection.
-#' @param updated_base_sb_backtest_results A list of \code{sb_backtest_results} used for updating the base learners in the SB meta-backtest.
-#' @param updated_base_port_backtest_cohort An optional \code{port_backtest_cohort} object used for the base learners.
-#' @param updated_base_backtest_returns_m_xts A \code{meta_xts} with signal-based returns for the base learners.
-#' @param base_benchmark_returns_m_xts A \code{meta_xts} object with benchmark returns used for the base learners.
-#' @param base_signal_themes_m_df A \code{meta_dataframe} with signal themes used in the base learners.
-#' @param base_priors_m_df A \code{meta_dataframe} containing prior beliefs or constraints used for Bayesian learners in the base layer.
-#' @param base_custom_signal_weights_m_df A \code{meta_dataframe} of custom signal weights for base learners.
-#' @param base_custom_signal_universe_metrics_m_df A \code{meta_dataframe} of custom signal metrics for base learners.
-#' @param updated_meta_port_backtest_cohort An optional \code{port_backtest_cohort} used in the meta learner layer.
-#' @param updated_meta_backtest_returns_m_xts A \code{meta_xts} with returns for the meta learner.
-#' @param meta_benchmark_returns_m_xts A \code{meta_xts} with benchmark returns for the meta learner.
-#' @param meta_signal_themes_m_df A \code{meta_dataframe} with signal themes used in the meta learner.
-#' @param meta_priors_m_df A \code{meta_dataframe} with priors used by the
+#' @param features_m_df A `meta_dataframe` containing engineered features for the next rebalancing date.
+#' @param target_m_df A `meta_dataframe` containing target returns aligned with `features_m_df`.
+#' @param old_results A `sb_backtest_results` or `sb_metabacktest_results` object representing previously run backtests.
+#' @param parallel Logical. If `TRUE`, runs the update in parallel. Default is `TRUE`.
+#' @param verbose Logical. If `TRUE`, prints progress messages. Default is `TRUE`.
+#' @param ... Additional optional arguments, depending on the method.
 #'
-#' @return An object of class \code{sb_backtest_results} containing the sb backtest results.
+#' @return An updated `sb_backtest_results` or `sb_metabacktest_results` object, depending on method used.
 #'
 #' @export
 setGeneric("update_sb_backtest", function(features_m_df, target_m_df, old_results, ...) standardGeneric("update_sb_backtest"))
 
-#' @describeIn update_sb_backtest Updates a sb backtest using based on a \code{sb_backtest_results} object.
+#' @describeIn update_sb_backtest
+#' Updates a base SB backtest (`sb_backtest_results`) by validating new data consistency, extracting prior configuration,
+#' recalculating the necessary one-month update, and appending results.
 #'
-#' This method extracts the parameters from the \code{results} object (of class \code{sb_backtest_results}), modifies training_sample_size, performs the
-#' new backtest and then binds results
+#' @param updated_ss_backtest_results Optional `ss_backtest_results` used if signal selection was performed.
+#' @param updated_port_backtest_cohort Optional `port_backtest_cohort` used to derive updated signal and benchmark returns.
+#' @param updated_backtest_returns_m_xts An optional `meta_xts` containing new backtest returns.
+#' @param benchmark_returns_m_xts Optional `meta_xts` of benchmark returns.
+#' @param signal_themes_m_df Optional `meta_dataframe` with theme classification used in RP/MVO strategies.
+#' @param custom_signal_weights_m_df Optional `meta_dataframe` with custom weights for signals.
+#' @param custom_signal_universe_metrics_m_df Optional `meta_dataframe` with custom signal metrics.
+#' @param .test_seed Optional numeric seed for reproducibility during testing.
 #'
-#' @include class_definitions.R
 #' @export
 setMethod("update_sb_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", old_results = "sb_backtest_results"),
@@ -298,12 +285,26 @@ setMethod("update_sb_backtest",
           })
 
 
-#' @describeIn update_sb_backtest Updates a sb backtest using based on a \code{sb_metabacktest_results} object.
+#' @describeIn update_sb_backtest
+#' Updates a meta-learning SB backtest (`sb_metabacktest_results`) by updating both the base and meta learner layers.
 #'
-#' This method extracts the parameters from the \code{results} object (of class \code{sb_metabacktest_results}), modifies training_sample_size, performs the
-#' new backtest and then binds results
+#' @param updated_base_sb_backtest_results A named list of updated `sb_backtest_results` for each base learner.
+#' @param updated_base_port_backtest_cohort Optional `port_backtest_cohort` for the base learners.
+#' @param updated_base_backtest_returns_m_xts Optional `meta_xts` of base learners' returns.
+#' @param base_benchmark_returns_m_xts Optional `meta_xts` of benchmark returns for base learners.
+#' @param base_signal_themes_m_df Optional `meta_dataframe` with base learner signal themes.
+#' @param base_priors_m_df Optional `meta_dataframe` with prior beliefs for base learners.
+#' @param base_custom_signal_weights_m_df Optional `meta_dataframe` with custom signal weights for base learners.
+#' @param base_custom_signal_universe_metrics_m_df Optional `meta_dataframe` with custom metrics for base learners.
+#' @param updated_meta_port_backtest_cohort Optional `port_backtest_cohort` for the meta learner.
+#' @param updated_meta_backtest_returns_m_xts Optional `meta_xts` of returns for the meta learner.
+#' @param meta_benchmark_returns_m_xts Optional `meta_xts` with benchmark returns for the meta learner.
+#' @param meta_signal_themes_m_df Optional `meta_dataframe` with signal themes for the meta learner.
+#' @param meta_priors_m_df Optional `meta_dataframe` with priors for the meta learner.
+#' @param meta_custom_signal_weights_m_df Optional `meta_dataframe` with custom weights for the meta learner.
+#' @param meta_custom_signal_universe_metrics_m_df Optional `meta_dataframe` with custom metrics for the meta learner.
+#' @param .test_seed Optional numeric seed for reproducibility.
 #'
-#' @include class_definitions.R
 #' @export
 setMethod("update_sb_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", old_results = "sb_metabacktest_results"),
@@ -444,12 +445,22 @@ setMethod("update_sb_backtest",
 #' @param target_m_df A `meta_dataframe` with the target variable. Columns should follow format `targetname_1_m`, etc.
 #' @param config Either a `sb_backtest_config` (single backtest) or a `sb_metabacktest_config` (meta learning).
 #' @param base_sb_backtest_results_list A list of `sb_backtest_results` objects (only for `sb_metabacktest_config`).
-#' @param verbose Logical. Print progress and diagnostic messages.
-#' @param parallel Logical. Run tuning and backtest in parallel. See Details.
-#' @param winsorization_probs Numeric vector (length 2). Used to winsorize signal or prediction input.
-#' @param .test_seed Internal. Used for test reproducibility.
-#' @param .update Internal. Set to `TRUE` to update a previously-run backtest object.
-#' @param .old_meta_sb_backtest_results Internal. A previously returned `sb_metabacktest_results` object to be updated.
+#' @param verbose Logical.
+#' @param parallel Logical.
+#' @param winsorization_probs Numeric vector of length 2.
+#' @param .test_seed Integer, for test reproducibility.
+#' @param .update Logical.
+#' @param ss_backtest_results An `ss_backtest_results` object (optional).
+#' @param port_backtest_cohort A `port_backtest_cohort` object (optional).
+#' @param backtest_returns_m_xts A `meta_xts` object of returns (optional).
+#' @param benchmark_returns_m_xts A `meta_xts` benchmark (optional).
+#' @param signal_themes_m_df A `meta_dataframe` with theme classifications (optional).
+#' @param custom_signal_weights_m_df A `meta_dataframe` with predefined signal weights (optional).
+#' @param custom_signal_universe_metrics_m_df A `meta_dataframe` with signal-level metrics (optional).
+#' @param .old_backtest_covered_dates Vector of covered dates for update.
+#' @param .old_oos_sb_outputs_m_df Out-of-sample predictions from previous run.
+#' @param .old_sb_model_fit Trained model from previous run.
+#' @param ... Additional arguments for `sb_backtest_config` or `sb_metabacktest_config`.
 #'
 #' @return An S4 object of class:
 #' \describe{
@@ -479,34 +490,7 @@ setMethod("update_sb_backtest",
 
 setGeneric("run_sb_backtest", function(features_m_df, target_m_df, config, base_sb_backtest_results_list, ...) standardGeneric("run_sb_backtest"))
 
-#' @describeIn run_sb_backtest Runs a signal blending backtest for a single configuration.
-#'
-#' This method handles a single model configuration defined by an `sb_backtest_config` object.
-#' It supports walk-forward validation, optionally with hyperparameter tuning using grid search, random search, or Bayesian optimization.
-#' It can also fallback to heuristic models like EW, RP, or MVO.
-#'
-#' @param features_m_df A `meta_dataframe` containing the features (input variables) used in the backtest. Must include columns: `id`, `tickers`, `dates`, and the features to be used as model inputs.
-#' @param target_m_df A `meta_dataframe` containing the target variable(s) to be predicted. Columns should be named using the format `XXXX_number_m`, where `XXXX` is the target name, `number` is the forward prediction horizon, and `m` indicates the period unit (e.g., 1-month forward return).
-#' @param config An `sb_backtest_config` object that specifies the entire structure of the backtest, including model algorithm, training/validation/test splitting logic, hyperparameter tuning strategy, sample sizes, and objective functions.
-#' @param ss_backtest_results (Optional) An `ss_backtest_results` object that stores the output of a signal selection backtest. If provided, this is used to select eligible signals for blending based on statistical or Bayesian filtering.
-#' @param port_backtest_cohort (Optional) A `port_backtest_cohort` object used to extract backtest and benchmark returns in case `backtest_returns_m_xts` or `benchmark_returns_m_xts` are not explicitly provided. Should be used when the user wants the signal blending backtest to be tied to an existing portfolio backtest setup.
-#' @param backtest_returns_m_xts (Optional) A `meta_xts` object with historical returns of signals to be blended. Used for covariance estimation in algorithms like `rp` and `mvo`, as well as for constructing heuristic portfolios.
-#' @param benchmark_returns_m_xts (Optional) A `meta_xts` object with historical benchmark returns. Required when calculating active returns, constructing heuristic portfolios, or using benchmark-relative constraints.
-#' @param signal_themes_m_df (Optional) A `meta_dataframe` mapping signals to groups (e.g., themes, sectors). Required for applying group constraints in signal-based portfolio optimization (e.g., in `mvo` with `max_abs_active_group_weight`).
-#' @param custom_signal_weights_m_df (Optional) A `meta_dataframe` containing user-defined signal weights to be used in place of model-generated weights. Required when `sb_algorithm = "custom_weights"`. Weights must be positive and consistent with eligible signals.
-#' @param custom_signal_universe_metrics_m_df (Optional) A `meta_dataframe` with additional metrics (e.g., signal volatilities, costs, or liquidity) associated with each signal. These are passed through and can be used for custom diagnostics or constraints.
-#' @param winsorization_probs A numeric vector of length 2, specifying the lower and upper quantiles used to winsorize signals (default = `c(0.025, 0.975)`). Helps reduce the influence of extreme outliers in the signal distribution before model fitting.
-#' @param gsm_algorithm Character. Specifies the type of Global Surrogate Model used to interpret the fitted model. Options include `"ols"` (default) for linear interpretability or `"tree"` for tree-based importance decomposition. This surrogate is fitted post-hoc on model predictions to extract signal importances.
-#' @param verbose Logical. If `TRUE` (default), prints diagnostic messages, sample sizes, fitting progress, model configuration details, and errors encountered throughout the backtest.
-#' @param parallel Logical. If `TRUE` (default), enables parallel computation where possible (e.g., hyperparameter tuning, nested configurations, etc.). Uses the `future` ecosystem for `grid_search` and `random_search`, or `foreach` for `bayesian_opt`.
-#' @param .test_seed (Internal) Integer or `NULL`. If provided, sets the random seed for model training and hyperparameter search, ensuring reproducibility during unit tests or controlled simulations.
-#' @param .update (Internal) Logical. Indicates whether the backtest is being updated with new dates or data. If `TRUE`, skips recomputation of prior results and extends the object with additional periods.
-#' @param .old_backtest_covered_dates (Internal) A vector of `Date` objects indicating the periods already covered by a previous backtest. Used in conjunction with `.update = TRUE` to determine which new periods to run.
-#' @param .old_oos_sb_outputs_m_df (Internal) A data frame with out-of-sample model predictions from a previous run. Used during update to retrieve past predictions without refitting the model.
-#' @param .old_sb_model_fit (Internal) A previously fitted SB model object (e.g., trained glmnet, xgboost, or RP/MVO optimizer). Used when updating the backtest without retraining the model for the same configuration.
-#'
-#' @return An object of class `sb_backtest_results`.
-#'
+#' @describeIn run_sb_backtest Run SB backtest for a single configuration
 #' @export
 setMethod("run_sb_backtest",
           signature(features_m_df = "meta_dataframe", target_m_df = "meta_dataframe", config = "sb_backtest_config",
@@ -919,8 +903,9 @@ setMethod("run_sb_backtest",
 
 
 
-#' @describeIn run_sb_backtest Runs a signal blending meta-backtest using multiple base learners and a meta learner.
+#' @describeIn run_sb_backtest Run SB meta-backtest using multiple base learners and a meta learner
 #'
+#' @description
 #' This method iteratively evaluates several base learners defined in an `sb_metabacktest_config`, then fits a meta learner on top of their predictions.
 #' It allows winsorization, normalization, and feature passthrough control when aggregating base learner outputs.
 #'
@@ -1252,11 +1237,11 @@ setMethod("run_sb_backtest",
 
 
 
-#' @describeIn run_sb_backtest Run ML Backtest
-#' Perform out-of-sample testing for ML Algorithms with walk-forward time series validation
+#' @title Perform out-of-sample testing for SB Algorithms with walk-forward validation
 #'
+#' @description
 #' This function performs walk-forward validation for time series data using
-#' a range of ML models. It supports hyperparameter tuning via random search, grid search,
+#' a range of SB models. It supports hyperparameter tuning via random search, grid search,
 #' or Bayesian optimization. The function divides the data into training, validation,
 #' and testing samples, and iteratively refits the model at specified rebalancing dates.
 #'
@@ -1337,7 +1322,7 @@ setMethod("run_sb_backtest",
 #' or set parallel = FALSE.
 #'
 #' Keras has some limitations when working in parallel, especially when using bayesian optimization as tuning method.
-#'
+#' @noRd
 #' @seealso
 #' \code{\link{glmnet}}, \code{\link{ranger}}, \code{\link{xgboost}}, \code{\link{keras}}, \code{\link{time_series_split}}
 run_sb_backtest_internal <- function(
@@ -2117,6 +2102,9 @@ run_sb_backtest_internal <- function(
 
 
 #' Convert OOS Lists to Meta Data Frame
+#'
+#' @param oos_obj_list A list of out-of-sample objects, where each object is a named numeric vector.
+#'
 #' @export
 convert_oos_list_to_m_df <- function(oos_obj_list){
 

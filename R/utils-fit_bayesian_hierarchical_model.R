@@ -31,6 +31,12 @@
 #'   - `"theme_specific_intercept_theme_specific_slope"`: Includes fixed intercepts and slopes for each theme.
 #'   - `"fixed_intercept_fixed_slope"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
 #'
+#' @param chains An integer specifying the number of Markov chains to run. Defaults to `4`.
+#' @param iter An integer specifying the number of iterations per chain. Defaults to `2000`.
+#' @param warmup An integer specifying the number of warmup iterations. Defaults to `1000`.
+#' @param thin An integer specifying the thinning interval. Defaults to `1`.
+#' @param seed An integer specifying the random seed for reproducibility. Defaults to `123`.
+#' @param adapt_delta A numeric value between 0 and 1 specifying the target acceptance rate for the Hamiltonian Monte Carlo sampler.
 #' @param verbose A logical indicating whether to display progress messages during the model fitting process. Defaults to `TRUE`.
 #' @param parallel A logical indicating whether to enable parallel computation using `future`. Defaults to `TRUE`.
 #'

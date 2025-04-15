@@ -7,14 +7,9 @@
 calculate_port_metrics(port_weights_m_d_ref, custom_stock_metrics_m_d_ref)
 }
 \arguments{
-\item{port_allocation_log}{A data frame containing portfolio allocation data with at least the columns:
-\code{id}, \code{tickers}, \code{dates}, \code{eop_port_weights}, and optionally \code{bench_weights}.}
+\item{port_weights_m_d_ref}{A data frame containing portfolio weights with at least the columns:}
 
-\item{custom_stock_metrics}{A data frame containing custom stock metrics with at least the column \code{id}.
-It may also contain \code{tickers} and \code{dates} which will be excluded.}
-
-\item{selected_benchmark}{An optional value (non-\code{NULL}) to trigger benchmark metrics calculation.
-When provided, the function expects the \code{bench_weights} column to exist in \code{port_allocation_log}.}
+\item{custom_stock_metrics_m_d_ref}{A data frame containing custom stock metrics with at least the columns:}
 }
 \value{
 A data frame with consolidated portfolio metrics. If benchmark metrics are calculated,

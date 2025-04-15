@@ -7,18 +7,15 @@
 sur(final_value, past_values, na.rm = TRUE)
 }
 \arguments{
-\item{na.rm}{A logical value indicating whether NA values should be removed before computation (default is TRUE).}
+\item{final_value}{A numeric value representing the latest observation.}
 
-\item{values}{A numeric vector representing a series of observations.}
+\item{past_values}{A numeric vector of historical observations.}
+
+\item{na.rm}{Logical. Should missing values be removed before computation? Default is \code{TRUE}.}
 }
 \value{
-A numeric value representing the SUR. If the standard deviation is zero, \code{NA_real_} is returned.
+A numeric SUR value. Returns \code{NA_real_} if the standard deviation is zero or undefined.
 }
 \description{
-This function computes the Standardized Unexpected Realization (SUR) for a numeric vector.
-SUR is defined as the deviation of the most recent (final) value from the mean of the vector,
-divided by the standard deviation. This metric quantifies how extreme the last observation is compared to the historical distribution.
-}
-\examples{
-sur(c(1, 2, 3, 4, 5))
+Computes the Standardized Unexpected Realization (SUR), defined as the standardized deviation of a final observation from past values.
 }

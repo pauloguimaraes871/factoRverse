@@ -18,7 +18,14 @@
 #' @param cov_estimation_method An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.
 #' @param liquidity_constraint_policy An optional list specifying the policy for liquidity constraints. Defaults to \code{NULL}.
 #' @param turnover_constraint_policy An optional list specifying the policy for turnover constraints. Defaults to \code{NULL}.
-#' @param benchmark_weights_m_d_ref An optional data frame or matrix specifying the benchmark weights for setting sector constraints. Defaults to \code{NULL}.
+#' @param returns_m_xts_upd_ref An optional `xts` object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.
+#' @param selected_benchmark_m_xts_upd_ref An optional `xts` object containing benchmark returns used to compute active returns (only if `active_returns = TRUE`).
+#' @param active_returns Logical. If `TRUE`, covariance estimation will use active returns (asset returns minus benchmark). Defaults to `FALSE` if `selected_benchmark_m_xts_upd_ref` is `NULL`, otherwise `TRUE`.
+#' @param cov_matrix_sample_size Integer. Number of time periods (rows in `returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
+#' @param concentration_constraint_policy Optional list specifying concentration constraints for MVO optimization. Typically includes `max_abs_active_individual_weight` or other individual/sector limits.
+#' @param opt_method Character. Optimization method for MVO. Defaults to `"random"` and can include methods like `"grid"`, `"bayesian"`, or `"differential_evolution"`.
+#' @param rp_method Character. Method to compute the Risk Parity portfolio. Defaults to `"cyclical-spinu"`. Other methods may include `"inverse-vol"` or `"erc"` (equal risk contribution).
+#' @param custom_weights_m_d_ref A meta dataframe containing custom user-defined weights. Required when `port_construction_method = "custom_weights"`. Must contain columns `tickers`, `dates`, and `weights`.
 #' @param n_random_ports An optional numeric value indicating the number of random portfolios to generate for optimization methods. Defaults to \code{NULL}.
 #' @param random_ports_method An optional character string specifying the method for risk parity optimization. Defaults to \code{NULL}.
 #' @param opt_objective Objective of mean-tracking error optimization. Defaults to \code{NULL}.

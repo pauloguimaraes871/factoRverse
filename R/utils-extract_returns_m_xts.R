@@ -3,7 +3,7 @@
 #' This method extracts the `net_returns_m_xts` slot from the `port_backtest_cohort` object,
 #' optionally simplifying the column names based on the configuration names of the cohort.
 #'
-#' @param object An object of class `port_backtest_cohort`.
+#' @param port_backtest_cohort An object of class `port_backtest_cohort`.
 #' @param signals_m_df An object of class `signals_m_df` containing the signals used in the backtest.
 #' @param benchmark_returns_m_xts An object of class `meta_xts` containing the benchmark returns used in the backtest.
 #' @param simplify_name Logical. If `TRUE`, the column names will be simplified using the configuration names.

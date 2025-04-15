@@ -27,7 +27,7 @@ create_ss_backtest_config(
 
 \item{config_name}{A character string naming the configuration.}
 
-\item{enable_theme_representativeness}{Logical, whether to enable theme representativeness (default is TRUE).}
+\item{chosen_signals_and_positions}{A character vector specifying the chosen signals and positions. If set to "all", all signals in \code{signals_m_df} will be used, and a long position will be assumed for all.}
 }
 \value{
 An object of class \code{ss_backtest_config}.

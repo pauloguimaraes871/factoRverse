@@ -33,6 +33,10 @@ In special, make sure that:
 }}
 
 \item{verbose}{A logical indicating whether to print messages during the process. Default is \code{FALSE}.}
+
+\item{parallel}{A logical indicating whether to use parallel processing. Default is \code{TRUE}.}
+
+\item{type}{A character string indicating the type of data to be preprocessed, to be passed to meta_dataframe. Default is \code{"signals"}.}
 }
 \value{
 A time-wise preprocessed \code{meta_dataframe}.

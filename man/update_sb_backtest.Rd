@@ -49,63 +49,69 @@ update_sb_backtest(features_m_df, target_m_df, old_results, ...)
 )
 }
 \arguments{
-\item{features_m_df}{A meta_dataframe containing features.}
+\item{features_m_df}{A \code{meta_dataframe} containing engineered features for the next rebalancing date.}
 
-\item{target_m_df}{A meta_dataframe containing target variable(s), with corresponding dates. Columns should follow the format XXXX_number_m, where
-XXXX is the name of the target variable, number is the amount of forward periods and m indicates periods are measured in months.}
+\item{target_m_df}{A \code{meta_dataframe} containing target returns aligned with \code{features_m_df}.}
 
-\item{old_results}{An object of class \code{sb_backtest_results} specifying the sb backtest results to be updated.}
+\item{old_results}{A \code{sb_backtest_results} or \code{sb_metabacktest_results} object representing previously run backtests.}
 
-\item{...}{Additional arguments (if needed).}
+\item{...}{Additional optional arguments, depending on the method.}
 
-\item{updated_ss_backtest_results}{An optional object of class \code{ss_backtest_results}, used when the SB model depends on updated SS results.}
+\item{updated_ss_backtest_results}{Optional \code{ss_backtest_results} used if signal selection was performed.}
 
-\item{updated_port_backtest_cohort}{An optional object of class \code{port_backtest_cohort} used to derive updated return and benchmark data.}
+\item{updated_port_backtest_cohort}{Optional \code{port_backtest_cohort} used to derive updated signal and benchmark returns.}
 
-\item{updated_backtest_returns_m_xts}{A \code{meta_xts} object containing updated signal-based backtest returns.}
+\item{updated_backtest_returns_m_xts}{An optional \code{meta_xts} containing new backtest returns.}
 
-\item{benchmark_returns_m_xts}{A \code{meta_xts} object with benchmark returns over the backtest period.}
+\item{benchmark_returns_m_xts}{Optional \code{meta_xts} of benchmark returns.}
 
-\item{signal_themes_m_df}{A \code{meta_dataframe} class object containing signal theme information for risk parity and MVO algorithms.}
+\item{signal_themes_m_df}{Optional \code{meta_dataframe} with theme classification used in RP/MVO strategies.}
 
-\item{custom_signal_weights_m_df}{A \code{meta_dataframe} with user-defined signal weights.}
+\item{custom_signal_weights_m_df}{Optional \code{meta_dataframe} with custom weights for signals.}
 
-\item{custom_signal_universe_metrics_m_df}{A \code{meta_dataframe} with custom signal-level metrics for filtering or selection.}
+\item{custom_signal_universe_metrics_m_df}{Optional \code{meta_dataframe} with custom signal metrics.}
 
-\item{parallel}{Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).}
+\item{verbose}{Logical. If \code{TRUE}, prints progress messages. Default is \code{TRUE}.}
 
-\item{updated_base_sb_backtest_results}{A list of \code{sb_backtest_results} used for updating the base learners in the SB meta-backtest.}
+\item{parallel}{Logical. If \code{TRUE}, runs the update in parallel. Default is \code{TRUE}.}
 
-\item{updated_base_port_backtest_cohort}{An optional \code{port_backtest_cohort} object used for the base learners.}
+\item{.test_seed}{Optional numeric seed for reproducibility.}
 
-\item{updated_base_backtest_returns_m_xts}{A \code{meta_xts} with signal-based returns for the base learners.}
+\item{updated_base_sb_backtest_results}{A named list of updated \code{sb_backtest_results} for each base learner.}
 
-\item{base_benchmark_returns_m_xts}{A \code{meta_xts} object with benchmark returns used for the base learners.}
+\item{updated_base_port_backtest_cohort}{Optional \code{port_backtest_cohort} for the base learners.}
 
-\item{base_signal_themes_m_df}{A \code{meta_dataframe} with signal themes used in the base learners.}
+\item{updated_base_backtest_returns_m_xts}{Optional \code{meta_xts} of base learners' returns.}
 
-\item{base_priors_m_df}{A \code{meta_dataframe} containing prior beliefs or constraints used for Bayesian learners in the base layer.}
+\item{base_benchmark_returns_m_xts}{Optional \code{meta_xts} of benchmark returns for base learners.}
 
-\item{base_custom_signal_weights_m_df}{A \code{meta_dataframe} of custom signal weights for base learners.}
+\item{base_signal_themes_m_df}{Optional \code{meta_dataframe} with base learner signal themes.}
 
-\item{base_custom_signal_universe_metrics_m_df}{A \code{meta_dataframe} of custom signal metrics for base learners.}
+\item{base_priors_m_df}{Optional \code{meta_dataframe} with prior beliefs for base learners.}
 
-\item{updated_meta_port_backtest_cohort}{An optional \code{port_backtest_cohort} used in the meta learner layer.}
+\item{base_custom_signal_weights_m_df}{Optional \code{meta_dataframe} with custom signal weights for base learners.}
 
-\item{updated_meta_backtest_returns_m_xts}{A \code{meta_xts} with returns for the meta learner.}
+\item{base_custom_signal_universe_metrics_m_df}{Optional \code{meta_dataframe} with custom metrics for base learners.}
 
-\item{meta_benchmark_returns_m_xts}{A \code{meta_xts} with benchmark returns for the meta learner.}
+\item{updated_meta_port_backtest_cohort}{Optional \code{port_backtest_cohort} for the meta learner.}
 
-\item{meta_signal_themes_m_df}{A \code{meta_dataframe} with signal themes used in the meta learner.}
+\item{updated_meta_backtest_returns_m_xts}{Optional \code{meta_xts} of returns for the meta learner.}
 
-\item{meta_priors_m_df}{A \code{meta_dataframe} with priors used by the}
+\item{meta_benchmark_returns_m_xts}{Optional \code{meta_xts} with benchmark returns for the meta learner.}
+
+\item{meta_signal_themes_m_df}{Optional \code{meta_dataframe} with signal themes for the meta learner.}
+
+\item{meta_priors_m_df}{Optional \code{meta_dataframe} with priors for the meta learner.}
+
+\item{meta_custom_signal_weights_m_df}{Optional \code{meta_dataframe} with custom weights for the meta learner.}
+
+\item{meta_custom_signal_universe_metrics_m_df}{Optional \code{meta_dataframe} with custom metrics for the meta learner.}
 }
 \value{
-An object of class \code{sb_backtest_results} containing the sb backtest results.
+An updated \code{sb_backtest_results} or \code{sb_metabacktest_results} object, depending on method used.
 }
 \description{
-The \code{update_sb_backtest} function will take an existing \code{sb_backtest_results} object and update it with
-new dates. This function is useful when you want to add new dates to an existing backtest without having to re-run the entire backtest.
+Updates an existing signal blending (SB) backtest by extending it one month forward. This avoids re-running the entire backtest while preserving prior results.
 }
 \section{Methods (by class)}{
 \itemize{
@@ -113,18 +119,13 @@ new dates. This function is useful when you want to add new dates to an existing
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
   old_results = sb_backtest_results
-)}: Updates a sb backtest using based on a \code{sb_backtest_results} object.
-
-This method extracts the parameters from the \code{results} object (of class \code{sb_backtest_results}), modifies training_sample_size, performs the
-new backtest and then binds results
+)}: Updates a base SB backtest (\code{sb_backtest_results}) by validating new data consistency, extracting prior configuration,
+recalculating the necessary one-month update, and appending results.
 
 \item \code{update_sb_backtest(
   features_m_df = meta_dataframe,
   target_m_df = meta_dataframe,
   old_results = sb_metabacktest_results
-)}: Updates a sb backtest using based on a \code{sb_metabacktest_results} object.
-
-This method extracts the parameters from the \code{results} object (of class \code{sb_metabacktest_results}), modifies training_sample_size, performs the
-new backtest and then binds results
+)}: Updates a meta-learning SB backtest (\code{sb_metabacktest_results}) by updating both the base and meta learner layers.
 
 }}

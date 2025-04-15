@@ -26,7 +26,7 @@
 #'   - Exception: For `FUN = "cagr"`, the default is `period + 1` to ensure sufficient periods.
 #' @param count_condition_fun A function that takes a numeric vector and returns a logical vector.
 #' The function should return `TRUE` for elements that should be counted. Only used for FUN = "count_if".
-
+#' @param ... Additional arguments passed to the function.
 #'
 #' @return A modified `meta_dataframe` or `meta_xts` object with an additional column named `"<metric>_<window>_<period>_<FUN>"`,
 #' storing the computed values.
@@ -56,7 +56,7 @@ setGeneric("compute_window", function(data, period, FUN, ...){
   standardGeneric("compute_window")
 })
 
-#' method for meta_dataframe
+#' @rdname compute_window
 setMethod("compute_window",
           signature(data = "meta_dataframe", period = "numeric", FUN = "character"),
           function(data, period, FUN, window = "rolling", signal, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE, only_unique = FALSE,
@@ -273,7 +273,7 @@ setMethod("compute_window",
             return(pre_silver_features_m_df)
           })
 
-#' method for meta_xts
+#' @rdname compute_window
 setMethod("compute_window",
           signature(data = "metrics_meta_xts", period = "numeric", FUN = "character"),
           function(data, period, FUN, window = "rolling", metric, na.rm = TRUE, only_unique = FALSE,
@@ -450,22 +450,18 @@ skew <- function(values, na.rm = TRUE) {
 }
 
 
-## Standardized Unexpected Realization (SUR)
-#' Calculate Standardized Unexpected Realization (SUR)
+#' @title Calculate Standardized Unexpected Realization (SUR)
 #'
-#' This function computes the Standardized Unexpected Realization (SUR) for a numeric vector.
-#' SUR is defined as the deviation of the most recent (final) value from the mean of the vector,
-#' divided by the standard deviation. This metric quantifies how extreme the last observation is compared to the historical distribution.
+#' @description
+#' Computes the Standardized Unexpected Realization (SUR), defined as the standardized deviation of a final observation from past values.
 #'
-#' @param values A numeric vector representing a series of observations.
-#' @param na.rm A logical value indicating whether NA values should be removed before computation (default is TRUE).
+#' @param final_value A numeric value representing the latest observation.
+#' @param past_values A numeric vector of historical observations.
+#' @param na.rm Logical. Should missing values be removed before computation? Default is \code{TRUE}.
 #'
-#' @return A numeric value representing the SUR. If the standard deviation is zero, \code{NA_real_} is returned.
+#' @return A numeric SUR value. Returns \code{NA_real_} if the standard deviation is zero or undefined.
 #'
 #' @export
-#'
-#' @examples
-#' sur(c(1, 2, 3, 4, 5))
 sur <- function(final_value, past_values, na.rm = TRUE) {
 
   #Calculate the SUR

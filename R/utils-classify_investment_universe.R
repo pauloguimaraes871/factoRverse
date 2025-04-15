@@ -36,9 +36,10 @@
 #' - Assets that meet **user_defined_OR_rules** will always be promoted.
 #' - Assets that fail to meet **user_defined_AND_rules** will always be excluded.
 #'
-#' @param signals_m_d_ref A data frame of stocks with signals columns.
-#' @param pre_eligible_assets_quantile Optional. Numeric value to apply the **Only Top Assets Rule**, indicating the top quantile for filtering assets based on signal.
-#'   Only assets in this quantile will be considered for the `filtered_universe`.
+#' @param universe_m_d_ref A data frame of stocks or signals.
+#' @param eligibility_quantile_range A numeric vector of length 2 indicating the range of quantiles to be used for filtering stocks.
+#' @param min_eligible_assets_fallback A numeric value indicating the minimum number of eligible assets to be selected.
+#' @param signal_significance_threshold A numeric value indicating the threshold for signal significance.
 #' @param liquidity_m_d_ref A data frame  containing columns for id, tickers, dates, and one or more market liquidity measures (e.g., inflation-adjusted mean financial volume).
 #'  All tickers in the current universe must have a unique correspondence in this data frame.
 #' @param liquidity_constraint_policy Optional. A named list containing objects used to apply liquidity constraints. Possible elements of the list are:
@@ -60,12 +61,10 @@
 #'  All tickers in the current universe must have a unique correspondence in this data frame.
 #' @param groups_m_d_ref A data frame containing columns for id, tickers, dates, and group classification columns following a given classification method.
 #' All tickers in the current universe must have a unique correspondence in the data frame.
-#' @param concentration_constraints_policy A named list containing up to four elements:
+#' @param concentration_constraint_policy A named list containing up to four elements:
 #' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
 #' Must have a correspondence in `benchmark_weights_m_d_ref`
 #' - `max_abs_active_individual_weight`: The maximum absolute individual active weights.
-#' - `group_classification`: A character vector describing the group classification to be used to apply group constraints.
-#' Must have a correspondence in `group_m_d_ref`
 #' - `max_abs_active_group_weight`: The maximum absolute group active weight used for creating group constraints in `generate_group_constraints`.
 #' If a given group has no eligible asset, the one with the greatest signal will be automatically promoted.
 #' Note that, in the context of `generate_group_constraints`, a `benchmark_weights_m_d_ref` data frame must also be supplied.
@@ -83,6 +82,7 @@
 #' @param user_defined_OR_rules_m_d_ref Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 #'All tickers in the current stock universe must have a unique correspondence in this data frame.
 #' @param asset_object A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"
+#' @param verbose A logical indicating whether to print messages during the function execution.
 #' @export
 classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          eligibility_quantile_range = NULL, min_eligible_assets_fallback = NULL, signal_significance_threshold = NULL, #Signal classification for only_pre_eligible_assets_rule
@@ -575,11 +575,12 @@ apply_stocks_pre_eligibility <- function(stock_universe_m_d_ref,
 #' then assigns a flag of \code{1L} to stocks with an expected return score within these boundaries,
 #' and \code{0L} otherwise.
 #'
+#' @param stock_universe_m_d_ref A data frame that contains at least an \code{exp_ret_score} column, representing
+#'   the expected return score for each stock.
 #' @param eligibility_quantile_range A numeric vector of length two, specifying the lower and upper quantile
 #'   probabilities (e.g., \code{c(0.25, 0.75)}). The function uses \code{min()} and \code{max()} of this vector to
 #'   define the quantile boundaries.
-#' @param stock_universe_m_d_ref A data frame that contains at least an \code{exp_ret_score} column, representing
-#'   the expected return score for each stock.
+#' @param categorical_variable A logical value indicating whether the expected return score is categorical (i.e., only two unique values).
 #'
 #' @return A modified version of \code{stock_universe_m_d_ref} with an additional column named
 #'   \code{pre_eligible_assets}. This column is \code{1L} if the stock's expected return score falls between the

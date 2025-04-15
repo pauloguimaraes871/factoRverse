@@ -5,7 +5,7 @@
 #' portfolio weight to an end-of-period (EOP) portfolio weight, given liquidity and volatility data.
 #'
 #' @param merged_port_results_list A list of results from merge_and_rescale_weights.
-#' @param stock_universe_m_d_ref optional data frame containing the new universe of rebalanced weights (columns \code{tickers}, \code{weights}).
+#' @param updated_port_weights_m_lstd_ref A data frame containing the updated portfolio weights; must have a column named \code{tickers}.
 #' @param liquidity_m_d_ref data frame containing liquidity information; must have a column matching \code{main_liquidity_metric}.
 #' @param volatility_m_d_ref data frame containing volatility information; must contain \code{daily_vol}.
 #' @param strategy_aum numeric, the AUM used to size trades.

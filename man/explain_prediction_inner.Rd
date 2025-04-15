@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils-explain_prediction.R
 \name{explain_prediction_inner}
 \alias{explain_prediction_inner}
-\title{inner function}
+\title{Decompose and Visualize OOS Prediction for a Selected Ticker and Date}
 \usage{
 explain_prediction_inner(
   sb_backtest_workflow,
@@ -14,6 +14,64 @@ explain_prediction_inner(
   selected_date = selected_date
 )
 }
-\description{
-inner function
+\arguments{
+\item{sb_backtest_workflow}{A list representing the signal blending backtest workflow.
+Must include at least the element \code{rebalance_dates} (used to validate the date range)
+and \code{target_fwd_name} (used for the plot title).}
+
+\item{oos_sb_outputs_m_df}{A \code{meta_dataframe} with out-of-sample model predictions.
+Must include \code{id} (paste0(ticker, "-", date)) and \code{pred} columns.}
+
+\item{feature_importance_m_df}{A \code{meta_dataframe} with feature importances from the GSM model.
+Must contain columns: \code{tickers}, \code{importance}, and \code{dates}.}
+
+\item{gsm_algorithm}{A character string indicating the algorithm used for the GSM model.
+Currently, only \code{"ols"} is supported.}
+
+\item{features_m_df}{A \code{meta_dataframe} of standardized or corrected features used by the GSM model.
+Must contain at least columns \code{id}, \code{tickers}, \code{dates}, and the feature variables.}
+
+\item{selected_ticker}{A character string indicating the ticker to analyze.}
+
+\item{selected_date}{A \code{Date} object specifying the date for which the prediction is to be explained.}
 }
+\value{
+A \code{data.frame} with the following columns:
+\itemize{
+\item \code{tickers}: Feature or meta-label (e.g., base_pred, complexity).
+\item \code{ContributionType}: Label for plot grouping (e.g., Most Important Positive).
+\item \code{TotalContribution}: Contribution value.
+\item \code{Cumulative}, \code{PrevCumulative}, \code{Midpoint}, \code{x}, \code{xmin}, \code{xmax}, \code{ymin}, \code{ymax}:
+Intermediate values used to build the waterfall plot.
+\item \code{fill_type}: Positive or Negative contribution.
+}
+}
+\description{
+This internal function explains an out-of-sample prediction by decomposing it into the
+individual contributions of each feature and the model intercept. It is designed to work
+with a linear meta-model (\code{gsm_algorithm = "ols"}) and creates a waterfall plot
+showing the additive contributions, including a residual complexity component when applicable.
+}
+\details{
+The function performs the following steps:
+\enumerate{
+\item Validates the selected ticker-date combination against \code{oos_sb_outputs_m_df} and \code{features_m_df}.
+\item Retrieves the most recent feature importance estimates available prior to \code{selected_date}.
+\item Extracts and normalizes the individual feature values for the selected ticker/date.
+\item Computes the linear contribution of each feature (feature value × coefficient).
+\item Separates the contributions into positive/negative, and highlights the most important ones.
+\item Calculates the GSM model prediction and compares it to the complex model's prediction.
+\item Visualizes the contributions using a waterfall-style \code{ggplot2} bar plot with neon color scheme.
+}
+
+The plot includes:
+\itemize{
+\item Base prediction (intercept)
+\item Most and less important positive/negative feature contributions
+\item Residual (complexity) not explained by the GSM linear model
+}
+}
+\note{
+This function is not exported and is intended for internal diagnostic use only.
+}
+\keyword{internal}

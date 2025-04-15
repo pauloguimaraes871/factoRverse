@@ -46,6 +46,16 @@ Stocks that are less liquid than specified for a buffer zone and have a signal h
 }
 }}
 
+\item{concentration_constraint_policy}{A named list containing up to four elements:
+\itemize{
+\item \code{benchmark}: A character vector describing the benchmark to be used to apply constraint.
+Must have a correspondence in \code{benchmark_weights_m_d_ref}
+\item \code{max_abs_active_individual_weight}: The maximum absolute individual active weights.
+\item \code{max_abs_active_group_weight}: The maximum absolute group active weight used for creating group constraints in \code{generate_group_constraints}.
+If a given group has no eligible stock, the one with the greatest signal will be automatically promoted.
+Note that, in the context of \code{generate_group_constraints}, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
+}}
+
 \item{groups_m_d_ref}{A data frame containing columns for id, tickers, dates, and group classification columns following a given classification method.
 All tickers in the current stock universe must have a unique correspondence in the data frame.}
 
@@ -56,15 +66,9 @@ All tickers in the current stock universe must have a unique correspondence in t
 \item{opt_objective}{A character describing the objective to maximize in order to choose the best portfolio. One of "return (max return)",
 "risk (min risk)" or "sharpe (max sharpe-ratio)"}
 
-\item{concentration_constraints_policy}{A named list containing up to four elements:
-\itemize{
-\item \code{benchmark}: A character vector describing the benchmark to be used to apply constraint.
-Must have a correspondence in \code{benchmark_weights_m_d_ref}
-\item \code{max_abs_active_individual_weight}: The maximum absolute individual active weights.
-\item \code{max_abs_active_group_weight}: The maximum absolute group active weight used for creating group constraints in \code{generate_group_constraints}.
-If a given group has no eligible stock, the one with the greatest signal will be automatically promoted.
-Note that, in the context of \code{generate_group_constraints}, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
-}}
+\item{opt_method}{A character describing the optimization method to be used. One of "random" or "DEoptim".}
+
+\item{verbose}{A logical indicating whether to print messages during the execution of the function.}
 }
 \description{
 Create a MVO portfolio

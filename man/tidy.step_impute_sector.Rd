@@ -2,10 +2,26 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{tidy.step_impute_sector}
 \alias{tidy.step_impute_sector}
-\title{Tidy method for step_impute_sector}
+\title{Tidy Method for step_impute_sector}
 \usage{
 \method{tidy}{step_impute_sector}(x, ...)
 }
+\arguments{
+\item{x}{A \code{step_impute_sector} object.}
+
+\item{...}{Not used. Included for method compatibility.}
+}
+\value{
+A tibble with columns:
+\itemize{
+\item \code{column}: The names of the variables imputed.
+\item \code{sector}: The sector used for group-wise imputation (only if not trained).
+\item \code{method}: Imputation method ("mean", "median", etc.).
+\item \code{imputed_value}: Imputed values for each sector-variable pair (if trained).
+\item \code{id}: ID of the step.
+}
+}
 \description{
-Tidy method for step_impute_sector
+Generates a tidy summary of the \code{step_impute_sector} object, showing which columns were imputed,
+the method used, and the imputed values (if trained).
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils-get_features_positions.R
 \name{get_and_check_chosen_signals_and_positions}
 \alias{get_and_check_chosen_signals_and_positions}
-\title{Get chosen_signals_and_positions from base_sb_backtest_results_list and check for conformity}
+\title{Get and Validate Chosen Signals and Positions}
 \usage{
 get_and_check_chosen_signals_and_positions(
   base_sb_backtest_results_list,
@@ -10,6 +10,19 @@ get_and_check_chosen_signals_and_positions(
   features_m_df
 )
 }
-\description{
-Get chosen_signals_and_positions from base_sb_backtest_results_list and check for conformity
+\arguments{
+\item{base_sb_backtest_results_list}{A list of \code{sb_backtest_results} objects.}
+
+\item{features_passthrough}{A character vector indicating features to pass through.
+Can also be \code{"all"} or \code{"none"}.}
+
+\item{features_m_df}{A \code{meta_dataframe} containing the available features.}
 }
+\value{
+A named character vector of signal positions ("long"/"short") for each feature.
+}
+\description{
+Extracts \code{chosen_signals_and_positions} from a list of \code{base_sb_backtest_results} objects,
+ensures all elements are identical, and checks conformity with \code{features_passthrough}.
+}
+\keyword{internal}

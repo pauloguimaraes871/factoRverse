@@ -38,17 +38,17 @@ Stocks that are less liquid than specified for a buffer zone and have a signal h
 }
 }}
 
-\item{concentration_constraints_policy}{A named list containing up to four elements:
+\item{concentration_constraint_policy}{A named list containing up to four elements:
 \itemize{
 \item \code{benchmark}: A character vector describing the benchmark to be used to apply constraint.
 Must have a correspondence in \code{benchmark_weights_m_d_ref}
 \item \code{max_abs_active_individual_weight}: The maximum absolute individual active weights.
-\item \code{group_classification}: A character vector describing the sector classification to be used to apply sector constraints.
-Must have a correspondence in \code{sector_m_d_ref}
 \item \code{max_abs_active_sector_weight}: The maximum absolute sector active weight used for creating group constraints in \code{generate_sector_constraints}.
 If a given sector has no eligible stock, the one with the greatest signal will be automatically promoted.
-Note that, in the context of \code{generate_sector_constraints}, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
 }}
+
+\item{verbose}{Logical. If TRUE, the function will print messages indicating the progress of the process.
+Note that, in the context of \code{generate_sector_constraints}, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.}
 }
 \description{
 Create individual box constraints for MVO portfolios based on liquidity, concentration and turnover constraints

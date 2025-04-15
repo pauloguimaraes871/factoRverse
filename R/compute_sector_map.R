@@ -7,6 +7,7 @@
 #' @param sector_column A `character` specifying the column in `meta_dataframe` that contains sector classifications.
 #' @param mapper A named `list` in which names represent sector names and elements are formulas defining how to compute values (e.g., `~-Alpha`, `~ Beta + Alpha`).
 #' @param feature_name A `character` specifying the name of the new computed column.
+#' @param ... Additional arguments passed to the formulas in `mapper`.
 #'
 #' @return A modified `meta_dataframe` with the new column containing computed values.
 #'

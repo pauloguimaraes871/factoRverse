@@ -25,6 +25,12 @@ create_sb_metabacktest_results(
 \item{meta_sb_backtest_results}{A \code{sb_backtest_results} object for the meta learner}
 
 \item{base_sb_backtest_results_list}{A named list of \code{sb_backtest_results} objects for the base learners.}
+
+\item{oos_predictions_m_df}{A \code{meta_dataframe} object containing out-of-sample predictions for the base learners.}
+
+\item{sb_metabacktest_config}{An \code{sb_metabacktest_config} object containing the configuration for the meta-learner.}
+
+\item{...}{Additional arguments (not used).}
 }
 \value{
 An object of class \code{sb_metabacktest_results}.

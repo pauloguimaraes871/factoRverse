@@ -47,8 +47,6 @@ and bivariate metrics such as \code{"cor"}, \code{"beta"}, \code{"beta_tstat"}, 
 
 \item{numeric_aggregation}{A character string defining how to discretize numeric \code{clustering_variables}.
 Options include: \code{"decile"}, \code{"quartile"}, \code{"tercile"}, \code{"median"}. Default is \code{"decile"}.}
-
-\item{...}{Currently unused. Included for method consistency.}
 }
 \value{
 A \code{ggplot} object or base R plot (in the case of radar plots), visualizing the requested output.

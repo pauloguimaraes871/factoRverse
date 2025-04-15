@@ -68,10 +68,6 @@ setMethod("predict",
 #' to a `meta_dataframe`. It extracts the relevant data from the input and
 #' uses the appropriate prediction method based on the specified signal blending algo
 #'
-#' @examples
-#' # Assuming `refit_model` is an instance of `sb_model`
-#' # and `new_data` is a properly structured data frame:
-#' predictions <- predict(refit_model, new_data)
 #'
 #' @export
 setMethod("predict",
@@ -171,10 +167,6 @@ setMethod("predict",
 #' GLMNET, RF, XGB, NN). The method retrieves the refitted model and the best
 #' hyperparameters for making predictions.
 #'
-#' @examples
-#' # Assuming `ml_wf_model` is an instance of `sb_backtest_results`
-#' # and `new_data` is a properly structured data frame:
-#' predictions <- predict(ml_wf_model, new_data)
 #'
 #' @export
 setMethod("predict",

@@ -18,20 +18,11 @@ a column named \code{id} (or an equivalent identifier) and a column named \code{
 
 \item{fwd_selected_benchmark_return}{Numeric. The forward return of the selected benchmark.}
 
-\item{total_cost}{Numeric. The total cost of all transactions, typically \code{total_direct_cost + total_market_impact_cost}.}
+\item{port_weights_m_d_ref}{A data frame containing portfolio weights. Must include a column named \code{id} (or an equivalent identifier).}
 
-\item{verbose}{Logical. If \code{TRUE}, the function may provide additional messages. Defaults to \code{TRUE}.}
+\item{total_cost}{Numeric. The total cost associated with the portfolio.}
 
-\item{transactions_m_d_ref}{A data frame of transactions. Must include columns:
-\itemize{
-\item \code{id}: Identifier matching the stock IDs in \code{clean_fwd_return_1m_m_d_ref}.
-\item \code{eop_port_weights}: End-of-period portfolio weights for each stock.
-\item \code{delta}: Change in holdings (used for turnover calculation).
-}}
-
-\item{total_direct_cost}{Numeric. The total direct cost of the portfolio's transactions.}
-
-\item{total_market_impact_cost}{Numeric. The total market impact cost of the portfolio's transactions.}
+\item{verbose}{Logical. If \code{TRUE}, messages will be printed about the calculation process.}
 }
 \value{
 A list containing:

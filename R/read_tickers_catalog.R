@@ -8,6 +8,7 @@
 #' @param data An object of class `raw_features_m_df` or `returns_meta_xts`.
 #' @param tickers_catalog A `tickers_catalog` object containing reference data including
 #' ticker status, trading range, and permanent IDs.
+#' @param verbose A logical indicating whether to print progress messages. Defaults to `TRUE`.
 #' @param ... Additional arguments passed to methods. Supports `verbose = TRUE/FALSE`.
 #'
 #' @return An object of the same class as `data`, modified according to the catalog rules.

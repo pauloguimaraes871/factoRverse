@@ -17,6 +17,8 @@ calculate_trade_orders(
 \arguments{
 \item{merged_port_results_list}{A list of results from merge_and_rescale_weights.}
 
+\item{updated_port_weights_m_lstd_ref}{A data frame containing the updated portfolio weights; must have a column named \code{tickers}.}
+
 \item{liquidity_m_d_ref}{data frame containing liquidity information; must have a column matching \code{main_liquidity_metric}.}
 
 \item{volatility_m_d_ref}{data frame containing volatility information; must contain \code{daily_vol}.}
@@ -26,8 +28,6 @@ calculate_trade_orders(
 \item{strategy_aum}{numeric, the AUM used to size trades.}
 
 \item{verbose}{logical. If TRUE, prints IPO/delisting info to console.}
-
-\item{stock_universe_m_d_ref}{optional data frame containing the new universe of rebalanced weights (columns \code{tickers}, \code{weights}).}
 }
 \value{
 A data frame with columns including \code{tickers}, \code{bop_port_weights}, \code{eop_port_weights},

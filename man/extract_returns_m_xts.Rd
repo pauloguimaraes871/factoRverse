@@ -13,6 +13,8 @@ extract_returns_m_xts(
 )
 }
 \arguments{
+\item{port_backtest_cohort}{An object of class \code{port_backtest_cohort}.}
+
 \item{signals_m_df}{An object of class \code{signals_m_df} containing the signals used in the backtest.}
 
 \item{benchmark_returns_m_xts}{An object of class \code{meta_xts} containing the benchmark returns used in the backtest.}
@@ -20,8 +22,6 @@ extract_returns_m_xts(
 \item{simplify_name}{Logical. If \code{TRUE}, the column names will be simplified using the configuration names.}
 
 \item{verbose}{Logical. If \code{TRUE}, messages will be printed about the simplification process.}
-
-\item{object}{An object of class \code{port_backtest_cohort}.}
 }
 \value{
 An \code{xts} object containing the extracted backtest returns.

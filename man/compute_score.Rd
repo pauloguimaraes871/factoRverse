@@ -23,6 +23,8 @@ the condition is met.}
 
 \item{feature_name}{A \code{character} string specifying the name of the new score column.}
 
+\item{...}{Additional arguments passed to the conditions.}
+
 \item{min_non_na}{A numeric value indicating the minimum number of non-NA values required
 to compute the score for a given row. Defaults to \code{0}.}
 }

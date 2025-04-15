@@ -19,6 +19,8 @@ higher degrees of freedom, but old returns might not reflect current risk due to
 to dimensionality curse.}
 
 \item{active_returns}{logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.}
+
+\item{cov_matrix_benchmark}{A character string representing the benchmark for covariance matrix estimation. If NULL, the covariance matrix will be estimated using the active returns.}
 }
 \description{
 Constructor for creating an instance of \code{cov_est_method}.

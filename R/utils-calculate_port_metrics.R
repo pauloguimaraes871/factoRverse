@@ -5,12 +5,8 @@
 #' Optionally, if benchmark weights are provided (i.e. if \code{selected_benchmark} is not \code{NULL}),
 #' the function also computes benchmark metrics and merges them with the portfolio metrics.
 #'
-#' @param port_allocation_log A data frame containing portfolio allocation data with at least the columns:
-#'   \code{id}, \code{tickers}, \code{dates}, \code{eop_port_weights}, and optionally \code{bench_weights}.
-#' @param custom_stock_metrics A data frame containing custom stock metrics with at least the column \code{id}.
-#'   It may also contain \code{tickers} and \code{dates} which will be excluded.
-#' @param selected_benchmark An optional value (non-\code{NULL}) to trigger benchmark metrics calculation.
-#'   When provided, the function expects the \code{bench_weights} column to exist in \code{port_allocation_log}.
+#' @param port_weights_m_d_ref A data frame containing portfolio weights with at least the columns:
+#' @param custom_stock_metrics_m_d_ref A data frame containing custom stock metrics with at least the columns:
 #'
 #' @return A data frame with consolidated portfolio metrics. If benchmark metrics are calculated,
 #'   the data frame will also include columns with a \code{"bench_"} prefix.

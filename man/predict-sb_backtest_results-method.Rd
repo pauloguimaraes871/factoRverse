@@ -40,9 +40,3 @@ prediction method based on the specified machine learning algorithm (e.g., OLS,
 GLMNET, RF, XGB, NN). The method retrieves the refitted model and the best
 hyperparameters for making predictions.
 }
-\examples{
-# Assuming `ml_wf_model` is an instance of `sb_backtest_results`
-# and `new_data` is a properly structured data frame:
-predictions <- predict(ml_wf_model, new_data)
-
-}

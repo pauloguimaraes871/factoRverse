@@ -90,7 +90,19 @@ get_features_positions <- function(base_sb_backtest_results_list, features_passt
 }
 
 
-#' Get chosen_signals_and_positions from base_sb_backtest_results_list and check for conformity
+#' Get and Validate Chosen Signals and Positions
+#'
+#' @description
+#' Extracts `chosen_signals_and_positions` from a list of `base_sb_backtest_results` objects,
+#' ensures all elements are identical, and checks conformity with `features_passthrough`.
+#'
+#' @param base_sb_backtest_results_list A list of `sb_backtest_results` objects.
+#' @param features_passthrough A character vector indicating features to pass through.
+#'   Can also be `"all"` or `"none"`.
+#' @param features_m_df A `meta_dataframe` containing the available features.
+#'
+#' @return A named character vector of signal positions ("long"/"short") for each feature.
+#' @keywords internal
 get_and_check_chosen_signals_and_positions <- function(base_sb_backtest_results_list, features_passthrough, features_m_df){
 
   ####Get raw chosen_signals_and_positions_list depending on whether ss_backtest_results or ss_backtest_configs are supplied

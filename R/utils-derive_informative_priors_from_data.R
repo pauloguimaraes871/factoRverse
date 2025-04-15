@@ -11,8 +11,13 @@
 #'     \item \code{active_returns}: Excess returns of a signal over its benchmark.
 #'     \item \code{benchmark_returns}: Returns of the benchmark associated with each signal.
 #'   }
-#'   The data frame should only include observations up to the current date.
-#'
+#' The data frame should only include observations up to the current date.
+#' @param half_t_df A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
+#' Although the function specifies a regular student t distribution, `brms` will use half-t distribution, ensuring strictly positive parameters.
+#' @param lmer_optimizer A character string specifying the optimizer to be used in the `lme4::lmer` function.
+#' It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
+#' Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+#' @param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
 #' @param model_spec_theme_level A character string indicating the structure of the hierarchical Bayesian model. This parameter controls the specification of parameters at the \code{theme} level, assuming tickers are uniquely nested within each theme. Options include:
 #'   \itemize{
 #'     \item \code{"random_intercept"}: Random effects on the \code{theme}-level intercept. Includes random intercepts for themes and both random intercepts and slopes for each theme-signal combination. This captures variability at both levels.
@@ -20,17 +25,7 @@
 #'     \item \code{"fixed_intercepts_and_slopes"}: Fixed intercepts and slopes for each \code{theme}. Includes interaction terms between themes and the market factor proxy, with random intercepts for tickers.
 #'   }
 #'
-#'  @param half_t_df A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
-#'  Although the function specifies a regular student t distribution, `brms` will use half-t distribution, ensuring strictly positive parameters.
-#'
-#'  @param lmer_optimizer A character string specifying the optimizer to be used in the `lme4::lmer` function.
-#'  It will be passed to lme4::lmerControl, which will be used in the `lme4::lmer` function.
-#'  Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
-#'
-#'  @param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
-#'
-#'
-#' #' @details
+#' @details
 #' The function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
 #'   \itemize{
 #'     \item Priors for location parameters (e.g., intercepts, slopes) follow a normal distribution.
@@ -77,14 +72,6 @@
 #'     \item \code{priors}: A list of \code{brms::set_prior} objects specifying the derived priors.
 #'     \item \code{model}: The fitted linear mixed-effects model (\code{lme4::lmer} object).
 #'   }
-#'
-#' #### \code{none}
-#' This model includes no parameter at the theme level and just models random intercepts and slopes for each signal.
-#' The model equation is:
-#' \deqn{y_i = \beta_0 + \beta_1 \cdot x_i + b_{0,g_i} + b_{1,g_i} \cdot x_i + \epsilon_i}
-#' See the detailed breakdown in the example section.
-#'
-#'
 #'
 #'
 derive_informative_priors_from_data <- function(priors_m_upd_ref, model_spec_theme_level,

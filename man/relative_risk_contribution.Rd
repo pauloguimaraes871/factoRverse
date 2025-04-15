@@ -18,10 +18,3 @@ A numeric vector of the same length as \code{weights} with the relative risk con
 Computes the relative risk contribution of each asset in a portfolio, given a vector of
 weights and a covariance matrix
 }
-\examples{
-# example code
-weights <- c(0.2, 0.3, 0.5)
-covariance_matrix <- matrix(c(0.04, 0.02, 0.01, 0.02, 0.05, 0.03, 0.01, 0.03, 0.06), nrow = 3)
-relative_risk_contribution(weights, covariance_matrix)
-
-}

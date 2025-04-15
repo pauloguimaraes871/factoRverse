@@ -11,7 +11,7 @@
 #' @param apply_liquidity_floor_rule If TRUE, stocks that fall below the classification in liquidity_floor_rule will be assigned a value of 0
 #' @param liquidity_floor_rule Optional. Character string specifying the liquidity classification to apply the liquidity floor rule (eg. "nano_caps", "micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps").
 #' @param filter_out_liquidity_floor_rule If TRUE, stocks that that fall below the classification in liquidity_floor_rule_policy will be filtered out
-#'
+#' @param verbose Logical. If `TRUE`, messages will be printed about the simplification process.
 #' @export
 #'
 classify_stock_liquidity <- function(liquidity_floor_cutoffs, liquidity_m_df,

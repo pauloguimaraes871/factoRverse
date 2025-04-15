@@ -6,9 +6,10 @@
 #'
 #' @param meta_dataframe A `meta_dataframe` object containing the target data.
 #' @param meta_xts A `meta_xts` object containing the reference values.
-#' @param sector_columnumn A `character` specifying the column in `meta_dataframe` that contains sector classifications.
+#' @param sector_column A `character` specifying the column in `meta_dataframe` that contains sector classifications.
 #' @param mapper A named `list` in which names represent sector names and elements are formulas defining how to compute values (e.g., `~-A`, `~A + B`).
 #' @param feature_name A `character` specifying the name of the new computed column. Default is `<sector_column>_sector_value`.
+#' @param ... Additional arguments passed to the formulas in `mapper`.
 #'
 #' @return A modified `meta_dataframe` with the new column containing computed values.
 #'

@@ -16,6 +16,8 @@ estimate_covariance_matrix(
 )
 }
 \arguments{
+\item{tickers}{A character vector with tickers to be used to estimate the covariance matrix}
+
 \item{returns_m_xts_upd_ref}{A dataframe in which columns represent tickers present in current_universe_df and row represent days
 It should include all stocks in assets and a dates column with at least cov_matrix_sample_size days before current_date}
 
@@ -31,9 +33,9 @@ If NULL, blending_method can only be EW or IR}
 \item{active_returns}{A character string indicating whether covariance matrix should be calculated based on active returns or raw returns. If TRUE,
 returns_m_xts_upd_ref will be adjusted by subtracting the selected market factor proxy in benchmark_returns_m_xts.}
 
-\item{assets}{A dataframe with a tickers column to specifiy to which stocks/signal portfolios covariance is to be calculated.}
+\item{selected_benchmark_m_xts_upd_ref}{A dataframe in which columns represent benchmarks returns and row represent days}
 
-\item{fill}{If TRUE, will fill rows NAs with group medians. If group median are NAs, it will fill with row's median}
+\item{verbose}{If TRUE, will print messages to the console}
 }
 \description{
 Estimate a covariance matrix based on stock returns

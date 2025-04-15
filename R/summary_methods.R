@@ -538,14 +538,6 @@ setMethod("summary", "tickers_catalog", function(object, summary_id = NULL) {
 #'
 #' @return Invisibly returns the \code{object}, printing a styled table or prompt in the Viewer.
 #'
-#' @examples
-#' \dontrun{
-#' # If x is a generic meta_xts:
-#' summary(x)  # numeric summary, yearly summary, or series frequency table
-#'
-#' # If x is a returns_meta_xts:
-#' summary(x)  # includes the new 'Performance Metrics Table' if you choose it
-#' }
 #'
 #' @export
 setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
@@ -998,9 +990,6 @@ setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_r
 #'
 #' @return Invisibly returns a `DT` table object. This function is primarily called for its side effect of displaying the table.
 #'
-#' @examples
-#' # Assuming you have an sb_metabacktest_config object named meta_config:
-#' summary(meta_config)
 #'
 #' @export
 setMethod("summary", "sb_metabacktest_config",
@@ -1784,6 +1773,7 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
 #'     - `"Base_Learners_OOS_Predictions"`
 #'   - By number: Provide a number corresponding to the table (as listed when `summary_id` is `NULL`).
 #'   If `NULL` (default), the method lists available tables.
+#' @param which_backtest_results A character string or numeric value specifying which backtest results to display.
 #' @return Invisibly returns the input `object`.
 #' @export
 setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NULL, which_backtest_results = NULL) {

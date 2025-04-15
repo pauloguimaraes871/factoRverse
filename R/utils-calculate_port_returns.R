@@ -6,16 +6,9 @@
 #' @param clean_fwd_return_1m_m_d_ref A data frame containing forward stock returns. Must include
 #'   a column named \code{id} (or an equivalent identifier) and a column named \code{fwd_return_1m} for returns.
 #' @param fwd_selected_benchmark_return Numeric. The forward return of the selected benchmark.
-#' @param transactions_m_d_ref A data frame of transactions. Must include columns:
-#'   \itemize{
-#'     \item \code{id}: Identifier matching the stock IDs in \code{clean_fwd_return_1m_m_d_ref}.
-#'     \item \code{eop_port_weights}: End-of-period portfolio weights for each stock.
-#'     \item \code{delta}: Change in holdings (used for turnover calculation).
-#'   }
-#' @param total_direct_cost Numeric. The total direct cost of the portfolio's transactions.
-#' @param total_market_impact_cost Numeric. The total market impact cost of the portfolio's transactions.
-#' @param total_cost Numeric. The total cost of all transactions, typically \code{total_direct_cost + total_market_impact_cost}.
-#' @param verbose Logical. If \code{TRUE}, the function may provide additional messages. Defaults to \code{TRUE}.
+#' @param port_weights_m_d_ref A data frame containing portfolio weights. Must include a column named \code{id} (or an equivalent identifier).
+#' @param total_cost Numeric. The total cost associated with the portfolio.
+#' @param verbose Logical. If `TRUE`, messages will be printed about the calculation process.
 #'
 #' @details
 #' The function first joins \code{transactions_m_d_ref} with \code{clean_fwd_return_1m_m_d_ref} by \code{id}.

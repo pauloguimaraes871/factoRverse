@@ -10,6 +10,8 @@
 \item{object}{A \code{step_impute_sector} object.}
 
 \item{new_data}{A data frame of new data to which the imputation will be applied.}
+
+\item{...}{Additional arguments passed to methods (not used).}
 }
 \description{
 Apply imputation during baking

@@ -18,6 +18,8 @@ update_tickers_catalog(old_tickers_catalog, new_tickers_catalog, ...)
 
 \item{new_tickers_catalog}{A \code{tickers_catalog} object containing the latest batch of stock data.}
 
+\item{...}{Additional arguments passed to the function.}
+
 \item{ticker_changes}{A \code{data.frame} with three columns:
 \describe{
 \item{\code{new_ticker}}{The new ticker symbol observed in the new data.}

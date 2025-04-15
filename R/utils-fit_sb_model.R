@@ -20,11 +20,13 @@
 #' @param optimal_hyper A named list of optimal hyperparameters for the specified \code{sb_algorithm}.
 #' @param chosen_eval_metric_translated A \code{character} specifying the evaluation metric for validation.
 #' @param most_recent_signal_universe_m_d_ref A meta-dataframe representing the most recent signal universe.
+#' @param most_recent_custom_signal_weights_m_d_ref A meta-dataframe containing custom signal weights.
 #' @param selected_backtest_returns_corrected_positions_m_xts_upd_ref An \code{xts} object containing backtested returns for corrected positions.
 #' @param selected_cov_matrix_benchmark_m_xts_upd_ref An \code{xts} object representing the selected market factor proxy.
 #' @param cov_matrix_sample_size A numeric value specifying the sample size for covariance matrix estimation.
 #' @param cov_estimation_method A \code{character} specifying the method for covariance estimation (e.g., \code{"sample"}).
 #' @param active_returns A logical value indicating whether to use active returns (default: \code{TRUE}).
+#' @param groups_m_d_ref A meta-dataframe containing group information for the assets.
 #' @param rp_method A \code{character} specifying the method for Risk Parity optimization.
 #' @param n_random_ports A numeric value specifying the number of random portfolios to generate (for MVO).
 #' @param random_ports_method A \code{character} specifying the method for generating random portfolios.
@@ -36,7 +38,6 @@
 #' @param verbose A logical value indicating whether to enable verbose output during model training.
 #'
 #' @return An S4 object of class \code{sb_model}, encapsulating the trained model, algorithm, and associated metadata.
-#' @export
 fit_sb_model <- function(sb_algorithm, #SB Algorithm
                          target_fwd_name,  selected_features_corrected_positions_m_refit, target_m_refit,
                          selected_full_data_corrected_positions_m_refit_clean = NULL, #Data

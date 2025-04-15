@@ -17,7 +17,7 @@
 #'   - `top_assets_quantile_buffer`: A numeric value indicating a buffer value that relaxes `top_assets_quantile` for stocks with the specified liquidity classification.
 #'   - `turnover_cap`: A numeric value specifying the turnover cap.
 #'   Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the `liquidity_floor_rule`.
-#' @param concentration_constraints_policy A named list containing up to four elements:
+#' @param concentration_constraint_policy A named list containing up to four elements:
 #' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
 #' Must have a correspondence in `benchmark_weights_m_d_ref`
 #' - `max_abs_active_individual_weight`: The maximum absolute individual active weights.
@@ -28,6 +28,8 @@
 #' All tickers in the current stock universe must have a unique correspondence in the data frame.
 #' @param opt_objective A character describing the objective to maximize in order to choose the best portfolio. One of "return (max return)",
 #' "risk (min risk)" or "sharpe (max sharpe-ratio)"
+#' @param opt_method A character describing the optimization method to be used. One of "random" or "DEoptim".
+#' @param verbose A logical indicating whether to print messages during the execution of the function.
 #'
 create_mvo_portfolio <- function(universe_m_d_ref,
                                  covariance_matrix,

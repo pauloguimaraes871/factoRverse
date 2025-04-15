@@ -29,18 +29,28 @@ The data frame should only include observations up to the current date.}
 \item \code{"random_intercept"}: Random effects on the \code{theme}-level intercept. Includes random intercepts for themes and both random intercepts and slopes for each theme-signal combination. This captures variability at both levels.
 \item \code{"fixed_intercepts"}: Fixed intercepts for each \code{theme}, with a global slope for the market factor proxy. Nested variability within themes is modeled using random intercepts and slopes for theme-signal combinations.
 \item \code{"fixed_intercepts_and_slopes"}: Fixed intercepts and slopes for each \code{theme}. Includes interaction terms between themes and the market factor proxy, with random intercepts for tickers.
-}
+}}
 
-@param half_t_df A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
-Although the function specifies a regular student t distribution, \code{brms} will use half-t distribution, ensuring strictly positive parameters.
+\item{half_t_df}{A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
+Although the function specifies a regular student t distribution, \code{brms} will use half-t distribution, ensuring strictly positive parameters.}
 
-@param lmer_optimizer A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
+\item{lmer_optimizer}{A character string specifying the optimizer to be used in the \code{lme4::lmer} function.
 It will be passed to lme4::lmerControl, which will be used in the \code{lme4::lmer} function.
-Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'
+Options include: 'nloptwrap', 'bobyqa', 'Nelder_Mead' or 'nlminbwrap'}
 
-@param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.
-
-#' @details
+\item{lmer_optimization_objective}{A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.}
+}
+\value{
+A list with two components:
+\itemize{
+\item \code{priors}: A list of \code{brms::set_prior} objects specifying the derived priors.
+\item \code{model}: The fitted linear mixed-effects model (\code{lme4::lmer} object).
+}
+}
+\description{
+This function fits a frequentist hierarchical linear mixed-effects model using the \code{lme4} package, based on the input data and the specified model structure. The resulting parameter estimates are used to derive informative priors for Bayesian modeling using the \code{brms} package.
+}
+\details{
 The function uses frequentist linear mixed-effects models to estimate parameters that are subsequently translated into Bayesian priors:
 \itemize{
 \item Priors for location parameters (e.g., intercepts, slopes) follow a normal distribution.
@@ -85,22 +95,5 @@ The model equation is:
 \deqn{y_{it} = \sum_k \beta_k \cdot \text{theme}_{k,i} + \sum_k \gamma_k \cdot \text{theme}_{k,i} \cdot x_{it} + \beta_m \cdot X_{it} + b_{0,i} + \epsilon_{it}}
 }
 
-}}
 }
-\value{
-A list with two components:
-\itemize{
-\item \code{priors}: A list of \code{brms::set_prior} objects specifying the derived priors.
-\item \code{model}: The fitted linear mixed-effects model (\code{lme4::lmer} object).
-}
-\subsection{\code{none}}{
-
-This model includes no parameter at the theme level and just models random intercepts and slopes for each signal.
-The model equation is:
-\deqn{y_i = \beta_0 + \beta_1 \cdot x_i + b_{0,g_i} + b_{1,g_i} \cdot x_i + \epsilon_i}
-See the detailed breakdown in the example section.
-}
-}
-\description{
-This function fits a frequentist hierarchical linear mixed-effects model using the \code{lme4} package, based on the input data and the specified model structure. The resulting parameter estimates are used to derive informative priors for Bayesian modeling using the \code{brms} package.
 }

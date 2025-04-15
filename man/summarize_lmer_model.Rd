@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils-summarize_lmer_model.R
 \name{summarize_lmer_model}
 \alias{summarize_lmer_model}
-\title{Summarize Posterior Draws for Signal Universe}
+\title{Summarize Hierarchical CAPM Model (lmer)}
 \usage{
 summarize_lmer_model(
   lmer_model,
@@ -13,37 +13,40 @@ summarize_lmer_model(
 )
 }
 \arguments{
-\item{signal_universe_m_d_ref}{A dataframe with tickers, is_eligible and final_signal columns}
+\item{lmer_model}{A fitted \code{lme4::lmer} model object, typically estimating a hierarchical CAPM across signals.}
 
-\item{selected_signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
-for defining clusters in bayesian hierarchical model. It should contain data only for current date.}
+\item{signal_universe_m_d_ref}{\emph{(Optional)} A meta dataframe including all signals under consideration. This argument is not currently used but can be included for consistency or future extension.}
 
-\item{model_spec_theme_level}{A character string specifying the desired model structure.
-Options include:
+\item{selected_signal_themes_m_d_ref}{A meta dataframe including signals that passed eligibility filters, containing columns like \code{tickers} and \code{theme}. Used to join results and determine final structure.}
+
+\item{model_spec_theme_level}{A character string indicating the hierarchical structure of the model. Must be one of:
 \itemize{
-\item \code{"random_intercept_fixed_slope"}: Includes random effects for the intercept at the theme level.
-\item \code{"theme_specific_intercept_fixed_slope"}: Uses fixed intercepts for each theme.
-\item \code{"theme_specific_intercept_theme_specific_slope"}: Includes fixed intercepts and slopes for each theme.
-\item \code{"fixed_intercept_fixed_slope"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
+\item \code{"random_intercept_fixed_slope"}: Random intercepts per theme, shared slope.
+\item \code{"theme_specific_intercept_fixed_slope"}: Fixed intercepts per theme, shared slope.
+\item \code{"theme_specific_intercept_theme_specific_slope"}: Fixed intercepts and slopes per theme.
+\item \code{"fixed_intercept_fixed_slope"}: No grouping; simple fixed-effects model with intercept and slope.
 }}
 
-\item{brm_model}{A bayesian model fit with \code{brms::brm}.}
+\item{hierarchical_p_value_method}{A character string indicating the degrees of freedom approximation method for fixed-effect p-values. Must be one of:
+\code{"Satterthwaite"}, \code{"Kenward-Roger"}, or \code{"lme4"} (which skips approximation).}
 }
 \value{
-The \code{signal_universe_m_d_ref} data frame is updated in place with posterior summary statistics.
+A dataframe (\code{pooled_CAPM_metrics_m_d_ref}) with per-signal CAPM metrics, including:
+\itemize{
+\item \code{individual_alpha}, \code{individual_beta}: Total signal-specific alpha and beta.
+\item \code{theme_alpha}, \code{theme_beta}: Theme-level alpha and beta components.
+\item \code{alpha_se}, \code{alpha_t_stat}: Standard error and t-statistic of alpha.
+\item \code{p_value}: One-sided p-value for alpha.
+\item \code{specific_risk}: Residual volatility (sigma).
+\item \code{treynor_ratio}, \code{appraisal_ratio}: Risk-adjusted performance measures.
+}
 }
 \description{
-This function computes various posterior summary statistics for a given set of signals, themes, and posterior draws.
-It updates the \code{signal_universe_m_d_ref} data frame with posterior statistics including alphas, betas, sigmas, and other metrics.
+Summarizes the output of a hierarchical CAPM fitted using \code{lme4::lmer()}, extracting fixed and random effects,
+computing relevant statistics (alphas, betas, p-values, t-stats, Treynor ratio, appraisal ratio), and aggregating results
+according to a specified model structure (theme-level or signal-level).
 }
 \details{
-The function performs the following operations for each theme:
-\itemize{
-\item Computes and updates the posterior overall alpha and individual alpha for each signal.
-\item Computes and updates the probability of the (positive) direction for posterior alphas.
-\item Computes and updates the posterior overall beta and individual beta for each signal.
-\item Computes and updates the posterior sigma for each signal.
-\item Computes and updates posterior metrics such as active return, tracking error, and information ratio (IR).
-\item Computes and updates additional performance metrics like Appraisal Ratio (AP) and Treynor ratio.
-}
+This function is used to decompose the result of mixed-effects CAPM models into interpretable metrics.
+It handles different model structures flexibly and integrates fixed and random effects appropriately.
 }

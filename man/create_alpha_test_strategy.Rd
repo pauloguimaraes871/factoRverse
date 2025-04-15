@@ -17,21 +17,68 @@ create_alpha_test_strategy(
 )
 }
 \arguments{
-\item{signal_significance_threshold}{A numeric value indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria.
-Must be between 0 and 1. Defaults to 0.05.}
+\item{model_structure}{Character string specifying the hierarchical model structure.
+Must be one of:
+\itemize{
+\item \code{"partial_pooled"}: Uses theme-level effects with partial pooling.
+\item \code{"no_pooled"}: No pooling; estimates signal-level parameters independently.
+}}
 
-\item{p_correction_method}{A character string specifying the p-value correction method.
-Options include \code{"none"}, \code{"bonferroni"}, \code{"holm"}, \code{"hochberg"}, \code{"hommel"}, \code{"BH"}, \code{"fdr"}, \code{"BY"}, and \code{"bayesian"}.}
+\item{theme_level_intercept}{Character string indicating how intercepts are modeled at the theme level
+(only used when \code{model_structure = "partial_pooled"}). Valid options are:
+\itemize{
+\item \code{"fixed"}: A common intercept across themes.
+\item \code{"random"}: Intercepts modeled as random effects.
+\item \code{"theme_specific"}: Each theme has its own fixed intercept.
+}
+Must be \code{NULL} if \code{model_structure = "no_pooled"}.}
 
-\item{market_factor_proxy}{A character string indicating the market factor proxy to be used in the CAPM model.}
+\item{theme_level_slope}{Character string indicating how slopes are modeled at the theme level
+(only used when \code{model_structure = "partial_pooled"}). Valid options are:
+\itemize{
+\item \code{"fixed"}: A common slope across themes.
+\item \code{"theme_specific"}: Each theme has its own slope.
+}
+Must be \code{NULL} if \code{model_structure = "no_pooled"}.}
 
-\item{bayesian_model_parameters}{(Optional) An object of class \code{bayesian_model_parameters}.
-Required when \code{p_correction_method} is \code{"bayesian"}.}
+\item{signal_significance_threshold}{Numeric. Significance level for alpha tests (e.g., 0.05).
+Determines the rejection region for the null hypothesis of zero alpha. Must be between 0 and 1.}
+
+\item{p_correction_method}{Character string specifying the p-value adjustment method used
+in multiple hypothesis testing correction. Options include:
+\itemize{
+\item \code{"none"}: No correction.
+\item \code{"bonferroni"}, \code{"holm"}, \code{"hochberg"}, \code{"hommel"}: Classical FWER control methods.
+\item \code{"BH"}, \code{"fdr"}, \code{"BY"}: FDR control methods.
+\item \code{"bayesian"}: Use Bayesian hypothesis testing instead of p-values.
+}}
+
+\item{market_factor_proxy}{Character string specifying the identifier of the market factor proxy.
+This variable is typically used as the market return in a CAPM-style alpha test model.}
+
+\item{bayesian_model_parameters}{An optional object of class \code{bayesian_model_parameters}.
+If \code{p_correction_method = "bayesian"}, this must either be provided explicitly or will be initialized
+with default (uninformative) prior settings. Ignored for frequentist strategies.}
+
+\item{enable_theme_representativeness}{Logical. If \code{TRUE}, enables extra diagnostics and modeling
+logic to account for representativeness at the theme level. Useful when themes are considered
+key grouping variables for inference.}
+
+\item{lmer_control}{Optional. A list of control parameters passed to \code{lme4::lmer()} (frequentist)
+or \code{brms::brm()} (Bayesian) for customizing model fitting behavior. Can include convergence
+tolerances, optimizers, or verbosity flags.}
 }
 \value{
-An object of class \code{alpha_test_strategy}, \code{frequentist_alpha_test_strategy}, or \code{bayesian_alpha_test_strategy}.
+An object of class:
+\itemize{
+\item \code{frequentist_alpha_test_strategy}, if a frequentist method is selected;
+\item \code{bayesian_alpha_test_strategy}, if Bayesian inference is selected.
+}
+The returned object can then be passed to downstream workflows that evaluate and classify alpha signals.
 }
 \description{
-A constructor function to create instances of alpha_test_strategy or its subclasses
-(frequentist_alpha_test_strategy and bayesian_alpha_test_strategy).
+Constructor for objects of class \code{alpha_test_strategy} or its subclasses
+(\code{frequentist_alpha_test_strategy}, \code{bayesian_alpha_test_strategy}).
+The function validates the model configuration and constructs the appropriate strategy object
+based on the hypothesis testing methodology and hierarchical model structure.
 }

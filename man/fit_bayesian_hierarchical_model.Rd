@@ -54,6 +54,18 @@ Options include:
 \item \code{"fixed_intercept_fixed_slope"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
 }}
 
+\item{chains}{An integer specifying the number of Markov chains to run. Defaults to \code{4}.}
+
+\item{iter}{An integer specifying the number of iterations per chain. Defaults to \code{2000}.}
+
+\item{warmup}{An integer specifying the number of warmup iterations. Defaults to \code{1000}.}
+
+\item{thin}{An integer specifying the thinning interval. Defaults to \code{1}.}
+
+\item{seed}{An integer specifying the random seed for reproducibility. Defaults to \code{123}.}
+
+\item{adapt_delta}{A numeric value between 0 and 1 specifying the target acceptance rate for the Hamiltonian Monte Carlo sampler.}
+
 \item{verbose}{A logical indicating whether to display progress messages during the model fitting process. Defaults to \code{TRUE}.}
 
 \item{parallel}{A logical indicating whether to enable parallel computation using \code{future}. Defaults to \code{TRUE}.}

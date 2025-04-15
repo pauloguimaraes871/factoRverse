@@ -35,9 +35,3 @@ The function first validates that \code{new_features_m_df} is coercible
 to a \code{meta_dataframe}. It extracts the relevant data from the input and
 uses the appropriate prediction method based on the specified signal blending algo
 }
-\examples{
-# Assuming `refit_model` is an instance of `sb_model`
-# and `new_data` is a properly structured data frame:
-predictions <- predict(refit_model, new_data)
-
-}

@@ -33,6 +33,8 @@ create_sb_backtest_config(
 
 \item{split_method}{Character string indicating the data splitting method ('expanding' or 'rolling').}
 
+\item{chosen_signals_and_positions}{A vector of chosen signals and positions (long, short)}
+
 \item{custom_objective}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.}
 
 \item{keras_architecture_parameters}{An object of class \code{keras_architecture_parameters} providing parameters specific to keras-based neural networks.}

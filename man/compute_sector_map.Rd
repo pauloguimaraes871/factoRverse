@@ -22,6 +22,8 @@ compute_sector_map(meta_dataframe, sector_column, mapper, ...)
 
 \item{mapper}{A named \code{list} in which names represent sector names and elements are formulas defining how to compute values (e.g., \code{~-Alpha}, \code{~ Beta + Alpha}).}
 
+\item{...}{Additional arguments passed to the formulas in \code{mapper}.}
+
 \item{feature_name}{A \code{character} specifying the name of the new computed column.}
 }
 \value{

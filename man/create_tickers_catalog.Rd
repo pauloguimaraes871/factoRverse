@@ -2,6 +2,7 @@
 % Please edit documentation in R/constructors.R
 \name{create_tickers_catalog}
 \alias{create_tickers_catalog}
+\alias{create_tickers_catalog,raw_features_m_df,data.frame,data.frame-method}
 \title{Create a tickers_catalog Object}
 \usage{
 create_tickers_catalog(
@@ -10,6 +11,13 @@ create_tickers_catalog(
   date_last_quote,
   ...
 )
+
+\S4method{create_tickers_catalog}{raw_features_m_df,data.frame,data.frame}(
+  raw_features_m_df,
+  date_first_quote,
+  date_last_quote,
+  n_days_tolerance = 10
+)
 }
 \arguments{
 \item{raw_features_m_df}{A \code{meta_dataframe} object with \code{type == "generic"}, containing stock tickers and dates.}
@@ -17,6 +25,8 @@ create_tickers_catalog(
 \item{date_first_quote}{A \code{data.frame} with columns \code{tickers} (character) and \code{date_first_quote} (Date).}
 
 \item{date_last_quote}{A \code{data.frame} with columns \code{tickers} (character) and \code{date_last_quote} (Date).}
+
+\item{...}{Additional arguments passed to \code{meta_dataframe}.}
 
 \item{n_days_tolerance}{A \code{numeric} indicating the maximum tolerance for which \code{date_last_quote} can be smaller than
 current_date without it making it a delisted stock.}

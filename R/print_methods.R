@@ -8,7 +8,7 @@
 #' @param object An instance of the `meta_dataframe` class.
 #'
 #' @return The method returns the object invisibly.
-#'
+#' @importFrom methods show
 #' @export
 setMethod("show", "meta_dataframe", function(object) {
 
@@ -199,6 +199,7 @@ setMethod("show", "signal_universe_m_df", function(object) {
 #tickers_catalog-----------------------------
 #' Print method for tickers_catalog
 #'
+#' @param object An instance of the \code{tickers_catalog} class.
 #' Displays key information about a tickers_catalog object.
 #' @export
 setMethod("show", "tickers_catalog", function(object) {

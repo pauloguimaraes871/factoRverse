@@ -46,7 +46,6 @@
 #' \itemize{
 #'   \item \code{half_t_df}: Degrees of freedom for half-t priors on scale parameters.
 #' }
-#' @param parallel Logical. If \code{TRUE}, uses \code{future} backend to parallelize Bayesian model fitting.
 #' @param signal_themes_m_df A (meta) data frame with columns \code{id}, \code{tickers}, \code{dates}, and \code{theme}. Defines signal group structure for hierarchical modeling.
 #' @param lower_quantile_winsorization Numeric between 0 and 1. Lower winsorization threshold for signal metrics.
 #' @param upper_quantile_winsorization Numeric between 0 and 1. Upper winsorization threshold for signal metrics.

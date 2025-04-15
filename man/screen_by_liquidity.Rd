@@ -2,6 +2,7 @@
 % Please edit documentation in R/screen_by_liquidity.R
 \name{screen_by_liquidity}
 \alias{screen_by_liquidity}
+\alias{screen_by_liquidity,meta_dataframe,meta_dataframe,data.frame,character-method}
 \title{Generic function for screening a meta_dataframe based on liquidity classification, given a liquidity_floor_rule.}
 \usage{
 screen_by_liquidity(
@@ -10,6 +11,14 @@ screen_by_liquidity(
   liquidity_floor_cutoffs,
   liquidity_floor_rule,
   ...
+)
+
+\S4method{screen_by_liquidity}{meta_dataframe,meta_dataframe,data.frame,character}(
+  meta_dataframe,
+  liquidity_m_df,
+  liquidity_floor_cutoffs,
+  liquidity_floor_rule,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -29,7 +38,9 @@ It has at most 5 rows and no duplicates or NAs.}
 
 \item{liquidity_floor_rule}{Optional. Character string specifying the liquidity classification to apply the liquidity floor rule (eg. "nano_caps", "micro_caps", "small_caps", "mid_caps", "large_caps", "mega_caps").}
 
-\item{verbose}{Logical. If TRUE, prints processing messages.}
+\item{...}{Additional arguments to be passed to the method.}
+
+\item{verbose}{Logical. If TRUE, prints additional information during processing.}
 }
 \description{
 This function filters a \code{meta_dataframe} using \code{classify_stock_liquidity()} to remove illiquid stocks.

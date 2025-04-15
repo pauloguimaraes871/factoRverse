@@ -17,6 +17,8 @@ the expected return score for each stock.}
 \item{eligibility_quantile_range}{A numeric vector of length two, specifying the lower and upper quantile
 probabilities (e.g., \code{c(0.25, 0.75)}). The function uses \code{min()} and \code{max()} of this vector to
 define the quantile boundaries.}
+
+\item{categorical_variable}{A logical value indicating whether the expected return score is categorical (i.e., only two unique values).}
 }
 \value{
 A modified version of \code{stock_universe_m_d_ref} with an additional column named

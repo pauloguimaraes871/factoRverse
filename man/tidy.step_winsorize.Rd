@@ -6,6 +6,11 @@
 \usage{
 \method{tidy}{step_winsorize}(x, ...)
 }
+\arguments{
+\item{x}{A \code{step_winsorize} object.}
+
+\item{...}{Additional arguments (not used).}
+}
 \description{
 Tidy method for step_winsorize
 }

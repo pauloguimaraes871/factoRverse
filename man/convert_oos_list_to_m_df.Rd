@@ -6,6 +6,9 @@
 \usage{
 convert_oos_list_to_m_df(oos_obj_list)
 }
+\arguments{
+\item{oos_obj_list}{A list of out-of-sample objects, where each object is a named numeric vector.}
+}
 \description{
 Convert OOS Lists to Meta Data Frame
 }

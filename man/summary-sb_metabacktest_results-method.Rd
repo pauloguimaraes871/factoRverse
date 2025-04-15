@@ -22,6 +22,8 @@
 \item By number: Provide a number corresponding to the table (as listed when \code{summary_id} is \code{NULL}).
 If \code{NULL} (default), the method lists available tables.
 }}
+
+\item{which_backtest_results}{A character string or numeric value specifying which backtest results to display.}
 }
 \value{
 Invisibly returns the input \code{object}.

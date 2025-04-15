@@ -46,7 +46,7 @@ setGeneric("explain_prediction", function(sb_backtest_results, features_m_df, se
 })
 
 
-#' Explain Prediction for sb_backtest_results
+#' @rdname explain_prediction
 #' @export
 setMethod("explain_prediction",
           signature(sb_backtest_results = "sb_backtest_results", features_m_df = "meta_dataframe", selected_ticker = "character", selected_date = "Date"),
@@ -80,7 +80,7 @@ setMethod("explain_prediction",
 )
 
 
-#' Explain Prediction for sb_metabacktest_results
+#' @rdname explain_prediction
 #' @export
 setMethod("explain_prediction",
           signature(sb_backtest_results = "sb_metabacktest_results", features_m_df = "meta_dataframe", selected_ticker = "character", selected_date = "Date"),
@@ -165,7 +165,65 @@ setMethod("explain_prediction",
           }
 )
 
-#' inner function
+#' @title Decompose and Visualize OOS Prediction for a Selected Ticker and Date
+#' @description
+#' This internal function explains an out-of-sample prediction by decomposing it into the
+#' individual contributions of each feature and the model intercept. It is designed to work
+#' with a linear meta-model (`gsm_algorithm = "ols"`) and creates a waterfall plot
+#' showing the additive contributions, including a residual complexity component when applicable.
+#'
+#' @param sb_backtest_workflow A list representing the signal blending backtest workflow.
+#'   Must include at least the element `rebalance_dates` (used to validate the date range)
+#'   and `target_fwd_name` (used for the plot title).
+#'
+#' @param oos_sb_outputs_m_df A `meta_dataframe` with out-of-sample model predictions.
+#'   Must include `id` (paste0(ticker, "-", date)) and `pred` columns.
+#'
+#' @param feature_importance_m_df A `meta_dataframe` with feature importances from the GSM model.
+#'   Must contain columns: `tickers`, `importance`, and `dates`.
+#'
+#' @param gsm_algorithm A character string indicating the algorithm used for the GSM model.
+#'   Currently, only `"ols"` is supported.
+#'
+#' @param features_m_df A `meta_dataframe` of standardized or corrected features used by the GSM model.
+#'   Must contain at least columns `id`, `tickers`, `dates`, and the feature variables.
+#'
+#' @param selected_ticker A character string indicating the ticker to analyze.
+#'
+#' @param selected_date A `Date` object specifying the date for which the prediction is to be explained.
+#'
+#' @return A `data.frame` with the following columns:
+#'   \itemize{
+#'     \item \code{tickers}: Feature or meta-label (e.g., base_pred, complexity).
+#'     \item \code{ContributionType}: Label for plot grouping (e.g., Most Important Positive).
+#'     \item \code{TotalContribution}: Contribution value.
+#'     \item \code{Cumulative}, \code{PrevCumulative}, \code{Midpoint}, \code{x}, \code{xmin}, \code{xmax}, \code{ymin}, \code{ymax}:
+#'       Intermediate values used to build the waterfall plot.
+#'     \item \code{fill_type}: Positive or Negative contribution.
+#'   }
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Validates the selected ticker-date combination against `oos_sb_outputs_m_df` and `features_m_df`.
+#'   \item Retrieves the most recent feature importance estimates available prior to `selected_date`.
+#'   \item Extracts and normalizes the individual feature values for the selected ticker/date.
+#'   \item Computes the linear contribution of each feature (feature value × coefficient).
+#'   \item Separates the contributions into positive/negative, and highlights the most important ones.
+#'   \item Calculates the GSM model prediction and compares it to the complex model's prediction.
+#'   \item Visualizes the contributions using a waterfall-style `ggplot2` bar plot with neon color scheme.
+#' }
+#'
+#' The plot includes:
+#' \itemize{
+#'   \item Base prediction (intercept)
+#'   \item Most and less important positive/negative feature contributions
+#'   \item Residual (complexity) not explained by the GSM linear model
+#' }
+#'
+#' @note This function is not exported and is intended for internal diagnostic use only.
+#'
+#' @keywords internal
 explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, feature_importance_m_df, gsm_algorithm,
                                      features_m_df, selected_ticker = selected_ticker, selected_date = selected_date){
 
@@ -422,7 +480,52 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
 }
 
 
-#' inner helper function to decompose feature importance
+#' @title Decompose Feature Importance from Meta-Learner to Base Features
+#' @description
+#' Internal utility to propagate feature importance values from a meta-model to its constituent base learners.
+#' The function adjusts and redistributes meta-level feature importance into the features used by each base learner,
+#' weighting them proportionally by their within-learner relative importance.
+#'
+#' @param most_recent_meta_date Date. A single date used to tag all decomposed importance values.
+#'   This is typically the date of the most recent meta-model estimation.
+#'
+#' @param meta_feature_importance A `data.frame` containing feature importance values from the meta-learner.
+#'   Must include at least:
+#'   \itemize{
+#'     \item \code{tickers}: Identifiers for the base learners used in the meta-model.
+#'     \item \code{importance}: The estimated importance of each base learner.
+#'   }
+#'
+#' @param base_identifiers A character vector of base learner identifiers.
+#'   These should match the `tickers` in `meta_feature_importance`.
+#'
+#' @param base_feature_importance_filtered A list of `data.frame`s, each containing feature importance
+#'   values for a base learner. Each element must correspond in order to `base_identifiers`, and each
+#'   `data.frame` must include:
+#'   \itemize{
+#'     \item \code{tickers}: Feature identifiers used in the base learner.
+#'     \item \code{importance}: Their respective importance values.
+#'   }
+#'
+#' @return A `data.frame` (in `meta_dataframe` format) with the decomposed feature importance.
+#'   Columns include:
+#'   \itemize{
+#'     \item \code{id}: Unique identifier combining feature and date.
+#'     \item \code{dates}: Set to `most_recent_meta_date`.
+#'     \item \code{tickers}: Feature names (or base learner features).
+#'     \item \code{importance}: Decomposed and consolidated importance value.
+#'   }
+#'
+#' @details
+#' For each base learner:
+#' \enumerate{
+#'   \item The meta importance is multiplied by each feature’s relative importance (within the base model).
+#'   \item The adjusted importance is assigned to the respective feature.
+#'   \item The base learner row is removed from the meta table and replaced by its decomposed features.
+#' }
+#' After looping through all base learners, duplicated features (from different learners) are consolidated by summing their importances.
+#'
+#' @keywords internal
 decompose_feature_importance <- function(most_recent_meta_date, meta_feature_importance, base_identifiers, base_feature_importance_filtered){
 
   #Init

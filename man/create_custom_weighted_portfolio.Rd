@@ -15,6 +15,8 @@ create_custom_weighted_portfolio(
 This object could either be the result of filter_stock_universe or created in the context of the blend_signals_function}
 
 \item{custom_weights_m_d_ref}{A dataframe with identifiers (tickers or signal column) and custom weights.}
+
+\item{verbose}{If TRUE, will print messages to the console}
 }
 \description{
 Create a custom_weighted portfolio for signals or stocks

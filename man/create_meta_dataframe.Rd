@@ -41,6 +41,26 @@ create_meta_dataframe(data, meta_dataframe_name = "not_identified", ...)
 \item{meta_dataframe_name}{A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.}
 
 \item{...}{Additional arguments passed to methods.}
+
+\item{workflow}{A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}}
+
+\item{ss_backtest_workflow}{A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}}
+
+\item{sb_backtest_workflow}{A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}}
+
+\item{port_backtest_workflow}{A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}}
+
+\item{type}{A \code{character} string specifying the type of the \code{meta_dataframe} object. This is used to identify the class of the object.}
+
+\item{tickers}{A \code{character} vector of tickers to be included in the \code{meta_dataframe} object.}
+
+\item{dates}{A \code{Date} vector of dates to be included in the \code{meta_dataframe} object.}
+
+\item{features_names}{A \code{character} vector of feature names to be included in the \code{meta_dataframe} object.}
+
+\item{data_format}{A \code{character} string specifying the format of the data. It can be either "long" or "wide". This is used to identify the class of the object.}
+
+\item{tickers_on}{A \code{character} indicating whether tickers are placed on the rows or columns of the data. It can be either "rows" or "columns".}
 }
 \value{
 An object of class \code{meta_dataframe}.

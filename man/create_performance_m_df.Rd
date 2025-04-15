@@ -18,6 +18,8 @@ Each column represents a signal, and rows represent time periods.}
 \item{selected_market_factor_proxy_m_xts_upd_ref}{A xts containing benchmark returns data.}
 
 \item{active_returns}{If TRUE, calculate ative returns before applying performance functions.}
+
+\item{verbose}{If TRUE, will print messages to the console.}
 }
 \value{
 A data frame containing performance metrics for the specified signals. The metrics include:

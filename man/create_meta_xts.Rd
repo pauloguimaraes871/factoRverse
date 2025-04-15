@@ -56,12 +56,22 @@ create_meta_xts(
 \code{"metrics"} (holes allowed). Defaults to \code{c("assets","metrics")}
 which means you must pick one.}
 
+\item{asset_type}{A character string indicating the type of asset.}
+
 \item{meta_xts_name}{A character string. Defaults to \code{"default_name"}.}
+
+\item{metric_name}{A character string identifying the name of the metric}
 
 \item{workflow}{An ANY object for workflow. Defaults to \code{NULL}.}
 
 \item{source}{A character vector indicating data origin for each column.
 If \code{NULL}, defaults to \code{"not_identified"} repeated for each column.}
+
+\item{...}{Additional arguments passed to the constructor.}
+
+\item{data_format}{A character string indicating the format of the data.}
+
+\item{dates}{An optional vector of dates to be included.}
 }
 \value{
 An S4 object of class \code{assets_meta_xts} or \code{metrics_meta_xts},

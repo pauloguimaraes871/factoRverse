@@ -6,6 +6,10 @@
 \usage{
 \S4method{show}{tickers_catalog}(object)
 }
+\arguments{
+\item{object}{An instance of the \code{tickers_catalog} class.
+Displays key information about a tickers_catalog object.}
+}
 \description{
-Displays key information about a tickers_catalog object.
+Print method for tickers_catalog
 }

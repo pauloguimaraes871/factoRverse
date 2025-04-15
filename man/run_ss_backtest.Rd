@@ -56,6 +56,8 @@ run_ss_backtest(
 
 \item{signal_themes_m_df}{A \code{meta_dataframe} that maps each signal to a theme. Includes columns: \code{id}, \code{tickers}, \code{dates}, and \code{theme}.}
 
+\item{...}{Additional arguments passed to the function.}
+
 \item{priors_m_df}{Optional. A \code{meta_dataframe} of priors used for Bayesian model specification. Required if \code{p_correction_method = "bayesian"} and
 \code{user_priors} are not supplied.}
 
@@ -68,12 +70,6 @@ run_ss_backtest(
 \item{winsorization_probs}{Numeric vector of length 2. Defines lower and upper quantiles for winsorizing signal values. Default is \code{c(0.025, 0.975)}.}
 
 \item{.update}{(Internal) Logical. If \code{TRUE}, updates a previous backtest incrementally. Default is \code{FALSE}.}
-
-\item{.test_seed}{(Internal) Integer or \code{NULL}. Used in unit tests to set random seed for reproducibility.}
-
-\item{.old_backtest_covered_dates}{(Internal) Vector of dates already covered in a previous backtest. Used only if \code{.update = TRUE}.}
-
-\item{.old_oos_ss_outputs_m_df}{(Internal) A \code{meta_dataframe} of previously computed signal scores for reuse. Used only in update mode.}
 }
 \value{
 An object of class \code{ss_backtest_results}, including:

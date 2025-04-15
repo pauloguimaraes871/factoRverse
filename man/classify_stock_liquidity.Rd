@@ -29,6 +29,8 @@ All tickers in current stock universe must have a unique correspondence in this 
 \item{apply_liquidity_floor_rule}{If TRUE, stocks that fall below the classification in liquidity_floor_rule will be assigned a value of 0}
 
 \item{filter_out_liquidity_floor_rule}{If TRUE, stocks that that fall below the classification in liquidity_floor_rule_policy will be filtered out}
+
+\item{verbose}{Logical. If \code{TRUE}, messages will be printed about the simplification process.}
 }
 \description{
 Classify stocks based on their liquidity

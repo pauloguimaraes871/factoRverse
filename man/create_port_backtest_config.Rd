@@ -29,6 +29,8 @@ create_port_backtest_config(
 
 \item{eligibility_quantile_range}{A numeric vector of length 2 (e.g., c(0.9, 1.0)) specifying the quantile range used to determine eligible assets.}
 
+\item{min_eligible_assets_fallback}{A numeric value indicating the minimum number of eligible assets to include in the portfolio.}
+
 \item{selected_benchmark}{A character string indicating the benchmark to use for benchmark-relative backtests.}
 
 \item{initial_buffer_period}{A numeric value indicating the number of initial dates to skip before starting the backtest.}

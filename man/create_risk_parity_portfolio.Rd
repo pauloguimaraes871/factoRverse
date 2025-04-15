@@ -16,8 +16,9 @@ create_risk_parity_portfolio(
 
 \item{covariance_matrix}{The covariance matrix of all eligible stocks in universe_m_d_ref.}
 
-\item{returns_xts_upd_ref}{A dataframe in which columns represent tickers present in universe_m_d_ref and row represent periods
-It should include all stocks in current_stock_universe and a dates column with at least cov_matrix_sample_size periods before current_date}
+\item{rp_method}{The method used to calculate the risk parity weights. Default is "cyclical-spinu". See riskParityPortfolio::riskParityPortfolio for more options.}
+
+\item{verbose}{If TRUE, will print messages to the console}
 }
 \description{
 Create a risk parity portfolio

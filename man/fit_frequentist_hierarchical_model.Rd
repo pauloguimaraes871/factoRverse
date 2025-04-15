@@ -19,13 +19,22 @@ fit_frequentist_hierarchical_model(
 \arguments{
 \item{signal_universe_m_d_ref}{A data frame containing the signal universe. If provided, data in this object will be updated with hierarchical model metrics.}
 
-\item{selected_backtest_returns_corrected_positions_m_upd_ref}{An already processed \code{selected_backtest_returns_corrected_positions_upd_ref}.
-This data.frame is already in long format and contemplates both the \code{selected_market_factor_proxy_vector_upd_ref} and the
+\item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{A data frame containing the backtest returns data for various signals.
+\itemize{
+\item The first column should include dates.
+\item Remaining columns represent signals (e.g., tickers) and their respective active returns.
+}}
+
+\item{selected_market_factor_proxy_m_xts_upd_ref}{A numeric vector containing benchmark returns data. The vector will be recycled
+to match the length of the backtest returns data.}
+
+\item{selected_backtest_returns_corrected_positions_m_upd_ref}{An already processed \code{selected_backtest_returns_corrected_positions_m_xts_upd_ref}.
+This data.frame is already in long format and contemplates both the \code{selected_market_factor_proxy_m_xts_upd_ref} and the
 \code{selected_signal_themes_m_d_ref} theme data.}
 
 \item{selected_signal_themes_m_d_ref}{A data frame containing metadata about signals. This data frame should include:
 \itemize{
-\item \code{tickers}: Signal identifiers matching those in \code{selected_backtest_returns_corrected_positions_upd_ref}.
+\item \code{tickers}: Signal identifiers matching those in \code{selected_backtest_returns_corrected_positions_m_xts_upd_ref}.
 \item \code{theme}: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
 \item \code{dates}: Dates corresponding to the backtest data.
 This input ensures proper alignment between signals and their associated themes.
@@ -40,16 +49,11 @@ Options include:
 \item \code{"fixed_intercept_fixed_slope"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
 }}
 
-\item{selected_backtest_returns_corrected_positions_upd_ref}{A data frame containing the backtest returns data for various signals.
-\itemize{
-\item The first column should include dates.
-\item Remaining columns represent signals (e.g., tickers) and their respective active returns.
-}}
+\item{lmer_optimizer}{A character string specifying the optimizer to be used in the \code{lmer} function.}
 
-\item{selected_market_factor_proxy_vector_upd_ref}{A numeric vector containing benchmark returns data. The vector will be recycled
-to match the length of the backtest returns data.}
+\item{lmer_optimization_objective}{A logical indicating whether to optimize the model using the \code{lmer} function. If \code{TRUE}, the model will be optimized.}
 
-\item{verbose}{A logical indicating whether to display progress messages during the model fitting process. Defaults to \code{TRUE}.}
+\item{hierarchical_p_value_method}{A character string specifying the method for calculating p-values.}
 }
 \value{
 A named list containing:

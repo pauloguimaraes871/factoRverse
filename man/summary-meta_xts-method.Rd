@@ -31,13 +31,3 @@ Invisibly returns the \code{object}, printing a styled table or prompt in the Vi
 Provides summary statistics for meta_xts objects, including numeric summaries,
 yearly trends, series frequency tables, and (for returns_meta_xts) a performance metrics table.
 }
-\examples{
-\dontrun{
-# If x is a generic meta_xts:
-summary(x)  # numeric summary, yearly summary, or series frequency table
-
-# If x is a returns_meta_xts:
-summary(x)  # includes the new 'Performance Metrics Table' if you choose it
-}
-
-}

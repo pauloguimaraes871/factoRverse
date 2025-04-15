@@ -29,8 +29,3 @@ This version also summarizes information from any associated \code{ss_backtest_c
 }
 For \code{ss_backtest_workflow}, we look at \code{sb_backtest_config@ss_backtest_results@ss_backtest_workflow}.
 }
-\examples{
-# Assuming you have an sb_metabacktest_config object named meta_config:
-summary(meta_config)
-
-}

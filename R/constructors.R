@@ -7,6 +7,16 @@
 #'
 #' @param data The input data. The class of this parameter determines which method is dispatched.
 #' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
+#' @param workflow A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}
+#' @param ss_backtest_workflow A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}
+#' @param sb_backtest_workflow A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}
+#' @param port_backtest_workflow A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}
+#' @param type A \code{character} string specifying the type of the \code{meta_dataframe} object. This is used to identify the class of the object.
+#' @param tickers A \code{character} vector of tickers to be included in the \code{meta_dataframe} object.
+#' @param dates A \code{Date} vector of dates to be included in the \code{meta_dataframe} object.
+#' @param features_names A \code{character} vector of feature names to be included in the \code{meta_dataframe} object.
+#' @param data_format A \code{character} string specifying the format of the data. It can be either "long" or "wide". This is used to identify the class of the object.
+#' @param tickers_on A \code{character} indicating whether tickers are placed on the rows or columns of the data. It can be either "rows" or "columns".
 #' @param ... Additional arguments passed to methods.
 #'
 #' @return An object of class \code{meta_dataframe}.
@@ -267,6 +277,183 @@ setMethod(
   }
 )
 
+#' @describeIn create_meta_dataframe Method for \code{list} Signature
+#'
+#' This method converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
+#' The input list must contain specific components required to build the panel data structure.
+#'
+#' @param data A \code{list} containing the following components:
+#'   \describe{
+#'     \item{\code{features_list}}{A list of matrices, \code{data.frames}, or tibbles containing the features.}
+#'     \item{\code{row_names}}{A vector of row names corresponding to entities in the panel data.}
+#'     \item{\code{column_names}}{A vector of column names corresponding to time points or dates in the panel data.}
+#'     \item{\code{features_names}}{A vector of names for each feature in the \code{features_list}.}
+#'   }
+#' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
+#'
+#' @return An object of class \code{meta_dataframe} containing the panel data and associated metadata.
+#'
+#' @details
+#' This method performs the following operations:
+#' \enumerate{
+#'   \item Validates the structure and contents of the input list.
+#'   \item Converts each feature set into a long (panel) format using \code{\link[reshape2]{melt}}.
+#'   \item Merges all features into a single data frame, ensuring that each row represents a unique combination of entity and date.
+#'   \item Calculates metadata such as the number of unique dates, unique entities (tickers), and total observations.
+#'   \item Constructs a \code{meta_dataframe} S4 object encapsulating the transformed data and metadata.
+#' }
+#'
+#'
+#'
+#' @exportMethod create_meta_dataframe
+setMethod(
+  "create_meta_dataframe", signature(data = "list", meta_dataframe_name = "ANY"),
+  function(data, tickers, dates, features_names, meta_dataframe_name = "not_identified",
+           data_format = "wide", tickers_on = "rows") {
+
+    #Initial checks
+    #################
+    ##Check that data is a list
+    if (!is.list(data)) {
+      stop("Input must be a list.")
+    }
+    ##Check that all elements in the list are matrices, data frames, or tibbles
+    if (!all(sapply(data, function(x) is.data.frame(x) || is.matrix(x) || tibble::is_tibble(x)))) {
+      stop("All elements of the list must be matrices, data frames, or tibbles.")
+    }
+    ##Check that all elements have the same number of rows
+    if (length(unique(sapply(data, nrow))) != 1) {
+      stop("All elements in the list must have the same number of rows.")
+    }
+    ##Check that all elements have the same number of columns
+    if (length(unique(sapply(data, ncol))) != 1) {
+      stop("All elements in the list must have the same number of columns.")
+    }
+    ##Check that the length of tickers equals the number of rows in each element
+    if (length(tickers) != unique(sapply(data, nrow))) {
+      stop("The length of tickers must equal the number of rows in each element of the list.")
+    }
+    ##Check that the length of dates equals the number of columns in each element
+    if (length(dates) != unique(sapply(data, ncol))) {
+      stop("The length of dates must equal the number of columns in each element of the list.")
+    }
+    ##Check that the length of features_names equals the number of list elements
+    if (length(features_names) != length(data)) {
+      stop("The length of features_names must equal the number of elements in the list.")
+    }
+    ##Check that there are no NA values in the data
+    if (any(sapply(data, function(x) all(is.na(x))))) {
+      stop("One or more datasets contain only NA values.")
+    }
+    ##Verify that tickers is a unique character vector
+    if (!is.character(tickers)) {
+      stop("tickers must be a character vector.")
+    }
+    if (any(duplicated(tickers))) {
+      stop("tickers must be unique.")
+    }
+    ##Verify that dates is 'Date', unique, consecutive, and follows a monthly pattern
+    if (!inherits(dates, "Date")) {
+      stop("dates must be in Date format.")
+    }
+    if (any(duplicated(dates))) {
+      stop("dates must be unique.")
+    }
+    ###Extract months and days as numeric values
+    months <- as.numeric(format(sort(dates), "%m"))
+    days <- as.numeric(format(sort(dates), "%d"))
+    ###Check that all dates have the same day
+    if (length(unique(days)) != 1) {
+      stop("All dates must have the same day.")
+    }
+    ###Check that months follow consecutive order: each month should be exactly one more than the previous,
+    ###with December (12) wrapping around to January (1)
+    for (i in seq_along(months)[-length(months)]) {
+      expected_next <- if (months[i] == 12) 1 else months[i] + 1
+      if (months[i + 1] != expected_next) {
+        stop("Dates must be consecutive by month.")
+      }
+    }
+    ##Verify that none of the datasets contain columns named 'tickers' or 'dates'
+    if (any(sapply(data, function(x) {
+      cols <- colnames(x)
+      !is.null(cols) && any(c("tickers", "dates") %in% cols)
+    }))) {
+      stop("One or more datasets already contain a column named 'tickers' or 'dates'.")
+    }
+    ##Verify that none of the datasets contain columns that exactly match any of the tickers or dates
+    if (any(purrr::map_lgl(data, function(x) {
+      # Check if any value in any column is in tickers or as.character(dates)
+      any(apply(as.data.frame(x), 2, function(col) any(col %in% c(tickers, as.character(dates)))))
+    }))) {
+      stop("One or more datasets contain values in their columns that match provided tickers or dates.")
+    }
+
+    ##Check if arguments are valid
+    if (data_format != "wide") stop("Only wide format is currently supported.")
+    if (tickers_on != "rows") stop("Only tickers on rows is currently supported.")
+
+    #################
+
+    #Process data
+    #################
+    ##Convert each feature in features_list to data frame and rename with dates
+    features_list <- purrr::map(data, function(x) {
+      colnames(x) <- as.character(dates)
+      as.data.frame(x)
+    })
+    ##Sort dates to be sure
+    dates <- sort(dates)
+
+    ##For each feature, pivot to long format with a column named after the feature
+    feature_dfs_list <- purrr::map2(features_list, features_names, function(feature_df, feat_name) {
+      feature_df %>%
+        # Add the tickers column
+        dplyr::mutate(tickers = tickers) %>%
+        # Pivot longer: one column for dates and one column for the feature values
+        tidyr::pivot_longer(
+          cols = -tickers,
+          names_to = "dates",
+          values_to = feat_name
+        ) %>%
+        # Convert dates column to Date type
+        dplyr::mutate(dates = as.Date(dates, format = "%Y-%m-%d"))
+    })
+
+    ##Join all feature data frames by tickers and dates
+    panel_features_df <- purrr::reduce(feature_dfs_list, dplyr::full_join, by = c("tickers", "dates"))
+
+    ##Add unique ID
+    raw_features_m_df <- panel_features_df %>%
+      dplyr::mutate(id = stringr::str_c(tickers, dates, sep = "-"), .before = tickers) %>%
+      dplyr::arrange(id) %>%
+      as.data.frame()
+    #################
+
+    ##Calculate metadata
+    #################
+    unique_dates_count <- length(unique(raw_features_m_df$dates))
+    unique_tickers_count <- length(unique(raw_features_m_df$tickers))
+    total_observations_count <- nrow(raw_features_m_df)
+    current_date <- unique(raw_features_m_df$dates)[which.max(unique(raw_features_m_df$dates))]
+
+    # Create meta_dataframe object
+    raw_features_m_df <-  methods::new("raw_features_m_df",
+                                       data = raw_features_m_df,
+                                       workflow = list(),
+                                       signals = features_names,
+                                       unique_dates = unique_dates_count,
+                                       unique_tickers = unique_tickers_count,
+                                       n_obs = total_observations_count,
+                                       meta_dataframe_name = meta_dataframe_name,
+                                       current_date = current_date
+    )
+    #################
+
+    return(raw_features_m_df)
+  }
+)
+
 #' Create a target_m_df from a meta_dataframe
 #'
 #' @param daily_returns_m_df A `meta_dataframe` object containing daily stock returns data.
@@ -276,6 +463,8 @@ setMethod(
 #' @param selected_bench Character, indicating the column in `benchmark_returns_m_xts` to use as the benchmark.
 #' @param fwd_horizon Integer, the number of months to compute forward returns
 #' @param active_returns Logical, indicating whether to calculate active returns.
+#' @param parallel Logical, indicating whether to use parallel processing.
+#' @param ... Additional arguments to be passed to the method.
 #'
 #' @details All ids from features_m_df are used to create the target_m_df.
 #' The target_m_df is created by calculating the forward returns for each id in features_m_df.
@@ -478,188 +667,14 @@ setMethod("create_target_m_df",
 
 
 
-#' @describeIn create_meta_dataframe Method for \code{list} Signature
-#'
-#' This method converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
-#' The input list must contain specific components required to build the panel data structure.
-#'
-#' @param data A \code{list} containing the following components:
-#'   \describe{
-#'     \item{\code{features_list}}{A list of matrices, \code{data.frames}, or tibbles containing the features.}
-#'     \item{\code{row_names}}{A vector of row names corresponding to entities in the panel data.}
-#'     \item{\code{column_names}}{A vector of column names corresponding to time points or dates in the panel data.}
-#'     \item{\code{features_names}}{A vector of names for each feature in the \code{features_list}.}
-#'   }
-#' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
-#'
-#' @return An object of class \code{meta_dataframe} containing the panel data and associated metadata.
-#'
-#' @details
-#' This method performs the following operations:
-#' \enumerate{
-#'   \item Validates the structure and contents of the input list.
-#'   \item Converts each feature set into a long (panel) format using \code{\link[reshape2]{melt}}.
-#'   \item Merges all features into a single data frame, ensuring that each row represents a unique combination of entity and date.
-#'   \item Calculates metadata such as the number of unique dates, unique entities (tickers), and total observations.
-#'   \item Constructs a \code{meta_dataframe} S4 object encapsulating the transformed data and metadata.
-#' }
-#'
-#'
-#'
-#' @exportMethod create_meta_dataframe
-setMethod(
-  "create_meta_dataframe", signature(data = "list", meta_dataframe_name = "ANY"),
-  function(data, tickers, dates, features_names, meta_dataframe_name = "not_identified",
-           data_format = "wide", tickers_on = "rows") {
 
-    #Initial checks
-    #################
-      ##Check that data is a list
-      if (!is.list(data)) {
-        stop("Input must be a list.")
-      }
-      ##Check that all elements in the list are matrices, data frames, or tibbles
-      if (!all(sapply(data, function(x) is.data.frame(x) || is.matrix(x) || tibble::is_tibble(x)))) {
-        stop("All elements of the list must be matrices, data frames, or tibbles.")
-      }
-      ##Check that all elements have the same number of rows
-      if (length(unique(sapply(data, nrow))) != 1) {
-        stop("All elements in the list must have the same number of rows.")
-      }
-      ##Check that all elements have the same number of columns
-      if (length(unique(sapply(data, ncol))) != 1) {
-        stop("All elements in the list must have the same number of columns.")
-      }
-      ##Check that the length of tickers equals the number of rows in each element
-      if (length(tickers) != unique(sapply(data, nrow))) {
-        stop("The length of tickers must equal the number of rows in each element of the list.")
-      }
-      ##Check that the length of dates equals the number of columns in each element
-      if (length(dates) != unique(sapply(data, ncol))) {
-        stop("The length of dates must equal the number of columns in each element of the list.")
-      }
-      ##Check that the length of features_names equals the number of list elements
-      if (length(features_names) != length(data)) {
-        stop("The length of features_names must equal the number of elements in the list.")
-      }
-      ##Check that there are no NA values in the data
-      if (any(sapply(data, function(x) all(is.na(x))))) {
-        stop("One or more datasets contain only NA values.")
-      }
-      ##Verify that tickers is a unique character vector
-        if (!is.character(tickers)) {
-          stop("tickers must be a character vector.")
-        }
-      if (any(duplicated(tickers))) {
-        stop("tickers must be unique.")
-      }
-      ##Verify that dates is 'Date', unique, consecutive, and follows a monthly pattern
-      if (!inherits(dates, "Date")) {
-        stop("dates must be in Date format.")
-      }
-      if (any(duplicated(dates))) {
-        stop("dates must be unique.")
-      }
-        ###Extract months and days as numeric values
-        months <- as.numeric(format(sort(dates), "%m"))
-        days <- as.numeric(format(sort(dates), "%d"))
-        ###Check that all dates have the same day
-        if (length(unique(days)) != 1) {
-          stop("All dates must have the same day.")
-        }
-        ###Check that months follow consecutive order: each month should be exactly one more than the previous,
-        ###with December (12) wrapping around to January (1)
-        for (i in seq_along(months)[-length(months)]) {
-          expected_next <- if (months[i] == 12) 1 else months[i] + 1
-          if (months[i + 1] != expected_next) {
-            stop("Dates must be consecutive by month.")
-          }
-        }
-      ##Verify that none of the datasets contain columns named 'tickers' or 'dates'
-        if (any(sapply(data, function(x) {
-          cols <- colnames(x)
-          !is.null(cols) && any(c("tickers", "dates") %in% cols)
-        }))) {
-          stop("One or more datasets already contain a column named 'tickers' or 'dates'.")
-        }
-      ##Verify that none of the datasets contain columns that exactly match any of the tickers or dates
-        if (any(purrr::map_lgl(data, function(x) {
-          # Check if any value in any column is in tickers or as.character(dates)
-          any(apply(as.data.frame(x), 2, function(col) any(col %in% c(tickers, as.character(dates)))))
-        }))) {
-          stop("One or more datasets contain values in their columns that match provided tickers or dates.")
-        }
-
-      ##Check if arguments are valid
-      if (data_format != "wide") stop("Only wide format is currently supported.")
-      if (tickers_on != "rows") stop("Only tickers on rows is currently supported.")
-
-    #################
-
-    #Process data
-    #################
-      ##Convert each feature in features_list to data frame and rename with dates
-      features_list <- purrr::map(data, function(x) {
-        colnames(x) <- as.character(dates)
-        as.data.frame(x)
-      })
-      ##Sort dates to be sure
-      dates <- sort(dates)
-
-      ##For each feature, pivot to long format with a column named after the feature
-      feature_dfs_list <- purrr::map2(features_list, features_names, function(feature_df, feat_name) {
-        feature_df %>%
-          # Add the tickers column
-          dplyr::mutate(tickers = tickers) %>%
-          # Pivot longer: one column for dates and one column for the feature values
-          tidyr::pivot_longer(
-            cols = -tickers,
-            names_to = "dates",
-            values_to = feat_name
-          ) %>%
-          # Convert dates column to Date type
-          dplyr::mutate(dates = as.Date(dates, format = "%Y-%m-%d"))
-      })
-
-      ##Join all feature data frames by tickers and dates
-      panel_features_df <- purrr::reduce(feature_dfs_list, dplyr::full_join, by = c("tickers", "dates"))
-
-      ##Add unique ID
-      raw_features_m_df <- panel_features_df %>%
-        dplyr::mutate(id = stringr::str_c(tickers, dates, sep = "-"), .before = tickers) %>%
-        dplyr::arrange(id) %>%
-        as.data.frame()
-    #################
-
-    ##Calculate metadata
-    #################
-    unique_dates_count <- length(unique(raw_features_m_df$dates))
-    unique_tickers_count <- length(unique(raw_features_m_df$tickers))
-    total_observations_count <- nrow(raw_features_m_df)
-    current_date <- unique(raw_features_m_df$dates)[which.max(unique(raw_features_m_df$dates))]
-
-    # Create meta_dataframe object
-    raw_features_m_df <-  methods::new("raw_features_m_df",
-      data = raw_features_m_df,
-      workflow = list(),
-      signals = features_names,
-      unique_dates = unique_dates_count,
-      unique_tickers = unique_tickers_count,
-      n_obs = total_observations_count,
-      meta_dataframe_name = meta_dataframe_name,
-      current_date = current_date
-    )
-    #################
-
-    return(raw_features_m_df)
-  }
-)
 
 #' Update Meta Dataframe
 #'
 #' @param old_features_m_df A features meta_dataframe object with previous data
 #' @param new_features_m_df A features meta dataframe object with new data
 #' @param batch_type A character string indicating the batch type. Default is 'monthly'
+#' @param ... Additional arguments
 #'
 #' @return Updated meta_dataframe object
 setGeneric("update_meta_dataframe", function(old_features_m_df, new_features_m_df, ...) {
@@ -803,6 +818,7 @@ setMethod(
 #' @param date_last_quote A `data.frame` with columns `tickers` (character) and `date_last_quote` (Date).
 #' @param n_days_tolerance A `numeric` indicating the maximum tolerance for which `date_last_quote` can be smaller than
 #' current_date without it making it a delisted stock.
+#' @param ... Additional arguments passed to `meta_dataframe`.
 #'
 #' @return An object of class `tickers_catalog`.
 #'
@@ -825,12 +841,7 @@ setGeneric("create_tickers_catalog", function(raw_features_m_df, date_first_quot
   standardGeneric("create_tickers_catalog")
 })
 
-#' Create a tickers_catalog Object
-#'
-#' Constructs a `tickers_catalog` object by integrating stock metadata from multiple data sources.
-#' Ensures data consistency, generates unique identifiers, and classifies stocks based on listing status.
-#'
-#' @inheritParams create_tickers_catalog
+#' @rdname create_tickers_catalog
 #' @export
 setMethod("create_tickers_catalog",
           signature(
@@ -1029,6 +1040,7 @@ prepare_tickers_catalog_slots <- function(tickers_catalog){
 #'     \item{\code{old_ticker}}{The corresponding previous ticker symbol (if applicable).}
 #'     \item{\code{change_date}}{The date on which the ticker change occurred.}
 #'   }
+#' @param ... Additional arguments passed to the function.
 #'
 #'
 #'
@@ -1443,10 +1455,15 @@ setMethod(
 #' @param type Character. Either \code{"assets"} (no holes allowed) or
 #'   \code{"metrics"} (holes allowed). Defaults to \code{c("assets","metrics")}
 #'   which means you must pick one.
+#' @param asset_type A character string indicating the type of asset.
 #' @param meta_xts_name A character string. Defaults to \code{"default_name"}.
+#' @param metric_name A character string identifying the name of the metric
 #' @param workflow An ANY object for workflow. Defaults to \code{NULL}.
 #' @param source A character vector indicating data origin for each column.
 #'   If \code{NULL}, defaults to \code{"not_identified"} repeated for each column.
+#' @param data_format A character string indicating the format of the data.
+#' @param dates An optional vector of dates to be included.
+#' @param ... Additional arguments passed to the constructor.
 #'
 #' @return An S4 object of class \code{assets_meta_xts} or \code{metrics_meta_xts},
 #'   depending on \code{type}.
@@ -1724,9 +1741,9 @@ setMethod(
 #' @param rebalancing_months A numeric indicating the number of months for rebalancing.
 #' @param active_returns Logical, whether to calculate active returns when calculating performance metrics, except for CAPM (default is TRUE).
 #' @param split_method A character string specifying the splitting method, either "expanding" (default) or "rolling".
-#' @param enable_theme_representativeness Logical, whether to enable theme representativeness (default is TRUE).
 #' @param alpha_test_strategy An `alpha_test_strategy` object defining the alpha test configuration.
 #' @param config_name A character string naming the configuration.
+#' @param chosen_signals_and_positions A character vector specifying the chosen signals and positions. If set to "all", all signals in `signals_m_df` will be used, and a long position will be assumed for all.
 #' @return An object of class `ss_backtest_config`.
 #' @export
 create_ss_backtest_config <- function(
@@ -1765,16 +1782,70 @@ create_ss_backtest_config <- function(
 
 # alpha_test_strategy----------------------------------------------------
 #' @title Create an alpha_test_strategy object
-#' @description A constructor function to create instances of alpha_test_strategy or its subclasses
-#' (frequentist_alpha_test_strategy and bayesian_alpha_test_strategy).
-#' @param signal_significance_threshold A numeric value indicating the hypothesis testing zero-alpha null-hypothesis rejection criteria.
-#'   Must be between 0 and 1. Defaults to 0.05.
-#' @param p_correction_method A character string specifying the p-value correction method.
-#'   Options include `"none"`, `"bonferroni"`, `"holm"`, `"hochberg"`, `"hommel"`, `"BH"`, `"fdr"`, `"BY"`, and `"bayesian"`.
-#' @param market_factor_proxy A character string indicating the market factor proxy to be used in the CAPM model.
-#' @param bayesian_model_parameters (Optional) An object of class `bayesian_model_parameters`.
-#'   Required when `p_correction_method` is `"bayesian"`.
-#' @return An object of class `alpha_test_strategy`, `frequentist_alpha_test_strategy`, or `bayesian_alpha_test_strategy`.
+#' @description
+#' Constructor for objects of class `alpha_test_strategy` or its subclasses
+#' (`frequentist_alpha_test_strategy`, `bayesian_alpha_test_strategy`).
+#' The function validates the model configuration and constructs the appropriate strategy object
+#' based on the hypothesis testing methodology and hierarchical model structure.
+#'
+#' @param model_structure Character string specifying the hierarchical model structure.
+#'   Must be one of:
+#'   \itemize{
+#'     \item `"partial_pooled"`: Uses theme-level effects with partial pooling.
+#'     \item `"no_pooled"`: No pooling; estimates signal-level parameters independently.
+#'   }
+#'
+#' @param theme_level_intercept Character string indicating how intercepts are modeled at the theme level
+#'   (only used when `model_structure = "partial_pooled"`). Valid options are:
+#'   \itemize{
+#'     \item `"fixed"`: A common intercept across themes.
+#'     \item `"random"`: Intercepts modeled as random effects.
+#'     \item `"theme_specific"`: Each theme has its own fixed intercept.
+#'   }
+#'   Must be `NULL` if `model_structure = "no_pooled"`.
+#'
+#' @param theme_level_slope Character string indicating how slopes are modeled at the theme level
+#'   (only used when `model_structure = "partial_pooled"`). Valid options are:
+#'   \itemize{
+#'     \item `"fixed"`: A common slope across themes.
+#'     \item `"theme_specific"`: Each theme has its own slope.
+#'   }
+#'   Must be `NULL` if `model_structure = "no_pooled"`.
+#'
+#' @param signal_significance_threshold Numeric. Significance level for alpha tests (e.g., 0.05).
+#'   Determines the rejection region for the null hypothesis of zero alpha. Must be between 0 and 1.
+#'
+#' @param p_correction_method Character string specifying the p-value adjustment method used
+#'   in multiple hypothesis testing correction. Options include:
+#'   \itemize{
+#'     \item `"none"`: No correction.
+#'     \item `"bonferroni"`, `"holm"`, `"hochberg"`, `"hommel"`: Classical FWER control methods.
+#'     \item `"BH"`, `"fdr"`, `"BY"`: FDR control methods.
+#'     \item `"bayesian"`: Use Bayesian hypothesis testing instead of p-values.
+#'   }
+#'
+#' @param market_factor_proxy Character string specifying the identifier of the market factor proxy.
+#'   This variable is typically used as the market return in a CAPM-style alpha test model.
+#'
+#' @param bayesian_model_parameters An optional object of class `bayesian_model_parameters`.
+#'   If `p_correction_method = "bayesian"`, this must either be provided explicitly or will be initialized
+#'   with default (uninformative) prior settings. Ignored for frequentist strategies.
+#'
+#' @param enable_theme_representativeness Logical. If `TRUE`, enables extra diagnostics and modeling
+#'   logic to account for representativeness at the theme level. Useful when themes are considered
+#'   key grouping variables for inference.
+#'
+#' @param lmer_control Optional. A list of control parameters passed to `lme4::lmer()` (frequentist)
+#'   or `brms::brm()` (Bayesian) for customizing model fitting behavior. Can include convergence
+#'   tolerances, optimizers, or verbosity flags.
+#'
+#' @return An object of class:
+#'   \itemize{
+#'     \item \code{frequentist_alpha_test_strategy}, if a frequentist method is selected;
+#'     \item \code{bayesian_alpha_test_strategy}, if Bayesian inference is selected.
+#'   }
+#'   The returned object can then be passed to downstream workflows that evaluate and classify alpha signals.
+#'
 #' @export
 create_alpha_test_strategy <- function(
     model_structure = "no_pooled",
@@ -2224,6 +2295,7 @@ setMethod(
 #' @param acq Character string for the acquisition function (for 'bayesian_opt' only).
 #' @param init_points Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).
 #' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
+#' @param hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter search space. If NULL, an empty hyper_grid_domain is created.
 #' @return An object of class `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
 #' @export
 create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
@@ -2428,7 +2500,7 @@ setGeneric("add_hyperparameter", function(object, hyperparameter, ...) {
 #' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
 #' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
 #' @param new_hyperparameter_list Used to pass new_hyperparameters_list after specific method at tuning_strategy level.
-#'
+#' @export
 setMethod(
   "add_hyperparameter",
   signature(object = "hyper_grid_domain"),
@@ -2935,6 +3007,8 @@ setMethod(
 #' higher degrees of freedom, but old returns might not reflect current risk due to parameter shift. A low number will tend to expose estimation
 #' to dimensionality curse.
 #' @param active_returns logical. If TRUE, the covariance matrix will be estimated using active returns. If FALSE, the covariance matrix will be estimated using raw returns.
+#' @param cov_matrix_benchmark A character string representing the benchmark for covariance matrix estimation. If NULL, the covariance matrix will be estimated using the active returns.
+#' @export
 create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE, cov_matrix_benchmark = NULL) {
   cov_est_method <-  methods::new("cov_est_method",
     cov_estimation_method = cov_estimation_method,
@@ -3371,6 +3445,7 @@ setMethod(
 #' @description Constructs an sb_backtest_config object.
 #'
 #' @param sb_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn', 'sw', 'ew', etc.).
+#' @param chosen_signals_and_positions A vector of chosen signals and positions (long, short)
 #' @param target_fwd_name Name of the target variable in `target_m_df`.
 #' @param training_sample_size Number of observations to include in each training sample.
 #' @param rebalancing_months Months (numeric) when model should be rebalanced (refit).
@@ -3471,16 +3546,13 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 #' Alternatively, the user can provide a list of `sb_backtest_results` directly to be used by the function.
 #'
 #' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
-#' @param base_sb_backtest_configs A list of `sb_backtest_config` objects with `tuning_strategy` set to `NULL`.
-#' @param base_sb_backtest_results A list of `sb_backtest_results` objects.
-#' @param base_ss_backtest_configs A list of `ss_backtest_config` objects (optional).
-#' @param base_ss_backtest_results A list of `ss_backtest_results` objects (optional)
+#' @param features_passthrough A character vector of features to pass through to the meta-learner.
+#' @param normalize_base_predictions A logical value indicating whether to normalize the base predictions.
+#' @param winsorize_base_predictions A logical value indicating whether to winsorize the base predictions.
 #' @param config_name Name of the backtest configuration.
 #' @param ... Additional arguments (not used).
 #'
 #' @return A `sb_metabacktest_config` object containing all viable combinations of configs.
-#'
-#'
 #'
 #' @export
 setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, features_passthrough, ...) {
@@ -3491,7 +3563,6 @@ setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, fe
 #' @describeIn create_sb_metabacktest_config Create meta config from ss_backtest_results
 #'
 #' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
-#' @param features_passthrough A character vector of features to pass through to the meta-learner.
 #' @param ... Additional arguments (not used).
 #'
 #' @return An `sb_metabacktest_config` object containing the provided sb_backtest objects.
@@ -3534,6 +3605,9 @@ setMethod(
 #'
 #' @param meta_sb_backtest_results  A `sb_backtest_results` object for the meta learner
 #' @param base_sb_backtest_results_list A named list of `sb_backtest_results` objects for the base learners.
+#' @param oos_predictions_m_df A `meta_dataframe` object containing out-of-sample predictions for the base learners.
+#' @param sb_metabacktest_config An `sb_metabacktest_config` object containing the configuration for the meta-learner.
+#' @param ... Additional arguments (not used).
 #' @return An object of class `sb_metabacktest_results`.
 #'
 setGeneric(
@@ -3605,6 +3679,7 @@ setMethod(
 #'
 #' @param chosen_score_metric_and_position An object (or named vector) specifying the expected return score metric and its associated position. Required if `sb_backtest_results` is not provided.
 #' @param eligibility_quantile_range A numeric vector of length 2 (e.g., c(0.9, 1.0)) specifying the quantile range used to determine eligible assets.
+#' @param min_eligible_assets_fallback A numeric value indicating the minimum number of eligible assets to include in the portfolio.
 #' @param selected_benchmark A character string indicating the benchmark to use for benchmark-relative backtests.
 #' @param initial_buffer_period A numeric value indicating the number of initial dates to skip before starting the backtest.
 #' @param rebalancing_months A numeric vector (e.g., c(3,6,9,12)) indicating the months when the portfolio should be rebalanced.

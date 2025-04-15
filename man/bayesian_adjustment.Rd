@@ -63,6 +63,8 @@ Specifies the structure of the hierarchical Bayesian model. Options include:
 \item{user_priors}{List.
 A list containing user-defined priors for the hierarchical Bayesian model, used when \code{priors_type} is \code{"user"}. The list should conform to the structure required by the \code{brms} package.}
 
+\item{lmer_optimization_objective}{A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.}
+
 \item{half_t_df}{Numeric.
 The degrees of freedom in the half-t distribution applied to model random effects. This parameter controls the tails of the distribution. Default is \code{30}.}
 
@@ -74,9 +76,7 @@ Specifies the optimizer to be used in the \code{lme4::lmer} function. Options in
 \item{\code{"Nelder_Mead"}}{Simplex-based Nelder-Mead optimization.}
 \item{\code{"nlminbwrap"}}{Wrapper for the \code{nlminb} optimizer.}
 }
-Default is \code{"nloptwrap"}.
-
-@param lmer_optimization_objective A character string indicating whether estimates should be chosen to optimize the 'REML' criterion or the 'likelihood'.}
+Default is \code{"nloptwrap"}.}
 
 \item{selected_signal_themes_m_d_ref}{Data frame.
 A (meta)data frame containing metadata about signals with the following columns:

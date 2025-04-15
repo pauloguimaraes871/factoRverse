@@ -17,29 +17,61 @@ summarize_performance(
 )
 }
 \arguments{
-\item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{A xts containing the backtest returns data for various signals.}
+\item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{An \code{xts} object containing backtest returns for each signal (columns are signal tickers, rows are dates).}
 
-\item{selected_market_factor_proxy_m_xts_upd_ref}{A xts containing benchmark returns data.}
+\item{selected_market_factor_proxy_m_xts_upd_ref}{An \code{xts} object containing benchmark or market factor returns. Used to estimate systematic risk exposures (betas).}
 
-\item{model_spec_theme_level}{A character string specifying the desired Bayesian model structure.
-Options include:
+\item{model_structure}{A character string indicating the CAPM model structure. Must be one of:
 \itemize{
-\item \code{"random_intercept_fixed_slope"}: Includes random effects for the intercept at the theme level.
-\item \code{"theme_specific_intercept_fixed_slope"}: Uses fixed intercepts for each theme.
-\item \code{"theme_specific_intercept_theme_specific_slope"}: Includes fixed intercepts and slopes for each theme.
-\item \code{"fixed_intercept_fixed_slope"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
+\item \code{"no_pooled"}: Fits separate CAPM models per signal using OLS.
+\item \code{"partial_pooled"}: Fits a hierarchical CAPM model using \code{lme4::lmer}.
 }}
 
-\item{selected_signal_themes_m_d_ref}{A data frame containing metadata about signals. This data frame should include:
+\item{model_spec_theme_level}{A character string defining the structure of the hierarchical CAPM. Must be one of:
 \itemize{
-\item \code{tickers}: Signal identifiers matching those in \code{selected_backtest_returns_corrected_positions_m_xts_upd_ref}.
-\item \code{theme}: Group membership for each signal, defining the clusters for the Bayesian hierarchical model.
-\item \code{dates}: Dates corresponding to the backtest data.
-This input ensures proper alignment between signals and their associated themes.
+\item \code{"random_intercept_fixed_slope"}
+\item \code{"theme_specific_intercept_fixed_slope"}
+\item \code{"theme_specific_intercept_theme_specific_slope"}
+\item \code{"fixed_intercept_fixed_slope"}
 }}
 
-\item{active_returns}{If TRUE, calculate ative returns before applying performance functions.}
+\item{lmer_control}{A named list of control parameters for \code{lme4::lmer()}. Valid entries include:
+\itemize{
+\item \code{lmer_optimizer}: Optimizer used (e.g., \code{"nloptwrap"}).
+\item \code{lmer_optimization_objective}: \code{"REML"} or \code{"ML"}.
+\item \code{hierarchical_p_value_method}: Method for p-value approximation; \code{"Satterthwaite"}, \code{"Kenward-Roger"}, or \code{"lme4"}.
+}}
+
+\item{selected_signal_themes_m_d_ref}{A dataframe describing signal membership in themes. Must include:
+\itemize{
+\item \code{tickers}: Signal identifiers matching those in the return matrix.
+\item \code{theme}: Group (e.g., sector) membership of each signal.
+\item \code{dates}: Date of signal activity.
+}}
+
+\item{custom_signal_universe_metrics_m_upd_ref}{Optional dataframe with additional signal-level metrics. Most recent available date is used. It must include:
+\itemize{
+\item \code{tickers}, \code{dates}, and \code{id}
+\item Any additional performance metrics to append.
+}}
+
+\item{active_returns}{Logical. If \code{TRUE}, return series are converted to active returns (i.e., excess returns over the benchmark) before estimation.}
+
+\item{verbose}{Logical. If \code{TRUE}, prints progress messages.}
+}
+\value{
+A list with two elements:
+\describe{
+\item{\code{signal_universe_m_d_ref}}{A meta dataframe with enriched performance metrics including alphas, betas, t-statistics, risk-adjusted ratios, and p-values.}
+\item{\code{frequentist_fit_results_list}}{A list of fitted model objects:
+\itemize{
+\item For \code{"no_pooled"}: A list of \code{lm} models (one per signal).
+\item For \code{"partial_pooled"}: A fitted \code{lmer} model.
+}
+}
+}
 }
 \description{
-Summarize Performance Metrics of Backtests
+Computes performance metrics for a set of signal backtests using either simple (no-pooled) linear CAPM models or hierarchical mixed-effects CAPM models.
+The output includes per-signal metrics such as alphas, betas, specific risk, t-statistics, p-values, Treynor ratios, and appraisal ratios, adjusted for active returns if applicable.
 }

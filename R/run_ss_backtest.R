@@ -229,10 +229,8 @@ setMethod("update_ss_backtest",
 #' @param verbose A boolean indicating whether to print messages.
 #' @param parallel A boolean indicating whether to use parallel processing.
 #' @param winsorization_probs Numeric vector of length 2. Defines lower and upper quantiles for winsorizing signal values. Default is `c(0.025, 0.975)`.
-#' @param .test_seed (Internal) Integer or `NULL`. Used in unit tests to set random seed for reproducibility.
 #' @param .update (Internal) Logical. If `TRUE`, updates a previous backtest incrementally. Default is `FALSE`.
-#' @param .old_backtest_covered_dates (Internal) Vector of dates already covered in a previous backtest. Used only if `.update = TRUE`.
-#' @param .old_oos_ss_outputs_m_df (Internal) A `meta_dataframe` of previously computed signal scores for reuse. Used only in update mode.
+#' @param ... Additional arguments passed to the function.
 #'
 #' @details
 #'
