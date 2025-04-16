@@ -192,6 +192,8 @@ setMethod("map_recipe_timewise",
 #' During the `bake()` phase, all values below the lower quantile threshold are replaced with that threshold,
 #' and values above the upper quantile threshold are similarly adjusted.
 #'
+#' @importFrom recipes prep tidy bake
+#'
 #' @export
 
 step_winsorize <- function(recipe, ..., role = NA, trained = FALSE,
@@ -234,6 +236,8 @@ step_winsorize <- function(recipe, ..., role = NA, trained = FALSE,
 #'
 #' @return An object of class `step_winsorize`.
 #'
+#' @importFrom recipes prep tidy bake
+#'
 #' @keywords internal
 #' @export
 
@@ -258,8 +262,10 @@ step_winsorize_new <- function(terms, role, trained, probs, winsor_limits, skip,
 #' @param info An optional `term_info` object (not used here).
 #' @param ... Additional arguments passed to methods (currently not used).
 #'
-#' @importFrom recipes prep
+#' @importFrom recipes prep tidy bake
+#'
 #' @return An updated `step_winsorize` object with estimated bounds stored in `winsor_limits` and `trained = TRUE`.
+#'
 #' @export
 prep.step_winsorize <- function(x, training, info = NULL, ...) {
 
@@ -330,12 +336,11 @@ prep.step_winsorize <- function(x, training, info = NULL, ...) {
 }
 
 #' Apply winsorization during baking
-#' @importFrom recipes bake
 #'
 #' @param object A trained `step_winsorize` object.
 #' @param new_data A data frame to which the winsorization will be applied.
 #' @param ... Additional arguments passed to methods (not used).
-#'
+#' @importFrom recipes prep tidy bake
 #' @export
 bake.step_winsorize <- function(object, new_data, ...) {
   if (!object$trained) {
@@ -365,6 +370,7 @@ bake.step_winsorize <- function(object, new_data, ...) {
 #' @param width Width of the output. Default adjusts to console width.
 #' @param ... Additional arguments (not used).
 #' @return The original `step_winsorize` object, invisibly.
+#' @importFrom recipes prep tidy bake
 #' @export
 print.step_winsorize <- function(x, width = max(20, options()$width - 30), ...) {
   selected_columns <- if (x$trained) {
@@ -382,7 +388,7 @@ print.step_winsorize <- function(x, width = max(20, options()$width - 30), ...) 
 #'
 #' @param x A `step_winsorize` object.
 #' @param ... Additional arguments (not used).
-#' @importFrom recipes tidy
+#' @importFrom recipes prep tidy bake
 #' @export
 tidy.step_winsorize <- function(x, ...) {
   if (recipes::is_trained(x)) {
@@ -428,6 +434,8 @@ required_pkgs.step_winsorize <- function(x, ...) {
 #' @param impute_values A list of computed imputation values for each variable.
 #' @param skip A logical indicating if the step should be skipped during baking. Default is `FALSE`.
 #' @param id A character string for the step ID. Default is a random ID.
+#'
+#' @importFrom recipes prep tidy bake
 #'
 #' @return A `step_impute_sector` object with computed `impute_values`.
 #' @export
@@ -475,6 +483,8 @@ step_impute_sector <- function(recipe, ..., sector, method = "mean",
 #'
 #' @return A `step` object of class `step_impute_sector`.
 #'
+#' @importFrom recipes prep tidy bake
+#'
 #' @keywords internal
 #' @export
 
@@ -500,7 +510,7 @@ step_impute_sector_new <- function(terms, sector, method, role, trained, impute_
 #' @param info A `term_info` object passed by `prep()`, not used here.
 #' @param ... Additional arguments passed to methods (not used).
 #'
-#' @importFrom recipes prep
+#' @importFrom recipes prep tidy bake
 #' @return An updated `step_impute_sector` object with `trained = TRUE` and imputation values stored.
 #' @export
 prep.step_impute_sector <- function(x, training, info = NULL, ...) {
@@ -554,11 +564,12 @@ prep.step_impute_sector <- function(x, training, info = NULL, ...) {
 }
 
 #' Apply imputation during baking
-#' @importFrom recipes bake
 #'
 #' @param object A `step_impute_sector` object.
 #' @param new_data A data frame of new data to which the imputation will be applied.
 #' @param ... Additional arguments passed to methods (not used).
+#'
+#' @importFrom recipes prep tidy bake
 #'
 #' @export
 bake.step_impute_sector <- function(object, new_data, ...) {
@@ -604,7 +615,8 @@ bake.step_impute_sector <- function(object, new_data, ...) {
 #'   \item `id`: ID of the step.
 #' }
 #'
-#' @importFrom recipes tidy
+#' @importFrom recipes prep tidy bake
+#'
 #' @export
 tidy.step_impute_sector <- function(x, ...) {
   if (recipes::is_trained(x)) {
@@ -631,6 +643,8 @@ tidy.step_impute_sector <- function(x, ...) {
 #' @param width An integer specifying the desired display width. Defaults to a dynamic value based on console width.
 #' @param ... Additional arguments (not used).
 #'
+#' @importFrom recipes prep tidy bake
+#'
 #' @return The original `step_impute_sector` object, invisibly.
 #' @export
 print.step_impute_sector <- function(x, width = max(20, options()$width - 30), ...) {
@@ -654,6 +668,7 @@ print.step_impute_sector <- function(x, width = max(20, options()$width - 30), .
 #'
 #' @param x A `step_impute_sector` object.
 #' @param ... Additional arguments (not used).
+#'
 #'
 #' @return A character vector of package names required for the step.
 #' @export
