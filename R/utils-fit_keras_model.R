@@ -22,17 +22,6 @@
 #'   \item{model_nn}{The Keras model object.}
 #'   \item{fit_nn}{The fitted Keras model object.}
 #'
-#' @examples
-#' \dontrun{
-#' # Example usage
-#' fit_keras_model(regularizer_l1 = 0.01, regularizer_l2 = 0.01, droprate = 0.2, lr = 0.001,
-#'                 n_layers = 2, units = c(64, 32), activation = c("relu", "relu"),
-#'                 batch_norm_option = TRUE, max_number_of_epochs = 100, size_of_batch = 32,
-#'                 nn_optimizer = "Adam", early_stop = 10, chosen_eval_metric = "rmse",
-#'                 custom_objective = "squared_error", huber_delta = 1.0,
-#'                 features_matrix_train_clean = train_features, target_vector_train = train_labels,
-#'                 refit = TRUE, verbose = 1)
-#' }
 #'
 #' @import keras
 #' @export

@@ -1106,6 +1106,7 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
               check.attributes = FALSE)
   )
 
+  future::plan("sequential")
 
 })
 
@@ -1358,6 +1359,7 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
               check.attributes = FALSE)
   )
 
+  future::plan("sequential")
 
 })
 
