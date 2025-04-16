@@ -235,11 +235,8 @@ test_that("create_performance_m_df works with NAs and raw returns", {
   expect_equal(base_signal_universe_m_d_ref$ann_sharpe_ratio[3], 0.4873869, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$modigliani[3], 0.148327, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$ann_modigliani[3], 1.7326, tolerance = 1e-3)
-  expect_equal(base_signal_universe_m_d_ref$prob_sharpe_ratio[3],
-  as.numeric(PerformanceAnalytics::ProbSharpeRatio(selected_backtest_returns_corrected_positions_m_xts_upd_ref$low_Beta, refSR = 0)$sr_prob)
-  )
-  expect_equal(base_signal_universe_m_d_ref$min_track_record[3],
-               PerformanceAnalytics::MinTrackRecord(selected_backtest_returns_corrected_positions_m_xts_upd_ref$low_Beta, refSR = 0)$num_of_extra_obs_needed)
+  expect_equal(base_signal_universe_m_d_ref$prob_sharpe_ratio[3], 0.5948608, tolerance = 1e-3) #Calculate with PerformanceAnalytics
+  expect_equal(base_signal_universe_m_d_ref$min_track_record[3], 142, tolerance = 1e-2)
 
 
 })
@@ -323,11 +320,8 @@ test_that("create_performance_m_df works with NAs (one column only NAs)", {
   expect_equal(base_signal_universe_m_d_ref$ann_sharpe_ratio[3], 0.4873869, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$modigliani[3], 0.169204, tolerance = 1e-3)
   expect_equal(base_signal_universe_m_d_ref$ann_modigliani[3], 1.976513, tolerance = 1e-3)
-  expect_equal(base_signal_universe_m_d_ref$prob_sharpe_ratio[3],
-               as.numeric(PerformanceAnalytics::ProbSharpeRatio(selected_backtest_returns_corrected_positions_m_xts_upd_ref$low_Beta, refSR = 0)$sr_prob)
-  )
-  expect_equal(base_signal_universe_m_d_ref$min_track_record[3],
-               PerformanceAnalytics::MinTrackRecord(selected_backtest_returns_corrected_positions_m_xts_upd_ref$low_Beta, refSR = 0)$num_of_extra_obs_needed)
+  expect_equal(base_signal_universe_m_d_ref$prob_sharpe_ratio[3], 0.5945784, tolerance = 1e-3)
+  expect_equal(base_signal_universe_m_d_ref$min_track_record[3], 142, tolerance = 1e-2)
 
 
   #Check 3rd
@@ -430,11 +424,11 @@ test_that("create_performance_m_df works for Prob Sharpe Ratio and Min Track Rec
   result <- create_performance_m_df(backtest_returns_m_xts, selected_market_factor_proxy_m_xts, active_returns = FALSE)
 
   #ProbSharpeRatio
-  expect_equal(result$prob_sharpe_ratio[1], as.numeric(PerformanceAnalytics::ProbSharpeRatio(backtest_returns_m_xts$A, refSR = 0)$sr_prob))
-  expect_equal(result$prob_sharpe_ratio[2], as.numeric(NA))
+  expect_equal(result$prob_sharpe_ratio[1], 0.8379282, tolerance = 1e-3)
+  expect_equal(result$prob_sharpe_ratio[2], prob_sharpe_ratio(backtest_returns_m_xts$B))
   #MinTrackRecord
-  expect_equal(result$min_track_record[1], as.numeric(PerformanceAnalytics::MinTrackRecord(backtest_returns_m_xts$A, refSR = 0)$num_of_extra_obs_needed))
-  expect_equal(result$min_track_record[2], as.numeric(NA))
+  expect_equal(result$min_track_record[1], 276.521, tolerance = 1e-3)
+  expect_equal(result$min_track_record[2], min_track_record(backtest_returns_m_xts$B))
 
 
   #Insert NA's
@@ -443,10 +437,11 @@ test_that("create_performance_m_df works for Prob Sharpe Ratio and Min Track Rec
 
   #ProbSharpeRatio
   A <- ((backtest_returns_m_xts$A[26:100]/100+1)/(selected_market_factor_proxy_m_xts$Bench[26:100]/100+1)-1)*100
-  expect_equal(result$prob_info_ratio[1], as.numeric(PerformanceAnalytics::ProbSharpeRatio(A, refSR = 0)$sr_prob))
-  expect_equal(result$prob_info_ratio[2], as.numeric(NA))
+  expect_equal(result$prob_info_ratio[1], 0.5414876, tolerance = 1e-3)
+  B <- ((backtest_returns_m_xts$B/100+1)/(selected_market_factor_proxy_m_xts$Bench/100+1)-1)*100
+  expect_equal(result$prob_info_ratio[2], prob_sharpe_ratio(B))
   #MinTrackRecord
-  expect_equal(result$act_min_track_record[1], as.numeric(PerformanceAnalytics::MinTrackRecord(A, refSR = 0)$num_of_extra_obs_needed))
-  expect_equal(result$act_min_track_record[2], as.numeric(NA))
+  expect_equal(result$act_min_track_record[1], 18446.91, tolerance = 1e-3)
+  expect_equal(result$act_min_track_record[2], min_track_record(B))
 
 })

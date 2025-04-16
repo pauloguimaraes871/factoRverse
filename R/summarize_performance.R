@@ -57,8 +57,6 @@
 #'   }
 #' }
 #'
-#' @import PerformanceAnalytics
-#' @importFrom PerformanceAnalytics StdDev SharpeRatio ES
 summarize_performance <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref,
                                   selected_market_factor_proxy_m_xts_upd_ref,
                                   model_structure, model_spec_theme_level, lmer_control,

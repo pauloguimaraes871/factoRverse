@@ -19,8 +19,6 @@
 #'
 #' @param verbose If TRUE, will print messages to the console.
 #'
-#' @import PerformanceAnalytics
-#' @importFrom PerformanceAnalytics StdDev SharpeRatio ES
 #' @export
 create_performance_m_df <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, active_returns, verbose = TRUE){
 
@@ -317,9 +315,14 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     sharpe_ratio = sapply(selected_returns_aligned, function(x) {
       safe_compute(
         strategy_returns = x,
-        metric_fun = PerformanceAnalytics::SharpeRatio,
-        FUN = "StdDev"
-      )
+        metric_fun = PerformanceAnalytics::Mean.arithmetic,
+        multiply = 100,
+        na.rm = TRUE
+      )/safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::StdDev,
+        multiply = 100
+        )
     }),
 
     ## Annualized Sharpe Ratio
@@ -334,8 +337,13 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     sharpe_ratio_semi_dev = sapply(selected_returns_aligned, function(x) {
       safe_compute(
         strategy_returns = x,
-        metric_fun = PerformanceAnalytics::SharpeRatio,
-        FUN = "SemiSD"
+        metric_fun = PerformanceAnalytics::Mean.arithmetic,
+        multiply = 100,
+        na.rm = TRUE
+      )/safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::SemiDeviation,
+        multiply = 100
       )
     }),
 
@@ -373,8 +381,13 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     sharpe_ratio_exp_short = sapply(selected_returns_aligned, function(x) {
       safe_compute(
         strategy_returns = x,
-        metric_fun = PerformanceAnalytics::SharpeRatio,
-        FUN = "ES"
+        metric_fun = PerformanceAnalytics::Mean.arithmetic,
+        multiply = 100,
+        na.rm = TRUE
+      )/safe_compute(
+        strategy_returns = x,
+        metric_fun = PerformanceAnalytics::ETL,
+        multiply = -100
       )
     }),
 
@@ -459,7 +472,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
         return(NA)
       }
       tryCatch(
-        PerformanceAnalytics::MinTrackRecord(strategy_clean, refSR = 0)$num_of_extra_obs_needed,
+        min_track_record(strategy_clean), #Internal implementation
         error = function(e) NA
       )
     }),
@@ -471,20 +484,23 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
         return(NA)
       }
       tryCatch(
-        PerformanceAnalytics::ProbSharpeRatio(strategy_clean, refSR = 0)$sr_prob,
+        prob_sharpe_ratio(strategy_clean), #Internal implementation
         error = function(e) NA
       )
     }),
 
     # Benchmark-Relative Metrics
     ## Modigliani Ratio (using single benchmark column)
-    modigliani = sapply(selected_returns_aligned, function(x) {
-      safe_compute(
-        strategy_returns = x,
-        metric_fun = PerformanceAnalytics::Modigliani,
-        multiply = 100,
-        benchmark_returns = benchmark_aligned
-      )
+    modigliani = sapply(colnames(selected_returns_aligned), function(name) {
+      ###Guarantees proper alignment of strategy and benchmark
+      x <- selected_returns_aligned[, name]
+      common_index <- zoo::index(x)[!is.na(x)]
+      x_clean <- x[common_index]
+      b_clean <- benchmark_aligned[common_index]
+      ###Calculates Modigliani ratio
+      sr <- safe_compute(x_clean, PerformanceAnalytics::Mean.arithmetic, multiply = 100, na.rm = TRUE) /
+        safe_compute(x_clean, PerformanceAnalytics::StdDev, multiply = 100)
+      sr * safe_compute(b_clean, PerformanceAnalytics::StdDev, multiply = 100)
     }),
 
     ## MSquared Ratio (using single benchmark column)
@@ -512,3 +528,91 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
   return(performance_m_df)
 
 }
+
+
+
+#' Compute the Probabilistic Sharpe Ratio
+#'
+#' Calculates the probability that the observed Sharpe Ratio exceeds a reference value,
+#' adjusting for non-normality via skewness and kurtosis.
+#'
+#' This implementation is based on the formula proposed in Lopez de Prado (2018),
+#' and always incorporates skewness and kurtosis corrections. It does not use any external dependencies.
+#'
+#' @param x A numeric vector of cleaned returns
+#'
+#' @return A single numeric value: the probabilistic Sharpe ratio, or NA if not computable.
+#'
+#'
+prob_sharpe_ratio <- function(x) {
+
+  refSR <- 0
+  x <- x[!is.na(x)]
+  n <- length(x)
+
+  if (n < 4) return(NA_real_)
+
+  mu <- mean(x)
+  sigma <- sd(x)
+  if (is.na(mu) || is.na(sigma) || sigma == 0) return(NA_real_)
+  sr <- mu / sigma
+
+  sk <- PerformanceAnalytics::skewness(x)
+  kr <- PerformanceAnalytics::kurtosis(x, method = "moment")
+
+  numerator <- (sr - refSR) * sqrt(n - 1)
+  denominator <- sqrt(1 - sr * sk + (sr^2) * (kr - 1) / 4)
+
+  if (is.na(denominator) || denominator == 0) return(NA_real_)
+  return(stats::pnorm(numerator / denominator))
+}
+
+
+
+#' Compute the Minimum Track Record Length
+#'
+#' Calculates the minimum number of observations required for the observed Sharpe Ratio
+#' to be statistically greater than a reference Sharpe Ratio at a given confidence level,
+#' adjusting for skewness and kurtosis.
+#'
+#' This implementation follows the methodology from Bailey and Lopez de Prado (2012),
+#' and assumes the returns will maintain similar statistical properties out-of-sample.
+#'
+#' @param x A numeric vector of returns (in decimal form).
+#'
+#' @return A named list with:
+#' \describe{
+#'   \item{min_trl}{Minimum track record length required.}
+#'   \item{is_significant}{Logical value: is the current Sharpe Ratio statistically significant?}
+#'   \item{num_of_extra_obs_needed}{Number of additional observations needed (0 if already significant).}
+#' }
+#'
+#'
+min_track_record <- function(x) {
+
+  refSR <- 0
+  p <- 0.95
+
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n < 4) return(NA_real_)
+
+  mu <- mean(x)
+  sigma <- sd(x)
+  if (is.na(mu) || is.na(sigma) || sigma == 0) return(NA_real_)
+
+  sr <- mu / sigma
+  sk <- PerformanceAnalytics::skewness(x)
+  kr <- PerformanceAnalytics::kurtosis(x, method = "moment")
+
+  z <- stats::qnorm(p)
+  numerator <- (1 - sr * sk + (sr^2) * (kr - 1) / 4) * z^2
+  denominator <- (sr - refSR)^2
+
+  if (denominator <= 0 || is.na(denominator)) {
+    return(Inf)
+  }
+
+  return(1 + numerator / denominator)
+}
+
