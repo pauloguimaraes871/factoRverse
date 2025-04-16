@@ -1,4 +1,4 @@
-skip_if_not_integration()
+
 test_that("run_ss_backtest works for vanilla no-pooled frequentist setting", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))

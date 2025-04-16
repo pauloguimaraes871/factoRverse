@@ -1,4 +1,4 @@
-skip_if_not_integration()
+
 #END-TO-END TESTS
 
 #BEGIN OLS TESTS (TRAINING + TESTING)

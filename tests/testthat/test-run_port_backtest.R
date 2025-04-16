@@ -1,4 +1,4 @@
-skip_if_not_integration()
+
 test_that("run_port_backtest works for a simple ew single signal strategy with only a liquidity_floor_rule constraint and selected benchmark", {
 
   #Create signals_m_d_ref
