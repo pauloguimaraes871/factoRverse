@@ -39,34 +39,17 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
-      # 4. Force CRAN as your mirror (so archived packages are available)
-      - name: Set CRAN mirror
-        run: echo "options(repos = c(CRAN='https://cran.r-project.org'))" >> ~/.Rprofile
-
-      # 5. Override renv to use CRAN (not PPM) for restores
-      - name: Override renv repos
-        run: echo 'options(renv.config.repos.override = c(CRAN="https://cran.r-project.org"))' >> ~/.Rprofile
-
-      # 6. On Linux, install system libs needed by rstan/brms
+      # 4. On Linux, install system libs needed by rstan/brms
       - name: Install system libraries (Linux only)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
 
-      # 7. Pre‑install archived versions of rstan & brms (plus BH & StanHeaders)
-      - name: Pre-install archived rstan/brms
-        shell: Rscript {0}
-        run: |
-          install.packages(c("remotes","BH","StanHeaders"),
-                           repos="https://cran.r-project.org")
-          remotes::install_version("rstan", version="2.26.22", repos="https://cran.r-project.org")
-          remotes::install_version("brms", version="2.20.1", repos="https://cran.r-project.org")
-
-      # 8. Restore your renv library (and cache it)
+      # 5. Restore your renv library (and cache it)
       - uses: r-lib/actions/setup-renv@v2
 
-      # 9. Install TensorFlow + Keras (needed for keras tests)
+      # 6. Install TensorFlow + Keras (needed for keras tests)
       - name: Install TensorFlow runtime
         shell: Rscript {0}
         run: |
@@ -77,7 +60,7 @@ jobs:
             extra_packages = c("keras")
           )
 
-      # 10. Finally, run R CMD check (with snapshot uploads & vignette compaction)
+      # 7. Finally, run R CMD check (with snapshot uploads & vignette compaction)
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
