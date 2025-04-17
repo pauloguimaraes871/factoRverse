@@ -1,68 +1,84 @@
 # Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
 # Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
+name: R-CMD-check
 on:
   push:
     branches: [main, master]
   pull_request:
-
-name: R-CMD-check.yaml
 
 permissions: read-all
 
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
-
-    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
-
     strategy:
       fail-fast: false
       matrix:
         config:
-          - {os: macos-latest,   r: 'release'}
-          - {os: windows-latest, r: 'release'}
-          - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest,   r: 'release'}
-          - {os: ubuntu-latest,   r: 'oldrel-1'}
+          - { os: macos-latest,   r: 'release' }
+          - { os: windows-latest, r: 'release' }
+          - { os: ubuntu-latest,  r: 'devel', http-user-agent: 'release' }
+          - { os: ubuntu-latest,  r: 'release' }
+          - { os: ubuntu-latest,  r: 'oldrel-1' }
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
 
     steps:
-      - uses: actions/checkout@v4
+# 1. Check out your code
+- uses: actions/checkout@v4
 
-      - uses: r-lib/actions/setup-pandoc@v2
+# 2. Install pandoc (for vignettes)
+- uses: r-lib/actions/setup-pandoc@v2
 
-      - uses: r-lib/actions/setup-r@v2
+# 3. Install the right R version
+- uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
-      # 🧠 Install and restore renv environment with caching
+# 4. Force CRAN as your mirror (so archived sources are available)
+- name: Set CRAN mirror
+        run: echo "options(repos = c(CRAN = 'https://cran.r-project.org'))" >> ~/.Rprofile
+
+# 5. Restore your renv library (and cache it)
+
       - uses: r-lib/actions/setup-renv@v2
 
-      # 🧠 TensorFlow + Keras installation for Keras tests
-      - name: Install TensorFlow runtime
-        run: |
-          install.packages("tensorflow")
-          tensorflow::install_tensorflow(method = "virtualenv", version = "2.15.0", extra_packages = c("keras"))
-        shell: Rscript {0}
+# 6. On Linux, install system libs needed by rstan/brms
 
-      # 🧠 Linux-only system dependencies needed for brms/rstan
       - name: Install system libraries (Linux only)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
 
-      - name: Install BH, rstan, brms (all platforms)
-        run: |
-          install.packages(c("BH", "StanHeaders", "rstan", "brms"), repos = "https://cloud.r-project.org")
+# 7. Make sure BH, StanHeaders, rstan & brms are available
+
+      - name: Install BH, rstan, brms
         shell: Rscript {0}
+        run: |
+          install.packages(c("BH", "StanHeaders", "rstan", "brms"),
+                           repos = "https://cran.r-project.org")
+
+# 8. Install TensorFlow + Keras (needed for your keras tests)
+
+      - name: Install TensorFlow runtime
+        shell: Rscript {0}
+        run: |
+          install.packages("tensorflow")
+          tensorflow::install_tensorflow(
+            method = "virtualenv",
+            version = "2.15.0",
+            extra_packages = c("keras")
+          )
+
+# 9. Finally, run R CMD check (with snapshot uploads & vignette compaction)
 
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+
