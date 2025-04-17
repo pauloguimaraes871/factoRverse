@@ -195,6 +195,12 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
 
       #Apply Bayes Optimization
       if(parallel){
+
+        # Check if doRNG is available (required by doFuture::withDoRNG)
+        if (!requireNamespace("doRNG", quietly = TRUE)) {
+          stop("The 'doRNG' package is required for parallel Bayesian optimization. Please install it.")
+        }
+
         #Bayesian Optimization
         bayes_opt <- doFuture::withDoRNG(
           ParBayesianOptimization::bayesOpt(

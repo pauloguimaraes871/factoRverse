@@ -12,6 +12,7 @@ RoxygenNote: 7.3.2
 Suggests: 
     foreach,
     insight,
+    doRNG,
     future,
     readxl,
     testthat (>= 3.0.0),

@@ -22,10 +22,8 @@
 #' @param init_points Numeric, number of initial points for Bayesian optimization.
 #' @param early_stop Numeric, number of epochs for early stopping (for "xgb" and "nn" algorithms).
 #' @param keras_architecture_parameters List, containing units (numeric), n_layers (numeric between 1 and 5), activation_function and nn_optimizer ("Adam" or "RMSProp")
-#' @param signal_universe_m_d_ref A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.
 #' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
-#' @param show_plots Logical, whether to show diagnostic plots.
 #' @param verbose Logical, whether to print verbose output.
 #' @param parallel Logical, whether to use parallel computation.
 #'

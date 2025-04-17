@@ -40,6 +40,12 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
+      - name: Install TensorFlow (only if needed)
+        run: |
+          install.packages("tensorflow")
+          tensorflow::install_tensorflow()
+        shell: Rscript {0}   
+
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::rcmdcheck
