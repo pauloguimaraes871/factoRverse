@@ -93,10 +93,6 @@ check_inputs_sb_backtest(
 \item{parallel}{Logical, whether to use parallel computation.}
 
 \item{verbose}{Logical, whether to print verbose output.}
-
-\item{signal_universe_m_d_ref}{A data frame containing the signal universe. If provided, data in this object will be updated with posteriors.}
-
-\item{show_plots}{Logical, whether to show diagnostic plots.}
 }
 \value{
 NULL. This function is used for validation and does not return a value; it stops on errors.

@@ -40,16 +40,27 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
-      - name: Install TensorFlow (only if needed)
+      # 🧠 Install and restore renv environment with caching
+      - uses: r-lib/actions/setup-renv@v2
+
+      # 🧠 TensorFlow + Keras installation for Keras tests
+      - name: Install TensorFlow runtime
         run: |
           install.packages("tensorflow")
-          tensorflow::install_tensorflow()
-        shell: Rscript {0}   
+          tensorflow::install_tensorflow(method = "virtualenv", version = "2.15.0", extra_packages = c("keras"))
+        shell: Rscript {0}
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::rcmdcheck
-          needs: check
+      # 🧠 Linux-only system dependencies needed for brms/rstan
+      - name: Install system libraries (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
+
+      - name: Install BH, rstan, brms (all platforms)
+        run: |
+          install.packages(c("BH", "StanHeaders", "rstan", "brms"), repos = "https://cloud.r-project.org")
+        shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2
         with:

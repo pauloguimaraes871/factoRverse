@@ -1,7 +1,7 @@
 test_that("derive_informative_priors_from_data works for model spec 1", {
 
   # Save the current scipen option
-  original_scipen <- options("scipen")
+  original_scipen <-  getOption("scipen")
 
   # Disable scientific notation by setting a high scipen value
   options(scipen = 999)
@@ -316,7 +316,7 @@ test_that("derive_informative_priors_from_data works for model spec 1", {
 test_that("derive_informative_priors_from_data works for model spec 2", {
 
   # Save the current scipen option
-  original_scipen <- options("scipen")
+  original_scipen <-  getOption("scipen")
 
   # Disable scientific notation by setting a high scipen value
   options(scipen = 999)
@@ -631,7 +631,7 @@ test_that("derive_informative_priors_from_data works for model spec 2", {
 test_that("derive_informative_priors_from_data works for model spec 3", {
 
   # Save the current scipen option
-  original_scipen <- options("scipen")
+  original_scipen <-  getOption("scipen")
 
   # Disable scientific notation by setting a high scipen value
   options(scipen = 999)
@@ -822,7 +822,7 @@ test_that("derive_informative_priors_from_data works for model spec 3", {
 test_that("derive_informative_priors_from_data works for model spec 4", {
 
   # Save the current scipen option
-  original_scipen <- options("scipen")
+  original_scipen <-  getOption("scipen")
 
   # Disable scientific notation by setting a high scipen value
   options(scipen = 999)
