@@ -39,17 +39,24 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
-      # 4. On Linux, install system libs needed by rstan/brms
+      # 4. macOS only: install gettext (provides libintl.h) for Matrix package
+      - name: Install gettext on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install gettext
+          brew link gettext --force
+
+      # 5. On Linux, install system libs needed by rstan/brms
       - name: Install system libraries (Linux only)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
 
-      # 5. Restore your renv library (and cache it)
+      # 6. Restore your renv library (and cache it)
       - uses: r-lib/actions/setup-renv@v2
 
-      # 6. Install TensorFlow + Keras (needed for keras tests)
+      # 7. Install TensorFlow + Keras (needed for keras tests)
       - name: Install TensorFlow runtime
         shell: Rscript {0}
         run: |
@@ -60,10 +67,8 @@ jobs:
             extra_packages = c("keras")
           )
 
-      # 7. Finally, run R CMD check (with snapshot uploads & vignette compaction)
+      # 8. Finally, run R CMD check (with snapshot uploads & vignette compaction)
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
-
-
