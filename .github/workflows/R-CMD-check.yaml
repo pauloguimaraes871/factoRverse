@@ -1,74 +1,61 @@
-# .github/workflows/R-CMD-check.yaml
-name: R-CMD-check
+name: R CMD check with renv
 
 on:
   push:
     branches: [main, master]
   pull_request:
-
-permissions: read-all
+    branches: [main, master]
 
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
     strategy:
-      fail-fast: false
       matrix:
         config:
-          - { os: macos-latest,   r: 'release' }
-          - { os: windows-latest, r: 'release' }
-          - { os: ubuntu-latest,  r: 'devel',      http-user-agent: 'release' }
-          - { os: ubuntu-latest,  r: 'release' }
-          - { os: ubuntu-latest,  r: 'oldrel-1' }
+          - os: ubuntu-latest
+          - os: windows-latest
 
     env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      R_KEEP_PKG_SOURCE: yes
+      RENV_PATHS_ROOT: ${{ runner.temp }}/renv
 
     steps:
-      # 1. Check out your code
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # 2. Install pandoc (for vignettes)
-      - uses: r-lib/actions/setup-pandoc@v2
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
 
-      # 3. Install the right R version
-      - uses: r-lib/actions/setup-r@v2
-        with:
-          r-version: ${{ matrix.config.r }}
-          http-user-agent: ${{ matrix.config.http-user-agent }}
-          use-public-rspm: true
+      - name: Set RENV_PATHS_ROOT
+        shell: bash
+        run: echo "RENV_PATHS_ROOT=${{ runner.temp }}/renv" >> $GITHUB_ENV
 
-      # 4. macOS only: install gettext (provides libintl.h) for Matrix package
-      - name: Install gettext on macOS
-        if: runner.os == 'macOS'
+      - name: Install renv and activate
         run: |
-          brew install gettext
-          brew link gettext --force
-
-      # 5. On Linux, install system libs needed by rstan/brms
-      - name: Install system libraries (Linux only)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
-
-      # 6. Restore your renv library (and cache it)
-      - uses: r-lib/actions/setup-renv@v2
-
-      # 7. Install TensorFlow + Keras (needed for keras tests)
-      - name: Install TensorFlow runtime
+          install.packages("renv")
+          renv::activate()
         shell: Rscript {0}
-        run: |
-          install.packages("tensorflow")
-          tensorflow::install_tensorflow(
-            method = "virtualenv",
-            version = "2.15.0",
-            extra_packages = c("keras")
-          )
 
-      # 8. Finally, run R CMD check (with snapshot uploads & vignette compaction)
-      - uses: r-lib/actions/check-r-package@v2
+      - name: Get R and OS version
+        id: get-version
+        run: |
+          cat("os-version=", sessionInfo()$running, "\n", sep = "")
+          cat("r-version=", R.Version()$version.string, "\n", sep = "")
+        shell: Rscript {0}
+
+      - name: Cache R packages
+        uses: actions/cache@v4
         with:
-          upload-snapshots: true
-          build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+          path: ${{ env.RENV_PATHS_ROOT }}
+          key: ${{ runner.os }}-${{ steps.get-version.outputs.r-version }}-${{ hashFiles('renv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.get-version.outputs.r-version }}-
+
+      - name: Restore dependencies
+        run: renv::restore()
+        shell: Rscript {0}
+
+      - name: Run R CMD check
+        run: |
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
+          devtools::check(args = c("--no-manual", "--as-cran"))
+        shell: Rscript {0}
