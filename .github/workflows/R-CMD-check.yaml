@@ -1,5 +1,3 @@
-# Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
-# Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
 # .github/workflows/R-CMD-check.yaml
 name: R-CMD-check
 
@@ -23,45 +21,42 @@ jobs:
           - { os: ubuntu-latest,  r: 'release' }
           - { os: ubuntu-latest,  r: 'oldrel-1' }
 
+    # ──────── ENV: Override renv repos so it pulls archives from CRAN ────────
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      # This tells renv to use CRAN (and its Archive) for all restores
+      RENV_CONFIG_REPOS_OVERRIDE: 'https://cran.r-project.org'
 
     steps:
-
+      # 1. Check out your code
       - uses: actions/checkout@v4
 
-
+      # 2. Install pandoc (for vignettes)
       - uses: r-lib/actions/setup-pandoc@v2
 
-
+      # 3. Install the right R version
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
-
+      # 4. Force CRAN as your mirror so non‑archived packages work too
       - name: Set CRAN mirror
         run: echo "options(repos = c(CRAN='https://cran.r-project.org'))" >> ~/.Rprofile
 
-
-      - name: Force CRAN for renv restores
-        run: |
-          echo 'options(repos = c(CRAN="https://cran.r-project.org"))' >> ~/.Rprofile
-          echo 'options(renv.config.repos.override = c(CRAN="https://cran.r-project.org"))' >> ~/.Rprofile
-
-
+      # 5. Restore your renv library (and cache it)
       - uses: r-lib/actions/setup-renv@v2
 
-
+      # 6. On Linux, install system libs needed by rstan/brms
       - name: Install system libraries (Linux only)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
 
-
+      # 7. (Re)install BH, StanHeaders, rstan & brms from CRAN
       - name: Install BH, rstan, brms
         shell: Rscript {0}
         run: |
@@ -70,7 +65,7 @@ jobs:
             repos = "https://cran.r-project.org"
           )
 
-
+      # 8. Install TensorFlow + Keras (for your keras tests)
       - name: Install TensorFlow runtime
         shell: Rscript {0}
         run: |
@@ -81,8 +76,9 @@ jobs:
             extra_packages = c("keras")
           )
 
-
+      # 9. Finally, run R CMD check (with snapshot uploads & vignette compaction)
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+
