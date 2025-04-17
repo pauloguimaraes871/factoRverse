@@ -46,9 +46,19 @@ setMethod(
   function(x, type = NULL, clustering_variables = NULL, variable = NULL, tickers = "all", dates = "all", calc_stat = NULL,
            custom_filter = NULL, filter_values = NULL, dep_y = NULL, numeric_aggregation = "decile") {
 
-    #Check for packages
-    if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-      stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+    # Check for required packages for plotting
+    required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+    missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+    if (length(missing_pkgs) > 0) {
+      stop(
+        sprintf(
+          "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+          paste(missing_pkgs, collapse = ", ")
+        ),
+        call. = FALSE
+      )
     }
 
 
@@ -1440,9 +1450,19 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                    add_overall_means = NULL, vertical_lines = NULL, cumulative = NULL,
                    plot_perf_metric = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
 
-            #Check for packages
-            if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-              stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+            # Check for required packages for plotting
+            required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+            missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+            if (length(missing_pkgs) > 0) {
+              stop(
+                sprintf(
+                  "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+                  paste(missing_pkgs, collapse = ", ")
+                ),
+                call. = FALSE
+              )
             }
 
 
@@ -1868,9 +1888,19 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 #' @export
 setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function(x, y) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # Define colors for plotting
@@ -2006,9 +2036,19 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 #' @export
 setMethod("plot", signature(x = "random_search_strategy", y = "missing"), function(x, y) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # Define colors for plotting
@@ -2176,9 +2216,19 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 #' @export
 setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), function(x, y, ...) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
 
@@ -2327,9 +2377,19 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @export
 setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y){
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   if(!x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")){
@@ -2355,9 +2415,19 @@ setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x
 #' @export
 setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), function(x, y, plot_id = NULL, ...) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # List of available plots
@@ -2609,9 +2679,19 @@ setMethod(
 
 setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_df = NULL) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # List of available plots
@@ -3677,9 +3757,19 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 #' @export
 setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # List of available plots
@@ -3993,9 +4083,19 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 #' @export
 setMethod("plot", "ss_backtest_config", function(x, ...) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # Validate input object
@@ -4148,9 +4248,19 @@ setMethod("plot", "ss_backtest_config", function(x, ...) {
 #' @export
 setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   if (is.null(x@bayesian_model_parameters)) {
@@ -4172,9 +4282,19 @@ setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
 #' @export
 setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # Define colors for plotting
@@ -5424,9 +5544,19 @@ setMethod(
   signature(x = "port_backtest_config", y = "missing"),
   function(x, ...) {
 
-    #Check for packages
-    if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-      stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+    # Check for required packages for plotting
+    required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+    missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+    if (length(missing_pkgs) > 0) {
+      stop(
+        sprintf(
+          "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+          paste(missing_pkgs, collapse = ", ")
+        ),
+        call. = FALSE
+      )
     }
 
     # Check if liquidity_floor_cutoffs data is available
@@ -5535,9 +5665,19 @@ setMethod(
   signature(x = "port", y = "missing"),
   function(x, type = NULL, ...) {
 
-    #Check for packages
-    if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-      stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+    # Check for required packages for plotting
+    required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+    missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+    if (length(missing_pkgs) > 0) {
+      stop(
+        sprintf(
+          "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+          paste(missing_pkgs, collapse = ", ")
+        ),
+        call. = FALSE
+      )
     }
 
     #------------------------------------------------------------------------------------------------
@@ -6592,9 +6732,19 @@ setMethod(
 #' @export
 setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_lines = NULL) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # Define colors for plotting
@@ -6924,9 +7074,19 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
 #' @export
 setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_lines = NULL) {
 
-  #Check for packages
-  if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
-    stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
+  # Check for required packages for plotting
+  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
+
+  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+  if (length(missing_pkgs) > 0) {
+    stop(
+      sprintf(
+        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
   }
 
   # Define colors for plotting

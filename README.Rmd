@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 [![R-CMD-check](https://github.com/pauloguimaraes871/factoRverse/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pauloguimaraes871/factoRverse/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-The goal of mlfactors is to construct portfolios with ML-based and characteristics-based signals
+The goal of factoRverse is to construct portfolios with ML-based and characteristics-based signals
 
 ## Installation
 
@@ -27,18 +27,9 @@ You can install the development version of mlfactors from [GitHub](https://githu
       
 ``` r
 # install.packages("devtools")
-devtools::install_github("pauloguimaraes871/mlfactors")
+devtools::install_github("pauloguimaraes871/factoRverse")
 ```
 
 ## Usage
 
-This is a basic example which shows how to calculate element-wise medians of three matrices.
-
-```{r example}
-library(mlfactors)
- median_matrix(
-      matrix(c(1,2,3,4), nrow=2, ncol=2),
-      matrix(c(5,6,7,8), nrow=2, ncol=2),
-      matrix(c(1,1,1,1), nrow=2, ncol=2))
-```
 
