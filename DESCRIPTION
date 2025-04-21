@@ -41,7 +41,6 @@ Imports:
     furrr,
     ggplot2,
     glmnet,
-    BH,
     janitor,
     keras,
     lme4,
@@ -66,13 +65,7 @@ Imports:
     tidyr,
     xgboost,
     xts,
-    zoo
-LinkingTo: 
-    BH,
-    Rcpp,
-    RcppEigen,
-    StanHeaders,
-    rstan    
+    zoo    
 Collate: 
     'calculate_eval_metrics.R'
     'class_definitions.R'
