@@ -1,124 +1,0 @@
-
-NOTE: Dependency discovery took 15 seconds during snapshot.
-Consider using .renvignore to ignore files, or switching to explicit snapshots.
-See `]8;;ide:help:renv::dependencies?renv::dependencies]8;;` for more information.
-
-- C:/Users/paulo.fonteles/OneDrive - Sicoob/Renda Variável/Multifatorial 3.0/factoRverse/man: 305 files
-
-[36m══[39m [36mDocumenting[39m [36m═════════════════════════════════════════════════════════════════[39m
-[1m[22m[36mℹ[39m Updating [34mfactoRverse[39m documentation
-[1m[22m[36mℹ[39m Loading [34mfactoRverse[39m
-
-[36m══[39m [36mBuilding[39m [36m════════════════════════════════════════════════════════════════════[39m
-[90mSetting env vars:[39m
-• [90mCFLAGS    : -Wall -pedantic -fdiagnostics-color=always[39m
-• [90mCXXFLAGS  : -Wall -pedantic -fdiagnostics-color=always[39m
-• [90mCXX11FLAGS: -Wall -pedantic -fdiagnostics-color=always[39m
-• [90mCXX14FLAGS: -Wall -pedantic -fdiagnostics-color=always[39m
-• [90mCXX17FLAGS: -Wall -pedantic -fdiagnostics-color=always[39m
-• [90mCXX20FLAGS: -Wall -pedantic -fdiagnostics-color=always[39m
-[36m──[39m [36mR CMD build[39m [36m─────────────────────────────────────────────────────────────────[39m
-         checking for file 'C:\Users\paulo.fonteles\OneDrive - Sicoob\Renda Variável\Multifatorial 3.0\factoRverse/DESCRIPTION' ...     checking for file 'C:\Users\paulo.fonteles\OneDrive - Sicoob\Renda Variável\Multifatorial 3.0\factoRverse/DESCRIPTION' ...   [32m✔[39m  [90mchecking for file 'C:\Users\paulo.fonteles\OneDrive - Sicoob\Renda Variável\Multifatorial 3.0\factoRverse/DESCRIPTION'[39m[36m[36m (590ms)[36m[39m
-      [90m─[39m[90m  [39m[90mpreparing 'factoRverse':[39m[36m[36m (18.2s)[36m[39m
-   checking DESCRIPTION meta-information ...     checking DESCRIPTION meta-information ...   [32m✔[39m  [90mchecking DESCRIPTION meta-information[39m[36m[39m
-      [90m─[39m[90m  [39m[90mchecking for LF line-endings in source and make files and shell scripts[39m[36m[36m (8.4s)[36m[39m
-      [90m─[39m[90m  [39m[90mchecking for empty or unneeded directories[39m[36m[39m
-     NB: this package now depends on R (>=        NB: this package now depends on R (>= 3.5.0)
-       WARNING: Added dependency on R >= 3.5.0 because serialized objects in
-     serialize/load version 3 cannot be read in older versions of R.
-     File(s) containing such objects:
-       'factoRverse/tests/testthat/testdata/artificial_metabacktest_obj.RData'
-       'factoRverse/tests/testthat/testdata/artificial_port_obj.RData'
-       'factoRverse/tests/testthat/testdata/artificial_signal_blending_obj.RData'
-       'factoRverse/tests/testthat/testdata/artificial_signal_selection_obj.RData'
-       'factoRverse/tests/testthat/testdata/toy_fulldates_features_and_targets.RData'
-       'factoRverse/tests/testthat/testdata/toy_preprocessed_features_and_targets.RData'
-       'factoRverse/tests/testthat/testdata/toy_preprocessed_port_obj.RData'
-       'factoRverse/tests/testthat/testdata/toy_preprocessed_signal_selection_obj.RData'
-     'factoRverse/tests/testthat/testdata/toy_preprocessed_signal_selection_results.RData'         'factoRverse/tests/testthat/testdata/toy_preprocessed_signal_selection_results.RData'
-[90m─[39m[90m  [39m[90mbuilding 'factoRverse_0.0.0.9000.tar.gz'[39m[36m[39m
-     
-[36m══[39m [36mChecking[39m [36m════════════════════════════════════════════════════════════════════[39m
-[90mSetting env vars:[39m
-• [90m_R_CHECK_CRAN_INCOMING_REMOTE_               : FALSE[39m
-• [90m_R_CHECK_CRAN_INCOMING_                      : FALSE[39m
-• [90m_R_CHECK_FORCE_SUGGESTS_                     : FALSE[39m
-• [90m_R_CHECK_PACKAGES_USED_IGNORE_UNUSED_IMPORTS_: FALSE[39m
-• [90mNOT_CRAN                                     : true[39m
-[36m── R CMD check ─────────────────────────────────────────────────────────────────[39m
-      [90m─[39m[90m  [39m[90musing log directory 'C:/Users/paulo.fonteles/AppData/Local/Temp/RtmpAVuQt9/file428c784f5e28/factoRverse.Rcheck'[39m[36m[36m (691ms)[36m[39m
-[90m─[39m[90m  [39m[90musing R version 4.3.0 (2023-04-21 ucrt)[39m[36m[39m
-[90m─[39m[90m  [39m[90musing platform: x86_64-w64-mingw32 (64-bit)[39m[36m[39m
-[90m─[39m[90m  [39m[90mR was compiled by[39m[36m[39m
-         gcc.exe (GCC) 12.2.0
-       GNU Fortran (GCC) 12.2.0
-[90m─[39m[90m  [39m[90mrunning under: Windows 10 x64 (build 19045)[39m[36m[39m
-[90m─[39m[90m  [39m[90musing session charset: UTF-8[39m[36m[39m
-      [90m─[39m[90m  [39m[90musing options '--no-manual --as-cran'[39m[36m[36m (2.1s)[36m[39m
-     checking for file 'factoRverse/DESCRIPTION' ...     checking for file 'factoRverse/DESCRIPTION' ...   [32m✔[39m  [90mchecking for file 'factoRverse/DESCRIPTION'[39m[36m[39m
-[90m─[39m[90m  [39m[90mthis is package 'factoRverse' version '0.0.0.9000'[39m[36m[39m
-  [90m─[39m[90m  [39m[90mpackage encoding: UTF-8[39m[36m[39m
-   checking package namespace information ...     checking package namespace information ...   [32m✔[39m  [90mchecking package namespace information[39m[36m[39m
-   checking package dependencies ...     checking package dependencies ...   [34mN  [39m[34mchecking package dependencies[39m[36m[36m (3.6s)[36m[39m
-   Imports includes 30 non-default packages.
-   Importing from so many packages makes the package vulnerable to any of
-   them becoming unavailable.  Move as many as possible to Suggests and
-   use conditionally.
-   checking if this is a source package ...     checking if this is a source package ...   [32m✔[39m  [90mchecking if this is a source package[39m[36m[39m
-[32m✔[39m  [90mchecking if there is a namespace[39m[36m[39m
-         checking for executable files ...     checking for executable files ...   [32m✔[39m  [90mchecking for executable files[39m[36m[36m (7.4s)[36m[39m
-   checking for hidden files and directories ...     checking for hidden files and directories ...   [32m✔[39m  [90mchecking for hidden files and directories[39m[36m[39m
-   checking for portable file names ...     checking for portable file names ...   [32m✔[39m  [90mchecking for portable file names[39m[36m[39m
-         checking whether package 'factoRverse' can be installed ...     checking whether package 'factoRverse' can be installed ... [39s]     checking whether package 'factoRverse' can be installed ... [39s]   [90m─[39m[90m  [39m[90mchecking whether package 'factoRverse' can be installed ... [39s] OK[39m[36m[36m (38.6s)[36m[39m
-   checking installed package size ...     checking installed package size ...   [32m✔[39m  [90mchecking installed package size[39m[36m[39m
-      [32m✔[39m  [90mchecking package directory[39m[36m[36m (1.4s)[36m[39m
-   checking for future file timestamps ...     checking for future file timestamps ...   [34mN  [39m[34mchecking for future file timestamps[39m[36m[39m
-   unable to verify current time
-     checking DESCRIPTION meta-information ...     checking DESCRIPTION meta-information ...   [32m✔[39m  [90mchecking DESCRIPTION meta-information[39m[36m[36m (723ms)[36m[39m
-   checking top-level files ...  [34mN  [39m[34mchecking top-level files[39m[36m[39m
-   Non-standard file/directory found at top level:
-     'check_log.txt'
-   checking for left-over files ...     checking for left-over files ...   [32m✔[39m  [90mchecking for left-over files[39m[36m[39m
-   checking index information ...  [32m✔[39m  [90mchecking index information[39m[36m[39m
-   checking package subdirectories ...     checking package subdirectories ...   [32m✔[39m  [90mchecking package subdirectories[39m[36m[36m (427ms)[36m[39m
-   checking R files for non-ASCII characters ...     checking R files for non-ASCII characters ...   [32m✔[39m  [90mchecking R files for non-ASCII characters[39m[36m[36m (351ms)[36m[39m
-   checking R files for syntax errors ...     checking R files for syntax errors ...   [32m✔[39m  [90mchecking R files for syntax errors[39m[36m[36m (447ms)[36m[39m
-   checking whether the package can be loaded ...     checking whether the package can be loaded ...   [32m✔[39m  [90mchecking whether the package can be loaded[39m[36m[36m (3.3s)[36m[39m
-   checking whether the package can be loaded with stated dependencies ...     checking whether the package can be loaded with stated dependencies ...   [32m✔[39m  [90mchecking whether the package can be loaded with stated dependencies[39m[36m[36m (3.8s)[36m[39m
-   checking whether the package can be unloaded cleanly ...     checking whether the package can be unloaded cleanly ...   [32m✔[39m  [90mchecking whether the package can be unloaded cleanly[39m[36m[36m (3.8s)[36m[39m
-   checking whether the namespace can be loaded with stated dependencies ...     checking whether the namespace can be loaded with stated dependencies ...   [32m✔[39m  [90mchecking whether the namespace can be loaded with stated dependencies[39m[36m[36m (3s)[36m[39m
-   checking whether the namespace can be unloaded cleanly ...     checking whether the namespace can be unloaded cleanly ...   [32m✔[39m  [90mchecking whether the namespace can be unloaded cleanly[39m[36m[36m (3.3s)[36m[39m
-         checking dependencies in R code ...     checking dependencies in R code ...   [32m✔[39m  [90mchecking dependencies in R code[39m[36m[36m (10.6s)[36m[39m
-   checking S3 generic/method consistency ...     checking S3 generic/method consistency ...   [32m✔[39m  [90mchecking S3 generic/method consistency[39m[36m[36m (3.2s)[36m[39m
-   checking replacement functions ...     checking replacement functions ...   [32m✔[39m  [90mchecking replacement functions[39m[36m[36m (3.2s)[36m[39m
-   checking foreign function calls ...     checking foreign function calls ...   [32m✔[39m  [90mchecking foreign function calls[39m[36m[36m (4.1s)[36m[39m
-   checking R code for possible problems ...     checking R code for possible problems ... [50s]  [90m─[39m[90m  [39m[90mchecking R code for possible problems ... [50s] NOTE[39m[36m[36m (49.7s)[36m[39m
-   Possibly missing '()' after 'return' in the following functions:
-     'prepare_hierarchical_model_inputs' 'summarize_lmer_model'
-   checking Rd files     checking Rd files ...     checking Rd files ...   [32m✔[39m  [90mchecking Rd files[39m[36m[36m (4.6s)[36m[39m
-   checking Rd metadata ...     checking Rd metadata ...   [32m✔[39m  [90mchecking Rd metadata[39m[36m[39m
-   checking Rd line widths ...     checking Rd line widths ...   [32m✔[39m  [90mchecking Rd line widths[39m[36m[36m (1.2s)[36m[39m
-   checking Rd cross-references ...     checking Rd cross-references ...   [32m✔[39m  [90mchecking Rd cross-references[39m[36m[36m (829ms)[36m[39m
-   checking for missing documentation entries ...     checking for missing documentation entries ...   [32m✔[39m  [90mchecking for missing documentation entries[39m[36m[36m (3.6s)[36m[39m
-   checking for code/documentation mismatches ...     checking for code/documentation mismatches ...   [32m✔[39m  [90mchecking for code/documentation mismatches[39m[36m[36m (10.6s)[36m[39m
-   checking Rd \usage sections ...     checking Rd \usage sections ...   [32m✔[39m  [90mchecking Rd \usage sections[39m[36m[36m (5.8s)[36m[39m
-   checking Rd contents ...     checking Rd contents ...   [32m✔[39m  [90mchecking Rd contents[39m[36m[36m (1.4s)[36m[39m
-   checking for unstated dependencies in examples ...     checking for unstated dependencies in examples ...   [32m✔[39m  [90mchecking for unstated dependencies in examples[39m[36m[36m (733ms)[36m[39m
-         checking examples ...     checking examples ...   [32m✔[39m  [90mchecking examples[39m[36m[36m (6.7s)[36m[39m
-     checking for unstated dependencies in 'tests' ...     checking for unstated dependencies in 'tests' ...   [32m✔[39m  [90mchecking for unstated dependencies in 'tests'[39m[36m[36m (15.4s)[36m[39m
-   checking tests ...  [90m─[39m[90m  [39m[90mchecking tests[39m[36m[36m (504ms)[36m[39m
-     Running 'testthat.R'      [130m]      [130m] OK
-         * checking for non-standard things in the check directory ... OK
-   checking for detritus in the temp directory ...     * checking for detritus in the temp directory ... NOTE
-     Found the following files/directories:
-     '__autograph_generated_fileb494yfdc.py'
-     '__autograph_generated_fileid_4adxu.py'
-     '__autograph_generated_filephd_210i.py' '__pycache__'
-         * DONE
-   
-   Status: 5 NOTEs
-     See
-     'C:/Users/paulo.fonteles/AppData/Local/Temp/RtmpAVuQt9/file428c784f5e28/factoRverse.Rcheck/00check.log'
-   for details.
-   
-     

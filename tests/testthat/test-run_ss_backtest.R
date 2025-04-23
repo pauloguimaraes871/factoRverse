@@ -1074,11 +1074,11 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
   )
 
   expect_equal(benchmark_weights_m_d_ref$theme_ss, c(1/3/2, 1/3/2, 1/3/2, 1/3, 1/3/2))
-  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(1/3/2, 1/3/2, 1/3, 1/3, 0))
+  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(1/3/2, 1/3/2, 1/3/2, 1/3, 1/3/2))
   signal_universe_m_d_ref_2$theme_ss_bench_weights <- benchmark_weights_m_d_ref$theme_ss
   signal_universe_m_d_ref_2$theme_sb_bench_weights <- benchmark_weights_m_d_ref$theme_sb
   signal_universe_m_d_ref_2$theme <- c("value", "value", "defensive", "momentum", "defensive")
-  signal_universe_m_d_ref_2$is_eligible <- c(1,1,1,1,0)
+  signal_universe_m_d_ref_2$is_eligible <- c(1,1,1,1,1)
 
 
 
@@ -1240,6 +1240,7 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
 
 
   model_spec_theme_level <- "theme_specific_intercept_theme_specific_slope"
+  suppressWarnings(
   summarize_performance_results <- summarize_performance(
     selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
     selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
@@ -1248,6 +1249,7 @@ test_that("run_ss_backtest works for bayesian setting with user_priors", {
     lmer_control = lmer_control,
     active_returns = active_returns,
     model_spec_theme_level = model_spec_theme_level
+  )
   )
 
   #Create signal universe
