@@ -1014,7 +1014,8 @@ test_that("map_recipe_timewise throws an error when rows with only NAs are not c
 
   # Run and check that will not work bco of NAs in KNN (Some rows will have NAs because of only NAs in rows)
   expect_error(
-    map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE),
+    suppressWarnings(
+    map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE)),
     "Data contains missing values")
 
 
@@ -1133,11 +1134,33 @@ test_that("map_recipe_timewise throws an error when there is only one observatio
     recipes::step_dummy(sector_c1, one_hot = TRUE)  # Convert sector_c1 to dummy variables
 
   # Run and check that will not work bco of NAs in KNN (Some rows will have NAs because of only NAs in rows)
-  expect_error(
-  expect_warning(
-    map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE),
-    "Not enough data to prep the recipe for date: 2023-07-15")
+  warnings_captured <- character()
+  error_captured <- NULL
+
+  result <- tryCatch(
+    withCallingHandlers(
+      {
+        map_recipe_timewise(panel, recipe, verbose = TRUE, parallel = FALSE)
+      },
+      warning = function(w) {
+        warnings_captured <<- c(warnings_captured, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    ),
+    error = function(e) {
+      error_captured <<- conditionMessage(e)
+      NULL  # Return NULL on error
+    }
   )
+
+  # Test if the specific warning exists
+  testthat::expect_true(
+    any(grepl("Not enough data to prep the recipe for date: 2023-07-15", warnings_captured)),
+    info = "Expected warning was not found among captured warnings."
+  )
+
+  # Test if an error occurred
+  expect_equal(error_captured, "Data contains missing values")
 
 
 })

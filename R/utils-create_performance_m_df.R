@@ -178,7 +178,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     arith_mean_ret = sapply(selected_returns_aligned, function(x) {
       safe_compute(
         strategy_returns = x,
-        metric_fun = PerformanceAnalytics::Mean.arithmetic,
+        metric_fun = mean,
         multiply = 100,
         na.rm = TRUE
       )
@@ -315,7 +315,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     sharpe_ratio = sapply(selected_returns_aligned, function(x) {
       safe_compute(
         strategy_returns = x,
-        metric_fun = PerformanceAnalytics::Mean.arithmetic,
+        metric_fun = mean,
         multiply = 100,
         na.rm = TRUE
       )/safe_compute(
@@ -337,7 +337,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     sharpe_ratio_semi_dev = sapply(selected_returns_aligned, function(x) {
       safe_compute(
         strategy_returns = x,
-        metric_fun = PerformanceAnalytics::Mean.arithmetic,
+        metric_fun = mean,
         multiply = 100,
         na.rm = TRUE
       )/safe_compute(
@@ -381,7 +381,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
     sharpe_ratio_exp_short = sapply(selected_returns_aligned, function(x) {
       safe_compute(
         strategy_returns = x,
-        metric_fun = PerformanceAnalytics::Mean.arithmetic,
+        metric_fun = mean,
         multiply = 100,
         na.rm = TRUE
       )/safe_compute(
@@ -498,7 +498,7 @@ create_performance_m_df <- function(selected_backtest_returns_corrected_position
       x_clean <- x[common_index]
       b_clean <- benchmark_aligned[common_index]
       ###Calculates Modigliani ratio
-      sr <- safe_compute(x_clean, PerformanceAnalytics::Mean.arithmetic, multiply = 100, na.rm = TRUE) /
+      sr <- safe_compute(x_clean, mean, multiply = 100, na.rm = TRUE) /
         safe_compute(x_clean, PerformanceAnalytics::StdDev, multiply = 100)
       sr * safe_compute(b_clean, PerformanceAnalytics::StdDev, multiply = 100)
     }),
