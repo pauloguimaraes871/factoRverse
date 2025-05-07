@@ -1830,6 +1830,22 @@ run_sb_backtest_internal <- function(
         ###################
       }
 
+      # ✅ Memory cleanup block
+      suppressWarnings(
+      rm(
+        full_data_training_sample_clean,
+        features_validation_sample,
+        target_validation_sample,
+        ts_splits,
+        selected_signals_and_backtest_list,
+        selected_features_corrected_positions_m_refit,
+        selected_full_data_corrected_positions_m_refit_clean,
+        target_m_refit,
+        selected_features_corrected_positions_and_predictions_m_refit
+      )
+      )
+      gc()
+
       #Prediction
       ############
       #d stands for the date in which the features are being calculated. Therefore, in d, we have new features, but we still don't have the target, as it is in future.

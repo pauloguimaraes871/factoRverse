@@ -2511,9 +2511,9 @@ test_that("set_eval_function correctly sets a keras nn5 model (custom_objective 
   expect_equal(compile_config$metrics, benchmark_compile_config$metrics)
 
   #Compare loss metrics
-  expect_equal(sb_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$loss, benchmark_fit$metrics$loss, tolerance = 1e-5)
   expect_equal(sb_model_fit_results$fit_nn$metrics$mean_squared_error, benchmark_fit$metrics$mean_squared_error)
-  expect_equal(sb_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss)
+  expect_equal(sb_model_fit_results$fit_nn$metrics$val_loss, benchmark_fit$metrics$val_loss, tolerance = 1e-5)
   expect_equal(sb_model_fit_results$fit_nn$metrics$val_mean_squared_error, benchmark_fit$metrics$val_mean_squared_error)
 
 

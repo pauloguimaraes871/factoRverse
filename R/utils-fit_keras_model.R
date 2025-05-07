@@ -34,6 +34,12 @@ fit_keras_model <- function(regularizer_l1, regularizer_l2, droprate, lr, number
                             verbose,
                             ...
 ){
+
+  #Clear the session after each model training
+  on.exit({
+    keras::k_clear_session()
+    gc()
+  }, add = TRUE)
   . <- NULL
   #Validation arguments necessary only for early stop on validation set
   args <- list(...)

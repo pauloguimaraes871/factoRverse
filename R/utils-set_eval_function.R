@@ -266,11 +266,19 @@
 
           #Return Results
           if(return_all_info == FALSE){
+
+            #Improve memory usage
+            rm(features_matrix_train_clean, target_vector_train, features_validation_sample_clean,
+               model_nn, fit_nn)
+            gc()
+
             return(df_eval_metrics)
           } else {
             return(list(df_eval_metrics = df_eval_metrics, model_nn = model_nn, fit_nn = fit_nn,
                         pred = pred,
                         target = target_validation_sample))
+
+
           }
 
 
@@ -627,6 +635,11 @@
                                                            early_stop = early_stop,
                                                            best_iteration = which.min(fit_nn$metrics[[chosen_eval_metric_translated$name]])
                  )
+
+                 #Improve memory usage
+                 rm(features_matrix_train_clean, target_vector_train, features_validation_sample_clean,
+                    model_nn, fit_nn)
+                 gc()
 
 
                  #Return List
