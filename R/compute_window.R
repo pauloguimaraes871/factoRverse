@@ -36,6 +36,7 @@
 #'
 #' Available functions:
 #' \itemize{
+#'   \item **sum**: `sum(x, na.rm = na.rm)`
 #'   \item **median**: `stats::median(x, na.rm = na.rm)`
 #'   \item **sd**: `stats::sd(x, na.rm = na.rm)`
 #'   \item **skew**: `mean((x - mean(x))^3, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)^3`
@@ -196,6 +197,7 @@ setMethod("compute_window",
 
               ##Depending on FUN, compute the rolling metric
               switch(FUN,
+                     "sum" = sum(values, na.rm = na.rm),
                      "mean" = mean(values, na.rm = na.rm),
                      "median" = stats::median(values, na.rm = na.rm),
                      "sd" = stats::sd(values, na.rm = na.rm),

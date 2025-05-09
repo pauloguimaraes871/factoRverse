@@ -94,6 +94,7 @@ The function filters observations within the specified time window and applies t
 
 Available functions:
 \itemize{
+\item \strong{sum}: \code{sum(x, na.rm = na.rm)}
 \item \strong{median}: \code{stats::median(x, na.rm = na.rm)}
 \item \strong{sd}: \code{stats::sd(x, na.rm = na.rm)}
 \item \strong{skew}: \code{mean((x - mean(x))^3, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)^3}

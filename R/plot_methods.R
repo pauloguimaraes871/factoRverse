@@ -1709,6 +1709,15 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
               df_data$dates <- as.Date(zoo::index(main_xts))
               df_data$year <- lubridate::year(df_data$dates)
 
+              # Convert to long format
+              long_data <- tidyr::pivot_longer(
+                df_data,
+                cols = -c(dates, year),  # Keep date and year as identifiers
+                names_to = "series",
+                values_to = "value"
+              ) %>% as.data.frame()
+
+
               # Sort by date to ensure correct plotting order
               long_data <- long_data[order(long_data$dates), ]
 
