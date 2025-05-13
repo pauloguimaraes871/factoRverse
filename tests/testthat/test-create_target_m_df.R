@@ -939,8 +939,8 @@ test_that("create_target_m_df works in an update workflow", {
   )
 
   #Replace NAs in delisted with bench ret
-  third_fwd_ret_xts@data[c(4:93), "0ec000433b"] <- bench_fwd[4:93]
-  third_fwd_ret_xts@data[93, "4c37ff6e6a"] <- bench_fwd[93]
+  third_fwd_ret_xts@data[c(4:93), "h0ec000433"] <- bench_fwd[4:93]
+  third_fwd_ret_xts@data[93, "h4c37ff6e6"] <- bench_fwd[93]
 
   tickers_universe_m_d_ref <- summarize_performance(third_fwd_ret_xts@data, bench_fwd,
                                                     model_structure = "no_pooled",
@@ -998,8 +998,8 @@ test_that("create_target_m_df works in an update workflow", {
     fourth_fwd_ret_xts <- create_meta_xts(joined_tickers_df, data_format = "long")
   )
 
-  fourth_fwd_ret_xts@data[c(63:91), "4c37ff6e6a"] <- bench_fwd[c(63:91)]
-  fourth_fwd_ret_xts@data[c(89:91), "9f6bf24009"] <- bench_fwd[c(89:91)] #fill for ipo (was delisted)
+  fourth_fwd_ret_xts@data[c(63:91), "h4c37ff6e6"] <- bench_fwd[c(63:91)]
+  fourth_fwd_ret_xts@data[c(89:91), "h9f6bf2400"] <- bench_fwd[c(89:91)] #fill for ipo (was delisted)
 
 
   tickers_universe_m_d_ref <- summarize_performance(fourth_fwd_ret_xts@data, bench_fwd,

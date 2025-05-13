@@ -697,7 +697,7 @@ test_that("update_meta_dataframe throws an error when there are common ids or ti
 
   #Force id
   second_pre_silver_features_m_df@data$dates[1] <- c("2001-06-15")
-  second_pre_silver_features_m_df@data$id[1] <- "0165b9220d-2001-05-15"
+  second_pre_silver_features_m_df@data$id[1] <- "h0165b9220-2001-05-15"
 
 
   #Update pre-silver

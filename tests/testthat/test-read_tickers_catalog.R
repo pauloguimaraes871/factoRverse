@@ -1492,23 +1492,23 @@ test_that("read_tickers_catalog works real data", {
     0)
 
   #Let's suppose that ABCB4 first quote were on 2023-08-15
-  abcb4_original <- results@data %>% dplyr::filter(tickers == "0855dfb2d5", dates == "2023-07-15")
+  abcb4_original <- results@data %>% dplyr::filter(tickers == "h0855dfb2d", dates == "2023-07-15")
   #Change catalog
   tickers_catalog@catalog$tickers_first_quote[3] <- "2023-08-15" %>% as.Date()
 
   results2 <- read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog)
-  abcb4_madeup <- results2@data %>% dplyr::filter(tickers == "0855dfb2d5", dates == "2023-07-15")
+  abcb4_madeup <- results2@data %>% dplyr::filter(tickers == "h0855dfb2d", dates == "2023-07-15")
 
   expect_equal(nrow(abcb4_madeup), 0)
   expect_false(identical(abcb4_madeup, abcb4_original))
 
   #Now suppose ABCB4 last quote were on 2023-08-15
-  abcb4_original <- results@data %>% dplyr::filter(tickers == "0855dfb2d5", dates == "2023-09-15")
+  abcb4_original <- results@data %>% dplyr::filter(tickers == "h0855dfb2d", dates == "2023-09-15")
 
   #Change catalog
   tickers_catalog@catalog$tickers_last_quote[3] <- "2023-08-15" %>% as.Date()
   results2 <- read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog)
-  abcb4_madeup <- results2@data %>% dplyr::filter(tickers == "0855dfb2d5", dates == "2023-09-15")
+  abcb4_madeup <- results2@data %>% dplyr::filter(tickers == "h0855dfb2d", dates == "2023-09-15")
 
   expect_equal(nrow(abcb4_madeup), 0)
   expect_false(identical(abcb4_madeup, abcb4_original))
@@ -1560,8 +1560,8 @@ test_that("read_tickers_catalog correctly responds to n_days_tolerance", {
   results2 <- read_tickers_catalog(data = raw_features_m_df, tickers_catalog = tickers_catalog2)
 
   #Check that EALT3 is now out
-  expect_equal(nrow(results@data %>% dplyr::filter(tickers == "9ac40e33b6", dates == "2023-09-15")), 1)
-  expect_equal(nrow(results2@data %>% dplyr::filter(tickers == "9ac40e33b6", dates == "2023-09-15")), 0)
+  expect_equal(nrow(results@data %>% dplyr::filter(tickers == "h9ac40e33b", dates == "2023-09-15")), 1)
+  expect_equal(nrow(results2@data %>% dplyr::filter(tickers == "h9ac40e33b", dates == "2023-09-15")), 0)
 
   expect_false(tickers_catalog@catalog[14,"delisted"])
   expect_true(tickers_catalog2@catalog[14,"delisted"])
@@ -1770,23 +1770,23 @@ test_that("read_tickers_catalog works for meta_xts with untraded but no wrong da
     colnames(results@data)
   )
   expect_equal(
-    results@data$`969418e9ac` %>% as.vector(),
+    results@data$h969418e9a %>% as.vector(),
     xts$RRRP3 %>% as.vector()
   )
   expect_equal(
-    results@data$`8b262b3a61` %>% as.vector(),
+    results@data$h8b262b3a6 %>% as.vector(),
     xts$PETR4 %>% as.vector()
   )
   expect_equal(
-    results@data$`7ec9e2499b` %>% as.vector(),
+    results@data$h7ec9e2499 %>% as.vector(),
     xts$VALE3 %>% as.vector()
   )
   expect_equal(
-    results@data$`b0db03a7f1` %>% as.vector(),
+    results@data$hb0db03a7f %>% as.vector(),
     xts$ABEV3 %>% as.vector()
   )
   expect_equal(
-    results@data$`a8c3dfecae` %>% as.vector(),
+    results@data$`ha8c3dfeca` %>% as.vector(),
     xts$ENAT3 %>% as.vector()
   )
 
@@ -1865,19 +1865,19 @@ test_that("read_tickers_catalog works for meta_xts with untraded AND wrong data"
   RRRP3corrected <- xts$RRRP3
   RRRP3corrected[c(21:30)] <- NA
   expect_equal(
-    results@data$`969418e9ac` %>% as.vector(),
+    results@data$`h969418e9a` %>% as.vector(),
     RRRP3corrected %>% as.vector()
   )
   expect_equal(
-    results@data$`8b262b3a61` %>% as.vector(),
+    results@data$`h8b262b3a6` %>% as.vector(),
     xts$PETR4 %>% as.vector()
   )
   expect_equal(
-    results@data$`7ec9e2499b` %>% as.vector(),
+    results@data$`h7ec9e2499` %>% as.vector(),
     xts$VALE3 %>% as.vector()
   )
   expect_equal(
-    results@data$`b0db03a7f1` %>% as.vector(),
+    results@data$`hb0db03a7f` %>% as.vector(),
     xts$ABEV3 %>% as.vector()
   )
   #ENAT3 should be corrected
@@ -1885,7 +1885,7 @@ test_that("read_tickers_catalog works for meta_xts with untraded AND wrong data"
   ENAT3corrected[c(1:4)] <- NA
 
   expect_equal(
-    results@data$b9f91b24e4 %>% as.vector(),
+    results@data$hb9f91b24e %>% as.vector(),
     ENAT3corrected %>% as.vector()
   )
 

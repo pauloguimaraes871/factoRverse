@@ -27,9 +27,9 @@ test_that("create_tickers_log works for a clean example dataset (no delisted, no
   ## expected results
   expect_equal(
     c(
-      ABEV3 = substr(digest::digest(paste0(date_first_quote$tickers[3], "_", format(date_first_quote$date_first_quote[3], "%Y%m%d")), algo = "md5"), 1, 10),
-      PETR4 = substr(digest::digest(paste0(date_first_quote$tickers[1], "_", format(date_first_quote$date_first_quote[1], "%Y%m%d")), algo = "md5"), 1, 10),
-      VALE3 = substr(digest::digest(paste0(date_first_quote$tickers[2], "_", format(date_first_quote$date_first_quote[2], "%Y%m%d")), algo = "md5"), 1, 10)
+      ABEV3 = paste0("h", substr(digest::digest(paste0(date_first_quote$tickers[3], "_", format(date_first_quote$date_first_quote[3], "%Y%m%d")), algo = "md5"), 1, 9)),
+      PETR4 = paste0("h", substr(digest::digest(paste0(date_first_quote$tickers[1], "_", format(date_first_quote$date_first_quote[1], "%Y%m%d")), algo = "md5"), 1, 9)),
+      VALE3 = paste0("h", substr(digest::digest(paste0(date_first_quote$tickers[2], "_", format(date_first_quote$date_first_quote[2], "%Y%m%d")), algo = "md5"), 1, 9))
     ),
     results@perm_id
   )
@@ -96,11 +96,11 @@ test_that("create_tickers_log works for delisted and untraded cias (and differen
 
   ## expected results
   expected <- c(
-    ABEV3 = substr(digest::digest(paste0(date_first_quote$tickers[3], "_", format(date_first_quote$date_first_quote[3], "%Y%m%d")), algo = "md5"), 1, 10),
-    CAFE3 = substr(digest::digest(paste0(date_first_quote$tickers[4], "_", NA), algo = "md5"), 1, 10),
-    ENAT3 = substr(digest::digest(paste0(date_first_quote$tickers[5], "_", format(date_first_quote$date_first_quote[5], "%Y%m%d")), algo = "md5"), 1, 10),
-    PETR4 = substr(digest::digest(paste0(date_first_quote$tickers[2], "_", format(date_first_quote$date_first_quote[2], "%Y%m%d")), algo = "md5"), 1, 10),
-    VALE3 = substr(digest::digest(paste0(date_first_quote$tickers[1], "_", format(date_first_quote$date_first_quote[1], "%Y%m%d")), algo = "md5"), 1, 10)
+    ABEV3 = paste0("h", substr(digest::digest(paste0(date_first_quote$tickers[3], "_", format(date_first_quote$date_first_quote[3], "%Y%m%d")), algo = "md5"), 1, 9)),
+    CAFE3 = paste0("h", substr(digest::digest(paste0(date_first_quote$tickers[4], "_", NA), algo = "md5"), 1, 9)),
+    ENAT3 = paste0("h", substr(digest::digest(paste0(date_first_quote$tickers[5], "_", format(date_first_quote$date_first_quote[5], "%Y%m%d")), algo = "md5"), 1, 9)),
+    PETR4 = paste0("h", substr(digest::digest(paste0(date_first_quote$tickers[2], "_", format(date_first_quote$date_first_quote[2], "%Y%m%d")), algo = "md5"), 1, 9)),
+    VALE3 = paste0("h", substr(digest::digest(paste0(date_first_quote$tickers[1], "_", format(date_first_quote$date_first_quote[1], "%Y%m%d")), algo = "md5"), 1, 9))
   )
   expected <- expected[order(expected)]
 

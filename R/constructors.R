@@ -920,7 +920,7 @@ setMethod("create_tickers_catalog",
               ###Define function to generate perm_id
               generate_perm_id <- function(ticker, tickers_first_quote) {
                 date_str <- ifelse(is.na(tickers_first_quote), "NA", format(tickers_first_quote, "%Y%m%d"))
-                short_hash <- substr(digest::digest(paste0(ticker, "_", date_str), algo = "md5"), 1, 10)
+                short_hash <- paste0("h", substr(digest::digest(paste0(ticker, "_", date_str), algo = "md5"), 1, 9))
                 return(short_hash)
               }
 
